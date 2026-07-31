@@ -60,17 +60,25 @@ function Facade({ url, className }: { url: string; className?: string }) {
   }
 
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-[#f4f3ef] ${className ?? ""}`}>
+    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[#1e293b] ${className ?? ""}`}>
+      {/* Soft ambient background matching photo tones to extend sky and greenery on side margins */}
+      <img
+        src={fullResUrl}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover blur-2xl opacity-60 scale-125"
+      />
+      {/* Primary facade photo: object-contain guarantees 100% of roof, house, driveway & sky fit completely unclipped */}
       <img
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
         crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`h-full w-full object-cover transition-opacity duration-300 ${
+        className={`relative z-10 max-h-full max-w-full object-contain p-[1.5mm] transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
         }`}
-        style={{ objectPosition: "center center", imageRendering: "-webkit-optimize-contrast" }}
+        style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
   );
