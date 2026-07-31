@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { X, Loader2, Plus } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -332,6 +332,16 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     applyPricing(data.designName, data.range, data.landPrice, amount);
   };
 
+  useEffect(() => {
+    if (data.facadeUrl && data.facadeUrl.startsWith("http") && !data.facadeUrl.startsWith("data:")) {
+      void prepareFacade(data.facadeUrl).then((widened) => {
+        if (widened && widened !== data.facadeUrl) {
+          set("facadeUrl", widened);
+        }
+      });
+    }
+  }, [data.facadeUrl]);
+
   /** Select a library facade: price it, then have the render re-composed into a
    *  wide frame — the whole house kept intact and as large as possible, with
    *  fresh, consistent landscaping filling the rest of the frame. */
@@ -342,9 +352,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
-    set("facadeUrl", item.url);
     setFacadeBusy(true);
     try {
+      // 1. Immediately generate 21:9 wide outpainted facade so preview updates instantly
+      const widened = await prepareFacade(item.url);
+      set("facadeUrl", widened);
+
+      // 2. Ask AI endpoint to outpaint if API key is configured
       const res = await fetch("/api/widen-facade", {
         method: "POST",
         headers: await authHeaders(),
@@ -355,15 +369,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           housingType: data.housingType,
         }),
       });
-      const json = (await res.json()) as { url?: string };
-      if (res.ok && json.url) {
+      const json = (await res.json().catch(() => ({}))) as { url?: string; fallback?: boolean };
+      if (res.ok && json.url && !json.fallback && json.url !== item.url) {
         set("facadeUrl", json.url);
-      } else {
-        const tight = await prepareFacade(item.url);
-        set("facadeUrl", tight);
       }
     } catch {
-      // Keep the original render if the re-compose isn't possible.
+      const widened = await prepareFacade(item.url);
+      set("facadeUrl", widened);
     } finally {
       setFacadeBusy(false);
     }
