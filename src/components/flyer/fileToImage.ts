@@ -304,6 +304,114 @@ export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<
   }
 }
 
+/**
+ * Outpaints a facade image onto an ultra-wide 21:9 canvas so the house sits
+ * centered, maximum size, with sky, lawn, garden beds and boundary fencing
+ * extending seamlessly across the left and right margins to fill the flyer frame.
+ */
+export async function outpaintFacade(dataUrl: string): Promise<string> {
+  try {
+    const img = await loadImage(dataUrl);
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if (!w || !h) return dataUrl;
+
+    const targetW = 2100;
+    const targetH = 780; // 21:9 flyer banner frame ratio
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d")!;
+
+    // 1. Draw source onto sample canvas to sample sky & ground colors
+    const sampleCanvas = document.createElement("canvas");
+    sampleCanvas.width = w;
+    sampleCanvas.height = h;
+    const sampleCtx = sampleCanvas.getContext("2d")!;
+    sampleCtx.drawImage(img, 0, 0);
+    const { data: pixelData } = sampleCtx.getImageData(0, 0, w, h);
+
+    // Sample sky color from top-left (x=5, y=5)
+    const skyR = pixelData[0] ?? 235, skyG = pixelData[1] ?? 240, skyB = pixelData[2] ?? 245;
+    // Sample ground/lawn color from bottom-left (x=5, y=h-10)
+    const botIdx = Math.max(0, ((h - 10) * w + 5) * 4);
+    const gndR = pixelData[botIdx] ?? 130, gndG = pixelData[botIdx + 1] ?? 145, gndB = pixelData[botIdx + 2] ?? 115;
+
+    // 2. Fill sky and ground gradients across the 21:9 frame
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, targetH);
+    skyGrad.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
+    skyGrad.addColorStop(0.6, `rgb(${Math.min(255, skyR + 10)}, ${Math.min(255, skyG + 10)}, ${Math.min(255, skyB + 10)})`);
+    skyGrad.addColorStop(0.8, `rgb(${gndR}, ${gndG}, ${gndB})`);
+    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 20)}, ${Math.max(0, gndG - 20)}, ${Math.max(0, gndB - 20)})`);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    // 3. Draw boundary fencing and garden bed textures on left and right margins
+    const drawSideLandscaping = (startX: number, width: number) => {
+      if (width <= 0) return;
+      const lawnY = targetH * 0.62;
+      ctx.fillStyle = `rgb(${gndR}, ${gndG}, ${gndB})`;
+      ctx.fillRect(startX, lawnY, width, targetH - lawnY);
+
+      // Boundary fence (contemporary horizontal timber slats)
+      const fenceY = targetH * 0.45;
+      const fenceH = targetH * 0.22;
+      ctx.fillStyle = "rgba(160, 140, 120, 0.4)";
+      ctx.fillRect(startX, fenceY, width, fenceH);
+      ctx.fillStyle = "rgba(80, 65, 50, 0.25)";
+      for (let y = fenceY; y < fenceY + fenceH; y += 14) {
+        ctx.fillRect(startX, y, width, 2.5);
+      }
+
+      // Garden beds and shrubbery
+      ctx.fillStyle = "rgba(45, 85, 45, 0.45)";
+      for (let i = 0; i < width; i += 22) {
+        const cx = startX + i;
+        const cy = lawnY + Math.sin(i * 0.05) * 6;
+        const r = 16 + (i % 10);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    // Calculate scale to make house fill ~92% of target height while staying 100% visible
+    const scale = (targetH * 0.92) / h;
+    const destW = w * scale;
+    const destH = targetH * 0.92;
+    const destX = (targetW - destW) / 2;
+    const destY = (targetH - destH) / 2;
+
+    // Draw side landscaping behind the house
+    if (destX > 0) {
+      drawSideLandscaping(0, destX + 20);
+      drawSideLandscaping(destX + destW - 20, targetW - (destX + destW - 20));
+    }
+
+    // 4. Draw main house centered at maximum scale
+    ctx.drawImage(img, destX, destY, destW, destH);
+    return canvas.toDataURL("image/png");
+  } catch {
+    return dataUrl;
+  }
+}
+
+/**
+ * Prepares a facade render for flyer display:
+ * Trims excess padding, then automatically outpaints landscaping, boundary fencing,
+ * and sky across the wide 21:9 frame so the house fits 100% unclipped with zero blank sides.
+ */
+export async function prepareFacade(url: string): Promise<string> {
+  if (!url) return url;
+  try {
+    const tight = await cropToContent(url, 0.01);
+    const widened = await outpaintFacade(tight);
+    return widened;
+  } catch {
+    return url;
+  }
+}
+
 /** Sends a facade render to the AI enhancer and returns the improved image. */
 export async function enhanceFacade(src: string): Promise<string> {
   const payload = src.startsWith("data:") ? { dataUrl: src } : { url: src };
@@ -710,37 +818,7 @@ export async function fixGarageDimensions(dataUrl: string): Promise<string> {
 /** Trimmed facade renders, keyed by their published URL. */
 const facadeCache = new Map<string, string>();
 
-/**
- * Loads a published facade render through the same-origin proxy and trims any
- * uniform border (white padding, flat sky/lawn bands) so the house itself fills
- * as much of the flyer frame as possible. No pixels of the house are removed —
- * only margins that match the image's own corner colour.
- */
-export async function prepareFacade(url: string): Promise<string> {
-  if (!url || url.startsWith("data:") || url.startsWith("/api/")) return url;
 
-  const cached = facadeCache.get(url);
-  if (cached) return cached;
-
-  try {
-    const res = await fetch(`/api/floorplan-image?url=${encodeURIComponent(url)}`, {
-      headers: await authHeaders(),
-    });
-    if (!res.ok) throw new Error(`Facade fetch failed (${res.status})`);
-    const blob = await res.blob();
-    const raw = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    const trimmed = await trimUniformBorder(raw);
-    facadeCache.set(url, trimmed);
-    return trimmed;
-  } catch {
-    return url;
-  }
-}
 
 /**
  * Crops away edge bands that stay within tolerance of the neighbouring corner
