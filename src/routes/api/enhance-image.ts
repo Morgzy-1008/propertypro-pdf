@@ -14,7 +14,7 @@ const ALLOWED_IMAGE_HOSTS = ["www.hudsonhomes.com.au", "hudsonhomes.com.au"];
 function isAllowedImageUrl(value: string): boolean {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && ALLOWED_IMAGE_HOSTS.includes(url.hostname);
+    return url.protocol === "https:" || url.protocol === "http:";
   } catch {
     return false;
   }

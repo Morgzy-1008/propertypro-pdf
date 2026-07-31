@@ -7,8 +7,8 @@ import type { Database } from "@/integrations/supabase/types";
  * or null when the request may proceed.
  */
 export async function requireStaff(request: Request): Promise<Response | null> {
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     console.error("[auth] Missing Supabase server environment variables");
     return Response.json({ error: "Server not configured" }, { status: 500 });
