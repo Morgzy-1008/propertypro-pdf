@@ -405,16 +405,42 @@ export async function outpaintFacade(dataUrl: string): Promise<string> {
   }
 }
 
+/** Cache for outpainted facade renders, keyed by source URL. */
+const facadeOutpaintCache = new Map<string, string>();
+
 /**
- * Prepares a facade render for flyer display:
- * Trims excess padding, then automatically outpaints landscaping, boundary fencing,
- * and sky across the wide 21:9 frame so the house fits 100% unclipped with zero blank sides.
+ * Prepares a facade render for flyer display.
+ * Fetches the image through the same-origin proxy (avoids cross-origin canvas taint),
+ * converts it to a data URL, then outpaints landscaping, fencing, and sky across
+ * a wide 21:9 canvas so the house fills the flyer banner 100% unclipped.
  */
 export async function prepareFacade(url: string): Promise<string> {
   if (!url) return url;
+  // If already a data URL or already outpainted, re-outpaint it directly
+  if (url.startsWith("data:")) {
+    try { return await outpaintFacade(url); } catch { return url; }
+  }
+
+  const cached = facadeOutpaintCache.get(url);
+  if (cached) return cached;
+
   try {
-    const tight = await cropToContent(url, 0.01);
-    const widened = await outpaintFacade(tight);
+    // 1. Fetch through same-origin proxy to avoid cross-origin canvas taint
+    const res = await fetch(`/api/floorplan-image?url=${encodeURIComponent(url)}`, {
+      headers: await authHeaders(),
+    });
+    if (!res.ok) throw new Error(`Facade fetch failed (${res.status})`);
+    const blob = await res.blob();
+    const raw = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+
+    // 2. Outpaint to 21:9 wide canvas with matching sky, lawn, fencing
+    const widened = await outpaintFacade(raw);
+    facadeOutpaintCache.set(url, widened);
     return widened;
   } catch {
     return url;
