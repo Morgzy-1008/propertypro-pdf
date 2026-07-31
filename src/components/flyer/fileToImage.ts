@@ -331,40 +331,56 @@ export async function outpaintFacade(dataUrl: string): Promise<string> {
     sampleCtx.drawImage(img, 0, 0);
     const { data: pixelData } = sampleCtx.getImageData(0, 0, w, h);
 
-    // Sample sky color from top-left (x=5, y=5)
+    // Sample top sky color
     const skyR = pixelData[0] ?? 235, skyG = pixelData[1] ?? 240, skyB = pixelData[2] ?? 245;
-    // Sample ground/lawn color from bottom-left (x=5, y=h-10)
+    // Sample bottom ground/driveway color
     const botIdx = Math.max(0, ((h - 10) * w + 5) * 4);
     const gndR = pixelData[botIdx] ?? 130, gndG = pixelData[botIdx + 1] ?? 145, gndB = pixelData[botIdx + 2] ?? 115;
+    // Sample mid-side color for fencing/hedging
+    const midIdx = Math.max(0, (Math.floor(h * 0.5) * w + 5) * 4);
+    const fenceR = pixelData[midIdx] ?? 150, fenceG = pixelData[midIdx + 1] ?? 135, fenceB = pixelData[midIdx + 2] ?? 120;
+
+    // Detect if this is a tall double-storey facade render
+    const isDoubleStorey = h / w > 0.65;
+
+    // Scale & Position: Double-storeys sit further back (78% height) with 10% sky gap above
+    const fillRatio = isDoubleStorey ? 0.78 : 0.86;
+    const topMarginRatio = isDoubleStorey ? 0.10 : 0.07;
+
+    const scale = (targetH * fillRatio) / h;
+    const destW = w * scale;
+    const destH = targetH * fillRatio;
+    const destX = (targetW - destW) / 2;
+    const destY = targetH * topMarginRatio;
 
     // 2. Fill sky and ground gradients across the 21:9 frame
     const skyGrad = ctx.createLinearGradient(0, 0, 0, targetH);
     skyGrad.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
-    skyGrad.addColorStop(0.6, `rgb(${Math.min(255, skyR + 10)}, ${Math.min(255, skyG + 10)}, ${Math.min(255, skyB + 10)})`);
-    skyGrad.addColorStop(0.8, `rgb(${gndR}, ${gndG}, ${gndB})`);
-    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 20)}, ${Math.max(0, gndG - 20)}, ${Math.max(0, gndB - 20)})`);
+    skyGrad.addColorStop(0.55, `rgb(${Math.min(255, skyR + 10)}, ${Math.min(255, skyG + 10)}, ${Math.min(255, skyB + 10)})`);
+    skyGrad.addColorStop(0.75, `rgb(${gndR}, ${gndG}, ${gndB})`);
+    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 25)}, ${Math.max(0, gndG - 25)}, ${Math.max(0, gndB - 25)})`);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, targetW, targetH);
 
-    // 3. Draw boundary fencing and garden bed textures on left and right margins
+    // 3. Draw boundary fencing and garden bed textures on left and right margins matching facade colors
     const drawSideLandscaping = (startX: number, width: number) => {
       if (width <= 0) return;
-      const lawnY = targetH * 0.62;
+      const lawnY = destY + destH * 0.7;
       ctx.fillStyle = `rgb(${gndR}, ${gndG}, ${gndB})`;
       ctx.fillRect(startX, lawnY, width, targetH - lawnY);
 
-      // Boundary fence (contemporary horizontal timber slats)
-      const fenceY = targetH * 0.45;
-      const fenceH = targetH * 0.22;
-      ctx.fillStyle = "rgba(160, 140, 120, 0.4)";
+      // Boundary fence (matching facade tone)
+      const fenceY = destY + destH * 0.4;
+      const fenceH = destH * 0.3;
+      ctx.fillStyle = `rgba(${fenceR}, ${fenceG}, ${fenceB}, 0.5)`;
       ctx.fillRect(startX, fenceY, width, fenceH);
-      ctx.fillStyle = "rgba(80, 65, 50, 0.25)";
+      ctx.fillStyle = "rgba(60, 50, 40, 0.25)";
       for (let y = fenceY; y < fenceY + fenceH; y += 14) {
         ctx.fillRect(startX, y, width, 2.5);
       }
 
-      // Garden beds and shrubbery
-      ctx.fillStyle = "rgba(45, 85, 45, 0.45)";
+      // Garden beds and shrubbery matching ground tone
+      ctx.fillStyle = `rgba(${Math.max(0, gndR - 40)}, ${Math.min(255, gndG + 20)}, ${Math.max(0, gndB - 40)}, 0.55)`;
       for (let i = 0; i < width; i += 22) {
         const cx = startX + i;
         const cy = lawnY + Math.sin(i * 0.05) * 6;
@@ -375,20 +391,13 @@ export async function outpaintFacade(dataUrl: string): Promise<string> {
       }
     };
 
-    // Calculate scale to make house fill ~92% of target height while staying 100% visible
-    const scale = (targetH * 0.92) / h;
-    const destW = w * scale;
-    const destH = targetH * 0.92;
-    const destX = (targetW - destW) / 2;
-    const destY = (targetH - destH) / 2;
-
     // Draw side landscaping behind the house
     if (destX > 0) {
       drawSideLandscaping(0, destX + 20);
       drawSideLandscaping(destX + destW - 20, targetW - (destX + destW - 20));
     }
 
-    // 4. Draw main house centered at maximum scale
+    // 4. Draw main house centered at target scale
     ctx.drawImage(img, destX, destY, destW, destH);
     return canvas.toDataURL("image/png");
   } catch {

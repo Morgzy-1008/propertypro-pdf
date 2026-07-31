@@ -16,8 +16,8 @@ function isAllowedImageUrl(value: string): boolean {
 
 function buildPrompt(double: boolean) {
   const fill = double
-    ? "roughly 95% of the image height and about 80-86% of the image width"
-    : "roughly 88% of the image height and about 72-80% of the image width";
+    ? "roughly 78% of the image height with a 10% sky headroom gap above the roof ridge"
+    : "roughly 86% of the image height with a 7% sky headroom gap above the roof ridge";
   return (
     "Re-render this house facade as a single ultra-wide 21:9 cinematic architectural photograph. " +
     "ABSOLUTE RULE: the house is a fixed, unchangeable subject. You may ONLY improve photographic " +
@@ -30,17 +30,16 @@ function buildPrompt(double: boolean) {
     "remove windows, rooms, wings, storeys or any structure. Do not mirror, stretch or duplicate any part " +
     "of the building to fill the wider frame — extend only the ground, garden, driveway, fencing and sky. " +
     "Do not add any secondary dwelling, granny flat or attached structure. " +
-    `Composition: place the house centred, filling as much of the frame as possible — ${fill} — ` +
+    `Composition: place the house centred, set back in perspective — ${fill} — ` +
     "with the ENTIRE house visible: the full ridge of the roof, both side edges of the building and the " +
-    "whole garage must be inside the frame, with only a very tight margin of clearance (a few percent) " +
-    "above the roof ridge and beside the outer walls. Never crop or cut off any part of the house. " +
+    "whole garage must be inside the frame, with a clear 10% sky clearance margin above the roof ridge. " +
     (double
-      ? "This is a DOUBLE STOREY home: keep the camera low and close so the two-storey elevation is as " +
-        "large as possible in the frame, with minimal empty sky above the roof and minimal foreground. "
+      ? "This is a DOUBLE STOREY home: sit the house further back in perspective so we can see generous " +
+        "front landscaping and an exposed-aggregate driveway leading to the garage in the foreground. "
       : "") +
-    "You may freely re-create the entire surrounding scene so that it is completely consistent: one clean " +
+    "You may freely re-create the surrounding scene matching the facade's color palette: one clean " +
     "modern Australian streetscape with boundary fencing on both sides, neat lawn, simple contemporary garden beds, " +
-    "an exposed-aggregate driveway leading to the garage, footpath and kerb, and a soft clear blue sky. The landscaping " +
+    "an exposed-aggregate driveway leading to the garage, footpath and kerb, and a soft clear sky. The landscaping " +
     "and fencing must be continuous, symmetric in feel and seamless right across the full width of the frame — no visible " +
     "joins, seams, mismatched lighting, repeated foliage or duplicated elements. " +
     "Bright natural daylight, consistent shadows, photoreal. " +
