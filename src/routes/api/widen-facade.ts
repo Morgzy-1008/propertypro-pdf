@@ -122,26 +122,46 @@ export const Route = createFileRoute("/api/widen-facade")({
           dataUrl = `data:${type};base64,${toBase64(new Uint8Array(await img.arrayBuffer()))}`;
         }
 
-        const key = process.env.LOVABLE_API_KEY;
-        if (!key) return fallback("missing LOVABLE_API_KEY");
+        const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.LOVABLE_API_KEY;
+        if (!key) return fallback("missing API Key");
 
-        const upstream = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-3.1-flash-image",
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { type: "text", text: buildPrompt(isDouble) },
-                  { type: "image_url", image_url: { url: dataUrl } },
+        const isDirectGemini = !process.env.LOVABLE_API_KEY && (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+        const endpoint = isDirectGemini
+          ? `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`
+          : "https://ai.gateway.lovable.dev/v1/images/generations";
+
+        const upstream = isDirectGemini
+          ? await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: buildPrompt(isDouble) },
+                      { inline_data: { mime_type: "image/jpeg", data: dataUrl.split(",")[1] ?? "" } },
+                    ],
+                  },
                 ],
-              },
-            ],
-            modalities: ["image", "text"],
-          }),
-        }).catch(() => null);
+              }),
+            }).catch(() => null)
+          : await fetch(endpoint, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model: "google/gemini-3.1-flash-image",
+                messages: [
+                  {
+                    role: "user",
+                    content: [
+                      { type: "text", text: buildPrompt(isDouble) },
+                      { type: "image_url", image_url: { url: dataUrl } },
+                    ],
+                  },
+                ],
+                modalities: ["image", "text"],
+              }),
+            }).catch(() => null);
 
         if (!upstream || !upstream.ok) {
           const text = upstream ? await upstream.text().catch(() => "") : "network error";
