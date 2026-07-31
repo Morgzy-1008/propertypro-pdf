@@ -16,8 +16,8 @@ function isAllowedImageUrl(value: string): boolean {
 
 function buildPrompt(double: boolean) {
   const fill = double
-    ? "roughly 92% of the image height and about 72-80% of the image width"
-    : "roughly 82% of the image height and about 65-72% of the image width";
+    ? "roughly 95% of the image height and about 80-86% of the image width"
+    : "roughly 88% of the image height and about 72-80% of the image width";
   return (
     "Re-render this house facade as a single ultra-wide 21:9 cinematic architectural photograph. " +
     "ABSOLUTE RULE: the house is a fixed, unchangeable subject. You may ONLY improve photographic " +
@@ -28,7 +28,7 @@ function buildPrompt(double: boolean) {
     "Count the garage doors in the source image and reproduce EXACTLY that same number, same width and " +
     "same position — never add a second garage, never widen a single garage into a double, never add or " +
     "remove windows, rooms, wings, storeys or any structure. Do not mirror, stretch or duplicate any part " +
-    "of the building to fill the wider frame — extend only the ground, garden, driveway and sky. " +
+    "of the building to fill the wider frame — extend only the ground, garden, driveway, fencing and sky. " +
     "Do not add any secondary dwelling, granny flat or attached structure. " +
     `Composition: place the house centred, filling as much of the frame as possible — ${fill} — ` +
     "with the ENTIRE house visible: the full ridge of the roof, both side edges of the building and the " +
@@ -39,9 +39,9 @@ function buildPrompt(double: boolean) {
         "large as possible in the frame, with minimal empty sky above the roof and minimal foreground. "
       : "") +
     "You may freely re-create the entire surrounding scene so that it is completely consistent: one clean " +
-    "modern Australian streetscape with a neat lawn, simple contemporary garden beds, an exposed-aggregate " +
-    "driveway leading to the garage, footpath and kerb, and a soft clear sky. The landscaping must be " +
-    "continuous, symmetric in feel and seamless right across the full width of the frame — no visible " +
+    "modern Australian streetscape with boundary fencing on both sides, neat lawn, simple contemporary garden beds, " +
+    "an exposed-aggregate driveway leading to the garage, footpath and kerb, and a soft clear blue sky. The landscaping " +
+    "and fencing must be continuous, symmetric in feel and seamless right across the full width of the frame — no visible " +
     "joins, seams, mismatched lighting, repeated foliage or duplicated elements. " +
     "Bright natural daylight, consistent shadows, photoreal. " +
     "No text, no watermarks, no people, no cars, no extra houses. Return the finished photo only."

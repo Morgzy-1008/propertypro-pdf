@@ -61,24 +61,16 @@ function Facade({ url, className }: { url: string; className?: string }) {
 
   return (
     <div className={`relative h-full w-full overflow-hidden bg-[#f2f1ec] ${className ?? ""}`}>
-      {/* Soft ambient backdrop matching render tones so wide frames look seamless */}
-      <img
-        src={fullResUrl}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover blur-lg opacity-40 scale-110"
-      />
-      {/* Primary facade render: object-contain guarantees 100% of roofline, double storey, and garage fit unclipped */}
       <img
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
         crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`relative z-10 h-full w-full object-contain p-[1.5mm] transition-opacity duration-300 ${
+        className={`h-full w-full object-cover transition-opacity duration-300 ${
           loaded ? "opacity-100" : "opacity-0"
         }`}
-        style={{ objectPosition: "center center", imageRendering: "-webkit-optimize-contrast" }}
+        style={{ objectPosition: "center 15%", imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
   );
