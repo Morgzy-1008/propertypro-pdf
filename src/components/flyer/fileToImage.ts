@@ -309,123 +309,22 @@ export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<
  * centered, maximum size, with sky, lawn, garden beds and boundary fencing
  * extending seamlessly across the left and right margins to fill the flyer frame.
  */
-export async function outpaintFacade(dataUrl: string): Promise<string> {
-  try {
-    const img = await loadImage(dataUrl);
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    if (!w || !h) return dataUrl;
-
-    const targetW = 2100;
-    const targetH = 780; // 21:9 flyer banner frame ratio
-    const canvas = document.createElement("canvas");
-    canvas.width = targetW;
-    canvas.height = targetH;
-    const ctx = canvas.getContext("2d")!;
-
-    // 1. Draw source onto sample canvas to sample sky & ground colors
-    const sampleCanvas = document.createElement("canvas");
-    sampleCanvas.width = w;
-    sampleCanvas.height = h;
-    const sampleCtx = sampleCanvas.getContext("2d")!;
-    sampleCtx.drawImage(img, 0, 0);
-    const { data: pixelData } = sampleCtx.getImageData(0, 0, w, h);
-
-    // Sample top sky color
-    const skyR = pixelData[0] ?? 235, skyG = pixelData[1] ?? 240, skyB = pixelData[2] ?? 245;
-    // Sample bottom ground/driveway color
-    const botIdx = Math.max(0, ((h - 10) * w + 5) * 4);
-    const gndR = pixelData[botIdx] ?? 130, gndG = pixelData[botIdx + 1] ?? 145, gndB = pixelData[botIdx + 2] ?? 115;
-    // Sample mid-side color for fencing/hedging
-    const midIdx = Math.max(0, (Math.floor(h * 0.5) * w + 5) * 4);
-    const fenceR = pixelData[midIdx] ?? 150, fenceG = pixelData[midIdx + 1] ?? 135, fenceB = pixelData[midIdx + 2] ?? 120;
-
-    // Detect if this is a tall double-storey facade render
-    const isDoubleStorey = h / w > 0.65;
-
-    // Scale & Position: Double-storeys sit further back (78% height) with 10% sky gap above
-    const fillRatio = isDoubleStorey ? 0.78 : 0.86;
-    const topMarginRatio = isDoubleStorey ? 0.10 : 0.07;
-
-    const scale = (targetH * fillRatio) / h;
-    const destW = w * scale;
-    const destH = targetH * fillRatio;
-    const destX = (targetW - destW) / 2;
-    const destY = targetH * topMarginRatio;
-
-    // 2. Fill sky and ground gradients across the 21:9 frame
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, targetH);
-    skyGrad.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
-    skyGrad.addColorStop(0.55, `rgb(${Math.min(255, skyR + 10)}, ${Math.min(255, skyG + 10)}, ${Math.min(255, skyB + 10)})`);
-    skyGrad.addColorStop(0.75, `rgb(${gndR}, ${gndG}, ${gndB})`);
-    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 25)}, ${Math.max(0, gndG - 25)}, ${Math.max(0, gndB - 25)})`);
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, targetW, targetH);
-
-    // 3. Draw boundary fencing and garden bed textures on left and right margins matching facade colors
-    const drawSideLandscaping = (startX: number, width: number) => {
-      if (width <= 0) return;
-      const lawnY = destY + destH * 0.7;
-      ctx.fillStyle = `rgb(${gndR}, ${gndG}, ${gndB})`;
-      ctx.fillRect(startX, lawnY, width, targetH - lawnY);
-
-      // Boundary fence (matching facade tone)
-      const fenceY = destY + destH * 0.4;
-      const fenceH = destH * 0.3;
-      ctx.fillStyle = `rgba(${fenceR}, ${fenceG}, ${fenceB}, 0.5)`;
-      ctx.fillRect(startX, fenceY, width, fenceH);
-      ctx.fillStyle = "rgba(60, 50, 40, 0.25)";
-      for (let y = fenceY; y < fenceY + fenceH; y += 14) {
-        ctx.fillRect(startX, y, width, 2.5);
-      }
-
-      // Garden beds and shrubbery matching ground tone
-      ctx.fillStyle = `rgba(${Math.max(0, gndR - 40)}, ${Math.min(255, gndG + 20)}, ${Math.max(0, gndB - 40)}, 0.55)`;
-      for (let i = 0; i < width; i += 22) {
-        const cx = startX + i;
-        const cy = lawnY + Math.sin(i * 0.05) * 6;
-        const r = 16 + (i % 10);
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    };
-
-    // Draw side landscaping behind the house
-    if (destX > 0) {
-      drawSideLandscaping(0, destX + 20);
-      drawSideLandscaping(destX + destW - 20, targetW - (destX + destW - 20));
-    }
-
-    // 4. Draw main house centered at target scale
-    ctx.drawImage(img, destX, destY, destW, destH);
-    return canvas.toDataURL("image/png");
-  } catch {
-    return dataUrl;
-  }
-}
-
-/** Cache for outpainted facade renders, keyed by source URL. */
+/** Cache for prepared facade renders, keyed by source URL. */
 const facadeOutpaintCache = new Map<string, string>();
 
 /**
  * Prepares a facade render for flyer display.
  * Fetches the image through the same-origin proxy (avoids cross-origin canvas taint),
- * converts it to a data URL, then outpaints landscaping, fencing, and sky across
- * a wide 21:9 canvas so the house fills the flyer banner 100% unclipped.
+ * trims any uniform blank padding, and returns the high-resolution photo render.
  */
 export async function prepareFacade(url: string): Promise<string> {
   if (!url) return url;
-  // If already a data URL or already outpainted, re-outpaint it directly
-  if (url.startsWith("data:")) {
-    try { return await outpaintFacade(url); } catch { return url; }
-  }
+  if (url.startsWith("data:")) return url;
 
   const cached = facadeOutpaintCache.get(url);
   if (cached) return cached;
 
   try {
-    // 1. Fetch through same-origin proxy to avoid cross-origin canvas taint
     const res = await fetch(`/api/floorplan-image?url=${encodeURIComponent(url)}`, {
       headers: await authHeaders(),
     });
@@ -438,10 +337,9 @@ export async function prepareFacade(url: string): Promise<string> {
       reader.readAsDataURL(blob);
     });
 
-    // 2. Outpaint to 21:9 wide canvas with matching sky, lawn, fencing
-    const widened = await outpaintFacade(raw);
-    facadeOutpaintCache.set(url, widened);
-    return widened;
+    const trimmed = await cropToContent(raw, 0.005);
+    facadeOutpaintCache.set(url, trimmed);
+    return trimmed;
   } catch {
     return url;
   }

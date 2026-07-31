@@ -47,16 +47,11 @@ function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) 
  *  edge-to-edge without clipping the roofline or garage. */
 function Facade({ url, className }: { url: string; className?: string }) {
   const [loaded, setLoaded] = useState(false);
-  // Strip WordPress dimension suffixes only for raw http URLs, not data URLs
   const fullResUrl = url?.startsWith("data:")
     ? url
     : url
       ? url.replace(/-\d+x\d+(\.(?:jpg|jpeg|png|webp))/gi, "$1")
       : "";
-
-  // Outpainted data URLs are already 21:9 wide → object-cover fills perfectly.
-  // Raw http fallbacks use object-contain so nothing gets cropped.
-  const isOutpainted = url?.startsWith("data:");
 
   if (!url) {
     return (
@@ -69,16 +64,17 @@ function Facade({ url, className }: { url: string; className?: string }) {
   }
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[#e8e6df] ${className ?? ""}`}>
+    <div className={`relative h-full w-full overflow-hidden bg-[#1e293b] ${className ?? ""}`}>
       <img
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
+        crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`h-full w-full transition-opacity duration-300 ${
-          isOutpainted ? "object-cover" : "object-contain"
-        } ${loaded ? "opacity-100" : "opacity-0"}`}
-        style={{ objectPosition: "center center", imageRendering: "-webkit-optimize-contrast" }}
+        className={`h-full w-full object-cover transition-opacity duration-300 ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+        style={{ objectPosition: "center 5%", imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
   );
