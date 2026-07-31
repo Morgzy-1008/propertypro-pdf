@@ -170,35 +170,45 @@ export const Route = createFileRoute("/api/widen-facade")({
         const json = (await upstream.json().catch(() => null)) as {
           data?: { b64_json?: string; url?: string }[];
           choices?: { message?: { images?: { image_url?: { url?: string } }[] } }[];
+          candidates?: { content?: { parts?: { text?: string; inline_data?: { mime_type?: string; data?: string } }[] } }[];
+          predictions?: { bytesBase64Encoded?: string }[];
         } | null;
 
-        // The gateway returns either images-API `data[].b64_json` or a chat-style
-        // `choices[].message.images[].image_url.url` data URL depending on model.
+        // Extract base64 image data across OpenAI, Lovable Gateway, and Google Gemini/Imagen APIs
         const rawUrl =
           json?.data?.[0]?.url ?? json?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
         const b64 =
           json?.data?.[0]?.b64_json ??
+          json?.predictions?.[0]?.bytesBase64Encoded ??
+          json?.candidates?.[0]?.content?.parts?.find((p) => p.inline_data?.data)?.inline_data?.data ??
           (rawUrl?.startsWith("data:") ? rawUrl.split(",")[1] : undefined);
+
         if (!b64) return fallback("no image returned");
 
+        const dataResUrl = `data:image/png;base64,${b64}`;
 
-        const path = `widened/${cacheId}.png`;
-        const { error: uploadError } = await supabaseAdmin.storage
-          .from("facades")
-          .upload(path, fromBase64(b64), { contentType: "image/png", upsert: true });
-        if (uploadError) return fallback(`upload failed: ${uploadError.message}`);
+        try {
+          const path = `widened/${cacheId}.png`;
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("facades")
+            .upload(path, fromBase64(b64), { contentType: "image/png", upsert: true });
 
+          if (!uploadError) {
+            const widenedUrl = `/api/facade-image/${encodeURIComponent(cacheId)}`;
+            await supabaseAdmin.from("facade_renders").upsert({
+              id: cacheId,
+              facade_name: body.name ?? null,
+              source_url: url.startsWith("data:") ? null : url,
+              widened_url: widenedUrl,
+              aspect: "21x9",
+            });
+            return Response.json({ url: widenedUrl, cached: false });
+          }
+        } catch {
+          // If Supabase storage is unavailable, proceed with direct data URL
+        }
 
-        const widenedUrl = `/api/facade-image/${encodeURIComponent(cacheId)}`;
-        await supabaseAdmin.from("facade_renders").upsert({
-          id: cacheId,
-          facade_name: body.name ?? null,
-          source_url: url.startsWith("data:") ? null : url,
-          widened_url: widenedUrl,
-          aspect: "21x9",
-        });
-
-        return Response.json({ url: widenedUrl, cached: false });
+        return Response.json({ url: dataResUrl, cached: false });
       },
     },
   },
