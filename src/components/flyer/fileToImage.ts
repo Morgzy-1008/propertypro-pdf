@@ -803,9 +803,10 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     canvas.height = outH;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
-    // Scaled house photo centered in canvas so 100% of height (roof peak down to driveway) fits intact
-    const drawH = outH;
-    const drawW = Math.round(srcW * (outH / srcH));
+    // Scale house to 74% vertical height with 12% top sky headroom so roof peak and driveway are 100% visible
+    const drawH = Math.round(outH * 0.74);
+    const drawY = Math.round(outH * 0.12);
+    const drawW = Math.round(srcW * (drawH / srcH));
     const drawX = Math.round((outW - drawW) / 2);
 
     // Sample top sky color and bottom ground color
@@ -814,8 +815,8 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     srcCanvas.height = srcH;
     const srcCtx = srcCanvas.getContext("2d")!;
     srcCtx.drawImage(img, 0, 0);
-    const topPixel = srcCtx.getImageData(Math.round(srcW * 0.5), 5, 1, 1).data;
-    const botPixel = srcCtx.getImageData(Math.round(srcW * 0.5), srcH - 5, 1, 1).data;
+    const topPixel = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.05)), 1, 1).data;
+    const botPixel = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.95)), 1, 1).data;
 
     const skyColor = `rgb(${topPixel[0]}, ${topPixel[1]}, ${topPixel[2]})`;
     const groundColor = `rgb(${botPixel[0]}, ${botPixel[1]}, ${botPixel[2]})`;
@@ -823,25 +824,26 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     // Fill background with smooth vertical sky-to-ground gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, outH);
     skyGrad.addColorStop(0, skyColor);
-    skyGrad.addColorStop(0.7, skyColor);
+    skyGrad.addColorStop(0.55, skyColor);
+    skyGrad.addColorStop(0.85, groundColor);
     skyGrad.addColorStop(1, groundColor);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, outW, outH);
 
     // Seamless left side extension
     if (drawX > 0) {
-      ctx.drawImage(img, 0, 0, 20, srcH, 0, 0, drawX + 5, outH);
+      ctx.drawImage(img, 0, 0, 25, srcH, 0, drawY, drawX + 5, drawH);
     }
 
     // Seamless right side extension
     if (drawX + drawW < outW) {
       const rightX = drawX + drawW;
       const rightW = outW - rightX;
-      ctx.drawImage(img, srcW - 20, 0, 20, srcH, rightX - 5, 0, rightW + 5, outH);
+      ctx.drawImage(img, srcW - 25, 0, 25, srcH, rightX - 5, drawY, rightW + 5, drawH);
     }
 
-    // Draw main house photo centered and crystal sharp
-    ctx.drawImage(img, 0, 0, srcW, srcH, drawX, 0, drawW, outH);
+    // Draw main house photo centered with tight 12% sky space and 14% ground clearance
+    ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
 
     const result = canvas.toDataURL("image/png");
     facadeCache.set(dataUrl, result);
