@@ -798,70 +798,63 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     } catch {
       img = await loadImage(dataUrl);
     }
-    const srcW = img.naturalWidth || 1200;
+    const srcW = img.naturalWidth  || 1200;
     const srcH = img.naturalHeight || 900;
 
-    // Target flyer header widescreen ratio: 2.69 (269mm x 100mm)
-    const targetAspect = 2.69;
-    const outH = Math.max(900, srcH);
-    const outW = Math.round(outH * targetAspect);
+    // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
+    // Resolution: at least 2400 px wide for high-DPI PDF output.
+    const outW = Math.max(2400, srcW);
+    const outH = Math.round(outW / 2.69);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    // ── House placement ──────────────────────────────────────────────────
+    // Reserve 10% of canvas height above the house (sky headroom) and 8%
+    // below (driveway / ground band).  Scale the house image to fill the
+    // FULL remaining 82% using object-contain behaviour so the entire
+    // building — roof peak, eaves, garage base — is always visible.
+    const reserveTop    = Math.round(outH * 0.10); // 10% sky
+    const reserveBottom = Math.round(outH * 0.08); // 8%  ground
+    const areaH = outH - reserveTop - reserveBottom; // 82% for the house
+    const areaW = outW;
 
-    // Dynamic scale based on aspect ratio: double-storey/tall photos (aspect < 1.6) get 58% height & 20% sky headroom; single-storey gets 66% height & 16% sky headroom
-    const isTall = srcW / srcH < 1.6;
-    const heightRatio = isTall ? 0.58 : 0.66;
-    const topSkyRatio = isTall ? 0.20 : 0.16;
+    // Scale to fill the available area maintaining the source aspect ratio
+    // (behaves like CSS object-fit: contain)
+    const scaleByW = areaW / srcW;
+    const scaleByH = areaH / srcH;
+    const scale    = Math.min(scaleByW, scaleByH);   // fit, not fill
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+    const drawX = Math.round((outW - drawW) / 2);    // centre horizontally
+    const drawY = reserveTop + Math.round((areaH - drawH) / 2); // centre in area
 
-    const drawH = Math.round(outH * heightRatio);
-    const drawY = Math.round(outH * topSkyRatio);
-    const drawW = Math.round(srcW * (drawH / srcH));
-    const drawX = Math.round((outW - drawW) / 2);
-
-    // Sample top sky color and bottom ground color
+    // ── Background gradient ──────────────────────────────────────────────
+    // Sample sky colour from top-centre of source; ground colour from bottom.
     const srcCanvas = document.createElement("canvas");
-    srcCanvas.width = srcW;
+    srcCanvas.width  = srcW;
     srcCanvas.height = srcH;
     const srcCtx = srcCanvas.getContext("2d")!;
     srcCtx.drawImage(img, 0, 0);
-    const topPixel = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.05)), 1, 1).data;
-    const botPixel = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.95)), 1, 1).data;
+    const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
+    const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
 
-    const skyColor = `rgb(${topPixel[0]}, ${topPixel[1]}, ${topPixel[2]})`;
-    const groundColor = `rgb(${botPixel[0]}, ${botPixel[1]}, ${botPixel[2]})`;
+    const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
+    const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
 
-    // Fill background with smooth vertical sky-to-ground gradient
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, outH);
-    skyGrad.addColorStop(0, skyColor);
-    skyGrad.addColorStop(topSkyRatio + (heightRatio * 0.4), skyColor);
-    skyGrad.addColorStop(topSkyRatio + (heightRatio * 0.85), groundColor);
-    skyGrad.addColorStop(1, groundColor);
-    ctx.fillStyle = skyGrad;
+    const canvas = document.createElement("canvas");
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+    // Sky at top → transitions to ground at bottom
+    const grad = ctx.createLinearGradient(0, 0, 0, outH);
+    grad.addColorStop(0,    skyColor);
+    grad.addColorStop(0.60, skyColor);
+    grad.addColorStop(0.92, gndColor);
+    grad.addColorStop(1,    gndColor);
+    ctx.fillStyle = grad;
     ctx.fillRect(0, 0, outW, outH);
 
-    // Draw main house photo centered with sky space above roof peak and ground clearance below driveway
+    // Draw the house — full image, no source clipping, no letterbox
     ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
-
-    // Soft left edge blend into canvas background
-    if (drawX > 0) {
-      const leftGrad = ctx.createLinearGradient(drawX, 0, drawX + 30, 0);
-      leftGrad.addColorStop(0, skyColor);
-      leftGrad.addColorStop(1, "rgba(255,255,255,0)");
-      ctx.fillStyle = leftGrad;
-      ctx.fillRect(drawX, drawY, 30, drawH);
-    }
-
-    // Soft right edge blend into canvas background
-    if (drawX + drawW < outW) {
-      const rightGrad = ctx.createLinearGradient(drawX + drawW - 30, 0, drawX + drawW, 0);
-      rightGrad.addColorStop(0, "rgba(255,255,255,0)");
-      rightGrad.addColorStop(1, skyColor);
-      ctx.fillStyle = rightGrad;
-      ctx.fillRect(drawX + drawW - 30, drawY, 30, drawH);
-    }
 
     const result = canvas.toDataURL("image/png");
     facadeCache.set(dataUrl, result);
