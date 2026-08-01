@@ -23,52 +23,52 @@ interface FacadeComposition {
 
 const SPECIFIC_FACADE_OVERRIDES: Record<string, FacadeComposition> = {
   centro: {
-    targetHeightPercent: 44,
-    skyHeadroomPercent: 30,
-    groundClearancePercent: 26,
-    specialInstructions: "CENTRO SPECIFIC INSTRUCTION: Situate the single-storey Centro house set back in perspective, occupying ONLY 44% of total frame height. ABSOLUTE MANDATE: You MUST leave 30% clear blue sky headroom above the roof peak and a 26% exposed aggregate driveway / front lawn area below so the roof, room edges, and garage base are 100% UNCLIPPED.",
+    targetHeightPercent: 70,
+    skyHeadroomPercent: 14,
+    groundClearancePercent: 16,
+    specialInstructions: "CENTRO MAXIMUM SCALE: Draw the single-storey Centro house as LARGE AS POSSIBLE, centered in the frame occupying 70% of total vertical image height. ABSOLUTE MANDATE: Leave a tight 14% clear blue sky headroom space above the roof ridge and 16% exposed aggregate driveway and front lawn below so the roof peak and garage base are 100% visible and unclipped.",
   },
   ascot: {
-    targetHeightPercent: 22,
-    skyHeadroomPercent: 46,
-    groundClearancePercent: 32,
-    specialInstructions: "ASCOT EXTRA DISTANT MANDATE: This is a tall modern 2-storey box-style home. Situate the building VERY FAR BACK IN PERSPECTIVE so it occupies ONLY 22% of total vertical image height. You MUST leave a massive 46% clear blue sky headroom space above the highest roof box and 32% exposed-aggregate driveway / lawn below so the house sits far back in distant camera perspective.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "ASCOT MAXIMUM SCALE: Draw the 2-storey Ascot home as LARGE AS POSSIBLE, centered in the frame occupying 62% of total vertical image height. Leave 16% clear blue sky headroom space above the top box feature and 18% exposed aggregate driveway / front lawn below.",
   },
   cambridge: {
-    targetHeightPercent: 24,
-    skyHeadroomPercent: 44,
-    groundClearancePercent: 32,
-    specialInstructions: "CAMBRIDGE EXTRA DISTANT MANDATE: Situate the 2-storey Hampton home far back in perspective occupying ONLY 24% of frame height, with 44% clear blue sky headroom above the roof gables and a wide driveway/lawn in front.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "CAMBRIDGE MAXIMUM SCALE: Draw the 2-storey Hampton Cambridge home as LARGE AS POSSIBLE, centered occupying 62% of total vertical image height, with 16% clear blue sky headroom above the gable peaks and 18% driveway / lawn below.",
   },
   marche: {
-    targetHeightPercent: 22,
-    skyHeadroomPercent: 46,
-    groundClearancePercent: 32,
-    specialInstructions: "MARCHE EXTRA DISTANT MANDATE: Situate the 2-storey house far back in perspective occupying ONLY 22% of frame height with 46% clear sky headroom.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "MARCHE MAXIMUM SCALE: Draw the 2-storey Marche home centered occupying 62% height with 16% sky headroom and 18% driveway below.",
   },
   allure: {
-    targetHeightPercent: 23,
-    skyHeadroomPercent: 45,
-    groundClearancePercent: 32,
-    specialInstructions: "ALLURE EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 23% height with 45% clear sky headroom.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "ALLURE MAXIMUM SCALE: Draw the 2-storey Allure home centered occupying 62% height with 16% sky headroom and 18% driveway below.",
   },
   chevron: {
-    targetHeightPercent: 24,
-    skyHeadroomPercent: 44,
-    groundClearancePercent: 32,
-    specialInstructions: "CHEVRON EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 24% height with 44% clear sky headroom.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "CHEVRON MAXIMUM SCALE: Draw the 2-storey Chevron home centered occupying 62% height with 16% sky headroom and 18% driveway below.",
   },
   violet: {
-    targetHeightPercent: 23,
-    skyHeadroomPercent: 45,
-    groundClearancePercent: 32,
-    specialInstructions: "VIOLET EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 23% height with 45% clear sky headroom.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "VIOLET MAXIMUM SCALE: Draw the 2-storey Violet home centered occupying 62% height with 16% sky headroom and 18% driveway below.",
   },
   jasper: {
-    targetHeightPercent: 24,
-    skyHeadroomPercent: 44,
-    groundClearancePercent: 32,
-    specialInstructions: "JASPER EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 24% height with 44% clear sky headroom.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 16,
+    groundClearancePercent: 18,
+    specialInstructions: "JASPER MAXIMUM SCALE: Draw the 2-storey Jasper home centered occupying 62% height with 16% sky headroom and 18% driveway below.",
   },
 };
 
@@ -80,18 +80,18 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 24,
-      skyHeadroomPercent: 44,
-      groundClearancePercent: 32,
-      specialInstructions: "DOUBLE-STOREY FAR DISTANCE MANDATE: Draw the 2-storey building VERY SMALL and set far back in wide perspective, occupying ONLY 24% of the total vertical frame height centered. You MUST leave 44% clear blue sky headroom above the top roof peak and 32% exposed-aggregate driveway, footpath, kerb, and lawn below. The house MUST look set far back from the camera.",
+      targetHeightPercent: 62,
+      skyHeadroomPercent: 16,
+      groundClearancePercent: 18,
+      specialInstructions: "DOUBLE-STOREY MAXIMUM SCALE: Draw the 2-storey house as LARGE AS POSSIBLE centered in wide 2.69:1 perspective, occupying 62% of total vertical image height. Leave a minimal 16% clear blue sky headroom above the top roof ridge and 18% exposed-aggregate driveway, steps, and lawn below so the entire building is 100% visible and unclipped.",
     };
   }
 
   return {
-    targetHeightPercent: 45,
-    skyHeadroomPercent: 29,
-    groundClearancePercent: 26,
-    specialInstructions: "SINGLE-STOREY GENERAL INSTRUCTION: Situate the house set back in perspective, occupying ONLY 45% of total vertical image height. Leave a generous 29% clear blue sky headroom above the roof ridge and 26% ground clearance below showing the complete exposed-aggregate driveway, front lawn, and entry porch. The entire building from roof peak to garage base MUST be 100% visible inside the frame.",
+    targetHeightPercent: 70,
+    skyHeadroomPercent: 14,
+    groundClearancePercent: 16,
+    specialInstructions: "SINGLE-STOREY MAXIMUM SCALE: Draw the single-storey house as LARGE AS POSSIBLE centered in wide 2.69:1 perspective, occupying 70% of total vertical image height. Leave a minimal 14% clear blue sky headroom above the roof ridge and 16% exposed-aggregate driveway, porch steps, and lawn below so the roof peak and garage base are 100% visible and unclipped.",
   };
 }
 
@@ -160,8 +160,8 @@ export const Route = createFileRoute("/api/widen-facade")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Bump cacheId to force fresh distant per-facade outpainting generation
-        const cacheId = `${id}::v30_${isDouble ? "d" : "s"}`;
+        // Bump cacheId to force fresh maximum scale outpainting generation
+        const cacheId = `${id}::v40_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         if (!body.force) {
