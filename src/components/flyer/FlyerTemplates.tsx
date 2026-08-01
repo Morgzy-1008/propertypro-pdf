@@ -73,13 +73,9 @@ function Facade({ url, className }: { url: string; className?: string }) {
         loading="eager"
         crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`transition-opacity duration-300 ${
-          isAiWidened
-            ? "h-full w-full object-cover"
-            : "max-h-full max-w-full object-contain p-[1.5mm]"
-        } ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`transition-opacity duration-300 h-full w-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
         style={{
-          objectPosition: isAiWidened ? "center 0%" : "center center",
+          objectPosition: "center center",
           imageRendering: "-webkit-optimize-contrast",
         }}
       />

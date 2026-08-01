@@ -813,3 +813,12 @@ async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<strin
     return dataUrl;
   }
 }
+
+export async function prepareFacade(dataUrl: string): Promise<string> {
+  if (!dataUrl) return dataUrl;
+  const cached = facadeCache.get(dataUrl);
+  if (cached) return cached;
+  const trimmed = await trimUniformBorder(dataUrl);
+  facadeCache.set(dataUrl, trimmed);
+  return trimmed;
+}
