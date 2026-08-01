@@ -53,6 +53,8 @@ function Facade({ url, className }: { url: string; className?: string }) {
       ? url.replace(/-\d+x\d+(\.(?:jpg|jpeg|png|webp))/gi, "$1")
       : "";
 
+  const isAiWidened = url?.startsWith("data:") || url?.includes("facade-image") || url?.includes("widened");
+
   if (!url) {
     return (
       <div className={`flex h-full w-full items-center justify-center bg-white ${className ?? ""}`}>
@@ -64,25 +66,22 @@ function Facade({ url, className }: { url: string; className?: string }) {
   }
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[#1e293b] ${className ?? ""}`}>
-      {/* Soft ambient tone backdrop extending sky and greenery across the side margins */}
-      <img
-        src={fullResUrl}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover object-top opacity-35 blur-md scale-105"
-      />
-      {/* Main facade photo: object-contain guarantees 100% of roof, house, garage & driveway fit completely unclipped */}
+    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[#f2f1ec] ${className ?? ""}`}>
       <img
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
         crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`relative z-10 max-h-full max-w-full object-contain p-[1.5mm] transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
-        style={{ imageRendering: "-webkit-optimize-contrast" }}
+        className={`transition-opacity duration-300 ${
+          isAiWidened
+            ? "h-full w-full object-cover"
+            : "max-h-full max-w-full object-contain p-[1.5mm]"
+        } ${loaded ? "opacity-100" : "opacity-0"}`}
+        style={{
+          objectPosition: isAiWidened ? "center 0%" : "center center",
+          imageRendering: "-webkit-optimize-contrast",
+        }}
       />
     </div>
   );

@@ -14,36 +14,105 @@ function isAllowedImageUrl(value: string): boolean {
 }
 
 
-function buildPrompt(double: boolean) {
-  const fill = double
-    ? "roughly 78% of the image height with a 10% sky headroom gap above the roof ridge"
-    : "roughly 86% of the image height with a 7% sky headroom gap above the roof ridge";
+interface FacadeComposition {
+  targetHeightPercent: number;
+  skyHeadroomPercent: number;
+  groundClearancePercent: number;
+  specialInstructions?: string;
+}
+
+const SPECIFIC_FACADE_OVERRIDES: Record<string, FacadeComposition> = {
+  centro: {
+    targetHeightPercent: 44,
+    skyHeadroomPercent: 30,
+    groundClearancePercent: 26,
+    specialInstructions: "CENTRO SPECIFIC INSTRUCTION: Situate the single-storey Centro house set back in perspective, occupying ONLY 44% of total frame height. ABSOLUTE MANDATE: You MUST leave 30% clear blue sky headroom above the roof peak and a 26% exposed aggregate driveway / front lawn area below so the roof, room edges, and garage base are 100% UNCLIPPED.",
+  },
+  ascot: {
+    targetHeightPercent: 22,
+    skyHeadroomPercent: 46,
+    groundClearancePercent: 32,
+    specialInstructions: "ASCOT EXTRA DISTANT MANDATE: This is a tall modern 2-storey box-style home. Situate the building VERY FAR BACK IN PERSPECTIVE so it occupies ONLY 22% of total vertical image height. You MUST leave a massive 46% clear blue sky headroom space above the highest roof box and 32% exposed-aggregate driveway / lawn below so the house sits far back in distant camera perspective.",
+  },
+  cambridge: {
+    targetHeightPercent: 24,
+    skyHeadroomPercent: 44,
+    groundClearancePercent: 32,
+    specialInstructions: "CAMBRIDGE EXTRA DISTANT MANDATE: Situate the 2-storey Hampton home far back in perspective occupying ONLY 24% of frame height, with 44% clear blue sky headroom above the roof gables and a wide driveway/lawn in front.",
+  },
+  marche: {
+    targetHeightPercent: 22,
+    skyHeadroomPercent: 46,
+    groundClearancePercent: 32,
+    specialInstructions: "MARCHE EXTRA DISTANT MANDATE: Situate the 2-storey house far back in perspective occupying ONLY 22% of frame height with 46% clear sky headroom.",
+  },
+  allure: {
+    targetHeightPercent: 23,
+    skyHeadroomPercent: 45,
+    groundClearancePercent: 32,
+    specialInstructions: "ALLURE EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 23% height with 45% clear sky headroom.",
+  },
+  chevron: {
+    targetHeightPercent: 24,
+    skyHeadroomPercent: 44,
+    groundClearancePercent: 32,
+    specialInstructions: "CHEVRON EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 24% height with 44% clear sky headroom.",
+  },
+  violet: {
+    targetHeightPercent: 23,
+    skyHeadroomPercent: 45,
+    groundClearancePercent: 32,
+    specialInstructions: "VIOLET EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 23% height with 45% clear sky headroom.",
+  },
+  jasper: {
+    targetHeightPercent: 24,
+    skyHeadroomPercent: 44,
+    groundClearancePercent: 32,
+    specialInstructions: "JASPER EXTRA DISTANT MANDATE: Situate the 2-storey house far back occupying ONLY 24% height with 44% clear sky headroom.",
+  },
+};
+
+function getFacadeComposition(id: string, name: string, isDouble: boolean): FacadeComposition {
+  const key = (id || name || "").toLowerCase().trim();
+  for (const [facadeKey, config] of Object.entries(SPECIFIC_FACADE_OVERRIDES)) {
+    if (key.includes(facadeKey)) return config;
+  }
+
+  if (isDouble) {
+    return {
+      targetHeightPercent: 24,
+      skyHeadroomPercent: 44,
+      groundClearancePercent: 32,
+      specialInstructions: "DOUBLE-STOREY FAR DISTANCE MANDATE: Draw the 2-storey building VERY SMALL and set far back in wide perspective, occupying ONLY 24% of the total vertical frame height centered. You MUST leave 44% clear blue sky headroom above the top roof peak and 32% exposed-aggregate driveway, footpath, kerb, and lawn below. The house MUST look set far back from the camera.",
+    };
+  }
+
+  return {
+    targetHeightPercent: 45,
+    skyHeadroomPercent: 29,
+    groundClearancePercent: 26,
+    specialInstructions: "SINGLE-STOREY GENERAL INSTRUCTION: Situate the house set back in perspective, occupying ONLY 45% of total vertical image height. Leave a generous 29% clear blue sky headroom above the roof ridge and 26% ground clearance below showing the complete exposed-aggregate driveway, front lawn, and entry porch. The entire building from roof peak to garage base MUST be 100% visible inside the frame.",
+  };
+}
+
+function buildPrompt(id: string, name: string, double: boolean) {
+  const comp = getFacadeComposition(id, name, double);
+  const compositionText =
+    `situate the house centered, set back in perspective, occupying ONLY ${comp.targetHeightPercent}% of the total vertical frame height. ` +
+    `ABSOLUTE MANDATE FOR FACADE PLACEMENT: You MUST leave a massive ${comp.skyHeadroomPercent}% clear blue sky headroom space above the highest roof ridge and roof peak, ` +
+    `and a wide ${comp.groundClearancePercent}% ground clearance space below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. ` +
+    `The entire building from top roof peak down to bottom garage base MUST sit comfortably inside the middle ${comp.targetHeightPercent}% of the image height so it is NEVER clipped. ` +
+    (comp.specialInstructions ? comp.specialInstructions + " " : "");
+
   return (
-    "Re-render this house facade as a single ultra-wide 21:9 cinematic architectural photograph. " +
-    "ABSOLUTE RULE: the house is a fixed, unchangeable subject. You may ONLY improve photographic " +
-    "quality — sharpness, lighting, resolution, realism. You must NOT alter the architecture in any way. " +
-    "Treat the building as a locked reference: identical roof form, rooflines, pitch, gables, eaves, " +
-    "render/brick/cladding materials, colours, window count/size/placement, door, portico, columns, " +
-    "balcony and proportions. " +
-    "Count the garage doors in the source image and reproduce EXACTLY that same number, same width and " +
-    "same position — never add a second garage, never widen a single garage into a double, never add or " +
-    "remove windows, rooms, wings, storeys or any structure. Do not mirror, stretch or duplicate any part " +
-    "of the building to fill the wider frame — extend only the ground, garden, driveway, fencing and sky. " +
-    "Do not add any secondary dwelling, granny flat or attached structure. " +
-    `Composition: place the house centred, set back in perspective — ${fill} — ` +
-    "with the ENTIRE house visible: the full ridge of the roof, both side edges of the building and the " +
-    "whole garage must be inside the frame, with a clear 10% sky clearance margin above the roof ridge. " +
-    (double
-      ? "This is a DOUBLE STOREY home: sit the house further back in perspective so we can see generous " +
-        "front landscaping and an exposed-aggregate driveway leading to the garage in the foreground. "
-      : "") +
-    "You may freely re-create the surrounding scene matching the facade's color palette: one clean " +
-    "modern Australian streetscape with boundary fencing on both sides, neat lawn, simple contemporary garden beds, " +
-    "an exposed-aggregate driveway leading to the garage, footpath and kerb, and a soft clear sky. The landscaping " +
-    "and fencing must be continuous, symmetric in feel and seamless right across the full width of the frame — no visible " +
-    "joins, seams, mismatched lighting, repeated foliage or duplicated elements. " +
-    "Bright natural daylight, consistent shadows, photoreal. " +
-    "No text, no watermarks, no people, no cars, no extra houses. Return the finished photo only."
+    "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
+    "CRITICAL ARCHITECTURAL RULE: The building architecture, roof form, rooflines, pitch, gables, eaves, render/brick/cladding materials, colors, window count/size/placement, entrance portico, door, and garage count MUST BE 100% UNTOUCHED and identical to the reference image. " +
+    "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
+    "COMPOSITION & SCALE: " + compositionText + ". " +
+    "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
+    "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
+    "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
+    "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only."
   );
 }
 
@@ -83,13 +152,17 @@ export const Route = createFileRoute("/api/widen-facade")({
         const url = (body.url ?? "").trim();
         if (!id || !url) return Response.json({ error: "Missing facade" }, { status: 400 });
 
-        const isDouble = /double|two|2\s*storey/i.test(body.housingType ?? "");
+        const isDouble =
+          /double|two|2\s*storey|duplex/i.test(body.housingType ?? "") ||
+          /double|2-storey|2stry|30|32|34|35|36|38|40|42|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland/i.test(
+            `${body.id ?? ""} ${body.name ?? ""}`,
+          );
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Bump when the widening prompt changes so cached renders are refreshed.
-        const cacheId = `${id}::v5${isDouble ? "d" : "s"}`;
-
+        // Bump cacheId to force fresh distant per-facade outpainting generation
+        const cacheId = `${id}::v30_${isDouble ? "d" : "s"}`;
+        const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         if (!body.force) {
           const { data: cached } = await supabaseAdmin
@@ -135,7 +208,7 @@ export const Route = createFileRoute("/api/widen-facade")({
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                prompt: buildPrompt(isDouble),
+                prompt: promptText,
                 numberOfImages: 1,
                 aspectRatio: "16:9",
                 outputMimeType: "image/png",
@@ -154,7 +227,7 @@ export const Route = createFileRoute("/api/widen-facade")({
                   contents: [
                     {
                       parts: [
-                        { text: buildPrompt(isDouble) },
+                        { text: promptText },
                         { inline_data: { mime_type: "image/jpeg", data: dataUrl.split(",")[1] ?? "" } },
                       ],
                     },
@@ -173,7 +246,7 @@ export const Route = createFileRoute("/api/widen-facade")({
                 {
                   role: "user",
                   content: [
-                    { type: "text", text: buildPrompt(isDouble) },
+                    { type: "text", text: promptText },
                     { type: "image_url", image_url: { url: dataUrl } },
                   ],
                 },
