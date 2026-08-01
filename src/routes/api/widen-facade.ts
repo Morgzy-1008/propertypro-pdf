@@ -194,32 +194,52 @@ export const Route = createFileRoute("/api/widen-facade")({
           dataUrl = `data:${type};base64,${toBase64(new Uint8Array(await img.arrayBuffer()))}`;
         }
 
-        const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.LOVABLE_API_KEY;
+        const key =
+          process.env.GEMINI_API_KEY ||
+          process.env.GOOGLE_API_KEY ||
+          process.env.LOVABLE_API_KEY ||
+          process.env.OPENAI_API_KEY ||
+          process.env.OPENROUTER_API_KEY;
+
         if (!key) return fallback("missing API Key");
 
-        const isDirectGemini = !process.env.LOVABLE_API_KEY && (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
-
         let upstream: Response | null = null;
-        if (isDirectGemini) {
-          // 1. Try Google Imagen 3 image generation API
+
+        // 1. If using Google Gemini API key (GEMINI_API_KEY or GOOGLE_API_KEY)
+        if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+          const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+          
+          // Try Gemini 2.0 Flash Experimental with IMAGE response modality
           upstream = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${key}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                prompt: promptText,
-                numberOfImages: 1,
-                aspectRatio: "16:9",
-                outputMimeType: "image/png",
+                contents: [
+                  {
+                    parts: [
+                      { text: promptText },
+                      {
+                        inline_data: {
+                          mime_type: dataUrl.startsWith("data:image/png") ? "image/png" : "image/jpeg",
+                          data: dataUrl.split(",")[1] ?? "",
+                        },
+                      },
+                    ],
+                  },
+                ],
+                generationConfig: {
+                  responseModalities: ["IMAGE", "TEXT"],
+                },
               }),
             },
           ).catch(() => null);
 
-          // 2. Fallback to Gemini 2.0 Flash / 1.5 Flash multimodal endpoint
+          // Fallback to Gemini 1.5 Flash image generation endpoint if 2.0-flash-exp fails
           if (!upstream || !upstream.ok) {
             upstream = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -228,7 +248,12 @@ export const Route = createFileRoute("/api/widen-facade")({
                     {
                       parts: [
                         { text: promptText },
-                        { inline_data: { mime_type: "image/jpeg", data: dataUrl.split(",")[1] ?? "" } },
+                        {
+                          inline_data: {
+                            mime_type: "image/jpeg",
+                            data: dataUrl.split(",")[1] ?? "",
+                          },
+                        },
                       ],
                     },
                   ],
@@ -236,7 +261,10 @@ export const Route = createFileRoute("/api/widen-facade")({
               },
             ).catch(() => null);
           }
-        } else {
+        }
+
+        // 2. If using Lovable or OpenRouter gateway key
+        if (!upstream || !upstream.ok) {
           upstream = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
             method: "POST",
             headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
