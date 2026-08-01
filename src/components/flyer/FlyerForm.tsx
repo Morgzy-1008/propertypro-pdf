@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
-import { facadeUpliftFor, saveFacadeUplift, type FacadeItem } from "./facadeLibrary";
+import { facadeUpliftFor, saveFacadeUplift, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
 import { prepareFloorplan, prepareFacade } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
@@ -278,8 +278,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           landscaping: landscapingPriceFor(data.landSize, data.housingType, name),
         }
       : data.costs;
-    if (data.landscaping) set("costs", costs);
     applyPricing(name, data.range, data.landPrice, amount, costs);
+
+    // Auto-select primary facade for design so widescreen facade renders immediately
+    const facadeList = designFacades || BUILT_IN_FACADES;
+    if (facadeList && facadeList.length > 0) {
+      void selectFacade(facadeList[0]);
+    }
   };
 
   const selectVariant = (label: string) => {
@@ -523,7 +528,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           value={data.facadeUrl}
           onSelect={selectFacade}
           storey={storeyFor(data.housingType)}
-          disabled={!data.designName}
+          disabled={false}
           designFacades={designFacades}
           designName={data.designName}
           garage={garage}
