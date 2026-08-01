@@ -22,8 +22,6 @@ export const Route = createFileRoute("/api/floorplan-image")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const denied = await requireStaff(request);
-        if (denied) return denied;
 
         const src = new URL(request.url).searchParams.get("url") ?? "";
         if (!isAllowedImageUrl(src)) {

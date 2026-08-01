@@ -789,7 +789,15 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
   if (cached) return cached;
 
   try {
-    const img = await loadImage(dataUrl);
+    const loadUrl = dataUrl.startsWith("http")
+      ? `/api/floorplan-image?url=${encodeURIComponent(dataUrl)}`
+      : dataUrl;
+    let img: HTMLImageElement;
+    try {
+      img = await loadImage(loadUrl);
+    } catch {
+      img = await loadImage(dataUrl);
+    }
     const srcW = img.naturalWidth || 1200;
     const srcH = img.naturalHeight || 900;
 
@@ -803,9 +811,13 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     canvas.height = outH;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
-    // Scale house to 74% vertical height with 12% top sky headroom so roof peak and driveway are 100% visible
-    const drawH = Math.round(outH * 0.74);
-    const drawY = Math.round(outH * 0.12);
+    // Dynamic scale based on aspect ratio: double-storey/tall photos (aspect < 1.6) get 58% height & 20% sky headroom; single-storey gets 66% height & 16% sky headroom
+    const isTall = srcW / srcH < 1.6;
+    const heightRatio = isTall ? 0.58 : 0.66;
+    const topSkyRatio = isTall ? 0.20 : 0.16;
+
+    const drawH = Math.round(outH * heightRatio);
+    const drawY = Math.round(outH * topSkyRatio);
     const drawW = Math.round(srcW * (drawH / srcH));
     const drawX = Math.round((outW - drawW) / 2);
 
@@ -824,8 +836,8 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     // Fill background with smooth vertical sky-to-ground gradient
     const skyGrad = ctx.createLinearGradient(0, 0, 0, outH);
     skyGrad.addColorStop(0, skyColor);
-    skyGrad.addColorStop(0.55, skyColor);
-    skyGrad.addColorStop(0.85, groundColor);
+    skyGrad.addColorStop(topSkyRatio + (heightRatio * 0.4), skyColor);
+    skyGrad.addColorStop(topSkyRatio + (heightRatio * 0.85), groundColor);
     skyGrad.addColorStop(1, groundColor);
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, outW, outH);
