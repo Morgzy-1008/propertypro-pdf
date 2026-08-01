@@ -160,8 +160,8 @@ export const Route = createFileRoute("/api/widen-facade")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // Bump cacheId to force fresh maximum scale outpainting generation
-        const cacheId = `${id}::v40_${isDouble ? "d" : "s"}`;
+        // Bump cacheId to force fresh generation across all facades
+        const cacheId = `${id}::v50_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         if (!body.force) {
