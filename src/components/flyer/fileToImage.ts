@@ -312,38 +312,7 @@ export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<
 /** Cache for prepared facade renders, keyed by source URL. */
 const facadeOutpaintCache = new Map<string, string>();
 
-/**
- * Prepares a facade render for flyer display.
- * Fetches the image through the same-origin proxy (avoids cross-origin canvas taint),
- * trims any uniform blank padding, and returns the high-resolution photo render.
- */
-export async function prepareFacade(url: string): Promise<string> {
-  if (!url) return url;
-  if (url.startsWith("data:")) return url;
 
-  const cached = facadeOutpaintCache.get(url);
-  if (cached) return cached;
-
-  try {
-    const res = await fetch(`/api/floorplan-image?url=${encodeURIComponent(url)}`, {
-      headers: await authHeaders(),
-    });
-    if (!res.ok) throw new Error(`Facade fetch failed (${res.status})`);
-    const blob = await res.blob();
-    const raw = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-
-    const trimmed = await cropToContent(raw, 0.005);
-    facadeOutpaintCache.set(url, trimmed);
-    return trimmed;
-  } catch {
-    return url;
-  }
-}
 
 /** Sends a facade render to the AI enhancer and returns the improved image. */
 export async function enhanceFacade(src: string): Promise<string> {
