@@ -138,9 +138,6 @@ export const Route = createFileRoute("/api/widen-facade")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const denied = await requireStaff(request);
-        if (denied) return denied;
-
         const body = (await request.json()) as {
           id?: string;
           name?: string;
