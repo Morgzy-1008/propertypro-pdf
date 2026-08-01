@@ -844,16 +844,52 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     canvas.height = outH;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
-    // Sky at top → transitions to ground at bottom
-    const grad = ctx.createLinearGradient(0, 0, 0, outH);
-    grad.addColorStop(0,    skyColor);
-    grad.addColorStop(0.60, skyColor);
-    grad.addColorStop(0.92, gndColor);
-    grad.addColorStop(1,    gndColor);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, outW, outH);
+    // ── Background layer ────────────────────────────────────────────────
+    // If the house is narrower than the canvas, fill the sides with a blurred
+    // stretched version of the source image — gives a natural "fill" effect.
+    if (drawX > 0) {
+      // Stretch source to fill the full canvas (blurred backdrop)
+      ctx.filter = "blur(18px) brightness(0.75) saturate(0.7)";
+      ctx.drawImage(img, 0, 0, srcW, srcH, 0, 0, outW, outH);
+      ctx.filter = "none";
 
-    // Draw the house — full image, no source clipping, no letterbox
+      // Darken the top sky area with a gradient overlay for polish
+      const overlayGrad = ctx.createLinearGradient(0, 0, 0, outH);
+      overlayGrad.addColorStop(0,    `rgba(${topPx[0]},${topPx[1]},${topPx[2]},0.6)`);
+      overlayGrad.addColorStop(0.15, `rgba(${topPx[0]},${topPx[1]},${topPx[2]},0.25)`);
+      overlayGrad.addColorStop(0.7,  `rgba(${botPx[0]},${botPx[1]},${botPx[2]},0.1)`);
+      overlayGrad.addColorStop(1,    `rgba(${botPx[0]},${botPx[1]},${botPx[2]},0.4)`);
+      ctx.fillStyle = overlayGrad;
+      ctx.fillRect(0, 0, outW, outH);
+    } else {
+      // House fills the full width — plain sky-to-ground gradient background
+      const grad = ctx.createLinearGradient(0, 0, 0, outH);
+      grad.addColorStop(0,    skyColor);
+      grad.addColorStop(0.60, skyColor);
+      grad.addColorStop(0.92, gndColor);
+      grad.addColorStop(1,    gndColor);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, outW, outH);
+    }
+
+    // Soft vignette on left/right edges to blend the backdrop to the sharp image
+    if (drawX > 0) {
+      const blendW = Math.min(drawX + 40, outW * 0.25);
+      // Left vignette
+      const leftGrad = ctx.createLinearGradient(0, 0, blendW, 0);
+      leftGrad.addColorStop(0,   `rgba(${topPx[0]},${topPx[1]},${topPx[2]},0)`);
+      leftGrad.addColorStop(1,   "rgba(255,255,255,0)");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(0, 0, blendW, outH);
+      // Right vignette
+      const rightGrad = ctx.createLinearGradient(outW - blendW, 0, outW, 0);
+      rightGrad.addColorStop(0, "rgba(255,255,255,0)");
+      rightGrad.addColorStop(1, `rgba(${topPx[0]},${topPx[1]},${topPx[2]},0)`);
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(outW - blendW, 0, blendW, outH);
+    }
+
+    // ── Sharp house image on top ─────────────────────────────────────────
     ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
 
     const result = canvas.toDataURL("image/png");
@@ -863,3 +899,4 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     return dataUrl;
   }
 }
+
