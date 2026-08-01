@@ -842,20 +842,26 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, outW, outH);
 
-    // Seamless left side extension
-    if (drawX > 0) {
-      ctx.drawImage(img, 0, 0, 25, srcH, 0, drawY, drawX + 5, drawH);
-    }
-
-    // Seamless right side extension
-    if (drawX + drawW < outW) {
-      const rightX = drawX + drawW;
-      const rightW = outW - rightX;
-      ctx.drawImage(img, srcW - 25, 0, 25, srcH, rightX - 5, drawY, rightW + 5, drawH);
-    }
-
-    // Draw main house photo centered with tight 12% sky space and 14% ground clearance
+    // Draw main house photo centered with sky space above roof peak and ground clearance below driveway
     ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
+
+    // Soft left edge blend into canvas background
+    if (drawX > 0) {
+      const leftGrad = ctx.createLinearGradient(drawX, 0, drawX + 30, 0);
+      leftGrad.addColorStop(0, skyColor);
+      leftGrad.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = leftGrad;
+      ctx.fillRect(drawX, drawY, 30, drawH);
+    }
+
+    // Soft right edge blend into canvas background
+    if (drawX + drawW < outW) {
+      const rightGrad = ctx.createLinearGradient(drawX + drawW - 30, 0, drawX + drawW, 0);
+      rightGrad.addColorStop(0, "rgba(255,255,255,0)");
+      rightGrad.addColorStop(1, skyColor);
+      ctx.fillStyle = rightGrad;
+      ctx.fillRect(drawX + drawW - 30, drawY, 30, drawH);
+    }
 
     const result = canvas.toDataURL("image/png");
     facadeCache.set(dataUrl, result);
