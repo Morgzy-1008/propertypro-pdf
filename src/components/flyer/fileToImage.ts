@@ -883,53 +883,23 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     const srcH = img.naturalHeight || 900;
 
     // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
-    // Resolution: at least 2400 px wide for high-DPI PDF output.
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
 
-    // ── House placement ──────────────────────────────────────────────────
-    // Reserve 10% of canvas height above the house (sky headroom) and 8%
-    // below (driveway / ground band).  Scale the house image to fill the
-    // FULL remaining 82% using object-contain behaviour so the entire
-    // building — roof peak, eaves, garage base — is always visible.
-    const reserveTop    = Math.round(outH * 0.10); // 10% sky
-    const reserveBottom = Math.round(outH * 0.08); // 8%  ground
-    const areaH = outH - reserveTop - reserveBottom; // 82% for the house
-    const areaW = outW;
-
-    // Scale to fill the available area maintaining the source aspect ratio
-    // (behaves like CSS object-fit: contain)
-    const scaleByW = areaW / srcW;
-    const scaleByH = areaH / srcH;
-    const scale    = Math.min(scaleByW, scaleByH);   // fit, not fill
+    // Scale to fill 100% of the canvas width & height (no white side boxes, no wasted space)
+    const scale = Math.max(outW / srcW, outH / srcH);
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
-    const drawX = Math.round((outW - drawW) / 2);    // centre horizontally
-    const drawY = reserveTop + Math.round((areaH - drawH) / 2); // centre in area
-
-    // ── Background gradient ──────────────────────────────────────────────
-    // Sample sky colour from top-centre of source; ground colour from bottom.
-    const srcCanvas = document.createElement("canvas");
-    srcCanvas.width  = srcW;
-    srcCanvas.height = srcH;
-    const srcCtx = srcCanvas.getContext("2d")!;
-    srcCtx.drawImage(img, 0, 0);
-    const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
-    const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
-
-    const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
-    const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
+    const drawX = Math.round((outW - drawW) / 2);
+    const drawY = Math.round((outH - drawH) / 2);
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
     canvas.height = outH;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Clean crisp canvas background (NO blur filters, NO vignettes, NO blurred backdrops)
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
-
-    // ── Sharp house image on top ─────────────────────────────────────────
     ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
 
     const result = canvas.toDataURL("image/png");
