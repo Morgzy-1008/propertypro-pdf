@@ -263,14 +263,26 @@ export const Route = createFileRoute("/api/widen-facade")({
           predictions?: { bytesBase64Encoded?: string }[];
         } | null;
 
-        // Extract base64 image data across OpenAI, Lovable Gateway, and Google Gemini/Imagen APIs
-        const rawUrl =
-          json?.data?.[0]?.url ?? json?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        const b64 =
-          json?.data?.[0]?.b64_json ??
-          json?.predictions?.[0]?.bytesBase64Encoded ??
-          json?.candidates?.[0]?.content?.parts?.find((p) => p.inline_data?.data)?.inline_data?.data ??
-          (rawUrl?.startsWith("data:") ? rawUrl.split(",")[1] : undefined);
+        // Extract base64 image data across OpenAI, Lovable Gateway, and Google Gemini APIs
+        let b64: string | undefined = undefined;
+        if (json?.candidates?.[0]?.content?.parts) {
+          for (const p of json.candidates[0].content.parts as any[]) {
+            if (p.inlineData?.data) {
+              b64 = p.inlineData.data;
+              break;
+            }
+            if (p.inline_data?.data) {
+              b64 = p.inline_data.data;
+              break;
+            }
+          }
+        }
+        if (!b64) {
+          b64 =
+            json?.data?.[0]?.b64_json ??
+            json?.predictions?.[0]?.bytesBase64Encoded ??
+            (rawUrl?.startsWith("data:") ? rawUrl.split(",")[1] : undefined);
+        }
 
         if (!b64) return fallback("no image returned");
 
