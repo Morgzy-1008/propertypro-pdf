@@ -206,9 +206,8 @@ export const Route = createFileRoute("/api/widen-facade")({
         if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
           const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
           
-          // Try Gemini 2.0 Flash Experimental with IMAGE response modality
           upstream = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${geminiKey}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -226,38 +225,9 @@ export const Route = createFileRoute("/api/widen-facade")({
                     ],
                   },
                 ],
-                generationConfig: {
-                  responseModalities: ["IMAGE", "TEXT"],
-                },
               }),
             },
           ).catch(() => null);
-
-          // Fallback to Gemini 1.5 Flash image generation endpoint if 2.0-flash-exp fails
-          if (!upstream || !upstream.ok) {
-            upstream = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  contents: [
-                    {
-                      parts: [
-                        { text: promptText },
-                        {
-                          inline_data: {
-                            mime_type: "image/jpeg",
-                            data: dataUrl.split(",")[1] ?? "",
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                }),
-              },
-            ).catch(() => null);
-          }
         }
 
         // 2. If using Lovable or OpenRouter gateway key
