@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
 import { facadeUpliftFor, saveFacadeUplift, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
-import { prepareFloorplan, prepareFacade } from "./fileToImage";
+import { prepareFloorplan, prepareFacade, widenFacadeClientSide } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
 
@@ -359,24 +359,22 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
     setFacadeBusy(true);
     try {
-      // 1. Immediately generate 21:9 wide outpainted facade so preview updates instantly
+      // 1. Immediately generate 21:9 wide outpainted facade canvas so preview updates instantly
       const widened = await prepareFacade(item.url);
       set("facadeUrl", widened);
 
-      // 2. Ask AI endpoint to outpaint if API key is configured
-      const res = await fetch("/api/widen-facade", {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({
-          id: item.id,
-          name: item.name,
-          url: item.url,
-          housingType: data.housingType,
-        }),
+      // 2. Trigger AI Outpainter (server or client-direct Gemini 3.1 Flash Image AI)
+      const itemCategory = facadeCategory(item);
+      const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
+      const aiUrl = await widenFacadeClientSide({
+        id: item.id,
+        name: item.name,
+        url: item.url,
+        housingType: targetHousingType,
       });
-      const json = (await res.json().catch(() => ({}))) as { url?: string; fallback?: boolean };
-      if (res.ok && json.url && !json.fallback && json.url !== item.url) {
-        set("facadeUrl", json.url);
+
+      if (aiUrl && aiUrl !== item.url) {
+        set("facadeUrl", aiUrl);
       }
     } catch {
       const widened = await prepareFacade(item.url);
