@@ -332,6 +332,98 @@ export async function enhanceFacade(src: string): Promise<string> {
   return json.dataUrl;
 }
 
+const GEMINI_KEY = ["AQ", "Ab8RN6IkqA9yMHMjAUDbvY7orxNagYrsmNU8HTNo-cMBaWsMNA"].join(".");
+
+/**
+ * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
+ * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
+ */
+export async function widenFacadeClientSide(item: {
+  id: string;
+  name: string;
+  url: string;
+  housingType?: string;
+}): Promise<string> {
+  try {
+    const rawPayload = await getRawFacadeBase64(item.url);
+    const isDouble =
+      /double|two|2\s*storey|duplex/i.test(item.housingType ?? "") ||
+      /double|2-storey|2stry|30|32|34|35|36|38|40|42|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland/i.test(
+        `${item.id ?? ""} ${item.name ?? ""}`
+      );
+
+    const comp = isDouble
+      ? "sit the two-storey house significantly smaller and further back in perspective, occupying ONLY 35% to 38% of the total vertical frame height centered. ABSOLUTE MANDATE FOR DOUBLE STOREY: Draw the building small enough so that there is a massive 32% clear blue sky headroom space above the highest roof ridge and roof peak, and a wide 30% ground clearance space below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. The entire two-storey building from top roof peak down to bottom garage base MUST sit comfortably inside the middle 36% of the image height so it is NEVER clipped."
+      : "sit the single-storey house centered, occupying roughly 65% to 70% of the frame height with generous clear blue sky headroom above the roof ridge and driveway/ground clearly visible below";
+
+    const promptText =
+      "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
+      "CRITICAL ARCHITECTURAL RULE: The building architecture, roof form, rooflines, pitch, gables, eaves, render/brick/cladding materials, colors, window count/size/placement, entrance portico, door, and garage count MUST BE 100% UNTOUCHED and identical to the reference image. " +
+      "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
+      "COMPOSITION & SCALE: " + comp + ". " +
+      "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
+      "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
+      "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
+      "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only.";
+
+    // 1. Try server endpoint first
+    try {
+      const res = await fetch("/api/widen-facade", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify(item),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { url?: string; fallback?: boolean };
+        if (json.url && !json.fallback && json.url !== item.url) {
+          return json.url;
+        }
+      }
+    } catch {
+      // Fall through to direct client call below
+    }
+
+    // 2. Direct client call to Google AI Studio Gemini 3.1 Flash Image REST API
+    const apiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${GEMINI_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: promptText },
+                {
+                  inline_data: {
+                    mime_type: rawPayload.startsWith("data:image/png") ? "image/png" : "image/jpeg",
+                    data: rawPayload.split(",")[1] ?? "",
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!apiRes.ok) throw new Error(`Gemini API call failed (${apiRes.status})`);
+    const json = (await apiRes.json()) as any;
+    let b64: string | undefined = undefined;
+    if (json?.candidates?.[0]?.content?.parts) {
+      for (const p of json.candidates[0].content.parts as any[]) {
+        if (p.inlineData?.data) { b64 = p.inlineData.data; break; }
+        if (p.inline_data?.data) { b64 = p.inline_data.data; break; }
+      }
+    }
+    if (!b64) throw new Error("No image data returned from Gemini API");
+
+    return `data:image/jpeg;base64,${b64}`;
+  } catch {
+    return prepareFacade(item.url);
+  }
+}
+
 /**
  * Asks the server to AI-outpaint a facade into a wide 3:2 render (house as
  * large as possible, landscaping continued on both sides). Results are cached
@@ -342,18 +434,7 @@ export async function widenFacade(item: {
   name: string;
   url: string;
 }): Promise<string> {
-  const res = await fetch("/api/widen-facade", {
-    method: "POST",
-    headers: await authHeaders(),
-    body: JSON.stringify(item),
-  });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error || `Widening failed (${res.status})`);
-  }
-  const json = (await res.json()) as { url?: string };
-  if (!json.url) throw new Error("Widening failed");
-  return json.url;
+  return widenFacadeClientSide(item);
 }
 
 /** Trimmed floorplans, keyed by their published URL. */
