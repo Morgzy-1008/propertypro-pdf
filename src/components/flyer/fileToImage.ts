@@ -901,36 +901,16 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     ctx.imageSmoothingQuality = "high";
 
     if (isTallDouble) {
-      // DOUBLE STOREY FACADES: Fit vertical height cleanly with 15% top sky headroom so roof peak is 100% visible
-      const reserveTop = Math.round(outH * 0.15);
-      const reserveBot = Math.round(outH * 0.05);
-      const areaH = outH - reserveTop - reserveBot;
-      const scale = areaH / srcH;
+      // DOUBLE STOREY FACADES: Full-bleed scaling, top-aligned (drawY = 0) so 100% of roof peak is visible at the top
+      const scale = Math.max(outW / srcW, outH / srcH);
       drawW = Math.round(srcW * scale);
       drawH = Math.round(srcH * scale);
       drawX = Math.round((outW - drawW) / 2);
-      drawY = reserveTop;
-
-      // Sample top sky colour and bottom ground colour for seamless side fill
-      const srcCanvas = document.createElement("canvas");
-      srcCanvas.width = srcW;
-      srcCanvas.height = srcH;
-      const srcCtx = srcCanvas.getContext("2d")!;
-      srcCtx.drawImage(img, 0, 0);
-      const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
-      const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
-      const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
-      const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
-
-      const grad = ctx.createLinearGradient(0, 0, 0, outH);
-      grad.addColorStop(0, skyColor);
-      grad.addColorStop(0.65, skyColor);
-      grad.addColorStop(0.92, gndColor);
-      grad.addColorStop(1, gndColor);
-      ctx.fillStyle = grad;
+      drawY = 0; // Top-aligned: roof peak sits right at top edge, zero roof clipping!
+      ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, outW, outH);
     } else {
-      // SINGLE STOREY FACADES: 100% UNTOUCHED! Full-bleed scaling
+      // SINGLE STOREY FACADES: 100% UNTOUCHED! Full-bleed scaling, centered
       const scale = Math.max(outW / srcW, outH / srcH);
       drawW = Math.round(srcW * scale);
       drawH = Math.round(srcH * scale);
