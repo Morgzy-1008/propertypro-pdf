@@ -66,16 +66,15 @@ function Facade({ url, className }: { url: string; className?: string }) {
   }
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-[#f2f1ec] ${className ?? ""}`}>
+    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
       <img
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
         crossOrigin="anonymous"
         onLoad={() => setLoaded(true)}
-        className={`transition-opacity duration-300 h-full w-full ${url?.startsWith("data:") ? "object-cover" : "object-contain"} ${loaded ? "opacity-100" : "opacity-0"}`}
+        className={`transition-opacity duration-300 h-full w-full object-cover object-center ${loaded ? "opacity-100" : "opacity-0"}`}
         style={{
-          objectPosition: "center center",
           imageRendering: "-webkit-optimize-contrast",
         }}
       />
