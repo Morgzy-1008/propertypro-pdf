@@ -80,10 +80,10 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 62,
-      skyHeadroomPercent: 16,
-      groundClearancePercent: 18,
-      specialInstructions: "DOUBLE-STOREY MAXIMUM SCALE: Draw the 2-storey house as LARGE AS POSSIBLE centered in wide 2.69:1 perspective, occupying 62% of total vertical image height. Leave a minimal 16% clear blue sky headroom above the top roof ridge and 18% exposed-aggregate driveway, steps, and lawn below so the entire building is 100% visible and unclipped.",
+      targetHeightPercent: 46,
+      skyHeadroomPercent: 28,
+      groundClearancePercent: 14,
+      specialInstructions: "DOUBLE-STOREY ROOF PROTECTION MANDATE: Draw the 2-storey house smaller in vertical scale occupying ONLY 46% of total vertical image height centered. ABSOLUTE MANDATE: You MUST leave a massive 28% clear blue sky headroom space above the highest roof ridge, roof peak, eaves, and top floor windows, and 14% driveway/ground clearance below so the top roofline is 100% visible and NEVER clipped when displayed in a wide sales flyer header frame.",
     };
   }
 
