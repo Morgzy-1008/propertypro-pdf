@@ -886,12 +886,16 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
 
-    const isTallDouble = (srcW / srcH) < 1.95;
-
-    let drawW: number;
-    let drawH: number;
-    let drawX: number;
-    let drawY: number;
+    // Scale house to occupy 86% of vertical canvas height (10% sky headroom above roof peak, 4% driveway clearance below)
+    // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
+    const reserveTop = Math.round(outH * 0.10);
+    const reserveBot = Math.round(outH * 0.04);
+    const areaH = outH - reserveTop - reserveBot;
+    const scale = areaH / srcH;
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+    const drawX = Math.round((outW - drawW) / 2);
+    const drawY = reserveTop;
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
@@ -900,25 +904,24 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    if (isTallDouble) {
-      // DOUBLE STOREY FACADES: Full-bleed scaling, top-aligned (drawY = 0) so 100% of roof peak is visible at the top
-      const scale = Math.max(outW / srcW, outH / srcH);
-      drawW = Math.round(srcW * scale);
-      drawH = Math.round(srcH * scale);
-      drawX = Math.round((outW - drawW) / 2);
-      drawY = 0; // Top-aligned: roof peak sits right at top edge, zero roof clipping!
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, outW, outH);
-    } else {
-      // SINGLE STOREY FACADES: 100% UNTOUCHED! Full-bleed scaling, centered
-      const scale = Math.max(outW / srcW, outH / srcH);
-      drawW = Math.round(srcW * scale);
-      drawH = Math.round(srcH * scale);
-      drawX = Math.round((outW - drawW) / 2);
-      drawY = Math.round((outH - drawH) / 2);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, outW, outH);
-    }
+    // Sample sky color from top and ground color from bottom for crisp clean background
+    const srcCanvas = document.createElement("canvas");
+    srcCanvas.width = srcW;
+    srcCanvas.height = srcH;
+    const srcCtx = srcCanvas.getContext("2d")!;
+    srcCtx.drawImage(img, 0, 0);
+    const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
+    const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
+    const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
+    const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
+
+    const grad = ctx.createLinearGradient(0, 0, 0, outH);
+    grad.addColorStop(0, skyColor);
+    grad.addColorStop(0.70, skyColor);
+    grad.addColorStop(0.95, gndColor);
+    grad.addColorStop(1, gndColor);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, outW, outH);
 
     ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
 
