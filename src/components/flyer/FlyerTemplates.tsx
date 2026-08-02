@@ -75,7 +75,7 @@ function Facade({ url, className }: { url: string; className?: string }) {
         onLoad={() => setLoaded(true)}
         className={`transition-opacity duration-300 h-full w-full object-cover object-center ${loaded ? "opacity-100" : "opacity-0"}`}
         style={{
-          objectPosition: "center 80%",
+          objectPosition: "center top",
           imageRendering: "-webkit-optimize-contrast",
         }}
       />
