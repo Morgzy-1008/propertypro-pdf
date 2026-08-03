@@ -78,6 +78,15 @@ export function FacadeLibrary({
 
   const hasDesignFacades = !!designFacades?.length;
 
+  const isSingleGarageFacade = (f: FacadeItem) =>
+    /single[-\s]?garage/i.test(`${f.id} ${f.name} ${f.url}`);
+
+  const matchesGarage = (f: FacadeItem) => {
+    if (hasDesignFacades || f.range === "Uploaded" || !garage) return true;
+    const isSingle = isSingleGarageFacade(f);
+    return garage === 1 ? isSingle : !isSingle;
+  };
+
   const all = useMemo(
     () => {
       const list = hasDesignFacades ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom];
@@ -89,7 +98,7 @@ export function FacadeLibrary({
     [hasDesignFacades, designFacades, custom],
   );
 
-  const eligible = all;
+  const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, hasDesignFacades]);
 
   const tabs: { id: TabId; label: string }[] = useMemo(() => {
     if (hasDesignFacades) {
