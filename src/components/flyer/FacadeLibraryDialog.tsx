@@ -16,6 +16,7 @@ import {
   searchFacades,
   type FacadeItem,
 } from "./facadeLibrary";
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 import {
   facadeCategory,
   facadeGarage,
@@ -76,7 +77,13 @@ export function FacadeLibrary({
 
   const restricted = !!designFacades?.length;
   const all = useMemo(
-    () => (restricted ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom]),
+    () => {
+      const base = restricted ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom];
+      return base.map((f) => ({
+        ...f,
+        url: (f.id && PRE_RENDERED_FACADES[f.id]) ? PRE_RENDERED_FACADES[f.id] : f.url,
+      }));
+    },
     [restricted, designFacades, custom],
   );
 
