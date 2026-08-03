@@ -352,6 +352,52 @@ async function getRawFacadeBase64(url: string): Promise<string> {
 
 const facadeOutpaintCache = new Map<string, string>();
 
+const DB_NAME = "PropertyProFacadeCacheDB";
+const STORE_NAME = "outpaints";
+
+function openFacadeDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.indexedDB) {
+      return reject("No indexedDB support");
+    }
+    const request = window.indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function getIDBCachedOutpaint(key: string): Promise<string | null> {
+  try {
+    const db = await openFacadeDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(key);
+      req.onsuccess = () => resolve((req.result as string) || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function setIDBCachedOutpaint(key: string, value: string): Promise<void> {
+  try {
+    const db = await openFacadeDB();
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    store.put(value, key);
+  } catch {
+    // Ignore quota errors
+  }
+}
+
 function getCachedOutpaint(key: string): string | null {
   if (!key) return null;
   if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
@@ -371,8 +417,9 @@ function setCachedOutpaint(key: string, value: string): void {
   try {
     localStorage.setItem(`facade_outpaint_v7_${key}`, value);
   } catch {
-    // If localStorage quota is full, memory Map still preserves session cache
+    // Memory cache and IndexedDB retain image if localStorage is full
   }
+  setIDBCachedOutpaint(key, value);
 }
 
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
@@ -393,8 +440,14 @@ export async function widenFacadeClientSide(item: {
   }
 
   const cacheKey = item.id || item.name || item.url;
-  const cached = getCachedOutpaint(cacheKey);
-  if (cached) return cached;
+  const memoryCached = getCachedOutpaint(cacheKey);
+  if (memoryCached) return memoryCached;
+
+  const idbCached = await getIDBCachedOutpaint(cacheKey);
+  if (idbCached) {
+    facadeOutpaintCache.set(cacheKey, idbCached);
+    return idbCached;
+  }
 
   try {
     const rawPayload = await getRawFacadeBase64(item.url);
