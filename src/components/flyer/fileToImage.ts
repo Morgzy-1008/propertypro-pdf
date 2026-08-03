@@ -309,8 +309,7 @@ export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<
  * centered, maximum size, with sky, lawn, garden beds and boundary fencing
  * extending seamlessly across the left and right margins to fill the flyer frame.
  */
-/** Cache for prepared facade renders, keyed by source URL. */
-const facadeOutpaintCache = new Map<string, string>();
+
 
 
 
@@ -351,6 +350,31 @@ async function getRawFacadeBase64(url: string): Promise<string> {
   return `data:${type};base64,${btoa(binary)}`;
 }
 
+const facadeOutpaintCache = new Map<string, string>();
+
+function getCachedOutpaint(key: string): string | null {
+  if (!key) return null;
+  if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
+  try {
+    const saved = localStorage.getItem(`facade_outpaint_v2_${key}`);
+    if (saved) {
+      facadeOutpaintCache.set(key, saved);
+      return saved;
+    }
+  } catch {}
+  return null;
+}
+
+function setCachedOutpaint(key: string, value: string): void {
+  if (!key || !value) return;
+  facadeOutpaintCache.set(key, value);
+  try {
+    localStorage.setItem(`facade_outpaint_v2_${key}`, value);
+  } catch {
+    // If localStorage quota is full, memory Map still preserves session cache
+  }
+}
+
 /**
  * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
@@ -361,6 +385,10 @@ export async function widenFacadeClientSide(item: {
   url: string;
   housingType?: string;
 }): Promise<string> {
+  const cacheKey = item.id || item.name || item.url;
+  const cached = getCachedOutpaint(cacheKey);
+  if (cached) return cached;
+
   try {
     const rawPayload = await getRawFacadeBase64(item.url);
     const isDouble =
@@ -370,8 +398,8 @@ export async function widenFacadeClientSide(item: {
       );
 
     const comp = isDouble
-      ? "sit the two-storey house significantly smaller and further back in perspective, occupying ONLY 35% to 38% of the total vertical frame height centered. ABSOLUTE MANDATE FOR DOUBLE STOREY: Draw the building small enough so that there is a massive 32% clear blue sky headroom space above the highest roof ridge and roof peak, and a wide 30% ground clearance space below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. The entire two-storey building from top roof peak down to bottom garage base MUST sit comfortably inside the middle 36% of the image height so it is NEVER clipped."
-      : "sit the single-storey house centered, occupying roughly 65% to 70% of the frame height with generous clear blue sky headroom above the roof ridge and driveway/ground clearly visible below";
+      ? "sit the two-storey house prominent and large, occupying roughly 62% to 65% of the total vertical frame height centered. ABSOLUTE MANDATE FOR DOUBLE STOREY: Draw the house large and clear, leaving roughly 16% clear blue sky headroom space above the highest roof ridge and roof peak, and 18% ground clearance space below showing the entry porch, garage base, exposed aggregate driveway, and front lawn. The entire building from top roof peak down to bottom garage base MUST sit comfortably inside the middle 66% of the image height so it is NEVER clipped."
+      : "sit the single-storey house prominent and large, centered, occupying roughly 76% to 78% of the frame height with clear blue sky headroom above the roof ridge and driveway/ground clearly visible below";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
@@ -393,6 +421,7 @@ export async function widenFacadeClientSide(item: {
       if (res.ok) {
         const json = (await res.json()) as { url?: string; fallback?: boolean };
         if (json.url && !json.fallback && json.url !== item.url) {
+          setCachedOutpaint(cacheKey, json.url);
           return json.url;
         }
       }
@@ -435,9 +464,13 @@ export async function widenFacadeClientSide(item: {
     }
     if (!b64) throw new Error("No image data returned from Gemini API");
 
-    return `data:image/jpeg;base64,${b64}`;
+    const result = `data:image/jpeg;base64,${b64}`;
+    setCachedOutpaint(cacheKey, result);
+    return result;
   } catch {
-    return prepareFacade(item.url);
+    const fallback = await prepareFacade(item.url);
+    setCachedOutpaint(cacheKey, fallback);
+    return fallback;
   }
 }
 

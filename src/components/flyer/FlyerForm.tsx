@@ -279,12 +279,6 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         }
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
-
-    // Auto-select primary facade for design so widescreen facade renders immediately
-    const facadeList = designFacades || BUILT_IN_FACADES;
-    if (facadeList && facadeList.length > 0) {
-      void selectFacade(facadeList[0]);
-    }
   };
 
   const selectVariant = (label: string) => {

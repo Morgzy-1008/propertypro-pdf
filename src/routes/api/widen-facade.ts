@@ -80,18 +80,18 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 46,
-      skyHeadroomPercent: 28,
-      groundClearancePercent: 14,
-      specialInstructions: "DOUBLE-STOREY ROOF PROTECTION MANDATE: Draw the 2-storey house smaller in vertical scale occupying ONLY 46% of total vertical image height centered. ABSOLUTE MANDATE: You MUST leave a massive 28% clear blue sky headroom space above the highest roof ridge, roof peak, eaves, and top floor windows, and 14% driveway/ground clearance below so the top roofline is 100% visible and NEVER clipped when displayed in a wide sales flyer header frame.",
+      targetHeightPercent: 64,
+      skyHeadroomPercent: 16,
+      groundClearancePercent: 18,
+      specialInstructions: "DOUBLE-STOREY SCALE MANDATE: Draw the 2-storey house prominent and large, centered in wide 2.69:1 perspective, occupying roughly 64% of total vertical image height. ABSOLUTE MANDATE: Leave a clean 16% clear blue sky headroom space above the highest roof ridge, roof peak, eaves, and top floor windows, and 18% driveway/lawn clearance below so the top roofline and garage base are 100% visible and unclipped.",
     };
   }
 
   return {
-    targetHeightPercent: 70,
-    skyHeadroomPercent: 14,
-    groundClearancePercent: 16,
-    specialInstructions: "SINGLE-STOREY MAXIMUM SCALE: Draw the single-storey house as LARGE AS POSSIBLE centered in wide 2.69:1 perspective, occupying 70% of total vertical image height. Leave a minimal 14% clear blue sky headroom above the roof ridge and 16% exposed-aggregate driveway, porch steps, and lawn below so the roof peak and garage base are 100% visible and unclipped.",
+    targetHeightPercent: 76,
+    skyHeadroomPercent: 12,
+    groundClearancePercent: 12,
+    specialInstructions: "SINGLE-STOREY MAXIMUM SCALE: Draw the single-storey house prominent and large, centered in wide 2.69:1 perspective, occupying roughly 76% of total vertical image height. Leave a clear 12% blue sky headroom above the roof ridge and 12% exposed-aggregate driveway, porch steps, and lawn below so the roof peak and garage base are 100% visible and unclipped.",
   };
 }
 
