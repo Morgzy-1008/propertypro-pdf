@@ -398,8 +398,8 @@ export async function widenFacadeClientSide(item: {
       );
 
     const comp = isDouble
-      ? "sit the two-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 88% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 6% clear blue sky headroom space above highest roof ridge/peak, and 6% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
-      : "sit the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 94% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 3% clear blue sky headroom space above the roof ridge, and 3% driveway clearance below so the building is 100% visible and unclipped.";
+      ? "sit the two-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 92% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 4% clear blue sky headroom space above highest roof ridge/peak, and 4% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
+      : "sit the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 97% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 1.5% clear blue sky headroom space above the roof ridge, and 1.5% driveway clearance below so the building is 100% visible and unclipped.";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +

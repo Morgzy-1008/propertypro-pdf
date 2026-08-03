@@ -80,18 +80,18 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 88,
-      skyHeadroomPercent: 6,
-      groundClearancePercent: 6,
-      specialInstructions: "DOUBLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the 2-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 88% of total vertical image height. ABSOLUTE MANDATE: Leave only a minimal 6% clear blue sky headroom space above highest roof peak, and 6% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped.",
+      targetHeightPercent: 92,
+      skyHeadroomPercent: 4,
+      groundClearancePercent: 4,
+      specialInstructions: "DOUBLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the 2-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 92% of total vertical image height. ABSOLUTE MANDATE: Leave only a minimal 4% clear blue sky headroom space above highest roof peak, and 4% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped.",
     };
   }
 
   return {
-    targetHeightPercent: 94,
-    skyHeadroomPercent: 3,
-    groundClearancePercent: 3,
-    specialInstructions: "SINGLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 94% of total vertical image height. ABSOLUTE MANDATE: Leave a tiny 3% clear blue sky headroom space above roof ridge, and 3% driveway clearance below so the building dominates the frame while staying 100% unclipped.",
+    targetHeightPercent: 97,
+    skyHeadroomPercent: 1.5,
+    groundClearancePercent: 1.5,
+    specialInstructions: "SINGLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 97% of total vertical image height. ABSOLUTE MANDATE: Leave a tiny 1.5% clear blue sky headroom space above roof ridge, and 1.5% driveway clearance below so the building dominates the frame while staying 100% unclipped.",
   };
 }
 
@@ -157,8 +157,8 @@ export const Route = createFileRoute("/api/widen-facade")({
           );
 
 
-        // Bump cacheId to force fresh generation with strict material & color lock (v100)
-        const cacheId = `${id}::v100_${isDouble ? "d" : "s"}`;
+        // Bump cacheId to force fresh generation with enlarged house scale (v105)
+        const cacheId = `${id}::v105_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         // ── Supabase cache check (optional — skipped if service key is missing) ──
