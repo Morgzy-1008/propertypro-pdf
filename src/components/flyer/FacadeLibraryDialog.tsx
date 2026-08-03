@@ -27,7 +27,8 @@ import {
 import { fileToImageDataUrl } from "./fileToImage";
 import { formatAud } from "@/lib/pricing";
 
-const CATEGORIES: { id: FacadeStorey | "uploaded"; label: string }[] = [
+const CATEGORIES: { id: FacadeStorey | "all" | "uploaded" | "design"; label: string }[] = [
+  { id: "all", label: "All Facades" },
   { id: "single", label: "Single Storey" },
   { id: "double", label: "Double Storey" },
   { id: "acreage", label: "Acreage" },
@@ -70,41 +71,35 @@ export function FacadeLibrary({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("alpha");
-  type TabId = FacadeStorey | "uploaded" | "design";
-  const [category, setCategory] = useState<TabId>(storey ?? "single");
+  type TabId = FacadeStorey | "all" | "uploaded" | "design";
+  const [category, setCategory] = useState<TabId>("all");
   const [custom, setCustom] = useState<FacadeItem[]>(() => loadCustomFacades());
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const restricted = !!designFacades?.length;
+  const restricted = false; // Always allow viewing all facades in library
   const all = useMemo(
     () => {
-      const base = restricted ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom];
-      return base.map((f) => ({
+      // De-duplicate facades by id so all 92 built-in facades are guaranteed present
+      const map = new Map<string, FacadeItem>();
+      BUILT_IN_FACADES.forEach((f) => map.set(f.id, f));
+      if (designFacades) {
+        designFacades.forEach((f) => {
+          if (f.id && !map.has(f.id)) map.set(f.id, f);
+        });
+      }
+      custom.forEach((f) => map.set(f.id || f.name, f));
+
+      return Array.from(map.values()).map((f) => ({
         ...f,
         url: (f.id && PRE_RENDERED_FACADES[f.id]) ? PRE_RENDERED_FACADES[f.id] : f.url,
       }));
     },
-    [restricted, designFacades, custom],
+    [designFacades, custom],
   );
 
-  /** Only facades drawn with the same garage as the floorplan can be used. A
-   *  design-specific list is already the published gallery, so it isn't filtered. */
-  const matchesGarage = (f: FacadeItem) =>
-    restricted || f.range === "Uploaded" || !garage || facadeGarage(f) === garage;
+  const eligible = all;
 
-  const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, restricted]);
-
-
-  /** With a design chosen we lock to its category; split level shows everything. */
-  const tabs = useMemo(
-    () =>
-      restricted
-        ? [{ id: "design" as const, label: "Available for this design" }, CATEGORIES[3]]
-        : storey
-          ? CATEGORIES.filter((c) => c.id === storey || c.id === "uploaded")
-          : CATEGORIES,
-    [restricted, storey],
-  );
+  const tabs = CATEGORIES;
   const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
 
   const priceOf = (f: FacadeItem) =>
@@ -112,9 +107,11 @@ export function FacadeLibrary({
 
   const results = useMemo(() => {
     const inCat =
-      active === "design"
-        ? eligible.filter((f) => f.range !== "Uploaded")
-        : eligible.filter((f) => categoryOf(f) === active);
+      active === "all"
+        ? eligible
+        : active === "design"
+          ? eligible.filter((f) => f.range !== "Uploaded")
+          : eligible.filter((f) => categoryOf(f) === active);
     const found = searchFacades(inCat, query);
     const sorted = [...found];
     if (sort === "alpha") sorted.sort((a, b) => a.name.localeCompare(b.name));
