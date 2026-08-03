@@ -356,7 +356,7 @@ function getCachedOutpaint(key: string): string | null {
   if (!key) return null;
   if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
   try {
-    const saved = localStorage.getItem(`facade_outpaint_v4_${key}`);
+    const saved = localStorage.getItem(`facade_outpaint_v5_${key}`);
     if (saved) {
       facadeOutpaintCache.set(key, saved);
       return saved;
@@ -369,7 +369,7 @@ function setCachedOutpaint(key: string, value: string): void {
   if (!key || !value) return;
   facadeOutpaintCache.set(key, value);
   try {
-    localStorage.setItem(`facade_outpaint_v4_${key}`, value);
+    localStorage.setItem(`facade_outpaint_v5_${key}`, value);
   } catch {
     // If localStorage quota is full, memory Map still preserves session cache
   }
@@ -398,8 +398,8 @@ export async function widenFacadeClientSide(item: {
       );
 
     const comp = isDouble
-      ? "sit the two-storey house large, crisp, and prominent as the main feature in wide 2.69:1 perspective, occupying roughly 60% of total vertical frame height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above highest roof ridge/peak, and ~3cm driveway/lawn clearance (28% of frame height) below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
-      : "sit the single-storey house large, crisp, and prominent in wide 2.69:1 perspective, occupying roughly 62% of total vertical frame height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above the roof ridge, and ~3cm driveway/lawn clearance (26% of frame height) below showing the entrance porch and exposed-aggregate driveway so the building is 100% visible and unclipped.";
+      ? "sit the two-storey house as LARGE AND PROMINENT AS POSSIBLE centered in wide 2.69:1 perspective, occupying roughly 78% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 10% clear blue sky headroom space above highest roof ridge/peak, and 12% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
+      : "sit the single-storey house as LARGE AND PROMINENT AS POSSIBLE centered in wide 2.69:1 perspective, occupying roughly 88% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 6% clear blue sky headroom space above the roof ridge, and 6% driveway clearance below so the building is 100% visible and unclipped.";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
@@ -960,10 +960,10 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
 
-    // Scale house to occupy 60% of vertical canvas height (12% sky headroom ~1cm above roof peak, 28% driveway clearance ~3cm below)
+    // Scale house to occupy 92% of vertical canvas height (5% sky headroom above roof peak, 3% driveway clearance below)
     // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
-    const reserveTop = Math.round(outH * 0.12);
-    const reserveBot = Math.round(outH * 0.28);
+    const reserveTop = Math.round(outH * 0.05);
+    const reserveBot = Math.round(outH * 0.03);
     const areaH = outH - reserveTop - reserveBot;
     const scale = areaH / srcH;
     const drawW = Math.round(srcW * scale);
