@@ -78,9 +78,6 @@ export function FacadeLibrary({
 
   const hasDesignFacades = !!designFacades?.length;
 
-  const matchesGarage = (f: FacadeItem) =>
-    hasDesignFacades || f.range === "Uploaded" || !garage || facadeGarage(f) === garage;
-
   const all = useMemo(
     () => {
       const list = hasDesignFacades ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom];
@@ -92,7 +89,7 @@ export function FacadeLibrary({
     [hasDesignFacades, designFacades, custom],
   );
 
-  const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, hasDesignFacades]);
+  const eligible = all;
 
   const tabs: { id: TabId; label: string }[] = useMemo(() => {
     if (hasDesignFacades) {
