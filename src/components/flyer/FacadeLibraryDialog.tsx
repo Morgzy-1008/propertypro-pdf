@@ -77,40 +77,39 @@ export function FacadeLibrary({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const hasDesignFacades = !!designFacades?.length;
+
+  const matchesGarage = (f: FacadeItem) =>
+    hasDesignFacades || f.range === "Uploaded" || !garage || facadeGarage(f) === garage;
+
   const all = useMemo(
     () => {
-      const map = new Map<string, FacadeItem>();
-      BUILT_IN_FACADES.forEach((f) => map.set(f.id, f));
-      if (designFacades) {
-        designFacades.forEach((f) => {
-          if (f.id && !map.has(f.id)) map.set(f.id, f);
-        });
-      }
-      custom.forEach((f) => map.set(f.id || f.name, f));
-
-      return Array.from(map.values()).map((f) => ({
+      const list = hasDesignFacades ? [...designFacades!, ...custom] : [...BUILT_IN_FACADES, ...custom];
+      return list.map((f) => ({
         ...f,
         url: (f.id && PRE_RENDERED_FACADES[f.id]) ? PRE_RENDERED_FACADES[f.id] : f.url,
       }));
     },
-    [designFacades, custom],
+    [hasDesignFacades, designFacades, custom],
   );
 
-  const eligible = all;
+  const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, hasDesignFacades]);
 
-  const tabs: { id: TabId; label: string }[] = useMemo(
-    () =>
-      hasDesignFacades
-        ? [{ id: "design", label: "Available for this design" }, ...CATEGORIES]
-        : CATEGORIES,
-    [hasDesignFacades],
-  );
+  const tabs: { id: TabId; label: string }[] = useMemo(() => {
+    if (hasDesignFacades) {
+      return [
+        { id: "design", label: "Available for this design" },
+        { id: "uploaded", label: "Uploaded" },
+      ];
+    }
+    if (storey) {
+      const matchCat = CATEGORIES.find((c) => c.id === storey);
+      const uploadedCat = CATEGORIES.find((c) => c.id === "uploaded")!;
+      return matchCat ? [matchCat, uploadedCat] : CATEGORIES;
+    }
+    return CATEGORIES;
+  }, [hasDesignFacades, storey]);
 
-  const active: TabId = tabs.some((t) => t.id === category)
-    ? category
-    : hasDesignFacades
-      ? "design"
-      : storey ?? "single";
+  const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
 
   const priceOf = (f: FacadeItem) =>
     f.range === "Uploaded" ? null : facadePriceForDesign(f.name, facadeCategory(f), designName);
@@ -120,7 +119,7 @@ export function FacadeLibrary({
       active === "all"
         ? eligible
         : active === "design"
-          ? (designFacades ?? eligible.filter((f) => f.range !== "Uploaded"))
+          ? eligible.filter((f) => f.range !== "Uploaded")
           : eligible.filter((f) => categoryOf(f) === active);
     const found = searchFacades(inCat, query);
     const sorted = [...found];
