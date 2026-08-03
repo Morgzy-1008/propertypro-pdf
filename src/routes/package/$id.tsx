@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ExpressFlyer } from "@/components/flyer/FlyerTemplates";
 import { defaultFlyer, type FlyerData } from "@/components/flyer/types";
 import { getPublicPackage } from "@/lib/public-listings.functions";
-import { downloadA4Pdf } from "@/lib/downloadPdf";
+import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
 
 export const Route = createFileRoute("/package/$id")({
   loader: async ({ params }) => {
@@ -53,7 +53,7 @@ function PublicPackagePage() {
     setDownloading(true);
     try {
       await document.fonts.ready;
-      await downloadA4Pdf(document.querySelector(".print-root") ?? document, name);
+      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(d));
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {

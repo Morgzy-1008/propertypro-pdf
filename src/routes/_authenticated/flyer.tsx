@@ -15,7 +15,7 @@ import {
 import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flyer/types";
 import { useFitScale } from "@/components/flyer/useFitScale";
 import { parseAud } from "@/lib/pricing";
-import { downloadA4Pdf } from "@/lib/downloadPdf";
+import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
 
 export const Route = createFileRoute("/_authenticated/flyer")({
   head: () => ({
@@ -115,7 +115,7 @@ function Index() {
     setDownloading(true);
     try {
       await document.fonts.ready;
-      await downloadA4Pdf(document.querySelector(".print-root") ?? document, data.floorplanName || "hudson-homes-flyer");
+      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(data));
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {

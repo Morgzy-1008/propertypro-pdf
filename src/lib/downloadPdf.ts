@@ -1,9 +1,26 @@
+import { INCLUSION_RANGES, type FlyerData } from "@/components/flyer/types";
+
+/**
+ * Builds the standard PDF filename according to Hudson Homes specification:
+ * "H+L - (Suburb) - (Floorplan Name) - (Facade Name) - (Inclusion Range)"
+ */
+export function buildFlyerPdfFilename(data: FlyerData): string {
+  const suburb = data.suburb?.trim() || "Package";
+  const plan = data.floorplanName?.trim() || data.designName?.trim() || "Design";
+  const facade = data.facadeName?.trim() || "Facade";
+  const rangeObj = INCLUSION_RANGES.find((r) => r.id === data.range);
+  const rangeLabel = rangeObj ? rangeObj.label : "Designer Range";
+
+  return `H+L - ${suburb} - ${plan} - ${facade} - ${rangeLabel}`;
+}
+
 function safeFilename(value: string) {
   const cleaned = value
     .trim()
-    .replace(/[^a-z0-9]+/gi, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${cleaned || "hudson-homes-flyer"}.pdf`;
+    .replace(/[\\/:*?"<>|]+/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${cleaned || "H+L - Hudson Homes Flyer"}.pdf`;
 }
 
 /** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
