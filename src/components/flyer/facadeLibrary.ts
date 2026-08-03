@@ -1,5 +1,6 @@
 import { HUDSON_FACADES } from "./facades.data";
 import { facadePriceForDesign, type FacadeStorey } from "./facadePricing";
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 export interface FacadeItem {
   id: string;
@@ -9,8 +10,11 @@ export interface FacadeItem {
   url: string;
 }
 
-/** The full Hudson Homes facade catalogue, scraped from the facade galleries. */
-export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES;
+/** The full Hudson Homes facade catalogue, using pre-rendered static assets where available. */
+export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES.map((f) => ({
+  ...f,
+  url: PRE_RENDERED_FACADES[f.id] || f.url,
+}));
 
 const STORAGE_KEY = "hudson-facade-library";
 const UPLIFT_KEY = "hudson-facade-uplifts";

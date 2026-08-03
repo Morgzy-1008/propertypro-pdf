@@ -1,0 +1,25 @@
+/* Auto-generated pre-rendered facade catalogue paths */
+export const PRE_RENDERED_FACADES: Record<string, string> = {
+  "allure": "/facades-rendered/allure.jpg",
+  "ascot": "/facades-rendered/ascot.jpg",
+  "ashton": "/facades-rendered/ashton.jpg",
+  "aspen-single-garage": "/facades-rendered/aspen-single-garage.jpg",
+  "aspen": "/facades-rendered/aspen.jpg",
+  "avalon": "/facades-rendered/avalon.jpg",
+  "avoca-single-garage": "/facades-rendered/avoca-single-garage.jpg",
+  "avoca": "/facades-rendered/avoca.jpg",
+  "banksia-single-garage": "/facades-rendered/banksia-single-garage.jpg",
+  "banksia": "/facades-rendered/banksia.jpg",
+  "bayside-single-garage": "/facades-rendered/bayside-single-garage.jpg",
+  "bayside": "/facades-rendered/bayside.jpg",
+  "breeze-single-garage": "/facades-rendered/breeze-single-garage.jpg",
+  "breeze": "/facades-rendered/breeze.jpg",
+  "cambridge": "/facades-rendered/cambridge.jpg",
+  "centro": "/facades-rendered/centro.jpg",
+  "chateaux-single-garage": "/facades-rendered/chateaux-single-garage.jpg",
+  "chateaux": "/facades-rendered/chateaux.jpg",
+  "classic-plus": "/facades-rendered/classic-plus.jpg",
+  "classic": "/facades-rendered/classic.jpg",
+  "coastal": "/facades-rendered/coastal.jpg",
+  "contemporary": "/facades-rendered/contemporary.jpg"
+};

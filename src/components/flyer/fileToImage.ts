@@ -375,6 +375,8 @@ function setCachedOutpaint(key: string, value: string): void {
   }
 }
 
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
+
 /**
  * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
@@ -385,6 +387,11 @@ export async function widenFacadeClientSide(item: {
   url: string;
   housingType?: string;
 }): Promise<string> {
+  // If static pre-rendered image exists for this facade, return INSTANTLY (0ms, $0 API cost)
+  if (item.id && PRE_RENDERED_FACADES[item.id]) {
+    return PRE_RENDERED_FACADES[item.id];
+  }
+
   const cacheKey = item.id || item.name || item.url;
   const cached = getCachedOutpaint(cacheKey);
   if (cached) return cached;
