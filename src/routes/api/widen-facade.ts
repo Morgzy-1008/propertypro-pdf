@@ -155,21 +155,31 @@ export const Route = createFileRoute("/api/widen-facade")({
             `${body.id ?? ""} ${body.name ?? ""}`,
           );
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         // Bump cacheId to force fresh generation across all facades
         const cacheId = `${id}::v50_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
-        if (!body.force) {
-          const { data: cached } = await supabaseAdmin
-            .from("facade_renders")
-            .select("widened_url")
-            .eq("id", cacheId)
-            .maybeSingle();
-          if (cached?.widened_url) {
-            return Response.json({ url: cached.widened_url, cached: true });
+        // ── Supabase cache check (optional — skipped if service key is missing) ──
+        // Wrapped in try/catch: if SUPABASE_SERVICE_ROLE_KEY is not set the client
+        // throws, which was previously crashing the whole route with a 500 before
+        // even reaching the API key check. Now we just skip the cache.
+        try {
+          const mod = await import("@/integrations/supabase/client.server");
+          const supabaseAdmin = mod.supabaseAdmin;
+          if (!body.force) {
+            const { data: cached } = await supabaseAdmin
+              .from("facade_renders")
+              .select("widened_url")
+              .eq("id", cacheId)
+              .maybeSingle();
+            if (cached?.widened_url) {
+              return Response.json({ url: cached.widened_url, cached: true });
+            }
           }
+        } catch {
+          // Supabase not configured — skip cache, proceed to AI generation
+          console.warn(`[widen-facade] Supabase unavailable, skipping cache (${id})`);
         }
 
         // Any failure below is non-fatal: fall back to the original render so the
@@ -278,6 +288,7 @@ export const Route = createFileRoute("/api/widen-facade")({
           }
         }
         if (!b64) {
+          const rawUrl = json?.data?.[0]?.url ?? json?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
           b64 =
             json?.data?.[0]?.b64_json ??
             json?.predictions?.[0]?.bytesBase64Encoded ??
@@ -288,7 +299,9 @@ export const Route = createFileRoute("/api/widen-facade")({
 
         const dataResUrl = `data:image/png;base64,${b64}`;
 
+        // ── Persist to Supabase (optional — skipped if service key is missing) ──
         try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const path = `widened/${cacheId}.png`;
           const { error: uploadError } = await supabaseAdmin.storage
             .from("facades")
@@ -306,7 +319,7 @@ export const Route = createFileRoute("/api/widen-facade")({
             return Response.json({ url: widenedUrl, cached: false });
           }
         } catch {
-          // If Supabase storage is unavailable, proceed with direct data URL
+          // Supabase not configured — fall through to return data URL directly
         }
 
         return Response.json({ url: dataResUrl, cached: false });

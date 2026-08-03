@@ -334,6 +334,23 @@ export async function enhanceFacade(src: string): Promise<string> {
 
 const GEMINI_KEY = ["AQ", "Ab8RN6IkqA9yMHMjAUDbvY7orxNagYrsmNU8HTNo-cMBaWsMNA"].join(".");
 
+/** Fetches a facade image URL and returns it as a base64-encoded data URL for use with the Gemini API. */
+async function getRawFacadeBase64(url: string): Promise<string> {
+  if (url.startsWith("data:")) return url;
+  // Try proxying through our image endpoint to avoid CORS issues
+  const proxyUrl = `/api/floorplan-image?url=${encodeURIComponent(url)}`;
+  const res = await fetch(proxyUrl).catch(() => null) ?? await fetch(url).catch(() => null);
+  if (!res || !res.ok) throw new Error(`Could not fetch facade image: ${url}`);
+  const type = res.headers.get("content-type") ?? "image/jpeg";
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return `data:${type};base64,${btoa(binary)}`;
+}
+
 /**
  * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
