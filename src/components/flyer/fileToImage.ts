@@ -356,7 +356,7 @@ function getCachedOutpaint(key: string): string | null {
   if (!key) return null;
   if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
   try {
-    const saved = localStorage.getItem(`facade_outpaint_v6_${key}`);
+    const saved = localStorage.getItem(`facade_outpaint_v7_${key}`);
     if (saved) {
       facadeOutpaintCache.set(key, saved);
       return saved;
@@ -369,7 +369,7 @@ function setCachedOutpaint(key: string, value: string): void {
   if (!key || !value) return;
   facadeOutpaintCache.set(key, value);
   try {
-    localStorage.setItem(`facade_outpaint_v6_${key}`, value);
+    localStorage.setItem(`facade_outpaint_v7_${key}`, value);
   } catch {
     // If localStorage quota is full, memory Map still preserves session cache
   }
@@ -403,8 +403,11 @@ export async function widenFacadeClientSide(item: {
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
-      "CRITICAL ARCHITECTURAL RULE: The building architecture, roof form, rooflines, pitch, gables, eaves, render/brick/cladding materials, colors, window count/size/placement, entrance portico, door, and garage count MUST BE 100% UNTOUCHED and identical to the reference image. " +
-      "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
+      "STRICT ARCHITECTURAL, MATERIAL & COLOR LOCK MANDATE (100% EXACT REPRODUCTION): " +
+      "You are strictly prohibited from changing, modifying, reinterpreting, or swapping ANY structural element, building feature, color, or material of the house. " +
+      "1. EXACT MATERIAL & COLOR REPRODUCTION: The exact brick colors, render shades, cladding materials, roof tile colors, timber stain hues, window frame colors, guttering, fascia, portico columns, and front door finish MUST BE 100% IDENTICAL to the reference image. Do NOT change brick to render, do NOT change dark roofs to light roofs, do NOT change render colors or timber tones. Every material, color, and finish must match the input reference photo exactly. " +
+      "2. EXACT GEOMETRY & STRUCTURE LOCK: Roof pitch, gables, eaves depth, window count/height/mullions, garage door count and panel style, entry porch columns, steps, and overall storeys MUST BE 100% UNTOUCHED and identical. Count the garage doors and windows in the reference image and reproduce EXACTLY that same number, width, and position — never add a garage, never alter storeys or building architecture. " +
+      "3. ONLY ALLOWED MODIFICATIONS: Enlarging the scale of the house in the frame to fill vertical height, enhancing photographic resolution/crispness to 4K definition, and outpainting the left and right background with extended Australian residential suburban landscaping and sky. " +
       "COMPOSITION & SCALE: " + comp + ". " +
       "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
       "TOP QUALITY & ENHANCEMENT MANDATE: Re-render in crystal-clear ultra-high resolution 4K/8K architectural photographic quality. Sharpen fine textures on roof tiles, brickwork, render, timber garage doors, glass windows, door hardware, foliage, and driveway paving with ultra-sharp definition, vivid natural colors, realistic daylighting, and zero compression artifacts. " +
