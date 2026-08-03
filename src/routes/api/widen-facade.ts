@@ -23,52 +23,52 @@ interface FacadeComposition {
 
 const SPECIFIC_FACADE_OVERRIDES: Record<string, FacadeComposition> = {
   centro: {
+    targetHeightPercent: 94,
+    skyHeadroomPercent: 3,
+    groundClearancePercent: 3,
+    specialInstructions: "CENTRO MAXIMUM HERO ZOOM: Draw the single-storey Centro house MASSIVE AND ZOOMED-IN AS POSSIBLE, occupying 94% of total vertical image height. Leave only a tiny 3% sky headroom space above the roof ridge and 3% driveway clearance below so the house dominates the entire frame while remaining 100% unclipped.",
+  },
+  ascot: {
     targetHeightPercent: 88,
     skyHeadroomPercent: 6,
     groundClearancePercent: 6,
-    specialInstructions: "CENTRO MAXIMUM HOUSE SCALE: Draw the single-storey Centro house as LARGE AND ZOOMED-IN AS POSSIBLE, occupying 88% of total vertical image height. Leave a minimal 6% sky headroom space above the top roof ridge and 6% driveway clearance below so the house is massive and 100% unclipped.",
-  },
-  ascot: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "ASCOT MAXIMUM HOUSE SCALE: Draw the 2-storey Ascot home as LARGE AND ZOOMED-IN AS POSSIBLE, occupying 78% of total vertical image height. Leave 10% sky headroom space above the roof peak and 12% driveway clearance below.",
+    specialInstructions: "ASCOT MAXIMUM HERO ZOOM: Draw the 2-storey Ascot home MASSIVE AND ZOOMED-IN AS POSSIBLE, occupying 88% of total vertical image height. Leave 6% sky headroom space above roof peak and 6% driveway clearance below.",
   },
   cambridge: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "CAMBRIDGE MAXIMUM HOUSE SCALE: Draw the 2-storey Hampton Cambridge home as LARGE AND ZOOMED-IN AS POSSIBLE, occupying 78% of total vertical image height, with 10% sky headroom above gables and 12% driveway clearance below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "CAMBRIDGE MAXIMUM HERO ZOOM: Draw the 2-storey Hampton Cambridge home MASSIVE AND ZOOMED-IN AS POSSIBLE, occupying 88% of total vertical image height, with 6% sky headroom above gables and 6% driveway clearance below.",
   },
   marche: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "MARCHE MAXIMUM HOUSE SCALE: Draw the 2-storey Marche home centered occupying 78% height with 10% sky headroom and 12% driveway below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "MARCHE MAXIMUM HERO ZOOM: Draw the 2-storey Marche home centered occupying 88% height with 6% sky headroom and 6% driveway below.",
   },
   allure: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "ALLURE MAXIMUM HOUSE SCALE: Draw the 2-storey Allure home centered occupying 78% height with 10% sky headroom and 12% driveway below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "ALLURE MAXIMUM HERO ZOOM: Draw the 2-storey Allure home centered occupying 88% height with 6% sky headroom and 6% driveway below.",
   },
   chevron: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "CHEVRON MAXIMUM HOUSE SCALE: Draw the 2-storey Chevron home centered occupying 78% height with 10% sky headroom and 12% driveway below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "CHEVRON MAXIMUM HERO ZOOM: Draw the 2-storey Chevron home centered occupying 88% height with 6% sky headroom and 6% driveway below.",
   },
   violet: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "VIOLET MAXIMUM HOUSE SCALE: Draw the 2-storey Violet home centered occupying 78% height with 10% sky headroom and 12% driveway below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "VIOLET MAXIMUM HERO ZOOM: Draw the 2-storey Violet home centered occupying 88% height with 6% sky headroom and 6% driveway below.",
   },
   jasper: {
-    targetHeightPercent: 78,
-    skyHeadroomPercent: 10,
-    groundClearancePercent: 12,
-    specialInstructions: "JASPER MAXIMUM HOUSE SCALE: Draw the 2-storey Jasper home centered occupying 78% height with 10% sky headroom and 12% driveway below.",
+    targetHeightPercent: 88,
+    skyHeadroomPercent: 6,
+    groundClearancePercent: 6,
+    specialInstructions: "JASPER MAXIMUM HERO ZOOM: Draw the 2-storey Jasper home centered occupying 88% height with 6% sky headroom and 6% driveway below.",
   },
 };
 
@@ -80,26 +80,26 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 78,
-      skyHeadroomPercent: 10,
-      groundClearancePercent: 12,
-      specialInstructions: "DOUBLE-STOREY MAXIMUM HOUSE SCALE MANDATE: Draw the 2-storey house as LARGE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 78% of total vertical image height. ABSOLUTE MANDATE: Leave a tight 10% clear blue sky headroom space above the highest roof ridge/peak, and 12% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped.",
+      targetHeightPercent: 88,
+      skyHeadroomPercent: 6,
+      groundClearancePercent: 6,
+      specialInstructions: "DOUBLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the 2-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 88% of total vertical image height. ABSOLUTE MANDATE: Leave only a minimal 6% clear blue sky headroom space above highest roof peak, and 6% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped.",
     };
   }
 
   return {
-    targetHeightPercent: 88,
-    skyHeadroomPercent: 6,
-    groundClearancePercent: 6,
-    specialInstructions: "SINGLE-STOREY MAXIMUM HOUSE SCALE MANDATE: Draw the single-storey house as LARGE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 88% of total vertical image height. ABSOLUTE MANDATE: Leave a minimal 6% clear blue sky headroom space above the roof ridge, and 6% driveway clearance below so the building is 100% visible and unclipped.",
+    targetHeightPercent: 94,
+    skyHeadroomPercent: 3,
+    groundClearancePercent: 3,
+    specialInstructions: "SINGLE-STOREY MAXIMUM HERO ZOOM MANDATE: Draw the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE in wide 2.69:1 perspective, occupying 94% of total vertical image height. ABSOLUTE MANDATE: Leave a tiny 3% clear blue sky headroom space above roof ridge, and 3% driveway clearance below so the building dominates the frame while staying 100% unclipped.",
   };
 }
 
 function buildPrompt(id: string, name: string, double: boolean) {
   const comp = getFacadeComposition(id, name, double);
   const compositionText =
-    `situate the house centered, zoomed-in, filling the maximum vertical frame space, occupying ${comp.targetHeightPercent}% of the total vertical frame height. ` +
-    `MAXIMUM HOUSE SIZE MANDATE: Draw the house structure as LARGE AND PROMINENT AS POSSIBLE in wide 2.69:1 perspective. You MUST leave a minimal ${comp.skyHeadroomPercent}% clear blue sky headroom above the highest roof ridge/peak, and a minimal ${comp.groundClearancePercent}% ground clearance below showing the entry porch base and driveway, so the house itself is the massive focal hero feature of the image while staying 100% visible and unclipped. ` +
+    `situate the house centered, heavily zoomed-in, filling almost the ENTIRE vertical frame space, occupying ${comp.targetHeightPercent}% of the total vertical frame height. ` +
+    `MAXIMUM HERO ZOOM MANDATE: Draw the house structure MASSIVE AND PROMINENT in wide 2.69:1 perspective. You MUST leave only a tiny ${comp.skyHeadroomPercent}% clear blue sky headroom above the roof peak, and ${comp.groundClearancePercent}% ground clearance below showing the garage base, so the house itself is the giant focal hero feature of the sales flyer while staying 100% unclipped. ` +
     (comp.specialInstructions ? comp.specialInstructions + " " : "");
 
   return (
@@ -154,8 +154,8 @@ export const Route = createFileRoute("/api/widen-facade")({
           );
 
 
-        // Bump cacheId to force fresh generation across all facades with maximum house size (v80)
-        const cacheId = `${id}::v80_${isDouble ? "d" : "s"}`;
+        // Bump cacheId to force fresh generation across all facades with maximum hero zoom (v90)
+        const cacheId = `${id}::v90_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         // ── Supabase cache check (optional — skipped if service key is missing) ──
