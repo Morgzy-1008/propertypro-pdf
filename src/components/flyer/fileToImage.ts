@@ -356,7 +356,7 @@ function getCachedOutpaint(key: string): string | null {
   if (!key) return null;
   if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
   try {
-    const saved = localStorage.getItem(`facade_outpaint_v3_${key}`);
+    const saved = localStorage.getItem(`facade_outpaint_v4_${key}`);
     if (saved) {
       facadeOutpaintCache.set(key, saved);
       return saved;
@@ -369,7 +369,7 @@ function setCachedOutpaint(key: string, value: string): void {
   if (!key || !value) return;
   facadeOutpaintCache.set(key, value);
   try {
-    localStorage.setItem(`facade_outpaint_v3_${key}`, value);
+    localStorage.setItem(`facade_outpaint_v4_${key}`, value);
   } catch {
     // If localStorage quota is full, memory Map still preserves session cache
   }
@@ -398,8 +398,8 @@ export async function widenFacadeClientSide(item: {
       );
 
     const comp = isDouble
-      ? "sit the two-storey house prominent, large, and zoomed-in as the main focal feature of the image, occupying roughly 72% to 74% of the total vertical frame height centered. ABSOLUTE MANDATE FOR DOUBLE STOREY: Draw the house large and clear, leaving roughly 12% clear blue sky headroom space above the highest roof ridge and roof peak, and 14% ground clearance space below showing the entry porch, garage base, exposed aggregate driveway, and front lawn. The entire building from top roof peak down to bottom garage base MUST sit comfortably inside the middle 74% of the image height so it is NEVER clipped."
-      : "sit the single-storey house prominent, large, and zoomed-in as the main focal feature of the image, centered, occupying roughly 82% to 84% of the frame height with clear blue sky headroom above the roof ridge and driveway/ground clearly visible below";
+      ? "sit the two-storey house large, crisp, and prominent as the main feature in wide 2.69:1 perspective, occupying roughly 60% of total vertical frame height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above highest roof ridge/peak, and ~3cm driveway/lawn clearance (28% of frame height) below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
+      : "sit the single-storey house large, crisp, and prominent in wide 2.69:1 perspective, occupying roughly 62% of total vertical frame height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above the roof ridge, and ~3cm driveway/lawn clearance (26% of frame height) below showing the entrance porch and exposed-aggregate driveway so the building is 100% visible and unclipped.";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
@@ -407,7 +407,7 @@ export async function widenFacadeClientSide(item: {
       "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
       "COMPOSITION & SCALE: " + comp + ". " +
       "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
-      "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
+      "TOP QUALITY & ENHANCEMENT MANDATE: Re-render in crystal-clear ultra-high resolution 4K/8K architectural photographic quality. Sharpen fine textures on roof tiles, brickwork, render, timber garage doors, glass windows, door hardware, foliage, and driveway paving with ultra-sharp definition, vivid natural colors, realistic daylighting, and zero compression artifacts. " +
       "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
       "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only.";
 
@@ -936,10 +936,10 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
 
-    // Scale house to occupy 92% of vertical canvas height (5% sky headroom above roof peak, 3% driveway clearance below)
+    // Scale house to occupy 60% of vertical canvas height (12% sky headroom ~1cm above roof peak, 28% driveway clearance ~3cm below)
     // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
-    const reserveTop = Math.round(outH * 0.05);
-    const reserveBot = Math.round(outH * 0.03);
+    const reserveTop = Math.round(outH * 0.12);
+    const reserveBot = Math.round(outH * 0.28);
     const areaH = outH - reserveTop - reserveBot;
     const scale = areaH / srcH;
     const drawW = Math.round(srcW * scale);

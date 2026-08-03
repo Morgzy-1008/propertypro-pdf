@@ -23,52 +23,52 @@ interface FacadeComposition {
 
 const SPECIFIC_FACADE_OVERRIDES: Record<string, FacadeComposition> = {
   centro: {
-    targetHeightPercent: 84,
-    skyHeadroomPercent: 8,
-    groundClearancePercent: 8,
-    specialInstructions: "CENTRO MAXIMUM SCALE: Draw the single-storey Centro house as LARGE AND ZOOMED-IN AS POSSIBLE, centered occupying 84% of total vertical image height. ABSOLUTE MANDATE: Leave a tight 8% clear blue sky headroom space above the roof ridge and 8% exposed aggregate driveway below so the roof peak and garage base are 100% visible and unclipped.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 12,
+    groundClearancePercent: 26,
+    specialInstructions: "CENTRO MAXIMUM SCALE & FRAMING: Draw the single-storey Centro house large and crisp as the main feature. Leave exactly a tight ~1cm sky headroom space (12% of vertical height) above the top roof ridge, and ~3cm ground/driveway clearance (26% of vertical height) showing the exposed aggregate driveway, entrance steps, and lawn below so the building is 100% unclipped.",
   },
   ascot: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "ASCOT MAXIMUM SCALE: Draw the 2-storey Ascot home prominent and zoomed-in as the primary feature, centered occupying 74% of total vertical image height. Leave 12% clear blue sky headroom space above the top roof feature and 14% exposed aggregate driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "ASCOT MAXIMUM SCALE & FRAMING: Draw the 2-storey Ascot home large and prominent. Leave ~1cm sky headroom space (12% of vertical height) above the top roof ridge and ~3cm driveway clearance (28% of vertical height) below.",
   },
   cambridge: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "CAMBRIDGE MAXIMUM SCALE: Draw the 2-storey Hampton Cambridge home prominent and zoomed-in, centered occupying 74% of total vertical image height, with 12% clear blue sky headroom above the gable peaks and 14% driveway / lawn below.",
+    groundClearancePercent: 28,
+    specialInstructions: "CAMBRIDGE MAXIMUM SCALE & FRAMING: Draw the 2-storey Hampton Cambridge home large and prominent, with ~1cm sky headroom (12% vertical height) above gable peaks and ~3cm driveway / lawn clearance (28% vertical height) below.",
   },
   marche: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "MARCHE MAXIMUM SCALE: Draw the 2-storey Marche home centered occupying 74% height with 12% sky headroom and 14% driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "MARCHE MAXIMUM SCALE & FRAMING: Draw the 2-storey Marche home centered occupying ~60% height with ~1cm (12%) sky headroom and ~3cm (28%) driveway below.",
   },
   allure: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "ALLURE MAXIMUM SCALE: Draw the 2-storey Allure home centered occupying 74% height with 12% sky headroom and 14% driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "ALLURE MAXIMUM SCALE & FRAMING: Draw the 2-storey Allure home centered occupying ~60% height with ~1cm (12%) sky headroom and ~3cm (28%) driveway below.",
   },
   chevron: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "CHEVRON MAXIMUM SCALE: Draw the 2-storey Chevron home centered occupying 74% height with 12% sky headroom and 14% driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "CHEVRON MAXIMUM SCALE & FRAMING: Draw the 2-storey Chevron home centered occupying ~60% height with ~1cm (12%) sky headroom and ~3cm (28%) driveway below.",
   },
   violet: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "VIOLET MAXIMUM SCALE: Draw the 2-storey Violet home centered occupying 74% height with 12% sky headroom and 14% driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "VIOLET MAXIMUM SCALE & FRAMING: Draw the 2-storey Violet home centered occupying ~60% height with ~1cm (12%) sky headroom and ~3cm (28%) driveway below.",
   },
   jasper: {
-    targetHeightPercent: 74,
+    targetHeightPercent: 60,
     skyHeadroomPercent: 12,
-    groundClearancePercent: 14,
-    specialInstructions: "JASPER MAXIMUM SCALE: Draw the 2-storey Jasper home centered occupying 74% height with 12% sky headroom and 14% driveway below.",
+    groundClearancePercent: 28,
+    specialInstructions: "JASPER MAXIMUM SCALE & FRAMING: Draw the 2-storey Jasper home centered occupying ~60% height with ~1cm (12%) sky headroom and ~3cm (28%) driveway below.",
   },
 };
 
@@ -80,28 +80,28 @@ function getFacadeComposition(id: string, name: string, isDouble: boolean): Faca
 
   if (isDouble) {
     return {
-      targetHeightPercent: 74,
+      targetHeightPercent: 60,
       skyHeadroomPercent: 12,
-      groundClearancePercent: 14,
-      specialInstructions: "DOUBLE-STOREY SCALE MANDATE: Draw the 2-storey house prominent, large, and zoomed-in, centered in wide 2.69:1 perspective, occupying roughly 74% of total vertical image height. ABSOLUTE MANDATE: Leave a clean 12% clear blue sky headroom space above the highest roof ridge, roof peak, eaves, and top floor windows, and 14% driveway/lawn clearance below so the top roofline and garage base are 100% visible and unclipped.",
+      groundClearancePercent: 28,
+      specialInstructions: "DOUBLE-STOREY EXACT FRAMING MANDATE: Draw the 2-storey house large, crisp, and prominent as the main feature in wide 2.69:1 perspective, occupying roughly 60% of total vertical image height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above the highest roof ridge/peak, and ~3cm driveway/lawn clearance (28% of frame height) below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped.",
     };
   }
 
   return {
-    targetHeightPercent: 84,
-    skyHeadroomPercent: 8,
-    groundClearancePercent: 8,
-    specialInstructions: "SINGLE-STOREY MAXIMUM SCALE: Draw the single-storey house prominent, large, and zoomed-in as the primary feature, centered in wide 2.69:1 perspective, occupying roughly 84% of total vertical image height. Leave a clear 8% blue sky headroom above the roof ridge and 8% exposed-aggregate driveway, porch steps, and lawn below so the roof peak and garage base are 100% visible and unclipped.",
+    targetHeightPercent: 62,
+    skyHeadroomPercent: 12,
+    groundClearancePercent: 26,
+    specialInstructions: "SINGLE-STOREY EXACT FRAMING MANDATE: Draw the single-storey house large, crisp, and prominent in wide 2.69:1 perspective, occupying roughly 62% of total vertical image height. ABSOLUTE MANDATE: Leave ~1cm clear blue sky headroom space (12% of frame height) above the roof ridge, and ~3cm driveway/lawn clearance (26% of frame height) below showing the entrance porch and exposed-aggregate driveway so the building is 100% visible and unclipped.",
   };
 }
 
 function buildPrompt(id: string, name: string, double: boolean) {
   const comp = getFacadeComposition(id, name, double);
   const compositionText =
-    `situate the house centered, set back in perspective, occupying ONLY ${comp.targetHeightPercent}% of the total vertical frame height. ` +
-    `ABSOLUTE MANDATE FOR FACADE PLACEMENT: You MUST leave a clear ${comp.skyHeadroomPercent}% clear blue sky headroom space above the highest roof ridge and roof peak, ` +
-    `and a ${comp.groundClearancePercent}% ground clearance space below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. ` +
-    `The entire building from top roof peak down to bottom garage base MUST sit comfortably inside the middle ${comp.targetHeightPercent}% of the image height so it is NEVER clipped. ` +
+    `situate the house centered, set back in perspective, occupying ${comp.targetHeightPercent}% of the total vertical frame height. ` +
+    `EXACT FRAMING & CLEARANCE RULE: You MUST leave a clean ${comp.skyHeadroomPercent}% clear blue sky headroom space (~1cm) above the highest roof ridge and roof peak, ` +
+    `and a ${comp.groundClearancePercent}% ground clearance space (~3cm) below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. ` +
+    `The entire building from top roof peak down to bottom garage base MUST sit comfortably inside the upper-middle of the image height so it is NEVER clipped. ` +
     (comp.specialInstructions ? comp.specialInstructions + " " : "");
 
   return (
@@ -110,7 +110,7 @@ function buildPrompt(id: string, name: string, double: boolean) {
     "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
     "COMPOSITION & SCALE: " + compositionText + ". " +
     "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
-    "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
+    "TOP QUALITY & ENHANCEMENT MANDATE: Re-render in crystal-clear ultra-high resolution 4K/8K architectural photographic quality. Sharpen fine textures on roof tiles, brickwork, render, timber garage doors, glass windows, door hardware, foliage, and driveway paving with ultra-sharp definition, vivid natural colors, realistic daylighting, and zero compression artifacts. " +
     "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
     "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only."
   );
@@ -156,8 +156,8 @@ export const Route = createFileRoute("/api/widen-facade")({
           );
 
 
-        // Bump cacheId to force fresh generation across all facades
-        const cacheId = `${id}::v60_${isDouble ? "d" : "s"}`;
+        // Bump cacheId to force fresh generation across all facades with 1cm top / 3cm bottom framing
+        const cacheId = `${id}::v70_${isDouble ? "d" : "s"}`;
         const promptText = buildPrompt(id, body.name ?? "", isDouble);
 
         // ── Supabase cache check (optional — skipped if service key is missing) ──
