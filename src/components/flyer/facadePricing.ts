@@ -129,11 +129,16 @@ export function facadeBaseName(name: string): string {
 }
 
 const DOUBLE_FACADE_FAMILIES = new Set([
-  "allure", "ascot", "ashton", "burgundy", "cambridge", "chateaux", "chevron",
-  "classic-plus", "coastal", "contemporary", "crest", "deco", "duet", "grandeur",
-  "hamilton", "jasper", "manhattan", "marche", "montana", "nuvo", "palermo",
-  "regal", "riviera", "royale", "saville", "sierra", "soho", "statesman",
-  "tempo", "tropez", "vienna", "visage", "vista", "vogue", "windsor", "chelsea", "clarence"
+  "allure", "ascot", "ashton", "burgundy", "cambridge", "chevron", "clarence",
+  "como", "deco", "deco-double-garage", "deco-single-garage", "delta", "deluxe",
+  "duet", "flair", "grande", "hamilton", "jasper", "madison", "mantra",
+  "mantra-double-garage", "mantra-single-garage", "marina", "meridian",
+  "monash", "mondo", "novare", "nuvo", "oxford", "palermo", "regal", "royale",
+  "saville", "sierra", "soho", "tempo", "tropez", "vienna", "visage", "vista", "windsor"
+]);
+
+const ACREAGE_FACADE_FAMILIES = new Set([
+  "mulberry", "hamptons", "vogue"
 ]);
 
 /** Classify a facade: Acreage, Double Storey or Single Storey. */
@@ -144,7 +149,7 @@ export function facadeCategory(item: { id?: string; url?: string; name?: string;
   const tags = (item.tags ?? []).join(" ").toLowerCase();
   const src = `${item.url ?? ""} ${name} ${id} ${range} ${tags}`;
 
-  if (range === "acreage" || /acreage|mulberry/i.test(src)) {
+  if (range === "acreage" || ACREAGE_FACADE_FAMILIES.has(id) || /acreage|mulberry/i.test(src)) {
     return "acreage";
   }
 
@@ -152,7 +157,7 @@ export function facadeCategory(item: { id?: string; url?: string; name?: string;
     range === "double storey" ||
     DOUBLE_FACADE_FAMILIES.has(id) ||
     DOUBLE_FACADE_FAMILIES.has(facadeBaseName(item.name ?? "")) ||
-    /double|2-?\s?stry|2\s*storey|duplex|split/i.test(src)
+    /2-?\s?stry|double[-\s]?storey/i.test(src)
   ) {
     return "double";
   }
