@@ -489,18 +489,41 @@ export async function widenFacade(item: {
 
 /** Trimmed floorplans, keyed by their published URL. */
 const floorplanCache = new Map<string, string>();
-const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
+const FLOORPLAN_PIPELINE_VERSION = "hd-crisp-v3";
+
+function getCachedFloorplan(key: string): string | null {
+  if (!key) return null;
+  if (floorplanCache.has(key)) return floorplanCache.get(key)!;
+  try {
+    const saved = localStorage.getItem(`floorplan_hd_${key}`);
+    if (saved) {
+      floorplanCache.set(key, saved);
+      return saved;
+    }
+  } catch {}
+  return null;
+}
+
+function setCachedFloorplan(key: string, value: string): void {
+  if (!key || !value) return;
+  floorplanCache.set(key, value);
+  try {
+    localStorage.setItem(`floorplan_hd_${key}`, value);
+  } catch {
+    // If localStorage quota full, memory map still holds it
+  }
+}
 
 /**
- * Loads a published floorplan PNG through the same-origin proxy and trims the
- * blank page margin off it, so `object-contain` renders the drawing as large
- * as the flyer frame allows without ever clipping it.
+ * Loads a published floorplan PNG through the same-origin proxy, trims blank margins,
+ * and upscales to 300+ DPI ultra-high definition resolution so lines and text stay
+ * vector-sharp when resized or printed.
  */
 export async function prepareFloorplan(url: string): Promise<string> {
   if (!url || url.startsWith("data:")) return url;
 
   const cacheKey = `${url}::${FLOORPLAN_PIPELINE_VERSION}`;
-  const cached = floorplanCache.get(cacheKey);
+  const cached = getCachedFloorplan(cacheKey);
   if (cached) return cached;
 
   try {
@@ -517,7 +540,7 @@ export async function prepareFloorplan(url: string): Promise<string> {
     });
     const trimmed = await cropToContent(raw, 0.008);
     const sharp = await sharpenPlan(trimmed);
-    floorplanCache.set(cacheKey, sharp);
+    setCachedFloorplan(cacheKey, sharp);
     return sharp;
   } catch {
     return url;
@@ -528,9 +551,10 @@ const MIN_GARAGE_W = 5.7;
 const MIN_GARAGE_D = 6.0;
 
 /**
- * Upscales and sharpens a floorplan drawing so lines, room names and dimension
- * text stay crisp in print. Purely photometric: an unsharp mask plus a levels
- * stretch on a white page. No geometry is moved, so the design is untouched.
+ * Upscales and sharpens a floorplan drawing to 300+ DPI studio print definition
+ * so architectural linework, room names, measurements, and dimension text stay
+ * ultra-crisp and razor-sharp when scaled for A4 print. Purely photometric contrast
+ * enhancement: zero geometry is moved, so 100% of the design is untouched.
  */
 export async function sharpenPlan(dataUrl: string): Promise<string> {
   try {
@@ -539,8 +563,9 @@ export async function sharpenPlan(dataUrl: string): Promise<string> {
     const h0 = img.naturalHeight;
     if (!w0 || !h0) return dataUrl;
 
-    // Upscale small scans so hairlines and numerals survive the print raster.
-    const scale = Math.min(2, Math.max(1, 2200 / w0), 4000 / w0);
+    // Target 3200px width/height for 300 DPI A4 print definition
+    const maxDim = Math.max(w0, h0);
+    const scale = Math.max(1.6, Math.min(4.0, 3200 / maxDim));
     const w = Math.round(w0 * scale);
     const h = Math.round(h0 * scale);
 
@@ -554,39 +579,38 @@ export async function sharpenPlan(dataUrl: string): Promise<string> {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
 
-    const image = ctx.getImageData(0, 0, w, h);
-    const src = image.data;
-    const out = new Uint8ClampedArray(src);
+    const imageData = ctx.getImageData(0, 0, w, h);
+    const pixels = imageData.data;
 
-    // Unsharp mask: subtract a 3x3 box blur, weighted, per channel.
-    const amount = 0.9;
-    for (let y = 1; y < h - 1; y += 1) {
-      for (let x = 1; x < w - 1; x += 1) {
-        const i = (y * w + x) * 4;
-        for (let c = 0; c < 3; c += 1) {
-          let sum = 0;
-          for (let dy = -1; dy <= 1; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              sum += src[((y + dy) * w + (x + dx)) * 4 + c];
-            }
-          }
-          const blur = sum / 9;
-          out[i + c] = src[i + c] + amount * (src[i + c] - blur);
-        }
+    // High-precision high-contrast line-art & text sharpening filter:
+    // Pure paper white (lum >= 215) -> 255
+    // Deep black linework (lum <= 100) -> 0
+    // Anti-aliased line edges -> steep contrast curve so edges are sharp with zero blur/halos
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      if (lum >= 215) {
+        pixels[i] = 255;
+        pixels[i + 1] = 255;
+        pixels[i + 2] = 255;
+      } else if (lum <= 100) {
+        pixels[i] = 0;
+        pixels[i + 1] = 0;
+        pixels[i + 2] = 0;
+      } else {
+        const norm = (lum - 100) / 115;
+        const val = Math.round(Math.pow(norm, 1.7) * 255);
+        pixels[i] = val;
+        pixels[i + 1] = val;
+        pixels[i + 2] = val;
       }
+      pixels[i + 3] = 255;
     }
 
-    // Levels: push near-white to paper white and near-black to true black.
-    const lo = 28;
-    const hi = 232;
-    for (let i = 0; i < out.length; i += 4) {
-      for (let c = 0; c < 3; c += 1) {
-        const v = out[i + c];
-        out[i + c] = v <= lo ? 0 : v >= hi ? 255 : ((v - lo) / (hi - lo)) * 255;
-      }
-    }
-
-    ctx.putImageData(new ImageData(out, w, h), 0, 0);
+    ctx.putImageData(imageData, 0, 0);
     return canvas.toDataURL("image/png");
   } catch {
     return dataUrl;

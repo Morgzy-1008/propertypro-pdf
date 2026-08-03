@@ -252,6 +252,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
               src={d.floorplanUrl}
               alt="Floorplan"
               className="block h-full w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "-webkit-optimize-contrast" }}
             />
           ) : (
             <div className="text-center text-[3mm] text-brand-ink/40">
@@ -340,6 +341,7 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
               src={d.floorplanUrl}
               alt="Floorplan"
               className="h-full w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "-webkit-optimize-contrast" }}
             />
           ) : (
             <div className="text-center text-[3.4mm] text-brand-ink/40">
@@ -497,6 +499,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
               src={d.floorplanUrl}
               alt="Floorplan"
               className="block h-full w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "-webkit-optimize-contrast" }}
             />
           ) : (
             <div className="text-center text-[3mm] text-brand-ink/40">
