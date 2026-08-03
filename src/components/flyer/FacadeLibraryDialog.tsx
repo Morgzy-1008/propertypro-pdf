@@ -72,14 +72,13 @@ export function FacadeLibrary({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("alpha");
   type TabId = FacadeStorey | "all" | "uploaded" | "design";
-  const [category, setCategory] = useState<TabId>("all");
+  const [category, setCategory] = useState<TabId>(storey ?? "single");
   const [custom, setCustom] = useState<FacadeItem[]>(() => loadCustomFacades());
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const restricted = false; // Always allow viewing all facades in library
+  const hasDesignFacades = !!designFacades?.length;
   const all = useMemo(
     () => {
-      // De-duplicate facades by id so all 92 built-in facades are guaranteed present
       const map = new Map<string, FacadeItem>();
       BUILT_IN_FACADES.forEach((f) => map.set(f.id, f));
       if (designFacades) {
@@ -99,8 +98,19 @@ export function FacadeLibrary({
 
   const eligible = all;
 
-  const tabs = CATEGORIES;
-  const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
+  const tabs: { id: TabId; label: string }[] = useMemo(
+    () =>
+      hasDesignFacades
+        ? [{ id: "design", label: "Available for this design" }, ...CATEGORIES]
+        : CATEGORIES,
+    [hasDesignFacades],
+  );
+
+  const active: TabId = tabs.some((t) => t.id === category)
+    ? category
+    : hasDesignFacades
+      ? "design"
+      : storey ?? "single";
 
   const priceOf = (f: FacadeItem) =>
     f.range === "Uploaded" ? null : facadePriceForDesign(f.name, facadeCategory(f), designName);
@@ -110,7 +120,7 @@ export function FacadeLibrary({
       active === "all"
         ? eligible
         : active === "design"
-          ? eligible.filter((f) => f.range !== "Uploaded")
+          ? (designFacades ?? eligible.filter((f) => f.range !== "Uploaded"))
           : eligible.filter((f) => categoryOf(f) === active);
     const found = searchFacades(inCat, query);
     const sorted = [...found];
