@@ -128,12 +128,35 @@ export function facadeBaseName(name: string): string {
   return ALIASES[base] ?? base;
 }
 
-/** Classify a facade from its render: MULBERRY renders are the acreage range,
- *  any two-storey render ("2 Stry" / "Double Storey") is double, else single. */
-export function facadeCategory(item: { url: string; name: string }): FacadeStorey {
-  const src = `${item.url} ${item.name}`;
-  if (/mulberry/i.test(src)) return "acreage";
-  if (/2-?\s?stry|double[-\s]?storey|garage2/i.test(src)) return "double";
+const DOUBLE_FACADE_FAMILIES = new Set([
+  "allure", "ascot", "ashton", "burgundy", "cambridge", "chateaux", "chevron",
+  "classic-plus", "coastal", "contemporary", "crest", "deco", "duet", "grandeur",
+  "hamilton", "jasper", "manhattan", "marche", "montana", "nuvo", "palermo",
+  "regal", "riviera", "royale", "saville", "sierra", "soho", "statesman",
+  "tempo", "tropez", "vienna", "visage", "vista", "vogue", "windsor", "chelsea", "clarence"
+]);
+
+/** Classify a facade: Acreage, Double Storey or Single Storey. */
+export function facadeCategory(item: { id?: string; url?: string; name?: string; range?: string; tags?: string[] }): FacadeStorey {
+  const id = (item.id ?? "").toLowerCase().trim();
+  const name = (item.name ?? "").toLowerCase().trim();
+  const range = (item.range ?? "").toLowerCase().trim();
+  const tags = (item.tags ?? []).join(" ").toLowerCase();
+  const src = `${item.url ?? ""} ${name} ${id} ${range} ${tags}`;
+
+  if (range === "acreage" || /acreage|mulberry/i.test(src)) {
+    return "acreage";
+  }
+
+  if (
+    range === "double storey" ||
+    DOUBLE_FACADE_FAMILIES.has(id) ||
+    DOUBLE_FACADE_FAMILIES.has(facadeBaseName(item.name ?? "")) ||
+    /double|2-?\s?stry|2\s*storey|duplex|split/i.test(src)
+  ) {
+    return "double";
+  }
+
   return "single";
 }
 
