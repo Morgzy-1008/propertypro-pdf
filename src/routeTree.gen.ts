@@ -15,16 +15,9 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
-import { Route as ApiEnhanceImageRouteImport } from './routes/api/enhance-image'
-import { Route as ApiFloorplanImageRouteImport } from './routes/api/floorplan-image'
-import { Route as ApiGarageDimsRouteImport } from './routes/api/garage-dims'
-import { Route as ApiParseLotListRouteImport } from './routes/api/parse-lot-list'
-import { Route as ApiPlanRoomsRouteImport } from './routes/api/plan-rooms'
-import { Route as ApiWidenFacadeRouteImport } from './routes/api/widen-facade'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
 import { Route as PackageIdRouteImport } from './routes/package/$id'
-import { Route as ApiFacadeImageIdRouteImport } from './routes/api/facade-image.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,36 +48,6 @@ const AuthenticatedFlyerRoute = AuthenticatedFlyerRouteImport.update({
   path: '/flyer',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const ApiEnhanceImageRoute = ApiEnhanceImageRouteImport.update({
-  id: '/api/enhance-image',
-  path: '/api/enhance-image',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiFloorplanImageRoute = ApiFloorplanImageRouteImport.update({
-  id: '/api/floorplan-image',
-  path: '/api/floorplan-image',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiGarageDimsRoute = ApiGarageDimsRouteImport.update({
-  id: '/api/garage-dims',
-  path: '/api/garage-dims',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiParseLotListRoute = ApiParseLotListRouteImport.update({
-  id: '/api/parse-lot-list',
-  path: '/api/parse-lot-list',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPlanRoomsRoute = ApiPlanRoomsRouteImport.update({
-  id: '/api/plan-rooms',
-  path: '/api/plan-rooms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiWidenFacadeRoute = ApiWidenFacadeRouteImport.update({
-  id: '/api/widen-facade',
-  path: '/api/widen-facade',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const BrowseLandRoute = BrowseLandRouteImport.update({
   id: '/browse/land',
   path: '/browse/land',
@@ -100,11 +63,6 @@ const PackageIdRoute = PackageIdRouteImport.update({
   path: '/package/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiFacadeImageIdRoute = ApiFacadeImageIdRouteImport.update({
-  id: '/api/facade-image/$id',
-  path: '/api/facade-image/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -112,16 +70,9 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
-  '/api/enhance-image': typeof ApiEnhanceImageRoute
-  '/api/floorplan-image': typeof ApiFloorplanImageRoute
-  '/api/garage-dims': typeof ApiGarageDimsRoute
-  '/api/parse-lot-list': typeof ApiParseLotListRoute
-  '/api/plan-rooms': typeof ApiPlanRoomsRoute
-  '/api/widen-facade': typeof ApiWidenFacadeRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
-  '/api/facade-image/$id': typeof ApiFacadeImageIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -129,16 +80,9 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
-  '/api/enhance-image': typeof ApiEnhanceImageRoute
-  '/api/floorplan-image': typeof ApiFloorplanImageRoute
-  '/api/garage-dims': typeof ApiGarageDimsRoute
-  '/api/parse-lot-list': typeof ApiParseLotListRoute
-  '/api/plan-rooms': typeof ApiPlanRoomsRoute
-  '/api/widen-facade': typeof ApiWidenFacadeRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
-  '/api/facade-image/$id': typeof ApiFacadeImageIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -148,16 +92,9 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
-  '/api/enhance-image': typeof ApiEnhanceImageRoute
-  '/api/floorplan-image': typeof ApiFloorplanImageRoute
-  '/api/garage-dims': typeof ApiGarageDimsRoute
-  '/api/parse-lot-list': typeof ApiParseLotListRoute
-  '/api/plan-rooms': typeof ApiPlanRoomsRoute
-  '/api/widen-facade': typeof ApiWidenFacadeRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
-  '/api/facade-image/$id': typeof ApiFacadeImageIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -167,16 +104,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/database'
     | '/flyer'
-    | '/api/enhance-image'
-    | '/api/floorplan-image'
-    | '/api/garage-dims'
-    | '/api/parse-lot-list'
-    | '/api/plan-rooms'
-    | '/api/widen-facade'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
-    | '/api/facade-image/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -184,16 +114,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/database'
     | '/flyer'
-    | '/api/enhance-image'
-    | '/api/floorplan-image'
-    | '/api/garage-dims'
-    | '/api/parse-lot-list'
-    | '/api/plan-rooms'
-    | '/api/widen-facade'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
-    | '/api/facade-image/$id'
   id:
     | '__root__'
     | '/'
@@ -202,16 +125,9 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/database'
     | '/_authenticated/flyer'
-    | '/api/enhance-image'
-    | '/api/floorplan-image'
-    | '/api/garage-dims'
-    | '/api/parse-lot-list'
-    | '/api/plan-rooms'
-    | '/api/widen-facade'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
-    | '/api/facade-image/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -219,16 +135,9 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
-  ApiEnhanceImageRoute: typeof ApiEnhanceImageRoute
-  ApiFloorplanImageRoute: typeof ApiFloorplanImageRoute
-  ApiGarageDimsRoute: typeof ApiGarageDimsRoute
-  ApiParseLotListRoute: typeof ApiParseLotListRoute
-  ApiPlanRoomsRoute: typeof ApiPlanRoomsRoute
-  ApiWidenFacadeRoute: typeof ApiWidenFacadeRoute
   BrowseLandRoute: typeof BrowseLandRoute
   BrowsePackagesRoute: typeof BrowsePackagesRoute
   PackageIdRoute: typeof PackageIdRoute
-  ApiFacadeImageIdRoute: typeof ApiFacadeImageIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -275,48 +184,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFlyerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/enhance-image': {
-      id: '/api/enhance-image'
-      path: '/api/enhance-image'
-      fullPath: '/api/enhance-image'
-      preLoaderRoute: typeof ApiEnhanceImageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/floorplan-image': {
-      id: '/api/floorplan-image'
-      path: '/api/floorplan-image'
-      fullPath: '/api/floorplan-image'
-      preLoaderRoute: typeof ApiFloorplanImageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/garage-dims': {
-      id: '/api/garage-dims'
-      path: '/api/garage-dims'
-      fullPath: '/api/garage-dims'
-      preLoaderRoute: typeof ApiGarageDimsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/parse-lot-list': {
-      id: '/api/parse-lot-list'
-      path: '/api/parse-lot-list'
-      fullPath: '/api/parse-lot-list'
-      preLoaderRoute: typeof ApiParseLotListRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/plan-rooms': {
-      id: '/api/plan-rooms'
-      path: '/api/plan-rooms'
-      fullPath: '/api/plan-rooms'
-      preLoaderRoute: typeof ApiPlanRoomsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/widen-facade': {
-      id: '/api/widen-facade'
-      path: '/api/widen-facade'
-      fullPath: '/api/widen-facade'
-      preLoaderRoute: typeof ApiWidenFacadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/browse/land': {
       id: '/browse/land'
       path: '/browse/land'
@@ -336,13 +203,6 @@ declare module '@tanstack/react-router' {
       path: '/package/$id'
       fullPath: '/package/$id'
       preLoaderRoute: typeof PackageIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/facade-image/$id': {
-      id: '/api/facade-image/$id'
-      path: '/api/facade-image/$id'
-      fullPath: '/api/facade-image/$id'
-      preLoaderRoute: typeof ApiFacadeImageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -366,16 +226,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ResetPasswordRoute: ResetPasswordRoute,
-  ApiEnhanceImageRoute: ApiEnhanceImageRoute,
-  ApiFloorplanImageRoute: ApiFloorplanImageRoute,
-  ApiGarageDimsRoute: ApiGarageDimsRoute,
-  ApiParseLotListRoute: ApiParseLotListRoute,
-  ApiPlanRoomsRoute: ApiPlanRoomsRoute,
-  ApiWidenFacadeRoute: ApiWidenFacadeRoute,
   BrowseLandRoute: BrowseLandRoute,
   BrowsePackagesRoute: BrowsePackagesRoute,
   PackageIdRoute: PackageIdRoute,
-  ApiFacadeImageIdRoute: ApiFacadeImageIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

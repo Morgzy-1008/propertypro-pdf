@@ -1,13 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
-
-/**
- * Customer-facing, read-only listings.
- *
- * These are the ONLY records ever exposed publicly: land lots with status
- * "available" and packages with status "live". Every field returned is
- * explicitly whitelisted below — internal notes, owner ids, timestamps,
- * review flags and any non-listed record can never leave the server.
- */
+import { supabase } from "@/integrations/supabase/client";
 
 export interface PublicLot {
   estate: string;
@@ -46,113 +37,100 @@ export interface PublicPackage {
   consultantOffice: string | null;
 }
 
-const RANGE_LABEL: Record<string, string> = {
-  value: "Value Range",
-  designer: "Designer Range",
-  luxury: "Luxury Range",
-};
-
-function str(v: unknown): string | null {
-  return typeof v === "string" && v.trim() ? v.trim() : null;
+function str(val: unknown): string | null {
+  if (val == null) return null;
+  const s = String(val).trim();
+  return s.length ? s : null;
 }
 
-/** Every land lot a customer may see, grouped client-side by location. */
-export const listPublicLots = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("land_lots")
-    .select(
-      "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email",
-    )
-    .eq("status", "available");
-
-  return (data ?? []).map(
-    (l): PublicLot => ({
-      estate: l.estate || "Other",
-      suburb: l.suburb || "",
-      lotNumber: l.lot_number,
-      address: l.address,
-      landSize: l.land_size == null ? null : Number(l.land_size),
-      frontage: l.frontage == null ? null : Number(l.frontage),
-      landPrice: l.land_price == null ? null : Number(l.land_price),
-      titled: Boolean(l.titled),
-      registrationDate: l.registration_date,
-      developer: l.developer,
-      developerContactName: l.developer_contact_name,
-      developerContactPhone: l.developer_contact_phone,
-      developerContactEmail: l.developer_contact_email,
-    }),
-  );
-});
-
-/** Every live package a customer may see. */
-export const listPublicPackages = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("packages")
-    .select(
-      "id, name, design, range_id, facade_name, beds, baths, cars, floorplan_size, total_price, flyer_data, lot_id",
-    )
-    .eq("status", "live");
-
-  const rows = data ?? [];
-  const lotIds = [...new Set(rows.map((r) => r.lot_id).filter(Boolean))] as string[];
-  const lotMap = new Map<string, { estate: string; suburb: string; land_size: number | null }>();
-  if (lotIds.length) {
-    const { data: lots } = await supabaseAdmin
+export async function listPublicLots(): Promise<PublicLot[]> {
+  try {
+    const { data: rows, error } = await supabase
       .from("land_lots")
-      .select("id, estate, suburb, land_size")
-      .in("id", lotIds);
-    for (const l of lots ?? [])
-      lotMap.set(l.id, { estate: l.estate, suburb: l.suburb, land_size: l.land_size });
+      .select(
+        "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer_name, developer_contact_name, developer_contact_phone, developer_contact_email, status"
+      )
+      .eq("status", "available");
+
+    if (error || !rows) return [];
+
+    return rows.map((r) => ({
+      estate: r.estate,
+      suburb: r.suburb,
+      lotNumber: r.lot_number,
+      address: r.address,
+      landSize: r.land_size == null ? null : Number(r.land_size),
+      frontage: r.frontage == null ? null : Number(r.frontage),
+      landPrice: r.land_price == null ? null : Number(r.land_price),
+      titled: Boolean(r.titled),
+      registrationDate: r.registration_date,
+      developer: r.developer_name,
+      developerContactName: r.developer_contact_name,
+      developerContactPhone: r.developer_contact_phone,
+      developerContactEmail: r.developer_contact_email,
+    }));
+  } catch {
+    return [];
   }
+}
 
-  return rows.map((p): PublicPackage => {
-    const f = (p.flyer_data ?? {}) as Record<string, unknown>;
-    const lot = p.lot_id ? lotMap.get(p.lot_id) : undefined;
-    return {
-      id: p.id,
-      name: p.name || p.design || "House & Land Package",
-      design: p.design || "",
-      facadeName: p.facade_name,
-      rangeLabel: RANGE_LABEL[p.range_id] ?? "Inclusions",
-      estate: lot?.estate || str(f.estate) || "Other",
-      suburb: lot?.suburb || str(f.suburb) || "",
-      address: str(f.address),
-      beds: p.beds,
-      baths: p.baths,
-      cars: p.cars,
-      homeSize: p.floorplan_size,
-      landSize: lot?.land_size == null ? null : Number(lot.land_size),
-      totalPrice: p.total_price == null ? null : Number(p.total_price),
-      consultantName: str(f.contactName),
-      consultantPhone: str(f.contactPhone),
-      consultantEmail: str(f.contactEmail),
-      consultantOffice: str(f.contactOffice),
-    };
-  });
-});
+export async function listPublicPackages(): Promise<PublicPackage[]> {
+  try {
+    const { data: rows, error } = await supabase
+      .from("packages")
+      .select("id, name, design, range, total_price, flyer_data, status, land_lots(land_size)")
+      .eq("status", "live");
 
-/** Flyer content for one live package — used by the public flyer page. */
-export const getPublicPackage = createServerFn({ method: "GET" })
-  .inputValidator((input: { id: string }) => {
-    const id = String(input?.id ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Not found");
-    return { id };
-  })
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin
+    if (error || !rows) return [];
+
+    return rows.map((p) => {
+      const f = (p.flyer_data ?? {}) as Record<string, unknown>;
+      const lot = (Array.isArray(p.land_lots) ? p.land_lots[0] : p.land_lots) as
+        | { land_size?: number | string | null }
+        | null
+        | undefined;
+
+      return {
+        id: p.id,
+        name: p.name || p.design || "House & Land Package",
+        design: p.design || "",
+        facadeName: str(f.facadeName),
+        rangeLabel: p.range || str(f.range) || "Hudson Collection",
+        estate: str(f.estate) || "",
+        suburb: str(f.suburb) || "",
+        address: str(f.address),
+        beds: str(f.beds),
+        baths: str(f.baths),
+        cars: str(f.cars),
+        homeSize: str(f.floorplanSize),
+        landSize: lot?.land_size == null ? null : Number(lot.land_size),
+        totalPrice: p.total_price == null ? null : Number(p.total_price),
+        consultantName: str(f.contactName),
+        consultantPhone: str(f.contactPhone),
+        consultantEmail: str(f.contactEmail),
+        consultantOffice: str(f.contactOffice),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getPublicPackage(input: { data: { id: string } }) {
+  try {
+    const id = String(input?.data?.id ?? "");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
+
+    const { data: row, error } = await supabase
       .from("packages")
       .select("id, name, design, flyer_data, status")
-      .eq("id", data.id)
+      .eq("id", id)
       .eq("status", "live")
       .maybeSingle();
-    if (!row) return null;
+
+    if (error || !row) return null;
 
     const f = (row.flyer_data ?? {}) as Record<string, unknown>;
-
-    // Whitelist: only flyer presentation fields are returned.
     const keys = [
       "suburb",
       "estate",
@@ -190,7 +168,9 @@ export const getPublicPackage = createServerFn({ method: "GET" })
     return {
       id: row.id,
       name: row.name || row.design || "House & Land Package",
-      // Serialized so the server-fn boundary stays strictly typed.
       flyerJson: JSON.stringify(flyer),
     };
-  });
+  } catch {
+    return null;
+  }
+}

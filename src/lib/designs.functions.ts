@@ -1,5 +1,3 @@
-import { createServerFn } from "@tanstack/react-start";
-
 export interface DesignVariant {
   label: string;
   size: string;
@@ -65,17 +63,17 @@ function parseVariants(html: string): DesignVariant[] {
   return out.filter((v) => v.size);
 }
 
-export const lookupDesign = createServerFn({ method: "POST" })
-  .inputValidator((input: { name: string }) => ({ name: String(input?.name ?? "") }))
-  .handler(async ({ data }): Promise<DesignLookup | null> => {
-    const words = candidateWords(data.name);
-    if (!words.length) return null;
+export async function lookupDesign(input: { data: { name: string } }): Promise<DesignLookup | null> {
+  const name = String(input?.data?.name ?? "");
+  const words = candidateWords(name);
+  if (!words.length) return null;
 
+  try {
     const listRes = await fetch(
       `${SITE}/wp-json/wp/v2/homes?per_page=100&_fields=slug,title,link`,
-      { headers: { accept: "application/json" } },
+      { headers: { accept: "application/json" } }
     );
-    if (!listRes.ok) throw new Error(`Hudson Homes site returned ${listRes.status}`);
+    if (!listRes.ok) return null;
     const homes = (await listRes.json()) as {
       slug: string;
       link: string;
@@ -96,7 +94,7 @@ export const lookupDesign = createServerFn({ method: "POST" })
     if (!best) return null;
 
     const pageRes = await fetch(best.home.link);
-    if (!pageRes.ok) throw new Error(`Could not open the design page (${pageRes.status})`);
+    if (!pageRes.ok) return null;
     const html = await pageRes.text();
 
     return {
@@ -104,4 +102,7 @@ export const lookupDesign = createServerFn({ method: "POST" })
       link: best.home.link,
       variants: parseVariants(html),
     };
-  });
+  } catch {
+    return null;
+  }
+}
