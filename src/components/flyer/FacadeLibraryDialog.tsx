@@ -29,7 +29,8 @@ import { formatAud } from "@/lib/pricing";
 const CATEGORIES: { id: FacadeStorey | "uploaded"; label: string }[] = [
   { id: "single", label: "Single Storey" },
   { id: "double", label: "Double Storey" },
-  { id: "acreage", label: "Acreage" },
+  { id: "split", label: "Split Level" },
+  { id: "acreage", label: "Acreage / Ranch" },
   { id: "uploaded", label: "Uploaded" },
 ];
 
@@ -49,24 +50,26 @@ function facadeBelongsToCategory(
   if (f.range === "Uploaded") return false;
   if (category === "design") return true;
 
-  const name = f.name.toLowerCase();
+  const tags = f.tags || [];
   const range = (f.range || "").toLowerCase();
-  const tags = (f.tags || []).join(" ").toLowerCase();
   const url = f.url.toLowerCase();
-  const fullText = `${name} ${range} ${tags} ${url}`;
-
-  const isUniversalBase = /classic|statesman|executive|hamptons|coastal|contemporary|chateaux|breeze|aspen|nuvo|vogue|riviera|majestic|regal/i.test(name);
+  const name = f.name.toLowerCase();
+  const fullText = `${name} ${range} ${tags.join(" ")} ${url}`;
 
   if (category === "acreage") {
-    return /mulberry|ranch|acreage/i.test(fullText) || /classic|statesman|vogue|imperial/i.test(name);
+    return tags.includes("acreage") || /mulberry|ranch|acreage/i.test(fullText);
+  }
+
+  if (category === "split") {
+    return tags.includes("split") || /split[-\s]?level/i.test(fullText);
   }
 
   if (category === "double") {
-    return /double|2-?\s?stry|garage2|upper|balcony/i.test(fullText) || isUniversalBase;
+    return tags.includes("double") || /2-?\s?stry|double[-\s]?storey|garage2/i.test(fullText);
   }
 
   if (category === "single") {
-    return /single|1-?\s?stry/i.test(fullText) || isUniversalBase || !/2-?\s?stry|double[-\s]?storey/i.test(fullText);
+    return tags.includes("single") || /single[-\s]?stry|single[-\s]?storey/i.test(fullText);
   }
 
   return true;
