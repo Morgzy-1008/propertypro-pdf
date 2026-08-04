@@ -94,13 +94,16 @@ export function facadeUpliftFor(
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   if (!id) return null;
+  const isValid = (s: string | null) =>
+    !!s && (s.startsWith("data:image/") || s.startsWith("http") || s.startsWith("/")) && s.length > 200;
+
   // 1. Permanent IndexedDB check (survives tab closes & browser restarts)
   const idbData = await getIdbEnhanced(id);
-  if (idbData) return idbData;
+  if (idbData && isValid(idbData)) return idbData;
 
   // 2. Synchronous localStorage fallback
   const lsData = loadEnhanced(id);
-  if (lsData) {
+  if (lsData && isValid(lsData)) {
     void saveIdbEnhanced(id, lsData);
     return lsData;
   }

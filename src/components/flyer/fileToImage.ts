@@ -350,7 +350,7 @@ async function getRawFacadeBase64(url: string): Promise<string> {
     : url;
 
   try {
-    const res = await fetch(loadUrl, { headers: await authHeaders() });
+    const res = await fetch(loadUrl);
     if (res.ok) {
       const blob = await res.blob();
       const b64 = await new Promise<string>((resolve, reject) => {
