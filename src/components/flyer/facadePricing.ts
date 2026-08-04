@@ -5,6 +5,7 @@
 export type FacadeStorey = "single" | "double" | "split" | "acreage";
 
 export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
+  split: {},
   single: {
     aspen: 21300,
     avalon: 25900,

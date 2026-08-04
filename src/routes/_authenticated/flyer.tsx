@@ -4,7 +4,7 @@ import { Download, FileText, BookOpen, Database, Save, Home } from "lucide-react
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import logoUrl from "@/assets/hudson-homes-logo.png";
+const logoUrl = "/hudson-homes-logo.png";
 import { FlyerForm } from "@/components/flyer/FlyerForm";
 import {
   ExpressFlyer,

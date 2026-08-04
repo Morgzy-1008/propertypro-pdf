@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2 } from "lucide-react";
-import logoUrl from "@/assets/hudson-homes-logo.png";
+const logoUrl = "/hudson-homes-logo.png";
 import { getRange, rangeItems, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
@@ -35,7 +35,7 @@ function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) 
           }`}
           style={{ fontSize: `${size * 0.16}mm` }}
         >
-          BUILD HAPPY
+          ZERO SURPRISES
         </div>
       </div>
     </div>

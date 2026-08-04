@@ -4,12 +4,12 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
-import { facadeUpliftFor, saveFacadeUplift, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
+import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, saveEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
 import { prepareFloorplan, prepareFacade, widenFacadeClientSide } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
 
-import { facadeCategory, garageFromCars, type FacadeStorey } from "./facadePricing";
+import { facadeCategory, facadeGarage, garageFromCars, type FacadeStorey } from "./facadePricing";
 import { duplexFacadesForDesign } from "./duplexFacades.data";
 import { MULBERRY_FACADES } from "./acreageFacades.data";
 
@@ -186,6 +186,8 @@ function storeyFor(type: string): FacadeStorey | null {
 export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   const designs = designsFor(data.housingType as HousingType);
   const [facadeBusy, setFacadeBusy] = useState(false);
+  const [reRenderAttempts, setReRenderAttempts] = useState<Record<string, number>>({});
+  const MAX_RERENDERS = 2;
   const [uplift, setUplift] = useState(0);
   const [variants, setVariants] = useState<FloorplanRecord[]>(() =>
     plansForDesign(data.designName),
@@ -358,6 +360,8 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     const amount = facadeUpliftFor(item.id, item.name, facadeCategory(item), data.designName);
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
+    // Reset re-render attempt counter for fresh facade selections
+    if (!forceRefresh) setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
 
     // 1. Instantly return pre-rendered AI enhanced render from local storage if available
     if (!forceRefresh) {
@@ -400,6 +404,12 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   const handleReDoAiEnhancement = async () => {
     if (facadeBusy) return;
     if (!data.facadeId && !data.facadeUrl) return;
+
+    // Enforce 2-attempt limit per facade
+    const key = data.facadeId || "custom";
+    const attempts = reRenderAttempts[key] ?? 0;
+    if (attempts >= MAX_RERENDERS) return;
+    setReRenderAttempts((prev) => ({ ...prev, [key]: attempts + 1 }));
 
     const currentItem: FacadeItem = {
       id: data.facadeId || "custom",
@@ -562,22 +572,35 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
               garage={garage}
             />
           </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={facadeBusy || !data.facadeName}
-            onClick={handleReDoAiEnhancement}
-            className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
-            title="Re-generate AI facade outpainting variation"
-          >
-            {facadeBusy ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
-            )}
-            Re-do AI enhancement
-          </Button>
+          {(() => {
+            const key = data.facadeId || "custom";
+            const attemptsLeft = data.facadeName ? MAX_RERENDERS - (reRenderAttempts[key] ?? 0) : 0;
+            return (
+              <div className="flex flex-col items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={facadeBusy || !data.facadeName || attemptsLeft <= 0}
+                  onClick={handleReDoAiEnhancement}
+                  className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
+                  title={attemptsLeft <= 0 ? "Limit reached (2/2)" : "Re-generate AI facade outpainting variation"}
+                >
+                  {facadeBusy ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
+                  )}
+                  {attemptsLeft <= 0 ? "Limit (2/2)" : `Re-do AI (${attemptsLeft} left)`}
+                </Button>
+                {data.facadeName && (
+                  <span className="text-[9px] text-muted-foreground text-center leading-tight">
+                    {attemptsLeft <= 0 ? "Max attempts reached" : `${attemptsLeft} of ${MAX_RERENDERS} remaining`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
         </div>
         {designFacades && designFacades.length > 0 && (
           <p className="text-[11px] leading-snug text-muted-foreground">

@@ -334,8 +334,27 @@ export async function enhanceFacade(src: string): Promise<string> {
 
 const GEMINI_KEY = ["AQ", "Ab8RN6IkqA9yMHMjAUDbvY7orxNagYrsmNU8HTNo-cMBaWsMNA"].join(".");
 
+async function getRawFacadeBase64(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:")) return url;
+  try {
+    const loadUrl = url.startsWith("http")
+      ? `/api/floorplan-image?url=${encodeURIComponent(url)}`
+      : url;
+    const img = await loadImage(loadUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || 1200;
+    canvas.height = img.naturalHeight || 900;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.92);
+  } catch {
+    return url;
+  }
+}
+
 /**
- * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
+ * Asks the server or direct Google Gemini Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
  */
 export async function widenFacadeClientSide(item: {
@@ -386,9 +405,9 @@ export async function widenFacadeClientSide(item: {
       // Fall through to direct client call below
     }
 
-    // 2. Direct client call to Google AI Studio Gemini 3.1 Flash Image REST API
+    // 2. Direct client call to Google AI Studio Gemini Image REST API
     const apiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${GEMINI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -406,6 +425,9 @@ export async function widenFacadeClientSide(item: {
               ],
             },
           ],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
         }),
       }
     );
