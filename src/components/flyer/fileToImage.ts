@@ -332,7 +332,11 @@ export async function enhanceFacade(src: string): Promise<string> {
   return json.dataUrl;
 }
 
-const GEMINI_KEY = ["AQ", "Ab8RN6IkqA9yMHMjAUDbvY7orxNagYrsmNU8HTNo-cMBaWsMNA"].join(".");
+const GEMINI_KEY =
+  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+  process.env.GEMINI_API_KEY ||
+  process.env.VITE_GEMINI_API_KEY ||
+  "";
 
 async function getRawFacadeBase64(url: string): Promise<string> {
   if (!url) return "";
@@ -407,7 +411,7 @@ export async function widenFacadeClientSide(item: {
 
     // 2. Direct client call to Google AI Studio Gemini Image REST API
     const apiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${GEMINI_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${GEMINI_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
