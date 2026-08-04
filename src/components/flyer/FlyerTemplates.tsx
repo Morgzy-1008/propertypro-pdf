@@ -45,34 +45,33 @@ function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) 
 /** Facade framing: the render is re-composed into a wide frame with the whole
  *  house centred and generous clearance, so it can safely fill the section
  *  edge-to-edge without clipping the roofline or garage. */
-function Facade({ url, className, busy }: { url: string; className?: string; busy?: boolean }) {
+function Facade({
+  url,
+  busy,
+  className,
+}: {
+  url?: string;
+  busy?: boolean;
+  className?: string;
+}) {
   const [loaded, setLoaded] = useState(false);
-  const fullResUrl = url?.startsWith("data:")
-    ? url
-    : url
-      ? url.replace(/-\d+x\d+(\.(?:jpg|jpeg|png|webp))/gi, "$1")
-      : "";
 
-  const isAiWidened = url?.startsWith("data:") || url?.includes("facade-image") || url?.includes("widened");
+  const displayUrl = useMemo(() => {
+    if (!url) return "";
+    if (url.startsWith("data:")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      if (url.includes("weserv.nl")) return url;
+      return `https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`;
+    }
+    return url;
+  }, [url]);
 
-  if (busy || !url) {
+  if (!url) {
     return (
       <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50 gap-2 p-4 ${className ?? ""}`}>
-        {busy ? (
-          <>
-            <Loader2 className="h-6 w-6 animate-spin text-brand-gold-deep" />
-            <span className="text-[3mm] font-semibold tracking-[0.18em] text-brand-navy uppercase">
-              GENERATING AI FACADE RENDER…
-            </span>
-            <span className="text-[2.2mm] tracking-wide text-brand-ink/50">
-              Outpainting landscaping &amp; widescreen architectural photography
-            </span>
-          </>
-        ) : (
-          <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30 font-medium uppercase">
-            SELECT A FACADE FROM THE LIBRARY
-          </span>
-        )}
+        <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30 font-medium uppercase">
+          SELECT A FACADE FROM THE LIBRARY
+        </span>
       </div>
     );
   }
@@ -80,18 +79,31 @@ function Facade({ url, className, busy }: { url: string; className?: string; bus
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
       <img
-        src={fullResUrl}
+        src={displayUrl}
         alt="Facade render"
         loading="eager"
-        {...(fullResUrl.startsWith("http") ? { crossOrigin: "anonymous" } : {})}
         onLoad={() => setLoaded(true)}
-        onError={() => setLoaded(true)}
+        onError={(e) => {
+          setLoaded(true);
+          console.warn("[FacadeFrame Load Error]", e);
+        }}
         className="h-full w-full object-cover object-center scale-[1.04]"
         style={{
           objectPosition: "center top",
           imageRendering: "-webkit-optimize-contrast",
         }}
       />
+      {busy && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-[2px] gap-2 p-4 text-white">
+          <Loader2 className="h-6 w-6 animate-spin text-brand-gold" />
+          <span className="text-[3mm] font-semibold tracking-[0.18em] text-white uppercase drop-shadow">
+            GENERATING AI FACADE RENDER…
+          </span>
+          <span className="text-[2.2mm] tracking-wide text-slate-200 drop-shadow">
+            Outpainting landscaping &amp; widescreen architectural photography
+          </span>
+        </div>
+      )}
     </div>
   );
 }
