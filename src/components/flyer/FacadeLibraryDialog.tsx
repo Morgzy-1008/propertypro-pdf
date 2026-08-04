@@ -48,7 +48,6 @@ function facadeBelongsToCategory(
 ): boolean {
   if (category === "uploaded") return f.range === "Uploaded";
   if (f.range === "Uploaded") return false;
-  if (category === "design") return true;
 
   const tags = f.tags || [];
   const range = (f.range || "").toLowerCase();
@@ -56,9 +55,21 @@ function facadeBelongsToCategory(
   const name = f.name.toLowerCase();
   const fullText = `${name} ${range} ${tags.join(" ")} ${url}`;
 
-  if (category === "acreage") {
-    return tags.includes("acreage") || /mulberry|ranch|acreage/i.test(fullText);
+  // Wisteria / Duplex / Dual-Occupancy specific facades belong ONLY to the design gallery when Wisteria is selected
+  const isDuplexWisteria = tags.includes("duplex") || tags.includes("wisteria") || /duplex|dual[-\s]?occupancy/i.test(range);
+  if (isDuplexWisteria) {
+    return category === "design";
   }
+
+  if (category === "design") return true;
+
+  // Acreage / Ranch facades belong STRICTLY to the Acreage category tab, NEVER to standard Single Storey or Double Storey!
+  const isAcreage = tags.includes("acreage") || /mulberry|ranch|acreage/i.test(fullText);
+  if (isAcreage) {
+    return category === "acreage";
+  }
+
+  if (category === "acreage") return false;
 
   if (category === "split") {
     return tags.includes("split") || /split[-\s]?level/i.test(fullText);
