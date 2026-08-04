@@ -366,23 +366,20 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Immediately set raw item URL so frame is populated in 0ms
-    if (item.url) {
-      set("facadeUrl", item.url);
-    }
-
+    // 2. Set facadeBusy = true so user sees "GENERATING AI FACADE RENDER..."
     setFacadeBusy(true);
     set("facadeBusy", true);
 
     try {
-      // 3. Trigger Google Gemini AI Outpainting
+      // 3. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
+      const rawUrlToUse = item.originalUrl || item.url;
       const aiUrl = await widenFacadeClientSide({
         id: item.id,
         name: item.name,
-        url: item.url,
-        originalUrl: item.originalUrl,
+        url: rawUrlToUse,
+        originalUrl: rawUrlToUse,
         housingType: targetHousingType,
         forceRefresh,
       });
@@ -391,7 +388,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl);
       } else {
-        const fallbackRender = await prepareFacade(item.url, item.originalUrl, item.id);
+        const fallbackRender = await prepareFacade(rawUrlToUse, rawUrlToUse, item.id);
         if (fallbackRender) set("facadeUrl", fallbackRender);
       }
     } catch (err) {

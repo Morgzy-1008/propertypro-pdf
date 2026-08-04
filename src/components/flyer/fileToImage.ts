@@ -357,6 +357,8 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
   }
 
   for (const rawUrl of candidateUrls) {
+    if (rawUrl.startsWith("data:")) return rawUrl;
+
     // 1. Direct fetch (works for same-origin & CORS-enabled URLs)
     try {
       const res = await fetch(rawUrl);
@@ -372,6 +374,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
     // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
     if (rawUrl.startsWith("http")) {
       const proxies = [
+        `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg`,
         `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`,
       ];
@@ -407,7 +410,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
 }
 
 /**
- * Asks the server or direct Google Gemini Image API to AI-outpaint a facade into a wide 2.69:1 render.
+ * Asks direct Google Gemini Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
  */
 export async function widenFacadeClientSide(item: {
@@ -421,6 +424,7 @@ export async function widenFacadeClientSide(item: {
   try {
     const rawPayload = await getRawFacadeBase64(item.url, item.originalUrl, item.id);
     if (!rawPayload || !rawPayload.startsWith("data:image/")) {
+      console.warn("[AI Outpaint] Failed to get raw facade base64 for item:", item.name);
       return null;
     }
     const isDouble =
@@ -445,36 +449,52 @@ export async function widenFacadeClientSide(item: {
       "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
       "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only." + refreshSeed;
 
-    const apiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: promptText },
+    const models = ["gemini-2.5-flash-image", "gemini-2.0-flash-exp"];
+    let apiRes: Response | null = null;
+
+    for (const model of models) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
                 {
-                  inline_data: {
-                    mime_type: rawPayload.startsWith("data:image/png") ? "image/png" : "image/jpeg",
-                    data: rawPayload.split(",")[1] ?? "",
-                  },
+                  parts: [
+                    { text: promptText },
+                    {
+                      inline_data: {
+                        mime_type: rawPayload.startsWith("data:image/png") ? "image/png" : "image/jpeg",
+                        data: rawPayload.split(",")[1] ?? "",
+                      },
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
-          },
-        }),
+              generationConfig: {
+                responseModalities: ["TEXT", "IMAGE"],
+              },
+            }),
+          }
+        );
+        if (res.ok) {
+          apiRes = res;
+          break;
+        } else {
+          console.warn(`[AI Outpaint] Model ${model} returned status ${res.status}`);
+        }
+      } catch (e) {
+        console.warn(`[AI Outpaint] Model ${model} fetch exception:`, e);
       }
-    );
+    }
 
-    if (!apiRes.ok) {
-      console.error("[AI Outpaint] Gemini API returned status", apiRes.status, await apiRes.text());
+    if (!apiRes || !apiRes.ok) {
+      console.error("[AI Outpaint] All Gemini API endpoints failed");
       return null;
     }
+
     const json = (await apiRes.json()) as any;
     let b64: string | undefined = undefined;
     if (json?.candidates?.[0]?.content?.parts) {

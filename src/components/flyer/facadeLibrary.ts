@@ -16,7 +16,7 @@ export interface FacadeItem {
 export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES.map((f) => ({
   ...f,
   originalUrl: f.url,
-  url: PRE_RENDERED_FACADES[f.id] || f.url,
+  url: f.url,
 }));
 
 const STORAGE_KEY = "hudson-facade-library";
