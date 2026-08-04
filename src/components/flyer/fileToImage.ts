@@ -354,12 +354,9 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
   }
 
   for (const rawUrl of candidateUrls) {
-    const loadUrl = rawUrl.startsWith("http")
-      ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
-      : rawUrl;
-
+    // 1. Direct fetch (works for raw URLs, base64 & static files)
     try {
-      const res = await fetch(loadUrl);
+      const res = await fetch(rawUrl);
       if (res.ok) {
         const blob = await res.blob();
         const b64 = await new Promise<string>((resolve, reject) => {
@@ -371,11 +368,32 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
         if (b64.startsWith("data:image/") && b64.length > 500) return b64;
       }
     } catch {
-      /* try next candidate */
+      /* try proxy fallback */
     }
 
+    // 2. Proxy fetch for CORS-restricted URLs
+    if (rawUrl.startsWith("http")) {
+      try {
+        const proxyUrl = `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`;
+        const res = await fetch(proxyUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const b64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error("FileReader failed"));
+            reader.readAsDataURL(blob);
+          });
+          if (b64.startsWith("data:image/") && b64.length > 500) return b64;
+        }
+      } catch {
+        /* try canvas fallback */
+      }
+    }
+
+    // 3. Canvas image element fallback
     try {
-      const img = await loadImage(loadUrl);
+      const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth || 1200;
       canvas.height = img.naturalHeight || 900;
@@ -945,14 +963,14 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
   for (const rawUrl of candidateUrls) {
     try {
-      const loadUrl = rawUrl.startsWith("http")
-        ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
-        : rawUrl;
       let img: HTMLImageElement;
       try {
-        img = await loadImage(loadUrl);
-      } catch {
         img = await loadImage(rawUrl);
+      } catch {
+        const proxyUrl = rawUrl.startsWith("http")
+          ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
+          : rawUrl;
+        img = await loadImage(proxyUrl);
       }
       const srcW = img.naturalWidth  || 1200;
       const srcH = img.naturalHeight || 900;
