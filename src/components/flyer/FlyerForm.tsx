@@ -393,6 +393,8 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl);
+      } else if (initialRender) {
+        set("facadeUrl", initialRender);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);

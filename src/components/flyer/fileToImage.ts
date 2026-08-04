@@ -458,19 +458,29 @@ export async function widenFacadeClientSide(item: {
       }
     );
 
-    if (!apiRes.ok) return null;
+    if (!apiRes.ok) {
+      console.error("[AI Outpaint] Gemini API returned status", apiRes.status, await apiRes.text());
+      return null;
+    }
     const json = (await apiRes.json()) as any;
     let b64: string | undefined = undefined;
     if (json?.candidates?.[0]?.content?.parts) {
       for (const p of json.candidates[0].content.parts as any[]) {
-        if (p.inlineData?.data) { b64 = p.inlineData.data; break; }
-        if (p.inline_data?.data) { b64 = p.inline_data.data; break; }
+        const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
+        if (data && typeof data === "string" && data.length > 500) {
+          b64 = data;
+          break;
+        }
       }
     }
-    if (!b64) return null;
+    if (!b64) {
+      console.warn("[AI Outpaint] Gemini API did not return image inline_data:", JSON.stringify(json).substring(0, 300));
+      return null;
+    }
 
     return `data:image/jpeg;base64,${b64}`;
-  } catch {
+  } catch (err) {
+    console.error("[AI Outpaint Exception]", err);
     return null;
   }
 }
