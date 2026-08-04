@@ -349,33 +349,32 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     applyPricing(data.designName, data.range, data.landPrice, amount);
   };
 
-  useEffect(() => {
-    if (data.facadeUrl && data.facadeUrl.startsWith("http") && !data.facadeUrl.startsWith("data:")) {
-      void prepareFacade(data.facadeUrl).then((widened) => {
-        if (widened && widened !== data.facadeUrl) {
-          set("facadeUrl", widened);
-        }
-      });
-    }
-  }, [data.facadeUrl]);
-
   /** Select a library facade: price it, then have the render re-composed into a
    *  wide frame — the whole house kept intact and as large as possible, with
    *  fresh, consistent landscaping filling the rest of the frame. */
-  const selectFacade = async (item: FacadeItem) => {
+  const selectFacade = async (item: FacadeItem, forceRefresh = false) => {
     set("facadeId", item.id);
     set("facadeName", item.name);
     const amount = facadeUpliftFor(item.id, item.name, facadeCategory(item), data.designName);
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
+    // 1. Instantly return pre-rendered AI enhanced render from local storage if available
+    if (!forceRefresh) {
+      const cachedAi = loadEnhanced(item.id);
+      if (cachedAi) {
+        set("facadeUrl", cachedAi);
+        return;
+      }
+    }
+
     setFacadeBusy(true);
     try {
-      // 1. Immediately generate 21:9 wide outpainted facade canvas so preview updates instantly
+      // 2. Fast 2.69:1 canvas preview so preview updates immediately
       const widened = await prepareFacade(item.url);
       set("facadeUrl", widened);
 
-      // 2. Trigger AI Outpainter (server or client-direct Gemini 3.1 Flash Image AI)
+      // 3. Automatic AI Outpainting (Google Gemini 3.1 Flash Image AI)
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
@@ -383,10 +382,12 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         name: item.name,
         url: item.url,
         housingType: targetHousingType,
+        forceRefresh,
       });
 
       if (aiUrl && aiUrl !== item.url) {
         set("facadeUrl", aiUrl);
+        saveEnhanced(item.id, aiUrl);
       }
     } catch {
       const widened = await prepareFacade(item.url);
@@ -397,30 +398,18 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   };
 
   const handleReDoAiEnhancement = async () => {
-    if (!data.facadeName || facadeBusy) return;
-    setFacadeBusy(true);
-    try {
-      const itemCategory = data.facadeId
-        ? facadeCategory({ name: data.facadeName, url: data.facadeUrl })
-        : "single";
-      const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
+    if (facadeBusy) return;
+    if (!data.facadeId && !data.facadeUrl) return;
 
-      const freshAiUrl = await widenFacadeClientSide({
-        id: data.facadeId || "custom",
-        name: data.facadeName,
-        url: data.facadeUrl,
-        housingType: targetHousingType,
-        forceRefresh: true,
-      });
+    const currentItem: FacadeItem = {
+      id: data.facadeId || "custom",
+      name: data.facadeName || "Facade",
+      range: "Standard",
+      tags: [],
+      url: data.facadeUrl.startsWith("data:") ? BUILT_IN_FACADES[0].url : data.facadeUrl,
+    };
 
-      if (freshAiUrl) {
-        set("facadeUrl", freshAiUrl);
-      }
-    } catch {
-      /* keep current */
-    } finally {
-      setFacadeBusy(false);
-    }
+    await selectFacade(currentItem, true);
   };
 
   return (
