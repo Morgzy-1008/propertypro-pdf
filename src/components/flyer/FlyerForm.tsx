@@ -179,7 +179,7 @@ function ConsultantPicker({ data, set }: { data: FlyerData; set: Setter }) {
 function storeyFor(type: string): FacadeStorey | null {
   if (type === "double-storey") return "double";
   if (type === "acreage") return "acreage";
-  if (type === "split-level") return null;
+  if (type === "split-level") return "split";
   return "single";
 }
 
