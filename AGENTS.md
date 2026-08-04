@@ -1,10 +1,12 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# Hudson Homes Package Studio Agent Guidelines
+
+This repository hosts the Hudson Homes House & Land Package Studio and Flyer Builder.
+
+## Production Domain
+- **Live URL**: https://www.hudsonhomeshouselandflyer.dev/flyer
+
+## Architecture & Code Standards
+- Framework: Vite + React + TanStack Start.
+- Styling: TailwindCSS v4 with Hudson Homes brand tokens.
+- Permanent Lifetime Caching: Native IndexedDB store (`PropertyProFacadeCacheDB`) for instant 0ms reload of outpainted facades across browser restarts.
+- AI Outpainting: Google Gemini API integration for generating widescreen 2.69:1 facade renders with preserved architectural details.

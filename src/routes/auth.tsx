@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,21 +109,25 @@ function AuthPage() {
 
 
   const google = async () => {
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/auth",
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "/auth",
+      },
     });
-    if (result.error) {
-      toast.error("Google sign-in failed");
+    if (error) {
+      toast.error("Google sign-in failed: " + error.message);
       return;
     }
-    if (result.redirected) return;
     const { data } = await supabase.auth.getUser();
-    if (!isAllowedEmail(data.user?.email ?? "")) {
+    if (data.user && !isAllowedEmail(data.user.email ?? "")) {
       await supabase.auth.signOut();
       toast.error(`Access not approved — request it from ${ACCESS_REQUEST_EMAIL}.`);
       return;
     }
-    navigate({ to: "/database", replace: true });
+    if (data.user) {
+      navigate({ to: "/database", replace: true });
+    }
   };
 
   return (

@@ -1,58 +1,28 @@
 # Hudson Homes Flyer Studio
 
-"Build a web application for Hudson Homes to generate fast, high-converting House & Land Package PDF flyers.
+**Live Production App**: [https://www.hudsonhomeshouselandflyer.dev/flyer](https://www.hudsonhomeshouselandflyer.dev/flyer)
 
-Layout & Features:
+High-performance, custom web application built for Hudson Homes to generate print-ready A4 House & Land Package PDF flyers.
 
-Sidebar Form (Left): Inputs for Suburb/Estate, House Model Name, Package Price, Land Size (m^2), Bed/Bath/Car counts, and File Uploads for Facade Renders and Floorplans.
+## Layout & Features
 
-Live Preview Panel (Right): Display a pixel-perfect A4-proportioned flyer preview (210\text{mm} \times 297\text{mm}) using Hudson Homes brand colors (warm gold/amber accents, deep navy, and clean off-white backgrounds).
-
-Template Switcher: Allow toggling between a '1-Page Express Flyer' layout and a '2-Page Showcase Booklet' layout.
-
-Export Function: Add a prominent 'Download Print-Ready PDF' button at the top that converts the A4 preview panel directly into a high-resolution PDF download using browser print libraries."
-
- 
-
-The flyer needs to be customisable with details such as:
-
- 
-
-Location
-
-Address
-
-Floorplan name
-
-Floorplan size
-
-Land size
-
-Land frontage
-
-Picture of facade
-
-Contact details
-
-This project was built with [Lovable](https://lovable.dev).
-
-**Live app**: https://propertypro-pdf.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/e5457852-a02b-4041-a07d-15569e8c821d).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+- **Sidebar Controls**: Dynamic inputs for Suburb/Estate, House Model Name, Package Price, Land Size ($m^2$), Bed/Bath/Car counts, and facade library selection.
+- **Live Preview Panel**: Pixel-perfect A4-proportioned flyer preview ($210\text{mm} \times 297\text{mm}$) using Hudson Homes brand colors (warm gold accents, deep navy, clean off-white backgrounds).
+- **Template Switcher**: Toggles between 1-Page Express Flyer, 2-Page Showcase Booklet, and House Only layouts.
+- **Widescreen AI Facade Outpainting**: Generates widescreen 2.69:1 architectural hero renders with extended landscaping using Google Gemini AI, with instant permanent client-side caching.
+- **Export Function**: One-click print-ready A4 PDF export.
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+# Clone & install dependencies
+git clone https://github.com/Morgzy-1008/propertypro-pdf.git
+cd propertypro-pdf
+npm install
+
+# Run local development server
 npm run dev
+
+# Build for production
+npm run build
 ```
