@@ -279,6 +279,24 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         }
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
+
+    // Auto-select a matching facade for this design's storey and garage count so widescreen facade renders immediately
+    const targetStorey = storeyFor(data.housingType);
+    const targetGarage = garageFromCars(plans.length ? plans[0].cars : data.cars) ?? 2;
+    const available = designFacades || BUILT_IN_FACADES;
+
+    const matched =
+      available.find((f) => {
+        const cat = facadeCategory(f);
+        const gar = facadeGarage(f);
+        const matchStorey = targetStorey === null || cat === targetStorey;
+        const matchGar = gar === "both" || gar === targetGarage;
+        return matchStorey && matchGar;
+      }) || available[0];
+
+    if (matched) {
+      void selectFacade(matched);
+    }
   };
 
   const selectVariant = (label: string) => {
