@@ -2,7 +2,7 @@
  * Prices are the facade upgrade cost over the standard Classic facade,
  * keyed by the facade's base name (lower case, parentheticals removed). */
 
-export type FacadeStorey = "single" | "double" | "acreage";
+export type FacadeStorey = "single" | "double" | "split" | "acreage";
 
 export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
   single: {
