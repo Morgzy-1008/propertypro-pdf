@@ -247,6 +247,29 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   };
 
 
+  const pickDefaultFacade = (housingType: string, _designName: string, cars: string): FacadeItem | null => {
+    const isDouble = /double|duplex|two/i.test(housingType) || storeyFor(housingType) === "double";
+    const garage = garageFromCars(cars);
+
+    const candidates = BUILT_IN_FACADES.filter((f) => {
+      const cat = facadeCategory(f);
+      if (isDouble && cat !== "double") return false;
+      if (!isDouble && cat === "double") return false;
+      if (garage === 1 && f.tags.includes("single-garage")) return true;
+      if (garage === 2 && !f.tags.includes("single-garage")) return true;
+      return true;
+    });
+
+    return candidates[0] || BUILT_IN_FACADES[0] || null;
+  };
+
+  useEffect(() => {
+    if (!data.facadeUrl && data.designName) {
+      const defaultFacade = pickDefaultFacade(data.housingType, data.designName, data.cars);
+      if (defaultFacade) selectFacade(defaultFacade);
+    }
+  }, []);
+
   const selectDesign = (name: string) => {
     set("designName", name);
     const plans = plansForDesign(name);
@@ -262,17 +285,18 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     const sizes = otherSizesForDesign(name);
     set("otherSizes", sizes);
     set("showOtherSizes", sizes.length > 0);
-    // Duplex and Mulberry facades are priced per design, so re-price the facade.
-    const amount = data.facadeId
-      ? facadeUpliftFor(
-          data.facadeId,
-          data.facadeName,
-          storeyFor(data.housingType) ?? undefined,
-          name,
-        )
-      : uplift;
+
+    const defaultFacade = pickDefaultFacade(data.housingType, name, plans[0]?.cars || data.cars);
+    const facadeToUse = defaultFacade || BUILT_IN_FACADES[0];
+
+    const amount = facadeUpliftFor(
+      facadeToUse.id,
+      facadeToUse.name,
+      storeyFor(data.housingType) ?? undefined,
+      name,
+    );
     setUplift(amount);
-    // Dual-occupancy landscaping is priced per design family.
+
     const costs = data.landscaping
       ? {
           ...data.costs,
@@ -282,10 +306,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
 
-    // Clear facade when design changes — do not auto-display a facade on the flyer until user selects one from the library
-    set("facadeId", "");
-    set("facadeName", "");
-    set("facadeUrl", "");
+    selectFacade(facadeToUse);
   };
 
   const selectVariant = (label: string) => {
