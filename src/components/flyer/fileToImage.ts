@@ -346,6 +346,15 @@ const GEMINI_KEY =
   (typeof process !== "undefined" && (process as any)?.env?.VITE_GEMINI_API_KEY) ||
   ["AQ", "Ab8RN6IyCs5kWdk1bolcgdCy5DpK-x5-1VOBNoyNT97nIgkrLA"].join(".");
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error("FileReader failed"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
@@ -358,24 +367,39 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
   }
 
   for (const rawUrl of candidateUrls) {
-    // 1. Direct fetch (works for raw URLs, base64 & static files)
+    // 1. Direct fetch (works for same-origin & CORS-enabled URLs)
     try {
       const res = await fetch(rawUrl);
       if (res.ok) {
         const blob = await res.blob();
-        const b64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error("FileReader failed"));
-          reader.readAsDataURL(blob);
-        });
+        const b64 = await blobToBase64(blob);
         if (b64.startsWith("data:image/") && b64.length > 500) return b64;
       }
     } catch {
-      /* try proxy fallback */
+      /* try CORS proxy */
     }
 
-    // 2. Canvas image element fallback (uses dual CORS fallback in loadImage)
+    // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
+    if (rawUrl.startsWith("http")) {
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`,
+      ];
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            const b64 = await blobToBase64(blob);
+            if (b64.startsWith("data:image/") && b64.length > 500) return b64;
+          }
+        } catch {
+          /* try next proxy */
+        }
+      }
+    }
+
+    // 3. Canvas image element fallback
     try {
       const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
@@ -389,7 +413,6 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       /* try next candidate */
     }
   }
-
   return "";
 }
 
