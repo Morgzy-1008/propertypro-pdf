@@ -309,7 +309,8 @@ export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<
  * centered, maximum size, with sky, lawn, garden beds and boundary fencing
  * extending seamlessly across the left and right margins to fill the flyer frame.
  */
-
+/** Cache for prepared facade renders, keyed by source URL. */
+const facadeOutpaintCache = new Map<string, string>();
 
 
 
@@ -333,97 +334,6 @@ export async function enhanceFacade(src: string): Promise<string> {
 
 const GEMINI_KEY = ["AQ", "Ab8RN6IkqA9yMHMjAUDbvY7orxNagYrsmNU8HTNo-cMBaWsMNA"].join(".");
 
-/** Fetches a facade image URL and returns it as a base64-encoded data URL for use with the Gemini API. */
-async function getRawFacadeBase64(url: string): Promise<string> {
-  if (url.startsWith("data:")) return url;
-  // Try proxying through our image endpoint to avoid CORS issues
-  const proxyUrl = `/api/floorplan-image?url=${encodeURIComponent(url)}`;
-  const res = await fetch(proxyUrl).catch(() => null) ?? await fetch(url).catch(() => null);
-  if (!res || !res.ok) throw new Error(`Could not fetch facade image: ${url}`);
-  const type = res.headers.get("content-type") ?? "image/jpeg";
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  let binary = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return `data:${type};base64,${btoa(binary)}`;
-}
-
-const facadeOutpaintCache = new Map<string, string>();
-
-const DB_NAME = "PropertyProFacadeCacheDB";
-const STORE_NAME = "outpaints";
-
-function openFacadeDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined" || !window.indexedDB) {
-      return reject("No indexedDB support");
-    }
-    const request = window.indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-export async function getIDBCachedOutpaint(key: string): Promise<string | null> {
-  try {
-    const db = await openFacadeDB();
-    return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, "readonly");
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(key);
-      req.onsuccess = () => resolve((req.result as string) || null);
-      req.onerror = () => resolve(null);
-    });
-  } catch {
-    return null;
-  }
-}
-
-export async function setIDBCachedOutpaint(key: string, value: string): Promise<void> {
-  try {
-    const db = await openFacadeDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    const store = tx.objectStore(STORE_NAME);
-    store.put(value, key);
-  } catch {
-    // Ignore quota errors
-  }
-}
-
-function getCachedOutpaint(key: string): string | null {
-  if (!key) return null;
-  if (facadeOutpaintCache.has(key)) return facadeOutpaintCache.get(key)!;
-  try {
-    const saved = localStorage.getItem(`facade_outpaint_v7_${key}`);
-    if (saved) {
-      facadeOutpaintCache.set(key, saved);
-      return saved;
-    }
-  } catch {}
-  return null;
-}
-
-function setCachedOutpaint(key: string, value: string): void {
-  if (!key || !value) return;
-  facadeOutpaintCache.set(key, value);
-  try {
-    localStorage.setItem(`facade_outpaint_v7_${key}`, value);
-  } catch {
-    // Memory cache and IndexedDB retain image if localStorage is full
-  }
-  setIDBCachedOutpaint(key, value);
-}
-
-import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
-
 /**
  * Asks the server or direct Google Gemini 3.1 Flash Image API to AI-outpaint a facade into a wide 2.69:1 render.
  * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
@@ -433,22 +343,8 @@ export async function widenFacadeClientSide(item: {
   name: string;
   url: string;
   housingType?: string;
+  forceRefresh?: boolean;
 }): Promise<string> {
-  // If static pre-rendered image exists for this facade, return INSTANTLY (0ms, $0 API cost)
-  if (item.id && PRE_RENDERED_FACADES[item.id]) {
-    return PRE_RENDERED_FACADES[item.id];
-  }
-
-  const cacheKey = item.id || item.name || item.url;
-  const memoryCached = getCachedOutpaint(cacheKey);
-  if (memoryCached) return memoryCached;
-
-  const idbCached = await getIDBCachedOutpaint(cacheKey);
-  if (idbCached) {
-    facadeOutpaintCache.set(cacheKey, idbCached);
-    return idbCached;
-  }
-
   try {
     const rawPayload = await getRawFacadeBase64(item.url);
     const isDouble =
@@ -458,21 +354,20 @@ export async function widenFacadeClientSide(item: {
       );
 
     const comp = isDouble
-      ? "sit the two-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 92% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 4% clear blue sky headroom space above highest roof ridge/peak, and 4% driveway clearance below so the entire building architecture from top roof peak down to bottom garage base is 100% visible and unclipped."
-      : "sit the single-storey house MASSIVE AND ZOOMED-IN AS POSSIBLE centered in wide 2.69:1 perspective, occupying 97% of total vertical frame height. ABSOLUTE MANDATE: Draw the house structure large and zoomed-in, leaving a minimal 1.5% clear blue sky headroom space above the roof ridge, and 1.5% driveway clearance below so the building is 100% visible and unclipped.";
+      ? "sit the two-storey house significantly smaller and further back in perspective, occupying ONLY 35% to 38% of the total vertical frame height centered. ABSOLUTE MANDATE FOR DOUBLE STOREY: Draw the building small enough so that there is a massive 32% clear blue sky headroom space above the highest roof ridge and roof peak, and a wide 30% ground clearance space below showing the entire entry porch, porch steps, garage base, exposed aggregate driveway, and front lawn. The entire two-storey building from top roof peak down to bottom garage base MUST sit comfortably inside the middle 36% of the image height so it is NEVER clipped."
+      : "sit the single-storey house centered, occupying roughly 65% to 70% of the frame height with generous clear blue sky headroom above the roof ridge and driveway/ground clearly visible below";
+
+    const refreshSeed = item.forceRefresh ? ` VARIATION_SEED_${Date.now()}_${Math.floor(Math.random() * 10000)}` : "";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
-      "STRICT ARCHITECTURAL, MATERIAL & COLOR LOCK MANDATE (100% EXACT REPRODUCTION): " +
-      "You are strictly prohibited from changing, modifying, reinterpreting, or swapping ANY structural element, building feature, color, or material of the house. " +
-      "1. EXACT MATERIAL & COLOR REPRODUCTION: The exact brick colors, render shades, cladding materials, roof tile colors, timber stain hues, window frame colors, guttering, fascia, portico columns, and front door finish MUST BE 100% IDENTICAL to the reference image. Do NOT change brick to render, do NOT change dark roofs to light roofs, do NOT change render colors or timber tones. Every material, color, and finish must match the input reference photo exactly. " +
-      "2. EXACT GEOMETRY & STRUCTURE LOCK: Roof pitch, gables, eaves depth, window count/height/mullions, garage door count and panel style, entry porch columns, steps, and overall storeys MUST BE 100% UNTOUCHED and identical. Count the garage doors and windows in the reference image and reproduce EXACTLY that same number, width, and position — never add a garage, never alter storeys or building architecture. " +
-      "3. ONLY ALLOWED MODIFICATIONS: Enlarging the scale of the house in the frame to fill vertical height, enhancing photographic resolution/crispness to 4K definition, and outpainting the left and right background with extended Australian residential suburban landscaping and sky. " +
+      "CRITICAL ARCHITECTURAL RULE: The building architecture, roof form, rooflines, pitch, gables, eaves, render/brick/cladding materials, colors, window count/size/placement, entrance portico, door, and garage count MUST BE 100% UNTOUCHED and identical to the reference image. " +
+      "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
       "COMPOSITION & SCALE: " + comp + ". " +
       "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
-      "TOP QUALITY & ENHANCEMENT MANDATE: Re-render in crystal-clear ultra-high resolution 4K/8K architectural photographic quality. Sharpen fine textures on roof tiles, brickwork, render, timber garage doors, glass windows, door hardware, foliage, and driveway paving with ultra-sharp definition, vivid natural colors, realistic daylighting, and zero compression artifacts. " +
+      "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
       "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
-      "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only.";
+      "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only." + refreshSeed;
 
     // 1. Try server endpoint first
     try {
@@ -484,7 +379,6 @@ export async function widenFacadeClientSide(item: {
       if (res.ok) {
         const json = (await res.json()) as { url?: string; fallback?: boolean };
         if (json.url && !json.fallback && json.url !== item.url) {
-          setCachedOutpaint(cacheKey, json.url);
           return json.url;
         }
       }
@@ -527,13 +421,9 @@ export async function widenFacadeClientSide(item: {
     }
     if (!b64) throw new Error("No image data returned from Gemini API");
 
-    const result = `data:image/jpeg;base64,${b64}`;
-    setCachedOutpaint(cacheKey, result);
-    return result;
+    return `data:image/jpeg;base64,${b64}`;
   } catch {
-    const fallback = await prepareFacade(item.url);
-    setCachedOutpaint(cacheKey, fallback);
-    return fallback;
+    return prepareFacade(item.url);
   }
 }
 
@@ -552,41 +442,18 @@ export async function widenFacade(item: {
 
 /** Trimmed floorplans, keyed by their published URL. */
 const floorplanCache = new Map<string, string>();
-const FLOORPLAN_PIPELINE_VERSION = "hd-crisp-v3";
-
-function getCachedFloorplan(key: string): string | null {
-  if (!key) return null;
-  if (floorplanCache.has(key)) return floorplanCache.get(key)!;
-  try {
-    const saved = localStorage.getItem(`floorplan_hd_${key}`);
-    if (saved) {
-      floorplanCache.set(key, saved);
-      return saved;
-    }
-  } catch {}
-  return null;
-}
-
-function setCachedFloorplan(key: string, value: string): void {
-  if (!key || !value) return;
-  floorplanCache.set(key, value);
-  try {
-    localStorage.setItem(`floorplan_hd_${key}`, value);
-  } catch {
-    // If localStorage quota full, memory map still holds it
-  }
-}
+const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
 
 /**
- * Loads a published floorplan PNG through the same-origin proxy, trims blank margins,
- * and upscales to 300+ DPI ultra-high definition resolution so lines and text stay
- * vector-sharp when resized or printed.
+ * Loads a published floorplan PNG through the same-origin proxy and trims the
+ * blank page margin off it, so `object-contain` renders the drawing as large
+ * as the flyer frame allows without ever clipping it.
  */
 export async function prepareFloorplan(url: string): Promise<string> {
   if (!url || url.startsWith("data:")) return url;
 
   const cacheKey = `${url}::${FLOORPLAN_PIPELINE_VERSION}`;
-  const cached = getCachedFloorplan(cacheKey);
+  const cached = floorplanCache.get(cacheKey);
   if (cached) return cached;
 
   try {
@@ -603,7 +470,7 @@ export async function prepareFloorplan(url: string): Promise<string> {
     });
     const trimmed = await cropToContent(raw, 0.008);
     const sharp = await sharpenPlan(trimmed);
-    setCachedFloorplan(cacheKey, sharp);
+    floorplanCache.set(cacheKey, sharp);
     return sharp;
   } catch {
     return url;
@@ -614,10 +481,9 @@ const MIN_GARAGE_W = 5.7;
 const MIN_GARAGE_D = 6.0;
 
 /**
- * Upscales and sharpens a floorplan drawing to 300+ DPI studio print definition
- * so architectural linework, room names, measurements, and dimension text stay
- * ultra-crisp and razor-sharp when scaled for A4 print. Purely photometric contrast
- * enhancement: zero geometry is moved, so 100% of the design is untouched.
+ * Upscales and sharpens a floorplan drawing so lines, room names and dimension
+ * text stay crisp in print. Purely photometric: an unsharp mask plus a levels
+ * stretch on a white page. No geometry is moved, so the design is untouched.
  */
 export async function sharpenPlan(dataUrl: string): Promise<string> {
   try {
@@ -626,9 +492,8 @@ export async function sharpenPlan(dataUrl: string): Promise<string> {
     const h0 = img.naturalHeight;
     if (!w0 || !h0) return dataUrl;
 
-    // Target 3200px width/height for 300 DPI A4 print definition
-    const maxDim = Math.max(w0, h0);
-    const scale = Math.max(1.6, Math.min(4.0, 3200 / maxDim));
+    // Upscale small scans so hairlines and numerals survive the print raster.
+    const scale = Math.min(2, Math.max(1, 2200 / w0), 4000 / w0);
     const w = Math.round(w0 * scale);
     const h = Math.round(h0 * scale);
 
@@ -642,38 +507,39 @@ export async function sharpenPlan(dataUrl: string): Promise<string> {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
 
-    const imageData = ctx.getImageData(0, 0, w, h);
-    const pixels = imageData.data;
+    const image = ctx.getImageData(0, 0, w, h);
+    const src = image.data;
+    const out = new Uint8ClampedArray(src);
 
-    // High-precision high-contrast line-art & text sharpening filter:
-    // Pure paper white (lum >= 215) -> 255
-    // Deep black linework (lum <= 100) -> 0
-    // Anti-aliased line edges -> steep contrast curve so edges are sharp with zero blur/halos
-    for (let i = 0; i < pixels.length; i += 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-
-      if (lum >= 215) {
-        pixels[i] = 255;
-        pixels[i + 1] = 255;
-        pixels[i + 2] = 255;
-      } else if (lum <= 100) {
-        pixels[i] = 0;
-        pixels[i + 1] = 0;
-        pixels[i + 2] = 0;
-      } else {
-        const norm = (lum - 100) / 115;
-        const val = Math.round(Math.pow(norm, 1.7) * 255);
-        pixels[i] = val;
-        pixels[i + 1] = val;
-        pixels[i + 2] = val;
+    // Unsharp mask: subtract a 3x3 box blur, weighted, per channel.
+    const amount = 0.9;
+    for (let y = 1; y < h - 1; y += 1) {
+      for (let x = 1; x < w - 1; x += 1) {
+        const i = (y * w + x) * 4;
+        for (let c = 0; c < 3; c += 1) {
+          let sum = 0;
+          for (let dy = -1; dy <= 1; dy += 1) {
+            for (let dx = -1; dx <= 1; dx += 1) {
+              sum += src[((y + dy) * w + (x + dx)) * 4 + c];
+            }
+          }
+          const blur = sum / 9;
+          out[i + c] = src[i + c] + amount * (src[i + c] - blur);
+        }
       }
-      pixels[i + 3] = 255;
     }
 
-    ctx.putImageData(imageData, 0, 0);
+    // Levels: push near-white to paper white and near-black to true black.
+    const lo = 28;
+    const hi = 232;
+    for (let i = 0; i < out.length; i += 4) {
+      for (let c = 0; c < 3; c += 1) {
+        const v = out[i + c];
+        out[i + c] = v <= lo ? 0 : v >= hi ? 255 : ((v - lo) / (hi - lo)) * 255;
+      }
+    }
+
+    ctx.putImageData(new ImageData(out, w, h), 0, 0);
     return canvas.toDataURL("image/png");
   } catch {
     return dataUrl;
@@ -1023,10 +889,10 @@ export async function prepareFacade(dataUrl: string): Promise<string> {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
 
-    // Scale house to occupy 97% of vertical canvas height (2% sky headroom above roof peak, 1% driveway clearance below)
-    // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and MASSIVE.
-    const reserveTop = Math.round(outH * 0.02);
-    const reserveBot = Math.round(outH * 0.01);
+    // Scale house to occupy 86% of vertical canvas height (10% sky headroom above roof peak, 4% driveway clearance below)
+    // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
+    const reserveTop = Math.round(outH * 0.10);
+    const reserveBot = Math.round(outH * 0.04);
     const areaH = outH - reserveTop - reserveBot;
     const scale = areaH / srcH;
     const drawW = Math.round(srcW * scale);
