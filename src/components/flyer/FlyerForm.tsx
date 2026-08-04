@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
-import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, saveEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
+import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, loadEnhancedAsync, saveEnhanced, clearIdbEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
 import { prepareFloorplan, prepareFacade, widenFacadeClientSide } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
@@ -350,9 +350,9 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     // Reset re-render attempt counter for fresh facade selections
     if (!forceRefresh) setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
 
-    // 1. Instantly return pre-rendered AI enhanced render from local storage if available
+    // 1. Instantly return pre-rendered AI enhanced render from permanent IndexedDB / local storage if available
     if (!forceRefresh) {
-      const cachedAi = loadEnhanced(item.id);
+      const cachedAi = await loadEnhancedAsync(item.id);
       if (cachedAi) {
         set("facadeUrl", cachedAi);
         set("facadeBusy", false);
@@ -401,6 +401,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     const attempts = reRenderAttempts[key] ?? 0;
     if (attempts >= MAX_RERENDERS) return;
     setReRenderAttempts((prev) => ({ ...prev, [key]: attempts + 1 }));
+    await clearIdbEnhanced(key);
 
     const currentItem: FacadeItem = {
       id: data.facadeId || "custom",

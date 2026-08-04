@@ -1,6 +1,7 @@
 import { HUDSON_FACADES } from "./facades.data";
 import { facadePriceForDesign, type FacadeStorey } from "./facadePricing";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
+import { getIdbEnhanced, saveIdbEnhanced, clearIdbEnhanced } from "./idbFacadeCache";
 
 export interface FacadeItem {
   id: string;
@@ -91,6 +92,22 @@ export function facadeUpliftFor(
 
 /* ---- AI-enhanced render cache -------------------------------------------- */
 
+export async function loadEnhancedAsync(id: string): Promise<string | null> {
+  if (!id) return null;
+  // 1. Permanent IndexedDB check (survives tab closes & browser restarts)
+  const idbData = await getIdbEnhanced(id);
+  if (idbData) return idbData;
+
+  // 2. Synchronous localStorage fallback
+  const lsData = loadEnhanced(id);
+  if (lsData) {
+    void saveIdbEnhanced(id, lsData);
+    return lsData;
+  }
+
+  return null;
+}
+
 export function loadEnhanced(id: string): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -101,12 +118,17 @@ export function loadEnhanced(id: string): string | null {
 }
 
 export function saveEnhanced(id: string, dataUrl: string) {
+  if (!id || !dataUrl) return;
+  // Save permanently to IndexedDB (survives tab closes and device reboots)
+  void saveIdbEnhanced(id, dataUrl);
   try {
     window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, dataUrl);
   } catch {
-    /* cache is best-effort */
+    /* localStorage 5MB quota exceeded — IndexedDB handles permanent storage */
   }
 }
+
+export { clearIdbEnhanced };
 
 export function searchFacades(items: FacadeItem[], query: string) {
   const q = query.trim().toLowerCase();
