@@ -128,40 +128,12 @@ export function facadeBaseName(name: string): string {
   return ALIASES[base] ?? base;
 }
 
-const DOUBLE_FACADE_FAMILIES = new Set([
-  "allure", "ascot", "ashton", "burgundy", "cambridge", "chevron", "clarence",
-  "como", "deco", "deco-double-garage", "deco-single-garage", "delta", "deluxe",
-  "duet", "flair", "grande", "hamilton", "jasper", "madison", "mantra",
-  "mantra-double-garage", "mantra-single-garage", "marina", "meridian",
-  "monash", "mondo", "novare", "nuvo", "oxford", "palermo", "regal", "royale",
-  "saville", "sierra", "soho", "tempo", "tropez", "vienna", "visage", "vista", "windsor"
-]);
-
-const ACREAGE_FACADE_FAMILIES = new Set([
-  "mulberry", "hamptons", "vogue"
-]);
-
-/** Classify a facade: Acreage, Double Storey or Single Storey. */
-export function facadeCategory(item: { id?: string; url?: string; name?: string; range?: string; tags?: string[] }): FacadeStorey {
-  const id = (item.id ?? "").toLowerCase().trim();
-  const name = (item.name ?? "").toLowerCase().trim();
-  const range = (item.range ?? "").toLowerCase().trim();
-  const tags = (item.tags ?? []).join(" ").toLowerCase();
-  const src = `${item.url ?? ""} ${name} ${id} ${range} ${tags}`;
-
-  if (range === "acreage" || ACREAGE_FACADE_FAMILIES.has(id) || /acreage|mulberry/i.test(src)) {
-    return "acreage";
-  }
-
-  if (
-    range === "double storey" ||
-    DOUBLE_FACADE_FAMILIES.has(id) ||
-    DOUBLE_FACADE_FAMILIES.has(facadeBaseName(item.name ?? "")) ||
-    /2-?\s?stry|double[-\s]?storey/i.test(src)
-  ) {
-    return "double";
-  }
-
+/** Classify a facade from its render: MULBERRY renders are the acreage range,
+ *  any two-storey render ("2 Stry" / "Double Storey") is double, else single. */
+export function facadeCategory(item: { url: string; name: string; range?: string; tags?: string[] }): FacadeStorey {
+  const src = `${item.url} ${item.name} ${item.range ?? ""} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
+  if (/mulberry|ranch|acreage/i.test(src)) return "acreage";
+  if (/2-?\s?stry|double[-\s]?storey|garage2/i.test(src)) return "double";
   return "single";
 }
 
@@ -284,20 +256,23 @@ export function facadePriceForDesign(
 }
 
 /* ---- Garage matching ------------------------------------------------------
- * Facades are rendered either with a single or a double garage. A home with a
- * single-garage floorplan can only take a single-garage facade, and vice versa.
+ * Facades are rendered either with a single or a double garage. Base facades
+ * like Classic and Classic Plus can adapt to both 1-car and 2-car floorplans.
  * ------------------------------------------------------------------------ */
 
-export type FacadeGarage = 1 | 2;
+export type FacadeGarage = 1 | 2 | "both";
 
-export function facadeGarage(item: { name: string; url: string }): FacadeGarage {
-  return /single[-\s]?garage/i.test(`${item.name} ${item.url}`) ? 1 : 2;
+export function facadeGarage(item: { name: string; url: string; tags?: string[] }): FacadeGarage {
+  const src = `${item.name} ${item.url} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
+  if (/single[-\s]?garage/i.test(src)) return 1;
+  if (/double[-\s]?garage/i.test(src)) return 2;
+  // Base facades without explicit garage labels fit both 1-car and 2-car designs
+  return "both";
 }
 
 /** How many garage spaces a floorplan's car count implies (2+ car = double). */
-export function garageFromCars(cars: string | number | undefined): FacadeGarage | null {
+export function garageFromCars(cars: string | number | undefined): 1 | 2 | null {
   const n = Number(String(cars ?? "").replace(/[^0-9.]/g, ""));
   if (!Number.isFinite(n) || n <= 0) return null;
   return n >= 2 ? 2 : 1;
 }
-
