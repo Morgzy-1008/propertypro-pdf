@@ -41,8 +41,35 @@ const SORTS: { id: SortId; label: string }[] = [
   { id: "price-desc", label: "Price ↓" },
 ];
 
-function categoryOf(f: FacadeItem): FacadeStorey | "uploaded" {
-  return f.range === "Uploaded" ? "uploaded" : facadeCategory(f);
+function facadeBelongsToCategory(
+  f: FacadeItem,
+  category: FacadeStorey | "uploaded" | "design",
+): boolean {
+  if (category === "uploaded") return f.range === "Uploaded";
+  if (f.range === "Uploaded") return false;
+  if (category === "design") return true;
+
+  const name = f.name.toLowerCase();
+  const range = (f.range || "").toLowerCase();
+  const tags = (f.tags || []).join(" ").toLowerCase();
+  const url = f.url.toLowerCase();
+  const fullText = `${name} ${range} ${tags} ${url}`;
+
+  const isUniversalBase = /classic|statesman|executive|hamptons|coastal|contemporary|chateaux|breeze|aspen|nuvo|vogue|riviera|majestic|regal/i.test(name);
+
+  if (category === "acreage") {
+    return /mulberry|ranch|acreage/i.test(fullText) || /classic|statesman|vogue|imperial/i.test(name);
+  }
+
+  if (category === "double") {
+    return /double|2-?\s?stry|garage2|upper|balcony/i.test(fullText) || isUniversalBase;
+  }
+
+  if (category === "single") {
+    return /single|1-?\s?stry/i.test(fullText) || isUniversalBase || !/2-?\s?stry|double[-\s]?storey/i.test(fullText);
+  }
+
+  return true;
 }
 
 export function FacadeLibrary({
@@ -90,16 +117,12 @@ export function FacadeLibrary({
 
   const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, restricted]);
 
-
-  /** With a design chosen we lock to its category; split level shows everything. */
   const tabs = useMemo(
     () =>
       restricted
         ? [{ id: "design" as const, label: "Available for this design" }, CATEGORIES[3]]
-        : storey
-          ? CATEGORIES.filter((c) => c.id === storey || c.id === "uploaded")
-          : CATEGORIES,
-    [restricted, storey],
+        : CATEGORIES,
+    [restricted],
   );
   const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
 
@@ -107,10 +130,7 @@ export function FacadeLibrary({
     f.range === "Uploaded" ? null : facadePriceForDesign(f.name, facadeCategory(f), designName);
 
   const results = useMemo(() => {
-    const inCat =
-      active === "design"
-        ? eligible.filter((f) => f.range !== "Uploaded")
-        : eligible.filter((f) => categoryOf(f) === active);
+    const inCat = eligible.filter((f) => facadeBelongsToCategory(f, active));
     const found = searchFacades(inCat, query);
     const sorted = [...found];
     if (sort === "alpha") sorted.sort((a, b) => a.name.localeCompare(b.name));
@@ -195,7 +215,7 @@ export function FacadeLibrary({
                 {c.label} (
                 {c.id === "design"
                   ? eligible.filter((f) => f.range !== "Uploaded").length
-                  : eligible.filter((f) => categoryOf(f) === c.id).length}
+                  : eligible.filter((f) => facadeBelongsToCategory(f, c.id)).length}
                 )
               </button>
             ))}
