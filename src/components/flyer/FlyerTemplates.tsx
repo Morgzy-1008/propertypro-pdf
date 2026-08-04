@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
 const logoUrl = "/hudson-homes-logo.png";
 import { getRange, rangeItems, type FlyerData } from "./types";
