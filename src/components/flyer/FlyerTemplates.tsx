@@ -83,9 +83,10 @@ function Facade({ url, className, busy }: { url: string; className?: string; bus
         src={fullResUrl}
         alt="Facade render"
         loading="eager"
-        crossOrigin="anonymous"
+        {...(fullResUrl.startsWith("http") ? { crossOrigin: "anonymous" } : {})}
         onLoad={() => setLoaded(true)}
-        className={`transition-opacity duration-300 h-full w-full object-cover object-center scale-[1.04] ${loaded ? "opacity-100" : "opacity-0"}`}
+        onError={() => setLoaded(true)}
+        className="h-full w-full object-cover object-center scale-[1.04]"
         style={{
           objectPosition: "center top",
           imageRendering: "-webkit-optimize-contrast",
