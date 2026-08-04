@@ -337,8 +337,8 @@ export async function enhanceFacade(src: string): Promise<string> {
 
 const GEMINI_KEY =
   (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-  process.env.GEMINI_API_KEY ||
-  process.env.VITE_GEMINI_API_KEY ||
+  (typeof process !== "undefined" && (process as any)?.env?.GEMINI_API_KEY) ||
+  (typeof process !== "undefined" && (process as any)?.env?.VITE_GEMINI_API_KEY) ||
   ["AQ", "Ab8RN6IyCs5kWdk1bolcgdCy5DpK-x5-1VOBNoyNT97nIgkrLA"].join(".");
 
 async function getRawFacadeBase64(url: string): Promise<string> {
