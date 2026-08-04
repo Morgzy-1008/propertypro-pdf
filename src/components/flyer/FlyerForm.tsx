@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Loader2, Plus } from "lucide-react";
+import { X, Loader2, Plus, Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -396,6 +396,33 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     }
   };
 
+  const handleReDoAiEnhancement = async () => {
+    if (!data.facadeName || facadeBusy) return;
+    setFacadeBusy(true);
+    try {
+      const itemCategory = data.facadeId
+        ? facadeCategory({ name: data.facadeName, url: data.facadeUrl })
+        : "single";
+      const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
+
+      const freshAiUrl = await widenFacadeClientSide({
+        id: data.facadeId || "custom",
+        name: data.facadeName,
+        url: data.facadeUrl,
+        housingType: targetHousingType,
+        forceRefresh: true,
+      });
+
+      if (freshAiUrl) {
+        set("facadeUrl", freshAiUrl);
+      }
+    } catch {
+      /* keep current */
+    } finally {
+      setFacadeBusy(false);
+    }
+  };
+
   return (
     <div className="space-y-7">
       <Section title="Location">
@@ -534,15 +561,35 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
 
       <Section title="Facade">
-        <FacadeLibrary
-          value={data.facadeUrl}
-          onSelect={selectFacade}
-          storey={storeyFor(data.housingType)}
-          disabled={false}
-          designFacades={designFacades}
-          designName={data.designName}
-          garage={garage}
-        />
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <FacadeLibrary
+              value={data.facadeUrl}
+              onSelect={selectFacade}
+              storey={storeyFor(data.housingType)}
+              disabled={false}
+              designFacades={designFacades}
+              designName={data.designName}
+              garage={garage}
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={facadeBusy || !data.facadeName}
+            onClick={handleReDoAiEnhancement}
+            className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
+            title="Re-generate AI facade outpainting variation"
+          >
+            {facadeBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
+            )}
+            Re-do AI enhancement
+          </Button>
+        </div>
         {designFacades && designFacades.length > 0 && (
           <p className="text-[11px] leading-snug text-muted-foreground">
             Showing only the facades Hudson publishes for this{" "}
