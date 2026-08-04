@@ -56,8 +56,11 @@ async function pdfFirstPageToDataUrl(file: File): Promise<string> {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    if (src.startsWith("http") || src.startsWith("/api/")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = (e) => reject(e);
     img.src = src;
   });
 }
@@ -341,10 +344,28 @@ const GEMINI_KEY =
 async function getRawFacadeBase64(url: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
+
+  const loadUrl = url.startsWith("http")
+    ? `/api/floorplan-image?url=${encodeURIComponent(url)}`
+    : url;
+
   try {
-    const loadUrl = url.startsWith("http")
-      ? `/api/floorplan-image?url=${encodeURIComponent(url)}`
-      : url;
+    const res = await fetch(loadUrl, { headers: await authHeaders() });
+    if (res.ok) {
+      const blob = await res.blob();
+      const b64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("FileReader failed"));
+        reader.readAsDataURL(blob);
+      });
+      if (b64.startsWith("data:image/")) return b64;
+    }
+  } catch {
+    /* fallback to image canvas below */
+  }
+
+  try {
     const img = await loadImage(loadUrl);
     const canvas = document.createElement("canvas");
     canvas.width = img.naturalWidth || 1200;
@@ -353,7 +374,7 @@ async function getRawFacadeBase64(url: string): Promise<string> {
     ctx.drawImage(img, 0, 0);
     return canvas.toDataURL("image/jpeg", 0.92);
   } catch {
-    return url;
+    return "";
   }
 }
 
@@ -370,6 +391,9 @@ export async function widenFacadeClientSide(item: {
 }): Promise<string> {
   try {
     const rawPayload = await getRawFacadeBase64(item.url);
+    if (!rawPayload || !rawPayload.startsWith("data:image/")) {
+      throw new Error("Could not load facade base64 payload");
+    }
     const isDouble =
       /double|two|2\s*storey|duplex/i.test(item.housingType ?? "") ||
       /double|2-storey|2stry|30|32|34|35|36|38|40|42|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland/i.test(
