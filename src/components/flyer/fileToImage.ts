@@ -1,4 +1,5 @@
 import { authHeaders } from "@/lib/api-auth";
+import { HUDSON_FACADES } from "./facades.data";
 
 /**
 
@@ -341,41 +342,53 @@ const GEMINI_KEY =
   (typeof process !== "undefined" && (process as any)?.env?.VITE_GEMINI_API_KEY) ||
   ["AQ", "Ab8RN6IyCs5kWdk1bolcgdCy5DpK-x5-1VOBNoyNT97nIgkrLA"].join(".");
 
-async function getRawFacadeBase64(url: string): Promise<string> {
+async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: string): Promise<string> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
 
-  const loadUrl = url.startsWith("http")
-    ? `/api/floorplan-image?url=${encodeURIComponent(url)}`
-    : url;
+  const candidateUrls: string[] = [url];
+  if (originalUrl && originalUrl !== url) candidateUrls.push(originalUrl);
+  if (facadeId) {
+    const orig = HUDSON_FACADES.find((h) => h.id === facadeId)?.url;
+    if (orig && !candidateUrls.includes(orig)) candidateUrls.push(orig);
+  }
 
-  try {
-    const res = await fetch(loadUrl);
-    if (res.ok) {
-      const blob = await res.blob();
-      const b64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("FileReader failed"));
-        reader.readAsDataURL(blob);
-      });
-      if (b64.startsWith("data:image/")) return b64;
+  for (const rawUrl of candidateUrls) {
+    const loadUrl = rawUrl.startsWith("http")
+      ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
+      : rawUrl;
+
+    try {
+      const res = await fetch(loadUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const b64 = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("FileReader failed"));
+          reader.readAsDataURL(blob);
+        });
+        if (b64.startsWith("data:image/") && b64.length > 500) return b64;
+      }
+    } catch {
+      /* try next candidate */
     }
-  } catch {
-    /* fallback to image canvas below */
+
+    try {
+      const img = await loadImage(loadUrl);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth || 1200;
+      canvas.height = img.naturalHeight || 900;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+      if (dataUrl.startsWith("data:image/") && dataUrl.length > 500) return dataUrl;
+    } catch {
+      /* try next candidate */
+    }
   }
 
-  try {
-    const img = await loadImage(loadUrl);
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth || 1200;
-    canvas.height = img.naturalHeight || 900;
-    const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.92);
-  } catch {
-    return "";
-  }
+  return "";
 }
 
 /**
@@ -386,11 +399,12 @@ export async function widenFacadeClientSide(item: {
   id: string;
   name: string;
   url: string;
+  originalUrl?: string;
   housingType?: string;
   forceRefresh?: boolean;
 }): Promise<string> {
   try {
-    const rawPayload = await getRawFacadeBase64(item.url);
+    const rawPayload = await getRawFacadeBase64(item.url, item.originalUrl, item.id);
     if (!rawPayload || !rawPayload.startsWith("data:image/")) {
       throw new Error("Could not load facade base64 payload");
     }
@@ -473,7 +487,7 @@ export async function widenFacadeClientSide(item: {
 
     return `data:image/jpeg;base64,${b64}`;
   } catch {
-    return prepareFacade(item.url);
+    return prepareFacade(item.url, item.originalUrl, item.id);
   }
 }
 
@@ -917,72 +931,83 @@ async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<strin
   }
 }
 
-export async function prepareFacade(dataUrl: string): Promise<string> {
+export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string> {
   if (!dataUrl) return dataUrl;
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
 
-  try {
-    const loadUrl = dataUrl.startsWith("http")
-      ? `/api/floorplan-image?url=${encodeURIComponent(dataUrl)}`
-      : dataUrl;
-    let img: HTMLImageElement;
-    try {
-      img = await loadImage(loadUrl);
-    } catch {
-      img = await loadImage(dataUrl);
-    }
-    const srcW = img.naturalWidth  || 1200;
-    const srcH = img.naturalHeight || 900;
-
-    // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
-    const outW = Math.max(2400, srcW);
-    const outH = Math.round(outW / 2.69);
-
-    // Scale house to occupy 86% of vertical canvas height (10% sky headroom above roof peak, 4% driveway clearance below)
-    // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
-    const reserveTop = Math.round(outH * 0.10);
-    const reserveBot = Math.round(outH * 0.04);
-    const areaH = outH - reserveTop - reserveBot;
-    const scale = areaH / srcH;
-    const drawW = Math.round(srcW * scale);
-    const drawH = Math.round(srcH * scale);
-    const drawX = Math.round((outW - drawW) / 2);
-    const drawY = reserveTop;
-
-    const canvas = document.createElement("canvas");
-    canvas.width  = outW;
-    canvas.height = outH;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-
-    // Sample sky color from top and ground color from bottom for crisp clean background
-    const srcCanvas = document.createElement("canvas");
-    srcCanvas.width = srcW;
-    srcCanvas.height = srcH;
-    const srcCtx = srcCanvas.getContext("2d")!;
-    srcCtx.drawImage(img, 0, 0);
-    const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
-    const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
-    const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
-    const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
-
-    const grad = ctx.createLinearGradient(0, 0, 0, outH);
-    grad.addColorStop(0, skyColor);
-    grad.addColorStop(0.70, skyColor);
-    grad.addColorStop(0.95, gndColor);
-    grad.addColorStop(1, gndColor);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, outW, outH);
-
-    ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
-
-    const result = canvas.toDataURL("image/png");
-    facadeCache.set(dataUrl, result);
-    return result;
-  } catch {
-    return dataUrl;
+  const candidateUrls: string[] = [dataUrl];
+  if (originalUrl && originalUrl !== dataUrl) candidateUrls.push(originalUrl);
+  if (facadeId) {
+    const orig = HUDSON_FACADES.find((h) => h.id === facadeId)?.url;
+    if (orig && !candidateUrls.includes(orig)) candidateUrls.push(orig);
   }
+
+  for (const rawUrl of candidateUrls) {
+    try {
+      const loadUrl = rawUrl.startsWith("http")
+        ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
+        : rawUrl;
+      let img: HTMLImageElement;
+      try {
+        img = await loadImage(loadUrl);
+      } catch {
+        img = await loadImage(rawUrl);
+      }
+      const srcW = img.naturalWidth  || 1200;
+      const srcH = img.naturalHeight || 900;
+
+      // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
+      const outW = Math.max(2400, srcW);
+      const outH = Math.round(outW / 2.69);
+
+      // Scale house to occupy 86% of vertical canvas height (10% sky headroom above roof peak, 4% driveway clearance below)
+      // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
+      const reserveTop = Math.round(outH * 0.10);
+      const reserveBot = Math.round(outH * 0.04);
+      const areaH = outH - reserveTop - reserveBot;
+      const scale = areaH / srcH;
+      const drawW = Math.round(srcW * scale);
+      const drawH = Math.round(srcH * scale);
+      const drawX = Math.round((outW - drawW) / 2);
+      const drawY = reserveTop;
+
+      const canvas = document.createElement("canvas");
+      canvas.width  = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+
+      // Sample sky color from top and ground color from bottom for crisp clean background
+      const srcCanvas = document.createElement("canvas");
+      srcCanvas.width = srcW;
+      srcCanvas.height = srcH;
+      const srcCtx = srcCanvas.getContext("2d")!;
+      srcCtx.drawImage(img, 0, 0);
+      const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
+      const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
+      const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
+      const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
+
+      const grad = ctx.createLinearGradient(0, 0, 0, outH);
+      grad.addColorStop(0, skyColor);
+      grad.addColorStop(0.70, skyColor);
+      grad.addColorStop(0.95, gndColor);
+      grad.addColorStop(1, gndColor);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, outW, outH);
+
+      ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
+
+      const result = canvas.toDataURL("image/png");
+      facadeCache.set(dataUrl, result);
+      return result;
+    } catch {
+      /* try next candidate */
+    }
+  }
+
+  return dataUrl;
 }
 

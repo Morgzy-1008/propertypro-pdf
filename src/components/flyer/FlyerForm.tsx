@@ -372,19 +372,20 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         id: item.id,
         name: item.name,
         url: item.url,
+        originalUrl: item.originalUrl,
         housingType: targetHousingType,
         forceRefresh,
       });
 
-      if (aiUrl && aiUrl !== item.url) {
+      if (aiUrl && aiUrl !== item.url && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         saveEnhanced(item.id, aiUrl);
       } else {
-        const widened = await prepareFacade(item.url);
+        const widened = await prepareFacade(item.url, item.originalUrl, item.id);
         set("facadeUrl", widened);
       }
     } catch {
-      const widened = await prepareFacade(item.url);
+      const widened = await prepareFacade(item.url, item.originalUrl, item.id);
       set("facadeUrl", widened);
     } finally {
       setFacadeBusy(false);

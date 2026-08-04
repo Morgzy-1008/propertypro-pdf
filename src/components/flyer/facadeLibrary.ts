@@ -9,11 +9,13 @@ export interface FacadeItem {
   range: string;
   tags: string[];
   url: string;
+  originalUrl?: string;
 }
 
 /** The full Hudson Homes facade catalogue, using pre-rendered static assets where available. */
 export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES.map((f) => ({
   ...f,
+  originalUrl: f.url,
   url: PRE_RENDERED_FACADES[f.id] || f.url,
 }));
 
