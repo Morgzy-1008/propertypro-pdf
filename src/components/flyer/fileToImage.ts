@@ -525,11 +525,6 @@ export async function widenFacade(item: {
 const floorplanCache = new Map<string, string>();
 const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
 
-/**
- * Loads a published floorplan PNG through the same-origin proxy and trims the
- * blank page margin off it, so `object-contain` renders the drawing as large
- * as the flyer frame allows without ever clipping it.
- */
 export async function prepareFloorplan(url: string): Promise<string> {
   if (!url || url.startsWith("data:")) return url;
 
@@ -538,24 +533,48 @@ export async function prepareFloorplan(url: string): Promise<string> {
   if (cached) return cached;
 
   try {
-    const res = await fetch(`/api/floorplan-image?url=${encodeURIComponent(url)}`, {
-      headers: await authHeaders(),
-    });
-    if (!res.ok) throw new Error(`Floorplan fetch failed (${res.status})`);
-    const blob = await res.blob();
-    const raw = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(blob);
-    });
-    const trimmed = await cropToContent(raw, 0.008);
-    const sharp = await sharpenPlan(trimmed);
-    floorplanCache.set(cacheKey, sharp);
-    return sharp;
-  } catch {
-    return url;
+    let b64 = "";
+    // 1. Try direct fetch
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const blob = await res.blob();
+        b64 = await blobToBase64(blob);
+      }
+    } catch {
+      /* try CORS proxy */
+    }
+
+    // 2. Try CORS proxy if direct fetch failed
+    if (!b64 || !b64.startsWith("data:image/")) {
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ];
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            b64 = await blobToBase64(blob);
+            if (b64.startsWith("data:image/")) break;
+          }
+        } catch {
+          /* try next proxy */
+        }
+      }
+    }
+
+    if (b64 && b64.startsWith("data:image/")) {
+      const trimmed = await cropToContent(b64, 0.008);
+      const sharp = await sharpenPlan(trimmed);
+      floorplanCache.set(cacheKey, sharp);
+      return sharp;
+    }
+  } catch (err) {
+    console.error("[prepareFloorplan Error]", err);
   }
+  return url;
 }
 
 const MIN_GARAGE_W = 5.7;
@@ -953,71 +972,44 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
 
-  const candidateUrls: string[] = [dataUrl];
-  if (originalUrl && originalUrl !== dataUrl) candidateUrls.push(originalUrl);
-  if (facadeId) {
-    const orig = HUDSON_FACADES.find((h) => h.id === facadeId)?.url;
-    if (orig && !candidateUrls.includes(orig)) candidateUrls.push(orig);
+  try {
+    const rawB64 = await getRawFacadeBase64(dataUrl, originalUrl, facadeId);
+    const srcUrl = rawB64 || dataUrl;
+    const img = await loadImage(srcUrl);
+    const srcW = img.naturalWidth  || 1200;
+    const srcH = img.naturalHeight || 900;
+
+    // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
+    const outW = Math.max(2400, srcW);
+    const outH = Math.round(outW / 2.69);
+
+    // Fit scale so 100% of the house architecture is ALWAYS visible and unclipped
+    const reserveTop = Math.round(outH * 0.08);
+    const reserveBot = Math.round(outH * 0.04);
+    const areaH = outH - reserveTop - reserveBot;
+    const maxW = Math.round(outW * 0.90);
+
+    const scale = Math.min(areaH / srcH, maxW / srcW);
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+    const drawX = Math.round((outW - drawW) / 2);
+    const drawY = Math.round(reserveTop + (areaH - drawH) / 2);
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, outW, outH);
+
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    const resUrl = canvas.toDataURL("image/jpeg", 0.92);
+    facadeCache.set(dataUrl, resUrl);
+    return resUrl;
+  } catch (err) {
+    console.error("[prepareFacade Error]", err);
+    return dataUrl;
   }
-
-  for (const rawUrl of candidateUrls) {
-    try {
-      const img = await loadImage(rawUrl);
-      const srcW = img.naturalWidth  || 1200;
-      const srcH = img.naturalHeight || 900;
-
-      // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
-      const outW = Math.max(2400, srcW);
-      const outH = Math.round(outW / 2.69);
-
-      // Fit scale so 100% of the house architecture is ALWAYS visible and unclipped
-      const reserveTop = Math.round(outH * 0.08);
-      const reserveBot = Math.round(outH * 0.04);
-      const areaH = outH - reserveTop - reserveBot;
-      const maxW = Math.round(outW * 0.90);
-
-      const scale = Math.min(areaH / srcH, maxW / srcW);
-      const drawW = Math.round(srcW * scale);
-      const drawH = Math.round(srcH * scale);
-      const drawX = Math.round((outW - drawW) / 2);
-      const drawY = Math.round(reserveTop + (areaH - drawH) / 2);
-
-      const canvas = document.createElement("canvas");
-      canvas.width  = outW;
-      canvas.height = outH;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = "high";
-
-      // Sample sky color from top and ground color from bottom for crisp clean background
-      const srcCanvas = document.createElement("canvas");
-      srcCanvas.width = srcW;
-      srcCanvas.height = srcH;
-      const srcCtx = srcCanvas.getContext("2d")!;
-      srcCtx.drawImage(img, 0, 0);
-      const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
-      const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
-      const skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
-      const gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
-
-      const grad = ctx.createLinearGradient(0, 0, 0, outH);
-      grad.addColorStop(0, skyColor);
-      grad.addColorStop(0.70, skyColor);
-      grad.addColorStop(0.95, gndColor);
-      grad.addColorStop(1, gndColor);
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, outW, outH);
-
-      ctx.drawImage(img, 0, 0, srcW, srcH, drawX, drawY, drawW, drawH);
-
-      const result = canvas.toDataURL("image/png");
-      facadeCache.set(dataUrl, result);
-      return result;
-    } catch {
-      /* try next candidate */
-    }
-  }
-
-  return dataUrl;
 }
 
