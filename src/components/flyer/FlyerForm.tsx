@@ -366,15 +366,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Set facadeBusy = true so the user sees "GENERATING AI FACADE RENDER..."
+    // 2. Immediately set raw item URL so frame is populated in 0ms
+    if (item.url) {
+      set("facadeUrl", item.url);
+    }
+
     setFacadeBusy(true);
     set("facadeBusy", true);
-
-    // Set initial reframed render as temporary preview while AI generates
-    const initialRender = await prepareFacade(item.url, item.originalUrl, item.id);
-    if (initialRender) {
-      set("facadeUrl", initialRender);
-    }
 
     try {
       // 3. Trigger Google Gemini AI Outpainting
@@ -389,15 +387,21 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         forceRefresh,
       });
 
-      // ONLY SAVE & SET WHEN GIVEN A VALID AI GENERATED IMAGE FROM GEMINI!
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl);
-      } else if (initialRender) {
-        set("facadeUrl", initialRender);
+      } else {
+        const fallbackRender = await prepareFacade(item.url, item.originalUrl, item.id);
+        if (fallbackRender) set("facadeUrl", fallbackRender);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);
+      try {
+        const fallbackRender = await prepareFacade(item.url, item.originalUrl, item.id);
+        if (fallbackRender) set("facadeUrl", fallbackRender);
+      } catch {
+        /* keep raw item.url */
+      }
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
