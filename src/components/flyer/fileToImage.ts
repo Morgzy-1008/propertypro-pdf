@@ -375,27 +375,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       /* try proxy fallback */
     }
 
-    // 2. Proxy fetch for CORS-restricted URLs
-    if (rawUrl.startsWith("http")) {
-      try {
-        const proxyUrl = `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`;
-        const res = await fetch(proxyUrl);
-        if (res.ok) {
-          const blob = await res.blob();
-          const b64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result));
-            reader.onerror = () => reject(new Error("FileReader failed"));
-            reader.readAsDataURL(blob);
-          });
-          if (b64.startsWith("data:image/") && b64.length > 500) return b64;
-        }
-      } catch {
-        /* try canvas fallback */
-      }
-    }
-
-    // 3. Canvas image element fallback
+    // 2. Canvas image element fallback (uses dual CORS fallback in loadImage)
     try {
       const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
