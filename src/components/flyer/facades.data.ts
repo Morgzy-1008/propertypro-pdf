@@ -304,11 +304,18 @@ export const HUDSON_FACADES: FacadeItem[] = [
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Grande-Facade-2-Stry.jpg",
   },
   {
+    id: "hamptons-acreage",
+    name: "Hamptons (Acreage / Ranch)",
+    range: "Acreage / Ranch",
+    tags: ["hamptons", "acreage", "ranch"],
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2021/02/MULBERRY-Hamptons-Facade-Single-Storey-Statesman-scaled.jpg",
+  },
+  {
     id: "hamptons-single",
     name: "Hamptons",
     range: "Single Storey",
     tags: ["hamptons", "single", "double-garage", "storey"],
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2021/02/MULBERRY-Hamptons-Facade-Single-Storey-Statesman-scaled.jpg",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/08/Hamptons-H2-Single-storey-typical-width-lot.jpg",
   },
   {
     id: "hamptons-split",
