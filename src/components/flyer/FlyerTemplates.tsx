@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2 } from "lucide-react";
+import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
 const logoUrl = "/hudson-homes-logo.png";
 import { getRange, rangeItems, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
@@ -45,7 +45,7 @@ function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) 
 /** Facade framing: the render is re-composed into a wide frame with the whole
  *  house centred and generous clearance, so it can safely fill the section
  *  edge-to-edge without clipping the roofline or garage. */
-function Facade({ url, className }: { url: string; className?: string }) {
+function Facade({ url, className, busy }: { url: string; className?: string; busy?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const fullResUrl = url?.startsWith("data:")
     ? url
@@ -55,12 +55,24 @@ function Facade({ url, className }: { url: string; className?: string }) {
 
   const isAiWidened = url?.startsWith("data:") || url?.includes("facade-image") || url?.includes("widened");
 
-  if (!url) {
+  if (busy || !url) {
     return (
-      <div className={`flex h-full w-full items-center justify-center bg-white ${className ?? ""}`}>
-        <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30">
-          SELECT A FACADE FROM THE LIBRARY
-        </span>
+      <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50 gap-2 p-4 ${className ?? ""}`}>
+        {busy ? (
+          <>
+            <Loader2 className="h-6 w-6 animate-spin text-brand-gold-deep" />
+            <span className="text-[3mm] font-semibold tracking-[0.18em] text-brand-navy uppercase">
+              GENERATING AI FACADE RENDER…
+            </span>
+            <span className="text-[2.2mm] tracking-wide text-brand-ink/50">
+              Outpainting landscaping &amp; widescreen architectural photography
+            </span>
+          </>
+        ) : (
+          <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30 font-medium uppercase">
+            SELECT A FACADE FROM THE LIBRARY
+          </span>
+        )}
       </div>
     );
   }
@@ -166,7 +178,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
       <div className="gold-bar h-[1.6mm] w-full" />
 
       <div className="h-[78mm] w-full">
-        <Facade url={d.facadeUrl} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
       <div className="navy-panel flex items-center gap-[2mm] px-[14mm] py-[2.4mm] text-[3.1mm] text-brand-cream">
@@ -272,7 +284,7 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       <div className="relative h-[172mm] w-full">
-        <Facade url={d.facadeUrl} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
         <div className="absolute inset-0 bg-gradient-to-b from-brand-navy-deep/70 via-transparent to-brand-navy-deep/70" />
         <div className="absolute inset-x-[14mm] top-[12mm]">
           <Logo light />
@@ -412,8 +424,8 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
       <div className="gold-bar h-[1.6mm] w-full" />
 
-      <div className="h-[78mm] w-full">
-        <Facade url={d.facadeUrl} />
+      <div className="h-[82mm] w-full">
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
       <div className="navy-panel flex items-center justify-between gap-[2mm] px-[14mm] py-[2.4mm] text-brand-cream">

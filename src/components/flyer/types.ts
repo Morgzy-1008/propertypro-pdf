@@ -126,6 +126,7 @@ export interface FlyerData {
   floorplanUrl: string;
   facadeId: string;
   facadeName: string;
+  facadeBusy?: boolean;
   palette: PaletteId;
   consultantId: string;
 }

@@ -282,23 +282,10 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
 
-    // Auto-select a matching facade for this design's storey and garage count so widescreen facade renders immediately
-    const targetStorey = storeyFor(data.housingType);
-    const targetGarage = garageFromCars(plans.length ? plans[0].cars : data.cars) ?? 2;
-    const available = designFacades || BUILT_IN_FACADES;
-
-    const matched =
-      available.find((f) => {
-        const cat = facadeCategory(f);
-        const gar = facadeGarage(f);
-        const matchStorey = targetStorey === null || cat === targetStorey;
-        const matchGar = gar === "both" || gar === targetGarage;
-        return matchStorey && matchGar;
-      }) || available[0];
-
-    if (matched) {
-      void selectFacade(matched);
-    }
+    // Clear facade when design changes — do not auto-display a facade on the flyer until user selects one from the library
+    set("facadeId", "");
+    set("facadeName", "");
+    set("facadeUrl", "");
   };
 
   const selectVariant = (label: string) => {
@@ -368,17 +355,17 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       const cachedAi = loadEnhanced(item.id);
       if (cachedAi) {
         set("facadeUrl", cachedAi);
+        set("facadeBusy", false);
         return;
       }
     }
 
     setFacadeBusy(true);
-    try {
-      // 2. Fast 2.69:1 canvas preview so preview updates immediately
-      const widened = await prepareFacade(item.url);
-      set("facadeUrl", widened);
+    set("facadeBusy", true);
+    set("facadeUrl", ""); // Keep facade blank / in loading state until AI outpainting is 100% complete
 
-      // 3. Automatic AI Outpainting (Google Gemini 3.1 Flash Image AI)
+    try {
+      // 2. Automatic AI Outpainting (Google Gemini AI) — runs silently in background
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
@@ -392,12 +379,16 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl !== item.url) {
         set("facadeUrl", aiUrl);
         saveEnhanced(item.id, aiUrl);
+      } else {
+        const widened = await prepareFacade(item.url);
+        set("facadeUrl", widened);
       }
     } catch {
       const widened = await prepareFacade(item.url);
       set("facadeUrl", widened);
     } finally {
       setFacadeBusy(false);
+      set("facadeBusy", false);
     }
   };
 
@@ -466,6 +457,9 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
               onValueChange={(v) => {
                 set("housingType", v);
                 set("designName", "");
+                set("facadeId", "");
+                set("facadeName", "");
+                set("facadeUrl", "");
                 const base = defaultCosts(v);
                 const nextCosts = data.landscaping
                   ? { ...base, driveway: 0, landscaping: landscapingPriceFor(data.landSize, v, "") }
