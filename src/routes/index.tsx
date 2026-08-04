@@ -23,8 +23,14 @@ export const Route = createFileRoute("/")({
     ],
   }),
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getUser();
-    throw redirect({ to: data?.user ? "/database" : "/flyer", replace: true });
+    let user = null;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data?.user ?? null;
+    } catch {
+      /* continue */
+    }
+    throw redirect({ to: user ? "/database" : "/flyer", replace: true });
   },
   component: () => null,
 });
