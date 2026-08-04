@@ -348,7 +348,6 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
-    // 1. If forceRefresh is requested, clear old IndexedDB cached AI render
     if (forceRefresh) {
       await clearIdbEnhanced(item.id);
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
@@ -356,26 +355,29 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
     }
 
-    // 2. Set initial reframed render immediately so user sees the house unclipped instantly
-    const initialRender = await prepareFacade(item.url, item.originalUrl, item.id);
-    if (initialRender) {
-      set("facadeUrl", initialRender);
-    }
-
-    // 3. Check for pre-rendered AI enhanced render in IndexedDB if not forcing refresh
+    // 1. Check for pre-rendered AI enhanced render in IndexedDB if not forcing refresh
     if (!forceRefresh) {
       const cachedAi = await loadEnhancedAsync(item.id);
       if (cachedAi) {
         set("facadeUrl", cachedAi);
+        setFacadeBusy(false);
         set("facadeBusy", false);
         return;
       }
     }
 
+    // 2. Set facadeBusy = true so the user sees "GENERATING AI FACADE RENDER..."
     setFacadeBusy(true);
     set("facadeBusy", true);
 
+    // Set initial reframed render as temporary preview while AI generates
+    const initialRender = await prepareFacade(item.url, item.originalUrl, item.id);
+    if (initialRender) {
+      set("facadeUrl", initialRender);
+    }
+
     try {
+      // 3. Trigger Google Gemini AI Outpainting
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
@@ -387,13 +389,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         forceRefresh,
       });
 
-      // ONLY PERMANENTLY SAVE WHEN EVIDENTLY VALID AI ENHANCEMENT IS PRODUCED!
-      if (aiUrl && aiUrl !== item.url && aiUrl.startsWith("data:image/")) {
+      // ONLY SAVE & SET WHEN GIVEN A VALID AI GENERATED IMAGE FROM GEMINI!
+      if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl);
       }
     } catch (err) {
-      console.error("[AI Outpaint] Outpainting failed, using reframed render", err);
+      console.error("[AI Outpaint Error]", err);
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);

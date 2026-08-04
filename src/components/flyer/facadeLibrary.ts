@@ -94,29 +94,23 @@ export function facadeUpliftFor(
 
 /* ---- AI-enhanced render cache -------------------------------------------- */
 
+export const AI_MARKER = "::AI_OUTPAINT_V2::";
+
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   if (!id) return null;
-  const isValid = (s: string | null) =>
-    !!s && (s.startsWith("data:image/") || s.startsWith("http") || s.startsWith("/")) && s.length > 200;
-
-  // 1. Permanent IndexedDB check (survives tab closes & browser restarts)
-  const idbData = await getIdbEnhanced(id);
-  if (idbData && isValid(idbData)) return idbData;
-
-  // 2. Synchronous localStorage fallback
-  const lsData = loadEnhanced(id);
-  if (lsData && isValid(lsData)) {
-    void saveIdbEnhanced(id, lsData);
-    return lsData;
+  const raw = await getIdbEnhanced(id);
+  if (raw && typeof raw === "string" && raw.startsWith(AI_MARKER)) {
+    return raw.replace(AI_MARKER, "");
   }
-
   return null;
 }
 
 export function loadEnhanced(id: string): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
+    const raw = window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
+    if (raw && raw.startsWith(AI_MARKER)) return raw.replace(AI_MARKER, "");
+    return null;
   } catch {
     return null;
   }
@@ -124,12 +118,12 @@ export function loadEnhanced(id: string): string | null {
 
 export function saveEnhanced(id: string, dataUrl: string) {
   if (!id || !dataUrl) return;
-  // Save permanently to IndexedDB (survives tab closes and device reboots)
-  void saveIdbEnhanced(id, dataUrl);
+  const tagged = dataUrl.startsWith(AI_MARKER) ? dataUrl : `${AI_MARKER}${dataUrl}`;
+  void saveIdbEnhanced(id, tagged);
   try {
-    window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, dataUrl);
+    window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, tagged);
   } catch {
-    /* localStorage 5MB quota exceeded — IndexedDB handles permanent storage */
+    /* localStorage quota exceeded — IndexedDB handles permanent storage */
   }
 }
 
