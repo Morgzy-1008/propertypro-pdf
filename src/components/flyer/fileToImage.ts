@@ -57,11 +57,15 @@ async function pdfFirstPageToDataUrl(file: File): Promise<string> {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    if (src.startsWith("http") || src.startsWith("/api/")) {
-      img.crossOrigin = "anonymous";
-    }
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = (e) => reject(e);
+    img.onerror = () => {
+      // Retry without crossOrigin if CORS headers are missing
+      const fallback = new Image();
+      fallback.onload = () => resolve(fallback);
+      fallback.onerror = (e) => reject(e);
+      fallback.src = src;
+    };
     img.src = src;
   });
 }
@@ -963,15 +967,7 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
   for (const rawUrl of candidateUrls) {
     try {
-      let img: HTMLImageElement;
-      try {
-        img = await loadImage(rawUrl);
-      } catch {
-        const proxyUrl = rawUrl.startsWith("http")
-          ? `/api/floorplan-image?url=${encodeURIComponent(rawUrl)}`
-          : rawUrl;
-        img = await loadImage(proxyUrl);
-      }
+      const img = await loadImage(rawUrl);
       const srcW = img.naturalWidth  || 1200;
       const srcH = img.naturalHeight || 900;
 

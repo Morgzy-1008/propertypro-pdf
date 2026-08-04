@@ -347,10 +347,14 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     const amount = facadeUpliftFor(item.id, item.name, facadeCategory(item), data.designName);
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
-    // Reset re-render attempt counter for fresh facade selections
     if (!forceRefresh) setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
 
-    // 1. Instantly return pre-rendered AI enhanced render from permanent IndexedDB / local storage if available
+    // 1. Immediately set initial facade URL so the render displays INSTANTLY
+    if (item.url) {
+      set("facadeUrl", item.url);
+    }
+
+    // 2. Check for pre-rendered AI enhanced render in IndexedDB
     if (!forceRefresh) {
       const cachedAi = await loadEnhancedAsync(item.id);
       if (cachedAi) {
@@ -362,10 +366,8 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
     setFacadeBusy(true);
     set("facadeBusy", true);
-    set("facadeUrl", ""); // Keep facade blank / in loading state until AI outpainting is 100% complete
 
     try {
-      // 2. Automatic AI Outpainting (Google Gemini AI) — runs silently in background
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
@@ -382,11 +384,15 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         saveEnhanced(item.id, aiUrl);
       } else {
         const widened = await prepareFacade(item.url, item.originalUrl, item.id);
-        set("facadeUrl", widened);
+        if (widened) set("facadeUrl", widened);
       }
     } catch {
-      const widened = await prepareFacade(item.url, item.originalUrl, item.id);
-      set("facadeUrl", widened);
+      try {
+        const widened = await prepareFacade(item.url, item.originalUrl, item.id);
+        if (widened) set("facadeUrl", widened);
+      } catch {
+        if (item.url) set("facadeUrl", item.url);
+      }
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
