@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": ".output/public",
-  "framework": "vite"
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
