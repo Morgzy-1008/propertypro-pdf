@@ -424,11 +424,11 @@ export async function widenFacadeClientSide(item: {
   originalUrl?: string;
   housingType?: string;
   forceRefresh?: boolean;
-}): Promise<string> {
+}): Promise<string | null> {
   try {
     const rawPayload = await getRawFacadeBase64(item.url, item.originalUrl, item.id);
     if (!rawPayload || !rawPayload.startsWith("data:image/")) {
-      throw new Error("Could not load facade base64 payload");
+      return null;
     }
     const isDouble =
       /double|two|2\s*storey|duplex/i.test(item.housingType ?? "") ||
@@ -440,7 +440,7 @@ export async function widenFacadeClientSide(item: {
       ? "Sit the two-storey house LARGE AND PROMINENT, centered in wide 2.69:1 perspective, occupying 84% of total vertical image height. Leave 8% clear blue sky above the highest roof peak and 8% natural ground/driveway clearance below the garage base — a hero zoom with natural breathing room where the entire building is 100% visible and unclipped."
       : "Sit the single-storey house LARGE AND PROMINENT, centered in wide 2.69:1 perspective, occupying 84% of total vertical image height. Leave 8% clear blue sky above the roof ridge and 8% natural ground/driveway clearance below the garage base — a hero zoom with natural, comfortable breathing room.";
 
-    const refreshSeed = item.forceRefresh ? ` VARIATION_SEED_${Date.now()}_${Math.floor(Math.random() * 10000)}` : "";
+    const refreshSeed = item.forceRefresh ? ` VARIATION_SEED_${Date.now()}_${Math.floor(Math.random() * 100000)}` : "";
 
     const promptText =
       "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
@@ -452,24 +452,6 @@ export async function widenFacadeClientSide(item: {
       "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
       "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only." + refreshSeed;
 
-    // 1. Try server endpoint first
-    try {
-      const res = await fetch("/api/widen-facade", {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify(item),
-      });
-      if (res.ok) {
-        const json = (await res.json()) as { url?: string; fallback?: boolean };
-        if (json.url && !json.fallback && json.url !== item.url) {
-          return json.url;
-        }
-      }
-    } catch {
-      // Fall through to direct client call below
-    }
-
-    // 2. Direct client call to Google AI Studio Gemini Image REST API
     const apiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_KEY}`,
       {
@@ -496,7 +478,7 @@ export async function widenFacadeClientSide(item: {
       }
     );
 
-    if (!apiRes.ok) throw new Error(`Gemini API call failed (${apiRes.status})`);
+    if (!apiRes.ok) return null;
     const json = (await apiRes.json()) as any;
     let b64: string | undefined = undefined;
     if (json?.candidates?.[0]?.content?.parts) {
@@ -505,11 +487,11 @@ export async function widenFacadeClientSide(item: {
         if (p.inline_data?.data) { b64 = p.inline_data.data; break; }
       }
     }
-    if (!b64) throw new Error("No image data returned from Gemini API");
+    if (!b64) return null;
 
     return `data:image/jpeg;base64,${b64}`;
   } catch {
-    return prepareFacade(item.url, item.originalUrl, item.id);
+    return null;
   }
 }
 
@@ -975,16 +957,17 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
       const outW = Math.max(2400, srcW);
       const outH = Math.round(outW / 2.69);
 
-      // Scale house to occupy 86% of vertical canvas height (10% sky headroom above roof peak, 4% driveway clearance below)
-      // so 100% of the building — roof ridge down to garage base — is ALWAYS visible and NEVER cut off at top or bottom.
-      const reserveTop = Math.round(outH * 0.10);
+      // Fit scale so 100% of the house architecture is ALWAYS visible and unclipped
+      const reserveTop = Math.round(outH * 0.08);
       const reserveBot = Math.round(outH * 0.04);
       const areaH = outH - reserveTop - reserveBot;
-      const scale = areaH / srcH;
+      const maxW = Math.round(outW * 0.90);
+
+      const scale = Math.min(areaH / srcH, maxW / srcW);
       const drawW = Math.round(srcW * scale);
       const drawH = Math.round(srcH * scale);
       const drawX = Math.round((outW - drawW) / 2);
-      const drawY = reserveTop;
+      const drawY = Math.round(reserveTop + (areaH - drawH) / 2);
 
       const canvas = document.createElement("canvas");
       canvas.width  = outW;

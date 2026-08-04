@@ -347,14 +347,22 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     const amount = facadeUpliftFor(item.id, item.name, facadeCategory(item), data.designName);
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
-    if (!forceRefresh) setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
 
-    // 1. Immediately set initial facade URL so the render displays INSTANTLY
-    if (item.url) {
-      set("facadeUrl", item.url);
+    // 1. If forceRefresh is requested, clear old IndexedDB cached AI render
+    if (forceRefresh) {
+      await clearIdbEnhanced(item.id);
+      setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
+    } else {
+      setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
     }
 
-    // 2. Check for pre-rendered AI enhanced render in IndexedDB
+    // 2. Set initial reframed render immediately so user sees the house unclipped instantly
+    const initialRender = await prepareFacade(item.url, item.originalUrl, item.id);
+    if (initialRender) {
+      set("facadeUrl", initialRender);
+    }
+
+    // 3. Check for pre-rendered AI enhanced render in IndexedDB if not forcing refresh
     if (!forceRefresh) {
       const cachedAi = await loadEnhancedAsync(item.id);
       if (cachedAi) {
@@ -379,20 +387,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         forceRefresh,
       });
 
+      // ONLY PERMANENTLY SAVE WHEN EVIDENTLY VALID AI ENHANCEMENT IS PRODUCED!
       if (aiUrl && aiUrl !== item.url && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
-        saveEnhanced(item.id, aiUrl);
-      } else {
-        const widened = await prepareFacade(item.url, item.originalUrl, item.id);
-        if (widened) set("facadeUrl", widened);
+        await saveEnhanced(item.id, aiUrl);
       }
-    } catch {
-      try {
-        const widened = await prepareFacade(item.url, item.originalUrl, item.id);
-        if (widened) set("facadeUrl", widened);
-      } catch {
-        if (item.url) set("facadeUrl", item.url);
-      }
+    } catch (err) {
+      console.error("[AI Outpaint] Outpainting failed, using reframed render", err);
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
@@ -401,24 +402,21 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
   const handleReDoAiEnhancement = async () => {
     if (facadeBusy) return;
-    if (!data.facadeId && !data.facadeUrl) return;
-
-    // Enforce 2-attempt limit per facade
-    const key = data.facadeId || "custom";
-    const attempts = reRenderAttempts[key] ?? 0;
+    const facadeId = data.facadeId || "custom";
+    const attempts = reRenderAttempts[facadeId] ?? 0;
     if (attempts >= MAX_RERENDERS) return;
-    setReRenderAttempts((prev) => ({ ...prev, [key]: attempts + 1 }));
-    await clearIdbEnhanced(key);
 
-    const currentItem: FacadeItem = {
-      id: data.facadeId || "custom",
+    // Find original facade item details
+    const matched = HUDSON_FACADES.find((f) => f.id === facadeId);
+    const facadeItem: FacadeItem = matched ?? {
+      id: facadeId,
       name: data.facadeName || "Facade",
       range: "Standard",
       tags: [],
-      url: data.facadeUrl.startsWith("data:") ? BUILT_IN_FACADES[0].url : data.facadeUrl,
+      url: data.facadeUrl.startsWith("data:") ? (HUDSON_FACADES[0]?.url ?? "") : data.facadeUrl,
     };
 
-    await selectFacade(currentItem, true);
+    await selectFacade(facadeItem, true);
   };
 
   return (
