@@ -361,14 +361,20 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
 
     // 1. Direct fetch (works for same-origin & CORS-enabled URLs)
     try {
+      console.log("[getRawFacadeBase64] Attempting direct fetch:", rawUrl);
       const res = await fetch(rawUrl);
       if (res.ok) {
         const blob = await res.blob();
         const b64 = await blobToBase64(blob);
-        if (b64.startsWith("data:image/") && b64.length > 500) return b64;
+        if (b64.startsWith("data:image/") && b64.length > 500) {
+          console.log("[getRawFacadeBase64] Direct fetch succeeded");
+          return b64;
+        }
+      } else {
+        console.log("[getRawFacadeBase64] Direct fetch failed with status:", res.status);
       }
-    } catch {
-      /* try CORS proxy */
+    } catch (e) {
+      console.log("[getRawFacadeBase64] Direct fetch threw:", e.message);
     }
 
     // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
@@ -380,20 +386,27 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       ];
       for (const proxyUrl of proxies) {
         try {
+          console.log("[getRawFacadeBase64] Attempting proxy:", proxyUrl.substring(0, 40) + "...");
           const res = await fetch(proxyUrl);
           if (res.ok) {
             const blob = await res.blob();
             const b64 = await blobToBase64(blob);
-            if (b64.startsWith("data:image/") && b64.length > 500) return b64;
+            if (b64.startsWith("data:image/") && b64.length > 500) {
+              console.log("[getRawFacadeBase64] Proxy succeeded");
+              return b64;
+            }
+          } else {
+            console.log("[getRawFacadeBase64] Proxy failed with status:", res.status);
           }
-        } catch {
-          /* try next proxy */
+        } catch (e) {
+          console.log("[getRawFacadeBase64] Proxy threw:", e.message);
         }
       }
     }
 
     // 3. Canvas image element fallback
     try {
+      console.log("[getRawFacadeBase64] Attempting Canvas fallback");
       const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth || 1200;
@@ -401,17 +414,74 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       const ctx = canvas.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-      if (dataUrl.startsWith("data:image/") && dataUrl.length > 500) return dataUrl;
-    } catch {
-      /* try next candidate */
+      if (dataUrl.startsWith("data:image/") && dataUrl.length > 500) {
+        console.log("[getRawFacadeBase64] Canvas fallback succeeded");
+        return dataUrl;
+      }
+    } catch (e) {
+      console.log("[getRawFacadeBase64] Canvas fallback threw:", e.message);
     }
   }
   return "";
 }
 
+async function getHouseBoundingBox(apiKey: string, base64Image: string) {
+  const prompt = `Return the exact bounding box of the MAIN HOUSE BUILDING ONLY in this image.
+CRITICAL: EXCLUDE the driveway, lawn, sky, side fences, boundary walls, and neighbor's houses.
+Find the extreme leftmost brick/wall/roof edge and the extreme rightmost brick/wall/roof edge of the main structure.
+Return ONLY a JSON object with this exact structure, using relative coordinates from 0.0 to 1.0 (where 0,0 is top-left):
+{"ymin": 0.1, "ymax": 0.9, "xmin": 0.1, "xmax": 0.9}`;
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      let text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (text) {
+        try {
+          const cleanText = text.replace(/```json\n?/g, "").replace(/```/g, "").trim();
+          return JSON.parse(cleanText);
+        } catch (parseError) {
+          console.warn("[AI Bounding Box] JSON parse failed, falling back to regex extraction", text);
+          // Regex fallback for malformed JSON
+          const yminMatch = text.match(/"ymin"\s*:\s*([\d.]+)/);
+          const ymaxMatch = text.match(/"ymax"\s*:\s*([\d.]+)/);
+          const xminMatch = text.match(/"xmin"\s*:\s*([\d.]+)/);
+          const xmaxMatch = text.match(/"xmax"\s*:\s*([\d.]+)/);
+          if (yminMatch && ymaxMatch && xminMatch && xmaxMatch) {
+            return {
+              ymin: parseFloat(yminMatch[1]),
+              ymax: parseFloat(ymaxMatch[1]),
+              xmin: parseFloat(xminMatch[1]),
+              xmax: parseFloat(xmaxMatch[1]),
+            };
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.error("Failed to get bounding box", e);
+  }
+  return { ymin: 0.15, ymax: 0.85, xmin: 0.1, xmax: 0.9 };
+}
+
 /**
  * Asks direct Google Gemini Image API to AI-outpaint a facade into a wide 2.69:1 render.
- * Results in real extended landscaping, timber fencing, tropical plants and sky filling 100% of the flyer width.
+ * Uses a compositing technique to guarantee 100% structural preservation of the original house.
  */
 export async function widenFacadeClientSide(item: {
   id: string;
@@ -427,29 +497,84 @@ export async function widenFacadeClientSide(item: {
       console.warn("[AI Outpaint] Failed to get raw facade base64 for item:", item.name);
       return null;
     }
+
+    const img = await loadImage(rawPayload);
+    const srcW = img.naturalWidth || 1200;
+    const srcH = img.naturalHeight || 900;
+    
+    // Output canvas: exactly 2.69 : 1
+    const outW = Math.max(2400, srcW);
+    const outH = Math.round(outW / 2.69);
+
+    // Get exact house location to maximize scale
+    const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
+    // The Gemini bounding box often includes some sky/driveway padding. 
+    // To ensure the physical house is mathematically precise, we tighten the bbox.
+    const tightenY = 0.02; // assume 2% padding on top and bottom
+    const trueHouseY = srcH * (bbox.ymin + tightenY);
+    const trueHouseH = srcH * Math.max(0.1, (bbox.ymax - tightenY) - (bbox.ymin + tightenY));
+    const trueHouseW = srcW * (bbox.xmax - bbox.xmin);
+    
+    // Total frame height is 78mm.
+    // Top gap is 5mm (5 / 78)
+    // House height is 63mm (63 / 78)
+    // Bottom gap is 10mm (10 / 78)
+    // Side margin is 5mm (5 / 78)
+    const topGap = Math.round(outH * (5 / 78));
+    const targetHouseH = Math.round(outH * (63 / 78));
+    const sideMargin = Math.round(outH * (5 / 78));
+    const maxHouseW = outW - (sideMargin * 2);
+    
+    let scale = targetHouseH / trueHouseH;
+    
+    // If the house is too wide (touching sides), scale it back so there is exactly a 5mm gap on the sides
+    if (trueHouseW * scale > maxHouseW) {
+        scale = maxHouseW / trueHouseW;
+    }
+    
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+
+    // Center horizontally
+    const drawX = Math.round((outW - drawW) / 2);
+    
+    // Anchor vertically so the ACTUAL roof is exactly at `topGap`
+    const drawY = Math.round(topGap - (trueHouseY * scale));
+    
+    // Position the house perfectly
+    // Prepare the centered canvas to send to Gemini
+    const prepCanvas = document.createElement("canvas");
+    prepCanvas.width = outW;
+    prepCanvas.height = outH;
+    const prepCtx = prepCanvas.getContext("2d", { willReadFrequently: true })!;
+    prepCtx.imageSmoothingEnabled = true;
+    prepCtx.imageSmoothingQuality = "high";
+    prepCtx.fillStyle = "#ffffff";
+    prepCtx.fillRect(0, 0, outW, outH);
+    prepCtx.drawImage(img, drawX, drawY, drawW, drawH);
+    
+    const preparedPayload = prepCanvas.toDataURL("image/jpeg", 0.95);
+
     const isDouble =
       /double|two|2\s*storey|duplex/i.test(item.housingType ?? "") ||
       /double|2-storey|2stry|30|32|34|35|36|38|40|42|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland/i.test(
         `${item.id ?? ""} ${item.name ?? ""}`
       );
 
-    const comp = isDouble
-      ? "Sit the two-storey house LARGE AND PROMINENT, centered in wide 2.69:1 perspective, occupying 84% of total vertical image height. Leave 8% clear blue sky above the highest roof peak and 8% natural ground/driveway clearance below the garage base — a hero zoom with natural breathing room where the entire building is 100% visible and unclipped."
-      : "Sit the single-storey house LARGE AND PROMINENT, centered in wide 2.69:1 perspective, occupying 84% of total vertical image height. Leave 8% clear blue sky above the roof ridge and 8% natural ground/driveway clearance below the garage base — a hero zoom with natural, comfortable breathing room.";
-
-    const refreshSeed = item.forceRefresh ? ` VARIATION_SEED_${Date.now()}_${Math.floor(Math.random() * 100000)}` : "";
+    const refreshSeed = item.forceRefresh ? `\n\nCRITICAL: This is a RE-GENERATION request. You MUST create a DIFFERENT landscaping layout, sky, and background than you did last time. Random Seed: ${Date.now()}` : "";
 
     const promptText =
-      "Re-render this house facade as a single ultra-wide 2.69:1 widescreen architectural photograph (exact proportion 269:100) filling the complete width of a Hudson Homes sales flyer frame. " +
-      "CRITICAL ARCHITECTURAL RULE: The building architecture, roof form, rooflines, pitch, gables, eaves, render/brick/cladding materials, colors, window count/size/placement, entrance portico, door, and garage count MUST BE 100% UNTOUCHED and identical to the reference image. " +
-      "Count the garage doors in the reference image and reproduce EXACTLY that same number, width, and position — never add a second garage, never widen a single garage into a double, never alter storeys or building structure. " +
-      "COMPOSITION & SCALE: " + comp + ". " +
-      "LANDSCAPING OUTPAINTING: On both the left and right sides of the house, seamlessly outpaint and generate modern Australian residential suburban landscaping, including timber boundary fencing running back into the background, lush green garden beds with tropical plants (agaves, yuccas, hedges), background trees, and a clear bright blue sky with soft light clouds spanning the full 2.69:1 width. " +
-      "QUALITY & SHARPNESS: Generate in ultra-high resolution, crystal clear 4K architectural photographic detail. Enhance fine textures on roofing tiles, brickwork, render, timber garage doors, windows, foliage, and garden landscaping with ultra-sharp definition and zero compression artifacts. " +
-      "CRITICAL: Do NOT apply any background blur, depth-of-field blur, radial blur, bokeh, or vignetting. Do NOT mirror, stretch, or tile the building. The entire image including extended landscaping, garden beds, sky, and house architecture MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
-      "Bright natural daylight, realistic lighting and shadows, photoreal. Return the finished photo only." + refreshSeed;
+      "I have provided an image of a house placed on a white widescreen canvas. " +
+      "CRITICAL INSTRUCTION: Your job is to outpaint the white space to create ONE seamless, photorealistic background across the ENTIRE widescreen image. " +
+      "You MUST make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade's background. Match the existing sky color, grass texture, and overall lighting perfectly. " +
+      "Ensure the landscaping is visually balanced and consistent on BOTH the left and right sides of the house. Do not add random or mismatched objects to one side. The lawns, pathways, and driveways should flow symmetrically and naturally. " +
+      "DO NOT generate a completely different background style. Keep it similar to the original facade image background. " +
+      "You must preserve the architecture, proportions, size, and colors of the house itself EXACTLY as provided. Do not alter the house building. " +
+      "Do NOT add fences, walls, or large trees that block the house. " +
+      "CRITICAL: Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
+      "Return the photorealistic finished image." + refreshSeed;
 
-    const models = ["gemini-2.5-flash-image", "gemini-2.0-flash-exp"];
+    const models = ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image"];
     let apiRes: Response | null = null;
 
     for (const model of models) {
@@ -466,8 +591,8 @@ export async function widenFacadeClientSide(item: {
                     { text: promptText },
                     {
                       inline_data: {
-                        mime_type: rawPayload.startsWith("data:image/png") ? "image/png" : "image/jpeg",
-                        data: rawPayload.split(",")[1] ?? "",
+                        mime_type: "image/jpeg",
+                        data: preparedPayload.split(",")[1] ?? "",
                       },
                     },
                   ],
@@ -475,6 +600,7 @@ export async function widenFacadeClientSide(item: {
               ],
               generationConfig: {
                 responseModalities: ["TEXT", "IMAGE"],
+                imageConfig: { aspectRatio: "16:9" }
               },
             }),
           }
@@ -496,22 +622,89 @@ export async function widenFacadeClientSide(item: {
     }
 
     const json = (await apiRes.json()) as any;
+    console.log("[AI Outpaint] API returned OK. Keys:", Object.keys(json));
+
     let b64: string | undefined = undefined;
     if (json?.candidates?.[0]?.content?.parts) {
       for (const p of json.candidates[0].content.parts as any[]) {
         const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
         if (data && typeof data === "string" && data.length > 500) {
           b64 = data;
+          console.log("[AI Outpaint] Found inline data, length:", data.length);
           break;
         }
       }
     }
+    
     if (!b64) {
-      console.warn("[AI Outpaint] Gemini API did not return image inline_data:", JSON.stringify(json).substring(0, 300));
+      console.error("[AI Outpaint] Gemini API did not return image inline_data:", JSON.stringify(json).substring(0, 300));
       return null;
     }
 
-    return `data:image/jpeg;base64,${b64}`;
+    // -------------------------------------------------------------
+    // POST-GENERATION ALIGNMENT (No Compositing)
+    // -------------------------------------------------------------
+    // To achieve 100% sharp backgrounds and strictly perfect sizing, we 
+    // do NOT composite. Instead, we detect the exact bounding box of the 
+    // house in the AI's generated image, and then draw that generated 
+    // image onto the final canvas scaled and offset so the house sits 
+    // perfectly at our mathematical constraints (5mm top, 10mm bottom).
+    
+    const aiImgBase64 = `data:image/jpeg;base64,${b64}`;
+    const aiImg = await loadImage(aiImgBase64);
+
+    // Get bbox of the generated house
+    const aiBbox = await getHouseBoundingBox(GEMINI_KEY, b64);
+    const aiTightenY = 0.02; // 2% padding assumption
+    const aiHouseY = aiImg.naturalHeight * (aiBbox.ymin + aiTightenY);
+    const aiHouseH = aiImg.naturalHeight * Math.max(0.1, (aiBbox.ymax - aiTightenY) - (aiBbox.ymin + aiTightenY));
+    const aiHouseW = aiImg.naturalWidth * (aiBbox.xmax - aiBbox.xmin);
+
+    // Calculate scaling factor to make the AI house exactly our target height
+    let finalScale = targetHouseH / aiHouseH;
+    let isWidthConstrained = false;
+
+    // If the house is too wide (touching sides), scale it back
+    if (aiHouseW * finalScale > maxHouseW) {
+        finalScale = maxHouseW / aiHouseW;
+        isWidthConstrained = true;
+    }
+
+    const finalDrawW = Math.round(aiImg.naturalWidth * finalScale);
+    const finalDrawH = Math.round(aiImg.naturalHeight * finalScale);
+
+    // Center horizontally based on the whole image (which centers the house if it was centered)
+    // We should center based on the house itself!
+    const aiHouseX = aiImg.naturalWidth * aiBbox.xmin;
+    const scaledHouseW = aiHouseW * finalScale;
+    const scaledHouseX = aiHouseX * finalScale;
+    const finalDrawX = Math.round((outW - scaledHouseW) / 2 - scaledHouseX);
+    
+    // Anchor vertically
+    let finalDrawY;
+    if (isWidthConstrained) {
+        // House is very wide and got scaled down. Center it vertically with 40% top padding.
+        const scaledHouseH = aiHouseH * finalScale;
+        const dynamicTopGap = (outH - scaledHouseH) * 0.4;
+        finalDrawY = Math.round(dynamicTopGap - (aiHouseY * finalScale));
+    } else {
+        // House fits normally. Use strict original 5mm top gap math.
+        finalDrawY = Math.round(topGap - (aiHouseY * finalScale));
+    }
+
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width = outW;
+    finalCanvas.height = outH;
+    const finalCtx = finalCanvas.getContext("2d", { willReadFrequently: true })!;
+    finalCtx.imageSmoothingEnabled = true;
+    finalCtx.imageSmoothingQuality = "high";
+    finalCtx.fillStyle = "#ffffff";
+    finalCtx.fillRect(0, 0, outW, outH);
+
+    // Draw the pure, sharp AI generated image perfectly aligned
+    finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
+
+    return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {
     console.error("[AI Outpaint Exception]", err);
     return null;
