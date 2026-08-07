@@ -37,7 +37,7 @@ export function saveCustomFacades(items: FacadeItem[]) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   } catch {
-    /* storage full or unavailable — library stays in-memory for this session */
+    /* storage full or unavailable - library stays in-memory for this session */
   }
 }
 
@@ -94,37 +94,77 @@ export function facadeUpliftFor(
 
 /* ---- AI-enhanced render cache -------------------------------------------- */
 
+import { supabase } from "@/integrations/supabase/client";
+
 export const AI_MARKER = "::AI_OUTPAINT_V2::";
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
-  if (!id) return null;
-  const raw = await getIdbEnhanced(id);
-  if (raw && typeof raw === "string" && raw.startsWith(AI_MARKER)) {
-    return raw.replace(AI_MARKER, "");
+  const tagged = await getIdbEnhanced(id);
+  if (tagged) {
+    return tagged.startsWith(AI_MARKER) ? tagged.replace(AI_MARKER, "") : tagged;
   }
   return null;
 }
 
 export function loadEnhanced(id: string): string | null {
-  if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
-    if (raw && raw.startsWith(AI_MARKER)) return raw.replace(AI_MARKER, "");
-    return null;
-  } catch {
-    return null;
-  }
+    const tagged = window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
+    if (tagged) {
+      return tagged.startsWith(AI_MARKER) ? tagged.replace(AI_MARKER, "") : tagged;
+    }
+  } catch {}
+  return null;
 }
 
-export function saveEnhanced(id: string, dataUrl: string) {
+export async function saveEnhanced(id: string, dataUrl: string, facadeName?: string) {
   if (!id || !dataUrl) return;
-  const tagged = dataUrl.startsWith(AI_MARKER) ? dataUrl : `${AI_MARKER}${dataUrl}`;
+  
+  const cleanUrl = dataUrl.startsWith(AI_MARKER) ? dataUrl.replace(AI_MARKER, "") : dataUrl;
+  const tagged = `${AI_MARKER}${cleanUrl}`;
+  
+  // Save locally
+  const current = await getIdbEnhanced(id);
+  if (current && current !== tagged) {
+      await saveIdbEnhanced(`${id}_prev`, current);
+  }
+
   void saveIdbEnhanced(id, tagged);
   try {
     window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, tagged);
   } catch {
-    /* localStorage quota exceeded — IndexedDB handles permanent storage */
+    /* localStorage quota exceeded - IndexedDB handles permanent storage */
   }
+
+  // Save globally to Supabase
+  void supabase.from("facade_renders").upsert({
+    id: id,
+    facade_name: facadeName || id,
+    widened_url: cleanUrl,
+  }).then(({ error }) => {
+    if (error) {
+      console.error("Failed to save facade to Supabase:", error);
+    } else {
+      console.log(`[FacadeLibrary] Permanently saved ${id} to Supabase.`);
+    }
+  });
+}
+
+export async function hasPreviousEnhanced(id: string): Promise<boolean> {
+    const prev = await getIdbEnhanced(`${id}_prev`);
+    return !!prev;
+}
+
+export async function revertEnhanced(id: string): Promise<string | null> {
+    const prev = await getIdbEnhanced(`${id}_prev`);
+    if (prev) {
+        await saveIdbEnhanced(id, prev);
+        await clearIdbEnhanced(`${id}_prev`);
+        try {
+            window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, prev);
+        } catch {}
+        return prev.startsWith(AI_MARKER) ? prev.replace(AI_MARKER, "") : prev;
+    }
+    return null;
 }
 
 export { clearIdbEnhanced };
