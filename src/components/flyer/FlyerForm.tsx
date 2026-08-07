@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
-import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, loadEnhancedAsync, saveEnhanced, clearIdbEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
+import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, loadEnhancedAsync, saveEnhanced, hasPreviousEnhanced, revertEnhanced, clearIdbEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
 import { prepareFloorplan, prepareFacade, widenFacadeClientSide } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
@@ -192,6 +192,16 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   const [variants, setVariants] = useState<FloorplanRecord[]>(() =>
     plansForDesign(data.designName),
   );
+  const [canRevertAi, setCanRevertAi] = useState(false);
+
+  useEffect(() => {
+    const checkRevert = async () => {
+      const facadeId = data.facadeId || "custom";
+      const hasPrev = await hasPreviousEnhanced(facadeId);
+      setCanRevertAi(hasPrev);
+    };
+    checkRevert();
+  }, [data.facadeId, data.facadeUrl]);
 
   /** Dual-occupancy designs only offer the facades shown on their design page,
    *  and the acreage range only offers the Mulberry facades. */
@@ -247,29 +257,6 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   };
 
 
-  const pickDefaultFacade = (housingType: string, _designName: string, cars: string): FacadeItem | null => {
-    const isDouble = /double|duplex|two/i.test(housingType) || storeyFor(housingType) === "double";
-    const garage = garageFromCars(cars);
-
-    const candidates = BUILT_IN_FACADES.filter((f) => {
-      const cat = facadeCategory(f);
-      if (isDouble && cat !== "double") return false;
-      if (!isDouble && cat === "double") return false;
-      if (garage === 1 && f.tags.includes("single-garage")) return true;
-      if (garage === 2 && !f.tags.includes("single-garage")) return true;
-      return true;
-    });
-
-    return candidates[0] || BUILT_IN_FACADES[0] || null;
-  };
-
-  useEffect(() => {
-    if (!data.facadeUrl && data.designName) {
-      const defaultFacade = pickDefaultFacade(data.housingType, data.designName, data.cars);
-      if (defaultFacade) selectFacade(defaultFacade);
-    }
-  }, []);
-
   const selectDesign = (name: string) => {
     set("designName", name);
     const plans = plansForDesign(name);
@@ -286,15 +273,15 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     set("otherSizes", sizes);
     set("showOtherSizes", sizes.length > 0);
 
-    const defaultFacade = pickDefaultFacade(data.housingType, name, plans[0]?.cars || data.cars);
-    const facadeToUse = defaultFacade || BUILT_IN_FACADES[0];
-
-    const amount = facadeUpliftFor(
-      facadeToUse.id,
-      facadeToUse.name,
-      storeyFor(data.housingType) ?? undefined,
-      name,
-    );
+    // Duplex and Mulberry facades are priced per design, so re-price the facade.
+    const amount = data.facadeId
+      ? facadeUpliftFor(
+          data.facadeId,
+          data.facadeName,
+          storeyFor(data.housingType) ?? undefined,
+          name,
+        )
+      : uplift;
     setUplift(amount);
 
     const costs = data.landscaping
@@ -306,7 +293,10 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
 
-    selectFacade(facadeToUse);
+    // Clear facade when design changes — do not auto-display a facade on the flyer until user selects one from the library
+    set("facadeId", "");
+    set("facadeName", "");
+    set("facadeUrl", "");
   };
 
   const selectVariant = (label: string) => {
@@ -372,6 +362,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     if (forceRefresh) {
       await clearIdbEnhanced(item.id);
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
+      set("facadeUrl", ""); // Clear URL to replace with the loading image while regenerating
     } else {
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
     }
@@ -407,7 +398,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
-        await saveEnhanced(item.id, aiUrl);
+        await saveEnhanced(item.id, aiUrl, item.name);
       } else {
         const fallbackRender = await prepareFacade(rawUrlToUse, rawUrlToUse, item.id);
         if (fallbackRender) set("facadeUrl", fallbackRender);
@@ -430,20 +421,40 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     if (facadeBusy) return;
     const facadeId = data.facadeId || "custom";
     const attempts = reRenderAttempts[facadeId] ?? 0;
-    if (attempts >= MAX_RERENDERS) return;
+    // Removed MAX_RERENDERS restriction so the user can keep re-doing it if they don't like the AI result
 
     // Find original facade item details
     const matched = HUDSON_FACADES.find((f) => f.id === facadeId);
     const facadeItem: FacadeItem = matched ?? {
       id: facadeId,
-      name: data.facadeName || "Facade",
+      name: data.facadeName || "Custom",
       range: "Standard",
       tags: [],
-      url: data.facadeUrl.startsWith("data:") ? (HUDSON_FACADES[0]?.url ?? "") : data.facadeUrl,
+      url: data.rawFacadeUrl || data.facadeUrl,
     };
 
     await selectFacade(facadeItem, true);
   };
+
+  const handleRevertAi = async () => {
+    if (facadeBusy) return;
+    setFacadeBusy(true);
+    set("facadeBusy", true);
+    try {
+      const facadeId = data.facadeId || "custom";
+      const revertedUrl = await revertEnhanced(facadeId);
+      if (revertedUrl) {
+        set("facadeUrl", revertedUrl);
+      }
+    } finally {
+      setFacadeBusy(false);
+      set("facadeBusy", false);
+    }
+  };
+
+  useEffect(() => {
+    (window as any).widenFacadeClientSide = widenFacadeClientSide;
+  }, []);
 
   return (
     <div className="space-y-7">
@@ -600,30 +611,39 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           </div>
           {(() => {
             const key = data.facadeId || "custom";
-            const attemptsLeft = data.facadeName ? MAX_RERENDERS - (reRenderAttempts[key] ?? 0) : 0;
             return (
               <div className="flex flex-col items-center gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={facadeBusy || !data.facadeName || attemptsLeft <= 0}
-                  onClick={handleReDoAiEnhancement}
-                  className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
-                  title={attemptsLeft <= 0 ? "Limit reached (2/2)" : "Re-generate AI facade outpainting variation"}
-                >
-                  {facadeBusy ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
+                <div className="flex items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={facadeBusy || !data.facadeName}
+                    onClick={handleReDoAiEnhancement}
+                    className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
+                    title="Re-generate AI facade outpainting variation"
+                  >
+                    {facadeBusy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
+                    )}
+                    Re-do AI
+                  </Button>
+                  {canRevertAi && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={facadeBusy}
+                      onClick={handleRevertAi}
+                      className="flex-none text-xs text-muted-foreground border-brand-gold-deep/30 hover:border-brand-gold hover:bg-brand-gold/5"
+                      title="Revert to previous AI generation"
+                    >
+                      Undo
+                    </Button>
                   )}
-                  {attemptsLeft <= 0 ? "Limit (2/2)" : `Re-do AI (${attemptsLeft} left)`}
-                </Button>
-                {data.facadeName && (
-                  <span className="text-[9px] text-muted-foreground text-center leading-tight">
-                    {attemptsLeft <= 0 ? "Max attempts reached" : `${attemptsLeft} of ${MAX_RERENDERS} remaining`}
-                  </span>
-                )}
+                </div>
               </div>
             );
           })()}
