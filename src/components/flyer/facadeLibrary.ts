@@ -37,12 +37,12 @@ export function saveCustomFacades(items: FacadeItem[]) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   } catch {
-    /* storage full or unavailable - library stays in-memory for this session */
+    /* storage full or unavailable ?" library stays in-memory for this session */
   }
 }
 
 /* ---- Facade price uplifts -------------------------------------------------
- * The QLD price list is quoted on the Classic Façade, so every other facade
+ * The QLD price list is quoted on the Classic FaA ade, so every other facade
  * carries an upgrade cost. Those uplifts are maintained here and persisted
  * locally so the team can keep them current without a code change.
  * ------------------------------------------------------------------------ */
@@ -96,21 +96,39 @@ export function facadeUpliftFor(
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const AI_MARKER = "::AI_OUTPAINT_V2::";
+export const AI_MARKER = "::AI_OUTPAINT_V3::";
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   const tagged = await getIdbEnhanced(id);
-  if (tagged) {
-    return tagged.startsWith(AI_MARKER) ? tagged.replace(AI_MARKER, "") : tagged;
+  if (tagged && tagged.startsWith(AI_MARKER)) {
+    return tagged.replace(AI_MARKER, "");
   }
+
+  // Local cache miss. Try Supabase for V3 global cache.
+  try {
+    const { data } = await supabase.from("facade_renders").select("widened_url").eq("id", `${id}_v3`).maybeSingle();
+    if (data?.widened_url) {
+        // Save it locally so we don't hit Supabase again next time
+        const b64 = data.widened_url;
+        const newTagged = `${AI_MARKER}${b64}`;
+        void saveIdbEnhanced(id, newTagged);
+        try {
+            window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
+        } catch {}
+        return b64;
+    }
+  } catch (e) {
+    console.error("Supabase load error", e);
+  }
+
   return null;
 }
 
 export function loadEnhanced(id: string): string | null {
   try {
     const tagged = window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
-    if (tagged) {
-      return tagged.startsWith(AI_MARKER) ? tagged.replace(AI_MARKER, "") : tagged;
+    if (tagged && tagged.startsWith(AI_MARKER)) {
+      return tagged.replace(AI_MARKER, "");
     }
   } catch {}
   return null;
@@ -132,19 +150,19 @@ export async function saveEnhanced(id: string, dataUrl: string, facadeName?: str
   try {
     window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, tagged);
   } catch {
-    /* localStorage quota exceeded - IndexedDB handles permanent storage */
+    /* localStorage quota exceeded ?" IndexedDB handles permanent storage */
   }
 
   // Save globally to Supabase
   void supabase.from("facade_renders").upsert({
-    id: id,
+    id: `${id}_v3`,
     facade_name: facadeName || id,
     widened_url: cleanUrl,
   }).then(({ error }) => {
     if (error) {
       console.error("Failed to save facade to Supabase:", error);
     } else {
-      console.log(`[FacadeLibrary] Permanently saved ${id} to Supabase.`);
+      console.log(`[FacadeLibrary] Permanently saved ${id}_v3 to Supabase.`);
     }
   });
 }
