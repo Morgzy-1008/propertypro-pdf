@@ -37,7 +37,7 @@ export function saveCustomFacades(items: FacadeItem[]) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   } catch {
-    /* storage full or unavailable ?" library stays in-memory for this session */
+    /* storage full or unavailable ? library stays in-memory for this session */
   }
 }
 
@@ -101,7 +101,10 @@ export const AI_MARKER = "::AI_OUTPAINT_V3::";
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   const tagged = await getIdbEnhanced(id);
   if (tagged && tagged.startsWith(AI_MARKER)) {
-    return tagged.replace(AI_MARKER, "");
+    const b64 = tagged.replace(AI_MARKER, "");
+    if (b64.startsWith("data:image/") && b64.length > 1000) {
+      return b64;
+    }
   }
 
   // Local cache miss. Try Supabase for V3 global cache.
@@ -110,12 +113,14 @@ export async function loadEnhancedAsync(id: string): Promise<string | null> {
     if (data?.widened_url) {
         // Save it locally so we don't hit Supabase again next time
         const b64 = data.widened_url;
-        const newTagged = `${AI_MARKER}${b64}`;
-        void saveIdbEnhanced(id, newTagged);
-        try {
-            window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
-        } catch {}
-        return b64;
+        if (b64.startsWith("data:image/") && b64.length > 1000) {
+            const newTagged = `${AI_MARKER}${b64}`;
+            void saveIdbEnhanced(id, newTagged);
+            try {
+                window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
+            } catch {}
+            return b64;
+        }
     }
   } catch (e) {
     console.error("Supabase load error", e);
@@ -128,7 +133,10 @@ export function loadEnhanced(id: string): string | null {
   try {
     const tagged = window.localStorage.getItem(`${ENHANCED_KEY}:${id}`);
     if (tagged && tagged.startsWith(AI_MARKER)) {
-      return tagged.replace(AI_MARKER, "");
+      const b64 = tagged.replace(AI_MARKER, "");
+      if (b64.startsWith("data:image/") && b64.length > 1000) {
+        return b64;
+      }
     }
   } catch {}
   return null;
@@ -136,8 +144,12 @@ export function loadEnhanced(id: string): string | null {
 
 export async function saveEnhanced(id: string, dataUrl: string, facadeName?: string) {
   if (!id || !dataUrl) return;
-  
   const cleanUrl = dataUrl.startsWith(AI_MARKER) ? dataUrl.replace(AI_MARKER, "") : dataUrl;
+  if (!cleanUrl.startsWith("data:image/") || cleanUrl.length <= 1000) {
+      console.warn(`[FacadeLibrary] Prevented saving invalid facade image for ${id}`);
+      return;
+  }
+  
   const tagged = `${AI_MARKER}${cleanUrl}`;
   
   // Save locally
@@ -150,7 +162,7 @@ export async function saveEnhanced(id: string, dataUrl: string, facadeName?: str
   try {
     window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, tagged);
   } catch {
-    /* localStorage quota exceeded ?" IndexedDB handles permanent storage */
+    /* localStorage quota exceeded ? IndexedDB handles permanent storage */
   }
 
   // Save globally to Supabase
