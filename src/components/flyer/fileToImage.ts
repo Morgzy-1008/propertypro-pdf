@@ -2,7 +2,6 @@ import { authHeaders } from "@/lib/api-auth";
 import { HUDSON_FACADES } from "./facades.data";
 
 /**
-
  * Converts an uploaded image OR PDF (first page) into a PNG data URL
  * so it can be rendered inside the flyer preview and printed.
  */
@@ -433,7 +432,7 @@ Return ONLY a JSON object with this exact structure, using relative coordinates 
 {"ymin": 0.1, "ymax": 0.9, "xmin": 0.1, "xmax": 0.9}`;
 
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -574,7 +573,7 @@ export async function widenFacadeClientSide(item: {
       "CRITICAL: Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
       "Return the photorealistic finished image." + refreshSeed;
 
-    const models = ["gemini-3.1-flash-image", "gemini-3.1-flash-image-preview", "gemini-3-pro-image"];
+    const models = ["gemini-pro-latest", "gemini-flash-latest", "gemini-3.6-flash", "gemini-3.1-flash-image"];
     let apiRes: Response | null = null;
 
     for (const model of models) {
@@ -599,7 +598,7 @@ export async function widenFacadeClientSide(item: {
                 },
               ],
               generationConfig: {
-                responseModalities: ["TEXT", "IMAGE"],
+                responseModalities: ["IMAGE"],
                 imageConfig: { aspectRatio: "16:9" }
               },
             }),
