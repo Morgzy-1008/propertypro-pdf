@@ -1126,9 +1126,34 @@ async function cropToFloorplanCanvas(inCanvas: HTMLCanvasElement): Promise<strin
       }
     }
     
-    let bbox = null;
-    // Keep ONLY the largest component (the floorplan itself) to drop isolated logos and text tables
-    const validComps = comps.filter(c => c.count === maxCount);
+      let bbox = null;
+      console.log('cropToFloorplanCanvas: Total comps:', comps.length);
+      comps.forEach((c, i) => console.log('Comp', i, 'size:', c.count));
+      
+      const compsWithBbox = comps.map(c => {
+        let minR = rows, maxR = 0;
+        for (let i = 0; i < c.comp.length; i++) {
+          const r = c.comp[i][0];
+          if (r < minR) minR = r;
+          if (r > maxR) maxR = r;
+        }
+        const centerR = (minR + maxR) / 2;
+        return { ...c, centerR };
+      });
+      
+      // Keep components that are either the absolute largest OR substantial in size (>1%) AND not in exclusion zones
+      const validComps = compsWithBbox.filter(c => {
+        if (c.count === maxCount) return true;
+        if (c.count < maxCount * 0.01) return false;
+        
+        const relativeY = c.centerR / rows;
+        // HUDSON HOMES logo is usually at top < 0.15
+        // Dimensions table is usually at bottom > 0.85
+        if (relativeY < 0.15 || relativeY > 0.85) {
+          return false;
+        }
+        return true;
+      });
     
     if (validComps.length > 0) {
       bbox = [validComps[0].comp[0][1], validComps[0].comp[0][0], validComps[0].comp[0][1], validComps[0].comp[0][0]];
@@ -1225,8 +1250,8 @@ async function dynamicPdfFloorplanToDataUrl(file: File): Promise<string> {
   for (let i = 1; i <= numPages; i++) {
     const page = await doc.getPage(i);
     const base = page.getViewport({ scale: 1 });
-    // Increase scale for ultra crisp lines (approx 4800px width)
-    const scale = Math.min(4800 / base.width, 8);
+    // Increase scale for ultra crisp lines (approx 7200px width)
+    const scale = Math.min(7200 / base.width, 12);
     const viewport = page.getViewport({ scale });
 
     const canvas = document.createElement("canvas");
