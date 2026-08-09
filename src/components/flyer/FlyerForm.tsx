@@ -424,7 +424,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     // Removed MAX_RERENDERS restriction so the user can keep re-doing it if they don't like the AI result
 
     // Find original facade item details
-    const matched = HUDSON_FACADES.find((f) => f.id === facadeId);
+    const matched = BUILT_IN_FACADES.find((f) => f.id === facadeId);
     const facadeItem: FacadeItem = matched ?? {
       id: facadeId,
       name: data.facadeName || "Custom",

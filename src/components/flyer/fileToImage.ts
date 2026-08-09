@@ -564,17 +564,12 @@ export async function widenFacadeClientSide(item: {
     const refreshSeed = item.forceRefresh ? `\n\nCRITICAL: This is a RE-GENERATION request. You MUST create a DIFFERENT landscaping layout, sky, and background than you did last time. Random Seed: ${Date.now()}` : "";
 
     const promptText =
-      "I have provided an image of a house placed on a white widescreen canvas. " +
-      "CRITICAL INSTRUCTION: Your job is to outpaint the white space to create ONE seamless, photorealistic background across the ENTIRE widescreen image. " +
-      "You MUST make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade's background. Match the existing sky color, grass texture, and overall lighting perfectly. " +
-      "Ensure the landscaping is visually balanced and consistent on BOTH the left and right sides of the house. Do not add random or mismatched objects to one side. The lawns, pathways, and driveways should flow symmetrically and naturally. " +
-      "DO NOT generate a completely different background style. Keep it similar to the original facade image background. " +
-      "You must preserve the architecture, proportions, size, and colors of the house itself EXACTLY as provided. Do not alter the house building. " +
-      "Do NOT add fences, walls, or large trees that block the house. " +
-      "CRITICAL: Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT. " +
-      "Return the photorealistic finished image." + refreshSeed;
+      "I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, photorealistic background across the ENTIRE widescreen image.\n\n" +
+      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with an expansive, bright, and soft natural daylight. Imagine a perfectly clear day with soft, non-directional light that makes the colors vibrant and clean. The new extended sky must be a soft, luminous, light blue.\n\n" +
+      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, but with increased overall brightness and luminosity. The original facade itself should remain consistent, but the new lighting should make the textures (brickwork, glass, concrete) look exceptionally clean, crisp, and high-detail.\n\n" +
+      "QUALITY DIRECTIVES: Render with high-resolution textures, clean lines, and an aesthetic that emphasizes a high-end, professionally photographed real estate listing. Avoid flat lighting. keep everything hyper realistic." + refreshSeed;
 
-    const models = ["gemini-pro-latest", "gemini-flash-latest", "gemini-3.6-flash", "gemini-3.1-flash-image"];
+    const models = ["gemini-3.1-flash-image"];
     let apiRes: Response | null = null;
 
     for (const model of models) {
