@@ -17,26 +17,6 @@ export interface FloorplanRecord {
 
 export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
-    design: "Amaranth",
-    label: "Amaranth 23A",
-    beds: "3",
-    baths: "3",
-    cars: "2",
-    size: "210.01",
-    frontage: "12.02",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/07/Amaranth-23A.png",
-  },
-  {
-    design: "Amaranth",
-    label: "Amaranth 23B",
-    beds: "4",
-    baths: "4",
-    cars: "2",
-    size: "210.01",
-    frontage: "12.02",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/07/Amaranth-23B.png",
-  },
-  {
     design: "Alabaster",
     label: "Alabaster 31",
     beds: "6",
@@ -545,16 +525,6 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "318.36",
     frontage: "18.63",
     url: "/floorplans/CEDAR 34.png",
-  },
-  {
-    design: "Cerise",
-    label: "Cerise 20",
-    beds: "3",
-    baths: "2",
-    cars: "1",
-    size: "181.35",
-    frontage: "9.01",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/10/Cerise20_standard.jpg",
   },
   {
     design: "Cinnamon",
@@ -2165,15 +2135,5 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "240.79",
     frontage: "12.47",
     url: "/floorplans/WISTERIA 26.png",
-  },
-  {
-    design: "Wisteria",
-    label: "Wisteria 29",
-    beds: "6",
-    baths: "4",
-    cars: "2",
-    size: "267.82",
-    frontage: "20.09",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2026-01-06-at-10.40.08-AM.png",
   },
 ];
