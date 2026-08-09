@@ -127,9 +127,9 @@ function Index() {
     <>
       <div className="min-h-screen bg-muted/40 print:hidden">
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-          <div className="flex items-center justify-between gap-4 px-6 py-3.5">
+          <div className="flex items-center justify-between gap-4 px-6 py-2">
             <div className="flex items-center gap-3">
-              <img src={logoUrl} alt="Hudson Homes" className="h-9 w-auto object-contain" />
+              <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto object-contain" />
               <div className="leading-tight">
                 <h1 className="text-sm font-semibold tracking-[0.16em] text-brand-navy uppercase">
                   Hudson Homes

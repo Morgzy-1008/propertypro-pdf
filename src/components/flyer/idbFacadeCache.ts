@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "PropertyProFacadeCacheDB";
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 const STORE_NAME = "enhanced_facades";
 
 function openDB(): Promise<IDBDatabase> {
@@ -33,16 +33,12 @@ export async function getIdbEnhanced(id: string): Promise<string | null> {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readonly");
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.get(id);
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(id);
 
-        request.onsuccess = () => resolve(request.result as string || null);
-        request.onerror = () => resolve(null);
-      } catch (err) {
-        resolve(null);
-      }
+      request.onsuccess = () => resolve(request.result as string || null);
+      request.onerror = () => resolve(null);
     });
   } catch {
     return null;
@@ -55,16 +51,12 @@ export async function saveIdbEnhanced(id: string, dataUrl: string): Promise<void
   try {
     const db = await openDB();
     return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.put(dataUrl, id);
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(dataUrl, id);
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => resolve();
-      } catch (err) {
-        resolve();
-      }
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
     });
   } catch {
     /* ignore fallback */
@@ -77,16 +69,12 @@ export async function clearIdbEnhanced(id: string): Promise<void> {
   try {
     const db = await openDB();
     return new Promise((resolve) => {
-      try {
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        const request = store.delete(id);
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.delete(id);
 
-        request.onsuccess = () => resolve();
-        request.onerror = () => resolve();
-      } catch (err) {
-        resolve();
-      }
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
     });
   } catch {
     /* ignore */

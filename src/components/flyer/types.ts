@@ -123,6 +123,7 @@ export interface FlyerData {
   contactEmail: string;
   contactOffice: string;
   facadeUrl: string;
+  rawFacadeUrl?: string;
   floorplanUrl: string;
   facadeId: string;
   facadeName: string;
@@ -171,6 +172,7 @@ export const defaultFlyer: FlyerData = {
   contactEmail: "",
   contactOffice: "",
   facadeUrl: "",
+  rawFacadeUrl: "",
   floorplanUrl: "",
   facadeId: "",
   facadeName: "",

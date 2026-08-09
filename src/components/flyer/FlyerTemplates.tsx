@@ -76,6 +76,20 @@ function Facade({
     );
   }
 
+  if (busy && !url) {
+    return (
+      <div className={`relative flex h-full w-full flex-col items-center justify-center bg-brand-navy-deep gap-3 p-4 text-white ${className ?? ""}`}>
+        <Loader2 className="h-8 w-8 animate-spin text-brand-gold" />
+        <span className="text-[3mm] font-semibold tracking-[0.18em] text-white uppercase drop-shadow">
+          GENERATING AI FACADE RENDER…
+        </span>
+        <span className="text-[2.2mm] text-slate-300 drop-shadow">
+          Designing landscaping &amp; widescreen architectural photography
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
       <img
@@ -84,23 +98,18 @@ function Facade({
         loading="eager"
         onLoad={() => setLoaded(true)}
         onError={(e) => {
-          setLoaded(true);
-          console.warn("[FacadeFrame Load Error]", e);
+          e.currentTarget.style.display = "none";
         }}
-        className="h-full w-full object-cover object-center scale-[1.04]"
-        style={{
-          objectPosition: "center top",
-          imageRendering: "-webkit-optimize-contrast",
-        }}
+        className={`h-full w-full object-cover object-center transition-opacity duration-700 ease-in-out ${
+          loaded ? "opacity-100" : "opacity-0"
+        } ${busy ? "opacity-50 blur-[2px] scale-[1.02]" : ""}`}
+        style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
       {busy && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/40 backdrop-blur-[2px] gap-2 p-4 text-white">
-          <Loader2 className="h-6 w-6 animate-spin text-brand-gold" />
-          <span className="text-[3mm] font-semibold tracking-[0.18em] text-white uppercase drop-shadow">
-            GENERATING AI FACADE RENDER…
-          </span>
-          <span className="text-[2.2mm] tracking-wide text-slate-200 drop-shadow">
-            Outpainting landscaping &amp; widescreen architectural photography
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/40 backdrop-blur-[2px]">
+          <Loader2 className="h-8 w-8 animate-spin text-brand-gold shadow-sm mb-2" />
+          <span className="text-[2.5mm] font-bold tracking-[0.2em] text-white uppercase drop-shadow-md">
+            RE-GENERATING AI RENDER…
           </span>
         </div>
       )}
@@ -138,22 +147,22 @@ function ContactStrip({ d }: { d: FlyerData }) {
   return (
     <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[5mm] px-[14mm] py-[2.8mm]">
       <div className="min-w-0">
-        <div className="font-display text-[4.2mm] leading-[1.1] tracking-wide text-brand-cream">
+        <div className="font-display text-[4.2mm] leading-[1.1] text-brand-cream" style={{ letterSpacing: "normal" }}>
           {d.contactName}
         </div>
         {d.contactOffice && (
-          <div className="mt-[0.6mm] truncate text-[2.5mm] text-brand-cream/70">
+          <div className="mt-[0.6mm] truncate text-[2.5mm] text-brand-cream/70" style={{ letterSpacing: "normal" }}>
             {d.contactOffice}
           </div>
         )}
       </div>
-      <div className="flex flex-none items-center gap-[4.5mm] text-[2.8mm] text-brand-cream/90">
+      <div className="flex flex-none items-center gap-[4.5mm] text-[3.5mm] text-brand-cream/90" style={{ letterSpacing: "normal" }}>
         <span className="flex items-center gap-[1.4mm]">
-          <Phone className="h-[2.8mm] w-[2.8mm] text-brand-gold" strokeWidth={1.8} />
+          <Phone className="h-[3.5mm] w-[3.5mm] text-brand-gold" strokeWidth={1.8} />
           {d.contactPhone}
         </span>
         <span className="flex items-center gap-[1.4mm]">
-          <Mail className="h-[2.8mm] w-[2.8mm] text-brand-gold" strokeWidth={1.8} />
+          <Mail className="h-[3.5mm] w-[3.5mm] text-brand-gold" strokeWidth={1.8} />
           {d.contactEmail}
         </span>
       </div>
@@ -173,8 +182,10 @@ function ContactStrip({ d }: { d: FlyerData }) {
 export function ExpressFlyer({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="flex items-end justify-between px-[14mm] pt-[8mm] pb-[4mm]">
-        <Logo size={17} />
+      <div className="flex items-center justify-between px-[10mm] pt-[8mm] pb-[4mm]">
+        <div className="-ml-[2mm]">
+          <Logo size={22} />
+        </div>
         <div className="text-right">
           <div className="text-[3mm] font-semibold tracking-[0.26em] text-brand-gold-deep">
             {d.headline.toUpperCase()}
@@ -196,7 +207,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 
       <div className="navy-panel flex items-center gap-[2mm] px-[14mm] py-[2.4mm] text-[3.1mm] text-brand-cream">
         <MapPin className="h-[3.6mm] w-[3.6mm] flex-none text-brand-gold" strokeWidth={1.8} />
-        {[d.address, d.estate, d.suburb].filter(Boolean).join(" · ")}
+        {[d.address, d.estate].filter(Boolean).join(" • ")}
       </div>
 
       <div className="flex items-center justify-between border-b border-brand-sand px-[14mm] py-[3mm]">
@@ -311,7 +322,7 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
           </div>
           <div className="mt-[3mm] flex items-center gap-[2mm] text-[4mm] text-brand-cream/85">
             <MapPin className="h-[4.5mm] w-[4.5mm] text-brand-gold" strokeWidth={1.8} />
-            {[d.address, d.estate, d.suburb].filter(Boolean).join(" · ")}
+            {[d.address, d.estate].filter(Boolean).join(" • ")}
           </div>
         </div>
       </div>
@@ -420,8 +431,10 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
 export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="flex items-end justify-between px-[14mm] pt-[8mm] pb-[4mm]">
-        <Logo size={17} />
+      <div className="flex items-center justify-between px-[10mm] pt-[8mm] pb-[4mm]">
+        <div className="-ml-[2mm]">
+          <Logo size={22} />
+        </div>
         <div className="text-right">
           <div className="text-[3mm] font-semibold tracking-[0.26em] text-brand-gold-deep">
             NEW HOME DESIGN

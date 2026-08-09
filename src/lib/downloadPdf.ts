@@ -105,16 +105,20 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         ),
       ]);
 
-      // Render canvas at 4x scale (300+ DPI ultra-high definition studio print resolution)
+      // Render canvas at 5x scale (ultra-high definition studio print resolution)
       const canvas = await html2canvas(clone, {
         backgroundColor: "#ffffff",
-        scale: 4.0,
+        scale: 5.0,
         useCORS: true,
         logging: false,
+        letterRendering: true,
         windowWidth: 794,
         windowHeight: 1123,
         imageTimeout: 15000,
         allowTaint: true,
+        onclone: (doc) => {
+            // No kerning hacks needed if letterRendering is enabled
+        }
       });
 
       // Enforce strict ISO A4 page dimensions (210mm x 297mm)
@@ -122,7 +126,7 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         pdf.addPage([210, 297], "portrait");
       }
 
-      // Use PNG format to prevent lossy JPEG artifacting around text and facade edges
+      // Use PNG format for absolute crispness and lossless text rendering
       const imgData = canvas.toDataURL("image/png");
       pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "NONE");
     } finally {
