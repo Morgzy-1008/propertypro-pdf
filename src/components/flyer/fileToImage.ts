@@ -1,3 +1,4 @@
+import { getIdbFloorplan, saveIdbFloorplan } from "./idbFloorplanCache";
 import { authHeaders } from "@/lib/api-auth";
 import { HUDSON_FACADES } from "./facades.data";
 
