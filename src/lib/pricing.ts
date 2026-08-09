@@ -53,7 +53,9 @@ export const PROMO_DISCOUNT = 30000;
 export function housePriceFor(name: string, range: RangeId): number | null {
   const row = findDesign(name);
   if (!row) return null;
-  return Math.max(0, row[RANGE_COLUMN[range]] - PROMO_DISCOUNT);
+  const isDualLiving = PRICE_LISTS["dual-oc"].some((r) => r.name === name);
+  const discount = isDualLiving ? 0 : PROMO_DISCOUNT;
+  return Math.max(0, row[RANGE_COLUMN[range]] - discount);
 }
 
 
