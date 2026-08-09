@@ -1127,8 +1127,8 @@ async function cropToFloorplanCanvas(inCanvas: HTMLCanvasElement): Promise<strin
     }
     
     let bbox = null;
-    // Keep all components that have at least 2% of the max component size
-    const validComps = comps.filter(c => c.count > maxCount * 0.02);
+    // Keep ONLY the largest component (the floorplan itself) to drop isolated logos and text tables
+    const validComps = comps.filter(c => c.count === maxCount);
     
     if (validComps.length > 0) {
       bbox = [validComps[0].comp[0][1], validComps[0].comp[0][0], validComps[0].comp[0][1], validComps[0].comp[0][0]];
