@@ -48,10 +48,11 @@ const BROWSER_SCRIPT = `
       const image = ctx.getImageData(0, 0, W, H);
       const data = image.data;
       
-      let bbox = null;
       const cell = 10;
       const cols = Math.floor(W / cell);
       const rows = Math.floor(H / cell);
+      
+      const grid = new Uint8Array(rows * cols);
       
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -80,21 +81,94 @@ const BROWSER_SCRIPT = `
             hasInk = true; 
           }
           
+          // Clear ink on the extreme outer 2% margin to ensure borders are disconnected from the center
+          if (c < cols * 0.02 || c > cols * 0.98 || r < rows * 0.02 || r > rows * 0.98) {
+             hasInk = false;
+          }
+          
           if (hasInk) {
-            if (!bbox) bbox = [c, r, c, r];
-            else {
-              bbox[0] = Math.min(bbox[0], c);
-              bbox[1] = Math.min(bbox[1], r);
-              bbox[2] = Math.max(bbox[2], c);
-              bbox[3] = Math.max(bbox[3], r);
+            grid[r * cols + c] = 1;
+          }
+        }
+      }
+      
+      const dilated = new Uint8Array(rows * cols);
+      const DILATE = 6; 
+      
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r * cols + c]) {
+            const rMin = Math.max(0, r - DILATE);
+            const rMax = Math.min(rows - 1, r + DILATE);
+            const cMin = Math.max(0, c - DILATE);
+            const cMax = Math.min(cols - 1, c + DILATE);
+            for (let rr = rMin; rr <= rMax; rr++) {
+              for (let cc = cMin; cc <= cMax; cc++) {
+                dilated[rr * cols + cc] = 1;
+              }
             }
           }
         }
       }
       
+      const visited = new Uint8Array(rows * cols);
+      let bestComp = [];
+      let bestCount = 0;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (dilated[r * cols + c] && !visited[r * cols + c]) {
+            let count = 0;
+            const comp = [];
+            const q = [[r, c]];
+            visited[r * cols + c] = 1;
+            let head = 0;
+            
+            while (head < q.length) {
+              const [currR, currC] = q[head++];
+              if (grid[currR * cols + currC]) {
+                comp.push([currR, currC]);
+                count++;
+              }
+              
+              const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+              for (const [dr, dc] of dirs) {
+                const nr = currR + dr;
+                const nc = currC + dc;
+                if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                  if (dilated[nr * cols + nc] && !visited[nr * cols + nc]) {
+                    visited[nr * cols + nc] = 1;
+                    q.push([nr, nc]);
+                  }
+                }
+              }
+            }
+            
+            if (count > bestCount) {
+              bestCount = count;
+              bestComp = comp;
+            }
+          }
+        }
+      }
+      
+      let bbox = null;
+      if (bestComp.length > 0) {
+        bbox = [bestComp[0][1], bestComp[0][0], bestComp[0][1], bestComp[0][0]];
+        for (let i = 1; i < bestComp.length; i++) {
+          const [r, c] = bestComp[i];
+          bbox[0] = Math.min(bbox[0], c);
+          bbox[1] = Math.min(bbox[1], r);
+          bbox[2] = Math.max(bbox[2], c);
+          bbox[3] = Math.max(bbox[3], r);
+        }
+      }
+      
+      console.log('Grid WxH:', cols, 'x', rows, 'Best Count:', bestCount, 'BBox:', bbox);
+      
       if (!bbox) return inCanvas;
       
-      const pad = Math.round(cell * 1.5);
+      const pad = Math.round(cell * 4); // Add a 40px padding around the isolated floorplan
       const sx = Math.max(0, bbox[0] * cell - pad);
       const sy = Math.max(0, bbox[1] * cell - pad);
       const sw = Math.min(W - sx, (bbox[2] + 1) * cell - sx + pad);
@@ -178,7 +252,7 @@ const BROWSER_SCRIPT = `
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+  const page = await browser.newPage(); page.on('console', msg => console.log('PAGE LOG:', msg.text()));
   
   await page.goto('about:blank');
   
