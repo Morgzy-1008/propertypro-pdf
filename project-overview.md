@@ -63,29 +63,33 @@ The app utilizes TanStack Router for fast client-side navigation.
 - **Aggressive Caching**: To mitigate the latency and cost of generative AI, the system aggressively caches the expensive AI outpainting results both locally (IndexedDB) and globally (Supabase).
 - **Strict Modality Enforcements**: The Gemini API is strictly configured to only output the `IMAGE` modality (`responseModalities: ["IMAGE"]`) to prevent textual hallucinations from breaking the image pipeline.
 
- # # #   A I   F a c a d e   C a c h e   &   G e n e r a t i o n 
- -   F a c a d e s   a r e   d y n a m i c a l l y   o u t p a i n t e d   u s i n g   G e m i n i   1 . 5   P r o   t o   w i d e n   t h e m   f o r   t h e   f l y e r   l a n d s c a p e   a s p e c t   r a t i o . 
- -   T h e   r e s u l t i n g   b a s e 6 4   i m a g e   i s   h e a v i l y   c a c h e d   i n   b o t h   l o c a l   I n d e x e d D B   ( b r o w s e r )   a n d   S u p a b a s e   ( ' f a c a d e _ r e n d e r s '   t a b l e ) . 
- -   T h e   c a c h e   i s   g l o b a l l y   t a g g e d   w i t h   t h e   ' : : A I _ O U T P A I N T _ V 3 : : '   m a r k e r   a n d   i n c l u d e s   l e n g t h   v a l i d a t i o n   t o   a v o i d   b l a n k   o r   c o r r u p t e d   s t r i n g s   b r e a k i n g   t h e   f l y e r   r e n d e r . 
- -   A   ' R e - d o   A I '   f e a t u r e   a l l o w s   f o r c i n g   a   c a c h e - b u s t   a n d   r e g e n e r a t i o n   ( w h i c h   u s e s   g e m i n i - 2 . 0 - f l a s h ) . 
- 
- ### Current AI Prompt for Facade Generation:
- ```text
- I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, ultra-high-resolution, and photorealistic environment across the ENTIRE widescreen image.
- 
- CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with an expansive, bright, and soft natural daylight. Imagine a perfectly clear day with soft, non-directional light that makes the colors vibrant and clean. The new extended sky must be a soft, luminous, light blue.
- 
- You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, but with increased overall brightness and luminosity. The original facade itself should remain consistent, but the new lighting should make the textures (brickwork, glass, concrete) look exceptionally clean, crisp, and high-detail.
- 
- CRITICAL: Symmetry and Balance. The new landscaping MUST be visually balanced and consistent on BOTH the left and right sides of the house. Lawns should stretch symmetrically, and pathways should flow naturally into the driveway.
- 
- NEW REQUIREMENT: Texture Superiority. The landscaping must show individual blades of lush green grass and detailed, clean garden plants. The extended driveway should have ultra-sharp concrete or aggregate texture.
- 
- Preserve the architecture, proportions, size, and colors of the house itself EXACTLY as provided. Do not alter the building.
- 
- Do NOT add fences, walls, or large trees that block the house.
- 
- CRITICAL: Sharp Focus. Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT.
- 
- QUALITY DIRECTIVES: Render with high-resolution textures, clean lines, and an aesthetic that emphasizes a high-end, professionally photographed real estate listing. Avoid flat lighting.
- ```
+# AI Facade Cache & Generation
+
+**CRITICAL RULE: DO NOT MODIFY THE FACADE AI GENERATION LOGIC OR PROMPT.**
+The AI outpainting logic in `src/components/flyer/fileToImage.ts` is perfectly tuned and must remain untouched in future iterations. 
+
+- **Model Required**: It strictly uses `gemini-3.1-flash-image` because it is the only supported model that correctly handles the `responseModalities: ["IMAGE"]` configuration. Do not attempt to use `gemini-2.0-flash` or `gemini-pro-latest` for outpainting as they will throw 400 Bad Request errors.
+- **Caching**: Facades are dynamically outpainted to widen them for the flyer landscape aspect ratio. The resulting base64 image is heavily cached in both local IndexedDB (browser) and Supabase (`facade_renders` table).
+- **Cache Tag**: The cache is globally tagged with the `::AI_OUTPAINT_V3::` marker and includes length validation to avoid blank or corrupted strings breaking the flyer render.
+- **Re-do AI**: A 'Re-do AI' feature allows forcing a cache-bust and regeneration.
+
+### LOCKED AI Prompt for Facade Generation:
+```text
+I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, ultra-high-resolution, and photorealistic environment across the ENTIRE widescreen image.
+
+CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with an expansive, bright, and soft natural daylight. Imagine a perfectly clear day with soft, non-directional light that makes the colors vibrant and clean. The new extended sky must be a soft, luminous, light blue.
+
+You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, but with increased overall brightness and luminosity. The original facade itself should remain consistent, but the new lighting should make the textures (brickwork, glass, concrete) look exceptionally clean, crisp, and high-detail.
+
+CRITICAL: Symmetry and Balance. The new landscaping MUST be visually balanced and consistent on BOTH the left and right sides of the house. Lawns should stretch symmetrically, and pathways should flow naturally into the driveway.
+
+NEW REQUIREMENT: Texture Superiority. The landscaping must show individual blades of lush green grass and detailed, clean garden plants. The extended driveway should have ultra-sharp concrete or aggregate texture.
+
+Preserve the architecture, proportions, size, and colors of the house itself EXACTLY as provided. Do not alter the building.
+
+Do NOT add fences, walls, or large trees that block the house.
+
+CRITICAL: Sharp Focus. Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT.
+
+QUALITY DIRECTIVES: Render with high-resolution textures, clean lines, and an aesthetic that emphasizes a high-end, professionally photographed real estate listing. Avoid flat lighting. keep everything hyper realistic.
+```
