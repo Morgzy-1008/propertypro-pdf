@@ -726,6 +726,11 @@ const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
 export async function prepareFloorplan(url: string): Promise<string> {
   if (!url || url.startsWith("data:")) return url;
 
+  // Local pre-processed high-quality floorplans don't need fetching/cropping/sharpening
+  if (url.startsWith("/floorplans/")) {
+    return url;
+  }
+
   const cacheKey = `${url}::${FLOORPLAN_PIPELINE_VERSION}`;
   const cached = floorplanCache.get(cacheKey);
   if (cached) return cached;
