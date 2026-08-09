@@ -81,8 +81,8 @@ const BROWSER_SCRIPT = `
             hasInk = true; 
           }
           
-          // Clear ink on the extreme outer 2% margin to ensure borders are disconnected from the center
-          if (c < cols * 0.02 || c > cols * 0.98 || r < rows * 0.02 || r > rows * 0.98) {
+          // Clear ink on the extreme outer 5% margin to ensure borders are disconnected from the center
+          if (c < cols * 0.05 || c > cols * 0.95 || r < rows * 0.05 || r > rows * 0.95) {
              hasInk = false;
           }
           
@@ -112,8 +112,8 @@ const BROWSER_SCRIPT = `
       }
       
       const visited = new Uint8Array(rows * cols);
-      let bestComp = [];
-      let bestCount = 0;
+      let maxCount = 0;
+      const comps = [];
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -144,27 +144,32 @@ const BROWSER_SCRIPT = `
               }
             }
             
-            if (count > bestCount) {
-              bestCount = count;
-              bestComp = comp;
+            if (count > 0) {
+              comps.push({ count, comp });
+              if (count > maxCount) maxCount = count;
             }
           }
         }
       }
       
       let bbox = null;
-      if (bestComp.length > 0) {
-        bbox = [bestComp[0][1], bestComp[0][0], bestComp[0][1], bestComp[0][0]];
-        for (let i = 1; i < bestComp.length; i++) {
-          const [r, c] = bestComp[i];
-          bbox[0] = Math.min(bbox[0], c);
-          bbox[1] = Math.min(bbox[1], r);
-          bbox[2] = Math.max(bbox[2], c);
-          bbox[3] = Math.max(bbox[3], r);
+      // Keep all components that have at least 15% of the max component size
+      const validComps = comps.filter(c => c.count > maxCount * 0.15);
+      
+      if (validComps.length > 0) {
+        bbox = [validComps[0].comp[0][1], validComps[0].comp[0][0], validComps[0].comp[0][1], validComps[0].comp[0][0]];
+        for (const vc of validComps) {
+          for (let i = 0; i < vc.comp.length; i++) {
+            const [r, c] = vc.comp[i];
+            bbox[0] = Math.min(bbox[0], c);
+            bbox[1] = Math.min(bbox[1], r);
+            bbox[2] = Math.max(bbox[2], c);
+            bbox[3] = Math.max(bbox[3], r);
+          }
         }
       }
       
-      console.log('Grid WxH:', cols, 'x', rows, 'Best Count:', bestCount, 'BBox:', bbox);
+      console.log('Grid WxH:', cols, 'x', rows, 'Max Count:', maxCount, 'Valid Comps:', validComps.length, 'BBox:', bbox);
       
       if (!bbox) return inCanvas;
       
@@ -243,8 +248,20 @@ const BROWSER_SCRIPT = `
       fctx.drawImage(p2, p1.width + gap, y2);
     }
     
-    // We REMOVED sharpenLineArt completely because it was forcing anti-aliased
-    // and light-grey lines to pure white (making them disappear) and making edges jagged.
+    // Apply contrast enhancement to make light grey lines darker and crisper
+    const fctx2 = finalCanvas.getContext('2d');
+    const fData = fctx2.getImageData(0, 0, finalCanvas.width, finalCanvas.height);
+    const data = fData.data;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
+        // Darken by 30%
+        data[i] = Math.max(0, data[i] * 0.7);
+        data[i+1] = Math.max(0, data[i+1] * 0.7);
+        data[i+2] = Math.max(0, data[i+2] * 0.7);
+        if (data[i+3] > 0) data[i+3] = Math.min(255, data[i+3] + 50);
+      }
+    }
+    fctx2.putImageData(fData, 0, 0);
 
     return finalCanvas.toDataURL('image/png', 1.0);
   };
