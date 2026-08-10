@@ -17,6 +17,26 @@ export interface FloorplanRecord {
 
 export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
+    design: "Amaranth",
+    label: "Amaranth 23A",
+    beds: "3",
+    baths: "3",
+    cars: "2",
+    size: "210.01",
+    frontage: "12.02",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/07/Amaranth-23A.png",
+  },
+  {
+    design: "Amaranth",
+    label: "Amaranth 23B",
+    beds: "4",
+    baths: "4",
+    cars: "2",
+    size: "210.01",
+    frontage: "12.02",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/07/Amaranth-23B.png",
+  },
+  {
     design: "Alabaster",
     label: "Alabaster 31",
     beds: "6",
@@ -24,7 +44,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "284.86",
     frontage: "17.80",
-    url: "/floorplans/ALABASTER 31_ CLASSIC_BROCHURE_19.09.2025.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-31.png",
   },
   {
     design: "Alabaster",
@@ -34,7 +54,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "330.66",
     frontage: "18.00",
-    url: "/floorplans/ALABASTER 36_ CLASSIC_BROCHURE_19.09.2025.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-36.png",
   },
   {
     design: "Alabaster",
@@ -44,7 +64,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "373.02",
     frontage: "18.00",
-    url: "/floorplans/ALABASTER 40_ CLASSIC_BROCHURE_19.09.2025.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-40.png",
   },
   {
     design: "Charcoal",
@@ -54,7 +74,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.56",
     frontage: "12.49",
-    url: "/floorplans/CHARCOAL 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/01/Screenshot-2026-01-07-at-2.10.30-PM.png",
   },
   {
     design: "Maroon",
@@ -64,7 +84,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.42",
     frontage: "12.50",
-    url: "/floorplans/MAROON 26 (QLD) 20.03.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Floorplan.png",
   },
   {
     design: "Maroon",
@@ -74,7 +94,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "261.34",
     frontage: "14.14",
-    url: "/floorplans/MAROON 28 (QLD) LH BROCHURE 06.05.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Floorplan-1.png",
   },
   {
     design: "Raven",
@@ -84,7 +104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "418.52",
     frontage: "15.00",
-    url: "/floorplans/RAVEN 45_CLASSIC_BROCHURE_27.05.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/04/Raven-45-Floorplan-Standard.png",
   },
   {
     design: "Raven",
@@ -94,7 +114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "508.16",
     frontage: "17.43",
-    url: "/floorplans/RAVEN 55.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Raven-55-Floorplan-MAY25.png",
   },
   {
     design: "Cayenne",
@@ -104,7 +124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "389.36",
     frontage: "15.00",
-    url: "/floorplans/CAYENNE 42_CLASSIC_BROCHURE_02.05.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Cayenne-42.jpg",
   },
   {
     design: "Cayenne",
@@ -114,7 +134,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "420.28",
     frontage: "17.35",
-    url: "/floorplans/CAYENNE 45.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Cayenne-45.jpg",
   },
   {
     design: "Cayenne",
@@ -124,7 +144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "436.94",
     frontage: "15",
-    url: "/floorplans/CAYENNE 47_CLASSIC_BROCHURE_02.05.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Cayenne-47.jpg",
   },
   {
     design: "Cayenne",
@@ -134,7 +154,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "523.26",
     frontage: "17.35",
-    url: "/floorplans/CAYENNE 56.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Cayenne-56.jpg",
   },
   {
     design: "Teal",
@@ -144,7 +164,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "265.59",
     frontage: "16.83",
-    url: "/floorplans/TEAL 29_ CLASSIC_BROCHURE_08.12.2025.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Teal-29.png",
   },
   {
     design: "Teal",
@@ -154,7 +174,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "306.25",
     frontage: "17.92",
-    url: "/floorplans/TEAL 33_ CLASSIC_BROCHURE_05.06.2026.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Teal-33.png",
   },
   {
     design: "Teal",
@@ -164,7 +184,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "423.10",
     frontage: "17.43",
-    url: "/floorplans/TEAL 45.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/02/HH_Display-Walkthrough-Spring-Mountain_SEP24.png",
   },
   {
     design: "Teal",
@@ -174,7 +194,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "443.45",
     frontage: "17.43",
-    url: "/floorplans/TEAL 48.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Floorplan.png",
   },
   {
     design: "Sabel (QLD ONLY)",
@@ -184,7 +204,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "257.29",
     frontage: "",
-    url: "/floorplans/SABEL 28 (QLD) CLASSIC LH BROCHURE 17.01.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Screenshot-2025-01-29-132647.jpg",
   },
   {
     design: "Hazel",
@@ -194,7 +214,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "125.80",
     frontage: "9.95",
-    url: "/floorplans/HAZEL 14.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-14.jpg",
   },
   {
     design: "Hazel",
@@ -204,7 +224,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "142.05",
     frontage: "9.95",
-    url: "/floorplans/HAZEL 15.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-15.jpg",
   },
   {
     design: "Hazel",
@@ -214,7 +234,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "158.08",
     frontage: "9.95",
-    url: "/floorplans/HAZEL 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-17.jpg",
   },
   {
     design: "Hazel",
@@ -224,7 +244,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "173.20",
     frontage: "9.95",
-    url: "/floorplans/HAZEL 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-19.jpg",
   },
   {
     design: "Olive",
@@ -234,7 +254,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "210.86",
     frontage: "12.87",
-    url: "/floorplans/OLIVE 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/olive-23-floorplan.jpg",
   },
   {
     design: "Blanc",
@@ -244,7 +264,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "246.93",
     frontage: "14.91",
-    url: "/floorplans/BLANC 27.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Blanc-27.png",
   },
   {
     design: "Amber",
@@ -254,7 +274,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "192.24",
     frontage: "12.39",
-    url: "/floorplans/AMBER 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-21.png",
   },
   {
     design: "Amber",
@@ -264,7 +284,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "210.63",
     frontage: "12.39",
-    url: "/floorplans/AMBER 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-23.png",
   },
   {
     design: "Amber",
@@ -274,7 +294,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "241.57",
     frontage: "13.47",
-    url: "/floorplans/AMBER 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-26.png",
   },
   {
     design: "Amber",
@@ -284,7 +304,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "282.99",
     frontage: "13.47",
-    url: "/floorplans/AMBER 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-30.png",
   },
   {
     design: "Azure",
@@ -294,7 +314,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "177.08",
     frontage: "12.39",
-    url: "/floorplans/AZURE 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-19.png",
   },
   {
     design: "Azure",
@@ -304,7 +324,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "197.08",
     frontage: "12.87",
-    url: "/floorplans/AZURE 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Aure-21.png",
   },
   {
     design: "Azure",
@@ -314,7 +334,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "208.71",
     frontage: "12.39",
-    url: "/floorplans/AZURE 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-23.png",
   },
   {
     design: "Azure",
@@ -324,7 +344,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.44",
     frontage: "12.50",
-    url: "/floorplans/AZURE 25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-25.png",
   },
   {
     design: "Burgundy",
@@ -334,7 +354,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "252.01",
     frontage: "13.33",
-    url: "/floorplans/BURGUNDY 27_CLASSIC_RH_01.06.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/06/Burgundy-27-standard-2.jpg",
   },
   {
     design: "Burgundy",
@@ -344,7 +364,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "277.51",
     frontage: "13.57",
-    url: "/floorplans/BURGUNDY 30_CLASSIC_RH_01.06.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Burgundy-30-standard.jpg",
   },
   {
     design: "Burgundy",
@@ -354,7 +374,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "298.12",
     frontage: "13.57",
-    url: "/floorplans/BURGUNDY 32_CLASSIC_RH_01.06.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/06/Burgundy-32-standard-1.jpg",
   },
   {
     design: "Burgundy",
@@ -364,7 +384,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "317.03",
     frontage: "13.57",
-    url: "/floorplans/BURGUNDY 34_CLASSIC_RH_01.06.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Burgundy-34-standard.jpg",
   },
   {
     design: "Canary",
@@ -374,7 +394,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "117.64",
     frontage: "12.99",
-    url: "/floorplans/CANARY 1.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-1-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Canary",
@@ -384,7 +404,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "113.03",
     frontage: "13.95",
-    url: "/floorplans/CANARY 2.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-2-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Canary",
@@ -394,7 +414,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "127.20",
     frontage: "15.18",
-    url: "/floorplans/CANARY 3.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-3-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Canary",
@@ -404,7 +424,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "117.36",
     frontage: "14.43",
-    url: "/floorplans/CANARY 4.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-4-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Carolina",
@@ -414,7 +434,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "202.58",
     frontage: "9.95",
-    url: "/floorplans/CAROLINA 22_CLASSIC_RH_02.03.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-22_Classic_RH_02.03.2023.png",
   },
   {
     design: "Carolina",
@@ -424,7 +444,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.48",
     frontage: "9.95",
-    url: "/floorplans/CAROLINA 24_CLASSIC_RH_02.03.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-24_Classic_RH_02.03.2023.png",
   },
   {
     design: "Carolina",
@@ -434,7 +454,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.63",
     frontage: "9.95",
-    url: "/floorplans/CAROLINA 26_CLASSIC_RH_15.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-26_Classic_RH_02.03.2023.png",
   },
   {
     design: "Carolina",
@@ -444,7 +464,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "266.70",
     frontage: "9.95",
-    url: "/floorplans/CAROLINA 29_CLASSIC_RH_15.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-29_Classic_RH_12APR.png",
   },
   {
     design: "Carmine",
@@ -454,7 +474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "162.11",
     frontage: "11.79",
-    url: "/floorplans/CARMINE 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine-23.png",
   },
   {
     design: "Carmine",
@@ -464,7 +484,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "180.02",
     frontage: "11.79",
-    url: "/floorplans/CARMINE 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine-19.png",
   },
   {
     design: "Carmine",
@@ -474,7 +494,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "193.57",
     frontage: "11.79",
-    url: "/floorplans/CARMINE 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine21_standard.jpg",
   },
   {
     design: "Carmine",
@@ -484,7 +504,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "215.19",
     frontage: "11.79",
-    url: "/floorplans/CARMINE 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine23_standard.jpg",
   },
   {
     design: "Cedar",
@@ -494,7 +514,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.35",
     frontage: "17.07",
-    url: "/floorplans/CEDAR 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-26.jpg",
   },
   {
     design: "Cedar",
@@ -504,7 +524,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "261.44",
     frontage: "17.07",
-    url: "/floorplans/CEDAR 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-28.jpg",
   },
   {
     design: "Cedar",
@@ -514,7 +534,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "291.51",
     frontage: "18.03",
-    url: "/floorplans/CEDAR 31.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-31.jpg",
   },
   {
     design: "Cedar",
@@ -524,7 +544,17 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "318.36",
     frontage: "18.63",
-    url: "/floorplans/CEDAR 34.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-34.jpg",
+  },
+  {
+    design: "Cerise",
+    label: "Cerise 20",
+    beds: "3",
+    baths: "2",
+    cars: "1",
+    size: "181.35",
+    frontage: "9.01",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/10/Cerise20_standard.jpg",
   },
   {
     design: "Cinnamon",
@@ -534,7 +564,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "218.03",
     frontage: "13.33",
-    url: "/floorplans/CINNAMON 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-23-standard-scaled.jpg",
   },
   {
     design: "Cinnamon",
@@ -544,7 +574,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "237.61",
     frontage: "13.57",
-    url: "/floorplans/CINNAMON 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-26-standard-1-scaled.jpg",
   },
   {
     design: "Cinnamon",
@@ -554,7 +584,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "275.83",
     frontage: "14.41",
-    url: "/floorplans/CINNAMON 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-30-standard-1-scaled.jpg",
   },
   {
     design: "Cinnamon",
@@ -564,7 +594,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "338.87",
     frontage: "15.13",
-    url: "/floorplans/CINNAMON 36.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-36-standard-1-scaled.jpg",
   },
   {
     design: "Cobalt",
@@ -574,7 +604,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "202.63",
     frontage: "12.97",
-    url: "/floorplans/COBALT 22.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-22-standard-1-scaled.jpg",
   },
   {
     design: "Cobalt",
@@ -584,7 +614,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.03",
     frontage: "13.45",
-    url: "/floorplans/COBALT 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-26-standard-1-scaled.jpg",
   },
   {
     design: "Cobalt",
@@ -594,7 +624,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "278.98",
     frontage: "13.45",
-    url: "/floorplans/COBALT 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-30_standard-1-scaled.jpg",
   },
   {
     design: "Cobalt",
@@ -604,7 +634,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "332.60",
     frontage: "14.41",
-    url: "/floorplans/COBALT 36.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-36-Classic-Floorplan.jpg",
   },
   {
     design: "Coral",
@@ -614,7 +644,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "181.12",
     frontage: "10.21",
-    url: "/floorplans/CORAL 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-19-Classic.jpg",
   },
   {
     design: "Coral",
@@ -624,7 +654,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "198.08",
     frontage: "11.30",
-    url: "/floorplans/CORAL 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-21-Classic.jpg",
   },
   {
     design: "Coral",
@@ -634,7 +664,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "217.68",
     frontage: "12.47",
-    url: "/floorplans/CORAL 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-23-Classic.jpg",
   },
   {
     design: "Coral",
@@ -644,7 +674,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "240.93",
     frontage: "13.03",
-    url: "/floorplans/CORAL 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-26-Classic.jpg",
   },
   {
     design: "Crimson",
@@ -654,7 +684,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "224.56",
     frontage: "13.83",
-    url: "/floorplans/CRIMSON 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson24_standard.jpg",
   },
   {
     design: "Crimson",
@@ -664,7 +694,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "245.04",
     frontage: "14.67",
-    url: "/floorplans/CRIMSON 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson26_standard.jpg",
   },
   {
     design: "Crimson",
@@ -674,7 +704,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "273.85",
     frontage: "17.43",
-    url: "/floorplans/CRIMSON 29.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson29_standard.jpg",
   },
   {
     design: "Crimson",
@@ -684,7 +714,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "302.45",
     frontage: "17.43",
-    url: "/floorplans/CRIMSON 33.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson33_standard.jpg",
   },
   {
     design: "Ebony (QLD Only)",
@@ -694,7 +724,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "225.26",
     frontage: "13.11",
-    url: "/floorplans/EBONY 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ebony24_standard-1-scaled.jpg",
   },
   {
     design: "Ebony (QLD Only)",
@@ -704,7 +734,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "249.27",
     frontage: "13.83",
-    url: "/floorplans/EBONY 27.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ebony27_standard-1-scaled.jpg",
   },
   {
     design: "Ebony (QLD Only)",
@@ -714,7 +744,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "269.24",
     frontage: "17.07",
-    url: "/floorplans/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ebony29_standard-1.jpg",
   },
   {
     design: "Ebony (QLD Only)",
@@ -724,7 +754,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "293.23",
     frontage: "18.15",
-    url: "/floorplans/EBONY 32.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ebony32_standard-1-scaled.jpg",
   },
   {
     design: "Emerald",
@@ -734,7 +764,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "261.45",
     frontage: "10.81",
-    url: "/floorplans/EMERALD 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald-28.png",
   },
   {
     design: "Emerald",
@@ -744,7 +774,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "363.29",
     frontage: "14.99",
-    url: "/floorplans/EMERALD 39.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Emerald39_standard-scaled.jpg",
   },
   {
     design: "Emerald",
@@ -754,7 +784,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "392.45",
     frontage: "15.23",
-    url: "/floorplans/EMERALD 42.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald42_standard-2-scaled.jpg",
   },
   {
     design: "Emerald",
@@ -764,7 +794,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "408.67",
     frontage: "15.23",
-    url: "/floorplans/EMERALD 44.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald44_standard-2-scaled.jpg",
   },
   {
     design: "Emerald",
@@ -774,7 +804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "438.52",
     frontage: "15.23",
-    url: "/floorplans/EMERALD 47.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald47_standard-1-scaled.jpg",
   },
   {
     design: "Indigo (QLD Only)",
@@ -784,7 +814,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "144.97",
     frontage: "10.47",
-    url: "/floorplans/INDIGO 15.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Indigo-15-Floorplan.jpg",
   },
   {
     design: "Indigo (QLD Only)",
@@ -794,7 +824,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "162.18",
     frontage: "10.47",
-    url: "/floorplans/INDIGO 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Indigo17_standard-1.jpg",
   },
   {
     design: "Indigo (QLD Only)",
@@ -804,7 +834,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "174.92",
     frontage: "10.47",
-    url: "/floorplans/INDIGO 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Indigo19_standard-1.jpg",
   },
   {
     design: "Indigo (QLD Only)",
@@ -814,7 +844,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "206.17",
     frontage: "11.31",
-    url: "/floorplans/INDIGO 22.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Indigo22_standard-1-scaled.jpg",
   },
   {
     design: "Iris",
@@ -824,7 +854,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "139.07",
     frontage: "9.25",
-    url: "/floorplans/IRIS 15.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Iris-15_NOV-30-2022.png",
   },
   {
     design: "Iris",
@@ -834,7 +864,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "159.99",
     frontage: "9.25",
-    url: "/floorplans/IRIS 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Iris-17_NOV-30-2022.png",
   },
   {
     design: "Iris",
@@ -844,7 +874,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "168.58",
     frontage: "9.25",
-    url: "/floorplans/IRIS 18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Iris18_standard.jpg",
   },
   {
     design: "Iris",
@@ -854,7 +884,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.59",
     frontage: "10.95",
-    url: "/floorplans/IRIS 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Iris21_standard.jpg",
   },
   {
     design: "Ivory",
@@ -864,7 +894,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.23",
     frontage: "12.73",
-    url: "/floorplans/IVORY 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-21_Floorplan.png",
   },
   {
     design: "Ivory",
@@ -874,7 +904,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "211.51",
     frontage: "13.23",
-    url: "/floorplans/IVORY 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-23_Floorplan.png",
   },
   {
     design: "Ivory",
@@ -884,7 +914,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "232.90",
     frontage: "13.71",
-    url: "/floorplans/IVORY 25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-25_Floorplan.png",
   },
   {
     design: "Ivory",
@@ -894,7 +924,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "254.56",
     frontage: "14.43",
-    url: "/floorplans/IVORY 27.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-27_Floorplan.png",
   },
   {
     design: "Ivory",
@@ -904,7 +934,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "273.92",
     frontage: "14.67",
-    url: "/floorplans/IVORY 29.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-29_Floorplan.png",
   },
   {
     design: "Jade (QLD Only)",
@@ -914,7 +944,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "196.98",
     frontage: "12.87",
-    url: "/floorplans/JADE 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Jade21_standard.jpg",
   },
   {
     design: "Jade (QLD Only)",
@@ -924,7 +954,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "216.11",
     frontage: "13.11",
-    url: "/floorplans/JADE 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Jade23_standard.jpg",
   },
   {
     design: "Jasper",
@@ -934,7 +964,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "161.71",
     frontage: "11.41",
-    url: "/floorplans/JASPER 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-17.jpg",
   },
   {
     design: "Jasper",
@@ -944,7 +974,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "185.15",
     frontage: "11.77",
-    url: "/floorplans/JASPER 20.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-20.jpg",
   },
   {
     design: "Jasper",
@@ -954,7 +984,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "219.83",
     frontage: "11.89",
-    url: "/floorplans/JASPER 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-24.jpg",
   },
   {
     design: "Jasper",
@@ -964,7 +994,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "241.82",
     frontage: "12.49",
-    url: "/floorplans/JASPER 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-26-1.jpg",
   },
   {
     design: "Lime",
@@ -974,7 +1004,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "176.46",
     frontage: "8.99",
-    url: "/floorplans/LIME 19_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-19_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Lime",
@@ -984,7 +1014,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.08",
     frontage: "8.99",
-    url: "/floorplans/LIME 21_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-21_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Lime",
@@ -994,7 +1024,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "215.60",
     frontage: "8.99",
-    url: "/floorplans/LIME 23_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-23_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Lime",
@@ -1004,7 +1034,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "234.87",
     frontage: "8.99",
-    url: "/floorplans/LIME 25_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Lime-25_Classic_RH_28.03.2023-scaled.jpg",
   },
   {
     design: "Magenta",
@@ -1014,7 +1044,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.40",
     frontage: "16.95",
-    url: "/floorplans/MAGENTA 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-26.jpg",
   },
   {
     design: "Magenta",
@@ -1024,7 +1054,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "271.52",
     frontage: "17.31",
-    url: "/floorplans/MAGENTA 29.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-29.jpg",
   },
   {
     design: "Magenta",
@@ -1034,7 +1064,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "305.98",
     frontage: "18.24",
-    url: "/floorplans/MAGENTA 33.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-33.jpg",
   },
   {
     design: "Magenta",
@@ -1044,7 +1074,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "334.09",
     frontage: "18.15",
-    url: "/floorplans/MAGENTA 36.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-36.jpg",
   },
   {
     design: "Magnolia",
@@ -1054,7 +1084,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "312.02",
     frontage: "14.785",
-    url: "/floorplans/MAGNOLIA 34_ CLASSIC_BROCHURE_17.04.2026.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-34.jpg",
   },
   {
     design: "Magnolia",
@@ -1064,7 +1094,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "346.94",
     frontage: "14.785",
-    url: "/floorplans/MAGNOLIA 37_ CLASSIC_BROCHURE_05.05.2026.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-37.jpg",
   },
   {
     design: "Magnolia",
@@ -1074,7 +1104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "395.28",
     frontage: "17.19",
-    url: "/floorplans/MAGNOLIA 43_ CLASSIC_BROCHURE_20.12.24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-43.jpg",
   },
   {
     design: "Magnolia",
@@ -1084,7 +1114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "419.08",
     frontage: "18.35",
-    url: "/floorplans/MAGNOLIA 45_ CLASSIC_BROCHURE_20.12.24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-45.jpg",
   },
   {
     design: "Magnolia",
@@ -1094,7 +1124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "432.50",
     frontage: "17.156",
-    url: "/floorplans/MAGNOLIA 47.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-47.jpg",
   },
   {
     design: "Magnolia",
@@ -1104,7 +1134,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "494.24",
     frontage: "19.07",
-    url: "/floorplans/MAGNOLIA 53.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-53.jpg",
   },
   {
     design: "Mulberry",
@@ -1114,7 +1144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "208.66",
     frontage: "27.03",
-    url: "/floorplans/MULBERRY 22_CLASSIC RH_BROCHURE_11.04.18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry22_standard.jpg",
   },
   {
     design: "Mulberry",
@@ -1124,7 +1154,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.57",
     frontage: "27.51",
-    url: "/floorplans/MULBERRY 25_CLASSIC RH_BROCHURE_06.06.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry25_standard.jpg",
   },
   {
     design: "Mulberry",
@@ -1144,7 +1174,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "259.28",
     frontage: "29.67",
-    url: "/floorplans/MULBERRY 28_CLASSIC RH_BROCHURE_11.04.18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry28_standard.jpg",
   },
   {
     design: "Mulberry",
@@ -1164,7 +1194,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "307.82",
     frontage: "32.91",
-    url: "/floorplans/MULBERRY 33_CLASSIC RH_BROCHURE_11.04.18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry33_standard.jpg",
   },
   {
     design: "Mulberry",
@@ -1184,7 +1214,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "365.23",
     frontage: "31.35",
-    url: "/floorplans/MULBERRY 39_CLASSIC RH_BROCHURE_21.10.21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry39_standard-20211026-scaled.jpg",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1194,7 +1224,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "348.55",
     frontage: "14.15",
-    url: "/floorplans/MAHOGANY 38_CLASSIC_RH_12.04.18.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mahogany38_standard-1-scaled.jpg",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1204,7 +1234,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "396.08",
     frontage: "14.05",
-    url: "/floorplans/MAHOGANY 43_CLASSIC_RH_01.05.24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mahogany-43-Hudson-Homes-Double-Storey-Home-Design-Australias-best-home-builder.png",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1214,7 +1244,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "445.98",
     frontage: "15.01",
-    url: "/floorplans/MAHOGANY 48_CLASSIC_RH_11.02.20.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mahogany48_standard-1-scaled.jpg",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1224,7 +1254,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "51583",
     frontage: "18.13",
-    url: "/floorplans/MAHOGANY 56.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Mahogany-56-floorplans_DEC-21-2022-scaled.jpg",
   },
   {
     design: "Maize",
@@ -1234,7 +1264,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.96",
     frontage: "14.99",
-    url: "/floorplans/MAIZE 33_ CLASSIC_BROCHURE_10.11.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Hudson-Homes-Duplex-Experts-Maize-33-Floorplan-Standard.png",
   },
   {
     design: "Maize",
@@ -1244,7 +1274,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "330.90",
     frontage: "14.99",
-    url: "/floorplans/MAIZE 36_ CLASSIC_BROCHURE_10.11.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize36_standard.jpg",
   },
   {
     design: "Maize",
@@ -1254,7 +1284,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "369.42",
     frontage: "14.99",
-    url: "/floorplans/MAIZE 40_ CLASSIC_BROCHURE_10.11.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-11-17-at-7.41.53-AM.png",
   },
   {
     design: "Maize",
@@ -1264,7 +1294,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "400.62",
     frontage: "15.47",
-    url: "/floorplans/MAIZE 43_ CLASSIC_BROCHURE_10.11.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize43_standard.jpg",
   },
   {
     design: "Maize",
@@ -1274,7 +1304,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "440.64",
     frontage: "16.19",
-    url: "/floorplans/MAIZE 47_CLASSIC_BROCHURE_10.11.25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize47_standard.jpg",
   },
   {
     design: "Maize",
@@ -1284,7 +1314,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "505.44",
     frontage: "16.19",
-    url: "/floorplans/MAIZE 54.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH-EDMs-600x400px-21.jpg",
   },
   {
     design: "Marigold",
@@ -1294,7 +1324,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "243.55",
     frontage: "11.39",
-    url: "/floorplans/MARIGOLD 26_CLASSIC_LH_15.05.20.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold26_standard-scaled.jpg",
   },
   {
     design: "Marigold",
@@ -1304,7 +1334,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "262.44",
     frontage: "12.47",
-    url: "/floorplans/MARIGOLD 28_CLASSIC_LH_13.05.20.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold28_standard-scaled.jpg",
   },
   {
     design: "Marigold",
@@ -1314,7 +1344,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "289.41",
     frontage: "12.95",
-    url: "/floorplans/MARIGOLD 31_CLASSIC_LH_13.05.20.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold31_standard-scaled.jpg",
   },
   {
     design: "Marigold",
@@ -1324,7 +1354,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "324.91",
     frontage: "12.95",
-    url: "/floorplans/MARIGOLD 35_CLASSIC_LH_24.05.21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold35_standard-scaled.jpg",
   },
   {
     design: "Mauve",
@@ -1334,7 +1364,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "224.24",
     frontage: "13.91",
-    url: "/floorplans/MAUVE 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-24-standard-1-scaled.jpg",
   },
   {
     design: "Mauve",
@@ -1344,7 +1374,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "259.24",
     frontage: "14.15",
-    url: "/floorplans/MAUVE 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-28-standard-scaled.jpg",
   },
   {
     design: "Mauve",
@@ -1354,7 +1384,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "298.07",
     frontage: "14.39",
-    url: "/floorplans/MAUVE 32.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-32-standard-scaled.jpg",
   },
   {
     design: "Mauve",
@@ -1364,7 +1394,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "328.66",
     frontage: "14.99",
-    url: "/floorplans/MAUVE 35.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-35-standard-scaled.jpg",
   },
   {
     design: "Mint",
@@ -1374,7 +1404,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "158.74",
     frontage: "7.91",
-    url: "/floorplans/MINT 17_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-17_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Mint",
@@ -1384,7 +1414,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "177.97",
     frontage: "7.91",
-    url: "/floorplans/MINT 19_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-19_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Mint",
@@ -1394,7 +1424,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "191.33",
     frontage: "7.91",
-    url: "/floorplans/MINT 21_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-21_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Mint",
@@ -1404,7 +1434,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "220.64",
     frontage: "7.91",
-    url: "/floorplans/MINT 24_CLASSIC_RH_02.05.2023.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-24_Classic_RH_jul23_1.jpg",
   },
   {
     design: "Mocha",
@@ -1414,7 +1444,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "225.93",
     frontage: "11.05",
-    url: "/floorplans/MOCHA 24_CLASSIC_ATTACHED GARAGE_07.07.22.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha24_attached-garage-1-scaled.jpg",
   },
   {
     design: "Mocha",
@@ -1424,7 +1454,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "232.26",
     frontage: "13.93",
-    url: "/floorplans/MOCHA 25_CLASSIC_13.09.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha25_standard-2-scaled.jpg",
   },
   {
     design: "Mocha",
@@ -1434,7 +1464,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "260.09",
     frontage: "15.01",
-    url: "/floorplans/MOCHA 28_CLASSIC_10.11.21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha28_standard-20211115-1-scaled.jpg",
   },
   {
     design: "Mocha",
@@ -1444,7 +1474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "288.55",
     frontage: "14.29",
-    url: "/floorplans/MOCHA 31_CLASSIC_13.12.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha31_standard-scaled.jpg",
   },
   {
     design: "Mocha",
@@ -1454,7 +1484,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "321.36",
     frontage: "14.41",
-    url: "/floorplans/MOCHA 35_CLASSIC_24.05.21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha35_standard-new-scaled.jpg",
   },
   {
     design: "Onyx",
@@ -1464,7 +1494,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "160.38",
     frontage: "11.41",
-    url: "/floorplans/ONYX 17.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Onyx17_standard-1.jpg",
   },
   {
     design: "Onyx",
@@ -1474,7 +1504,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "180.82",
     frontage: "11.89",
-    url: "/floorplans/ONYX 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx19_standard-scaled.jpg",
   },
   {
     design: "Onyx",
@@ -1484,7 +1514,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "198.23",
     frontage: "12.49",
-    url: "/floorplans/ONYX 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx21_standard-scaled.jpg",
   },
   {
     design: "Onyx",
@@ -1494,7 +1524,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "227.27",
     frontage: "13.09",
-    url: "/floorplans/ONYX 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx24_standard-scaled.jpg",
   },
   {
     design: "Orchid",
@@ -1504,7 +1534,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "209.52",
     frontage: "10.33",
-    url: "/floorplans/ORCHID 23_CLASSIC_RH_BROCHURE_07.11.2022.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Orchid-23_NOV-30-2022-single-garage.png",
   },
   {
     design: "Orchid",
@@ -1514,7 +1544,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "228.94",
     frontage: "10.45",
-    url: "/floorplans/ORCHID 25_CLASSIC_RH_BROCHURE_13.05.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-25_Classic-SG.jpg",
   },
   {
     design: "Orchid",
@@ -1524,7 +1554,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "268.18",
     frontage: "12.85",
-    url: "/floorplans/ORCHID 29_CLASSIC_RH_BROCHURE_13.05.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-29_Classic-scaled.jpg",
   },
   {
     design: "Orchid",
@@ -1534,7 +1564,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "315.08",
     frontage: "13.33",
-    url: "/floorplans/ORCHID 34_CLASSIC_RH_BROCHURE_13.05.2020.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-34_Classic-scaled.jpg",
   },
   {
     design: "Quartz",
@@ -1544,7 +1574,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.69",
     frontage: "12.99",
-    url: "/floorplans/QUARTZ 21_CLASSIC RH_BROCHURE_26.07.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz21_standard-1.jpg",
   },
   {
     design: "Quartz",
@@ -1554,7 +1584,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "209.70",
     frontage: "12.99",
-    url: "/floorplans/QUARTZ 23_CLASSIC RH_BROCHURE_28.03.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz23_standard-1.jpg",
   },
   {
     design: "Quartz",
@@ -1564,7 +1594,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "228.39",
     frontage: "12.99",
-    url: "/floorplans/QUARTZ 25_CLASSIC RH_BROCHURE_28.03.19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz25_standard-1-scaled.jpg",
   },
   {
     design: "Quartz",
@@ -1574,7 +1604,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "249.80",
     frontage: "12.99",
-    url: "/floorplans/QUARTZ 27_CLASSIC RH_BROCHURE_17.04.26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz27_standard-1-scaled.jpg",
   },
   {
     design: "Robin",
@@ -1584,7 +1614,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "148.71",
     frontage: "13.94",
-    url: "/floorplans/ROBIN 5.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-5-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Robin",
@@ -1594,7 +1624,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "193.43",
     frontage: "13.84",
-    url: "/floorplans/ROBIN 6.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-6-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Robin",
@@ -1604,7 +1634,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "177.73",
     frontage: "13.00",
-    url: "/floorplans/ROBIN 7.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-7-Classic_Brochure_01.03.2023.png",
   },
   {
     design: "Robin",
@@ -1614,7 +1644,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "173.03",
     frontage: "10.27",
-    url: "/floorplans/ROBIN 8.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-8-Classic_Brochure_04.04.2023.png",
   },
   {
     design: "Rose",
@@ -1624,7 +1654,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "318.59",
     frontage: "17.53",
-    url: "/floorplans/ROSE 34.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/ROSE-34-Classic-A1-scaled.jpg",
   },
   {
     design: "Rose",
@@ -1634,7 +1664,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "354.91",
     frontage: "19.81",
-    url: "/floorplans/ROSE 38.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/ROSE-38-Classic-1-scaled.jpg",
   },
   {
     design: "Rose",
@@ -1644,7 +1674,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "401.51",
     frontage: "19.81",
-    url: "/floorplans/ROSE 43.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/ROSE-43-Classic-Options-01-scaled.jpg",
   },
   {
     design: "Rose",
@@ -1654,7 +1684,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "492.82",
     frontage: "22.69",
-    url: "/floorplans/ROSE 53.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/ROSE-53-Classic-Option-01-scaled.jpg",
   },
   {
     design: "Rosewood",
@@ -1664,7 +1694,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "212.95",
     frontage: "13.28",
-    url: "/floorplans/ROSEWOOD 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/10/QLD-Rosewood-23-STANDARD-20211025-scaled.jpg",
   },
   {
     design: "Rosewood",
@@ -1684,7 +1714,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "174.93",
     frontage: "7.83",
-    url: "/floorplans/RUBY 19.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-19_NOV-30-2022.png",
   },
   {
     design: "Ruby",
@@ -1694,7 +1724,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.51",
     frontage: "8.31",
-    url: "/floorplans/RUBY 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-21_NOV-30-2022.png",
   },
   {
     design: "Ruby",
@@ -1704,7 +1734,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "214.17",
     frontage: "9.03",
-    url: "/floorplans/RUBY 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-23_NOV-30-2022.png",
   },
   {
     design: "Ruby",
@@ -1714,7 +1744,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "251.38",
     frontage: "12.78",
-    url: "/floorplans/RUBY 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-09-23-at-11.28.01-AM.png",
   },
   {
     design: "Ruby",
@@ -1724,7 +1754,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "263.37",
     frontage: "9.75",
-    url: "/floorplans/RUBY 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-28_NOV-30-2022.png",
   },
   {
     design: "Saffron",
@@ -1734,7 +1764,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "214.46",
     frontage: "13.23",
-    url: "/floorplans/SAFFRON 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron23_standard-1.jpg",
   },
   {
     design: "Saffron",
@@ -1744,7 +1774,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "245.88",
     frontage: "14.91",
-    url: "/floorplans/SAFFRON 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron26_standard-1-scaled.jpg",
   },
   {
     design: "Saffron",
@@ -1754,7 +1784,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "283.12",
     frontage: "17.19",
-    url: "/floorplans/SAFFRON 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron30_standard-1-scaled.jpg",
   },
   {
     design: "Saffron",
@@ -1764,7 +1794,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "320.98",
     frontage: "17.91",
-    url: "/floorplans/SAFFRON 35.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron35_standard-1-scaled.jpg",
   },
   {
     design: "Sienna",
@@ -1774,7 +1804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "257.87",
     frontage: "14.91",
-    url: "/floorplans/SIENNA 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna-28-Classic-Floorplan.jpg",
   },
   {
     design: "Sienna",
@@ -1784,7 +1814,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "283.24",
     frontage: "17.07",
-    url: "/floorplans/SIENNA 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna30_standard-1-scaled.jpg",
   },
   {
     design: "Sienna",
@@ -1794,7 +1824,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.51",
     frontage: "17.31",
-    url: "/floorplans/SIENNA 33.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna33_standard-1-scaled.jpg",
   },
   {
     design: "Sienna",
@@ -1804,7 +1834,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "335.41",
     frontage: "17.55",
-    url: "/floorplans/SIENNA 36.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna36_standard-1-scaled.jpg",
   },
   {
     design: "Tangerine",
@@ -1814,7 +1844,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "346.67",
     frontage: "13.81",
-    url: "/floorplans/TANGERINE 37.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine37_standard-3-scaled.jpg",
   },
   {
     design: "Tangerine",
@@ -1824,7 +1854,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "383.40",
     frontage: "14.41",
-    url: "/floorplans/TANGERINE 41.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/TANGERINE-41-Classic_Brochure_floorplan.png",
   },
   {
     design: "Tangerine",
@@ -1834,7 +1864,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "411.72",
     frontage: "15.01",
-    url: "/floorplans/TANGERINE 44.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine44_standard-1-scaled.jpg",
   },
   {
     design: "Tangerine",
@@ -1844,7 +1874,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "451.78",
     frontage: "15.59",
-    url: "/floorplans/TANGERINE 49.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine49_standard-1-scaled.jpg",
   },
   {
     design: "Terracotta",
@@ -1854,7 +1884,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "211.58",
     frontage: "9.63",
-    url: "/floorplans/TERRACOTTA 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-23-20210525-1-scaled.jpg",
   },
   {
     design: "Terracotta",
@@ -1864,7 +1894,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "230.69",
     frontage: "10.31",
-    url: "/floorplans/TERRACOTTA 25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-25-20210525-1-scaled.jpg",
   },
   {
     design: "Terracotta",
@@ -1874,7 +1904,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "282.01",
     frontage: "12.39",
-    url: "/floorplans/TERRACOTTA 30.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-30-20210525-1-scaled.jpg",
   },
   {
     design: "Terracotta",
@@ -1884,7 +1914,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "336.10",
     frontage: "12.99",
-    url: "/floorplans/TERRACOTTA 36.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-36-20210525-1-scaled.jpg",
   },
   {
     design: "Tiffany",
@@ -1894,7 +1924,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "203.97",
     frontage: "16.35",
-    url: "/floorplans/TIFFANY 22.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany22_standard-1.jpg",
   },
   {
     design: "Tiffany",
@@ -1904,7 +1934,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.53",
     frontage: "17.31",
-    url: "/floorplans/TIFFANY 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany24_standard-1.jpg",
   },
   {
     design: "Tiffany",
@@ -1914,7 +1944,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "252.45",
     frontage: "17.31",
-    url: "/floorplans/TIFFANY 27.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany27_standard-1.jpg",
   },
   {
     design: "Tiffany",
@@ -1924,7 +1954,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "271.65",
     frontage: "17.31",
-    url: "/floorplans/TIFFANY 29.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/TIffany29_standard-1.jpg",
   },
   {
     design: "Topaz",
@@ -1934,7 +1964,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.37",
     frontage: "12.99",
-    url: "/floorplans/TOPAZ 21.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz21_standard-1.jpg",
   },
   {
     design: "Topaz",
@@ -1944,7 +1974,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "213.92",
     frontage: "13.47",
-    url: "/floorplans/TOPAZ 23.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz23_standard-1.jpg",
   },
   {
     design: "Topaz",
@@ -1954,7 +1984,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "239.47",
     frontage: "13.47",
-    url: "/floorplans/TOPAZ 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz26_standard.jpg",
   },
   {
     design: "Topaz",
@@ -1964,7 +1994,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "268.05",
     frontage: "14.67",
-    url: "/floorplans/TOPAZ 29.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz29_standard.jpg",
   },
   {
     design: "Turquoise",
@@ -1974,7 +2004,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.13",
     frontage: "9.49",
-    url: "/floorplans/TURQUOISE 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_turquoise-24_NOV-30-2022.png",
   },
   {
     design: "Turquoise",
@@ -1984,7 +2014,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.31",
     frontage: "9.49",
-    url: "/floorplans/TURQUOISE 25.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_turquoise-25_NOV-30-2022.png",
   },
   {
     design: "Turquoise",
@@ -1994,7 +2024,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.98",
     frontage: "10.57",
-    url: "/floorplans/TURQUOISE 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise26_standard-1.jpg",
   },
   {
     design: "Turquoise",
@@ -2004,7 +2034,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "263.24",
     frontage: "10.57",
-    url: "/floorplans/TURQUOISE 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise28_standard-1-scaled.jpg",
   },
   {
     design: "Turquoise",
@@ -2014,7 +2044,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "290.14",
     frontage: "10.57",
-    url: "/floorplans/TURQUOISE 31.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise31_standard-1-scaled.jpg",
   },
   {
     design: "Violet",
@@ -2024,7 +2054,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "309.3",
     frontage: "13.21",
-    url: "/floorplans/VIOLET 33.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2026-02-06-at-2.27.52-PM.png",
   },
   {
     design: "Violet",
@@ -2034,7 +2064,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "372.44",
     frontage: "14.03",
-    url: "/floorplans/VIOLET 40.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-40-Classic-Option-01-scaled.jpg",
   },
   {
     design: "Violet",
@@ -2044,7 +2074,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "415.04",
     frontage: "14.99",
-    url: "/floorplans/VIOLET 45.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-45-Classic-Option-01-scaled.jpg",
   },
   {
     design: "Violet",
@@ -2054,7 +2084,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "442.11",
     frontage: "14.99",
-    url: "/floorplans/VIOLET 48.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-48-Classic-Option-01-scaled.jpg",
   },
   {
     design: "Violet",
@@ -2064,7 +2094,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "586.61",
     frontage: "18.26",
-    url: "/floorplans/VIOLET 64.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-64-Classic-options-01-scaled.jpg",
   },
   {
     design: "Viridian",
@@ -2074,7 +2104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "264.05",
     frontage: "12.61",
-    url: "/floorplans/VIRIDIAN 28.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian28_standard-1-scaled.jpg",
   },
   {
     design: "Viridian",
@@ -2084,7 +2114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.96",
     frontage: "12.65",
-    url: "/floorplans/VIRIDIAN 32.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian-32.png",
   },
   {
     design: "Viridian",
@@ -2094,7 +2124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "360.85",
     frontage: "14.91",
-    url: "/floorplans/VIRIDIAN 39.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian39_standard-1-scaled.jpg",
   },
   {
     design: "Viridian",
@@ -2104,7 +2134,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "400.00",
     frontage: "14.43",
-    url: "/floorplans/VIRIDIAN 43.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian43_standard-1-scaled.jpg",
   },
   {
     design: "Wisteria",
@@ -2114,7 +2144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "201.45",
     frontage: "14.67",
-    url: "/floorplans/WISTERIA 22_CLASSIC_BROCHURE_RH_03.03.2022.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Wisteria22_standard.jpg",
   },
   {
     design: "Wisteria",
@@ -2124,7 +2154,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "226.25",
     frontage: "14.55",
-    url: "/floorplans/WISTERIA 24.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Wisteria-24-Mk-II.jpg",
   },
   {
     design: "Wisteria",
@@ -2134,6 +2164,16 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "240.79",
     frontage: "12.47",
-    url: "/floorplans/WISTERIA 26.png",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-11-17-at-7.59.19-AM.png",
+  },
+  {
+    design: "Wisteria",
+    label: "Wisteria 29",
+    beds: "6",
+    baths: "4",
+    cars: "2",
+    size: "267.82",
+    frontage: "20.09",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2026-01-06-at-10.40.08-AM.png",
   },
 ];
