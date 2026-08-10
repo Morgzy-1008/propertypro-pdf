@@ -24,7 +24,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "284.86",
     frontage: "17.80",
-    url: "/floorplans_pdf/Alabaster 31_ Classic_Brochure_19.09.2025.pdf",
+    url: "/floorplans/ALABASTER 31_ CLASSIC_BROCHURE_19.09.2025.png",
   },
   {
     design: "Alabaster",
@@ -34,7 +34,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "330.66",
     frontage: "18.00",
-    url: "/floorplans_pdf/Alabaster 36_ Classic_Brochure_19.09.2025.pdf",
+    url: "/floorplans/ALABASTER 36_ CLASSIC_BROCHURE_19.09.2025.png",
   },
   {
     design: "Alabaster",
@@ -44,7 +44,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "373.02",
     frontage: "18.00",
-    url: "/floorplans_pdf/Alabaster 40_ Classic_Brochure_19.09.2025.pdf",
+    url: "/floorplans/ALABASTER 40_ CLASSIC_BROCHURE_19.09.2025.png",
   },
   {
     design: "Charcoal",
@@ -54,7 +54,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.56",
     frontage: "12.49",
-    url: "/floorplans_pdf/Charcoal 24 Classic_Brochure_RH_05.02.25.pdf",
+    url: "/floorplans/CHARCOAL 24.png",
   },
   {
     design: "Maroon",
@@ -64,7 +64,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.42",
     frontage: "12.50",
-    url: "/floorplans_pdf/MAROON 26 (QLD) 20.03.25.pdf",
+    url: "/floorplans/MAROON 26 (QLD) 20.03.25.png",
   },
   {
     design: "Maroon",
@@ -74,7 +74,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "261.34",
     frontage: "14.14",
-    url: "/floorplans_pdf/MAROON 28 (QLD) LH BROCHURE 06.05.25.pdf",
+    url: "/floorplans/MAROON 28 (QLD) LH BROCHURE 06.05.25.png",
   },
   {
     design: "Raven",
@@ -84,7 +84,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "418.52",
     frontage: "15.00",
-    url: "/floorplans_pdf/Raven 45_Classic_Brochure_27.05.25.pdf",
+    url: "/floorplans/RAVEN 45_CLASSIC_BROCHURE_27.05.25.png",
   },
   {
     design: "Raven",
@@ -94,7 +94,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "508.16",
     frontage: "17.43",
-    url: "/floorplans_pdf/Raven 55 Classic_Brochure_05.06.26.pdf",
+    url: "/floorplans/RAVEN 55.png",
   },
   {
     design: "Cayenne",
@@ -104,7 +104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "389.36",
     frontage: "15.00",
-    url: "/floorplans_pdf/Cayenne 42_Classic_Brochure_02.05.25.pdf",
+    url: "/floorplans/CAYENNE 42_CLASSIC_BROCHURE_02.05.25.png",
   },
   {
     design: "Cayenne",
@@ -114,7 +114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "420.28",
     frontage: "17.35",
-    url: "/floorplans_pdf/Cayenne 45 Classic_Brochure_02.05.25.pdf",
+    url: "/floorplans/CAYENNE 45.png",
   },
   {
     design: "Cayenne",
@@ -124,7 +124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "436.94",
     frontage: "15",
-    url: "/floorplans_pdf/Cayenne 47_Classic_Brochure_02.05.25.pdf",
+    url: "/floorplans/CAYENNE 47_CLASSIC_BROCHURE_02.05.25.png",
   },
   {
     design: "Cayenne",
@@ -134,7 +134,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "523.26",
     frontage: "17.35",
-    url: "/floorplans_pdf/Cayenne 56-Classic_Brochure.pdf",
+    url: "/floorplans/CAYENNE 56.png",
   },
   {
     design: "Teal",
@@ -144,7 +144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "265.59",
     frontage: "16.83",
-    url: "/floorplans_pdf/Teal 29_ Classic_Brochure_08.12.2025.pdf",
+    url: "/floorplans/TEAL 29_ CLASSIC_BROCHURE_08.12.2025.png",
   },
   {
     design: "Teal",
@@ -154,7 +154,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "306.25",
     frontage: "17.92",
-    url: "/floorplans_pdf/Teal 33_ Classic_Brochure_05.06.2026.pdf",
+    url: "/floorplans/TEAL 33_ CLASSIC_BROCHURE_05.06.2026.png",
   },
   {
     design: "Teal",
@@ -164,7 +164,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "423.10",
     frontage: "17.43",
-    url: "/floorplans_pdf/Teal 45.pdf",
+    url: "/floorplans/TEAL 45.png",
   },
   {
     design: "Teal",
@@ -174,7 +174,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "443.45",
     frontage: "17.43",
-    url: "/floorplans_pdf/TEAL 48 Classic_Brochure_07.11.24.pdf",
+    url: "/floorplans/TEAL 48.png",
   },
   {
     design: "Sabel (QLD ONLY)",
@@ -184,7 +184,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "257.29",
     frontage: "",
-    url: "/floorplans_pdf/SABEL 28 (QLD) CLASSIC LH BROCHURE 17.01.25.pdf",
+    url: "/floorplans/SABEL 28 (QLD) CLASSIC LH BROCHURE 17.01.25.png",
   },
   {
     design: "Hazel",
@@ -194,7 +194,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "125.80",
     frontage: "9.95",
-    url: "/floorplans_pdf/Hazel 14 Classic_Brochure_RH_23.05.24.pdf",
+    url: "/floorplans/HAZEL 14.png",
   },
   {
     design: "Hazel",
@@ -204,7 +204,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "142.05",
     frontage: "9.95",
-    url: "/floorplans_pdf/Hazel 15 Classic_Brochure_RH_23.05.24.pdf",
+    url: "/floorplans/HAZEL 15.png",
   },
   {
     design: "Hazel",
@@ -214,7 +214,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "158.08",
     frontage: "9.95",
-    url: "/floorplans_pdf/Hazel 17 Classic_Brochure_RH_23.05.24.pdf",
+    url: "/floorplans/HAZEL 17.png",
   },
   {
     design: "Hazel",
@@ -224,7 +224,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "173.20",
     frontage: "9.95",
-    url: "/floorplans_pdf/Hazel 19 Classic_Brochure_RH_23.05.24.pdf",
+    url: "/floorplans/HAZEL 19.png",
   },
   {
     design: "Olive",
@@ -234,7 +234,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "210.86",
     frontage: "12.87",
-    url: "/floorplans_pdf/Olive 23 Classic_Brochure_RH_22.11.2022.pdf",
+    url: "/floorplans/OLIVE 23.png",
   },
   {
     design: "Blanc",
@@ -244,7 +244,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "246.93",
     frontage: "14.91",
-    url: "/floorplans_pdf/Blanc 27 Classic_Brochure_RH_22.11.2022.pdf",
+    url: "/floorplans/BLANC 27.png",
   },
   {
     design: "Amber",
@@ -254,7 +254,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "192.24",
     frontage: "12.39",
-    url: "/floorplans_pdf/Amber 21 Classic_Brochure_RH_01.03.2022.pdf",
+    url: "/floorplans/AMBER 21.png",
   },
   {
     design: "Amber",
@@ -264,7 +264,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "210.63",
     frontage: "12.39",
-    url: "/floorplans_pdf/Amber 23 Classic_Brochure_RH_01.03.2022.pdf",
+    url: "/floorplans/AMBER 23.png",
   },
   {
     design: "Amber",
@@ -274,7 +274,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "241.57",
     frontage: "13.47",
-    url: "/floorplans_pdf/Amber 26 Classic_Brochure_RH_01.03.2022.pdf",
+    url: "/floorplans/AMBER 26.png",
   },
   {
     design: "Amber",
@@ -284,7 +284,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "282.99",
     frontage: "13.47",
-    url: "/floorplans_pdf/Amber 30 Classic_Brochure_RH_01.03.2022.pdf",
+    url: "/floorplans/AMBER 30.png",
   },
   {
     design: "Azure",
@@ -294,7 +294,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "177.08",
     frontage: "12.39",
-    url: "/floorplans_pdf/Azure 19 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/AZURE 19.png",
   },
   {
     design: "Azure",
@@ -304,7 +304,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "197.08",
     frontage: "12.87",
-    url: "/floorplans_pdf/Azure 21 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/AZURE 21.png",
   },
   {
     design: "Azure",
@@ -314,7 +314,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "208.71",
     frontage: "12.39",
-    url: "/floorplans_pdf/Azure 23 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/AZURE 23.png",
   },
   {
     design: "Azure",
@@ -324,7 +324,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.44",
     frontage: "12.50",
-    url: "/floorplans_pdf/AZURE 25 RH - CLASSIC BROCHURE 12.03.25.pdf",
+    url: "/floorplans/AZURE 25.png",
   },
   {
     design: "Burgundy",
@@ -334,7 +334,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "252.01",
     frontage: "13.33",
-    url: "/floorplans_pdf/Burgundy 27_Classic_RH_01.06.2020.pdf",
+    url: "/floorplans/BURGUNDY 27_CLASSIC_RH_01.06.2020.png",
   },
   {
     design: "Burgundy",
@@ -344,7 +344,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "277.51",
     frontage: "13.57",
-    url: "/floorplans_pdf/Burgundy 30_Classic_RH_01.06.2020.pdf",
+    url: "/floorplans/BURGUNDY 30_CLASSIC_RH_01.06.2020.png",
   },
   {
     design: "Burgundy",
@@ -354,7 +354,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "298.12",
     frontage: "13.57",
-    url: "/floorplans_pdf/Burgundy 32_Classic_RH_01.06.2020.pdf",
+    url: "/floorplans/BURGUNDY 32_CLASSIC_RH_01.06.2020.png",
   },
   {
     design: "Burgundy",
@@ -364,7 +364,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "317.03",
     frontage: "13.57",
-    url: "/floorplans_pdf/Burgundy 34_Classic_RH_01.06.2020.pdf",
+    url: "/floorplans/BURGUNDY 34_CLASSIC_RH_01.06.2020.png",
   },
   {
     design: "Canary",
@@ -374,7 +374,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "117.64",
     frontage: "12.99",
-    url: "/floorplans_pdf/Canary 1 Classic_Brochure_01.03.2023.pdf",
+    url: "/floorplans/CANARY 1.png",
   },
   {
     design: "Canary",
@@ -384,7 +384,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "113.03",
     frontage: "13.95",
-    url: "/floorplans_pdf/Canary 2 Classic_Brochure_01.03.2023.pdf",
+    url: "/floorplans/CANARY 2.png",
   },
   {
     design: "Canary",
@@ -394,7 +394,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "127.20",
     frontage: "15.18",
-    url: "/floorplans_pdf/Canary 3 Classic_Brochure_01.03.2023.pdf",
+    url: "/floorplans/CANARY 3.png",
   },
   {
     design: "Canary",
@@ -404,7 +404,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "117.36",
     frontage: "14.43",
-    url: "/floorplans_pdf/Canary 4 Classic_Brochure_01.03.2023.pdf",
+    url: "/floorplans/CANARY 4.png",
   },
   {
     design: "Carolina",
@@ -414,7 +414,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "202.58",
     frontage: "9.95",
-    url: "/floorplans_pdf/Carolina 22_Classic_RH_02.03.2023.pdf",
+    url: "/floorplans/CAROLINA 22_CLASSIC_RH_02.03.2023.png",
   },
   {
     design: "Carolina",
@@ -424,7 +424,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.48",
     frontage: "9.95",
-    url: "/floorplans_pdf/Carolina 24_Classic_RH_02.03.2023.pdf",
+    url: "/floorplans/CAROLINA 24_CLASSIC_RH_02.03.2023.png",
   },
   {
     design: "Carolina",
@@ -434,7 +434,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.63",
     frontage: "9.95",
-    url: "/floorplans_pdf/Carolina 26_Classic_RH_15.05.2023.pdf",
+    url: "/floorplans/CAROLINA 26_CLASSIC_RH_15.05.2023.png",
   },
   {
     design: "Carolina",
@@ -444,7 +444,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "266.70",
     frontage: "9.95",
-    url: "/floorplans_pdf/Carolina 29_Classic_RH_15.05.2023.pdf",
+    url: "/floorplans/CAROLINA 29_CLASSIC_RH_15.05.2023.png",
   },
   {
     design: "Carmine",
@@ -454,7 +454,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "162.11",
     frontage: "11.79",
-    url: "/floorplans_pdf/Carmine 17 Classic_Brochure_RH_20.04.2026.pdf",
+    url: "/floorplans/CARMINE 17.png",
   },
   {
     design: "Carmine",
@@ -464,7 +464,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "180.02",
     frontage: "11.79",
-    url: "/floorplans_pdf/Carmine 19 Classic_Brochure_RH_20.04.2026.pdf",
+    url: "/floorplans/CARMINE 19.png",
   },
   {
     design: "Carmine",
@@ -474,7 +474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "193.57",
     frontage: "11.79",
-    url: "/floorplans_pdf/Carmine 21 MKII Classic_Brochure_RH_20.04.2026.pdf",
+    url: "/floorplans/CARMINE 21.png",
   },
   {
     design: "Carmine",
@@ -484,7 +484,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "215.19",
     frontage: "11.79",
-    url: "/floorplans_pdf/Carmine 23 MKII Classic_Brochure_RH_20.04.2026.pdf",
+    url: "/floorplans/CARMINE 23.png",
   },
   {
     design: "Cedar",
@@ -494,7 +494,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.35",
     frontage: "17.07",
-    url: "/floorplans_pdf/Cedar 26 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/CEDAR 26.png",
   },
   {
     design: "Cedar",
@@ -504,7 +504,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "261.44",
     frontage: "17.07",
-    url: "/floorplans_pdf/Cedar 28 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/CEDAR 28.png",
   },
   {
     design: "Cedar",
@@ -514,7 +514,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "291.51",
     frontage: "18.03",
-    url: "/floorplans_pdf/Cedar 31 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/CEDAR 31.png",
   },
   {
     design: "Cedar",
@@ -524,7 +524,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "318.36",
     frontage: "18.63",
-    url: "/floorplans_pdf/Cedar 34 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/CEDAR 34.png",
   },
   {
     design: "Cinnamon",
@@ -534,7 +534,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "218.03",
     frontage: "13.33",
-    url: "/floorplans_pdf/CINNAMON 23 Classic.pdf",
+    url: "/floorplans/CINNAMON 23.png",
   },
   {
     design: "Cinnamon",
@@ -544,7 +544,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "237.61",
     frontage: "13.57",
-    url: "/floorplans_pdf/CINNAMON 26 Classic.pdf",
+    url: "/floorplans/CINNAMON 26.png",
   },
   {
     design: "Cinnamon",
@@ -554,7 +554,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "275.83",
     frontage: "14.41",
-    url: "/floorplans_pdf/CINNAMON 30 Classic.pdf",
+    url: "/floorplans/CINNAMON 30.png",
   },
   {
     design: "Cinnamon",
@@ -564,7 +564,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "338.87",
     frontage: "15.13",
-    url: "/floorplans_pdf/CINNAMON 36 Classic.pdf",
+    url: "/floorplans/CINNAMON 36.png",
   },
   {
     design: "Cobalt",
@@ -574,7 +574,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "202.63",
     frontage: "12.97",
-    url: "/floorplans_pdf/COBALT 22 Classic.pdf",
+    url: "/floorplans/COBALT 22.png",
   },
   {
     design: "Cobalt",
@@ -584,7 +584,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "242.03",
     frontage: "13.45",
-    url: "/floorplans_pdf/COBALT 26 Classic.pdf",
+    url: "/floorplans/COBALT 26.png",
   },
   {
     design: "Cobalt",
@@ -594,7 +594,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "278.98",
     frontage: "13.45",
-    url: "/floorplans_pdf/COBALT 30 Classic.pdf",
+    url: "/floorplans/COBALT 30.png",
   },
   {
     design: "Cobalt",
@@ -604,7 +604,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "332.60",
     frontage: "14.41",
-    url: "/floorplans_pdf/COBALT 36 Classic_23.08.24.pdf",
+    url: "/floorplans/COBALT 36.png",
   },
   {
     design: "Coral",
@@ -614,7 +614,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "181.12",
     frontage: "10.21",
-    url: "/floorplans_pdf/Coral 19 Classic RH_Brochure_29.08.2023.pdf",
+    url: "/floorplans/CORAL 19.png",
   },
   {
     design: "Coral",
@@ -624,7 +624,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "198.08",
     frontage: "11.30",
-    url: "/floorplans_pdf/Coral 21 Classic RH_Brochure_29.08.2023.pdf",
+    url: "/floorplans/CORAL 21.png",
   },
   {
     design: "Coral",
@@ -634,7 +634,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "217.68",
     frontage: "12.47",
-    url: "/floorplans_pdf/Coral 23 Classic RH_Brochure_29.08.2023.pdf",
+    url: "/floorplans/CORAL 23.png",
   },
   {
     design: "Coral",
@@ -644,7 +644,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "240.93",
     frontage: "13.03",
-    url: "/floorplans_pdf/Coral 26 Classic RH_Brochure_29.08.2023.pdf",
+    url: "/floorplans/CORAL 26.png",
   },
   {
     design: "Crimson",
@@ -654,7 +654,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "224.56",
     frontage: "13.83",
-    url: "/floorplans_pdf/Crimson 24 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/CRIMSON 24.png",
   },
   {
     design: "Crimson",
@@ -664,7 +664,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "245.04",
     frontage: "14.67",
-    url: "/floorplans_pdf/Crimson 26 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/CRIMSON 26.png",
   },
   {
     design: "Crimson",
@@ -674,7 +674,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "273.85",
     frontage: "17.43",
-    url: "/floorplans_pdf/Crimson 29 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/CRIMSON 29.png",
   },
   {
     design: "Crimson",
@@ -684,7 +684,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "302.45",
     frontage: "17.43",
-    url: "/floorplans_pdf/Crimson 33 Classic_Brochure_RH_09.04.18.pdf",
+    url: "/floorplans/CRIMSON 33.png",
   },
   {
     design: "Ebony (QLD Only)",
@@ -694,7 +694,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "225.26",
     frontage: "13.11",
-    url: "/floorplans_pdf/EBONY 24.pdf",
+    url: "/floorplans/EBONY 24.png",
   },
   {
     design: "Ebony (QLD Only)",
@@ -704,7 +704,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "249.27",
     frontage: "13.83",
-    url: "/floorplans_pdf/EBONY 27.pdf",
+    url: "/floorplans/EBONY 27.png",
   },
   {
     design: "Ebony (QLD Only)",
@@ -714,7 +714,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "269.24",
     frontage: "17.07",
-    url: "/floorplans_pdf/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.pdf",
+    url: "/floorplans/EBONY 29_CLASSIC_BROCHURE_RH_17.01.18.png",
   },
   {
     design: "Ebony (QLD Only)",
@@ -724,7 +724,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "293.23",
     frontage: "18.15",
-    url: "/floorplans_pdf/EBONY 32.pdf",
+    url: "/floorplans/EBONY 32.png",
   },
   {
     design: "Emerald",
@@ -734,7 +734,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "261.45",
     frontage: "10.81",
-    url: "/floorplans_pdf/Emerald 28 Brochure Plan 28.02.23.pdf",
+    url: "/floorplans/EMERALD 28.png",
   },
   {
     design: "Emerald",
@@ -744,7 +744,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "363.29",
     frontage: "14.99",
-    url: "/floorplans_pdf/EMERALD 39 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/EMERALD 39.png",
   },
   {
     design: "Emerald",
@@ -754,7 +754,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "392.45",
     frontage: "15.23",
-    url: "/floorplans_pdf/EMERALD 42 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/EMERALD 42.png",
   },
   {
     design: "Emerald",
@@ -764,7 +764,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "408.67",
     frontage: "15.23",
-    url: "/floorplans_pdf/EMERALD 44 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/EMERALD 44.png",
   },
   {
     design: "Emerald",
@@ -774,7 +774,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "438.52",
     frontage: "15.23",
-    url: "/floorplans_pdf/EMERALD 47 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/EMERALD 47.png",
   },
   {
     design: "Indigo (QLD Only)",
@@ -784,7 +784,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "144.97",
     frontage: "10.47",
-    url: "/floorplans_pdf/INDIGO 15.pdf",
+    url: "/floorplans/INDIGO 15.png",
   },
   {
     design: "Indigo (QLD Only)",
@@ -794,7 +794,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "162.18",
     frontage: "10.47",
-    url: "/floorplans_pdf/INDIGO 17.pdf",
+    url: "/floorplans/INDIGO 17.png",
   },
   {
     design: "Indigo (QLD Only)",
@@ -804,7 +804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "174.92",
     frontage: "10.47",
-    url: "/floorplans_pdf/INDIGO 19.pdf",
+    url: "/floorplans/INDIGO 19.png",
   },
   {
     design: "Indigo (QLD Only)",
@@ -814,7 +814,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "206.17",
     frontage: "11.31",
-    url: "/floorplans_pdf/INDIGO 22.pdf",
+    url: "/floorplans/INDIGO 22.png",
   },
   {
     design: "Iris",
@@ -824,7 +824,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "139.07",
     frontage: "9.25",
-    url: "/floorplans_pdf/Iris 15 Classic_Brochure_RH_07.11.2022.pdf",
+    url: "/floorplans/IRIS 15.png",
   },
   {
     design: "Iris",
@@ -834,7 +834,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "159.99",
     frontage: "9.25",
-    url: "/floorplans_pdf/Iris 17 Classic_Brochure_RH_07.11.2022.pdf",
+    url: "/floorplans/IRIS 17.png",
   },
   {
     design: "Iris",
@@ -844,7 +844,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "168.58",
     frontage: "9.25",
-    url: "/floorplans_pdf/Iris 18 Classic_Brochure_RH_07.11.2022.pdf",
+    url: "/floorplans/IRIS 18.png",
   },
   {
     design: "Iris",
@@ -854,7 +854,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.59",
     frontage: "10.95",
-    url: "/floorplans_pdf/Iris 21 Classic_Brochure_RH_10.09.19.pdf",
+    url: "/floorplans/IRIS 21.png",
   },
   {
     design: "Ivory",
@@ -864,7 +864,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.23",
     frontage: "12.73",
-    url: "/floorplans_pdf/Ivory 21 Classic_Brochure_RH_06.02.2025.pdf",
+    url: "/floorplans/IVORY 21.png",
   },
   {
     design: "Ivory",
@@ -874,7 +874,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "211.51",
     frontage: "13.23",
-    url: "/floorplans_pdf/Ivory 23 Classic_Brochure_RH_10.04.18.pdf",
+    url: "/floorplans/IVORY 23.png",
   },
   {
     design: "Ivory",
@@ -884,7 +884,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "232.90",
     frontage: "13.71",
-    url: "/floorplans_pdf/Ivory 25 Classic_Brochure_RH_10.04.18.pdf",
+    url: "/floorplans/IVORY 25.png",
   },
   {
     design: "Ivory",
@@ -894,7 +894,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "254.56",
     frontage: "14.43",
-    url: "/floorplans_pdf/Ivory 27 Classic_Brochure_RH_18.02.2026.pdf",
+    url: "/floorplans/IVORY 27.png",
   },
   {
     design: "Ivory",
@@ -904,7 +904,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "273.92",
     frontage: "14.67",
-    url: "/floorplans_pdf/Ivory 29 Classic_Brochure_RH_10.04.18.pdf",
+    url: "/floorplans/IVORY 29.png",
   },
   {
     design: "Jade (QLD Only)",
@@ -914,7 +914,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "196.98",
     frontage: "12.87",
-    url: "/floorplans_pdf/JADE 21.pdf",
+    url: "/floorplans/JADE 21.png",
   },
   {
     design: "Jade (QLD Only)",
@@ -924,7 +924,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "216.11",
     frontage: "13.11",
-    url: "/floorplans_pdf/JADE 23.pdf",
+    url: "/floorplans/JADE 23.png",
   },
   {
     design: "Jasper",
@@ -934,7 +934,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "161.71",
     frontage: "11.41",
-    url: "/floorplans_pdf/Jasper 17 Classic RH_Brochure_09.11.2022.pdf",
+    url: "/floorplans/JASPER 17.png",
   },
   {
     design: "Jasper",
@@ -944,7 +944,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "185.15",
     frontage: "11.77",
-    url: "/floorplans_pdf/Jasper 20 Classic RH_Brochure_09.11.2022.pdf",
+    url: "/floorplans/JASPER 20.png",
   },
   {
     design: "Jasper",
@@ -954,7 +954,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "219.83",
     frontage: "11.89",
-    url: "/floorplans_pdf/Jasper 24 Classic RH_Brochure_09.11.2022.pdf",
+    url: "/floorplans/JASPER 24.png",
   },
   {
     design: "Jasper",
@@ -964,7 +964,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "241.82",
     frontage: "12.49",
-    url: "/floorplans_pdf/Jasper 26 Classic RH_Brochure_17.04.2026.pdf",
+    url: "/floorplans/JASPER 26.png",
   },
   {
     design: "Lime",
@@ -974,7 +974,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "176.46",
     frontage: "8.99",
-    url: "/floorplans_pdf/Lime 19_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/LIME 19_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Lime",
@@ -984,7 +984,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.08",
     frontage: "8.99",
-    url: "/floorplans_pdf/Lime 21_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/LIME 21_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Lime",
@@ -994,7 +994,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "215.60",
     frontage: "8.99",
-    url: "/floorplans_pdf/Lime 23_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/LIME 23_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Lime",
@@ -1004,7 +1004,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "234.87",
     frontage: "8.99",
-    url: "/floorplans_pdf/Lime 25_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/LIME 25_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Magenta",
@@ -1014,7 +1014,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.40",
     frontage: "16.95",
-    url: "/floorplans_pdf/Magenta 26 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/MAGENTA 26.png",
   },
   {
     design: "Magenta",
@@ -1024,7 +1024,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "271.52",
     frontage: "17.31",
-    url: "/floorplans_pdf/Magenta 29 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/MAGENTA 29.png",
   },
   {
     design: "Magenta",
@@ -1034,7 +1034,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "305.98",
     frontage: "18.24",
-    url: "/floorplans_pdf/Magenta 33 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/MAGENTA 33.png",
   },
   {
     design: "Magenta",
@@ -1044,7 +1044,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "334.09",
     frontage: "18.15",
-    url: "/floorplans_pdf/Magenta 36 Classic_Brochure_RH_22.08.25.pdf",
+    url: "/floorplans/MAGENTA 36.png",
   },
   {
     design: "Magnolia",
@@ -1054,7 +1054,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "312.02",
     frontage: "14.785",
-    url: "/floorplans_pdf/Magnolia 34_ Classic_Brochure_17.04.2026.pdf",
+    url: "/floorplans/MAGNOLIA 34_ CLASSIC_BROCHURE_17.04.2026.png",
   },
   {
     design: "Magnolia",
@@ -1064,7 +1064,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "346.94",
     frontage: "14.785",
-    url: "/floorplans_pdf/Magnolia 37_ Classic_Brochure_05.05.2026.pdf",
+    url: "/floorplans/MAGNOLIA 37_ CLASSIC_BROCHURE_05.05.2026.png",
   },
   {
     design: "Magnolia",
@@ -1074,7 +1074,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "395.28",
     frontage: "17.19",
-    url: "/floorplans_pdf/Magnolia 43_ Classic_Brochure_20.12.24.pdf",
+    url: "/floorplans/MAGNOLIA 43_ CLASSIC_BROCHURE_20.12.24.png",
   },
   {
     design: "Magnolia",
@@ -1084,7 +1084,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "419.08",
     frontage: "18.35",
-    url: "/floorplans_pdf/Magnolia 45_ Classic_Brochure_20.12.24.pdf",
+    url: "/floorplans/MAGNOLIA 45_ CLASSIC_BROCHURE_20.12.24.png",
   },
   {
     design: "Magnolia",
@@ -1094,7 +1094,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "432.50",
     frontage: "17.156",
-    url: "/floorplans_pdf/Magnolia 47 MKII_ Classic_Brochure_01.07.25.pdf",
+    url: "/floorplans/MAGNOLIA 47.png",
   },
   {
     design: "Magnolia",
@@ -1104,7 +1104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "494.24",
     frontage: "19.07",
-    url: "/floorplans_pdf/Magnolia 53 MKII_ Classic_Brochure_01.07.25.pdf",
+    url: "/floorplans/MAGNOLIA 53.png",
   },
   {
     design: "Mulberry",
@@ -1114,7 +1114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "208.66",
     frontage: "27.03",
-    url: "/floorplans_pdf/Mulberry 22_Classic RH_Brochure_11.04.18.pdf",
+    url: "/floorplans/MULBERRY 22_CLASSIC RH_BROCHURE_11.04.18.png",
   },
   {
     design: "Mulberry",
@@ -1124,7 +1124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.57",
     frontage: "27.51",
-    url: "/floorplans_pdf/Mulberry 25_Classic RH_Brochure_06.06.19.pdf",
+    url: "/floorplans/MULBERRY 25_CLASSIC RH_BROCHURE_06.06.19.png",
   },
   {
     design: "Mulberry",
@@ -1134,7 +1134,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.57",
     frontage: "27.51",
-    url: "/floorplans_pdf/Mulberry 25_Classic RH_Brochure_06.06.19.pdf",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry25_garage.jpg",
   },
   {
     design: "Mulberry",
@@ -1144,7 +1144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "259.28",
     frontage: "29.67",
-    url: "/floorplans_pdf/Mulberry 28_Classic RH_Brochure_11.04.18.pdf",
+    url: "/floorplans/MULBERRY 28_CLASSIC RH_BROCHURE_11.04.18.png",
   },
   {
     design: "Mulberry",
@@ -1154,7 +1154,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "259.28",
     frontage: "29.67",
-    url: "/floorplans_pdf/Mulberry 28_Classic RH_Brochure_11.04.18.pdf",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry28_bed-5.jpg",
   },
   {
     design: "Mulberry",
@@ -1164,7 +1164,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "307.82",
     frontage: "32.91",
-    url: "/floorplans_pdf/Mulberry 33_Classic RH_Brochure_11.04.18.pdf",
+    url: "/floorplans/MULBERRY 33_CLASSIC RH_BROCHURE_11.04.18.png",
   },
   {
     design: "Mulberry",
@@ -1174,7 +1174,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "307.82",
     frontage: "32.91",
-    url: "/floorplans_pdf/Mulberry 33_Classic RH_Brochure_11.04.18.pdf",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry33_bed-5.jpg",
   },
   {
     design: "Mulberry",
@@ -1184,7 +1184,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "365.23",
     frontage: "31.35",
-    url: "/floorplans_pdf/Mulberry 39_Classic RH_Brochure_21.10.21.pdf",
+    url: "/floorplans/MULBERRY 39_CLASSIC RH_BROCHURE_21.10.21.png",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1194,7 +1194,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "348.55",
     frontage: "14.15",
-    url: "/floorplans_pdf/MAHOGANY 38_CLASSIC_RH_12.04.18.pdf",
+    url: "/floorplans/MAHOGANY 38_CLASSIC_RH_12.04.18.png",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1204,7 +1204,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "396.08",
     frontage: "14.05",
-    url: "/floorplans_pdf/MAHOGANY 43_CLASSIC_RH_01.05.24.pdf",
+    url: "/floorplans/MAHOGANY 43_CLASSIC_RH_01.05.24.png",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1214,7 +1214,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "445.98",
     frontage: "15.01",
-    url: "/floorplans_pdf/MAHOGANY 48_CLASSIC_RH_11.02.20.pdf",
+    url: "/floorplans/MAHOGANY 48_CLASSIC_RH_11.02.20.png",
   },
   {
     design: "Mahogany (QLD Only)",
@@ -1224,7 +1224,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "51583",
     frontage: "18.13",
-    url: "/floorplans_pdf/MAHOGANY 56.pdf",
+    url: "/floorplans/MAHOGANY 56.png",
   },
   {
     design: "Maize",
@@ -1234,7 +1234,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.96",
     frontage: "14.99",
-    url: "/floorplans_pdf/Maize 33_ Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 33_ CLASSIC_BROCHURE_10.11.25.png",
   },
   {
     design: "Maize",
@@ -1244,7 +1244,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "330.90",
     frontage: "14.99",
-    url: "/floorplans_pdf/Maize 36_ Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 36_ CLASSIC_BROCHURE_10.11.25.png",
   },
   {
     design: "Maize",
@@ -1254,7 +1254,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "369.42",
     frontage: "14.99",
-    url: "/floorplans_pdf/Maize 40_ Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 40_ CLASSIC_BROCHURE_10.11.25.png",
   },
   {
     design: "Maize",
@@ -1264,7 +1264,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "400.62",
     frontage: "15.47",
-    url: "/floorplans_pdf/Maize 43_ Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 43_ CLASSIC_BROCHURE_10.11.25.png",
   },
   {
     design: "Maize",
@@ -1274,7 +1274,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "440.64",
     frontage: "16.19",
-    url: "/floorplans_pdf/Maize 47_Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 47_CLASSIC_BROCHURE_10.11.25.png",
   },
   {
     design: "Maize",
@@ -1284,7 +1284,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "505.44",
     frontage: "16.19",
-    url: "/floorplans_pdf/Maize 54 Classic_Brochure_10.11.25.pdf",
+    url: "/floorplans/MAIZE 54.png",
   },
   {
     design: "Marigold",
@@ -1294,7 +1294,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "243.55",
     frontage: "11.39",
-    url: "/floorplans_pdf/Marigold 26_Classic_LH_15.05.20.pdf",
+    url: "/floorplans/MARIGOLD 26_CLASSIC_LH_15.05.20.png",
   },
   {
     design: "Marigold",
@@ -1304,7 +1304,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "262.44",
     frontage: "12.47",
-    url: "/floorplans_pdf/Marigold 28_Classic_LH_13.05.20.pdf",
+    url: "/floorplans/MARIGOLD 28_CLASSIC_LH_13.05.20.png",
   },
   {
     design: "Marigold",
@@ -1314,7 +1314,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "289.41",
     frontage: "12.95",
-    url: "/floorplans_pdf/Marigold 31_Classic_LH_13.05.20.pdf",
+    url: "/floorplans/MARIGOLD 31_CLASSIC_LH_13.05.20.png",
   },
   {
     design: "Marigold",
@@ -1324,7 +1324,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "324.91",
     frontage: "12.95",
-    url: "/floorplans_pdf/Marigold 35_Classic_LH_24.05.21.pdf",
+    url: "/floorplans/MARIGOLD 35_CLASSIC_LH_24.05.21.png",
   },
   {
     design: "Mauve",
@@ -1334,7 +1334,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "224.24",
     frontage: "13.91",
-    url: "/floorplans_pdf/MAUVE 24 Classic.pdf",
+    url: "/floorplans/MAUVE 24.png",
   },
   {
     design: "Mauve",
@@ -1344,7 +1344,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "259.24",
     frontage: "14.15",
-    url: "/floorplans_pdf/MAUVE 28 Classic.pdf",
+    url: "/floorplans/MAUVE 28.png",
   },
   {
     design: "Mauve",
@@ -1354,7 +1354,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "298.07",
     frontage: "14.39",
-    url: "/floorplans_pdf/MAUVE 32 Classic.pdf",
+    url: "/floorplans/MAUVE 32.png",
   },
   {
     design: "Mauve",
@@ -1364,7 +1364,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "328.66",
     frontage: "14.99",
-    url: "/floorplans_pdf/MAUVE 35 Classic.pdf",
+    url: "/floorplans/MAUVE 35.png",
   },
   {
     design: "Mint",
@@ -1374,7 +1374,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "158.74",
     frontage: "7.91",
-    url: "/floorplans_pdf/Mint 17_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/MINT 17_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Mint",
@@ -1384,7 +1384,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "177.97",
     frontage: "7.91",
-    url: "/floorplans_pdf/Mint 19_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/MINT 19_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Mint",
@@ -1394,7 +1394,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "191.33",
     frontage: "7.91",
-    url: "/floorplans_pdf/Mint 21_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/MINT 21_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Mint",
@@ -1404,7 +1404,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "220.64",
     frontage: "7.91",
-    url: "/floorplans_pdf/Mint 24_Classic_RH_02.05.2023.pdf",
+    url: "/floorplans/MINT 24_CLASSIC_RH_02.05.2023.png",
   },
   {
     design: "Mocha",
@@ -1414,7 +1414,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "225.93",
     frontage: "11.05",
-    url: "/floorplans_pdf/Mocha 24_Classic_Attached Garage_07.07.22.pdf",
+    url: "/floorplans/MOCHA 24_CLASSIC_ATTACHED GARAGE_07.07.22.png",
   },
   {
     design: "Mocha",
@@ -1424,7 +1424,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "232.26",
     frontage: "13.93",
-    url: "/floorplans_pdf/Mocha 25_Classic_13.09.19.pdf",
+    url: "/floorplans/MOCHA 25_CLASSIC_13.09.19.png",
   },
   {
     design: "Mocha",
@@ -1434,7 +1434,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "260.09",
     frontage: "15.01",
-    url: "/floorplans_pdf/Mocha 28_Classic_10.11.21.pdf",
+    url: "/floorplans/MOCHA 28_CLASSIC_10.11.21.png",
   },
   {
     design: "Mocha",
@@ -1444,7 +1444,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "288.55",
     frontage: "14.29",
-    url: "/floorplans_pdf/Mocha 31_Classic_13.12.19.pdf",
+    url: "/floorplans/MOCHA 31_CLASSIC_13.12.19.png",
   },
   {
     design: "Mocha",
@@ -1454,7 +1454,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "321.36",
     frontage: "14.41",
-    url: "/floorplans_pdf/Mocha 35_Classic_24.05.21.pdf",
+    url: "/floorplans/MOCHA 35_CLASSIC_24.05.21.png",
   },
   {
     design: "Onyx",
@@ -1464,7 +1464,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "160.38",
     frontage: "11.41",
-    url: "/floorplans_pdf/Onyx 17 Classic RH_Brochure_10.08.20.pdf",
+    url: "/floorplans/ONYX 17.png",
   },
   {
     design: "Onyx",
@@ -1474,7 +1474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "180.82",
     frontage: "11.89",
-    url: "/floorplans_pdf/Onyx 19 Classic RH_Brochure_10.08.20.pdf",
+    url: "/floorplans/ONYX 19.png",
   },
   {
     design: "Onyx",
@@ -1484,7 +1484,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "198.23",
     frontage: "12.49",
-    url: "/floorplans_pdf/Onyx 21 Classic RH_Brochure_10.08.20.pdf",
+    url: "/floorplans/ONYX 21.png",
   },
   {
     design: "Onyx",
@@ -1494,7 +1494,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "227.27",
     frontage: "13.09",
-    url: "/floorplans_pdf/Onyx 24 Classic RH_Brochure_10.08.20.pdf",
+    url: "/floorplans/ONYX 24.png",
   },
   {
     design: "Orchid",
@@ -1504,7 +1504,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "209.52",
     frontage: "10.33",
-    url: "/floorplans_pdf/Orchid 23_Classic_RH_Brochure_07.11.2022.pdf",
+    url: "/floorplans/ORCHID 23_CLASSIC_RH_BROCHURE_07.11.2022.png",
   },
   {
     design: "Orchid",
@@ -1514,7 +1514,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "228.94",
     frontage: "10.45",
-    url: "/floorplans_pdf/Orchid 25_Classic_RH_Brochure_13.05.2020.pdf",
+    url: "/floorplans/ORCHID 25_CLASSIC_RH_BROCHURE_13.05.2020.png",
   },
   {
     design: "Orchid",
@@ -1524,7 +1524,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "268.18",
     frontage: "12.85",
-    url: "/floorplans_pdf/Orchid 29_Classic_RH_Brochure_13.05.2020.pdf",
+    url: "/floorplans/ORCHID 29_CLASSIC_RH_BROCHURE_13.05.2020.png",
   },
   {
     design: "Orchid",
@@ -1534,7 +1534,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "315.08",
     frontage: "13.33",
-    url: "/floorplans_pdf/Orchid 34_Classic_RH_Brochure_13.05.2020.pdf",
+    url: "/floorplans/ORCHID 34_CLASSIC_RH_BROCHURE_13.05.2020.png",
   },
   {
     design: "Quartz",
@@ -1544,7 +1544,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.69",
     frontage: "12.99",
-    url: "/floorplans_pdf/Quartz 21_Classic RH_Brochure_26.07.19.pdf",
+    url: "/floorplans/QUARTZ 21_CLASSIC RH_BROCHURE_26.07.19.png",
   },
   {
     design: "Quartz",
@@ -1554,7 +1554,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "209.70",
     frontage: "12.99",
-    url: "/floorplans_pdf/Quartz 23_Classic RH_Brochure_28.03.19.pdf",
+    url: "/floorplans/QUARTZ 23_CLASSIC RH_BROCHURE_28.03.19.png",
   },
   {
     design: "Quartz",
@@ -1564,7 +1564,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "228.39",
     frontage: "12.99",
-    url: "/floorplans_pdf/Quartz 25_Classic RH_Brochure_28.03.19.pdf",
+    url: "/floorplans/QUARTZ 25_CLASSIC RH_BROCHURE_28.03.19.png",
   },
   {
     design: "Quartz",
@@ -1574,7 +1574,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "249.80",
     frontage: "12.99",
-    url: "/floorplans_pdf/Quartz 27_Classic RH_Brochure_17.04.26.pdf",
+    url: "/floorplans/QUARTZ 27_CLASSIC RH_BROCHURE_17.04.26.png",
   },
   {
     design: "Robin",
@@ -1584,7 +1584,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "148.71",
     frontage: "13.94",
-    url: "/floorplans_pdf/Robin 5 Classic_Brochure_18.11.2025.pdf",
+    url: "/floorplans/ROBIN 5.png",
   },
   {
     design: "Robin",
@@ -1594,7 +1594,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "193.43",
     frontage: "13.84",
-    url: "/floorplans_pdf/Robin 6 Classic_Brochure_05.06.2026.pdf",
+    url: "/floorplans/ROBIN 6.png",
   },
   {
     design: "Robin",
@@ -1604,7 +1604,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "177.73",
     frontage: "13.00",
-    url: "/floorplans_pdf/Robin 7 Classic_Brochure_18.11.2025.pdf",
+    url: "/floorplans/ROBIN 7.png",
   },
   {
     design: "Robin",
@@ -1614,7 +1614,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "173.03",
     frontage: "10.27",
-    url: "/floorplans_pdf/Robin 8 Classic_Brochure_18.11.2025.pdf",
+    url: "/floorplans/ROBIN 8.png",
   },
   {
     design: "Rose",
@@ -1624,7 +1624,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "318.59",
     frontage: "17.53",
-    url: "/floorplans_pdf/ROSE 34 Classic_Brochure_RH_06.09.21.pdf",
+    url: "/floorplans/ROSE 34.png",
   },
   {
     design: "Rose",
@@ -1634,7 +1634,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "354.91",
     frontage: "19.81",
-    url: "/floorplans_pdf/ROSE 38 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/ROSE 38.png",
   },
   {
     design: "Rose",
@@ -1644,7 +1644,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "401.51",
     frontage: "19.81",
-    url: "/floorplans_pdf/ROSE 43 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/ROSE 43.png",
   },
   {
     design: "Rose",
@@ -1654,7 +1654,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "492.82",
     frontage: "22.69",
-    url: "/floorplans_pdf/ROSE 53 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/ROSE 53.png",
   },
   {
     design: "Rosewood",
@@ -1664,7 +1664,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "212.95",
     frontage: "13.28",
-    url: "/floorplans_pdf/Rosewood 23 Classic_Brochure_RH_24.01.2025.pdf",
+    url: "/floorplans/ROSEWOOD 23.png",
   },
   {
     design: "Rosewood",
@@ -1674,7 +1674,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "285.50",
     frontage: "13.86",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/10/Screenshot-2026-01-06-at-11.18.44-AM.pdf",
+    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/10/Screenshot-2026-01-06-at-11.18.44-AM.png",
   },
   {
     design: "Ruby",
@@ -1684,7 +1684,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "174.93",
     frontage: "7.83",
-    url: "/floorplans_pdf/Ruby 19 Classic_RH_07.11.2022.pdf",
+    url: "/floorplans/RUBY 19.png",
   },
   {
     design: "Ruby",
@@ -1694,7 +1694,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "195.51",
     frontage: "8.31",
-    url: "/floorplans_pdf/Ruby 21 Classic_RH_07.11.2022.pdf",
+    url: "/floorplans/RUBY 21.png",
   },
   {
     design: "Ruby",
@@ -1704,7 +1704,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "214.17",
     frontage: "9.03",
-    url: "/floorplans_pdf/Ruby 23 Classic_RH_07.11.2022.pdf",
+    url: "/floorplans/RUBY 23.png",
   },
   {
     design: "Ruby",
@@ -1714,7 +1714,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "251.38",
     frontage: "12.78",
-    url: "/floorplans_pdf/Ruby 26 Classic_RH_16.10.2022.pdf",
+    url: "/floorplans/RUBY 26.png",
   },
   {
     design: "Ruby",
@@ -1724,7 +1724,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "263.37",
     frontage: "9.75",
-    url: "/floorplans_pdf/Ruby 28 Classic_RH_15.12.2025.pdf",
+    url: "/floorplans/RUBY 28.png",
   },
   {
     design: "Saffron",
@@ -1734,7 +1734,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "214.46",
     frontage: "13.23",
-    url: "/floorplans_pdf/Saffron 23 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SAFFRON 23.png",
   },
   {
     design: "Saffron",
@@ -1744,7 +1744,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "245.88",
     frontage: "14.91",
-    url: "/floorplans_pdf/Saffron 26 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SAFFRON 26.png",
   },
   {
     design: "Saffron",
@@ -1754,7 +1754,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "283.12",
     frontage: "17.19",
-    url: "/floorplans_pdf/Saffron 30 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SAFFRON 30.png",
   },
   {
     design: "Saffron",
@@ -1764,7 +1764,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "320.98",
     frontage: "17.91",
-    url: "/floorplans_pdf/Saffron 35 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SAFFRON 35.png",
   },
   {
     design: "Sienna",
@@ -1774,7 +1774,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "257.87",
     frontage: "14.91",
-    url: "/floorplans_pdf/Sienna 28 Classic Brochure_RH_23.08.24.pdf",
+    url: "/floorplans/SIENNA 28.png",
   },
   {
     design: "Sienna",
@@ -1784,7 +1784,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "283.24",
     frontage: "17.07",
-    url: "/floorplans_pdf/Sienna 30 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SIENNA 30.png",
   },
   {
     design: "Sienna",
@@ -1794,7 +1794,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.51",
     frontage: "17.31",
-    url: "/floorplans_pdf/Sienna 33 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/SIENNA 33.png",
   },
   {
     design: "Sienna",
@@ -1804,7 +1804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "335.41",
     frontage: "17.55",
-    url: "/floorplans_pdf/Sienna 36 Classic_Brochure_RH_14.02.18.pdf",
+    url: "/floorplans/SIENNA 36.png",
   },
   {
     design: "Tangerine",
@@ -1814,7 +1814,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "346.67",
     frontage: "13.81",
-    url: "/floorplans_pdf/TANGERINE 37 Classic_Brochure_RH_16.07.2020.pdf",
+    url: "/floorplans/TANGERINE 37.png",
   },
   {
     design: "Tangerine",
@@ -1824,7 +1824,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "383.40",
     frontage: "14.41",
-    url: "/floorplans_pdf/TANGERINE 41 Classic_Brochure_RH_23.08.24.pdf",
+    url: "/floorplans/TANGERINE 41.png",
   },
   {
     design: "Tangerine",
@@ -1834,7 +1834,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "411.72",
     frontage: "15.01",
-    url: "/floorplans_pdf/TANGERINE 44 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/TANGERINE 44.png",
   },
   {
     design: "Tangerine",
@@ -1844,7 +1844,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "451.78",
     frontage: "15.59",
-    url: "/floorplans_pdf/TANGERINE 49 Classic_Brochure_RH_11.02.20.pdf",
+    url: "/floorplans/TANGERINE 49.png",
   },
   {
     design: "Terracotta",
@@ -1854,7 +1854,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "1",
     size: "211.58",
     frontage: "9.63",
-    url: "/floorplans_pdf/Terracotta 23 Classic RH_Brochure_07.11.22.pdf",
+    url: "/floorplans/TERRACOTTA 23.png",
   },
   {
     design: "Terracotta",
@@ -1864,7 +1864,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "230.69",
     frontage: "10.31",
-    url: "/floorplans_pdf/Terracotta 25 Classic RH_Brochure_07.11.22.pdf",
+    url: "/floorplans/TERRACOTTA 25.png",
   },
   {
     design: "Terracotta",
@@ -1874,7 +1874,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "282.01",
     frontage: "12.39",
-    url: "/floorplans_pdf/Terracotta 30 Classic RH_Brochure_21.02.22.pdf",
+    url: "/floorplans/TERRACOTTA 30.png",
   },
   {
     design: "Terracotta",
@@ -1884,7 +1884,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "336.10",
     frontage: "12.99",
-    url: "/floorplans_pdf/Terracotta 36 Classic RH_Brochure_21.02.22.pdf",
+    url: "/floorplans/TERRACOTTA 36.png",
   },
   {
     design: "Tiffany",
@@ -1894,7 +1894,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "203.97",
     frontage: "16.35",
-    url: "/floorplans_pdf/Tiffany 22 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TIFFANY 22.png",
   },
   {
     design: "Tiffany",
@@ -1904,7 +1904,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.53",
     frontage: "17.31",
-    url: "/floorplans_pdf/Tiffany 24 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TIFFANY 24.png",
   },
   {
     design: "Tiffany",
@@ -1914,7 +1914,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "252.45",
     frontage: "17.31",
-    url: "/floorplans_pdf/Tiffany 27 Classic_Brochure_RH_17.04.26.pdf",
+    url: "/floorplans/TIFFANY 27.png",
   },
   {
     design: "Tiffany",
@@ -1924,7 +1924,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "271.65",
     frontage: "17.31",
-    url: "/floorplans_pdf/Tiffany 29 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TIFFANY 29.png",
   },
   {
     design: "Topaz",
@@ -1934,7 +1934,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "199.37",
     frontage: "12.99",
-    url: "/floorplans_pdf/Topaz 21 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TOPAZ 21.png",
   },
   {
     design: "Topaz",
@@ -1944,7 +1944,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "213.92",
     frontage: "13.47",
-    url: "/floorplans_pdf/Topaz 23 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TOPAZ 23.png",
   },
   {
     design: "Topaz",
@@ -1954,7 +1954,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "239.47",
     frontage: "13.47",
-    url: "/floorplans_pdf/Topaz 26 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TOPAZ 26.png",
   },
   {
     design: "Topaz",
@@ -1964,7 +1964,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "268.05",
     frontage: "14.67",
-    url: "/floorplans_pdf/Topaz 29 Classic_Brochure_RH_12.04.18.pdf",
+    url: "/floorplans/TOPAZ 29.png",
   },
   {
     design: "Turquoise",
@@ -1974,7 +1974,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "222.13",
     frontage: "9.49",
-    url: "/floorplans_pdf/TURQUOISE 24 Classic RH_Brochure_07.11.22.pdf",
+    url: "/floorplans/TURQUOISE 24.png",
   },
   {
     design: "Turquoise",
@@ -1984,7 +1984,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "235.31",
     frontage: "9.49",
-    url: "/floorplans_pdf/TURQUOISE 25 Classic RH_Brochure_07.11.22.pdf",
+    url: "/floorplans/TURQUOISE 25.png",
   },
   {
     design: "Turquoise",
@@ -1994,7 +1994,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "244.98",
     frontage: "10.57",
-    url: "/floorplans_pdf/TURQUOISE 26 Classic RH_Brochure_17.04.18.pdf",
+    url: "/floorplans/TURQUOISE 26.png",
   },
   {
     design: "Turquoise",
@@ -2004,7 +2004,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "263.24",
     frontage: "10.57",
-    url: "/floorplans_pdf/TURQUOISE 28 Classic RH_Brochure_26.06.18.pdf",
+    url: "/floorplans/TURQUOISE 28.png",
   },
   {
     design: "Turquoise",
@@ -2014,7 +2014,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "290.14",
     frontage: "10.57",
-    url: "/floorplans_pdf/TURQUOISE 31 Classic RH_Brochure_26.06.18.pdf",
+    url: "/floorplans/TURQUOISE 31.png",
   },
   {
     design: "Violet",
@@ -2024,7 +2024,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "309.3",
     frontage: "13.21",
-    url: "/floorplans_pdf/VIOLET 33 Classic RH_Brochure_06.02.26.pdf",
+    url: "/floorplans/VIOLET 33.png",
   },
   {
     design: "Violet",
@@ -2034,7 +2034,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "372.44",
     frontage: "14.03",
-    url: "/floorplans_pdf/VIOLET 40 Classic RH_Brochure_16.04.18.pdf",
+    url: "/floorplans/VIOLET 40.png",
   },
   {
     design: "Violet",
@@ -2044,7 +2044,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "415.04",
     frontage: "14.99",
-    url: "/floorplans_pdf/VIOLET 45 Classic RH_Brochure_16.04.18.pdf",
+    url: "/floorplans/VIOLET 45.png",
   },
   {
     design: "Violet",
@@ -2054,7 +2054,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "442.11",
     frontage: "14.99",
-    url: "/floorplans_pdf/VIOLET 48 Classic RH_Brochure_16.04.18.pdf",
+    url: "/floorplans/VIOLET 48.png",
   },
   {
     design: "Violet",
@@ -2064,7 +2064,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "3",
     size: "586.61",
     frontage: "18.26",
-    url: "/floorplans_pdf/VIOLET 64 Classic RH_Brochure_11.02.20.pdf",
+    url: "/floorplans/VIOLET 64.png",
   },
   {
     design: "Viridian",
@@ -2074,7 +2074,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "264.05",
     frontage: "12.61",
-    url: "/floorplans_pdf/VIRIDIAN 28 Classic RH_Brochure_13.04.18.pdf",
+    url: "/floorplans/VIRIDIAN 28.png",
   },
   {
     design: "Viridian",
@@ -2084,7 +2084,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "310.96",
     frontage: "12.65",
-    url: "/floorplans_pdf/Viridian 32 Classic LH_Brochure 28.02.23.pdf",
+    url: "/floorplans/VIRIDIAN 32.png",
   },
   {
     design: "Viridian",
@@ -2094,7 +2094,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "360.85",
     frontage: "14.91",
-    url: "/floorplans_pdf/VIRIDIAN 39 Classic RH_Brochure_13.04.18.pdf",
+    url: "/floorplans/VIRIDIAN 39.png",
   },
   {
     design: "Viridian",
@@ -2104,7 +2104,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "400.00",
     frontage: "14.43",
-    url: "/floorplans_pdf/VIRIDIAN 43 Classic RH_Brochure_13.04.18.pdf",
+    url: "/floorplans/VIRIDIAN 43.png",
   },
   {
     design: "Wisteria",
@@ -2114,7 +2114,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "201.45",
     frontage: "14.67",
-    url: "/floorplans_pdf/Wisteria 22_Classic_Brochure_RH_03.03.2022.pdf",
+    url: "/floorplans/WISTERIA 22_CLASSIC_BROCHURE_RH_03.03.2022.png",
   },
   {
     design: "Wisteria",
@@ -2124,7 +2124,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "226.25",
     frontage: "14.55",
-    url: "/floorplans_pdf/Wisteria 24 MKII_Classic_Brochure_RH_01.07.2025.pdf",
+    url: "/floorplans/WISTERIA 24.png",
   },
   {
     design: "Wisteria",
@@ -2134,6 +2134,6 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "240.79",
     frontage: "12.47",
-    url: "/floorplans_pdf/Wisteria 26 MKII_Classic_Brochure_RH_15.08.2025.pdf",
+    url: "/floorplans/WISTERIA 26.png",
   },
 ];

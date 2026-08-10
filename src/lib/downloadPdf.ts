@@ -111,7 +111,7 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         scale: 5.0,
         useCORS: true,
         logging: false,
-        letterRendering: true,
+        // letterRendering: true,
         windowWidth: 794,
         windowHeight: 1123,
         imageTimeout: 15000,

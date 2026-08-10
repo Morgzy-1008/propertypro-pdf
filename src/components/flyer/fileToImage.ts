@@ -1,4 +1,3 @@
-import { getIdbFloorplan, saveIdbFloorplan } from "./idbFloorplanCache";
 import { authHeaders } from "@/lib/api-auth";
 import { HUDSON_FACADES } from "./facades.data";
 
@@ -7,7 +6,7 @@ import { HUDSON_FACADES } from "./facades.data";
  * Converts an uploaded image OR PDF (first page) into a PNG data URL
  * so it can be rendered inside the flyer preview and printed.
  */
-export async function fileToImageDataUrl(file: File): Promise<string> {
+export async function fileToImageDataUrl(file: File): Promise<string | null> {
   if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
     return pdfFirstPageToDataUrl(file);
   }
@@ -25,12 +24,12 @@ export async function fileToImageDataUrl(file: File): Promise<string> {
  * the page at high resolution, drop the border rules and then keep only the
  * dominant content block (the plan), discarding the smaller satellite blocks.
  */
-export async function floorplanFileToDataUrl(file: File): Promise<string> {
+export async function floorplanFileToDataUrl(file: File): Promise<string | null> {
   const raw = await fileToImageDataUrl(file);
   return cropToFloorplan(raw);
 }
 
-async function pdfFirstPageToDataUrl(file: File): Promise<string> {
+async function pdfFirstPageToDataUrl(file: File): Promise<string | null> {
   const pdfjs = await import("pdfjs-dist");
   const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -79,7 +78,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  *    keeps only the dominant block(s) — dropping the logo strip and the plan
  *    details / legend panels.
  */
-export async function cropToFloorplan(dataUrl: string): Promise<string> {
+export async function cropToFloorplan(dataUrl: string): Promise<string | null> {
   try {
     const img = await loadImage(dataUrl);
     const W = img.naturalWidth;
@@ -245,7 +244,7 @@ function sharpenLineArt(ctx: CanvasRenderingContext2D, w: number, h: number) {
  * Trims the blank page area around the artwork and returns just the content,
  * with a small breathing-room padding. Falls back to the original on failure.
  */
-export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<string> {
+export async function cropToContent(dataUrl: string, padRatio = 0.012): Promise<string | null> {
   try {
     const img = await loadImage(dataUrl);
     const w = img.naturalWidth;
@@ -323,7 +322,7 @@ const facadeOutpaintCache = new Map<string, string>();
 
 
 
-export async function enhanceFacade(src: string): Promise<string> {
+export async function enhanceFacade(src: string): Promise<string | null> {
   return widenFacadeClientSide({
     id: "custom",
     name: "Enhanced Facade",
@@ -337,7 +336,7 @@ const GEMINI_KEY =
   (typeof process !== "undefined" && (process as any)?.env?.VITE_GEMINI_API_KEY) ||
   ["AQ", "Ab8RN6IyCs5kWdk1bolcgdCy5DpK-x5-1VOBNoyNT97nIgkrLA"].join(".");
 
-function blobToBase64(blob: Blob): Promise<string> {
+function blobToBase64(blob: Blob): Promise<string | null> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
@@ -346,7 +345,7 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: string): Promise<string> {
+async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!url) return "";
   if (url.startsWith("data:")) return url;
 
@@ -375,7 +374,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
         console.log("[getRawFacadeBase64] Direct fetch failed with status:", res.status);
       }
     } catch (e) {
-      console.log("[getRawFacadeBase64] Direct fetch threw:", e.message);
+      console.log("[getRawFacadeBase64] Direct fetch threw:", (e as Error).message);
     }
 
     // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
@@ -400,7 +399,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
             console.log("[getRawFacadeBase64] Proxy failed with status:", res.status);
           }
         } catch (e) {
-          console.log("[getRawFacadeBase64] Proxy threw:", e.message);
+          console.log("[getRawFacadeBase64] Proxy threw:", (e as Error).message);
         }
       }
     }
@@ -420,7 +419,7 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
         return dataUrl;
       }
     } catch (e) {
-      console.log("[getRawFacadeBase64] Canvas fallback threw:", e.message);
+      console.log("[getRawFacadeBase64] Canvas fallback threw:", (e as Error).message);
     }
   }
   return "";
@@ -716,94 +715,64 @@ export async function widenFacade(item: {
   id: string;
   name: string;
   url: string;
-}): Promise<string> {
+}): Promise<string | null> {
   return widenFacadeClientSide(item);
 }
 
 /** Trimmed floorplans, keyed by their published URL. */
 const floorplanCache = new Map<string, string>();
 const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
-export async function prepareFloorplan(url: string): Promise<string> {
+
+export async function prepareFloorplan(url: string): Promise<string | null> {
   if (!url || url.startsWith("data:")) return url;
 
   // Local pre-processed high-quality floorplans don't need fetching/cropping/sharpening
-  if (url.startsWith("/floorplans/") && !url.toLowerCase().endsWith(".pdf")) {
+  if (url.startsWith("/floorplans/")) {
     return url;
   }
 
   const cacheKey = `${url}::${FLOORPLAN_PIPELINE_VERSION}`;
-  
-  // 1. Check in-memory cache
   const cached = floorplanCache.get(cacheKey);
   if (cached) return cached;
-  
-  // 2. Check IndexedDB cache
-  try {
-    const idbCached = await getIdbFloorplan(cacheKey);
-    if (idbCached) {
-      floorplanCache.set(cacheKey, idbCached);
-      return idbCached;
-    }
-  } catch (err) {
-    console.warn("IDB cache read failed", err);
-  }
 
   try {
-    let dataUrl = "";
-    if (url.toLowerCase().endsWith(".pdf")) {
+    let b64 = "";
+    // 1. Try direct fetch
+    try {
       const res = await fetch(url);
       if (res.ok) {
         const blob = await res.blob();
-        const file = new File([blob], "floorplan.pdf", { type: "application/pdf" });
-        dataUrl = await dynamicPdfFloorplanToDataUrl(file);
+        b64 = await blobToBase64(blob);
       }
-    } else {
-      let b64 = "";
-      // 1. Try direct fetch
-      try {
-        const res = await fetch(url);
-        if (res.ok) {
-          const blob = await res.blob();
-          b64 = await blobToBase64(blob);
-        }
-      } catch {
-        /* try CORS proxy */
-      }
-  
-      // 2. Try CORS proxy if direct fetch failed
-      if (!b64 || !b64.startsWith("data:image/")) {
-        const proxies = [
-          `https://corsproxy.io/?${encodeURIComponent(url)}`,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        ];
-        for (const proxyUrl of proxies) {
-          try {
-            const res = await fetch(proxyUrl);
-            if (res.ok) {
-              const blob = await res.blob();
-              b64 = await blobToBase64(blob);
-              if (b64.startsWith("data:image/")) break;
-            }
-          } catch {
-            /* try next proxy */
+    } catch {
+      /* try CORS proxy */
+    }
+
+    // 2. Try CORS proxy if direct fetch failed
+    if (!b64 || !b64.startsWith("data:image/")) {
+      const proxies = [
+        `https://corsproxy.io/?${encodeURIComponent(url)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ];
+      for (const proxyUrl of proxies) {
+        try {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const blob = await res.blob();
+            b64 = await blobToBase64(blob);
+            if (b64.startsWith("data:image/")) break;
           }
+        } catch {
+          /* try next proxy */
         }
-      }
-  
-      if (b64 && b64.startsWith("data:image/")) {
-        const trimmed = await cropToContent(b64, 0.008);
-        dataUrl = await sharpenPlan(trimmed);
       }
     }
 
-    if (dataUrl) {
-      floorplanCache.set(cacheKey, dataUrl);
-      try {
-        await saveIdbFloorplan(cacheKey, dataUrl);
-      } catch (err) {
-        console.warn("IDB cache write failed", err);
-      }
-      return dataUrl;
+    if (b64 && b64.startsWith("data:image/")) {
+      const trimmed = await cropToContent(b64, 0.008);
+      const sharp = await sharpenPlan(trimmed);
+      floorplanCache.set(cacheKey, sharp);
+      return sharp;
     }
   } catch (err) {
     console.error("[prepareFloorplan Error]", err);
@@ -819,7 +788,7 @@ const MIN_GARAGE_D = 6.0;
  * text stay crisp in print. Purely photometric: an unsharp mask plus a levels
  * stretch on a white page. No geometry is moved, so the design is untouched.
  */
-export async function sharpenPlan(dataUrl: string): Promise<string> {
+export async function sharpenPlan(dataUrl: string): Promise<string | null> {
   try {
     const img = await loadImage(dataUrl);
     const w0 = img.naturalWidth;
@@ -885,7 +854,7 @@ export async function sharpenPlan(dataUrl: string): Promise<string> {
  * advertised below Hudson's 5.7m x 6.0m minimum, re-letters just that label to
  * 5.7 x 6.0. Only the text pixels are repainted — the drawing is not altered.
  */
-export async function fixGarageDimensions(dataUrl: string): Promise<string> {
+export async function fixGarageDimensions(dataUrl: string): Promise<string | null> {
   return dataUrl;
 }
 
@@ -899,7 +868,7 @@ const facadeCache = new Map<string, string>();
  * colour (photo letterboxing / flat padding). Photographic content stops the
  * scan immediately, so real scenery is never cut.
  */
-async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<string> {
+async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<string | null> {
   try {
     const img = await loadImage(dataUrl);
     const w = img.naturalWidth;
@@ -955,7 +924,7 @@ async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<strin
   }
 }
 
-export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string> {
+export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!dataUrl) return dataUrl;
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
@@ -999,298 +968,5 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     console.error("[prepareFacade Error]", err);
     return dataUrl;
   }
-}
-
-
-async function cropToFloorplanCanvas(inCanvas: HTMLCanvasElement): Promise<string> {
-  try {
-    const W = inCanvas.width;
-    const H = inCanvas.height;
-    
-    const ctx = inCanvas.getContext("2d", { willReadFrequently: true })!;
-    const image = ctx.getImageData(0, 0, W, H);
-    const data = image.data;
-    
-    const cell = 10;
-    const cols = Math.floor(W / cell);
-    const rows = Math.floor(H / cell);
-    
-    const grid = new Uint8Array(rows * cols);
-    
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        let hasInk = false;
-        let rSum = 0, gSum = 0, bSum = 0;
-        
-        for (let y = 0; y < cell; y++) {
-          for (let x = 0; x < cell; x++) {
-            const px = (c * cell + x);
-            const py = (r * cell + y);
-            if (px >= W || py >= H) continue;
-            
-            const idx = (py * W + px) * 4;
-            rSum += data[idx];
-            gSum += data[idx + 1];
-            bSum += data[idx + 2];
-            const a = data[idx + 3];
-            
-            if (a > 100 && (data[idx] < 240 || data[idx + 1] < 240 || data[idx + 2] < 240)) {
-              hasInk = true;
-            }
-          }
-        }
-        
-        if (!hasInk && (rSum / (cell * cell) < 240 || gSum / (cell * cell) < 240 || bSum / (cell * cell) < 240)) {
-          hasInk = true; 
-        }
-        
-        // Clear ink on the extreme outer 5% margin to ensure borders are disconnected from the center
-        if (c < cols * 0.05 || c > cols * 0.95 || r < rows * 0.05 || r > rows * 0.95) {
-           hasInk = false;
-        }
-        
-        if (hasInk) {
-          grid[r * cols + c] = 1;
-        }
-      }
-    }
-    
-    const dilated = new Uint8Array(rows * cols);
-    const DILATE = 6; 
-    
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (grid[r * cols + c]) {
-          const rMin = Math.max(0, r - DILATE);
-          const rMax = Math.min(rows - 1, r + DILATE);
-          const cMin = Math.max(0, c - DILATE);
-          const cMax = Math.min(cols - 1, c + DILATE);
-          for (let rr = rMin; rr <= rMax; rr++) {
-            for (let cc = cMin; cc <= cMax; cc++) {
-              dilated[rr * cols + cc] = 1;
-            }
-          }
-        }
-      }
-    }
-    
-    const visited = new Uint8Array(rows * cols);
-    let maxCount = 0;
-    const comps = [];
-    
-    // Destroy any borders by erasing the outer 200 pixels (roughly 20 cells) of the grid
-    const marginCells = 20;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (r < marginCells || r >= rows - marginCells || c < marginCells || c >= cols - marginCells) {
-           grid[r * cols + c] = 0;
-           dilated[r * cols + c] = 0;
-        }
-      }
-    }
-
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (dilated[r * cols + c] && !visited[r * cols + c]) {
-          let count = 0;
-          const comp = [];
-          const q = [[r, c]];
-          visited[r * cols + c] = 1;
-          let head = 0;
-          
-          while (head < q.length) {
-            const [currR, currC] = q[head++];
-            if (grid[currR * cols + currC]) {
-              comp.push([currR, currC]);
-              count++;
-            }
-            
-            const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
-            for (const [dr, dc] of dirs) {
-              const nr = currR + dr;
-              const nc = currC + dc;
-              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
-                if (dilated[nr * cols + nc] && !visited[nr * cols + nc]) {
-                  visited[nr * cols + nc] = 1;
-                  q.push([nr, nc]);
-                }
-              }
-            }
-          }
-          
-          if (count > 0) {
-            comps.push({ count, comp });
-            if (count > maxCount) maxCount = count;
-          }
-        }
-      }
-    }
-    
-      let bbox = null;
-      console.log('cropToFloorplanCanvas: Total comps:', comps.length);
-      comps.forEach((c, i) => console.log('Comp', i, 'size:', c.count));
-      
-      const compsWithBbox = comps.map(c => {
-        let minR = rows, maxR = 0;
-        for (let i = 0; i < c.comp.length; i++) {
-          const r = c.comp[i][0];
-          if (r < minR) minR = r;
-          if (r > maxR) maxR = r;
-        }
-        const centerR = (minR + maxR) / 2;
-        return { ...c, centerR };
-      });
-      
-      // Keep components that are either the absolute largest OR substantial in size (>1%) AND not in exclusion zones
-      const validComps = compsWithBbox.filter(c => {
-        if (c.count === maxCount) return true;
-        if (c.count < maxCount * 0.01) return false;
-        
-        const relativeY = c.centerR / rows;
-        // HUDSON HOMES logo is usually at top < 0.15
-        // Dimensions table is usually at bottom > 0.85
-        if (relativeY < 0.15 || relativeY > 0.85) {
-          return false;
-        }
-        return true;
-      });
-    
-    if (validComps.length > 0) {
-      bbox = [validComps[0].comp[0][1], validComps[0].comp[0][0], validComps[0].comp[0][1], validComps[0].comp[0][0]];
-      for (const vc of validComps) {
-        for (let i = 0; i < vc.comp.length; i++) {
-          const [r, c] = vc.comp[i];
-          bbox[0] = Math.min(bbox[0], c);
-          bbox[1] = Math.min(bbox[1], r);
-          bbox[2] = Math.max(bbox[2], c);
-          bbox[3] = Math.max(bbox[3], r);
-        }
-      }
-    }
-    
-    if (!bbox) return inCanvas.toDataURL("image/png");
-    
-    // Create a heavily dilated mask to erase everything that isn't the floorplan
-    const maskGrid = new Uint8Array(rows * cols);
-    for (const vc of validComps) {
-      for (let i = 0; i < vc.comp.length; i++) {
-        const [r, c] = vc.comp[i];
-        maskGrid[r * cols + c] = 1;
-      }
-    }
-    
-    const dilatedMask = new Uint8Array(rows * cols);
-    const MASK_DILATE = 12; // roughly 120 pixels buffer around the floorplan lines
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        if (maskGrid[r * cols + c]) {
-          const rMin = Math.max(0, r - MASK_DILATE);
-          const rMax = Math.min(rows - 1, r + MASK_DILATE);
-          const cMin = Math.max(0, c - MASK_DILATE);
-          const cMax = Math.min(cols - 1, c + MASK_DILATE);
-          for (let rr = rMin; rr <= rMax; rr++) {
-            for (let cc = cMin; cc <= cMax; cc++) {
-              dilatedMask[rr * cols + cc] = 1;
-            }
-          }
-        }
-      }
-    }
-    
-    const hrImageData = ctx.getImageData(0, 0, W, H);
-    const hrData = hrImageData.data;
-    for (let y = 0; y < H; y++) {
-      const r = Math.floor(y / cell);
-      for (let x = 0; x < W; x++) {
-        const c = Math.floor(x / cell);
-        if (r < rows && c < cols && !dilatedMask[r * cols + c]) {
-          const idx = (y * W + x) * 4;
-          hrData[idx] = 255;
-          hrData[idx+1] = 255;
-          hrData[idx+2] = 255;
-          hrData[idx+3] = 255;
-        }
-      }
-    }
-    ctx.putImageData(hrImageData, 0, 0);
-
-    const pad = Math.round(cell * 4); // Add a 40px padding around the isolated floorplan
-    const sx = Math.max(0, bbox[0] * cell - pad);
-    const sy = Math.max(0, bbox[1] * cell - pad);
-    const sw = Math.min(W - sx, (bbox[2] + 1) * cell - sx + pad);
-    const sh = Math.min(H - sy, (bbox[3] + 1) * cell - sy + pad);
-    
-    const out = document.createElement("canvas");
-    out.width = sw;
-    out.height = sh;
-    const octx = out.getContext("2d", { willReadFrequently: true })!;
-    octx.fillStyle = "#ffffff";
-    octx.fillRect(0, 0, sw, sh);
-    
-    const croppedImageData = ctx.getImageData(sx, sy, sw, sh);
-    octx.putImageData(croppedImageData, 0, 0);
-    
-    return out.toDataURL("image/png");
-  } catch {
-    return inCanvas.toDataURL("image/png");
-  }
-}
-
-async function dynamicPdfFloorplanToDataUrl(file: File): Promise<string> {
-  const pdfjs = await import("pdfjs-dist");
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-
-  const data = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data }).promise;
-  
-  const numPages = Math.min(doc.numPages, 2);
-  const croppedPages: string[] = [];
-  
-  for (let i = 1; i <= numPages; i++) {
-    const page = await doc.getPage(i);
-    const base = page.getViewport({ scale: 1 });
-    // Increase scale for ultra crisp lines (approx 7200px width)
-    const scale = Math.min(7200 / base.width, 12);
-    const viewport = page.getViewport({ scale });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    await page.render({ canvasContext: ctx, viewport }).promise;
-    
-    const cropped = await cropToFloorplanCanvas(canvas);
-    croppedPages.push(cropped);
-  }
-  
-  if (croppedPages.length === 1) {
-    return croppedPages[0];
-  }
-  
-  const img1 = await loadImage(croppedPages[0]);
-  const img2 = await loadImage(croppedPages[1]);
-  
-  const gap = 200; 
-  const finalW = img1.naturalWidth + gap + img2.naturalWidth;
-  const finalH = Math.max(img1.naturalHeight, img2.naturalHeight);
-  
-  const finalCanvas = document.createElement("canvas");
-  finalCanvas.width = finalW;
-  finalCanvas.height = finalH;
-  const fctx = finalCanvas.getContext("2d", { willReadFrequently: true })!;
-  fctx.fillStyle = "#ffffff";
-  fctx.fillRect(0, 0, finalW, finalH);
-  
-  const y1 = Math.floor((finalH - img1.naturalHeight) / 2);
-  fctx.drawImage(img1, 0, y1);
-  
-  const y2 = Math.floor((finalH - img2.naturalHeight) / 2);
-  fctx.drawImage(img2, img1.naturalWidth + gap, y2);
-  
-  return finalCanvas.toDataURL("image/png");
 }
 
