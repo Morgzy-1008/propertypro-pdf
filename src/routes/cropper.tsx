@@ -2,12 +2,18 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { HUDSON_FLOORPLANS, FloorplanRecord } from "@/components/flyer/floorplans.data";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 
 export const Route = createFileRoute("/cropper")({
-  beforeLoad: ({ context }) => {
-    // Only allow Morgan
-    const user = (context as any).user;
+  ssr: false,
+  beforeLoad: async () => {
+    // Only allow Morgan — fetch user directly since this route is outside _authenticated
+    let user = null;
+    try {
+      const { data } = await supabase.auth.getUser();
+      user = data?.user ?? null;
+    } catch { /* ignore */ }
     if (!user || user.email !== "morgan.hales@hudsonhomes.com.au") {
       throw redirect({ to: "/" });
     }
