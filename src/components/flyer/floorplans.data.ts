@@ -13,6 +13,8 @@ export interface FloorplanRecord {
   /** Minimum lot width in m */
   frontage: string;
   url: string;
+  pdfUrl?: string;
+  cropBoxes?: { page: number; x: number; y: number; w: number; h: number }[];
 }
 
 export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
@@ -39,6 +41,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Alabaster",
     label: "Alabaster 31",
+    pdfUrl: "/floorplans_pdf/Alabaster 31_ Classic_Brochure_19.09.2025.pdf",
     beds: "6",
     baths: "4",
     cars: "2",
@@ -49,6 +52,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Alabaster",
     label: "Alabaster 36",
+    pdfUrl: "/floorplans_pdf/Alabaster 36_ Classic_Brochure_19.09.2025.pdf",
     beds: "8",
     baths: "4",
     cars: "2",
@@ -59,6 +63,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Alabaster",
     label: "Alabaster 40",
+    pdfUrl: "/floorplans_pdf/Alabaster 40_ Classic_Brochure_19.09.2025.pdf",
     beds: "8",
     baths: "4",
     cars: "2",
@@ -69,6 +74,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Charcoal",
     label: "Charcoal 24",
+    pdfUrl: "/floorplans_pdf/Charcoal 24 Classic_Brochure_RH_05.02.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -79,6 +85,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maroon",
     label: "Maroon 26",
+    pdfUrl: "/floorplans_pdf/MAROON 26 (QLD) 20.03.25.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -89,6 +96,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maroon",
     label: "Maroon 28",
+    pdfUrl: "/floorplans_pdf/MAROON 28 (QLD) LH BROCHURE 06.05.25.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -99,6 +107,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Raven",
     label: "Raven 45",
+    pdfUrl: "/floorplans_pdf/Raven 45_Classic_Brochure_27.05.25.pdf",
     beds: "10",
     baths: "6",
     cars: "2",
@@ -109,6 +118,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Raven",
     label: "Raven 55",
+    pdfUrl: "/floorplans_pdf/Raven 55 Classic_Brochure_05.06.26.pdf",
     beds: "10",
     baths: "6",
     cars: "2",
@@ -119,6 +129,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cayenne",
     label: "Cayenne 42",
+    pdfUrl: "/floorplans_pdf/Cayenne 42_Classic_Brochure_02.05.25.pdf",
     beds: "6",
     baths: "5",
     cars: "2",
@@ -129,6 +140,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cayenne",
     label: "Cayenne 45",
+    pdfUrl: "/floorplans_pdf/Cayenne 45 Classic_Brochure_02.05.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -139,6 +151,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cayenne",
     label: "Cayenne 47",
+    pdfUrl: "/floorplans_pdf/Cayenne 47_Classic_Brochure_02.05.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -149,6 +162,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cayenne",
     label: "Cayenne 56",
+    pdfUrl: "/floorplans_pdf/Cayenne 56-Classic_Brochure.pdf",
     beds: "10",
     baths: "5",
     cars: "2",
@@ -159,6 +173,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Teal",
     label: "Teal 29",
+    pdfUrl: "/floorplans_pdf/Teal 29_ Classic_Brochure_08.12.2025.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -169,6 +184,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Teal",
     label: "Teal 33",
+    pdfUrl: "/floorplans_pdf/Teal 33_ Classic_Brochure_05.06.2026.pdf",
     beds: "7",
     baths: "4",
     cars: "2",
@@ -179,6 +195,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Teal",
     label: "Teal 45",
+    pdfUrl: "/floorplans_pdf/Teal 45.pdf",
     beds: "6",
     baths: "6",
     cars: "3",
@@ -189,6 +206,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Teal",
     label: "Teal 48",
+    pdfUrl: "/floorplans_pdf/TEAL 48 Classic_Brochure_07.11.24.pdf",
     beds: "7",
     baths: "5.5",
     cars: "3",
@@ -209,6 +227,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Hazel",
     label: "Hazel 14",
+    pdfUrl: "/floorplans_pdf/Hazel 14 Classic_Brochure_RH_23.05.24.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -219,6 +238,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Hazel",
     label: "Hazel 15",
+    pdfUrl: "/floorplans_pdf/Hazel 15 Classic_Brochure_RH_23.05.24.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -229,6 +249,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Hazel",
     label: "Hazel 17",
+    pdfUrl: "/floorplans_pdf/Hazel 17 Classic_Brochure_RH_23.05.24.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -239,6 +260,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Hazel",
     label: "Hazel 19",
+    pdfUrl: "/floorplans_pdf/Hazel 19 Classic_Brochure_RH_23.05.24.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -249,6 +271,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Olive",
     label: "Olive 23",
+    pdfUrl: "/floorplans_pdf/Olive 23 Classic_Brochure_RH_22.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -259,6 +282,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Blanc",
     label: "Blanc 27",
+    pdfUrl: "/floorplans_pdf/Blanc 27 Classic_Brochure_RH_22.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -269,6 +293,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Amber",
     label: "Amber 21",
+    pdfUrl: "/floorplans_pdf/Amber 21 Classic_Brochure_RH_01.03.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -279,6 +304,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Amber",
     label: "Amber 23",
+    pdfUrl: "/floorplans_pdf/Amber 23 Classic_Brochure_RH_01.03.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -289,6 +315,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Amber",
     label: "Amber 26",
+    pdfUrl: "/floorplans_pdf/Amber 26 Classic_Brochure_RH_01.03.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -299,6 +326,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Amber",
     label: "Amber 30",
+    pdfUrl: "/floorplans_pdf/Amber 30 Classic_Brochure_RH_01.03.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -309,6 +337,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Azure",
     label: "Azure 19",
+    pdfUrl: "/floorplans_pdf/Azure 19 Classic_Brochure_RH_09.04.18.pdf",
     beds: "3",
     baths: "2",
     cars: "2",
@@ -319,6 +348,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Azure",
     label: "Azure 21",
+    pdfUrl: "/floorplans_pdf/Azure 21 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -329,6 +359,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Azure",
     label: "Azure 23",
+    pdfUrl: "/floorplans_pdf/Azure 23 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -339,6 +370,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Azure",
     label: "Azure 25",
+    pdfUrl: "/floorplans_pdf/AZURE 25 RH - CLASSIC BROCHURE 12.03.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -349,6 +381,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Burgundy",
     label: "Burgundy 27",
+    pdfUrl: "/floorplans_pdf/Burgundy 27_Classic_RH_01.06.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -359,6 +392,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Burgundy",
     label: "Burgundy 30",
+    pdfUrl: "/floorplans_pdf/Burgundy 30_Classic_RH_01.06.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -369,6 +403,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Burgundy",
     label: "Burgundy 32",
+    pdfUrl: "/floorplans_pdf/Burgundy 32_Classic_RH_01.06.2020.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -379,6 +414,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Burgundy",
     label: "Burgundy 34",
+    pdfUrl: "/floorplans_pdf/Burgundy 34_Classic_RH_01.06.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -389,6 +425,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Canary",
     label: "Canary 1",
+    pdfUrl: "/floorplans_pdf/Canary 1 Classic_Brochure_01.03.2023.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -399,6 +436,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Canary",
     label: "Canary 2",
+    pdfUrl: "/floorplans_pdf/Canary 2 Classic_Brochure_01.03.2023.pdf",
     beds: "3",
     baths: "1",
     cars: "1",
@@ -409,6 +447,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Canary",
     label: "Canary 3",
+    pdfUrl: "/floorplans_pdf/Canary 3 Classic_Brochure_01.03.2023.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -419,6 +458,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Canary",
     label: "Canary 4",
+    pdfUrl: "/floorplans_pdf/Canary 4 Classic_Brochure_01.03.2023.pdf",
     beds: "3",
     baths: "1",
     cars: "1",
@@ -429,6 +469,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carolina",
     label: "Carolina 22",
+    pdfUrl: "/floorplans_pdf/Carolina 22_Classic_RH_02.03.2023.pdf",
     beds: "3",
     baths: "2",
     cars: "2",
@@ -439,6 +480,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carolina",
     label: "Carolina 24",
+    pdfUrl: "/floorplans_pdf/Carolina 24_Classic_RH_02.03.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -449,6 +491,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carolina",
     label: "Carolina 26",
+    pdfUrl: "/floorplans_pdf/Carolina 26_Classic_RH_15.05.2023.pdf",
     beds: "5",
     baths: "2",
     cars: "2",
@@ -459,6 +502,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carolina",
     label: "Carolina 29",
+    pdfUrl: "/floorplans_pdf/Carolina 29_Classic_RH_15.05.2023.pdf",
     beds: "6",
     baths: "3",
     cars: "2",
@@ -469,6 +513,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carmine",
     label: "Carmine 17",
+    pdfUrl: "/floorplans_pdf/Carmine 17 Classic_Brochure_RH_20.04.2026.pdf",
     beds: "3",
     baths: "2",
     cars: "2",
@@ -479,6 +524,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carmine",
     label: "Carmine 19",
+    pdfUrl: "/floorplans_pdf/Carmine 19 Classic_Brochure_RH_20.04.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -489,6 +535,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carmine",
     label: "Carmine 21",
+    pdfUrl: "/floorplans_pdf/Carmine 21 MKII Classic_Brochure_RH_20.04.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -499,6 +546,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Carmine",
     label: "Carmine 23",
+    pdfUrl: "/floorplans_pdf/Carmine 23 MKII Classic_Brochure_RH_20.04.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -509,6 +557,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cedar",
     label: "Cedar 26",
+    pdfUrl: "/floorplans_pdf/Cedar 26 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -519,6 +568,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cedar",
     label: "Cedar 28",
+    pdfUrl: "/floorplans_pdf/Cedar 28 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -529,6 +579,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cedar",
     label: "Cedar 31",
+    pdfUrl: "/floorplans_pdf/Cedar 31 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -539,6 +590,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cedar",
     label: "Cedar 34",
+    pdfUrl: "/floorplans_pdf/Cedar 34 Classic_Brochure_RH_22.08.25.pdf",
     beds: "5",
     baths: "2",
     cars: "2",
@@ -559,6 +611,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cinnamon",
     label: "Cinnamon 23",
+    pdfUrl: "/floorplans_pdf/CINNAMON 23 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -569,6 +622,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cinnamon",
     label: "Cinnamon 26",
+    pdfUrl: "/floorplans_pdf/CINNAMON 26 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -579,6 +633,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cinnamon",
     label: "Cinnamon 30",
+    pdfUrl: "/floorplans_pdf/CINNAMON 30 Classic.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -589,6 +644,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cinnamon",
     label: "Cinnamon 36",
+    pdfUrl: "/floorplans_pdf/CINNAMON 36 Classic.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -599,6 +655,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cobalt",
     label: "Cobalt 22",
+    pdfUrl: "/floorplans_pdf/COBALT 22 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -609,6 +666,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cobalt",
     label: "Cobalt 26",
+    pdfUrl: "/floorplans_pdf/COBALT 26 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -619,6 +677,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cobalt",
     label: "Cobalt 30",
+    pdfUrl: "/floorplans_pdf/COBALT 30 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -629,6 +688,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Cobalt",
     label: "Cobalt 36",
+    pdfUrl: "/floorplans_pdf/COBALT 36 Classic_23.08.24.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -639,6 +699,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Coral",
     label: "Coral 19",
+    pdfUrl: "/floorplans_pdf/Coral 19 Classic RH_Brochure_29.08.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -649,6 +710,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Coral",
     label: "Coral 21",
+    pdfUrl: "/floorplans_pdf/Coral 21 Classic RH_Brochure_29.08.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -659,6 +721,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Coral",
     label: "Coral 23",
+    pdfUrl: "/floorplans_pdf/Coral 23 Classic RH_Brochure_29.08.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -669,6 +732,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Coral",
     label: "Coral 26",
+    pdfUrl: "/floorplans_pdf/Coral 26 Classic RH_Brochure_29.08.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -679,6 +743,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Crimson",
     label: "Crimson 24",
+    pdfUrl: "/floorplans_pdf/Crimson 24 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -689,6 +754,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Crimson",
     label: "Crimson 26",
+    pdfUrl: "/floorplans_pdf/Crimson 26 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -699,6 +765,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Crimson",
     label: "Crimson 29",
+    pdfUrl: "/floorplans_pdf/Crimson 29 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -709,6 +776,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Crimson",
     label: "Crimson 33",
+    pdfUrl: "/floorplans_pdf/Crimson 33 Classic_Brochure_RH_09.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -759,6 +827,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Emerald",
     label: "Emerald 28",
+    pdfUrl: "/floorplans_pdf/Emerald 28 Brochure Plan 28.02.23.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -769,6 +838,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Emerald",
     label: "Emerald 39",
+    pdfUrl: "/floorplans_pdf/EMERALD 39 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -779,6 +849,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Emerald",
     label: "Emerald 42",
+    pdfUrl: "/floorplans_pdf/EMERALD 42 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -789,6 +860,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Emerald",
     label: "Emerald 44",
+    pdfUrl: "/floorplans_pdf/EMERALD 44 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -799,6 +871,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Emerald",
     label: "Emerald 47",
+    pdfUrl: "/floorplans_pdf/EMERALD 47 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -849,6 +922,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Iris",
     label: "Iris 15",
+    pdfUrl: "/floorplans_pdf/Iris 15 Classic_Brochure_RH_07.11.2022.pdf",
     beds: "3",
     baths: "1",
     cars: "1",
@@ -859,6 +933,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Iris",
     label: "Iris 17",
+    pdfUrl: "/floorplans_pdf/Iris 17 Classic_Brochure_RH_07.11.2022.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -869,6 +944,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Iris",
     label: "Iris 18",
+    pdfUrl: "/floorplans_pdf/Iris 18 Classic_Brochure_RH_07.11.2022.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -879,6 +955,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Iris",
     label: "Iris 21",
+    pdfUrl: "/floorplans_pdf/Iris 21 Classic_Brochure_RH_10.09.19.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -889,6 +966,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ivory",
     label: "Ivory 21",
+    pdfUrl: "/floorplans_pdf/Ivory 21 Classic_Brochure_RH_06.02.2025.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -899,6 +977,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ivory",
     label: "Ivory 23",
+    pdfUrl: "/floorplans_pdf/Ivory 23 Classic_Brochure_RH_10.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -909,6 +988,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ivory",
     label: "Ivory 25",
+    pdfUrl: "/floorplans_pdf/Ivory 25 Classic_Brochure_RH_10.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -919,6 +999,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ivory",
     label: "Ivory 27",
+    pdfUrl: "/floorplans_pdf/Ivory 27 Classic_Brochure_RH_18.02.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -929,6 +1010,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ivory",
     label: "Ivory 29",
+    pdfUrl: "/floorplans_pdf/Ivory 29 Classic_Brochure_RH_10.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -959,6 +1041,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Jasper",
     label: "Jasper 17",
+    pdfUrl: "/floorplans_pdf/Jasper 17 Classic RH_Brochure_09.11.2022.pdf",
     beds: "3",
     baths: "2",
     cars: "2",
@@ -969,6 +1052,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Jasper",
     label: "Jasper 20",
+    pdfUrl: "/floorplans_pdf/Jasper 20 Classic RH_Brochure_09.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -979,6 +1063,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Jasper",
     label: "Jasper 24",
+    pdfUrl: "/floorplans_pdf/Jasper 24 Classic RH_Brochure_09.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -989,6 +1074,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Jasper",
     label: "Jasper 26",
+    pdfUrl: "/floorplans_pdf/Jasper 26 Classic RH_Brochure_17.04.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -999,6 +1085,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Lime",
     label: "Lime 19",
+    pdfUrl: "/floorplans_pdf/Lime 19_Classic_RH_02.05.2023.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -1009,6 +1096,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Lime",
     label: "Lime 21",
+    pdfUrl: "/floorplans_pdf/Lime 21_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1019,6 +1107,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Lime",
     label: "Lime 23",
+    pdfUrl: "/floorplans_pdf/Lime 23_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1029,6 +1118,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Lime",
     label: "Lime 25",
+    pdfUrl: "/floorplans_pdf/Lime 25_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1039,6 +1129,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magenta",
     label: "Magenta 26",
+    pdfUrl: "/floorplans_pdf/Magenta 26 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1049,6 +1140,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magenta",
     label: "Magenta 29",
+    pdfUrl: "/floorplans_pdf/Magenta 29 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1059,6 +1151,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magenta",
     label: "Magenta 33",
+    pdfUrl: "/floorplans_pdf/Magenta 33 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1069,6 +1162,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magenta",
     label: "Magenta 36",
+    pdfUrl: "/floorplans_pdf/Magenta 36 Classic_Brochure_RH_22.08.25.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1079,6 +1173,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 34",
+    pdfUrl: "/floorplans_pdf/Magnolia 34_ Classic_Brochure_17.04.2026.pdf",
     beds: "6",
     baths: "5",
     cars: "2",
@@ -1089,6 +1184,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 37",
+    pdfUrl: "/floorplans_pdf/Magnolia 37_ Classic_Brochure_05.05.2026.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1099,6 +1195,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 43",
+    pdfUrl: "/floorplans_pdf/Magnolia 43_ Classic_Brochure_20.12.24.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1109,6 +1206,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 45",
+    pdfUrl: "/floorplans_pdf/Magnolia 45_ Classic_Brochure_20.12.24.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1119,6 +1217,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 47",
+    pdfUrl: "/floorplans_pdf/Magnolia 47 MKII_ Classic_Brochure_01.07.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1129,6 +1228,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Magnolia",
     label: "Magnolia 53",
+    pdfUrl: "/floorplans_pdf/Magnolia 53 MKII_ Classic_Brochure_01.07.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1139,6 +1239,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mulberry",
     label: "Mulberry 22",
+    pdfUrl: "/floorplans_pdf/Mulberry 22_Classic RH_Brochure_11.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1149,6 +1250,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mulberry",
     label: "Mulberry 25",
+    pdfUrl: "/floorplans_pdf/Mulberry 25_Classic RH_Brochure_06.06.19.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1169,6 +1271,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mulberry",
     label: "Mulberry 28",
+    pdfUrl: "/floorplans_pdf/Mulberry 28_Classic RH_Brochure_11.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1189,6 +1292,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mulberry",
     label: "Mulberry 33",
+    pdfUrl: "/floorplans_pdf/Mulberry 33_Classic RH_Brochure_11.04.18.pdf",
     beds: "4",
     baths: "2.5",
     cars: "2",
@@ -1209,6 +1313,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mulberry",
     label: "Mulberry 39",
+    pdfUrl: "/floorplans_pdf/Mulberry 39_Classic RH_Brochure_21.10.21.pdf",
     beds: "4",
     baths: "2.5",
     cars: "2",
@@ -1259,6 +1364,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 33",
+    pdfUrl: "/floorplans_pdf/Maize 33_ Classic_Brochure_10.11.25.pdf",
     beds: "6",
     baths: "5",
     cars: "2",
@@ -1269,6 +1375,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 36",
+    pdfUrl: "/floorplans_pdf/Maize 36_ Classic_Brochure_10.11.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1279,6 +1386,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 40",
+    pdfUrl: "/floorplans_pdf/Maize 40_ Classic_Brochure_10.11.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1289,6 +1397,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 43",
+    pdfUrl: "/floorplans_pdf/Maize 43_ Classic_Brochure_10.11.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1299,6 +1408,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 47",
+    pdfUrl: "/floorplans_pdf/Maize 47_Classic_Brochure_10.11.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1309,6 +1419,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Maize",
     label: "Maize 54",
+    pdfUrl: "/floorplans_pdf/Maize 54 Classic_Brochure_10.11.25.pdf",
     beds: "8",
     baths: "5",
     cars: "2",
@@ -1319,6 +1430,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Marigold",
     label: "Marigold 26",
+    pdfUrl: "/floorplans_pdf/Marigold 26_Classic_LH_15.05.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1329,6 +1441,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Marigold",
     label: "Marigold 28",
+    pdfUrl: "/floorplans_pdf/Marigold 28_Classic_LH_13.05.20.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -1339,6 +1452,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Marigold",
     label: "Marigold 31",
+    pdfUrl: "/floorplans_pdf/Marigold 31_Classic_LH_13.05.20.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1349,6 +1463,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Marigold",
     label: "Marigold 35",
+    pdfUrl: "/floorplans_pdf/Marigold 35_Classic_LH_24.05.21.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1359,6 +1474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mauve",
     label: "Mauve 24",
+    pdfUrl: "/floorplans_pdf/MAUVE 24 Classic.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1369,6 +1485,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mauve",
     label: "Mauve 28",
+    pdfUrl: "/floorplans_pdf/MAUVE 28 Classic.pdf",
     beds: "5",
     baths: "2",
     cars: "2",
@@ -1379,6 +1496,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mauve",
     label: "Mauve 32",
+    pdfUrl: "/floorplans_pdf/MAUVE 32 Classic.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1389,6 +1507,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mauve",
     label: "Mauve 35",
+    pdfUrl: "/floorplans_pdf/MAUVE 35 Classic.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1399,6 +1518,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mint",
     label: "Mint 17",
+    pdfUrl: "/floorplans_pdf/Mint 17_Classic_RH_02.05.2023.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -1409,6 +1529,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mint",
     label: "Mint 19",
+    pdfUrl: "/floorplans_pdf/Mint 19_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1419,6 +1540,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mint",
     label: "Mint 21",
+    pdfUrl: "/floorplans_pdf/Mint 21_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1429,6 +1551,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mint",
     label: "Mint 24",
+    pdfUrl: "/floorplans_pdf/Mint 24_Classic_RH_02.05.2023.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1439,6 +1562,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mocha",
     label: "Mocha 24",
+    pdfUrl: "/floorplans_pdf/Mocha 24_Classic_Attached Garage_07.07.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1449,6 +1573,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mocha",
     label: "Mocha 25",
+    pdfUrl: "/floorplans_pdf/Mocha 25_Classic_13.09.19.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1459,6 +1584,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mocha",
     label: "Mocha 28",
+    pdfUrl: "/floorplans_pdf/Mocha 28_Classic_10.11.21.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1469,6 +1595,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mocha",
     label: "Mocha 31",
+    pdfUrl: "/floorplans_pdf/Mocha 31_Classic_13.12.19.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1479,6 +1606,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Mocha",
     label: "Mocha 35",
+    pdfUrl: "/floorplans_pdf/Mocha 35_Classic_24.05.21.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1489,6 +1617,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Onyx",
     label: "Onyx 17",
+    pdfUrl: "/floorplans_pdf/Onyx 17 Classic RH_Brochure_10.08.20.pdf",
     beds: "3",
     baths: "2",
     cars: "2",
@@ -1499,6 +1628,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Onyx",
     label: "Onyx 19",
+    pdfUrl: "/floorplans_pdf/Onyx 19 Classic RH_Brochure_10.08.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1509,6 +1639,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Onyx",
     label: "Onyx 21",
+    pdfUrl: "/floorplans_pdf/Onyx 21 Classic RH_Brochure_10.08.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1519,6 +1650,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Onyx",
     label: "Onyx 24",
+    pdfUrl: "/floorplans_pdf/Onyx 24 Classic RH_Brochure_10.08.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1529,6 +1661,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Orchid",
     label: "Orchid 23",
+    pdfUrl: "/floorplans_pdf/Orchid 23_Classic_RH_Brochure_07.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1539,6 +1672,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Orchid",
     label: "Orchid 25",
+    pdfUrl: "/floorplans_pdf/Orchid 25_Classic_RH_Brochure_13.05.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1549,6 +1683,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Orchid",
     label: "Orchid 29",
+    pdfUrl: "/floorplans_pdf/Orchid 29_Classic_RH_Brochure_13.05.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1559,6 +1694,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Orchid",
     label: "Orchid 34",
+    pdfUrl: "/floorplans_pdf/Orchid 34_Classic_RH_Brochure_13.05.2020.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1569,6 +1705,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Quartz",
     label: "Quartz 21",
+    pdfUrl: "/floorplans_pdf/Quartz 21_Classic RH_Brochure_26.07.19.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1579,6 +1716,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Quartz",
     label: "Quartz 23",
+    pdfUrl: "/floorplans_pdf/Quartz 23_Classic RH_Brochure_28.03.19.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1589,6 +1727,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Quartz",
     label: "Quartz 25",
+    pdfUrl: "/floorplans_pdf/Quartz 25_Classic RH_Brochure_28.03.19.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1599,6 +1738,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Quartz",
     label: "Quartz 27",
+    pdfUrl: "/floorplans_pdf/Quartz 27_Classic RH_Brochure_17.04.26.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1609,6 +1749,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Robin",
     label: "Robin 5",
+    pdfUrl: "/floorplans_pdf/Robin 5 Classic_Brochure_18.11.2025.pdf",
     beds: "3",
     baths: "2",
     cars: "1",
@@ -1619,6 +1760,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Robin",
     label: "Robin 6",
+    pdfUrl: "/floorplans_pdf/Robin 6 Classic_Brochure_05.06.2026.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1629,6 +1771,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Robin",
     label: "Robin 7",
+    pdfUrl: "/floorplans_pdf/Robin 7 Classic_Brochure_18.11.2025.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1639,6 +1782,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Robin",
     label: "Robin 8",
+    pdfUrl: "/floorplans_pdf/Robin 8 Classic_Brochure_18.11.2025.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1649,6 +1793,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Rose",
     label: "Rose 34",
+    pdfUrl: "/floorplans_pdf/ROSE 34 Classic_Brochure_RH_06.09.21.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1659,6 +1804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Rose",
     label: "Rose 38",
+    pdfUrl: "/floorplans_pdf/ROSE 38 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1669,6 +1815,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Rose",
     label: "Rose 43",
+    pdfUrl: "/floorplans_pdf/ROSE 43 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1679,6 +1826,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Rose",
     label: "Rose 53",
+    pdfUrl: "/floorplans_pdf/ROSE 53 Classic_Brochure_RH_11.02.20.pdf",
     beds: "4",
     baths: "3",
     cars: "3",
@@ -1689,6 +1837,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Rosewood",
     label: "Rosewood 23",
+    pdfUrl: "/floorplans_pdf/Rosewood 23 Classic_Brochure_RH_24.01.2025.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -1709,6 +1858,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ruby",
     label: "Ruby 19",
+    pdfUrl: "/floorplans_pdf/Ruby 19 Classic_RH_07.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1719,6 +1869,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ruby",
     label: "Ruby 21",
+    pdfUrl: "/floorplans_pdf/Ruby 21 Classic_RH_07.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1729,6 +1880,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ruby",
     label: "Ruby 23",
+    pdfUrl: "/floorplans_pdf/Ruby 23 Classic_RH_07.11.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1739,6 +1891,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ruby",
     label: "Ruby 26",
+    pdfUrl: "/floorplans_pdf/Ruby 26 Classic_RH_16.10.2022.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1749,6 +1902,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Ruby",
     label: "Ruby 28",
+    pdfUrl: "/floorplans_pdf/Ruby 28 Classic_RH_15.12.2025.pdf",
     beds: "5",
     baths: "2",
     cars: "1",
@@ -1759,6 +1913,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Saffron",
     label: "Saffron 23",
+    pdfUrl: "/floorplans_pdf/Saffron 23 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1769,6 +1924,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Saffron",
     label: "Saffron 26",
+    pdfUrl: "/floorplans_pdf/Saffron 26 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1779,6 +1935,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Saffron",
     label: "Saffron 30",
+    pdfUrl: "/floorplans_pdf/Saffron 30 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -1789,6 +1946,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Saffron",
     label: "Saffron 35",
+    pdfUrl: "/floorplans_pdf/Saffron 35 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -1799,6 +1957,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Sienna",
     label: "Sienna 28",
+    pdfUrl: "/floorplans_pdf/Sienna 28 Classic Brochure_RH_23.08.24.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1809,6 +1968,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Sienna",
     label: "Sienna 30",
+    pdfUrl: "/floorplans_pdf/Sienna 30 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1819,6 +1979,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Sienna",
     label: "Sienna 33",
+    pdfUrl: "/floorplans_pdf/Sienna 33 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1829,6 +1990,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Sienna",
     label: "Sienna 36",
+    pdfUrl: "/floorplans_pdf/Sienna 36 Classic_Brochure_RH_14.02.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1839,6 +2001,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tangerine",
     label: "Tangerine 37",
+    pdfUrl: "/floorplans_pdf/TANGERINE 37 Classic_Brochure_RH_16.07.2020.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1849,6 +2012,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tangerine",
     label: "Tangerine 41",
+    pdfUrl: "/floorplans_pdf/TANGERINE 41 Classic_Brochure_RH_23.08.24.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1859,6 +2023,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tangerine",
     label: "Tangerine 44",
+    pdfUrl: "/floorplans_pdf/TANGERINE 44 Classic_Brochure_RH_11.02.20.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1869,6 +2034,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tangerine",
     label: "Tangerine 49",
+    pdfUrl: "/floorplans_pdf/TANGERINE 49 Classic_Brochure_RH_11.02.20.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -1879,6 +2045,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Terracotta",
     label: "Terracotta 23",
+    pdfUrl: "/floorplans_pdf/Terracotta 23 Classic RH_Brochure_07.11.22.pdf",
     beds: "4",
     baths: "2",
     cars: "1",
@@ -1889,6 +2056,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Terracotta",
     label: "Terracotta 25",
+    pdfUrl: "/floorplans_pdf/Terracotta 25 Classic RH_Brochure_07.11.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1899,6 +2067,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Terracotta",
     label: "Terracotta 30",
+    pdfUrl: "/floorplans_pdf/Terracotta 30 Classic RH_Brochure_21.02.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1909,6 +2078,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Terracotta",
     label: "Terracotta 36",
+    pdfUrl: "/floorplans_pdf/Terracotta 36 Classic RH_Brochure_21.02.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1919,6 +2089,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tiffany",
     label: "Tiffany 22",
+    pdfUrl: "/floorplans_pdf/Tiffany 22 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1929,6 +2100,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tiffany",
     label: "Tiffany 24",
+    pdfUrl: "/floorplans_pdf/Tiffany 24 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1939,6 +2111,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tiffany",
     label: "Tiffany 27",
+    pdfUrl: "/floorplans_pdf/Tiffany 27 Classic_Brochure_RH_17.04.26.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1949,6 +2122,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Tiffany",
     label: "Tiffany 29",
+    pdfUrl: "/floorplans_pdf/Tiffany 29 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1959,6 +2133,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Topaz",
     label: "Topaz 21",
+    pdfUrl: "/floorplans_pdf/Topaz 21 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1969,6 +2144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Topaz",
     label: "Topaz 23",
+    pdfUrl: "/floorplans_pdf/Topaz 23 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1979,6 +2155,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Topaz",
     label: "Topaz 26",
+    pdfUrl: "/floorplans_pdf/Topaz 26 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1989,6 +2166,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Topaz",
     label: "Topaz 29",
+    pdfUrl: "/floorplans_pdf/Topaz 29 Classic_Brochure_RH_12.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -1999,6 +2177,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Turquoise",
     label: "Turquoise 24",
+    pdfUrl: "/floorplans_pdf/TURQUOISE 24 Classic RH_Brochure_07.11.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2009,6 +2188,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Turquoise",
     label: "Turquoise 25",
+    pdfUrl: "/floorplans_pdf/TURQUOISE 25 Classic RH_Brochure_07.11.22.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2019,6 +2199,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Turquoise",
     label: "Turquoise 26",
+    pdfUrl: "/floorplans_pdf/TURQUOISE 26 Classic RH_Brochure_17.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2029,6 +2210,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Turquoise",
     label: "Turquoise 28",
+    pdfUrl: "/floorplans_pdf/TURQUOISE 28 Classic RH_Brochure_26.06.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2039,6 +2221,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Turquoise",
     label: "Turquoise 31",
+    pdfUrl: "/floorplans_pdf/TURQUOISE 31 Classic RH_Brochure_26.06.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2049,6 +2232,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Violet",
     label: "Violet 33",
+    pdfUrl: "/floorplans_pdf/VIOLET 33 Classic RH_Brochure_06.02.26.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -2059,6 +2243,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Violet",
     label: "Violet 40",
+    pdfUrl: "/floorplans_pdf/VIOLET 40 Classic RH_Brochure_16.04.18.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -2069,6 +2254,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Violet",
     label: "Violet 45",
+    pdfUrl: "/floorplans_pdf/VIOLET 45 Classic RH_Brochure_16.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2079,6 +2265,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Violet",
     label: "Violet 48",
+    pdfUrl: "/floorplans_pdf/VIOLET 48 Classic RH_Brochure_16.04.18.pdf",
     beds: "4",
     baths: "4",
     cars: "2",
@@ -2089,6 +2276,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Violet",
     label: "Violet 64",
+    pdfUrl: "/floorplans_pdf/VIOLET 64 Classic RH_Brochure_11.02.20.pdf",
     beds: "5",
     baths: "4",
     cars: "3",
@@ -2099,6 +2287,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Viridian",
     label: "Viridian 28",
+    pdfUrl: "/floorplans_pdf/VIRIDIAN 28 Classic RH_Brochure_13.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2109,6 +2298,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Viridian",
     label: "Viridian 32",
+    pdfUrl: "/floorplans_pdf/Viridian 32 Classic LH_Brochure 28.02.23.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2119,6 +2309,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Viridian",
     label: "Viridian 39",
+    pdfUrl: "/floorplans_pdf/VIRIDIAN 39 Classic RH_Brochure_13.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2129,6 +2320,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Viridian",
     label: "Viridian 43",
+    pdfUrl: "/floorplans_pdf/VIRIDIAN 43 Classic RH_Brochure_13.04.18.pdf",
     beds: "4",
     baths: "2",
     cars: "2",
@@ -2139,6 +2331,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Wisteria",
     label: "Wisteria 22",
+    pdfUrl: "/floorplans_pdf/Wisteria 22_Classic_Brochure_RH_03.03.2022.pdf",
     beds: "4",
     baths: "3",
     cars: "2",
@@ -2149,6 +2342,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Wisteria",
     label: "Wisteria 24 Mk II",
+    pdfUrl: "/floorplans_pdf/Wisteria 24 MKII_Classic_Brochure_RH_01.07.2025.pdf",
     beds: "5",
     baths: "3",
     cars: "2",
@@ -2159,6 +2353,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {
     design: "Wisteria",
     label: "Wisteria 26",
+    pdfUrl: "/floorplans_pdf/Wisteria 26 MKII_Classic_Brochure_RH_15.08.2025.pdf",
     beds: "5",
     baths: "3",
     cars: "2",

@@ -114,6 +114,17 @@ const BROWSER_SCRIPT = `
       const visited = new Uint8Array(rows * cols);
       let maxCount = 0;
       const comps = [];
+      
+      // Destroy any borders by erasing the outer 200 pixels (roughly 20 cells) of the grid
+      const marginCells = 20;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (r < marginCells || r >= rows - marginCells || c < marginCells || c >= cols - marginCells) {
+             grid[r * cols + c] = 0;
+             dilated[r * cols + c] = 0;
+          }
+        }
+      }
 
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
@@ -153,8 +164,8 @@ const BROWSER_SCRIPT = `
       }
       
       let bbox = null;
-      // Keep all components that have at least 15% of the max component size
-      const validComps = comps.filter(c => c.count > maxCount * 0.15);
+      // Keep all components that have at least 2% of the max component size
+      const validComps = comps.filter(c => c.count > maxCount * 0.02);
       
       if (validComps.length > 0) {
         bbox = [validComps[0].comp[0][1], validComps[0].comp[0][0], validComps[0].comp[0][1], validComps[0].comp[0][0]];
@@ -173,6 +184,50 @@ const BROWSER_SCRIPT = `
       
       if (!bbox) return inCanvas;
       
+      // Create a heavily dilated mask to erase everything that isn't the floorplan
+      const maskGrid = new Uint8Array(rows * cols);
+      for (const vc of validComps) {
+        for (let i = 0; i < vc.comp.length; i++) {
+          const [r, c] = vc.comp[i];
+          maskGrid[r * cols + c] = 1;
+        }
+      }
+      
+      const dilatedMask = new Uint8Array(rows * cols);
+      const MASK_DILATE = 12; // roughly 120 pixels buffer around the floorplan lines
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (maskGrid[r * cols + c]) {
+            const rMin = Math.max(0, r - MASK_DILATE);
+            const rMax = Math.min(rows - 1, r + MASK_DILATE);
+            const cMin = Math.max(0, c - MASK_DILATE);
+            const cMax = Math.min(cols - 1, c + MASK_DILATE);
+            for (let rr = rMin; rr <= rMax; rr++) {
+              for (let cc = cMin; cc <= cMax; cc++) {
+                dilatedMask[rr * cols + cc] = 1;
+              }
+            }
+          }
+        }
+      }
+      
+      const hrImageData = ctx.getImageData(0, 0, W, H);
+      const hrData = hrImageData.data;
+      for (let y = 0; y < H; y++) {
+        const r = Math.floor(y / cell);
+        for (let x = 0; x < W; x++) {
+          const c = Math.floor(x / cell);
+          if (r < rows && c < cols && !dilatedMask[r * cols + c]) {
+            const idx = (y * W + x) * 4;
+            hrData[idx] = 255;
+            hrData[idx+1] = 255;
+            hrData[idx+2] = 255;
+            hrData[idx+3] = 255;
+          }
+        }
+      }
+      ctx.putImageData(hrImageData, 0, 0);
+
       const pad = Math.round(cell * 4); // Add a 40px padding around the isolated floorplan
       const sx = Math.max(0, bbox[0] * cell - pad);
       const sy = Math.max(0, bbox[1] * cell - pad);
@@ -253,12 +308,14 @@ const BROWSER_SCRIPT = `
     const fData = fctx2.getImageData(0, 0, finalCanvas.width, finalCanvas.height);
     const data = fData.data;
     for (let i = 0; i < data.length; i += 4) {
-      if (data[i] < 250 || data[i+1] < 250 || data[i+2] < 250) {
-        // Darken by 30%
-        data[i] = Math.max(0, data[i] * 0.7);
-        data[i+1] = Math.max(0, data[i+1] * 0.7);
-        data[i+2] = Math.max(0, data[i+2] * 0.7);
-        if (data[i+3] > 0) data[i+3] = Math.min(255, data[i+3] + 50);
+      const avg = (data[i] + data[i+1] + data[i+2]) / 3;
+      if (avg < 240) {
+        // Significantly darken grey lines to almost black
+        const factor = 0.4;
+        data[i] = Math.max(0, data[i] * factor);
+        data[i+1] = Math.max(0, data[i+1] * factor);
+        data[i+2] = Math.max(0, data[i+2] * factor);
+        if (data[i+3] > 0) data[i+3] = Math.min(255, data[i+3] + 100);
       }
     }
     fctx2.putImageData(fData, 0, 0);

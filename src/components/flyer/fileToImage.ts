@@ -723,8 +723,22 @@ export async function widenFacade(item: {
 const floorplanCache = new Map<string, string>();
 const FLOORPLAN_PIPELINE_VERSION = "original-dimensions-v1";
 
-export async function prepareFloorplan(url: string): Promise<string | null> {
+export async function prepareFloorplan(plan: import("./floorplans.data").FloorplanRecord | string): Promise<string | null> {
+  const url = typeof plan === "string" ? plan : plan.url;
   if (!url || url.startsWith("data:")) return url;
+
+  if (typeof plan !== "string" && plan.cropBoxes && plan.cropBoxes.length > 0) {
+    const cacheKey = `${plan.label}::pdf_crop_v1`;
+    const cached = floorplanCache.get(cacheKey);
+    if (cached) return cached;
+    try {
+      const dataUrl = await cropPdfFloorplan(plan);
+      if (dataUrl) floorplanCache.set(cacheKey, dataUrl);
+      return dataUrl || url;
+    } catch (e) {
+      console.error("PDF crop failed, falling back to image", e);
+    }
+  }
 
   // Local pre-processed high-quality floorplans don't need fetching/cropping/sharpening
   if (url.startsWith("/floorplans/")) {
@@ -771,13 +785,90 @@ export async function prepareFloorplan(url: string): Promise<string | null> {
     if (b64 && b64.startsWith("data:image/")) {
       const trimmed = await cropToContent(b64, 0.008);
       const sharp = await sharpenPlan(trimmed);
-      floorplanCache.set(cacheKey, sharp);
+      if (sharp) floorplanCache.set(cacheKey, sharp);
       return sharp;
     }
   } catch (err) {
     console.error("[prepareFloorplan Error]", err);
   }
   return url;
+}
+
+async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecord): Promise<string | null> {
+  const pdfjs = await import("pdfjs-dist");
+  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
+  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  const crops = plan.cropBoxes!;
+  
+  // Get the exact PDF url
+  let pdfUrl = plan.pdfUrl;
+  if (!pdfUrl) {
+    pdfUrl = `/floorplans_pdf/${plan.label.toUpperCase()}.pdf`;
+  }
+  
+  const doc = await pdfjs.getDocument(pdfUrl).promise;
+  
+  // We want to render at 5x scale for maximum clarity. 
+  // Let's create an offscreen canvas for each crop.
+  const SCALE = 5.0;
+  
+  const croppedCanvases: HTMLCanvasElement[] = [];
+  let totalHeight = 0;
+  let maxWidth = 0;
+  
+  for (const crop of crops) {
+    const page = await doc.getPage(crop.page);
+    const viewport = page.getViewport({ scale: SCALE });
+    
+    // Render the whole page to a temporary canvas
+    const pageCanvas = document.createElement("canvas");
+    pageCanvas.width = viewport.width;
+    pageCanvas.height = viewport.height;
+    const ctx = pageCanvas.getContext("2d")!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+    
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    
+    // Now extract the crop box
+    const cx = Math.floor(crop.x * viewport.width);
+    const cy = Math.floor(crop.y * viewport.height);
+    const cw = Math.floor(crop.w * viewport.width);
+    const ch = Math.floor(crop.h * viewport.height);
+    
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cw;
+    cropCanvas.height = ch;
+    const cropCtx = cropCanvas.getContext("2d")!;
+    cropCtx.fillStyle = "#ffffff";
+    cropCtx.fillRect(0, 0, cw, ch);
+    cropCtx.drawImage(pageCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
+    
+    croppedCanvases.push(cropCanvas);
+    totalHeight += ch;
+    if (cw > maxWidth) maxWidth = cw;
+  }
+  
+  // Combine all crops vertically
+  const finalCanvas = document.createElement("canvas");
+  // Add a little padding between floors if multiple
+  const padding = crops.length > 1 ? 50 : 0;
+  finalCanvas.width = maxWidth;
+  finalCanvas.height = totalHeight + (padding * (crops.length - 1));
+  const fCtx = finalCanvas.getContext("2d")!;
+  fCtx.fillStyle = "#ffffff";
+  fCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+  
+  let currentY = 0;
+  for (const c of croppedCanvases) {
+    // Center it horizontally
+    const dx = Math.floor((maxWidth - c.width) / 2);
+    fCtx.drawImage(c, dx, currentY);
+    currentY += c.height + padding;
+  }
+  
+  return finalCanvas.toDataURL("image/png");
 }
 
 const MIN_GARAGE_W = 5.7;

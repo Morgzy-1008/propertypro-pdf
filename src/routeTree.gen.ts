@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CropperRouteImport } from './routes/cropper'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
@@ -31,6 +32,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CropperRoute = CropperRouteImport.update({
+  id: '/cropper',
+  path: '/cropper',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -67,6 +73,7 @@ const PackageIdRoute = PackageIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cropper': typeof CropperRoute
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -77,6 +84,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/cropper': typeof CropperRoute
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/cropper': typeof CropperRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/cropper'
     | '/reset-password'
     | '/database'
     | '/flyer'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/cropper'
     | '/reset-password'
     | '/database'
     | '/flyer'
@@ -122,6 +133,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/cropper'
     | '/reset-password'
     | '/_authenticated/database'
     | '/_authenticated/flyer'
@@ -134,6 +146,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CropperRoute: typeof CropperRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   BrowseLandRoute: typeof BrowseLandRoute
   BrowsePackagesRoute: typeof BrowsePackagesRoute
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cropper': {
+      id: '/cropper'
+      path: '/cropper'
+      fullPath: '/cropper'
+      preLoaderRoute: typeof CropperRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  CropperRoute: CropperRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   BrowseLandRoute: BrowseLandRoute,
   BrowsePackagesRoute: BrowsePackagesRoute,

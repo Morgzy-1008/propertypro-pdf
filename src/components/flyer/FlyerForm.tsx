@@ -246,7 +246,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     // NOTE: plan.frontage is the *house* width — the flyer's frontage field is
     // the land block frontage, so it is never overwritten by a design change.
     // Trim the blank page margin so the drawing fills the flyer frame.
-    void prepareFloorplan(plan.url).then(async (trimmed) => {
+    void prepareFloorplan(plan).then(async (trimmed) => {
       if (trimmed !== plan.url) set("floorplanUrl", trimmed);
       // Read the plan's actual room labels: a GUEST bedroom counts as a bedroom
       // and each powder room adds half a bathroom.
