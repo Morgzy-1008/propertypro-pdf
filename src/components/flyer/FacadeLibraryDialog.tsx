@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Search, Upload, Check, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -114,6 +114,10 @@ export function FacadeLibrary({
   const [category, setCategory] = useState<TabId>(storey ?? "single");
   const [custom, setCustom] = useState<FacadeItem[]>(() => loadCustomFacades());
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (storey) setCategory(storey);
+  }, [storey]);
 
   const restricted = !!designFacades?.length;
   const all = useMemo(

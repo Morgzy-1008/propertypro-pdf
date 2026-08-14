@@ -66,16 +66,6 @@ function Facade({
     return url;
   }, [url]);
 
-  if (!url) {
-    return (
-      <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50 gap-2 p-4 ${className ?? ""}`}>
-        <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30 font-medium uppercase">
-          SELECT A FACADE FROM THE LIBRARY
-        </span>
-      </div>
-    );
-  }
-
   if (busy && !url) {
     return (
       <div className={`relative flex h-full w-full flex-col items-center justify-center bg-brand-navy-deep gap-3 p-4 text-white ${className ?? ""}`}>
@@ -90,20 +80,24 @@ function Facade({
     );
   }
 
+  if (!url) {
+    return (
+      <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50 gap-2 p-4 ${className ?? ""}`}>
+        <span className="text-[3mm] tracking-[0.2em] text-brand-ink/30 font-medium uppercase">
+          SELECT A FACADE FROM THE LIBRARY
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
       <img
         src={displayUrl}
         alt="Facade render"
         loading="eager"
-        onLoad={() => setLoaded(true)}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-        className={`h-full w-full object-cover object-center transition-opacity duration-700 ease-in-out ${
-          loaded ? "opacity-100" : "opacity-0"
-        } ${busy ? "opacity-50 blur-[2px] scale-[1.02]" : ""}`}
-        style={{ imageRendering: "-webkit-optimize-contrast" }}
+        className={`h-full w-full object-cover object-center ${busy ? "opacity-50 blur-[2px] scale-[1.02]" : ""}`}
+        style={{ imageRendering: "auto" }}
       />
       {busy && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/40 backdrop-blur-[2px]">
@@ -287,8 +281,8 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
             <img
               src={d.floorplanUrl}
               alt="Floorplan"
-              className="block h-full w-full object-contain mix-blend-multiply"
-              style={{ imageRendering: "-webkit-optimize-contrast" }}
+              className="block max-h-full max-w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "auto" }}
             />
           ) : (
             <div className="text-center text-[3mm] text-brand-ink/40">
@@ -376,8 +370,8 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
             <img
               src={d.floorplanUrl}
               alt="Floorplan"
-              className="h-full w-full object-contain mix-blend-multiply"
-              style={{ imageRendering: "-webkit-optimize-contrast" }}
+              className="max-h-full max-w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "auto" }}
             />
           ) : (
             <div className="text-center text-[3.4mm] text-brand-ink/40">
@@ -536,8 +530,8 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
             <img
               src={d.floorplanUrl}
               alt="Floorplan"
-              className="block h-full w-full object-contain mix-blend-multiply"
-              style={{ imageRendering: "-webkit-optimize-contrast" }}
+              className="block max-h-full max-w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "auto" }}
             />
           ) : (
             <div className="text-center text-[3mm] text-brand-ink/40">

@@ -12,6 +12,7 @@ import { authHeaders } from "@/lib/api-auth";
 import { facadeCategory, facadeGarage, garageFromCars, type FacadeStorey } from "./facadePricing";
 import { duplexFacadesForDesign } from "./duplexFacades.data";
 import { MULBERRY_FACADES } from "./acreageFacades.data";
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 import { INCLUSION_RANGES, PALETTES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
 import { landscapingPriceFor } from "@/lib/landscaping";
@@ -367,8 +368,17 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
     }
 
-    // 1. Check for pre-rendered AI enhanced render in IndexedDB if not forcing refresh
+    // 1. Check for pre-rendered local static catalogue FIRST for instant zero-delay render
     if (!forceRefresh) {
+      const normId = item.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const normName = item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId] || PRE_RENDERED_FACADES[normName];
+      if (preRendered) {
+        set("facadeUrl", preRendered);
+        setFacadeBusy(false);
+        set("facadeBusy", false);
+        return;
+      }
       const cachedAi = await loadEnhancedAsync(item.id);
       if (cachedAi) {
         set("facadeUrl", cachedAi);
@@ -378,15 +388,20 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Set facadeBusy = true so user sees "GENERATING AI FACADE RENDER..."
+    // 2. Immediately set the original image as the active flyer facade so there's never empty white space
+    const rawUrlToUse = item.originalUrl || item.url;
+    if (!forceRefresh) {
+      set("facadeUrl", rawUrlToUse);
+    }
+
+    // 3. Set facadeBusy = true so user sees "GENERATING AI FACADE RENDER..."
     setFacadeBusy(true);
     set("facadeBusy", true);
 
     try {
-      // 3. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
+      // 4. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
-      const rawUrlToUse = item.originalUrl || item.url;
       const aiUrl = await widenFacadeClientSide({
         id: item.id,
         name: item.name,
@@ -409,7 +424,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         const fallbackRender = await prepareFacade(item.url, item.originalUrl, item.id);
         if (fallbackRender) set("facadeUrl", fallbackRender);
       } catch {
-        /* keep raw item.url */
+        set("facadeUrl", rawUrlToUse);
       }
     } finally {
       setFacadeBusy(false);

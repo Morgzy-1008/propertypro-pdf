@@ -1,5 +1,6 @@
 import { authHeaders } from "@/lib/api-auth";
 import { HUDSON_FACADES } from "./facades.data";
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 /**
 
@@ -693,11 +694,19 @@ export async function widenFacadeClientSide(item: {
     const finalCtx = finalCanvas.getContext("2d", { willReadFrequently: true })!;
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = "high";
-    finalCtx.fillStyle = "#ffffff";
-    finalCtx.fillRect(0, 0, outW, outH);
 
-    // Draw the pure, sharp AI generated image perfectly aligned
-    finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
+    // First fill full canvas edge-to-edge with the AI outpaint image (cover mode) so there is ZERO white space
+    const coverScale = Math.max(outW / aiImg.naturalWidth, outH / aiImg.naturalHeight);
+    const bgDrawW = Math.round(aiImg.naturalWidth * coverScale);
+    const bgDrawH = Math.round(aiImg.naturalHeight * coverScale);
+    const bgDrawX = Math.round((outW - bgDrawW) / 2);
+    const bgDrawY = Math.round((outH - bgDrawH) / 2);
+    finalCtx.drawImage(aiImg, bgDrawX, bgDrawY, bgDrawW, bgDrawH);
+
+    // If fine-tuned house alignment fits within bounds, draw aligned layer
+    if (finalDrawW >= outW && finalDrawH >= outH) {
+      finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
+    }
 
     return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {
@@ -728,7 +737,7 @@ export async function prepareFloorplan(plan: import("./floorplans.data").Floorpl
   if (!url || url.startsWith("data:")) return url;
 
   if (typeof plan !== "string" && plan.cropBoxes && plan.cropBoxes.length > 0) {
-    const cacheKey = `${plan.label}::pdf_crop_v2_side_by_side`;
+    const cacheKey = `${plan.label}::pdf_crop_v4_vector_crisp`;
     const cached = floorplanCache.get(cacheKey);
     if (cached) return cached;
     try {
@@ -784,9 +793,9 @@ export async function prepareFloorplan(plan: import("./floorplans.data").Floorpl
 
     if (b64 && b64.startsWith("data:image/")) {
       const trimmed = await cropToContent(b64, 0.008);
-      const sharp = await sharpenPlan(trimmed);
-      if (sharp) floorplanCache.set(cacheKey, sharp);
-      return sharp;
+      const enhanced = await enhanceFloorplan(trimmed);
+      if (enhanced) floorplanCache.set(cacheKey, enhanced);
+      return enhanced;
     }
   } catch (err) {
     console.error("[prepareFloorplan Error]", err);
@@ -812,17 +821,16 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
   const pdfData = new Uint8Array(await res.arrayBuffer());
   const doc = await pdfjs.getDocument({ data: pdfData }).promise;
   
+  // SCALE 5.0 renders ultra-high resolution vector Bézier curves & text
   const SCALE = 5.0;
   
   const croppedCanvases: HTMLCanvasElement[] = [];
-  let totalHeight = 0;
-  let maxWidth = 0;
   
   for (const crop of crops) {
     const page = await doc.getPage(crop.page);
     const viewport = page.getViewport({ scale: SCALE });
     
-    // Render the whole page to a temporary canvas
+    // Render the page to a temporary canvas
     const pageCanvas = document.createElement("canvas");
     pageCanvas.width = viewport.width;
     pageCanvas.height = viewport.height;
@@ -868,7 +876,7 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
       cropCtx.drawImage(pageCanvas, minX, minY, cw, ch, 0, 0, cw, ch);
       
     } else if (crop.x != null && crop.y != null && crop.w != null && crop.h != null) {
-      // ─── Legacy rectangle crop ───
+      // ─── Rectangle crop ───
       const cx = Math.floor(crop.x * viewport.width);
       const cy = Math.floor(crop.y * viewport.height);
       const cw = Math.floor(crop.w * viewport.width);
@@ -885,7 +893,16 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
       continue; // skip invalid crop
     }
     
-    croppedCanvases.push(cropCanvas);
+    // 1. PRE-ENHANCEMENT: Enhance each floor's individual canvas before resizing/combining
+    const preEnhancedData = await enhanceFloorplan(cropCanvas.toDataURL("image/png"));
+    const preImg = await loadImage(preEnhancedData);
+    const cleanCropCanvas = document.createElement("canvas");
+    cleanCropCanvas.width = preImg.naturalWidth;
+    cleanCropCanvas.height = preImg.naturalHeight;
+    const cleanCtx = cleanCropCanvas.getContext("2d")!;
+    cleanCtx.drawImage(preImg, 0, 0);
+
+    croppedCanvases.push(cleanCropCanvas);
   }
   
   if (croppedCanvases.length === 0) return null;
@@ -894,8 +911,8 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
   if (croppedCanvases.length === 1) {
     rawDataUrl = croppedCanvases[0].toDataURL("image/png");
   } else {
-    // Multi-storey / double-storey floorplans:
-    // Place storeys horizontally side-by-side to scale, fitting the wide flyer box
+    // 2. RESIZING & LAYOUT: Place storeys horizontally side-by-side to scale
+    // Both floors are rendered at the exact same physical scale (1:1), preserving real proportions without distortion
     const minWidth = Math.min(...croppedCanvases.map(c => c.width));
     const gap = Math.max(40, Math.round(minWidth * 0.05));
     const totalWidth = croppedCanvases.reduce((sum, c) => sum + c.width, 0) + gap * (croppedCanvases.length - 1);
@@ -917,30 +934,23 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
     rawDataUrl = finalCanvas.toDataURL("image/png");
   }
 
-  // Enhance crispness so architectural lines and dimension texts stay razor sharp
-  const enhanced = await sharpenPlan(rawDataUrl);
-  return enhanced || rawDataUrl;
+  // 3. POST-ENHANCEMENT: Final enhancement pass after layout to guarantee ultra-crisp lines and readable text
+  const postEnhanced = await enhanceFloorplan(rawDataUrl);
+  return postEnhanced || rawDataUrl;
 }
 
-const MIN_GARAGE_W = 5.7;
-const MIN_GARAGE_D = 6.0;
-
 /**
- * Upscales and sharpens a floorplan drawing so lines, room names and dimension
- * text stay crisp in print. Purely photometric: an unsharp mask plus a levels
- * stretch on a white page. No geometry is moved, so the design is untouched.
+ * Enhanced floorplan processing:
+ * Purely photometric level calibration and smooth anti-aliasing curve.
+ * Pushes scanner/paper background to pure white while deepening black architectural lines
+ * and preserving sub-pixel font anti-aliasing so thin lines and text never become pixelated or jagged.
  */
-export async function sharpenPlan(dataUrl: string): Promise<string | null> {
+export async function enhanceFloorplan(dataUrl: string): Promise<string> {
   try {
     const img = await loadImage(dataUrl);
-    const w0 = img.naturalWidth;
-    const h0 = img.naturalHeight;
-    if (!w0 || !h0) return dataUrl;
-
-    // Upscale small scans so hairlines and numerals survive the print raster.
-    const scale = Math.min(2, Math.max(1, 2200 / w0), 4000 / w0);
-    const w = Math.round(w0 * scale);
-    const h = Math.round(h0 * scale);
+    const w = img.naturalWidth;
+    const h = img.naturalHeight;
+    if (!w || !h) return dataUrl;
 
     const canvas = document.createElement("canvas");
     canvas.width = w;
@@ -952,50 +962,46 @@ export async function sharpenPlan(dataUrl: string): Promise<string | null> {
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, 0, w, h);
 
-    const image = ctx.getImageData(0, 0, w, h);
-    const src = image.data;
-    const out = new Uint8ClampedArray(src);
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const d = imgData.data;
 
-    // Unsharp mask: subtract a 3x3 box blur, weighted, per channel.
-    const amount = 0.9;
-    for (let y = 1; y < h - 1; y += 1) {
-      for (let x = 1; x < w - 1; x += 1) {
-        const i = (y * w + x) * 4;
-        for (let c = 0; c < 3; c += 1) {
-          let sum = 0;
-          for (let dy = -1; dy <= 1; dy += 1) {
-            for (let dx = -1; dx <= 1; dx += 1) {
-              sum += src[((y + dy) * w + (x + dx)) * 4 + c];
-            }
-          }
-          const blur = sum / 9;
-          out[i + c] = src[i + c] + amount * (src[i + c] - blur);
-        }
+    // Smoothstep levels:
+    // Background noise (lum >= 244) -> pure white (255)
+    // Dark ink (lum <= 38) -> rich black (0)
+    // Intermediate anti-aliasing curves smoothly preserved via sigmoidal interpolation
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      if (lum >= 244) {
+        d[i] = 255;
+        d[i + 1] = 255;
+        d[i + 2] = 255;
+      } else if (lum <= 38) {
+        d[i] = 0;
+        d[i + 1] = 0;
+        d[i + 2] = 0;
+      } else {
+        const norm = (lum - 38) / (244 - 38);
+        const smooth = norm * norm * (3 - 2 * norm);
+        const val = Math.round(smooth * 255);
+        d[i] = val;
+        d[i + 1] = val;
+        d[i + 2] = val;
       }
     }
 
-    // Levels: push near-white to paper white and near-black to true black.
-    const lo = 28;
-    const hi = 150;
-    for (let i = 0; i < out.length; i += 4) {
-      for (let c = 0; c < 3; c += 1) {
-        const v = out[i + c];
-        out[i + c] = v <= lo ? 0 : v >= hi ? 255 : ((v - lo) / (hi - lo)) * 255;
-      }
-    }
-
-    ctx.putImageData(new ImageData(out, w, h), 0, 0);
+    ctx.putImageData(imgData, 0, 0);
     return canvas.toDataURL("image/png");
   } catch {
     return dataUrl;
   }
 }
 
-/**
- * Reads the garage dimension text off the plan and, when a double garage is
- * advertised below Hudson's 5.7m x 6.0m minimum, re-letters just that label to
- * 5.7 x 6.0. Only the text pixels are repainted — the drawing is not altered.
- */
+export async function sharpenPlan(dataUrl: string): Promise<string | null> {
+  return enhanceFloorplan(dataUrl);
+}
+
 export async function fixGarageDimensions(dataUrl: string): Promise<string | null> {
   return dataUrl;
 }
@@ -1003,71 +1009,18 @@ export async function fixGarageDimensions(dataUrl: string): Promise<string | nul
 /** Trimmed facade renders, keyed by their published URL. */
 const facadeCache = new Map<string, string>();
 
-
-
 /**
- * Crops away edge bands that stay within tolerance of the neighbouring corner
- * colour (photo letterboxing / flat padding). Photographic content stops the
- * scan immediately, so real scenery is never cut.
+ * Prepares a facade render for widescreen 2.69:1 display:
+ * Fills 100% of the canvas with real scenery (cover mode) so there is ZERO WHITE SPACE around the facade.
  */
-async function trimUniformBorder(dataUrl: string, tolerance = 12): Promise<string | null> {
-  try {
-    const img = await loadImage(dataUrl);
-    const w = img.naturalWidth;
-    const h = img.naturalHeight;
-    if (!w || !h) return dataUrl;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
-    ctx.drawImage(img, 0, 0);
-    const { data } = ctx.getImageData(0, 0, w, h);
-
-    const at = (x: number, y: number) => {
-      const i = (y * w + x) * 4;
-      return [data[i], data[i + 1], data[i + 2]] as const;
-    };
-    const close = (a: readonly number[], b: readonly number[]) =>
-      Math.abs(a[0] - b[0]) <= tolerance &&
-      Math.abs(a[1] - b[1]) <= tolerance &&
-      Math.abs(a[2] - b[2]) <= tolerance;
-
-    const rowUniform = (y: number, ref: readonly number[]) => {
-      for (let x = 0; x < w; x += 2) if (!close(at(x, y), ref)) return false;
-      return true;
-    };
-    const colUniform = (x: number, ref: readonly number[]) => {
-      for (let y = 0; y < h; y += 2) if (!close(at(x, y), ref)) return false;
-      return true;
-    };
-
-    let top = 0;
-    while (top < h - 1 && rowUniform(top, at(0, top))) top++;
-    let bottom = h - 1;
-    while (bottom > top + 1 && rowUniform(bottom, at(0, bottom))) bottom--;
-    let left = 0;
-    while (left < w - 1 && colUniform(left, at(left, 0))) left++;
-    let right = w - 1;
-    while (right > left + 1 && colUniform(right, at(right, 0))) right--;
-
-    const cw = right - left + 1;
-    const ch = bottom - top + 1;
-    if (cw < w * 0.5 || ch < h * 0.5) return dataUrl; // suspicious crop — keep original
-    if (cw > w * 0.99 && ch > h * 0.99) return dataUrl; // already tight
-
-    const out = document.createElement("canvas");
-    out.width = cw;
-    out.height = ch;
-    out.getContext("2d")!.drawImage(img, left, top, cw, ch, 0, 0, cw, ch);
-    return out.toDataURL("image/png");
-  } catch {
-    return dataUrl;
-  }
-}
-
 export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!dataUrl) return dataUrl;
+
+  // 1. Check if a pre-rendered high-quality widescreen asset exists
+  if (facadeId && PRE_RENDERED_FACADES[facadeId]) {
+    return PRE_RENDERED_FACADES[facadeId];
+  }
+
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
 
@@ -1078,32 +1031,27 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const srcW = img.naturalWidth  || 1200;
     const srcH = img.naturalHeight || 900;
 
-    // ── Output canvas: always exactly 2.69 : 1 (flyer header proportion) ──
+    // Output canvas: 2.69 : 1 (flyer header proportion)
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69);
-
-    // Fit scale so 100% of the house architecture is ALWAYS visible and unclipped
-    const reserveTop = Math.round(outH * 0.08);
-    const reserveBot = Math.round(outH * 0.04);
-    const areaH = outH - reserveTop - reserveBot;
-    const maxW = Math.round(outW * 0.90);
-
-    const scale = Math.min(areaH / srcH, maxW / srcW);
-    const drawW = Math.round(srcW * scale);
-    const drawH = Math.round(srcH * scale);
-    const drawX = Math.round((outW - drawW) / 2);
-    const drawY = Math.round(reserveTop + (areaH - drawH) / 2);
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
     canvas.height = outH;
     const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, outW, outH);
+    // Fill the entire widescreen frame edge-to-edge with the facade photo (cover mode)
+    // Ensures ZERO WHITE SPACE or white bars around the image
+    const coverScale = Math.max(outW / srcW, outH / srcH);
+    const drawW = Math.round(srcW * coverScale);
+    const drawH = Math.round(srcH * coverScale);
+    const drawX = Math.round((outW - drawW) / 2);
+    const drawY = Math.round((outH - drawH) / 2);
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    const resUrl = canvas.toDataURL("image/jpeg", 0.92);
+    const resUrl = canvas.toDataURL("image/jpeg", 0.94);
     facadeCache.set(dataUrl, resUrl);
     return resUrl;
   } catch (err) {
@@ -1111,4 +1059,3 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     return dataUrl;
   }
 }
-
