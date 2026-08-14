@@ -1,39 +1,60 @@
 import { useState, useMemo } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
-const logoUrl = "/hudson-homes-logo.png";
 import { getRange, rangeItems, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
 
-function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) {
+/**
+ * Pure vector SVG emblem for Hudson Homes house mark.
+ * Razor-sharp at any resolution with zero pixelation or compression artifacts.
+ */
+export function HudsonMark({ size = 16, className = "" }: { size?: number; className?: string }) {
   return (
-    <div className="flex items-center gap-[3.5mm]">
-      <img
-        src={logoUrl}
-        alt="Hudson Homes"
-        loading="eager"
-        decoding="sync"
-        style={{ height: `${size}mm`, imageRendering: "auto" }}
-        className="w-auto object-contain [filter:saturate(1.08)_contrast(1.06)]"
-      />
+    <svg
+      viewBox="0 0 352 220"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ height: `${size}mm`, width: "auto" }}
+      className={`flex-none object-contain ${className}`}
+    >
+      {/* Yellow / Gold (Left Foundation & Roof Angle) */}
+      <polygon points="12,142 54,100 78,124 78,215 48,215 48,178 12,142" fill="#ECA72C" />
+      {/* Lime Green (Left Tower Wall) */}
+      <polygon points="56,50 106,50 118,215 84,215" fill="#8CB82B" />
+      {/* Terracotta / Dark Red (Upper Left Roof Beam) */}
+      <polygon points="120,54 186,0 200,28 136,88" fill="#9E2A2B" />
+      {/* Cyan Blue (Center Body & Main Roof Slope) */}
+      <polygon points="148,96 210,38 272,98 226,215 124,215" fill="#00A3E0" />
+      {/* Magenta Pink (Right Facet) */}
+      <polygon points="278,106 312,156 288,215 234,215" fill="#D62578" />
+      {/* Purple (Right Accent Arrow) */}
+      <polygon points="318,148 350,175 318,205" fill="#6E2A8D" />
+    </svg>
+  );
+}
+
+export function Logo({ light = false, size = 15 }: { light?: boolean; size?: number }) {
+  return (
+    <div className="flex items-center gap-[3mm]">
+      <HudsonMark size={size} />
       <div
-        className={`border-l pl-[3.5mm] leading-none ${
+        className={`border-l pl-[3mm] leading-none ${
           light ? "border-brand-cream/30" : "border-brand-navy/20"
         }`}
       >
         <div
-          className={`font-display tracking-[0.14em] ${
-            light ? "text-brand-cream" : "text-brand-navy"
+          className={`font-sans font-bold tracking-[0.16em] ${
+            light ? "text-white" : "text-brand-navy"
           }`}
-          style={{ fontSize: `${size * 0.42}mm` }}
+          style={{ fontSize: `${size * 0.44}mm` }}
         >
           HUDSON HOMES
         </div>
         <div
-          className={`mt-[1mm] tracking-[0.3em] ${
+          className={`mt-[0.9mm] tracking-[0.32em] font-semibold ${
             light ? "text-brand-gold" : "text-brand-gold-deep"
           }`}
-          style={{ fontSize: `${size * 0.16}mm` }}
+          style={{ fontSize: `${size * 0.17}mm` }}
         >
           ZERO SURPRISES
         </div>
@@ -42,9 +63,7 @@ function Logo({ light = false, size = 18 }: { light?: boolean; size?: number }) 
   );
 }
 
-/** Facade framing: the render is re-composed into a wide frame with the whole
- *  house centred and generous clearance, so it can safely fill the section
- *  edge-to-edge without clipping the roofline or garage. */
+/** Facade framing: widescreen 2.69:1 display with full-bleed cover mode */
 function Facade({
   url,
   busy,
@@ -54,8 +73,6 @@ function Facade({
   busy?: boolean;
   className?: string;
 }) {
-  const [loaded, setLoaded] = useState(false);
-
   const displayUrl = useMemo(() => {
     if (!url) return "";
     if (url.startsWith("data:")) return url;
@@ -122,10 +139,10 @@ function Spec({
 }) {
   return (
     <div className="flex items-center gap-[1.8mm]">
-      <Icon className="h-[4.2mm] w-[4.2mm] text-brand-gold-deep" strokeWidth={1.6} />
+      <Icon className="h-[4mm] w-[4mm] text-brand-gold-deep flex-none" strokeWidth={1.7} />
       <div className="leading-none">
-        <div className="font-display text-[4.2mm] text-brand-navy">{value || "—"}</div>
-        <div className="mt-[0.6mm] text-[2.1mm] tracking-[0.18em] text-brand-ink/60">{label}</div>
+        <div className="font-display text-[4mm] text-brand-navy">{value || "—"}</div>
+        <div className="mt-[0.5mm] text-[2mm] font-medium tracking-[0.16em] text-brand-ink/60">{label}</div>
       </div>
     </div>
   );
@@ -139,34 +156,34 @@ function ContactStrip({ d }: { d: FlyerData }) {
     office: d.contactOffice,
   });
   return (
-    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[5mm] px-[14mm] py-[2.8mm]">
+    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[5mm] px-[12mm] py-[2.4mm]">
       <div className="min-w-0">
-        <div className="font-display text-[4.2mm] leading-[1.1] text-brand-cream" style={{ letterSpacing: "normal" }}>
+        <div className="font-sans font-bold text-[3.8mm] leading-[1.1] text-brand-cream tracking-[0.02em]">
           {d.contactName}
         </div>
         {d.contactOffice && (
-          <div className="mt-[0.6mm] truncate text-[2.5mm] text-brand-cream/70" style={{ letterSpacing: "normal" }}>
+          <div className="mt-[0.5mm] truncate text-[2.4mm] text-brand-cream/70">
             {d.contactOffice}
           </div>
         )}
       </div>
-      <div className="flex flex-none items-center gap-[4.5mm] text-[3.5mm] text-brand-cream/90" style={{ letterSpacing: "normal" }}>
+      <div className="flex flex-none items-center gap-[4.5mm] text-[3.2mm] text-brand-cream/90">
         <span className="flex items-center gap-[1.4mm]">
-          <Phone className="h-[3.5mm] w-[3.5mm] text-brand-gold" strokeWidth={1.8} />
+          <Phone className="h-[3.3mm] w-[3.3mm] text-brand-gold" strokeWidth={1.8} />
           {d.contactPhone}
         </span>
         <span className="flex items-center gap-[1.4mm]">
-          <Mail className="h-[3.5mm] w-[3.5mm] text-brand-gold" strokeWidth={1.8} />
+          <Mail className="h-[3.3mm] w-[3.3mm] text-brand-gold" strokeWidth={1.8} />
           {d.contactEmail}
         </span>
       </div>
       <div className="flex flex-none items-center gap-[1.8mm]">
-        <div className="text-right text-[2mm] leading-[1.25] tracking-[0.12em] text-brand-cream/70">
+        <div className="text-right text-[1.9mm] leading-[1.2] tracking-[0.12em] text-brand-cream/70">
           SCAN TO SAVE
           <br />
           MY DETAILS
         </div>
-        <QrCode value={vcard} size={13} />
+        <QrCode value={vcard} size={11.5} />
       </div>
     </div>
   );
@@ -176,35 +193,39 @@ function ContactStrip({ d }: { d: FlyerData }) {
 export function ExpressFlyer({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="flex items-center justify-between px-[10mm] pt-[8mm] pb-[4mm]">
-        <div className="-ml-[2mm]">
-          <Logo size={22} />
+      {/* Top Header: Optimized compact vertical padding */}
+      <div className="flex items-center justify-between px-[10mm] pt-[4.5mm] pb-[2.5mm]">
+        <div>
+          <Logo size={15} />
         </div>
-        <div className="text-right">
-          <div className="text-[3mm] font-semibold tracking-[0.26em] text-brand-gold-deep">
+        <div className="text-right leading-tight">
+          <div className="text-[2.7mm] font-bold tracking-[0.24em] text-brand-gold-deep">
             {d.headline.toUpperCase()}
           </div>
-          <div className="mt-[1mm] flex items-baseline justify-end gap-[2mm]">
-            <span className="text-[3mm] tracking-[0.25em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[11mm] leading-[1] text-brand-navy">
+          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.8mm]">
+            <span className="text-[2.6mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+            <span className="font-display text-[9.5mm] leading-none text-brand-navy">
               {d.price || "$—"}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="gold-bar h-[1.6mm] w-full" />
+      <div className="gold-bar h-[1.5mm] w-full" />
 
-      <div className="h-[78mm] w-full">
+      {/* Facade Hero: Majestic 82mm panoramic perspective */}
+      <div className="h-[82mm] w-full">
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
-      <div className="navy-panel flex items-center gap-[2mm] px-[14mm] py-[2.4mm] text-[3.1mm] text-brand-cream">
-        <MapPin className="h-[3.6mm] w-[3.6mm] flex-none text-brand-gold" strokeWidth={1.8} />
+      {/* Address Bar */}
+      <div className="navy-panel flex items-center gap-[2mm] px-[12mm] py-[2mm] text-[2.9mm] text-brand-cream">
+        <MapPin className="h-[3.4mm] w-[3.4mm] flex-none text-brand-gold" strokeWidth={1.8} />
         {[d.address, d.estate].filter(Boolean).join(" • ")}
       </div>
 
-      <div className="flex items-center justify-between border-b border-brand-sand px-[14mm] py-[3mm]">
+      {/* Specs Strip */}
+      <div className="flex items-center justify-between border-b border-brand-sand px-[12mm] py-[2.6mm]">
         <Spec icon={BedDouble} value={d.beds} label="BEDS" />
         <Spec icon={Bath} value={d.baths} label="BATHS" />
         <Spec icon={Car} value={d.cars} label="CARS" />
@@ -213,70 +234,73 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
         <Spec icon={Ruler} value={`${d.landFrontage} m`} label="FRONTAGE" />
       </div>
 
-      <div className="flex items-baseline gap-[3mm] px-[14mm] pt-[3mm]">
-        <div className="text-[3mm] font-semibold tracking-[0.3em] text-brand-gold-deep">
+      {/* Floorplan & Facade Title Header */}
+      <div className="flex items-baseline gap-[3mm] px-[12mm] pt-[2.5mm] pb-[1mm]">
+        <div className="text-[2.8mm] font-bold tracking-[0.28em] text-brand-gold-deep">
           FLOOR PLAN
         </div>
-        <div className="text-[3mm] tracking-[0.15em] text-brand-navy">{d.floorplanName}</div>
+        <div className="text-[2.9mm] font-semibold tracking-[0.12em] text-brand-navy">{d.floorplanName}</div>
         {d.facadeName && (
           <>
-            <div className="ml-[4mm] text-[3mm] font-semibold tracking-[0.3em] text-brand-gold-deep">
+            <div className="ml-[3mm] text-[2.8mm] font-bold tracking-[0.28em] text-brand-gold-deep">
               FACADE
             </div>
-            <div className="text-[3mm] tracking-[0.15em] text-brand-navy">{d.facadeName}</div>
+            <div className="text-[2.9mm] font-semibold tracking-[0.12em] text-brand-navy">{d.facadeName}</div>
           </>
         )}
       </div>
 
-
-      <div className="grid grid-cols-[40mm_1fr] gap-[3mm] px-[7mm] pt-[2mm]">
+      {/* Floorplan & Inclusions Row */}
+      <div className="grid grid-cols-[42mm_1fr] gap-[3.5mm] px-[7mm] pt-[1mm]">
         <div>
-          <div className="text-[2.7mm] tracking-[0.25em] text-brand-gold-deep">
+          <div className="text-[2.6mm] font-bold tracking-[0.22em] text-brand-gold-deep">
             {getRange(d.range).label.toUpperCase()}
           </div>
-          <ul className="mt-[2.5mm] space-y-[1.5mm]">
+          <ul className="mt-[2mm] space-y-[1.3mm]">
             {rangeItems(d).map((line) => (
-              <li key={line} className="flex gap-[1.8mm] text-[2.8mm] leading-[1.3]">
-                <span className="mt-[1.1mm] h-[1.2mm] w-[1.2mm] flex-none rounded-full bg-brand-gold" />
+              <li key={line} className="flex gap-[1.6mm] text-[2.7mm] leading-[1.25]">
+                <span className="mt-[1mm] h-[1.1mm] w-[1.1mm] flex-none rounded-full bg-brand-gold" />
                 <span className="text-brand-ink/80">{line}</span>
               </li>
             ))}
           </ul>
-          <div className="mt-[4mm] grid grid-cols-2 gap-[2mm]">
-            <div className="rounded-[1.5mm] bg-brand-sand px-[2.5mm] py-[2.5mm]">
-              <div className="text-[2.2mm] tracking-[0.2em] text-brand-ink/50">LAND ONLY</div>
-              <div className="font-display text-[5.4mm] leading-[1.1] text-brand-navy">
+          <div className="mt-[3.5mm] grid grid-cols-2 gap-[1.8mm]">
+            <div className="rounded-[1.5mm] bg-brand-sand px-[2.2mm] py-[2.2mm]">
+              <div className="text-[2mm] font-semibold tracking-[0.18em] text-brand-ink/50">LAND ONLY</div>
+              <div className="font-display text-[5mm] leading-[1.1] text-brand-navy">
                 {d.landPrice || "$—"}
               </div>
             </div>
-            <div className="rounded-[1.5mm] bg-brand-sand px-[2.5mm] py-[2.5mm]">
-              <div className="text-[2.2mm] tracking-[0.2em] text-brand-ink/50">HOUSE ONLY</div>
-              <div className="font-display text-[5.4mm] leading-[1.1] text-brand-navy">
+            <div className="rounded-[1.5mm] bg-brand-sand px-[2.2mm] py-[2.2mm]">
+              <div className="text-[2mm] font-semibold tracking-[0.18em] text-brand-ink/50">HOUSE ONLY</div>
+              <div className="font-display text-[5mm] leading-[1.1] text-brand-navy">
                 {d.housePrice || "$—"}
               </div>
             </div>
           </div>
 
           {d.showOtherSizes && d.otherSizes.length > 0 && (
-            <div className="mt-[4mm]">
-              <div className="text-[2.4mm] tracking-[0.25em] text-brand-gold-deep">
+            <div className="mt-[3.5mm]">
+              <div className="text-[2.3mm] font-bold tracking-[0.22em] text-brand-gold-deep">
                 OTHER SIZES AVAILABLE
               </div>
-              <div className="mt-[2mm] divide-y divide-brand-sand border-t border-brand-sand">
+              <div className="mt-[1.5mm] divide-y divide-brand-sand border-t border-brand-sand">
                 {d.otherSizes.slice(0, 6).map((o) => (
                   <div
                     key={o.label + o.size}
-                    className="flex justify-between gap-[2mm] py-[1.4mm] text-[2.6mm]"
+                    className="flex justify-between gap-[2mm] py-[1.2mm] text-[2.5mm]"
                   >
                     <span className="truncate text-brand-ink/70">{o.label}</span>
-                    <span className="flex-none font-medium text-brand-navy">{o.size}</span>
+                    <span className="flex-none font-semibold text-brand-navy">{o.size}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-        <div className="flex h-[136mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white">
+
+        {/* Floorplan Frame: Expanded 139mm height */}
+        <div className="flex h-[139mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}
@@ -301,41 +325,65 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 export function ShowcaseCover({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="relative h-[172mm] w-full">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-navy-deep/70 via-transparent to-brand-navy-deep/70" />
-        <div className="absolute inset-x-[14mm] top-[12mm]">
-          <Logo light />
-        </div>
-        <div className="absolute inset-x-[14mm] bottom-[12mm]">
-          <div className="inline-flex rounded-[1mm] bg-brand-gold px-[3mm] py-[1.4mm] text-[2.8mm] font-semibold tracking-[0.25em] text-brand-navy-deep">
-            {d.headline.toUpperCase()}
-          </div>
-          <div className="mt-[4mm] font-display text-[20mm] leading-[0.9] tracking-wide text-brand-cream">
-            {d.floorplanName}
-          </div>
-          <div className="mt-[3mm] flex items-center gap-[2mm] text-[4mm] text-brand-cream/85">
-            <MapPin className="h-[4.5mm] w-[4.5mm] text-brand-gold" strokeWidth={1.8} />
-            {[d.address, d.estate].filter(Boolean).join(" • ")}
-          </div>
+      {/* Top Header Bar */}
+      <div className="navy-panel flex items-center justify-between px-[12mm] py-[3.5mm]">
+        <Logo light size={14} />
+        <div className="rounded-[1mm] border border-brand-gold/30 bg-brand-gold/10 px-[2.8mm] py-[1mm] text-[2.4mm] font-bold tracking-[0.25em] text-brand-gold">
+          PREMIUM SHOWCASE
         </div>
       </div>
 
-      <div className="gold-bar h-[2mm] w-full" />
+      <div className="gold-bar h-[1.5mm] w-full" />
 
-      <div className="flex items-end justify-between px-[14mm] pt-[9mm]">
+      {/* Majestic Facade Cover Image */}
+      <div className="relative h-[148mm] w-full overflow-hidden bg-slate-900">
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <div className="absolute inset-x-0 bottom-0 h-[30mm] bg-gradient-to-t from-black/60 to-transparent" />
+      </div>
+
+      {/* Property Title & Specification Highlights */}
+      <div className="px-[12mm] pt-[5mm] pb-[3mm]">
+        <div className="flex items-center justify-between">
+          <div className="inline-flex rounded-[1mm] bg-brand-gold px-[3mm] py-[1.2mm] text-[2.6mm] font-bold tracking-[0.22em] text-brand-navy-deep">
+            {d.headline.toUpperCase()}
+          </div>
+          {d.facadeName && (
+            <div className="text-[2.8mm] font-bold tracking-[0.22em] text-brand-gold-deep">
+              {d.facadeName.toUpperCase()} FACADE
+            </div>
+          )}
+        </div>
+
+        <div className="mt-[2.5mm] font-display text-[15mm] leading-[0.95] tracking-wide text-brand-navy">
+          {d.floorplanName}
+        </div>
+
+        <div className="mt-[2mm] flex items-center gap-[2mm] text-[3.4mm] text-brand-ink/80">
+          <MapPin className="h-[3.8mm] w-[3.8mm] text-brand-gold flex-none" strokeWidth={1.8} />
+          {[d.address, d.estate].filter(Boolean).join(" • ")}
+        </div>
+      </div>
+
+      <div className="gold-bar h-[1.2mm] w-full" />
+
+      {/* Bottom Summary Bar */}
+      <div className="flex items-center justify-between px-[12mm] py-[4.5mm]">
         <div>
-          <div className="text-[2.8mm] tracking-[0.3em] text-brand-ink/50">
+          <div className="text-[2.5mm] font-bold tracking-[0.26em] text-brand-ink/50">
             FIXED PRICE PACKAGE FROM
           </div>
-          <div className="font-display text-[18mm] leading-[1] text-brand-navy">
+          <div className="mt-[0.5mm] font-display text-[13mm] leading-none text-brand-navy">
             {d.price || "$—"}
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-[7mm] pb-[3mm]">
+
+        <div className="grid grid-cols-3 gap-[5mm]">
           <Spec icon={BedDouble} value={d.beds} label="BEDS" />
           <Spec icon={Bath} value={d.baths} label="BATHS" />
           <Spec icon={Car} value={d.cars} label="CARS" />
+          <Spec icon={Maximize2} value={`${d.floorplanSize} m²`} label="HOME" />
+          <Spec icon={Ruler} value={`${d.landSize} m²`} label="LAND" />
+          <Spec icon={Ruler} value={`${d.landFrontage} m`} label="FRONTAGE" />
         </div>
       </div>
 
@@ -346,26 +394,30 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
 
 export function ShowcaseDetails({ d }: { d: FlyerData }) {
   const rows: [string, string][] = [
-    ["Floorplan", d.floorplanName],
-    ["Home size", `${d.floorplanSize} m²`],
-    ["Land size", `${d.landSize} m²`],
-    ["Land frontage", `${d.landFrontage} m`],
-    ["Estate", d.estate],
-    ["Suburb", d.suburb],
-    ["Address", d.address],
+    ["Design / Floorplan", d.floorplanName],
+    ["Home Size", `${d.floorplanSize} m²`],
+    ["Land Size", `${d.landSize} m²`],
+    ["Land Frontage", `${d.landFrontage} m`],
+    ["Estate", d.estate || "—"],
+    ["Suburb", d.suburb || "—"],
+    ["Address", d.address || "—"],
   ];
 
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="navy-panel flex items-center justify-between px-[14mm] py-[9mm]">
-        <Logo light />
-        <div className="font-display text-[7mm] tracking-[0.15em] text-brand-gold">
-          FLOORPLAN &amp; DETAILS
+      {/* Top Header Bar */}
+      <div className="navy-panel flex items-center justify-between px-[12mm] py-[3.5mm]">
+        <Logo light size={14} />
+        <div className="font-display text-[5.5mm] tracking-[0.16em] text-brand-gold">
+          FLOORPLAN &amp; SPECIFICATIONS
         </div>
       </div>
 
-      <div className="px-[14mm] pt-[9mm]">
-        <div className="flex h-[132mm] items-center justify-center rounded-[2mm] border border-brand-sand bg-white p-[2mm]">
+      <div className="gold-bar h-[1.5mm] w-full" />
+
+      {/* Large Floorplan Showcase Frame: 148mm tall */}
+      <div className="px-[12mm] pt-[5mm]">
+        <div className="flex h-[148mm] items-center justify-center overflow-hidden rounded-[2mm] border border-brand-sand bg-white p-[3mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}
@@ -374,42 +426,44 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
               style={{ imageRendering: "auto" }}
             />
           ) : (
-            <div className="text-center text-[3.4mm] text-brand-ink/40">
+            <div className="text-center text-[3.2mm] text-brand-ink/40">
               Select a design to load its floorplan
             </div>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_1fr] gap-[9mm] px-[14mm] pt-[9mm]">
+      {/* Specifications & Inclusions Grid */}
+      <div className="grid grid-cols-[1fr_1fr] gap-[6mm] px-[12mm] pt-[4.5mm]">
         <div>
-          <div className="text-[2.8mm] tracking-[0.3em] text-brand-gold-deep">
+          <div className="text-[2.6mm] font-bold tracking-[0.26em] text-brand-gold-deep">
             PACKAGE SPECIFICATION
           </div>
-          <div className="mt-[3mm] divide-y divide-brand-sand">
+          <div className="mt-[2mm] divide-y divide-brand-sand">
             {rows.map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-[4mm] py-[2mm] text-[3.1mm]">
-                <span className="text-brand-ink/50">{k}</span>
-                <span className="text-right font-medium text-brand-navy">{v || "—"}</span>
+              <div key={k} className="flex justify-between gap-[3mm] py-[1.5mm] text-[2.8mm]">
+                <span className="text-brand-ink/60">{k}</span>
+                <span className="text-right font-semibold text-brand-navy">{v}</span>
               </div>
             ))}
           </div>
         </div>
+
         <div>
-          <div className="text-[2.8mm] tracking-[0.3em] text-brand-gold-deep">
+          <div className="text-[2.6mm] font-bold tracking-[0.26em] text-brand-gold-deep">
             {getRange(d.range).label.toUpperCase()} INCLUSIONS
           </div>
-          <ul className="mt-[3mm] space-y-[1.8mm]">
-            {rangeItems(d).map((line) => (
-              <li key={line} className="flex gap-[2mm] text-[3.1mm] leading-[1.4]">
-                <span className="mt-[1.4mm] h-[1.4mm] w-[1.4mm] flex-none rounded-full bg-brand-gold" />
+          <ul className="mt-[2mm] space-y-[1.4mm]">
+            {rangeItems(d).slice(0, 5).map((line) => (
+              <li key={line} className="flex gap-[1.8mm] text-[2.7mm] leading-[1.3]">
+                <span className="mt-[1mm] h-[1.2mm] w-[1.2mm] flex-none rounded-full bg-brand-gold" />
                 <span className="text-brand-ink/80">{line}</span>
               </li>
             ))}
           </ul>
-          <div className="mt-[6mm] rounded-[2mm] bg-brand-sand px-[5mm] py-[4mm]">
-            <div className="text-[2.6mm] tracking-[0.25em] text-brand-ink/50">FROM</div>
-            <div className="font-display text-[10mm] leading-[1] text-brand-navy">
+          <div className="mt-[3.5mm] rounded-[1.5mm] bg-brand-sand px-[3.5mm] py-[2.5mm]">
+            <div className="text-[2.2mm] font-bold tracking-[0.2em] text-brand-ink/50">TOTAL PACKAGE PRICE</div>
+            <div className="font-display text-[8mm] leading-none text-brand-navy">
               {d.price || "$—"}
             </div>
           </div>
@@ -425,107 +479,114 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
 export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
-      <div className="flex items-center justify-between px-[10mm] pt-[8mm] pb-[4mm]">
-        <div className="-ml-[2mm]">
-          <Logo size={22} />
+      {/* Top Header: Optimized compact vertical padding */}
+      <div className="flex items-center justify-between px-[10mm] pt-[4.5mm] pb-[2.5mm]">
+        <div>
+          <Logo size={15} />
         </div>
-        <div className="text-right">
-          <div className="text-[3mm] font-semibold tracking-[0.26em] text-brand-gold-deep">
+        <div className="text-right leading-tight">
+          <div className="text-[2.7mm] font-bold tracking-[0.24em] text-brand-gold-deep">
             NEW HOME DESIGN
           </div>
-          <div className="mt-[1mm] flex items-baseline justify-end gap-[2mm]">
-            <span className="text-[3mm] tracking-[0.25em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[11mm] leading-[1] text-brand-navy">
+          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.8mm]">
+            <span className="text-[2.6mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+            <span className="font-display text-[9.5mm] leading-none text-brand-navy">
               {d.housePrice || "$—"}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="gold-bar h-[1.6mm] w-full" />
+      <div className="gold-bar h-[1.5mm] w-full" />
 
-      <div className="h-[82mm] w-full">
+      {/* Facade Hero */}
+      <div className="h-[84mm] w-full">
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
-      <div className="navy-panel flex items-center justify-between gap-[2mm] px-[14mm] py-[2.4mm] text-brand-cream">
-        <span className="font-display text-[4.6mm] leading-[1] tracking-wide">
+      {/* Design Name Banner */}
+      <div className="navy-panel flex items-center justify-between gap-[2mm] px-[12mm] py-[2mm] text-brand-cream">
+        <span className="font-sans font-bold text-[4.2mm] leading-tight tracking-[0.02em]">
           {d.designName || d.floorplanName}
         </span>
         {d.facadeName && (
-          <span className="text-[3mm] tracking-[0.18em] text-brand-cream/75">
+          <span className="text-[2.8mm] font-semibold tracking-[0.18em] text-brand-gold">
             {d.facadeName.toUpperCase()} FACADE
           </span>
         )}
       </div>
 
-      <div className="flex items-center justify-between border-b border-brand-sand px-[14mm] py-[3mm]">
+      {/* Specs Strip */}
+      <div className="flex items-center justify-between border-b border-brand-sand px-[12mm] py-[2.6mm]">
         <Spec icon={BedDouble} value={d.beds} label="BEDS" />
         <Spec icon={Bath} value={d.baths} label="BATHS" />
         <Spec icon={Car} value={d.cars} label="CARS" />
         <Spec icon={Maximize2} value={`${d.floorplanSize} m²`} label="HOME SIZE" />
       </div>
 
-      <div className="flex items-baseline gap-[3mm] px-[14mm] pt-[3mm]">
-        <div className="text-[3mm] font-semibold tracking-[0.3em] text-brand-gold-deep">
+      {/* Floorplan & Facade Title Header */}
+      <div className="flex items-baseline gap-[3mm] px-[12mm] pt-[2.5mm] pb-[1mm]">
+        <div className="text-[2.8mm] font-bold tracking-[0.28em] text-brand-gold-deep">
           FLOOR PLAN
         </div>
-        <div className="text-[3mm] tracking-[0.15em] text-brand-navy">{d.floorplanName}</div>
+        <div className="text-[2.9mm] font-semibold tracking-[0.12em] text-brand-navy">{d.floorplanName}</div>
         {d.facadeName && (
           <>
-            <div className="ml-[4mm] text-[3mm] font-semibold tracking-[0.3em] text-brand-gold-deep">
+            <div className="ml-[3mm] text-[2.8mm] font-bold tracking-[0.28em] text-brand-gold-deep">
               FACADE
             </div>
-            <div className="text-[3mm] tracking-[0.15em] text-brand-navy">{d.facadeName}</div>
+            <div className="text-[2.9mm] font-semibold tracking-[0.12em] text-brand-navy">{d.facadeName}</div>
           </>
         )}
       </div>
 
-
-      <div className="grid grid-cols-[40mm_1fr] gap-[3mm] px-[7mm] pt-[2mm]">
+      {/* Floorplan & Inclusions Row */}
+      <div className="grid grid-cols-[42mm_1fr] gap-[3.5mm] px-[7mm] pt-[1mm]">
         <div>
-          <div className="text-[2.7mm] tracking-[0.25em] text-brand-gold-deep">
+          <div className="text-[2.6mm] font-bold tracking-[0.22em] text-brand-gold-deep">
             {getRange(d.range).label.toUpperCase()}
           </div>
-          <ul className="mt-[2.5mm] space-y-[1.5mm]">
+          <ul className="mt-[2mm] space-y-[1.3mm]">
             {rangeItems(d).map((line) => (
-              <li key={line} className="flex gap-[1.8mm] text-[2.8mm] leading-[1.3]">
-                <span className="mt-[1.1mm] h-[1.2mm] w-[1.2mm] flex-none rounded-full bg-brand-gold" />
+              <li key={line} className="flex gap-[1.6mm] text-[2.7mm] leading-[1.25]">
+                <span className="mt-[1mm] h-[1.1mm] w-[1.1mm] flex-none rounded-full bg-brand-gold" />
                 <span className="text-brand-ink/80">{line}</span>
               </li>
             ))}
           </ul>
 
-          <div className="mt-[4mm] rounded-[1.5mm] bg-brand-sand px-[2.5mm] py-[2.5mm]">
-            <div className="text-[2.2mm] tracking-[0.2em] text-brand-ink/50">BUILD PRICE FROM</div>
-            <div className="font-display text-[7mm] leading-[1.1] text-brand-navy">
+          <div className="mt-[3.5mm] rounded-[1.5mm] bg-brand-sand px-[2.5mm] py-[2.2mm]">
+            <div className="text-[2mm] font-semibold tracking-[0.18em] text-brand-ink/50">BUILD PRICE FROM</div>
+            <div className="font-display text-[6mm] leading-[1.1] text-brand-navy">
               {d.housePrice || "$—"}
             </div>
-            <div className="mt-[1mm] text-[2.1mm] leading-[1.3] text-brand-ink/50">
+            <div className="mt-[0.5mm] text-[1.9mm] leading-[1.2] text-brand-ink/50">
               Fixed price build, inclusions as listed.
             </div>
           </div>
 
           {d.showOtherSizes && d.otherSizes.length > 0 && (
-            <div className="mt-[4mm]">
-              <div className="text-[2.4mm] tracking-[0.25em] text-brand-gold-deep">
+            <div className="mt-[3.5mm]">
+              <div className="text-[2.3mm] font-bold tracking-[0.22em] text-brand-gold-deep">
                 OTHER SIZES AVAILABLE
               </div>
-              <div className="mt-[2mm] divide-y divide-brand-sand border-t border-brand-sand">
+              <div className="mt-[1.5mm] divide-y divide-brand-sand border-t border-brand-sand">
                 {d.otherSizes.slice(0, 6).map((o) => (
                   <div
                     key={o.label + o.size}
-                    className="flex justify-between gap-[2mm] py-[1.4mm] text-[2.6mm]"
+                    className="flex justify-between gap-[2mm] py-[1.2mm] text-[2.5mm]"
                   >
                     <span className="truncate text-brand-ink/70">{o.label}</span>
-                    <span className="flex-none font-medium text-brand-navy">{o.size}</span>
+                    <span className="flex-none font-semibold text-brand-navy">{o.size}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
         </div>
-        <div className="flex h-[136mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white">
+
+        {/* Floorplan Frame: Expanded 139mm height */}
+        <div className="flex h-[139mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}

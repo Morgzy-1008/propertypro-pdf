@@ -371,8 +371,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     // 1. Check for pre-rendered local static catalogue FIRST for instant zero-delay render
     if (!forceRefresh) {
       const normId = item.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const normName = item.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId] || PRE_RENDERED_FACADES[normName];
+      const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId];
       if (preRendered) {
         set("facadeUrl", preRendered);
         setFacadeBusy(false);
