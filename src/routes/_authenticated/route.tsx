@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated")({
     } catch {
       /* continue unauthenticated if Supabase is unconfigured */
     }
-    if (!user && !location.pathname.startsWith("/flyer")) {
+    if (!user && !location.pathname.startsWith("/flyer") && !location.pathname.startsWith("/hub")) {
       throw redirect({ to: "/auth" });
     }
     return { user };

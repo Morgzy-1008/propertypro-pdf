@@ -5,8 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import logoUrl from "@/assets/hudson-homes-logo.png";
 import { ACCESS_REQUEST_EMAIL, isAllowedEmail, isLegacySharedPassword } from "@/lib/access";
+import { ShieldCheck, Sparkles } from "lucide-react";
+
+import { Logo } from "@/components/flyer/FlyerTemplates";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -44,7 +46,7 @@ function AuthPage() {
         toast.error(`Access not approved — request it from ${ACCESS_REQUEST_EMAIL}.`);
         return;
       }
-      navigate({ to: "/database", replace: true });
+      navigate({ to: "/hub", replace: true });
     });
   }, [navigate]);
 
@@ -69,7 +71,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin + "/database" },
+          options: { emailRedirectTo: window.location.origin + "/hub" },
         });
         if (error) throw error;
         toast.success("Account created — you can sign in now.");
@@ -82,9 +84,8 @@ function AuthPage() {
           navigate({ to: "/reset-password", search: { forced: "1" }, replace: true });
           return;
         }
-        navigate({ to: "/database", replace: true });
+        navigate({ to: "/hub", replace: true });
       }
-
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {
@@ -107,7 +108,6 @@ function AuthPage() {
     toast.success("Reset link sent — check your inbox.");
   };
 
-
   const google = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -126,34 +126,46 @@ function AuthPage() {
       return;
     }
     if (data.user) {
-      navigate({ to: "/database", replace: true });
+      navigate({ to: "/hub", replace: true });
     }
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
-      <div className="w-full max-w-sm rounded-xl border bg-background p-7 shadow-sm">
-        <img src={logoUrl} alt="Hudson Homes" className="mx-auto h-12 w-auto object-contain" />
-        <h1 className="mt-5 text-center text-lg font-semibold text-brand-navy">
-          Package Studio sign in
-        </h1>
-        <p className="mt-1 text-center text-xs text-muted-foreground">
-          Hudson Homes staff access to the QLD House &amp; Land database.
-        </p>
+    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-slate-100 font-sans relative overflow-hidden">
+      {/* Subtle background glow */}
+      <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-brand-gold/10 blur-[120px] pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-cyan-500/10 blur-[120px] pointer-events-none" />
 
-        <form onSubmit={submit} className="mt-6 space-y-3">
+      <div className="w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-8 sm:p-10 shadow-2xl relative z-10">
+        <div className="text-center">
+          <div className="flex justify-center mb-2">
+            <Logo light size={14} />
+          </div>
+          <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-[11px] font-medium tracking-wide">
+            <Sparkles className="h-3 w-3" /> QLD Package Studio
+          </div>
+          <h1 className="mt-3 text-2xl font-bold text-white tracking-tight">
+            {mode === "signin" ? "Sign in to your account" : "Create staff account"}
+          </h1>
+          <p className="mt-1.5 text-xs text-slate-400">
+            Hudson Homes authorized staff access to Flyer Builder &amp; Database.
+          </p>
+        </div>
+
+        <form onSubmit={submit} className="mt-8 space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">Work email</Label>
+            <Label className="text-xs text-slate-300">Work email</Label>
             <Input
               type="email"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@hudsonhomes.com.au"
+              className="bg-slate-950/60 border-slate-800 text-slate-100 focus:border-brand-gold/60 focus:ring-brand-gold/20 placeholder:text-slate-500"
             />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Password</Label>
+            <Label className="text-xs text-slate-300">Password</Label>
             <Input
               type="password"
               required
@@ -161,45 +173,53 @@ function AuthPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Your own private password"
+              className="bg-slate-950/60 border-slate-800 text-slate-100 focus:border-brand-gold/60 focus:ring-brand-gold/20 placeholder:text-slate-500"
             />
           </div>
 
           <Button
             type="submit"
             disabled={busy}
-            className="w-full bg-brand-navy text-brand-cream hover:bg-brand-navy-deep"
+            className="w-full bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-300 transition-all shadow-md mt-2"
           >
             {mode === "signin" ? "Sign in" : "Create account"}
           </Button>
         </form>
 
-        <Button variant="outline" className="mt-3 w-full" onClick={google}>
+        <Button
+          variant="outline"
+          className="mt-3 w-full border-slate-800 bg-slate-950/40 text-slate-300 hover:bg-slate-800 hover:text-white"
+          onClick={google}
+        >
           Continue with Google
         </Button>
 
-        <button
-          type="button"
-          className="mt-4 w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-        >
-          {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
-        </button>
+        <div className="mt-6 flex flex-col gap-2 text-center text-xs text-slate-400">
+          <button
+            type="button"
+            className="hover:text-amber-300 transition-colors"
+            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          >
+            {mode === "signin" ? "Need an account? Sign up" : "Already have an account? Sign in"}
+          </button>
 
-        <button
-          type="button"
-          className="mt-2 w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
-          onClick={forgot}
-        >
-          Forgot password? Email me a reset link
-        </button>
+          <button
+            type="button"
+            className="hover:text-slate-300 transition-colors"
+            onClick={forgot}
+          >
+            Forgot password? Email me a reset link
+          </button>
+        </div>
 
-
-        <div className="mt-5 rounded-md border bg-muted/40 p-3 text-center text-[11px] leading-relaxed text-muted-foreground">
-          Approved Hudson staff only.
-          <br />
-          Not on the list?{" "}
+        <div className="mt-6 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 text-center text-[11px] leading-relaxed text-slate-400">
+          <div className="flex items-center justify-center gap-1.5 text-slate-300 font-medium mb-1">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+            <span>Approved Hudson Staff Only</span>
+          </div>
+          Not on the access list?{" "}
           <a
-            className="text-brand-navy underline underline-offset-2"
+            className="text-brand-gold hover:underline font-medium"
             href={`mailto:${ACCESS_REQUEST_EMAIL}?subject=Package%20Studio%20access%20request&body=Hi%20Morgan%2C%20please%20set%20me%20up%20with%20access%20to%20the%20Hudson%20Package%20Studio.`}
           >
             Request access

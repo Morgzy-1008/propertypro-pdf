@@ -515,35 +515,42 @@ export async function widenFacadeClientSide(item: {
     const trueHouseY = srcH * (bbox.ymin + tightenY);
     const trueHouseH = srcH * Math.max(0.1, (bbox.ymax - tightenY) - (bbox.ymin + tightenY));
     const trueHouseW = srcW * (bbox.xmax - bbox.xmin);
-    
-    // Total frame height is 78mm.
-    // Top gap is 5mm (5 / 78)
-    // House height is 63mm (63 / 78)
-    // Bottom gap is 10mm (10 / 78)
-    // Side margin is 5mm (5 / 78)
-    const topGap = Math.round(outH * (5 / 78));
-    const targetHouseH = Math.round(outH * (63 / 78));
-    const sideMargin = Math.round(outH * (5 / 78));
+        const isDouble =
+      /double|two|2\s*storey|duplex|split/i.test(item.housingType ?? "") ||
+      /double|2-storey|2stry|30|32|34|35|36|38|40|42|45|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland|mantra/i.test(
+        `${item.id ?? ""} ${item.name ?? ""}`
+      );
+
+    // Dynamic framing ratios:
+    // For Double Storey (tall houses): 65% house height, 14% top sky gap (~11mm clearance)
+    // For Single Storey: 72% house height, 10% top sky gap (~8mm clearance)
+    const topGapRatio = isDouble ? 0.14 : 0.10;
+    const targetHouseRatio = isDouble ? 0.65 : 0.72;
+    const sideMarginRatio = 0.05;
+
+    const topGap = Math.round(outH * topGapRatio);
+    const targetHouseH = Math.round(outH * targetHouseRatio);
+    const sideMargin = Math.round(outW * sideMarginRatio);
     const maxHouseW = outW - (sideMargin * 2);
     
     let scale = targetHouseH / trueHouseH;
     
-    // If the house is too wide (touching sides), scale it back so there is exactly a 5mm gap on the sides
+    // If the house is too wide (touching sides), scale it back
     if (trueHouseW * scale > maxHouseW) {
-        scale = maxHouseW / trueHouseW;
+      scale = maxHouseW / trueHouseW;
     }
     
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
 
-    // Center horizontally
-    const drawX = Math.round((outW - drawW) / 2);
+    // Center horizontally based on the house itself
+    const houseCenterX = (bbox.xmin + bbox.xmax) / 2 * srcW;
+    const drawX = Math.round((outW / 2) - (houseCenterX * scale));
     
     // Anchor vertically so the ACTUAL roof is exactly at `topGap`
     const drawY = Math.round(topGap - (trueHouseY * scale));
     
-    // Position the house perfectly
-    // Prepare the centered canvas to send to Gemini
+    // Position the house perfectly on the white canvas to send to Gemini
     const prepCanvas = document.createElement("canvas");
     prepCanvas.width = outW;
     prepCanvas.height = outH;
@@ -556,19 +563,13 @@ export async function widenFacadeClientSide(item: {
     
     const preparedPayload = prepCanvas.toDataURL("image/jpeg", 0.95);
 
-    const isDouble =
-      /double|two|2\s*storey|duplex/i.test(item.housingType ?? "") ||
-      /double|2-storey|2stry|30|32|34|35|36|38|40|42|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland/i.test(
-        `${item.id ?? ""} ${item.name ?? ""}`
-      );
-
     const refreshSeed = item.forceRefresh ? `\n\nCRITICAL: This is a RE-GENERATION request. You MUST create a DIFFERENT landscaping layout, sky, and background than you did last time. Random Seed: ${Date.now()}` : "";
 
     const promptText =
       "I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, photorealistic background across the ENTIRE widescreen image.\n\n" +
-      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with an expansive, bright, and soft natural daylight. Imagine a perfectly clear day with soft, non-directional light that makes the colors vibrant and clean. The new extended sky must be a soft, luminous, light blue.\n\n" +
-      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, but with increased overall brightness and luminosity. The original facade itself should remain consistent, but the new lighting should make the textures (brickwork, glass, concrete) look exceptionally clean, crisp, and high-detail.\n\n" +
-      "QUALITY DIRECTIVES: Render with high-resolution textures, clean lines, and an aesthetic that emphasizes a high-end, professionally photographed real estate listing. Avoid flat lighting. keep everything hyper realistic." + refreshSeed;
+      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with bright, crisp, natural Australian daylight. Imagine a perfectly clear day with radiant sunshine that makes the colors vibrant, vivid, and clean. The extended sky must be a soft, luminous, natural light blue with subtle wisps of white clouds.\n\n" +
+      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, with beautiful manicured lawn, modern tropical/native landscaping, and clean concrete driveway. The original facade architecture must remain completely intact, but the lighting must make the textures (brickwork, glass, timber, render) look exceptionally clean, crisp, and high-detail.\n\n" +
+      "QUALITY DIRECTIVES: Render with ultra-high resolution 8K architectural photography details, crystal clear sharpness, hyper-realistic depth, balanced exposure, and an aesthetic that emphasizes a high-end luxury real estate magazine cover. Avoid dark vignettes, gloomy shadows, or flat lighting." + refreshSeed;
 
     const models = ["gemini-3.1-flash-image"];
     let apiRes: Response | null = null;
@@ -638,14 +639,8 @@ export async function widenFacadeClientSide(item: {
     }
 
     // -------------------------------------------------------------
-    // POST-GENERATION ALIGNMENT (No Compositing)
+    // POST-GENERATION ALIGNMENT (Precise Mathematical Scaling)
     // -------------------------------------------------------------
-    // To achieve 100% sharp backgrounds and strictly perfect sizing, we 
-    // do NOT composite. Instead, we detect the exact bounding box of the 
-    // house in the AI's generated image, and then draw that generated 
-    // image onto the final canvas scaled and offset so the house sits 
-    // perfectly at our mathematical constraints (5mm top, 10mm bottom).
-    
     const aiImgBase64 = `data:image/jpeg;base64,${b64}`;
     const aiImg = await loadImage(aiImgBase64);
 
@@ -658,35 +653,21 @@ export async function widenFacadeClientSide(item: {
 
     // Calculate scaling factor to make the AI house exactly our target height
     let finalScale = targetHouseH / aiHouseH;
-    let isWidthConstrained = false;
 
     // If the house is too wide (touching sides), scale it back
     if (aiHouseW * finalScale > maxHouseW) {
-        finalScale = maxHouseW / aiHouseW;
-        isWidthConstrained = true;
+      finalScale = maxHouseW / aiHouseW;
     }
 
     const finalDrawW = Math.round(aiImg.naturalWidth * finalScale);
     const finalDrawH = Math.round(aiImg.naturalHeight * finalScale);
 
-    // Center horizontally based on the whole image (which centers the house if it was centered)
-    // We should center based on the house itself!
-    const aiHouseX = aiImg.naturalWidth * aiBbox.xmin;
-    const scaledHouseW = aiHouseW * finalScale;
-    const scaledHouseX = aiHouseX * finalScale;
-    const finalDrawX = Math.round((outW - scaledHouseW) / 2 - scaledHouseX);
+    // Center horizontally based on the house center
+    const aiHouseCenterX = (aiBbox.xmin + aiBbox.xmax) / 2 * aiImg.naturalWidth;
+    const finalDrawX = Math.round((outW / 2) - (aiHouseCenterX * finalScale));
     
-    // Anchor vertically
-    let finalDrawY;
-    if (isWidthConstrained) {
-        // House is very wide and got scaled down. Center it vertically with 40% top padding.
-        const scaledHouseH = aiHouseH * finalScale;
-        const dynamicTopGap = (outH - scaledHouseH) * 0.4;
-        finalDrawY = Math.round(dynamicTopGap - (aiHouseY * finalScale));
-    } else {
-        // House fits normally. Use strict original 5mm top gap math.
-        finalDrawY = Math.round(topGap - (aiHouseY * finalScale));
-    }
+    // Anchor vertically so the roof apex sits at exactly `topGap` with full sky clearance
+    const finalDrawY = Math.round(topGap - (aiHouseY * finalScale));
 
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width = outW;
@@ -695,18 +676,17 @@ export async function widenFacadeClientSide(item: {
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = "high";
 
-    // First fill full canvas edge-to-edge with the AI outpaint image (cover mode) so there is ZERO white space
+    // Fill background canvas: cover mode anchored to preserve top sky
     const coverScale = Math.max(outW / aiImg.naturalWidth, outH / aiImg.naturalHeight);
     const bgDrawW = Math.round(aiImg.naturalWidth * coverScale);
     const bgDrawH = Math.round(aiImg.naturalHeight * coverScale);
     const bgDrawX = Math.round((outW - bgDrawW) / 2);
-    const bgDrawY = Math.round((outH - bgDrawH) / 2);
+    // Anchor background to top so sky is fully preserved
+    const bgDrawY = Math.min(0, Math.round(topGap - (aiHouseY * coverScale)));
     finalCtx.drawImage(aiImg, bgDrawX, bgDrawY, bgDrawW, bgDrawH);
 
-    // If fine-tuned house alignment fits within bounds, draw aligned layer
-    if (finalDrawW >= outW && finalDrawH >= outH) {
-      finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
-    }
+    // Draw the precisely aligned house layer on top
+    finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
 
     return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {

@@ -16,6 +16,7 @@ import { Route as CropperRouteImport } from './routes/cropper'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
+import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
 import { Route as PackageIdRouteImport } from './routes/package/$id'
@@ -54,6 +55,11 @@ const AuthenticatedFlyerRoute = AuthenticatedFlyerRouteImport.update({
   path: '/flyer',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedHubRoute = AuthenticatedHubRouteImport.update({
+  id: '/hub',
+  path: '/hub',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const BrowseLandRoute = BrowseLandRouteImport.update({
   id: '/browse/land',
   path: '/browse/land',
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
+  '/hub': typeof AuthenticatedHubRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
@@ -88,6 +95,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
+  '/hub': typeof AuthenticatedHubRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
@@ -101,6 +109,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
+  '/_authenticated/hub': typeof AuthenticatedHubRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
@@ -114,6 +123,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/database'
     | '/flyer'
+    | '/hub'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
@@ -125,6 +135,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/database'
     | '/flyer'
+    | '/hub'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
@@ -137,6 +148,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_authenticated/database'
     | '/_authenticated/flyer'
+    | '/_authenticated/hub'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
@@ -204,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFlyerRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/hub': {
+      id: '/_authenticated/hub'
+      path: '/hub'
+      fullPath: '/hub'
+      preLoaderRoute: typeof AuthenticatedHubRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/browse/land': {
       id: '/browse/land'
       path: '/browse/land'
@@ -231,11 +250,13 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
+  AuthenticatedHubRoute: typeof AuthenticatedHubRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
+  AuthenticatedHubRoute: AuthenticatedHubRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -39,6 +39,7 @@ import { formatAud } from "@/lib/pricing";
 import { pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
+import { parseDeveloperPriceList } from "@/lib/parseLotList";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
@@ -443,28 +444,16 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     setRows([]);
     try {
       const pages = await pdfPagesToDataUrls(file);
-      const res = await fetch("/api/parse-lot-list", {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({ pages }),
-      });
-      const json = (await res.json()) as {
-        error?: string;
-        estate?: string;
-        suburb?: string;
-        developer?: string;
-        lots?: ParsedLot[];
-      };
-      if (!res.ok) throw new Error(json.error || "Could not read that price list");
-      setEstate(json.estate || "");
-      setSuburb(json.suburb || "");
-      setDeveloper(json.developer || "");
+      const json = await parseDeveloperPriceList(pages);
+      if (json.estate) setEstate(json.estate);
+      if (json.suburb) setSuburb(json.suburb);
+      if (json.developer) setDeveloper(json.developer);
       const lots = json.lots ?? [];
       setRows(lots);
       setPicked(lots.map(() => true));
       toast.success(`Found ${lots.length} lots — tick the ones to import`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Import failed");
+      toast.error(err instanceof Error ? err.message : "Could not read that price list");
     } finally {
       setBusy(false);
     }
@@ -868,7 +857,7 @@ function DatabasePage() {
     <div className="min-h-screen bg-muted/40">
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:flex sm:flex-wrap sm:justify-between sm:px-6 sm:py-2">
-          <div className="flex min-w-0 items-center gap-3">
+          <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-85 transition-opacity">
             <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-6" />
             <div className="min-w-0 leading-tight">
               <h1 className="truncate text-xs font-semibold text-brand-navy sm:text-sm">
@@ -878,8 +867,13 @@ function DatabasePage() {
                 Live availability, pricing and flyer-ready packages
               </p>
             </div>
-          </div>
+          </Link>
           <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+            <Link to="/hub">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground">
+                Hub
+              </Button>
+            </Link>
             <Link to="/flyer">
               <Button variant="outline" size="sm">
                 Flyer builder

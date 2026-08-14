@@ -30,7 +30,7 @@ export const Route = createFileRoute("/")({
     } catch {
       /* continue */
     }
-    throw redirect({ to: user ? "/database" : "/flyer", replace: true });
+    throw redirect({ to: user ? "/hub" : "/auth", replace: true });
   },
   component: () => null,
 });
