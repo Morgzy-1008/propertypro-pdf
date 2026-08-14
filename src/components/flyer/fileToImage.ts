@@ -477,7 +477,93 @@ Return ONLY a JSON object with this exact structure, using relative coordinates 
   } catch (e) {
     console.error("Failed to get bounding box", e);
   }
-  return { ymin: 0.15, ymax: 0.85, xmin: 0.1, xmax: 0.9 };
+  return { ymin: 0.10, ymax: 0.90, xmin: 0.10, xmax: 0.90 };
+}
+
+/**
+ * Deterministic pixel scanner that inspects the raw facade canvas to find the exact
+ * topmost roof apex, groundline/foundation, and building side edges.
+ * Prevents any possibility of roofline or building clipping on tall double-storey houses.
+ */
+function detectHouseBounds(img: HTMLImageElement): { ymin: number; ymax: number; xmin: number; xmax: number } {
+  const w = img.naturalWidth || 1200;
+  const h = img.naturalHeight || 900;
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0);
+  const { data } = ctx.getImageData(0, 0, w, h);
+
+  // Sample top corner sky color to find sky baseline
+  let skyR = 0, skyG = 0, skyB = 0, skyCount = 0;
+  const sampleH = Math.min(20, Math.floor(h * 0.05));
+  const sampleW = Math.min(30, Math.floor(w * 0.08));
+  for (let y = 0; y < sampleH; y++) {
+    for (let x = 0; x < sampleW; x++) {
+      const idx = (y * w + x) * 4;
+      skyR += data[idx];
+      skyG += data[idx + 1];
+      skyB += data[idx + 2];
+      skyCount++;
+    }
+  }
+  if (skyCount > 0) {
+    skyR /= skyCount;
+    skyG /= skyCount;
+    skyB /= skyCount;
+  } else {
+    skyR = 220; skyG = 230; skyB = 245;
+  }
+
+  const minX = Math.floor(w * 0.10);
+  const maxX = Math.floor(w * 0.90);
+
+  let roofApexY = Math.floor(h * 0.08); // default fallback
+  // Scan downwards from row 0 to find roof apex
+  for (let y = 0; y < Math.floor(h * 0.55); y++) {
+    let nonSkyInRow = 0;
+    for (let x = minX; x < maxX; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const diff = Math.abs(r - skyR) + Math.abs(g - skyG) + Math.abs(b - skyB);
+      if (diff > 40 || (r < 150 && g < 150 && b < 150)) {
+        nonSkyInRow++;
+      }
+    }
+    if (nonSkyInRow >= 4) {
+      roofApexY = y;
+      break;
+    }
+  }
+
+  // Scan bottom up to find ground line / foundation
+  let baseGroundY = Math.floor(h * 0.92);
+  for (let y = h - 1; y > Math.floor(h * 0.65); y--) {
+    let structureInRow = 0;
+    for (let x = minX; x < maxX; x++) {
+      const idx = (y * w + x) * 4;
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      if (r < 180 && g < 180 && b < 180) {
+        structureInRow++;
+      }
+    }
+    if (structureInRow >= 8) {
+      baseGroundY = y;
+      break;
+    }
+  }
+
+  return {
+    ymin: Math.max(0.01, roofApexY / h),
+    ymax: Math.min(0.99, baseGroundY / h),
+    xmin: 0.08,
+    xmax: 0.92,
+  };
 }
 
 /**
@@ -507,14 +593,20 @@ export async function widenFacadeClientSide(item: {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
 
-    // Get exact house location from Gemini bounding box
+    // Get deterministic pixel scanned bounds + Gemini AI bounding box
+    const scannedBounds = detectHouseBounds(img);
     const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
     
-    // Exact house coordinates without aggressive tightening that could clip the roof
-    const houseRoofY = srcH * Math.max(0, bbox.ymin - 0.005);
-    const houseBaseY = srcH * Math.min(1.0, bbox.ymax);
+    // Combine both: take the highest roofline and lowest foundation to guarantee zero clipping
+    const safeYmin = Math.min(scannedBounds.ymin, bbox.ymin);
+    const safeYmax = Math.max(scannedBounds.ymax, bbox.ymax);
+    const safeXmin = Math.min(scannedBounds.xmin, bbox.xmin);
+    const safeXmax = Math.max(scannedBounds.xmax, bbox.xmax);
+
+    const houseRoofY = srcH * Math.max(0, safeYmin - 0.005);
+    const houseBaseY = srcH * Math.min(1.0, safeYmax);
     const trueHouseH = Math.max(10, houseBaseY - houseRoofY);
-    const trueHouseW = Math.max(10, srcW * (bbox.xmax - bbox.xmin));
+    const trueHouseW = Math.max(10, srcW * (safeXmax - safeXmin));
 
     // Mathematical framing specifications (calibrated to 82mm flyer container):
     // - 3mm to 3.5mm clearance above roof apex to top border (~38px on 892px canvas)
@@ -537,7 +629,7 @@ export async function widenFacadeClientSide(item: {
     const drawH = Math.round(srcH * scale);
 
     // Center horizontally based on the house itself
-    const houseCenterX = ((bbox.xmin + bbox.xmax) / 2) * srcW;
+    const houseCenterX = ((safeXmin + safeXmax) / 2) * srcW;
     const drawX = Math.round((outW / 2) - (houseCenterX * scale));
     
     // Anchor vertically so the roof apex sits at exactly `topGap` (3.5mm sky clearance)

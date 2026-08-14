@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "PropertyProFacadeCacheDB";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = "enhanced_facades";
 
 function openDB(): Promise<IDBDatabase> {
@@ -21,14 +21,15 @@ function openDB(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
+      if (db.objectStoreNames.contains(STORE_NAME)) {
+        db.deleteObjectStore(STORE_NAME);
       }
+      db.createObjectStore(STORE_NAME);
     };
   });
 }
 
-/** Get cached outpaint render from IndexedDB (survives tab closes & browser restarts) */
+/** Get cached outpaint render from IndexedDB */
 export async function getIdbEnhanced(id: string): Promise<string | null> {
   try {
     const db = await openDB();
@@ -37,7 +38,7 @@ export async function getIdbEnhanced(id: string): Promise<string | null> {
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(id);
 
-      request.onsuccess = () => resolve(request.result as string || null);
+      request.onsuccess = () => resolve((request.result as string) || null);
       request.onerror = () => resolve(null);
     });
   } catch {
@@ -63,7 +64,7 @@ export async function saveIdbEnhanced(id: string, dataUrl: string): Promise<void
   }
 }
 
-/** Evict a facade from IndexedDB cache (used when re-doing AI outpainting) */
+/** Evict a single facade from IndexedDB cache */
 export async function clearIdbEnhanced(id: string): Promise<void> {
   if (!id) return;
   try {
@@ -72,6 +73,23 @@ export async function clearIdbEnhanced(id: string): Promise<void> {
       const tx = db.transaction(STORE_NAME, "readwrite");
       const store = tx.objectStore(STORE_NAME);
       const request = store.delete(id);
+
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear the entire facade render memory from IndexedDB */
+export async function clearAllIdbEnhanced(): Promise<void> {
+  try {
+    const db = await openDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.clear();
 
       request.onsuccess = () => resolve();
       request.onerror = () => resolve();
