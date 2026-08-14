@@ -728,7 +728,7 @@ export async function prepareFloorplan(plan: import("./floorplans.data").Floorpl
   if (!url || url.startsWith("data:")) return url;
 
   if (typeof plan !== "string" && plan.cropBoxes && plan.cropBoxes.length > 0) {
-    const cacheKey = `${plan.label}::pdf_crop_v1`;
+    const cacheKey = `${plan.label}::pdf_crop_v2_side_by_side`;
     const cached = floorplanCache.get(cacheKey);
     if (cached) return cached;
     try {
@@ -886,27 +886,40 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
     }
     
     croppedCanvases.push(cropCanvas);
-    totalHeight += cropCanvas.height;
-    if (cropCanvas.width > maxWidth) maxWidth = cropCanvas.width;
   }
   
-  // Combine all crops vertically
-  const finalCanvas = document.createElement("canvas");
-  const padding = crops.length > 1 ? 50 : 0;
-  finalCanvas.width = maxWidth;
-  finalCanvas.height = totalHeight + (padding * (crops.length - 1));
-  const fCtx = finalCanvas.getContext("2d")!;
-  fCtx.fillStyle = "#ffffff";
-  fCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-  
-  let currentY = 0;
-  for (const c of croppedCanvases) {
-    const dx = Math.floor((maxWidth - c.width) / 2);
-    fCtx.drawImage(c, dx, currentY);
-    currentY += c.height + padding;
+  if (croppedCanvases.length === 0) return null;
+
+  let rawDataUrl: string;
+  if (croppedCanvases.length === 1) {
+    rawDataUrl = croppedCanvases[0].toDataURL("image/png");
+  } else {
+    // Multi-storey / double-storey floorplans:
+    // Place storeys horizontally side-by-side to scale, fitting the wide flyer box
+    const minWidth = Math.min(...croppedCanvases.map(c => c.width));
+    const gap = Math.max(40, Math.round(minWidth * 0.05));
+    const totalWidth = croppedCanvases.reduce((sum, c) => sum + c.width, 0) + gap * (croppedCanvases.length - 1);
+    const maxHeight = Math.max(...croppedCanvases.map(c => c.height));
+
+    const finalCanvas = document.createElement("canvas");
+    finalCanvas.width = totalWidth;
+    finalCanvas.height = maxHeight;
+    const fCtx = finalCanvas.getContext("2d")!;
+    fCtx.fillStyle = "#ffffff";
+    fCtx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
+
+    let currentX = 0;
+    for (const c of croppedCanvases) {
+      const dy = Math.floor((maxHeight - c.height) / 2);
+      fCtx.drawImage(c, currentX, dy);
+      currentX += c.width + gap;
+    }
+    rawDataUrl = finalCanvas.toDataURL("image/png");
   }
-  
-  return finalCanvas.toDataURL("image/png");
+
+  // Enhance crispness so architectural lines and dimension texts stay razor sharp
+  const enhanced = await sharpenPlan(rawDataUrl);
+  return enhanced || rawDataUrl;
 }
 
 const MIN_GARAGE_W = 5.7;
