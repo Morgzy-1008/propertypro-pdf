@@ -801,16 +801,17 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
 
   const crops = plan.cropBoxes!;
   
-  // Get the exact PDF url
   let pdfUrl = plan.pdfUrl;
   if (!pdfUrl) {
     pdfUrl = `/floorplans_pdf/${plan.label.toUpperCase()}.pdf`;
   }
   
-  const doc = await pdfjs.getDocument(pdfUrl).promise;
+  // Fetch as ArrayBuffer for reliability with special characters in filenames
+  const res = await fetch(pdfUrl);
+  if (!res.ok) throw new Error("Failed to fetch PDF: " + pdfUrl);
+  const pdfData = new Uint8Array(await res.arrayBuffer());
+  const doc = await pdfjs.getDocument({ data: pdfData }).promise;
   
-  // We want to render at 5x scale for maximum clarity. 
-  // Let's create an offscreen canvas for each crop.
   const SCALE = 5.0;
   
   const croppedCanvases: HTMLCanvasElement[] = [];
@@ -828,31 +829,69 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
     const ctx = pageCanvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    
     await page.render({ canvasContext: ctx, viewport }).promise;
     
-    // Now extract the crop box
-    const cx = Math.floor(crop.x * viewport.width);
-    const cy = Math.floor(crop.y * viewport.height);
-    const cw = Math.floor(crop.w * viewport.width);
-    const ch = Math.floor(crop.h * viewport.height);
+    let cropCanvas: HTMLCanvasElement;
     
-    const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = cw;
-    cropCanvas.height = ch;
-    const cropCtx = cropCanvas.getContext("2d")!;
-    cropCtx.fillStyle = "#ffffff";
-    cropCtx.fillRect(0, 0, cw, ch);
-    cropCtx.drawImage(pageCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
+    if (crop.points && crop.points.length >= 3) {
+      // ─── Polygon crop ───
+      const pts = crop.points.map(p => ({
+        px: Math.floor(p.x * viewport.width),
+        py: Math.floor(p.y * viewport.height),
+      }));
+      
+      // Compute bounding box of the polygon
+      const minX = Math.max(0, Math.min(...pts.map(p => p.px)));
+      const minY = Math.max(0, Math.min(...pts.map(p => p.py)));
+      const maxX = Math.min(viewport.width, Math.max(...pts.map(p => p.px)));
+      const maxY = Math.min(viewport.height, Math.max(...pts.map(p => p.py)));
+      const cw = maxX - minX;
+      const ch = maxY - minY;
+      
+      cropCanvas = document.createElement("canvas");
+      cropCanvas.width = cw;
+      cropCanvas.height = ch;
+      const cropCtx = cropCanvas.getContext("2d")!;
+      cropCtx.fillStyle = "#ffffff";
+      cropCtx.fillRect(0, 0, cw, ch);
+      
+      // Create clipping path from polygon
+      cropCtx.beginPath();
+      cropCtx.moveTo(pts[0].px - minX, pts[0].py - minY);
+      for (let i = 1; i < pts.length; i++) {
+        cropCtx.lineTo(pts[i].px - minX, pts[i].py - minY);
+      }
+      cropCtx.closePath();
+      cropCtx.clip();
+      
+      // Draw the page region into the clipped area
+      cropCtx.drawImage(pageCanvas, minX, minY, cw, ch, 0, 0, cw, ch);
+      
+    } else if (crop.x != null && crop.y != null && crop.w != null && crop.h != null) {
+      // ─── Legacy rectangle crop ───
+      const cx = Math.floor(crop.x * viewport.width);
+      const cy = Math.floor(crop.y * viewport.height);
+      const cw = Math.floor(crop.w * viewport.width);
+      const ch = Math.floor(crop.h * viewport.height);
+      
+      cropCanvas = document.createElement("canvas");
+      cropCanvas.width = cw;
+      cropCanvas.height = ch;
+      const cropCtx = cropCanvas.getContext("2d")!;
+      cropCtx.fillStyle = "#ffffff";
+      cropCtx.fillRect(0, 0, cw, ch);
+      cropCtx.drawImage(pageCanvas, cx, cy, cw, ch, 0, 0, cw, ch);
+    } else {
+      continue; // skip invalid crop
+    }
     
     croppedCanvases.push(cropCanvas);
-    totalHeight += ch;
-    if (cw > maxWidth) maxWidth = cw;
+    totalHeight += cropCanvas.height;
+    if (cropCanvas.width > maxWidth) maxWidth = cropCanvas.width;
   }
   
   // Combine all crops vertically
   const finalCanvas = document.createElement("canvas");
-  // Add a little padding between floors if multiple
   const padding = crops.length > 1 ? 50 : 0;
   finalCanvas.width = maxWidth;
   finalCanvas.height = totalHeight + (padding * (crops.length - 1));
@@ -862,7 +901,6 @@ async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecor
   
   let currentY = 0;
   for (const c of croppedCanvases) {
-    // Center it horizontally
     const dx = Math.floor((maxWidth - c.width) / 2);
     fCtx.drawImage(c, dx, currentY);
     currentY += c.height + padding;

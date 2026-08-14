@@ -14,7 +14,7 @@ export interface FloorplanRecord {
   frontage: string;
   url: string;
   pdfUrl?: string;
-  cropBoxes?: { page: number; x: number; y: number; w: number; h: number }[];
+  cropBoxes?: { page: number; x?: number; y?: number; w?: number; h?: number; points?: { x: number; y: number }[] }[];
 }
 
 export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
@@ -48,6 +48,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "284.86",
     frontage: "17.80",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-31.png",
+    cropBoxes: [{"page":1,"x":0.22684085510688837,"y":0.17296389588581024,"w":0.5486935866983373,"h":0.47523089840470195}],
   },
   {
     design: "Alabaster",
@@ -59,6 +60,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "330.66",
     frontage: "18.00",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-36.png",
+    cropBoxes: [{"page":1,"x":0.22327790973871733,"y":0.13014273719563393,"w":0.5403800475059383,"h":0.5398824517212426}],
   },
   {
     design: "Alabaster",
@@ -70,6 +72,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "373.02",
     frontage: "18.00",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/03/Alabaster-40.png",
+    cropBoxes: [{"page":1,"x":0.23159144893111638,"y":0.0764063811922754,"w":0.5415676959619953,"h":0.6112510495382032}],
   },
   {
     design: "Charcoal",
@@ -81,6 +84,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "222.56",
     frontage: "12.49",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2026/01/Screenshot-2026-01-07-at-2.10.30-PM.png",
+    cropBoxes: [{"page":1,"x":0.25653206650831356,"y":0.24769101595298068,"w":0.39311163895486934,"h":0.5264483627204031}],
   },
   {
     design: "Maroon",
@@ -92,6 +96,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "244.42",
     frontage: "12.50",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.0736779560308972,"y":0.3670726585468291,"w":0.40047534165181226,"h":0.38219235615287694},{"page":1,"x":0.5252525252525253,"y":0.36791264174716504,"w":0.39215686274509803,"h":0.39059218815623686}],
   },
   {
     design: "Maroon",
@@ -103,6 +108,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "261.34",
     frontage: "14.14",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/05/Floorplan-1.png",
+    cropBoxes: [{"page":1,"x":0.049910873440285206,"y":0.4300713985720286,"w":0.44800950683303625,"h":0.37967240655186896},{"page":1,"x":0.5098039215686274,"y":0.43343133137337253,"w":0.44682115270350564,"h":0.3855522889542209}],
   },
   {
     design: "Raven",
@@ -180,6 +186,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "265.59",
     frontage: "16.83",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Teal-29.png",
+    cropBoxes: [{"page":1,"x":0.34679334916864607,"y":0.12846347607052896,"w":0.48931116389548696,"h":0.5524769101595298}],
   },
   {
     design: "Teal",
@@ -191,6 +198,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "306.25",
     frontage: "17.92",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Teal-33.png",
+    cropBoxes: [{"page":1,"x":0.331353919239905,"y":0.11418975650713686,"w":0.5368171021377672,"h":0.5541561712846348}],
   },
   {
     design: "Teal",
@@ -213,6 +221,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "443.45",
     frontage: "17.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/03/Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.24228028503562946,"y":0.29974811083123426,"w":0.5071258907363421,"h":0.5566750629722922},{"page":2,"x":0.2529691211401425,"y":0.2963895885810244,"w":0.503562945368171,"h":0.5541561712846348}],
   },
   {
     design: "Sabel (QLD ONLY)",
@@ -234,6 +243,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "125.80",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-14.jpg",
+    cropBoxes: [{"page":1,"x":0.36342042755344417,"y":0.30394626364399663,"w":0.28859857482185275,"h":0.4063811922753988}],
   },
   {
     design: "Hazel",
@@ -245,6 +255,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "142.05",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-15.jpg",
+    cropBoxes: [{"page":1,"x":0.36342042755344417,"y":0.25692695214105793,"w":0.28978622327790976,"h":0.4550797649034425}],
   },
   {
     design: "Hazel",
@@ -256,6 +267,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "158.08",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-17.jpg",
+    cropBoxes: [{"page":1,"x":0.36342042755344417,"y":0.21074727120067172,"w":0.28859857482185275,"h":0.5037783375314862}],
   },
   {
     design: "Hazel",
@@ -267,6 +279,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "173.20",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/hazel-19.jpg",
+    cropBoxes: [{"page":1,"x":0.3847980997624703,"y":0.16540722082283796,"w":0.2862232779097387,"h":0.5533165407220823}],
   },
   {
     design: "Olive",
@@ -278,6 +291,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "210.86",
     frontage: "12.87",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/olive-23-floorplan.jpg",
+    cropBoxes: [{"page":1,"x":0.334916864608076,"y":0.1855583543240974,"w":0.3847980997624703,"h":0.5188916876574308}],
   },
   {
     design: "Blanc",
@@ -289,6 +303,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "246.93",
     frontage: "14.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Blanc-27.png",
+    cropBoxes: [{"page":1,"x":0.28741092636579574,"y":0.15869017632241814,"w":0.46080760095011875,"h":0.5239294710327456}],
   },
   {
     design: "Amber",
@@ -300,6 +315,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "192.24",
     frontage: "12.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-21.png",
+    cropBoxes: [{"page":1,"x":0.31016042780748665,"y":0.1999160016799664,"w":0.36957813428401665,"h":0.49055018899622005}],
   },
   {
     design: "Amber",
@@ -311,6 +327,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "210.63",
     frontage: "12.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-23.png",
+    cropBoxes: [{"page":1,"x":0.3137254901960784,"y":0.1973960520789584,"w":0.36838978015448604,"h":0.504829903401932}],
   },
   {
     design: "Amber",
@@ -322,6 +339,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "241.57",
     frontage: "13.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-26.png",
+    cropBoxes: [{"page":1,"x":0.41235888294711825,"y":0.17807643847123059,"w":0.40404040404040403,"h":0.5485090298194036}],
   },
   {
     design: "Amber",
@@ -333,6 +351,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "282.99",
     frontage: "13.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Amber-30.png",
+    cropBoxes: [{"page":1,"x":0.41235888294711825,"y":0.17723645527089457,"w":0.40641711229946526,"h":0.6073078538429232}],
   },
   {
     design: "Azure",
@@ -344,6 +363,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "177.08",
     frontage: "12.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-19.png",
+    cropBoxes: [{"page":1,"x":0.19596199524940616,"y":0.23341729638958858,"w":0.6377672209026128,"h":0.42065491183879095}],
   },
   {
     design: "Azure",
@@ -355,6 +375,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "197.08",
     frontage: "12.87",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Aure-21.png",
+    cropBoxes: [{"page":1,"x":0.3194774346793349,"y":0.22502099076406382,"w":0.3836104513064133,"h":0.45759865659109994}],
   },
   {
     design: "Azure",
@@ -366,6 +387,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "208.71",
     frontage: "12.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-23.png",
+    cropBoxes: [{"page":1,"x":0.32422802850356297,"y":0.14105793450881612,"w":0.36223277909738716,"h":0.5138539042821159}],
   },
   {
     design: "Azure",
@@ -377,6 +399,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "235.44",
     frontage: "12.50",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Azure-25.png",
+    cropBoxes: [{"page":1,"x":0.3077837195484254,"y":0.25955480890382193,"w":0.37076648841354726,"h":0.5795884082318353}],
   },
   {
     design: "Burgundy",
@@ -388,6 +411,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "252.01",
     frontage: "13.33",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/06/Burgundy-27-standard-2.jpg",
+    cropBoxes: [{"page":1,"x":0.09382422802850356,"y":0.4651553316540722,"w":0.38836104513064135,"h":0.4181360201511335},{"page":1,"x":0.5261282660332541,"y":0.45424013434089,"w":0.39667458432304037,"h":0.44080604534005036}],
   },
   {
     design: "Burgundy",
@@ -399,6 +423,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "277.51",
     frontage: "13.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Burgundy-30-standard.jpg",
+    cropBoxes: [{"page":1,"x":0.09382422802850356,"y":0.436607892527288,"w":0.3919239904988123,"h":0.45424013434089},{"page":1,"x":0.5118764845605701,"y":0.4256926952141058,"w":0.4180522565320665,"h":0.473551637279597}],
   },
   {
     design: "Burgundy",
@@ -410,6 +435,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "298.12",
     frontage: "13.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/06/Burgundy-32-standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.09382422802850356,"y":0.41981528127623846,"w":0.39429928741092635,"h":0.47019311502938704},{"page":1,"x":0.5154394299287411,"y":0.4139378673383711,"w":0.41330166270783847,"h":0.47858942065491183}],
   },
   {
     design: "Burgundy",
@@ -421,6 +447,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "317.03",
     frontage: "13.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Burgundy-34-standard.jpg",
+    cropBoxes: [{"page":1,"x":0.09026128266033254,"y":0.40554156171284633,"w":0.3990498812351544,"h":0.4979009235936188},{"page":1,"x":0.5166270783847982,"y":0.3954659949622166,"w":0.41330166270783847,"h":0.5104953820319059}],
   },
   {
     design: "Canary",
@@ -432,6 +459,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "117.64",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-1-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.3087885985748218,"y":0.3022670025188917,"w":0.3919239904988123,"h":0.28967254408060455}],
   },
   {
     design: "Canary",
@@ -443,6 +471,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "113.03",
     frontage: "13.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-2-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.30997624703087884,"y":0.3333333333333333,"w":0.42280285035629456,"h":0.2594458438287154}],
   },
   {
     design: "Canary",
@@ -454,6 +483,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "127.20",
     frontage: "15.18",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-3-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.24703087885985747,"y":0.33837111670864817,"w":0.48931116389548696,"h":0.25692695214105793}],
   },
   {
     design: "Canary",
@@ -465,6 +495,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "117.36",
     frontage: "14.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Canary-4-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.29097387173396677,"y":0.33753148614609574,"w":0.4489311163895487,"h":0.2502099076406381}],
   },
   {
     design: "Carolina",
@@ -476,6 +507,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "202.58",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-22_Classic_RH_02.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.17220902612826602,"y":0.34424853064651556,"w":0.2980997624703088,"h":0.42317380352644834},{"page":1,"x":0.5225653206650831,"y":0.3316540722082284,"w":0.332541567695962,"h":0.43912678421494544}],
   },
   {
     design: "Carolina",
@@ -498,6 +530,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "242.63",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-26_Classic_RH_02.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.17458432304038005,"y":0.2619647355163728,"w":0.3028503562945368,"h":0.5071368597816961},{"page":1,"x":0.5308788598574822,"y":0.2510495382031906,"w":0.33016627078384797,"h":0.5180520570948782}],
   },
   {
     design: "Carolina",
@@ -509,6 +542,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "266.70",
     frontage: "9.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/04/Carolina-29_Classic_RH_12APR.png",
+    cropBoxes: [{"page":1,"x":0.20546318289786222,"y":0.25608732157850544,"w":0.2992874109263658,"h":0.5113350125944585},{"page":1,"x":0.5665083135391924,"y":0.2502099076406381,"w":0.32304038004750596,"h":0.5188916876574308}],
   },
   {
     design: "Carmine",
@@ -520,6 +554,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "162.11",
     frontage: "11.79",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine-23.png",
+    cropBoxes: [{"page":1,"x":0.35888294711824126,"y":0.24947501049979,"w":0.3493761140819964,"h":0.4115917681646367}],
   },
   {
     design: "Carmine",
@@ -531,6 +566,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "180.02",
     frontage: "11.79",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine-19.png",
+    cropBoxes: [{"page":1,"x":0.35769459298871065,"y":0.20831583368332635,"w":0.3481877599524658,"h":0.45275094498110036}],
   },
   {
     design: "Carmine",
@@ -542,6 +578,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "193.57",
     frontage: "11.79",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine21_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.35888294711824126,"y":0.16631667366652667,"w":0.34581105169340465,"h":0.49391012179756405}],
   },
   {
     design: "Carmine",
@@ -553,6 +590,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "215.19",
     frontage: "11.79",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Carmine23_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.35769459298871065,"y":0.12179756404871903,"w":0.35056446821152704,"h":0.5392692146157076}],
   },
   {
     design: "Cedar",
@@ -564,6 +602,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "242.35",
     frontage: "17.07",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-26.jpg",
+    cropBoxes: [{"page":1,"x":0.34679334916864607,"y":0.2174643157010915,"w":0.5261282660332541,"h":0.4802686817800168}],
   },
   {
     design: "Cedar",
@@ -575,6 +614,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "261.44",
     frontage: "17.07",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-28.jpg",
+    cropBoxes: [{"page":1,"x":0.336104513064133,"y":0.218303946263644,"w":0.5296912114014252,"h":0.49706129303106633}],
   },
   {
     design: "Cedar",
@@ -586,6 +626,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "291.51",
     frontage: "18.03",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-31.jpg",
+    cropBoxes: [{"page":1,"x":0.31235154394299286,"y":0.19731318219983207,"w":0.5593824228028503,"h":0.5323257766582704}],
   },
   {
     design: "Cedar",
@@ -597,6 +638,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "318.36",
     frontage: "18.63",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Cedar-34.jpg",
+    cropBoxes: [{"page":1,"x":0.31235154394299286,"y":0.2031905961376994,"w":0.5831353919239906,"h":0.5348446683459278}],
   },
   {
     design: "Cerise",
@@ -618,6 +660,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "218.03",
     frontage: "13.33",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-23-standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.28295549958018473,"y":0.20308788598574823,"w":0.2938706968933669,"h":0.6092636579572447},{"page":1,"x":0.6062132661628883,"y":0.20308788598574823,"w":0.29219143576826195,"h":0.5760095011876485}],
   },
   {
     design: "Cinnamon",
@@ -629,6 +672,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "237.61",
     frontage: "13.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-26-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.2863140218303946,"y":0.18052256532066507,"w":0.30310663308144414,"h":0.6413301662707839},{"page":1,"x":0.6188077246011755,"y":0.166270783847981,"w":0.2938706968933669,"h":0.6152019002375297}],
   },
   {
     design: "Cinnamon",
@@ -640,6 +684,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "275.83",
     frontage: "14.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-30-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.25272879932829556,"y":0.1995249406175772,"w":0.3266162888329135,"h":0.6484560570071259},{"page":1,"x":0.6078925272879933,"y":0.19477434679334918,"w":0.3131821998320739,"h":0.6199524940617577}],
   },
   {
     design: "Cinnamon",
@@ -651,6 +696,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "338.87",
     frontage: "15.13",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/cinnamon-36-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.23509655751469352,"y":0.1163895486935867,"w":0.3408900083963056,"h":0.6888361045130641},{"page":1,"x":0.5961376994122586,"y":0.11995249406175772,"w":0.3308144416456759,"h":0.665083135391924}],
   },
   {
     design: "Cobalt",
@@ -662,6 +708,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "202.63",
     frontage: "12.97",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-22-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.09501187648456057,"y":0.3979848866498741,"w":0.3824228028503563,"h":0.4819479429051218},{"page":1,"x":0.49406175771971494,"y":0.4290512174643157,"w":0.38717339667458434,"h":0.45256087321578503}],
   },
   {
     design: "Cobalt",
@@ -673,6 +720,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "242.03",
     frontage: "13.45",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-26-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.09026128266033254,"y":0.382031905961377,"w":0.3978622327790974,"h":0.4987405541561713},{"page":1,"x":0.503562945368171,"y":0.42065491183879095,"w":0.40736342042755347,"h":0.4609571788413098}],
   },
   {
     design: "Cobalt",
@@ -684,6 +732,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "278.98",
     frontage: "13.45",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-30_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.09738717339667459,"y":0.38455079764903444,"w":0.38717339667458434,"h":0.5424013434089001},{"page":1,"x":0.502375296912114,"y":0.3971452560873216,"w":0.4026128266033254,"h":0.5306465155331654}],
   },
   {
     design: "Cobalt",
@@ -695,6 +744,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "332.60",
     frontage: "14.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Cobalt-36-Classic-Floorplan.jpg",
+    cropBoxes: [{"page":1,"x":0.06294536817102138,"y":0.3459277917716205,"w":0.42042755344418054,"h":0.5734676742233418},{"page":1,"x":0.49049881235154397,"y":0.36859781696053734,"w":0.4477434679334917,"h":0.5499580184718724}],
   },
   {
     design: "Coral",
@@ -706,6 +756,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "181.12",
     frontage: "10.21",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-19-Classic.jpg",
+    cropBoxes: [{"page":1,"x":0.47387173396674587,"y":0.20906801007556675,"w":0.2980997624703088,"h":0.6036943744752309}],
   },
   {
     design: "Coral",
@@ -717,6 +768,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "198.08",
     frontage: "11.30",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-21-Classic.jpg",
+    cropBoxes: [{"page":1,"x":0.4524940617577197,"y":0.21578505457598657,"w":0.333729216152019,"h":0.5667506297229219}],
   },
   {
     design: "Coral",
@@ -728,6 +780,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "217.68",
     frontage: "12.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-23-Classic.jpg",
+    cropBoxes: [{"page":1,"x":0.45605700712589076,"y":0.22082283795130142,"w":0.37410926365795727,"h":0.5692695214105793}],
   },
   {
     design: "Coral",
@@ -739,6 +792,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "240.93",
     frontage: "13.03",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/09/HH_Floor-Plan-CORAL-26-Classic.jpg",
+    cropBoxes: [{"page":1,"x":0.4323040380047506,"y":0.1889168765743073,"w":0.39429928741092635,"h":0.6011754827875735}],
   },
   {
     design: "Crimson",
@@ -750,6 +804,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "224.56",
     frontage: "13.83",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson24_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.32422802850356297,"y":0.2031905961376994,"w":0.42161520190023755,"h":0.4903442485306465}],
   },
   {
     design: "Crimson",
@@ -761,6 +816,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "245.04",
     frontage: "14.67",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson26_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.3028503562945368,"y":0.20990764063811923,"w":0.44299287410926363,"h":0.49622166246851385}],
   },
   {
     design: "Crimson",
@@ -772,6 +828,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "273.85",
     frontage: "17.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson29_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.26009501187648454,"y":0.1712846347607053,"w":0.5380047505938242,"h":0.49622166246851385}],
   },
   {
     design: "Crimson",
@@ -783,6 +840,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "302.45",
     frontage: "17.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Crimson33_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.29097387173396677,"y":0.20906801007556675,"w":0.5415676959619953,"h":0.5247691015952981}],
   },
   {
     design: "Ebony (QLD Only)",
@@ -834,6 +892,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "261.45",
     frontage: "10.81",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald-28.png",
+    cropBoxes: [{"page":1,"x":0.0962566844919786,"y":0.3124737505249895,"w":0.35769459298871065,"h":0.49139017219655606},{"page":1,"x":0.5288175876411171,"y":0.30071398572028557,"w":0.38146167557932265,"h":0.5073498530029399}],
   },
   {
     design: "Emerald",
@@ -845,6 +904,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "363.29",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/01/Emerald39_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.4809976247030879,"y":0.35852225020990763,"w":0.4251781472684085,"h":0.5054575986565911},{"page":2,"x":0.12470308788598575,"y":0.4450041981528128,"w":0.42161520190023755,"h":0.4256926952141058}],
   },
   {
     design: "Emerald",
@@ -856,6 +916,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "392.45",
     frontage: "15.23",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald42_standard-2-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.4809976247030879,"y":0.35432409739714527,"w":0.43824228028503565,"h":0.5222502099076406},{"page":2,"x":0.1021377672209026,"y":0.44164567590260284,"w":0.43705463182897863,"h":0.4433249370277078}],
   },
   {
     design: "Emerald",
@@ -867,6 +928,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "408.67",
     frontage: "15.23",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald44_standard-2-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.47149643705463185,"y":0.3501259445843829,"w":0.4346793349168646,"h":0.5264483627204031},{"page":2,"x":0.09263657957244656,"y":0.44164567590260284,"w":0.4323040380047506,"h":0.4466834592779177}],
   },
   {
     design: "Emerald",
@@ -878,6 +940,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "438.52",
     frontage: "15.23",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Emerald47_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.498812351543943,"y":0.35684298908480266,"w":0.42992874109263657,"h":0.5348446683459278},{"page":2,"x":0.334916864608076,"y":0.491183879093199,"w":0.42755344418052255,"h":0.43828715365239296}],
   },
   {
     design: "Indigo (QLD Only)",
@@ -929,6 +992,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "139.07",
     frontage: "9.25",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Iris-15_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.35629453681710216,"y":0.18219983207388749,"w":0.2850356294536817,"h":0.48866498740554154}],
   },
   {
     design: "Iris",
@@ -940,6 +1004,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "159.99",
     frontage: "9.25",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Iris-17_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.35629453681710216,"y":0.1704450041981528,"w":0.2862232779097387,"h":0.5323257766582704}],
   },
   {
     design: "Iris",
@@ -951,6 +1016,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "168.58",
     frontage: "9.25",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Iris18_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.5581947743467933,"y":0.12594458438287154,"w":0.2850356294536817,"h":0.5617128463476071}],
   },
   {
     design: "Iris",
@@ -962,6 +1028,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "195.59",
     frontage: "10.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Iris21_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.5712589073634204,"y":0.14357682619647355,"w":0.3194774346793349,"h":0.5424013434089001}],
   },
   {
     design: "Ivory",
@@ -973,6 +1040,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "199.23",
     frontage: "12.73",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-21_Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.45605700712589076,"y":0.23341729638958858,"w":0.3693586698337292,"h":0.4987405541561713}],
   },
   {
     design: "Ivory",
@@ -984,6 +1052,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "211.51",
     frontage: "13.23",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-23_Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.1995249406175772,"y":0.20570948782535683,"w":0.39548693586698336,"h":0.5096557514693535}],
   },
   {
     design: "Ivory",
@@ -995,6 +1064,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "232.90",
     frontage: "13.71",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-25_Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.342042755344418,"y":0.20067170445004198,"w":0.40736342042755347,"h":0.5071368597816961}],
   },
   {
     design: "Ivory",
@@ -1006,6 +1076,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "254.56",
     frontage: "14.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-27_Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.3919239904988123,"y":0.19731318219983207,"w":0.45486935866983375,"h":0.5188916876574308}],
   },
   {
     design: "Ivory",
@@ -1017,6 +1088,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "273.92",
     frontage: "14.67",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Ivory-29_Floorplan.png",
+    cropBoxes: [{"page":1,"x":0.4180522565320665,"y":0.1351805205709488,"w":0.44418052256532065,"h":0.5751469353484466}],
   },
   {
     design: "Jade (QLD Only)",
@@ -1048,6 +1120,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "161.71",
     frontage: "11.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-17.jpg",
+    cropBoxes: [{"page":1,"x":0.4750593824228028,"y":0.35432409739714527,"w":0.35748218527315917,"h":0.43912678421494544}],
   },
   {
     design: "Jasper",
@@ -1059,6 +1132,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "185.15",
     frontage: "11.77",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-20.jpg",
+    cropBoxes: [{"page":1,"x":0.46199524940617576,"y":0.2947103274559194,"w":0.3693586698337292,"h":0.4987405541561713}],
   },
   {
     design: "Jasper",
@@ -1070,6 +1144,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "219.83",
     frontage: "11.89",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-24.jpg",
+    cropBoxes: [{"page":1,"x":0.42874109263657956,"y":0.25524769101595296,"w":0.3752969121140142,"h":0.5390428211586902}],
   },
   {
     design: "Jasper",
@@ -1081,6 +1156,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "241.82",
     frontage: "12.49",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Jasper-26-1.jpg",
+    cropBoxes: [{"page":1,"x":0.4643705463182898,"y":0.19395465994962216,"w":0.3919239904988123,"h":0.6011754827875735}],
   },
   {
     design: "Lime",
@@ -1092,6 +1168,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "176.46",
     frontage: "8.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-19_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.2042755344418052,"y":0.29135180520570947,"w":0.2648456057007126,"h":0.4760705289672544},{"page":1,"x":0.5320665083135392,"y":0.28127623845507976,"w":0.28978622327790976,"h":0.489504617968094}],
   },
   {
     design: "Lime",
@@ -1103,6 +1180,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "195.08",
     frontage: "8.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-21_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.19833729216152018,"y":0.27371956339210746,"w":0.27315914489311166,"h":0.49538203190596136},{"page":1,"x":0.5427553444180523,"y":0.2594458438287154,"w":0.2838479809976247,"h":0.5113350125944585}],
   },
   {
     design: "Lime",
@@ -1114,6 +1192,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "215.60",
     frontage: "8.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Lime-23_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.20190023752969122,"y":0.2619647355163728,"w":0.27197149643705465,"h":0.5113350125944585},{"page":1,"x":0.5475059382422803,"y":0.24853064651553317,"w":0.27672209026128264,"h":0.5264483627204031}],
   },
   {
     design: "Lime",
@@ -1125,6 +1204,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "234.87",
     frontage: "8.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Lime-25_Classic_RH_28.03.2023-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.21377672209026127,"y":0.22502099076406382,"w":0.2672209026128266,"h":0.5424013434089001},{"page":1,"x":0.5344418052256532,"y":0.20990764063811923,"w":0.2992874109263658,"h":0.5617128463476071}],
   },
   {
     design: "Magenta",
@@ -1136,6 +1216,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "244.40",
     frontage: "16.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-26.jpg",
+    cropBoxes: [{"page":1,"x":0.3503562945368171,"y":0.2678421494542401,"w":0.5249406175771971,"h":0.4139378673383711}],
   },
   {
     design: "Magenta",
@@ -1147,6 +1228,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "271.52",
     frontage: "17.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-29.jpg",
+    cropBoxes: [{"page":1,"x":0.33016627078384797,"y":0.2216624685138539,"w":0.5332541567695962,"h":0.4659949622166247}],
   },
   {
     design: "Magenta",
@@ -1158,6 +1240,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "305.98",
     frontage: "18.24",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-33.jpg",
+    cropBoxes: [{"page":1,"x":0.3171021377672209,"y":0.181360201511335,"w":0.5534441805225653,"h":0.49286314021830396}],
   },
   {
     design: "Magenta",
@@ -1169,6 +1252,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "334.09",
     frontage: "18.15",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magenta-36.jpg",
+    cropBoxes: [{"page":1,"x":0.31235154394299286,"y":0.16624685138539042,"w":0.5522565320665083,"h":0.5323257766582704}],
   },
   {
     design: "Magnolia",
@@ -1180,6 +1264,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "312.02",
     frontage: "14.785",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-34.jpg",
+    cropBoxes: [{"page":1,"x":0.498812351543943,"y":0.5256087321578505,"w":0.42992874109263657,"h":0.37531486146095716},{"page":1,"x":0.49049881235154397,"y":0.07556675062972293,"w":0.4477434679334917,"h":0.39462636439966414}],
   },
   {
     design: "Magnolia",
@@ -1191,6 +1276,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "346.94",
     frontage: "14.785",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-37.jpg",
+    cropBoxes: [{"page":1,"x":0.46345811051693403,"y":0.5073498530029399,"w":0.47058823529411764,"h":0.42587148257034857},{"page":1,"x":0.48484848484848486,"y":0.06551868962620748,"w":0.45276292335115864,"h":0.44183116337673245}],
   },
   {
     design: "Magnolia",
@@ -1202,6 +1288,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "395.28",
     frontage: "17.19",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-43.jpg",
+    cropBoxes: [{"page":1,"x":0.34323040380047504,"y":0.5121746431570109,"w":0.5653206650831354,"h":0.44164567590260284},{"page":1,"x":0.37173396674584325,"y":0.04953820319059614,"w":0.5451306413301663,"h":0.4617968094038623}],
   },
   {
     design: "Magnolia",
@@ -1213,6 +1300,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "419.08",
     frontage: "18.35",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-45.jpg",
+    cropBoxes: [{"page":1,"x":0.38954869358669836,"y":0.4995801847187238,"w":0.5380047505938242,"h":0.42233417296389586},{"page":1,"x":0.37054631828978624,"y":0.05289672544080604,"w":0.5581947743467933,"h":0.44080604534005036}],
   },
   {
     design: "Magnolia",
@@ -1224,6 +1312,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "432.50",
     frontage: "17.156",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-47.jpg",
+    cropBoxes: [{"page":1,"x":0.4026128266033254,"y":0.5130142737195634,"w":0.5213776722090261,"h":0.4324097397145256},{"page":1,"x":0.38954869358669836,"y":0.05037783375314862,"w":0.5427553444180523,"h":0.4508816120906801}],
   },
   {
     design: "Magnolia",
@@ -1235,6 +1324,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "494.24",
     frontage: "19.07",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Magnolia-53.jpg",
+    cropBoxes: [{"page":1,"x":0.3527315914489311,"y":0.5146935348446684,"w":0.5855106888361045,"h":0.41225860621326615},{"page":1,"x":0.3681710213776722,"y":0.06717044500419815,"w":0.5736342042755345,"h":0.417296389588581}],
   },
   {
     design: "Mulberry",
@@ -1246,6 +1336,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "208.66",
     frontage: "27.03",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mulberry22_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.2955499580184719,"y":0.25771971496437057,"w":0.6137699412258606,"h":0.35510688836104515}],
   },
   {
     design: "Mulberry",
@@ -1371,6 +1462,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "310.96",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Hudson-Homes-Duplex-Experts-Maize-33-Floorplan-Standard.png",
+    cropBoxes: [{"page":1,"x":0.05938242280285035,"y":0.2367758186397985,"w":0.42992874109263657,"h":0.399664147774979},{"page":1,"x":0.505938242280285,"y":0.23005877413937867,"w":0.4418052256532066,"h":0.4063811922753988}],
   },
   {
     design: "Maize",
@@ -1382,6 +1474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "330.90",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize36_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.060570071258907364,"y":0.18807724601175482,"w":0.42874109263657956,"h":0.4475230898404702},{"page":1,"x":0.5106888361045131,"y":0.17884130982367757,"w":0.42399049881235157,"h":0.46011754827875734}],
   },
   {
     design: "Maize",
@@ -1393,6 +1486,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "369.42",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-11-17-at-7.41.53-AM.png",
+    cropBoxes: [{"page":1,"x":0.0688836104513064,"y":0.17632241813602015,"w":0.4251781472684085,"h":0.4609571788413098},{"page":1,"x":0.5095011876484561,"y":0.17548278757346766,"w":0.42755344418052255,"h":0.4643157010915197}],
   },
   {
     design: "Maize",
@@ -1404,6 +1498,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "400.62",
     frontage: "15.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize43_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.05344418052256532,"y":0.17716204869857263,"w":0.4346793349168646,"h":0.45424013434089},{"page":1,"x":0.49524940617577196,"y":0.17548278757346766,"w":0.4418052256532066,"h":0.4550797649034425}],
   },
   {
     design: "Maize",
@@ -1415,6 +1510,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "440.64",
     frontage: "16.19",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Maize47_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.4144893111638955,"y":0.17968094038623006,"w":0.47624703087885983,"h":0.45675902602854745},{"page":2,"x":0.30997624703087884,"y":0.181360201511335,"w":0.47030878859857483,"h":0.4617968094038623}],
   },
   {
     design: "Maize",
@@ -1426,6 +1522,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "505.44",
     frontage: "16.19",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH-EDMs-600x400px-21.jpg",
+    cropBoxes: [{"page":1,"x":0.42992874109263657,"y":0.07472712006717044,"w":0.4679334916864608,"h":0.5549958018471872},{"page":2,"x":0.30997624703087884,"y":0.05961376994122586,"w":0.5071258907363421,"h":0.5843828715365239}],
   },
   {
     design: "Marigold",
@@ -1437,6 +1534,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "243.55",
     frontage: "11.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold26_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.13182897862232779,"y":0.4332493702770781,"w":0.3515439429928741,"h":0.47523089840470195},{"page":1,"x":0.5451306413301663,"y":0.42149454240134343,"w":0.37173396674584325,"h":0.48530646515533166}],
   },
   {
     design: "Marigold",
@@ -1448,6 +1546,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "262.44",
     frontage: "12.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold28_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.07957244655581948,"y":0.42065491183879095,"w":0.4144893111638955,"h":0.45424013434089},{"page":1,"x":0.5106888361045131,"y":0.40973971452560876,"w":0.40973871733966744,"h":0.4693534844668346}],
   },
   {
     design: "Marigold",
@@ -1459,6 +1558,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "289.41",
     frontage: "12.95",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Marigold31_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.07363420427553444,"y":0.4282115869017632,"w":0.40498812351543945,"h":0.4433249370277078},{"page":1,"x":0.5,"y":0.41981528127623846,"w":0.4251781472684085,"h":0.45927791771620485}],
   },
   {
     design: "Marigold",
@@ -1481,6 +1581,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "224.24",
     frontage: "13.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-24-standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.2619647355163728,"y":0.2850356294536817,"w":0.30730478589420657,"h":0.5332541567695962},{"page":1,"x":0.5936188077246012,"y":0.27315914489311166,"w":0.30394626364399663,"h":0.5439429928741093}],
   },
   {
     design: "Mauve",
@@ -1492,6 +1593,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "259.24",
     frontage: "14.15",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-28-standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.3266162888329135,"y":0.11163895486935867,"w":0.2972292191435768,"h":0.6247030878859857},{"page":1,"x":0.6481947942905122,"y":0.09738717339667459,"w":0.29303106633081444,"h":0.6413301662707839}],
   },
   {
     design: "Mauve",
@@ -1503,6 +1605,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "298.07",
     frontage: "14.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-32-standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.24937027707808565,"y":0.1342042755344418,"w":0.31066330814441645,"h":0.6876484560570071},{"page":1,"x":0.5952980688497062,"y":0.12114014251781473,"w":0.30730478589420657,"h":0.6947743467933492}],
   },
   {
     design: "Mauve",
@@ -1514,6 +1617,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "328.66",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/05/Mauve-35-standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.04617968094038623,"y":0.19714964370546317,"w":0.3240973971452561,"h":0.6923990498812351},{"page":1,"x":0.6314021830394626,"y":0.1876484560570071,"w":0.3123425692695214,"h":0.7007125890736342}],
   },
   {
     design: "Mint",
@@ -1525,6 +1629,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "158.74",
     frontage: "7.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-17_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.21971496437054633,"y":0.30394626364399663,"w":0.2327790973871734,"h":0.4643157010915197},{"page":1,"x":0.5653206650831354,"y":0.29135180520570947,"w":0.23871733966745842,"h":0.4760705289672544}],
   },
   {
     design: "Mint",
@@ -1536,6 +1641,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "177.97",
     frontage: "7.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-19_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.21971496437054633,"y":0.28547439126784213,"w":0.23871733966745842,"h":0.4811083123425693},{"page":1,"x":0.5688836104513064,"y":0.2779177162048699,"w":0.23990498812351543,"h":0.489504617968094}],
   },
   {
     design: "Mint",
@@ -1547,6 +1653,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "191.33",
     frontage: "7.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-21_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.23040380047505937,"y":0.27204030226700254,"w":0.22921615201900236,"h":0.5004198152812762},{"page":1,"x":0.5641330166270784,"y":0.2661628883291352,"w":0.24584323040380046,"h":0.5088161209068011}],
   },
   {
     design: "Mint",
@@ -1558,6 +1665,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "220.64",
     frontage: "7.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/HH_Mint-24_Classic_RH_jul23_1.jpg",
+    cropBoxes: [{"page":1,"x":0.2505938242280285,"y":0.20990764063811923,"w":0.2327790973871734,"h":0.5675902602854744},{"page":1,"x":0.5807600950118765,"y":0.19815281276238456,"w":0.24703087885985747,"h":0.5785054575986566}],
   },
   {
     design: "Mocha",
@@ -1569,6 +1677,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "225.93",
     frontage: "11.05",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha24_attached-garage-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.19833729216152018,"y":0.3518052057094878,"w":0.27434679334916867,"h":0.5625524769101595},{"page":1,"x":0.5225653206650831,"y":0.3434089000839631,"w":0.2862232779097387,"h":0.5692695214105793}],
   },
   {
     design: "Mocha",
@@ -1580,6 +1689,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "232.26",
     frontage: "13.93",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha25_standard-2-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.10095011876484561,"y":0.4534005037783375,"w":0.37767220902612825,"h":0.434928631402183},{"page":1,"x":0.517814726840855,"y":0.4424853064651553,"w":0.4026128266033254,"h":0.4475230898404702}],
   },
   {
     design: "Mocha",
@@ -1591,6 +1701,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "260.09",
     frontage: "15.01",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha28_standard-20211115-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.07007125890736342,"y":0.43912678421494544,"w":0.40973871733966744,"h":0.42065491183879095},{"page":1,"x":0.49643705463182897,"y":0.42737195633921077,"w":0.42755344418052255,"h":0.4399664147774979}],
   },
   {
     design: "Mocha",
@@ -1602,6 +1713,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "288.55",
     frontage: "14.29",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha31_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.07838479809976247,"y":0.3786733837111671,"w":0.39667458432304037,"h":0.48446683459277917},{"page":1,"x":0.504750593824228,"y":0.3635600335852225,"w":0.42636579572446553,"h":0.5029387069689337}],
   },
   {
     design: "Mocha",
@@ -1613,6 +1725,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "321.36",
     frontage: "14.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Mocha35_standard-new-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.08432304038004751,"y":0.3618807724601176,"w":0.39311163895486934,"h":0.5432409739714525},{"page":1,"x":0.503562945368171,"y":0.3518052057094878,"w":0.4311163895486936,"h":0.5684298908480269}],
   },
   {
     design: "Onyx",
@@ -1624,6 +1737,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "160.38",
     frontage: "11.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/Onyx17_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.4821852731591449,"y":0.31905961376994124,"w":0.35985748218527314,"h":0.471872376154492}],
   },
   {
     design: "Onyx",
@@ -1635,6 +1749,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "180.82",
     frontage: "11.89",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx19_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.5,"y":0.3148614609571788,"w":0.37885985748218526,"h":0.5012594458438288}],
   },
   {
     design: "Onyx",
@@ -1646,6 +1761,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "198.23",
     frontage: "12.49",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx21_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.4667458432304038,"y":0.3148614609571788,"w":0.39429928741092635,"h":0.5138539042821159}],
   },
   {
     design: "Onyx",
@@ -1657,6 +1773,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "227.27",
     frontage: "13.09",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/07/onyx24_standard-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.44655581947743467,"y":0.26280436607892527,"w":0.4180522565320665,"h":0.5239294710327456}],
   },
   {
     design: "Orchid",
@@ -1668,6 +1785,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "209.52",
     frontage: "10.33",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Orchid-23_NOV-30-2022-single-garage.png",
+    cropBoxes: [{"page":1,"x":0.16389548693586697,"y":0.1670864819479429,"w":0.2850356294536817,"h":0.4643157010915197},{"page":1,"x":0.5332541567695962,"y":0.15365239294710328,"w":0.28859857482185275,"h":0.48866498740554154}],
   },
   {
     design: "Orchid",
@@ -1679,6 +1797,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "228.94",
     frontage: "10.45",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-25_Classic-SG.jpg",
+    cropBoxes: [{"page":1,"x":0.1021377672209026,"y":0.1704450041981528,"w":0.28859857482185275,"h":0.47523089840470195},{"page":1,"x":0.5106888361045131,"y":0.15869017632241814,"w":0.28978622327790976,"h":0.5004198152812762}],
   },
   {
     design: "Orchid",
@@ -1690,6 +1809,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "268.18",
     frontage: "12.85",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-29_Classic-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.09857482185273159,"y":0.3534844668345928,"w":0.37410926365795727,"h":0.47439126784214947},{"page":1,"x":0.5106888361045131,"y":0.3425692695214106,"w":0.38954869358669836,"h":0.49538203190596136}],
   },
   {
     design: "Orchid",
@@ -1701,6 +1821,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "315.08",
     frontage: "13.33",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Orchid-34_Classic-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.08788598574821853,"y":0.35768261964735515,"w":0.37885985748218526,"h":0.5079764903442485},{"page":1,"x":0.5142517814726841,"y":0.3518052057094878,"w":0.4002375296912114,"h":0.5197313182199832}],
   },
   {
     design: "Quartz",
@@ -1712,6 +1833,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "199.69",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz21_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.35748218527315917,"y":0.18723761544920234,"w":0.3859857482185273,"h":0.473551637279597}],
   },
   {
     design: "Quartz",
@@ -1723,6 +1845,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "209.70",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz23_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.46199524940617576,"y":0.181360201511335,"w":0.38717339667458434,"h":0.5004198152812762}],
   },
   {
     design: "Quartz",
@@ -1734,6 +1857,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "228.39",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz25_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.30760095011876487,"y":0.16624685138539042,"w":0.39073634204275537,"h":0.5146935348446684}],
   },
   {
     design: "Quartz",
@@ -1745,6 +1869,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "249.80",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Quartz27_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.3087885985748218,"y":0.11502938706968933,"w":0.39073634204275537,"h":0.563392107472712}],
   },
   {
     design: "Robin",
@@ -1756,6 +1881,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "148.71",
     frontage: "13.94",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-5-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.342042755344418,"y":0.4802686817800168,"w":0.47149643705463185,"h":0.2795969773299748},{"page":1,"x":0.33016627078384797,"y":0.15365239294710328,"w":0.4845605700712589,"h":0.3064651553316541}],
   },
   {
     design: "Robin",
@@ -1767,6 +1893,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "193.43",
     frontage: "13.84",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-6-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.11995249406175772,"y":0.5936188077246012,"w":0.4489311163895487,"h":0.29219143576826195},{"page":1,"x":0.12232779097387174,"y":0.24601175482787574,"w":0.45368171021377673,"h":0.2989084802686818}],
   },
   {
     design: "Robin",
@@ -1778,6 +1905,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "177.73",
     frontage: "13.00",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-7-Classic_Brochure_01.03.2023.png",
+    cropBoxes: [{"page":1,"x":0.16389548693586697,"y":0.5843828715365239,"w":0.4085510688836104,"h":0.29303106633081444},{"page":1,"x":0.16270783847980996,"y":0.22334172963895885,"w":0.42042755344418054,"h":0.3165407220822838}],
   },
   {
     design: "Robin",
@@ -1789,6 +1917,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "173.03",
     frontage: "10.27",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2023/07/Robin-8-Classic_Brochure_04.04.2023.png",
+    cropBoxes: [{"page":1,"x":0.24109263657957244,"y":0.5130142737195634,"w":0.38836104513064135,"h":0.3635600335852225},{"page":1,"x":0.23634204275534443,"y":0.11586901763224182,"w":0.3693586698337292,"h":0.37699412258606213}],
   },
   {
     design: "Rose",
@@ -1844,6 +1973,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "212.95",
     frontage: "13.28",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2020/10/QLD-Rosewood-23-STANDARD-20211025-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.13182897862232779,"y":0.4340890008396306,"w":0.3657957244655582,"h":0.4340890008396306},{"page":1,"x":0.5665083135391924,"y":0.4324097397145256,"w":0.3586698337292161,"h":0.43828715365239296}],
   },
   {
     design: "Rosewood",
@@ -1865,6 +1995,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "174.93",
     frontage: "7.83",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-19_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.2755344418052256,"y":0.19563392107472713,"w":0.22802850356294538,"h":0.4265323257766583},{"page":1,"x":0.5831353919239906,"y":0.19143576826196473,"w":0.22684085510688837,"h":0.4324097397145256}],
   },
   {
     design: "Ruby",
@@ -1876,6 +2007,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "195.51",
     frontage: "8.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-21_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.24465558194774348,"y":0.17800167926112512,"w":0.2494061757719715,"h":0.45004198152812763},{"page":1,"x":0.5724465558194775,"y":0.17716204869857263,"w":0.24465558194774348,"h":0.4508816120906801}],
   },
   {
     design: "Ruby",
@@ -1887,6 +2019,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "214.17",
     frontage: "9.03",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-23_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.23634204275534443,"y":0.1855583543240974,"w":0.33729216152019004,"h":0.4517212426532326},{"page":1,"x":0.5878859857482185,"y":0.17380352644836272,"w":0.31116389548693585,"h":0.46851385390428213}],
   },
   {
     design: "Ruby",
@@ -1898,6 +2031,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "251.38",
     frontage: "12.78",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-09-23-at-11.28.01-AM.png",
+    cropBoxes: [{"page":1,"x":0.10926365795724466,"y":0.21914357682619648,"w":0.3669833729216152,"h":0.45256087321578503},{"page":1,"x":0.5106888361045131,"y":0.21578505457598657,"w":0.3693586698337292,"h":0.46011754827875734}],
   },
   {
     design: "Ruby",
@@ -1909,6 +2043,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "263.37",
     frontage: "9.75",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_Ruby-28_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.15558194774346792,"y":0.18723761544920234,"w":0.342042755344418,"h":0.4827875734676742},{"page":1,"x":0.5142517814726841,"y":0.1897565071368598,"w":0.3028503562945368,"h":0.47774979009235935}],
   },
   {
     design: "Saffron",
@@ -1920,6 +2055,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "214.46",
     frontage: "13.23",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron23_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.4014251781472684,"y":0.14021830394626364,"w":0.4002375296912114,"h":0.5172124265323258}],
   },
   {
     design: "Saffron",
@@ -1931,6 +2067,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "245.88",
     frontage: "14.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron26_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.28978622327790976,"y":0.1351805205709488,"w":0.45724465558194777,"h":0.5272879932829555}],
   },
   {
     design: "Saffron",
@@ -1942,6 +2079,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "283.12",
     frontage: "17.19",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron30_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.336104513064133,"y":0.11418975650713686,"w":0.5391923990498813,"h":0.5566750629722922}],
   },
   {
     design: "Saffron",
@@ -1953,6 +2091,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "320.98",
     frontage: "17.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Saffron35_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.2684085510688836,"y":0.11838790931989925,"w":0.5653206650831354,"h":0.5785054575986566}],
   },
   {
     design: "Sienna",
@@ -1964,6 +2103,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "257.87",
     frontage: "14.91",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna-28-Classic-Floorplan.jpg",
+    cropBoxes: [{"page":1,"x":0.3752969121140142,"y":0.19227539882451722,"w":0.4655581947743468,"h":0.5365239294710328}],
   },
   {
     design: "Sienna",
@@ -1975,6 +2115,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "283.24",
     frontage: "17.07",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna30_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.23159144893111638,"y":0.15029387069689337,"w":0.5380047505938242,"h":0.5180520570948782}],
   },
   {
     design: "Sienna",
@@ -1986,6 +2127,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "310.51",
     frontage: "17.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna33_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.2862232779097387,"y":0.15029387069689337,"w":0.5380047505938242,"h":0.5390428211586902}],
   },
   {
     design: "Sienna",
@@ -1997,6 +2139,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "335.41",
     frontage: "17.55",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Sienna36_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.2850356294536817,"y":0.14693534844668346,"w":0.5546318289786223,"h":0.5675902602854744}],
   },
   {
     design: "Tangerine",
@@ -2008,6 +2151,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "346.67",
     frontage: "13.81",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine37_standard-3-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.08788598574821853,"y":0.33669185558354325,"w":0.40380047505938244,"h":0.5272879932829555},{"page":1,"x":0.5142517814726841,"y":0.3266162888329135,"w":0.41330166270783847,"h":0.5382031905961377}],
   },
   {
     design: "Tangerine",
@@ -2019,6 +2163,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "383.40",
     frontage: "14.41",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/TANGERINE-41-Classic_Brochure_floorplan.png",
+    cropBoxes: [{"page":1,"x":0.07007125890736342,"y":0.3022670025188917,"w":0.42280285035629456,"h":0.5617128463476071},{"page":1,"x":0.505938242280285,"y":0.28883291351805207,"w":0.4358669833729216,"h":0.5734676742233418}],
   },
   {
     design: "Tangerine",
@@ -2030,6 +2175,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "411.72",
     frontage: "15.01",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine44_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.057007125890736345,"y":0.2753988245172124,"w":0.44061757719714967,"h":0.5877413937867338},{"page":1,"x":0.498812351543943,"y":0.2703610411418976,"w":0.44061757719714967,"h":0.5919395465994962}],
   },
   {
     design: "Tangerine",
@@ -2041,6 +2187,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "451.78",
     frontage: "15.59",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tangerine49_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.05938242280285035,"y":0.2611251049538203,"w":0.44418052256532065,"h":0.6020151133501259},{"page":1,"x":0.503562945368171,"y":0.2586062132661629,"w":0.44418052256532065,"h":0.6045340050377834}],
   },
   {
     design: "Terracotta",
@@ -2052,6 +2199,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "211.58",
     frontage: "9.63",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-23-20210525-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.15676959619952494,"y":0.23089840470193115,"w":0.29453681710213775,"h":0.39126784214945426},{"page":1,"x":0.5356294536817102,"y":0.22334172963895885,"w":0.32304038004750596,"h":0.4072208228379513}],
   },
   {
     design: "Terracotta",
@@ -2063,6 +2211,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "230.69",
     frontage: "10.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-25-20210525-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.0997624703087886,"y":0.2401343408900084,"w":0.3693586698337292,"h":0.3795130142737196},{"page":1,"x":0.5083135391923991,"y":0.23089840470193115,"w":0.39548693586698336,"h":0.3954659949622166}],
   },
   {
     design: "Terracotta",
@@ -2074,6 +2223,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "282.01",
     frontage: "12.39",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-30-20210525-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.10332541567695962,"y":0.3341729638958858,"w":0.38004750593824227,"h":0.4693534844668346},{"page":1,"x":0.5154394299287411,"y":0.31738035264483627,"w":0.4002375296912114,"h":0.48866498740554154}],
   },
   {
     design: "Terracotta",
@@ -2085,6 +2235,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "336.10",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Terracotta-floorplan-36-20210525-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.08669833729216152,"y":0.30394626364399663,"w":0.40380047505938244,"h":0.5415617128463476},{"page":1,"x":0.5154394299287411,"y":0.2938706968933669,"w":0.41092636579572445,"h":0.5583543240973972}],
   },
   {
     design: "Tiffany",
@@ -2096,6 +2247,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "203.97",
     frontage: "16.35",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany22_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.24821852731591448,"y":0.2619647355163728,"w":0.5118764845605701,"h":0.37615449202350965}],
   },
   {
     design: "Tiffany",
@@ -2107,6 +2259,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "222.53",
     frontage: "17.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany24_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.24228028503562946,"y":0.28967254408060455,"w":0.5380047505938242,"h":0.382031905961377}],
   },
   {
     design: "Tiffany",
@@ -2118,6 +2271,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "252.45",
     frontage: "17.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Tiffany27_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.29334916864608074,"y":0.2325776658270361,"w":0.5332541567695962,"h":0.4534005037783375}],
   },
   {
     design: "Tiffany",
@@ -2129,6 +2283,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "271.65",
     frontage: "17.31",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/TIffany29_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.23040380047505937,"y":0.2174643157010915,"w":0.5439429928741093,"h":0.48614609571788414}],
   },
   {
     design: "Topaz",
@@ -2140,6 +2295,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "199.37",
     frontage: "12.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz21_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.45368171021377673,"y":0.21494542401343408,"w":0.39548693586698336,"h":0.4609571788413098}],
   },
   {
     design: "Topaz",
@@ -2151,6 +2307,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "213.92",
     frontage: "13.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz23_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.42636579572446553,"y":0.2073887489504618,"w":0.4144893111638955,"h":0.47019311502938704}],
   },
   {
     design: "Topaz",
@@ -2162,6 +2319,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "239.47",
     frontage: "13.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz26_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.2992874109263658,"y":0.19059613769941225,"w":0.40617577197149646,"h":0.5365239294710328}],
   },
   {
     design: "Topaz",
@@ -2173,6 +2331,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "268.05",
     frontage: "14.67",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Topaz29_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.22446555819477435,"y":0.16456759026028547,"w":0.45486935866983375,"h":0.5617128463476071}],
   },
   {
     design: "Turquoise",
@@ -2184,6 +2343,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "222.13",
     frontage: "9.49",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_turquoise-24_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.11757719714964371,"y":0.3887489504617968,"w":0.31353919239904987,"h":0.46011754827875734},{"page":1,"x":0.49643705463182897,"y":0.37363560033585225,"w":0.34323040380047504,"h":0.47691015952980687}],
   },
   {
     design: "Turquoise",
@@ -2195,6 +2355,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "235.31",
     frontage: "9.49",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/HH_turquoise-25_NOV-30-2022.png",
+    cropBoxes: [{"page":1,"x":0.17339667458432304,"y":0.35600335852225024,"w":0.30522565320665085,"h":0.4727120067170445},{"page":1,"x":0.5261282660332541,"y":0.3518052057094878,"w":0.32660332541567694,"h":0.4794290512174643}],
   },
   {
     design: "Turquoise",
@@ -2206,6 +2367,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "244.98",
     frontage: "10.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise26_standard-1.jpg",
+    cropBoxes: [{"page":1,"x":0.12114014251781473,"y":0.42401343408900083,"w":0.3004750593824228,"h":0.48530646515533166},{"page":1,"x":0.5130641330166271,"y":0.4139378673383711,"w":0.3194774346793349,"h":0.4979009235936188}],
   },
   {
     design: "Turquoise",
@@ -2217,6 +2379,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "263.24",
     frontage: "10.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise28_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.12114014251781473,"y":0.38706968933669184,"w":0.2992874109263658,"h":0.5239294710327456},{"page":1,"x":0.501187648456057,"y":0.3719563392107473,"w":0.32779097387173395,"h":0.5340050377833753}],
   },
   {
     design: "Turquoise",
@@ -2228,6 +2391,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "290.14",
     frontage: "10.57",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Turquoise31_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.1187648456057007,"y":0.3047858942065491,"w":0.3087885985748218,"h":0.6062132661628883},{"page":1,"x":0.505938242280285,"y":0.29135180520570947,"w":0.331353919239905,"h":0.6188077246011755}],
   },
   {
     design: "Violet",
@@ -2239,6 +2403,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "309.3",
     frontage: "13.21",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2026-02-06-at-2.27.52-PM.png",
+    cropBoxes: [{"page":1,"x":0.09144893111638955,"y":0.3434089000839631,"w":0.39429928741092635,"h":0.5146935348446684},{"page":1,"x":0.5201900237529691,"y":0.32997481108312343,"w":0.41330166270783847,"h":0.5281276238455079}],
   },
   {
     design: "Violet",
@@ -2250,6 +2415,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "372.44",
     frontage: "14.03",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-40-Classic-Option-01-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.24584323040380046,"y":0.3593618807724601,"w":0.4026128266033254,"h":0.5264483627204031},{"page":2,"x":0.4809976247030879,"y":0.3492863140218304,"w":0.4168646080760095,"h":0.5340050377833753}],
   },
   {
     design: "Violet",
@@ -2261,6 +2427,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "415.04",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-45-Classic-Option-01-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.42874109263657956,"y":0.3425692695214106,"w":0.4477434679334917,"h":0.5449202350965575},{"page":2,"x":0.47862232779097386,"y":0.3408900083963056,"w":0.4477434679334917,"h":0.5726280436607892}],
   },
   {
     design: "Violet",
@@ -2272,6 +2439,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "442.11",
     frontage: "14.99",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-48-Classic-Option-01-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.41330166270783847,"y":0.33249370277078083,"w":0.4513064133016627,"h":0.5583543240973972},{"page":2,"x":0.42161520190023755,"y":0.3308144416456759,"w":0.4501187648456057,"h":0.5625524769101595}],
   },
   {
     design: "Violet",
@@ -2283,6 +2451,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "586.61",
     frontage: "18.26",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/VIOLET-64-Classic-options-01-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.36223277909738716,"y":0.31150293870696893,"w":0.5570071258907363,"h":0.5944584382871536},{"page":2,"x":0.24346793349168647,"y":0.2989084802686818,"w":0.5855106888361045,"h":0.6146095717884131}],
   },
   {
     design: "Viridian",
@@ -2305,6 +2474,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "310.96",
     frontage: "12.65",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian-32.png",
+    cropBoxes: [{"page":1,"x":0.08199643493761141,"y":0.37715245695086097,"w":0.4087938205585264,"h":0.4737505249895002},{"page":1,"x":0.5264408793820559,"y":0.36791264174716504,"w":0.42186571598336303,"h":0.4863502729945401}],
   },
   {
     design: "Viridian",
@@ -2327,6 +2497,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "400.00",
     frontage: "14.43",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Viridian43_standard-1-scaled.jpg",
+    cropBoxes: [{"page":1,"x":0.05463182897862233,"y":0.1486146095717884,"w":0.4358669833729216,"h":0.5759865659109992},{"page":1,"x":0.49049881235154397,"y":0.1385390428211587,"w":0.45961995249406173,"h":0.5852225020990764}],
   },
   {
     design: "Wisteria",
@@ -2338,6 +2509,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "201.45",
     frontage: "14.67",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Wisteria22_standard.jpg",
+    cropBoxes: [{"page":1,"x":0.30641330166270786,"y":0.19563392107472713,"w":0.4489311163895487,"h":0.4374475230898405}],
   },
   {
     design: "Wisteria",
@@ -2349,6 +2521,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "226.25",
     frontage: "14.55",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Wisteria-24-Mk-II.jpg",
+    cropBoxes: [{"page":1,"x":0.32660332541567694,"y":0.16792611251049538,"w":0.45961995249406173,"h":0.4794290512174643}],
   },
   {
     design: "Wisteria",
@@ -2360,6 +2533,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     size: "240.79",
     frontage: "12.47",
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-11-17-at-7.59.19-AM.png",
+    cropBoxes: [{"page":1,"x":0.32422802850356297,"y":0.15197313182199831,"w":0.45961995249406173,"h":0.5239294710327456}],
   },
   {
     design: "Wisteria",
