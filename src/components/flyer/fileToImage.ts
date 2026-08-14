@@ -503,39 +503,32 @@ export async function widenFacadeClientSide(item: {
     const srcW = img.naturalWidth || 1200;
     const srcH = img.naturalHeight || 900;
     
-    // Output canvas: exactly 2.69 : 1
+    // Output canvas: exactly 2.69 : 1 widescreen
     const outW = Math.max(2400, srcW);
-    const outH = Math.round(outW / 2.69);
+    const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
 
-    // Get exact house location to maximize scale
+    // Get exact house location from Gemini bounding box
     const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
-    // The Gemini bounding box often includes some sky/driveway padding. 
-    // To ensure the physical house is mathematically precise, we tighten the bbox.
-    const tightenY = 0.02; // assume 2% padding on top and bottom
-    const trueHouseY = srcH * (bbox.ymin + tightenY);
-    const trueHouseH = srcH * Math.max(0.1, (bbox.ymax - tightenY) - (bbox.ymin + tightenY));
-    const trueHouseW = srcW * (bbox.xmax - bbox.xmin);
-        const isDouble =
-      /double|two|2\s*storey|duplex|split/i.test(item.housingType ?? "") ||
-      /double|2-storey|2stry|30|32|34|35|36|38|40|42|45|burgundy|cambridge|ascot|ashton|marche|allure|chevron|violet|jasper|manhattan|tropez|sapphire|hamilton|montana|chelsea|palermo|windsor|cleveland|mantra/i.test(
-        `${item.id ?? ""} ${item.name ?? ""}`
-      );
+    
+    // Exact house coordinates without aggressive tightening that could clip the roof
+    const houseRoofY = srcH * Math.max(0, bbox.ymin - 0.005);
+    const houseBaseY = srcH * Math.min(1.0, bbox.ymax);
+    const trueHouseH = Math.max(10, houseBaseY - houseRoofY);
+    const trueHouseW = Math.max(10, srcW * (bbox.xmax - bbox.xmin));
 
-    // Dynamic framing ratios:
-    // For Double Storey (tall houses): 65% house height, 14% top sky gap (~11mm clearance)
-    // For Single Storey: 72% house height, 10% top sky gap (~8mm clearance)
-    const topGapRatio = isDouble ? 0.14 : 0.10;
-    const targetHouseRatio = isDouble ? 0.65 : 0.72;
-    const sideMarginRatio = 0.05;
-
-    const topGap = Math.round(outH * topGapRatio);
-    const targetHouseH = Math.round(outH * targetHouseRatio);
-    const sideMargin = Math.round(outW * sideMarginRatio);
-    const maxHouseW = outW - (sideMargin * 2);
+    // Mathematical framing specifications (calibrated to 82mm flyer container):
+    // - 3mm to 3.5mm clearance above roof apex to top border (~38px on 892px canvas)
+    // - 20mm clearance from house base to bottom border (~218px on 892px canvas)
+    // - Target house height = 82mm - (3.5mm + 20mm) = 58.5mm (~636px on 892px canvas)
+    const topGap = Math.round(outH * (3.5 / 82)); // 38px (3.5mm clearance above roof)
+    const bottomGap = Math.round(outH * (20.0 / 82)); // 218px (20mm clearance below house)
+    const targetHouseH = outH - topGap - bottomGap; // 636px (58.5mm house height)
+    const sideMargin = Math.round(outW * 0.05); // 120px margin on sides
+    const maxHouseW = outW - (sideMargin * 2); // 2160px maximum house width
     
     let scale = targetHouseH / trueHouseH;
     
-    // If the house is too wide (touching sides), scale it back
+    // If the house is very wide, scale it back so it doesn't touch the sides
     if (trueHouseW * scale > maxHouseW) {
       scale = maxHouseW / trueHouseW;
     }
@@ -544,11 +537,11 @@ export async function widenFacadeClientSide(item: {
     const drawH = Math.round(srcH * scale);
 
     // Center horizontally based on the house itself
-    const houseCenterX = (bbox.xmin + bbox.xmax) / 2 * srcW;
+    const houseCenterX = ((bbox.xmin + bbox.xmax) / 2) * srcW;
     const drawX = Math.round((outW / 2) - (houseCenterX * scale));
     
-    // Anchor vertically so the ACTUAL roof is exactly at `topGap`
-    const drawY = Math.round(topGap - (trueHouseY * scale));
+    // Anchor vertically so the roof apex sits at exactly `topGap` (3.5mm sky clearance)
+    const drawY = Math.round(topGap - (houseRoofY * scale));
     
     // Position the house perfectly on the white canvas to send to Gemini
     const prepCanvas = document.createElement("canvas");
@@ -644,31 +637,6 @@ export async function widenFacadeClientSide(item: {
     const aiImgBase64 = `data:image/jpeg;base64,${b64}`;
     const aiImg = await loadImage(aiImgBase64);
 
-    // Get bbox of the generated house
-    const aiBbox = await getHouseBoundingBox(GEMINI_KEY, b64);
-    const aiTightenY = 0.02; // 2% padding assumption
-    const aiHouseY = aiImg.naturalHeight * (aiBbox.ymin + aiTightenY);
-    const aiHouseH = aiImg.naturalHeight * Math.max(0.1, (aiBbox.ymax - aiTightenY) - (aiBbox.ymin + aiTightenY));
-    const aiHouseW = aiImg.naturalWidth * (aiBbox.xmax - aiBbox.xmin);
-
-    // Calculate scaling factor to make the AI house exactly our target height
-    let finalScale = targetHouseH / aiHouseH;
-
-    // If the house is too wide (touching sides), scale it back
-    if (aiHouseW * finalScale > maxHouseW) {
-      finalScale = maxHouseW / aiHouseW;
-    }
-
-    const finalDrawW = Math.round(aiImg.naturalWidth * finalScale);
-    const finalDrawH = Math.round(aiImg.naturalHeight * finalScale);
-
-    // Center horizontally based on the house center
-    const aiHouseCenterX = (aiBbox.xmin + aiBbox.xmax) / 2 * aiImg.naturalWidth;
-    const finalDrawX = Math.round((outW / 2) - (aiHouseCenterX * finalScale));
-    
-    // Anchor vertically so the roof apex sits at exactly `topGap` with full sky clearance
-    const finalDrawY = Math.round(topGap - (aiHouseY * finalScale));
-
     const finalCanvas = document.createElement("canvas");
     finalCanvas.width = outW;
     finalCanvas.height = outH;
@@ -676,17 +644,12 @@ export async function widenFacadeClientSide(item: {
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = "high";
 
-    // Fill background canvas: cover mode anchored to preserve top sky
-    const coverScale = Math.max(outW / aiImg.naturalWidth, outH / aiImg.naturalHeight);
-    const bgDrawW = Math.round(aiImg.naturalWidth * coverScale);
-    const bgDrawH = Math.round(aiImg.naturalHeight * coverScale);
-    const bgDrawX = Math.round((outW - bgDrawW) / 2);
-    // Anchor background to top so sky is fully preserved
-    const bgDrawY = Math.min(0, Math.round(topGap - (aiHouseY * coverScale)));
-    finalCtx.drawImage(aiImg, bgDrawX, bgDrawY, bgDrawW, bgDrawH);
+    // Draw the full AI-generated widescreen background
+    finalCtx.drawImage(aiImg, 0, 0, outW, outH);
 
-    // Draw the precisely aligned house layer on top
-    finalCtx.drawImage(aiImg, finalDrawX, finalDrawY, finalDrawW, finalDrawH);
+    // Composite the original, pristine high-resolution house directly on top
+    // at the exact mathematical position (3.5mm top sky gap, 20mm bottom driveway gap)
+    finalCtx.drawImage(img, drawX, drawY, drawW, drawH);
 
     return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {

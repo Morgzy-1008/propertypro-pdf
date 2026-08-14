@@ -130,12 +130,12 @@ function Index() {
         <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
           <div className="flex items-center justify-between gap-4 px-6 py-2">
             <Link to="/hub" className="flex items-center gap-3 hover:opacity-85 transition-opacity">
-              <HudsonMark size={7} />
-              <div className="leading-tight">
-                <h1 className="text-sm font-bold tracking-[0.16em] text-brand-navy uppercase">
-                  Hudson Homes
+              <img src="/hudson-homes-logo.png" alt="Hudson Homes" className="h-10 w-auto object-contain" />
+              <div className="leading-tight border-l border-slate-200 pl-3">
+                <h1 className="text-xs font-bold tracking-[0.14em] text-brand-navy uppercase">
+                  QLD Package Studio
                 </h1>
-                <p className="text-xs text-muted-foreground">House &amp; Land Flyer Builder</p>
+                <p className="text-[11px] text-muted-foreground">House &amp; Land Flyer Builder</p>
               </div>
             </Link>
 

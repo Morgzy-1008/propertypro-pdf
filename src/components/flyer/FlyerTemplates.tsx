@@ -33,33 +33,22 @@ export function HudsonMark({ size = 16, className = "" }: { size?: number; class
   );
 }
 
-export function Logo({ light = false, size = 15 }: { light?: boolean; size?: number }) {
+export function Logo({
+  light = false,
+  size = 15,
+  className = "",
+}: {
+  light?: boolean;
+  size?: number;
+  className?: string;
+}) {
   return (
-    <div className="flex items-center gap-[3mm]">
-      <HudsonMark size={size} />
-      <div
-        className={`border-l pl-[3mm] leading-none ${
-          light ? "border-brand-cream/30" : "border-brand-navy/20"
-        }`}
-      >
-        <div
-          className={`font-sans font-bold tracking-[0.16em] ${
-            light ? "text-white" : "text-brand-navy"
-          }`}
-          style={{ fontSize: `${size * 0.44}mm` }}
-        >
-          HUDSON HOMES
-        </div>
-        <div
-          className={`mt-[0.9mm] tracking-[0.32em] font-semibold ${
-            light ? "text-brand-gold" : "text-brand-gold-deep"
-          }`}
-          style={{ fontSize: `${size * 0.17}mm` }}
-        >
-          ZERO SURPRISES
-        </div>
-      </div>
-    </div>
+    <img
+      src={light ? "/hudson-homes-logo-light.png" : "/hudson-homes-logo.png"}
+      alt="Hudson Homes"
+      style={{ height: `${size}mm`, width: "auto" }}
+      className={`flex-none object-contain ${className}`}
+    />
   );
 }
 
