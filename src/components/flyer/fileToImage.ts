@@ -58,7 +58,9 @@ async function pdfFirstPageToDataUrl(file: File): Promise<string | null> {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!src.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
     img.onerror = () => {
       // Retry without crossOrigin if CORS headers are missing
@@ -360,54 +362,42 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
   for (const rawUrl of candidateUrls) {
     if (rawUrl.startsWith("data:")) return rawUrl;
 
-    // 1. Direct fetch (works for same-origin & CORS-enabled URLs)
+    // 1. Direct fetch
     try {
-      console.log("[getRawFacadeBase64] Attempting direct fetch:", rawUrl);
-      const res = await fetch(rawUrl);
+      const res = await fetch(rawUrl, { mode: "cors" });
       if (res.ok) {
         const blob = await res.blob();
         const b64 = await blobToBase64(blob);
-        if (b64.startsWith("data:image/") && b64.length > 500) {
-          console.log("[getRawFacadeBase64] Direct fetch succeeded");
+        if (b64 && b64.startsWith("data:image/") && b64.length > 500) {
           return b64;
         }
-      } else {
-        console.log("[getRawFacadeBase64] Direct fetch failed with status:", res.status);
       }
-    } catch (e) {
-      console.log("[getRawFacadeBase64] Direct fetch threw:", (e as Error).message);
-    }
+    } catch {}
 
     // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
     if (rawUrl.startsWith("http")) {
       const proxies = [
+        `/api/proxy-image?url=${encodeURIComponent(rawUrl)}`,
         `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg`,
-        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
       ];
       for (const proxyUrl of proxies) {
         try {
-          console.log("[getRawFacadeBase64] Attempting proxy:", proxyUrl.substring(0, 40) + "...");
           const res = await fetch(proxyUrl);
           if (res.ok) {
             const blob = await res.blob();
             const b64 = await blobToBase64(blob);
-            if (b64.startsWith("data:image/") && b64.length > 500) {
-              console.log("[getRawFacadeBase64] Proxy succeeded");
+            if (b64 && b64.startsWith("data:image/") && b64.length > 500) {
               return b64;
             }
-          } else {
-            console.log("[getRawFacadeBase64] Proxy failed with status:", res.status);
           }
-        } catch (e) {
-          console.log("[getRawFacadeBase64] Proxy threw:", (e as Error).message);
-        }
+        } catch {}
       }
     }
 
-    // 3. Canvas image element fallback
+    // 3. Canvas image element fallback with anonymous crossorigin
     try {
-      console.log("[getRawFacadeBase64] Attempting Canvas fallback");
       const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth || 1200;
@@ -416,12 +406,9 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       ctx.drawImage(img, 0, 0);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
       if (dataUrl.startsWith("data:image/") && dataUrl.length > 500) {
-        console.log("[getRawFacadeBase64] Canvas fallback succeeded");
         return dataUrl;
       }
-    } catch (e) {
-      console.log("[getRawFacadeBase64] Canvas fallback threw:", (e as Error).message);
-    }
+    } catch {}
   }
   return "";
 }
@@ -513,6 +500,9 @@ export async function widenFacadeClientSide(item: {
       item.housingType?.includes("two") ||
       (srcH / srcW > 0.65)
     );
+
+    // Get exact house location from Gemini bounding box
+    const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
 
     // Exact house coordinates with safety margin so roof ridge and garage base are NEVER clipped
     const houseRoofY = srcH * Math.max(0, (bbox?.ymin ?? 0.05) - 0.02);
