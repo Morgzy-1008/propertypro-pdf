@@ -945,7 +945,8 @@ const facadeCache = new Map<string, string>();
 
 /**
  * Prepares a facade render for widescreen 2.69:1 display:
- * Fills 100% of the canvas with real scenery (cover mode) so there is ZERO WHITE SPACE around the facade.
+ * Ensures 100% of double-storey and single-storey buildings are fully visible,
+ * with perfectly matched panoramic sky & ground background extension (zero white space).
  */
 export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!dataUrl) return dataUrl;
@@ -959,6 +960,7 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const img = await loadImage(srcUrl);
     const srcW = img.naturalWidth  || 1200;
     const srcH = img.naturalHeight || 900;
+    const srcAspect = srcW / srcH;
 
     // Output canvas: 2.69 : 1 (flyer header proportion)
     const outW = Math.max(2400, srcW);
@@ -971,39 +973,60 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Fit house vertically within 86% of canvas height so 100% of the building is visible and NEVER cut off
-    const targetH = Math.round(outH * 0.86);
-    const scale = Math.min(targetH / srcH, (outW * 0.90) / srcW);
+    // Double-storey and standard photos (aspect ratio <= 1.8):
+    // Fit house vertically within 92% of canvas height so 100% of roof peak and ground are preserved
+    const isTall = srcAspect < 2.0;
+    const scale = isTall
+      ? Math.min((outH * 0.94) / srcH, (outW * 0.96) / srcW)
+      : Math.max(outW / srcW, outH / srcH);
+
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
     const drawX = Math.round((outW - drawW) / 2);
     const drawY = Math.round((outH - drawH) / 2);
 
-    let skyColor = "#7cb3e0";
-    let gndColor = "#506040";
+    // Extract colors from original photo edges for a seamless panoramic background
+    let skyColor = "#87ceeb";
+    let gndColor = "#4a5d3f";
     try {
       const srcCanvas = document.createElement("canvas");
       srcCanvas.width = srcW;
       srcCanvas.height = srcH;
       const srcCtx = srcCanvas.getContext("2d")!;
       srcCtx.drawImage(img, 0, 0);
-      const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
-      const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
+      const topPx = srcCtx.getImageData(Math.round(srcW * 0.1), Math.max(2, Math.round(srcH * 0.05)), 1, 1).data;
+      const botPx = srcCtx.getImageData(Math.round(srcW * 0.1), Math.min(srcH - 2, Math.round(srcH * 0.95)), 1, 1).data;
       skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
       gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
     } catch {
       // Safe fallback
     }
 
+    // 1. Fill background with matching sky to ground natural gradient
     const grad = ctx.createLinearGradient(0, 0, 0, outH);
     grad.addColorStop(0, skyColor);
-    grad.addColorStop(0.70, skyColor);
-    grad.addColorStop(0.95, gndColor);
+    grad.addColorStop(0.68, skyColor);
+    grad.addColorStop(0.92, gndColor);
     grad.addColorStop(1, gndColor);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, outW, outH);
 
+    // 2. Draw soft ambient background fill behind subject to eliminate hard borders
+    if (isTall) {
+      ctx.save();
+      ctx.globalAlpha = 0.28;
+      const bgCoverScale = Math.max(outW / srcW, outH / srcH);
+      const bgW = Math.round(srcW * bgCoverScale);
+      const bgH = Math.round(srcH * bgCoverScale);
+      const bgX = Math.round((outW - bgW) / 2);
+      const bgY = Math.round((outH - bgH) / 2);
+      ctx.drawImage(img, bgX, bgY, bgW, bgH);
+      ctx.restore();
+    }
+
+    // 3. Draw high-resolution centered facade
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
     const resUrl = canvas.toDataURL("image/jpeg", 0.94);
     facadeCache.set(dataUrl, resUrl);
     return resUrl;
