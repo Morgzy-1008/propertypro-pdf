@@ -597,29 +597,25 @@ export async function widenFacadeClientSide(item: {
       }
     }
 
-    if (!apiRes || !apiRes.ok) {
-      console.error("[AI Outpaint] All Gemini API endpoints failed");
-      return null;
-    }
-
-    const json = (await apiRes.json()) as any;
-    console.log("[AI Outpaint] API returned OK. Keys:", Object.keys(json));
-
     let b64: string | undefined = undefined;
-    if (json?.candidates?.[0]?.content?.parts) {
-      for (const p of json.candidates[0].content.parts as any[]) {
-        const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
-        if (data && typeof data === "string" && data.length > 500) {
-          b64 = data;
-          console.log("[AI Outpaint] Found inline data, length:", data.length);
-          break;
+    if (apiRes && apiRes.ok) {
+      try {
+        const json = (await apiRes.json()) as any;
+        if (json?.candidates?.[0]?.content?.parts) {
+          for (const p of json.candidates[0].content.parts as any[]) {
+            const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
+            if (data && typeof data === "string" && data.length > 500) {
+              b64 = data;
+              break;
+            }
+          }
         }
-      }
+      } catch {}
     }
-    
+
     if (!b64) {
-      console.error("[AI Outpaint] Gemini API did not return image inline_data:", JSON.stringify(json).substring(0, 300));
-      return null;
+      console.warn("[AI Outpaint] Gemini API unavailable or no image data, generating widescreen frame fallback");
+      return prepareFacade(rawPayload, item.originalUrl, item.id);
     }
 
     // -------------------------------------------------------------
