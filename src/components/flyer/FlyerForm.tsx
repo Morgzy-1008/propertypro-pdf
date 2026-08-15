@@ -363,10 +363,11 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     if (forceRefresh) {
       await clearIdbEnhanced(item.id);
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
-      set("facadeUrl", ""); // Clear URL to replace with the loading image while regenerating
     } else {
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: 0 }));
     }
+
+    const rawUrlToUse = item.originalUrl || item.url;
 
     // 1. Check for pre-rendered local static catalogue FIRST for instant zero-delay render
     if (!forceRefresh) {
@@ -387,13 +388,10 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Immediately set the original image as the active flyer facade so there's never empty white space
-    const rawUrlToUse = item.originalUrl || item.url;
-    if (!forceRefresh) {
-      set("facadeUrl", rawUrlToUse);
-    }
+    // 2. Immediately set the original image as the active flyer facade so there is NEVER an empty frame
+    set("facadeUrl", rawUrlToUse);
 
-    // 3. Set facadeBusy = true so user sees "GENERATING AI FACADE RENDER..."
+    // 3. Set facadeBusy = true while preparing enhanced wide crop / outpainting
     setFacadeBusy(true);
     set("facadeBusy", true);
 
