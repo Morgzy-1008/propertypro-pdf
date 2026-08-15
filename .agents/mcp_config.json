@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "C:/Users/Morgan.Hales/.bun/bin/playwright-mcp-server.exe",
+      "args": [],
+      "env": {
+        "PATH": "C:/Users/Morgan.Hales/.bun/bin;C:/Windows/system32;C:/Windows",
+        "PLAYWRIGHT_BROWSERS_PATH": "C:/Users/Morgan.Hales/AppData/Local/ms-playwright"
+      }
+    }
+  }
+}

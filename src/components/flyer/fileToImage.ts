@@ -507,28 +507,29 @@ export async function widenFacadeClientSide(item: {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
 
-    // Get exact house location from Gemini bounding box
-    const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
-    
-    // Exact house coordinates without aggressive tightening that could clip the roof
-    const houseRoofY = srcH * Math.max(0, bbox.ymin - 0.005);
-    const houseBaseY = srcH * Math.min(1.0, bbox.ymax);
-    const trueHouseH = Math.max(10, houseBaseY - houseRoofY);
-    const trueHouseW = Math.max(10, srcW * (bbox.xmax - bbox.xmin));
+    // Detect double-storey facade
+    const isDouble = Boolean(
+      item.housingType?.includes("double") ||
+      item.housingType?.includes("two") ||
+      (srcH / srcW > 0.65)
+    );
 
-    // Mathematical framing specifications (calibrated to 82mm flyer container):
-    // - 3mm to 3.5mm clearance above roof apex to top border (~38px on 892px canvas)
-    // - 20mm clearance from house base to bottom border (~218px on 892px canvas)
-    // - Target house height = 82mm - (3.5mm + 20mm) = 58.5mm (~636px on 892px canvas)
-    const topGap = Math.round(outH * (3.5 / 82)); // 38px (3.5mm clearance above roof)
-    const bottomGap = Math.round(outH * (20.0 / 82)); // 218px (20mm clearance below house)
-    const targetHouseH = outH - topGap - bottomGap; // 636px (58.5mm house height)
-    const sideMargin = Math.round(outW * 0.05); // 120px margin on sides
-    const maxHouseW = outW - (sideMargin * 2); // 2160px maximum house width
+    // Exact house coordinates with safety margin so roof ridge and garage base are NEVER clipped
+    const houseRoofY = srcH * Math.max(0, (bbox?.ymin ?? 0.05) - 0.02);
+    const houseBaseY = srcH * Math.min(1.0, (bbox?.ymax ?? 0.95) + 0.02);
+    const trueHouseH = Math.max(10, houseBaseY - houseRoofY);
+    const trueHouseW = Math.max(10, srcW * ((bbox?.xmax ?? 0.95) - (bbox?.xmin ?? 0.05)));
+
+    // Vertical proportions tailored for single vs double storey:
+    // - Double Storey (tall house): 6% sky clearance above apex, 8% ground clearance below
+    // - Single Storey (wide house): 8% sky clearance above apex, 14% ground clearance below
+    const topGap = Math.round(outH * (isDouble ? 0.06 : 0.08));
+    const bottomGap = Math.round(outH * (isDouble ? 0.08 : 0.14));
+    const targetHouseH = outH - topGap - bottomGap;
+    const sideMargin = Math.round(outW * 0.04);
+    const maxHouseW = outW - (sideMargin * 2);
     
     let scale = targetHouseH / trueHouseH;
-    
-    // If the house is very wide, scale it back so it doesn't touch the sides
     if (trueHouseW * scale > maxHouseW) {
       scale = maxHouseW / trueHouseW;
     }
@@ -537,10 +538,10 @@ export async function widenFacadeClientSide(item: {
     const drawH = Math.round(srcH * scale);
 
     // Center horizontally based on the house itself
-    const houseCenterX = ((bbox.xmin + bbox.xmax) / 2) * srcW;
+    const houseCenterX = (((bbox?.xmin ?? 0.05) + (bbox?.xmax ?? 0.95)) / 2) * srcW;
     const drawX = Math.round((outW / 2) - (houseCenterX * scale));
     
-    // Anchor vertically so the roof apex sits at exactly `topGap` (3.5mm sky clearance)
+    // Anchor vertically so the roof apex sits at exactly `topGap`
     const drawY = Math.round(topGap - (houseRoofY * scale));
     
     // Position the house perfectly on the white canvas to send to Gemini
@@ -959,11 +960,6 @@ const facadeCache = new Map<string, string>();
 export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!dataUrl) return dataUrl;
 
-  // 1. Check if a pre-rendered high-quality widescreen asset exists
-  if (facadeId && PRE_RENDERED_FACADES[facadeId]) {
-    return PRE_RENDERED_FACADES[facadeId];
-  }
-
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
 
@@ -985,13 +981,37 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Fill the entire widescreen frame edge-to-edge with the facade photo (cover mode)
-    // Ensures ZERO WHITE SPACE or white bars around the image
-    const coverScale = Math.max(outW / srcW, outH / srcH);
-    const drawW = Math.round(srcW * coverScale);
-    const drawH = Math.round(srcH * coverScale);
+    // Fit house vertically within 86% of canvas height so 100% of the building is visible and NEVER cut off
+    const targetH = Math.round(outH * 0.86);
+    const scale = Math.min(targetH / srcH, (outW * 0.90) / srcW);
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
     const drawX = Math.round((outW - drawW) / 2);
     const drawY = Math.round((outH - drawH) / 2);
+
+    let skyColor = "#7cb3e0";
+    let gndColor = "#506040";
+    try {
+      const srcCanvas = document.createElement("canvas");
+      srcCanvas.width = srcW;
+      srcCanvas.height = srcH;
+      const srcCtx = srcCanvas.getContext("2d")!;
+      srcCtx.drawImage(img, 0, 0);
+      const topPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.max(2, Math.round(srcH * 0.03)), 1, 1).data;
+      const botPx = srcCtx.getImageData(Math.round(srcW * 0.5), Math.min(srcH - 2, Math.round(srcH * 0.97)), 1, 1).data;
+      skyColor = `rgb(${topPx[0]}, ${topPx[1]}, ${topPx[2]})`;
+      gndColor = `rgb(${botPx[0]}, ${botPx[1]}, ${botPx[2]})`;
+    } catch {
+      // Safe fallback
+    }
+
+    const grad = ctx.createLinearGradient(0, 0, 0, outH);
+    grad.addColorStop(0, skyColor);
+    grad.addColorStop(0.70, skyColor);
+    grad.addColorStop(0.95, gndColor);
+    grad.addColorStop(1, gndColor);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, outW, outH);
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     const resUrl = canvas.toDataURL("image/jpeg", 0.94);
