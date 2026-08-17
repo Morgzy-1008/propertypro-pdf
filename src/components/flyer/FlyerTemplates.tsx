@@ -114,7 +114,7 @@ function Facade({
   }
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
+    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-brand-navy-deep ${className ?? ""}`}>
       <img
         src={imgSrc}
         alt="Facade render"

@@ -405,8 +405,14 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Immediately set the original image as the active flyer facade so there is NEVER an empty frame
-    set("facadeUrl", rawUrlToUse);
+    // 2. Prepare high-quality framed base64 render immediately so there is never an empty frame or CORS issue
+    try {
+      const baseRender = await prepareFacade(rawUrlToUse, rawUrlToUse, item.id);
+      if (baseRender) set("facadeUrl", baseRender);
+      else set("facadeUrl", rawUrlToUse);
+    } catch {
+      set("facadeUrl", rawUrlToUse);
+    }
 
     // 3. Set facadeBusy = true while preparing enhanced wide crop / outpainting
     setFacadeBusy(true);
@@ -428,18 +434,9 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl, item.name);
-      } else {
-        const fallbackRender = await prepareFacade(rawUrlToUse, rawUrlToUse, item.id);
-        if (fallbackRender) set("facadeUrl", fallbackRender);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);
-      try {
-        const fallbackRender = await prepareFacade(item.url, item.originalUrl, item.id);
-        if (fallbackRender) set("facadeUrl", fallbackRender);
-      } catch {
-        set("facadeUrl", rawUrlToUse);
-      }
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);

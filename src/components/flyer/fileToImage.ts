@@ -1066,35 +1066,42 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const houseBaseY = srcH * Math.min(1.0, bounds.ymax);
     const buildingH = Math.max(10, houseBaseY - houseRoofY);
 
-    // Mathematical framing:
-    // 3.5mm top sky gap (~38px)
-    // House building spans ~74% of frame height (~660px)
-    const topGap = Math.round(outH * (3.5 / 82)); // 38px
-    const targetBuildingH = Math.round(outH * 0.74); // 660px
+    // Exact mathematical framing:
+    // 3.5mm top sky gap (~38px on 892px canvas, matching 82mm flyer container)
+    const topGap = Math.round(outH * (3.5 / 82)); // ~38px
+    // 15mm bottom ground/driveway clearance (~163px on 892px canvas)
+    const bottomGap = Math.round(outH * (15.0 / 82)); // ~163px
+    const targetBuildingH = outH - topGap - bottomGap; // ~691px
+
+    // Primary scale to fit 100% of double-storey and single-storey houses
     let scale = targetBuildingH / buildingH;
+
+    // Ensure the image base reaches the bottom of the canvas so there is no cut-off driveway
+    if (topGap - (houseRoofY * scale) + (srcH * scale) < outH) {
+      scale = (outH - topGap) / (srcH - houseRoofY);
+    }
 
     let drawW = Math.round(srcW * scale);
     let drawH = Math.round(srcH * scale);
     let drawY = Math.round(topGap - (houseRoofY * scale));
+    let drawX = Math.round((outW - drawW) / 2);
 
-    // Ensure driveway and lawn reach the bottom of the canvas seamlessly with 0 slice seams
-    if (drawY + drawH < outH) {
-      scale = (outH - topGap) / (srcH - houseRoofY);
-      drawW = Math.round(srcW * scale);
-      drawH = Math.round(srcH * scale);
-      drawY = Math.round(topGap - (houseRoofY * scale));
+    // 1. Draw edge-to-edge background wings if drawW < outW to guarantee ZERO WHITE BOXES
+    if (drawW < outW) {
+      // Draw full-bleed cover background first so the entire canvas is filled with natural photo tones
+      const coverScale = Math.max(outW / srcW, outH / srcH);
+      const bgW = Math.round(srcW * coverScale);
+      const bgH = Math.round(srcH * coverScale);
+      const bgX = Math.round((outW - bgW) / 2);
+      const bgY = Math.round(topGap - (houseRoofY * coverScale));
+      ctx.drawImage(img, bgX, bgY, bgW, bgH);
+
+      // Now draw the perfectly framed center house on top
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    } else {
+      // Widescreen image: draw centered horizontally with exact roofline positioning
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
     }
-
-    const drawX = Math.round((outW - drawW) / 2);
-
-    // Draw edge-to-edge crisp facade photo (cover mode) with ZERO blur
-    const coverScale = Math.max(outW / srcW, outH / srcH);
-    const bgDrawW = Math.round(srcW * coverScale);
-    const bgDrawH = Math.round(srcH * coverScale);
-    const bgDrawX = Math.round((outW - bgDrawW) / 2);
-    const bgDrawY = Math.round((outH - bgDrawH) / 2);
-
-    ctx.drawImage(img, bgDrawX, bgDrawY, bgDrawW, bgDrawH);
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);

@@ -40,6 +40,7 @@ dist-ssr
 *.jpg
 scripts/test_*.cjs
 scripts/test_*.mjs
+scripts/check_*.cjs
 scripts/verify_*.cjs
 scripts/check_*.mjs
 scripts/export_*.mjs
