@@ -96,7 +96,7 @@ export function facadeUpliftFor(
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const AI_MARKER = "::AI_OUTPAINT_V5::";
+export const AI_MARKER = "::AI_OUTPAINT_V4::";
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   const tagged = await getIdbEnhanced(id);
@@ -107,20 +107,37 @@ export async function loadEnhancedAsync(id: string): Promise<string | null> {
     }
   }
 
-  // Local cache miss. Try Supabase for V5 global cache.
+  // Local cache miss. Try Supabase for the crisp AI render across all version tags.
   try {
-    const { data } = await supabase.from("facade_renders").select("widened_url").eq("id", `${id}_v5`).maybeSingle();
-    if (data?.widened_url) {
-        // Save it locally so we don't hit Supabase again next time
+    const candidates = [
+      `${id}_v5`,
+      `${id}_v4`,
+      `${id}_v4d`,
+      `${id}_v4s`,
+      `${id}::v5d`,
+      `${id}::v5s`,
+      `${id}_v3`,
+      `${id}::v3`,
+      `${id}::v2`,
+      id
+    ];
+
+    for (const cand of candidates) {
+      const { data } = await supabase
+        .from("facade_renders")
+        .select("id, widened_url")
+        .eq("id", cand)
+        .maybeSingle();
+
+      if (data?.widened_url && data.widened_url.startsWith("data:image/") && data.widened_url.length > 1000) {
         const b64 = data.widened_url;
-        if (b64.startsWith("data:image/") && b64.length > 1000) {
-            const newTagged = `${AI_MARKER}${b64}`;
-            void saveIdbEnhanced(id, newTagged);
-            try {
-                window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
-            } catch {}
-            return b64;
-        }
+        const newTagged = `${AI_MARKER}${b64}`;
+        void saveIdbEnhanced(id, newTagged);
+        try {
+          window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
+        } catch {}
+        return b64;
+      }
     }
   } catch (e) {
     console.error("Supabase load error", e);

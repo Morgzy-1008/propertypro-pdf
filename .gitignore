@@ -34,3 +34,14 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Test screenshots and scratch scripts
+*.png
+*.jpg
+scripts/test_*.cjs
+scripts/test_*.mjs
+scripts/verify_*.cjs
+scripts/check_*.mjs
+scripts/export_*.mjs
+scripts/view_*.mjs
+scripts/inspect_*.cjs

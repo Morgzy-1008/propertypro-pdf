@@ -1087,55 +1087,14 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
     const drawX = Math.round((outW - drawW) / 2);
 
-    // 1. Fill canvas with soft panoramic background cover with heavy Gaussian blur
-    // This perfectly matches sky color, trees, and ground with ZERO hard seams or green tint
-    const bgScale = Math.max(outW / srcW, outH / srcH) * 1.05;
-    const bgW = Math.round(srcW * bgScale);
-    const bgH = Math.round(srcH * bgScale);
-    const bgX = Math.round((outW - bgW) / 2);
-    const bgY = Math.round((outH - bgH) / 2);
+    // Draw edge-to-edge crisp facade photo (cover mode) with ZERO blur
+    const coverScale = Math.max(outW / srcW, outH / srcH);
+    const bgDrawW = Math.round(srcW * coverScale);
+    const bgDrawH = Math.round(srcH * coverScale);
+    const bgDrawX = Math.round((outW - bgDrawW) / 2);
+    const bgDrawY = Math.round((outH - bgDrawH) / 2);
 
-    ctx.save();
-    ctx.filter = "blur(36px)";
-    ctx.drawImage(img, bgX, bgY, bgW, bgH);
-    ctx.restore();
-
-    // Subtle sky overlay to brighten and clean the ambient background
-    const ambientSky = ctx.createLinearGradient(0, 0, 0, outH);
-    ambientSky.addColorStop(0, "rgba(110, 164, 220, 0.25)");
-    ambientSky.addColorStop(0.65, "rgba(255, 255, 255, 0.1)");
-    ambientSky.addColorStop(0.70, "rgba(230, 233, 236, 0.15)");
-    ambientSky.addColorStop(1, "rgba(208, 213, 217, 0.25)");
-    ctx.fillStyle = ambientSky;
-    ctx.fillRect(0, 0, outW, outH);
-
-    // 2. Prepare foreground house canvas with soft alpha feathered edges on left and right
-    const houseCanvas = document.createElement("canvas");
-    houseCanvas.width = drawW;
-    houseCanvas.height = drawH;
-    const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
-    hCtx.imageSmoothingEnabled = true;
-    hCtx.imageSmoothingQuality = "high";
-    hCtx.drawImage(img, 0, 0, drawW, drawH);
-
-    const featherW = Math.round(drawW * 0.04);
-    if (drawX > 0) {
-      hCtx.globalCompositeOperation = "destination-out";
-      const maskL = hCtx.createLinearGradient(0, 0, featherW, 0);
-      maskL.addColorStop(0, "rgba(0,0,0,1)");
-      maskL.addColorStop(1, "rgba(0,0,0,0)");
-      hCtx.fillStyle = maskL;
-      hCtx.fillRect(0, 0, featherW, drawH);
-
-      const maskR = hCtx.createLinearGradient(drawW - featherW, 0, drawW, 0);
-      maskR.addColorStop(0, "rgba(0,0,0,0)");
-      maskR.addColorStop(1, "rgba(0,0,0,1)");
-      hCtx.fillStyle = maskR;
-      hCtx.fillRect(drawW - featherW, 0, featherW, drawH);
-      hCtx.globalCompositeOperation = "source-over";
-    }
-
-    ctx.drawImage(houseCanvas, drawX, drawY);
+    ctx.drawImage(img, bgDrawX, bgDrawY, bgDrawW, bgDrawH);
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);

@@ -294,10 +294,27 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
 
-    // Clear facade when design changes — do not auto-display a facade on the flyer until user selects one from the library
-    set("facadeId", "");
-    set("facadeName", "");
-    set("facadeUrl", "");
+    // Auto-select the first compatible facade for the selected design so the flyer always shows a crisp facade
+    const isDualOc = data.housingType === "dual-oc";
+    const isAcreage = data.housingType === "acreage";
+    const isDouble = data.housingType === "double-storey";
+    
+    const eligibleList = isDualOc
+      ? duplexFacadesForDesign(name)
+      : isAcreage
+        ? MULBERRY_FACADES
+        : BUILT_IN_FACADES.filter((f) => {
+            const cat = facadeCategory(f);
+            return isDouble ? cat === "double" : cat === "single";
+          });
+
+    if (eligibleList && eligibleList.length > 0) {
+      void selectFacade(eligibleList[0]);
+    } else {
+      set("facadeId", "");
+      set("facadeName", "");
+      set("facadeUrl", "");
+    }
   };
 
   const selectVariant = (label: string) => {
