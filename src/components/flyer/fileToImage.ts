@@ -711,7 +711,7 @@ export async function widenFacadeClientSide(item: {
     }
 
     // -------------------------------------------------------------
-    // POST-GENERATION ALIGNMENT (Precise Mathematical Scaling)
+    // POST-GENERATION (100% Seamless Architectural Panoramic Render)
     // -------------------------------------------------------------
     const aiImgBase64 = `data:image/jpeg;base64,${b64}`;
     const aiImg = await loadImage(aiImgBase64);
@@ -723,12 +723,8 @@ export async function widenFacadeClientSide(item: {
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = "high";
 
-    // Draw the full AI-generated widescreen background
+    // Draw the full AI-generated widescreen panoramic image directly (100% seamless edge-to-edge with ZERO hard lines and ZERO blur)
     finalCtx.drawImage(aiImg, 0, 0, outW, outH);
-
-    // Composite the original, pristine high-resolution house directly on top
-    // at the exact mathematical position (3.5mm top sky gap, 20mm bottom driveway gap)
-    finalCtx.drawImage(img, drawX, drawY, drawW, drawH);
 
     return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {
@@ -1064,44 +1060,27 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const bounds = detectHouseBounds(img);
     const houseRoofY = srcH * Math.max(0, bounds.ymin - 0.005);
     const houseBaseY = srcH * Math.min(1.0, bounds.ymax);
-    const buildingH = Math.max(10, houseBaseY - houseRoofY);
 
     // Exact mathematical framing:
     // 3.5mm top sky gap (~38px on 892px canvas, matching 82mm flyer container)
     const topGap = Math.round(outH * (3.5 / 82)); // ~38px
-    // 15mm bottom ground/driveway clearance (~163px on 892px canvas)
-    const bottomGap = Math.round(outH * (15.0 / 82)); // ~163px
-    const targetBuildingH = outH - topGap - bottomGap; // ~691px
 
-    // Primary scale to fit 100% of double-storey and single-storey houses
-    let scale = targetBuildingH / buildingH;
+    // Single-pass cover scale to guarantee 100% full-bleed edge-to-edge coverage (ZERO white boxes, ZERO sudden composite lines)
+    const coverScale = Math.max(outW / srcW, outH / srcH);
+    const drawW = Math.round(srcW * coverScale);
+    const drawH = Math.round(srcH * coverScale);
+    const drawX = Math.round((outW - drawW) / 2);
 
-    // Ensure the image base reaches the bottom of the canvas so there is no cut-off driveway
-    if (topGap - (houseRoofY * scale) + (srcH * scale) < outH) {
-      scale = (outH - topGap) / (srcH - houseRoofY);
-    }
+    // Position vertically so the roof apex sits at exactly `topGap`
+    let drawY = Math.round(topGap - (houseRoofY * coverScale));
 
-    let drawW = Math.round(srcW * scale);
-    let drawH = Math.round(srcH * scale);
-    let drawY = Math.round(topGap - (houseRoofY * scale));
-    let drawX = Math.round((outW - drawW) / 2);
+    // Clamp drawY so the image completely covers the canvas without top or bottom gaps
+    const minDrawY = outH - drawH; // lowest allowed Y
+    const maxDrawY = 0;           // highest allowed Y
+    drawY = Math.min(maxDrawY, Math.max(minDrawY, drawY));
 
-    // 1. Draw edge-to-edge background wings if drawW < outW to guarantee ZERO WHITE BOXES
-    if (drawW < outW) {
-      // Draw full-bleed cover background first so the entire canvas is filled with natural photo tones
-      const coverScale = Math.max(outW / srcW, outH / srcH);
-      const bgW = Math.round(srcW * coverScale);
-      const bgH = Math.round(srcH * coverScale);
-      const bgX = Math.round((outW - bgW) / 2);
-      const bgY = Math.round(topGap - (houseRoofY * coverScale));
-      ctx.drawImage(img, bgX, bgY, bgW, bgH);
-
-      // Now draw the perfectly framed center house on top
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    } else {
-      // Widescreen image: draw centered horizontally with exact roofline positioning
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    }
+    // Draw single-pass seamless image
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);

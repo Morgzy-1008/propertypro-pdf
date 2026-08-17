@@ -42,6 +42,8 @@ scripts/test_*.cjs
 scripts/test_*.mjs
 scripts/check_*.cjs
 scripts/verify_*.cjs
+scripts/open_*.cjs
+scripts/inspect_*.mjs
 scripts/check_*.mjs
 scripts/export_*.mjs
 scripts/view_*.mjs

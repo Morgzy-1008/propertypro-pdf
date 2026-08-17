@@ -109,18 +109,40 @@ export async function loadEnhancedAsync(id: string): Promise<string | null> {
 
   // Local cache miss. Try Supabase for the crisp AI render across all version tags.
   try {
-    const candidates = [
+    const baseId = id.replace(/::v\d+[a-z]?|_v\d+[a-z]?/g, "").replace(/-(single|double)-garage/g, "");
+    const candidates = Array.from(new Set([
       `${id}_v5`,
       `${id}_v4`,
       `${id}_v4d`,
       `${id}_v4s`,
       `${id}::v5d`,
       `${id}::v5s`,
+      `${id}::v4d`,
+      `${id}::v4s`,
       `${id}_v3`,
       `${id}::v3`,
       `${id}::v2`,
-      id
-    ];
+      id,
+      `${baseId}_v5`,
+      `${baseId}_v4`,
+      `${baseId}::v5d`,
+      `${baseId}::v5s`,
+      `${baseId}::v4d`,
+      `${baseId}::v4s`,
+      `${baseId}_v3`,
+      `${baseId}::v3`,
+      `${baseId}::v2`,
+      baseId,
+      `${id}-double-garage`,
+      `${id}-double-garage_v5`,
+      `${id}-double-garage::v5d`,
+      `${id}-single-garage`,
+      `${id}-single-garage_v5`,
+      `${id}-single-garage::v5s`,
+      `${baseId}-double-garage`,
+      `${baseId}-double-garage_v5`,
+      `${baseId}-double-garage::v5d`,
+    ]));
 
     for (const cand of candidates) {
       const { data } = await supabase
