@@ -1110,19 +1110,28 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const drawX = Math.round((outW - drawW) / 2);
 
     if (drawW < outW) {
-      // 1. Fill left wing: Sample leftmost strip and stretch across [0, drawX + 50]
-      const stripW = Math.min(srcW * 0.15, 120);
-      ctx.drawImage(img, 0, 0, stripW, srcH, 0, drawY, drawX + 50, drawH);
+      const wingW = Math.min(srcW * 0.10, 100);
 
-      // 2. Fill right wing: Sample rightmost strip and stretch across [drawX + drawW - 50, outW]
-      ctx.drawImage(img, srcW - stripW, 0, stripW, srcH, drawX + drawW - 50, drawY, outW - (drawX + drawW - 50), drawH);
+      // 1. Left Wing: Mirrored outward from the left margin for continuous natural trees & lawn
+      ctx.save();
+      ctx.translate(drawX, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, 0, 0, wingW, srcH, 0, drawY, drawX, drawH);
+      ctx.restore();
 
-      // 3. Fill top sky if needed
+      // 2. Right Wing: Mirrored outward from the right margin for continuous natural trees & lawn
+      ctx.save();
+      ctx.translate(drawX + drawW, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(img, srcW - wingW, 0, wingW, srcH, 0, drawY, outW - (drawX + drawW), drawH);
+      ctx.restore();
+
+      // 3. Top Sky if needed
       if (drawY > 0) {
         ctx.drawImage(img, 0, 0, srcW, 5, 0, 0, outW, drawY);
       }
 
-      // 4. Draw central house with soft feathered edges for seamless blending (ZERO hard lines, ZERO blur)
+      // 4. Center House with smooth 40px soft blend
       const houseCanvas = document.createElement("canvas");
       houseCanvas.width = drawW;
       houseCanvas.height = drawH;
@@ -1131,20 +1140,20 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
       hCtx.imageSmoothingQuality = "high";
       hCtx.drawImage(img, 0, 0, drawW, drawH);
 
-      // Feather left edge (50px) using destination-out
+      // Feather left edge (40px)
       hCtx.globalCompositeOperation = "destination-out";
-      const leftGrad = hCtx.createLinearGradient(0, 0, 50, 0);
+      const leftGrad = hCtx.createLinearGradient(0, 0, 40, 0);
       leftGrad.addColorStop(0, "rgba(0,0,0,1)");
       leftGrad.addColorStop(1, "rgba(0,0,0,0)");
       hCtx.fillStyle = leftGrad;
-      hCtx.fillRect(0, 0, 50, drawH);
+      hCtx.fillRect(0, 0, 40, drawH);
 
-      // Feather right edge (50px) using destination-out
-      const rightGrad = hCtx.createLinearGradient(drawW - 50, 0, drawW, 0);
+      // Feather right edge (40px)
+      const rightGrad = hCtx.createLinearGradient(drawW - 40, 0, drawW, 0);
       rightGrad.addColorStop(0, "rgba(0,0,0,0)");
       rightGrad.addColorStop(1, "rgba(0,0,0,1)");
       hCtx.fillStyle = rightGrad;
-      hCtx.fillRect(drawW - 50, 0, 50, drawH);
+      hCtx.fillRect(drawW - 40, 0, 40, drawH);
 
       ctx.drawImage(houseCanvas, drawX, drawY);
     } else {
