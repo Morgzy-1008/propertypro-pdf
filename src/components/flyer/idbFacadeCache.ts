@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "PropertyProFacadeCacheDB";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = "enhanced_facades";
 
 function openDB(): Promise<IDBDatabase> {

@@ -58,7 +58,9 @@ async function pdfFirstPageToDataUrl(file: File): Promise<string | null> {
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!src.startsWith("data:")) {
+      img.crossOrigin = "anonymous";
+    }
     img.onload = () => resolve(img);
     img.onerror = () => {
       // Retry without crossOrigin if CORS headers are missing
@@ -360,54 +362,42 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
   for (const rawUrl of candidateUrls) {
     if (rawUrl.startsWith("data:")) return rawUrl;
 
-    // 1. Direct fetch (works for same-origin & CORS-enabled URLs)
+    // 1. Direct fetch
     try {
-      console.log("[getRawFacadeBase64] Attempting direct fetch:", rawUrl);
-      const res = await fetch(rawUrl);
+      const res = await fetch(rawUrl, { mode: "cors" });
       if (res.ok) {
         const blob = await res.blob();
         const b64 = await blobToBase64(blob);
-        if (b64.startsWith("data:image/") && b64.length > 500) {
-          console.log("[getRawFacadeBase64] Direct fetch succeeded");
+        if (b64 && b64.startsWith("data:image/") && b64.length > 500) {
           return b64;
         }
-      } else {
-        console.log("[getRawFacadeBase64] Direct fetch failed with status:", res.status);
       }
-    } catch (e) {
-      console.log("[getRawFacadeBase64] Direct fetch threw:", (e as Error).message);
-    }
+    } catch {}
 
     // 2. CORS Proxy fetch (bypasses browser CORS restrictions for hudsonhomes.com.au)
     if (rawUrl.startsWith("http")) {
       const proxies = [
+        `/api/proxy-image?url=${encodeURIComponent(rawUrl)}`,
         `https://images.weserv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg`,
-        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(rawUrl)}`,
+        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`,
       ];
       for (const proxyUrl of proxies) {
         try {
-          console.log("[getRawFacadeBase64] Attempting proxy:", proxyUrl.substring(0, 40) + "...");
           const res = await fetch(proxyUrl);
           if (res.ok) {
             const blob = await res.blob();
             const b64 = await blobToBase64(blob);
-            if (b64.startsWith("data:image/") && b64.length > 500) {
-              console.log("[getRawFacadeBase64] Proxy succeeded");
+            if (b64 && b64.startsWith("data:image/") && b64.length > 500) {
               return b64;
             }
-          } else {
-            console.log("[getRawFacadeBase64] Proxy failed with status:", res.status);
           }
-        } catch (e) {
-          console.log("[getRawFacadeBase64] Proxy threw:", (e as Error).message);
-        }
+        } catch {}
       }
     }
 
-    // 3. Canvas image element fallback
+    // 3. Canvas image element fallback with anonymous crossorigin
     try {
-      console.log("[getRawFacadeBase64] Attempting Canvas fallback");
       const img = await loadImage(rawUrl);
       const canvas = document.createElement("canvas");
       canvas.width = img.naturalWidth || 1200;
@@ -416,12 +406,9 @@ async function getRawFacadeBase64(url: string, originalUrl?: string, facadeId?: 
       ctx.drawImage(img, 0, 0);
       const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
       if (dataUrl.startsWith("data:image/") && dataUrl.length > 500) {
-        console.log("[getRawFacadeBase64] Canvas fallback succeeded");
         return dataUrl;
       }
-    } catch (e) {
-      console.log("[getRawFacadeBase64] Canvas fallback threw:", (e as Error).message);
-    }
+    } catch {}
   }
   return "";
 }
@@ -593,11 +580,10 @@ export async function widenFacadeClientSide(item: {
     const outW = Math.max(2400, srcW);
     const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
 
-    // Get deterministic pixel scanned bounds + Gemini AI bounding box
+    // Combine deterministic pixel scan + AI bounding box
     const scannedBounds = detectHouseBounds(img);
     const bbox = await getHouseBoundingBox(GEMINI_KEY, rawPayload.split(",")[1] ?? "");
     
-    // Combine both: take the highest roofline and lowest foundation to guarantee zero clipping
     const safeYmin = Math.min(scannedBounds.ymin, bbox.ymin);
     const safeYmax = Math.max(scannedBounds.ymax, bbox.ymax);
     const safeXmin = Math.min(scannedBounds.xmin, bbox.xmin);
@@ -609,18 +595,16 @@ export async function widenFacadeClientSide(item: {
     const trueHouseW = Math.max(10, srcW * (safeXmax - safeXmin));
 
     // Mathematical framing specifications (calibrated to 82mm flyer container):
-    // - 3mm to 3.5mm clearance above roof apex to top border (~38px on 892px canvas)
+    // - 3.5mm clearance above roof apex to top border (~38px on 892px canvas)
     // - 20mm clearance from house base to bottom border (~218px on 892px canvas)
     // - Target house height = 82mm - (3.5mm + 20mm) = 58.5mm (~636px on 892px canvas)
-    const topGap = Math.round(outH * (3.5 / 82)); // 38px (3.5mm clearance above roof)
-    const bottomGap = Math.round(outH * (20.0 / 82)); // 218px (20mm clearance below house)
-    const targetHouseH = outH - topGap - bottomGap; // 636px (58.5mm house height)
-    const sideMargin = Math.round(outW * 0.05); // 120px margin on sides
-    const maxHouseW = outW - (sideMargin * 2); // 2160px maximum house width
+    const topGap = Math.round(outH * (3.5 / 82)); // 38px
+    const bottomGap = Math.round(outH * (20.0 / 82)); // 218px
+    const targetHouseH = outH - topGap - bottomGap; // 636px
+    const sideMargin = Math.round(outW * 0.04);
+    const maxHouseW = outW - (sideMargin * 2);
     
     let scale = targetHouseH / trueHouseH;
-    
-    // If the house is very wide, scale it back so it doesn't touch the sides
     if (trueHouseW * scale > maxHouseW) {
       scale = maxHouseW / trueHouseW;
     }
@@ -635,14 +619,21 @@ export async function widenFacadeClientSide(item: {
     // Anchor vertically so the roof apex sits at exactly `topGap` (3.5mm sky clearance)
     const drawY = Math.round(topGap - (houseRoofY * scale));
     
-    // Position the house perfectly on the white canvas to send to Gemini
+    // Position the house on a clean sky-to-driveway backdrop to send to Gemini
     const prepCanvas = document.createElement("canvas");
     prepCanvas.width = outW;
     prepCanvas.height = outH;
     const prepCtx = prepCanvas.getContext("2d", { willReadFrequently: true })!;
     prepCtx.imageSmoothingEnabled = true;
     prepCtx.imageSmoothingQuality = "high";
-    prepCtx.fillStyle = "#ffffff";
+    
+    // Clean, natural background gradient (sky at top, clean concrete at bottom - NO GREEN)
+    const bgGrad = prepCtx.createLinearGradient(0, 0, 0, outH);
+    bgGrad.addColorStop(0, "#74a7e0");
+    bgGrad.addColorStop(0.68, "#e2effb");
+    bgGrad.addColorStop(0.72, "#e5e7eb");
+    bgGrad.addColorStop(1, "#d1d5db");
+    prepCtx.fillStyle = bgGrad;
     prepCtx.fillRect(0, 0, outW, outH);
     prepCtx.drawImage(img, drawX, drawY, drawW, drawH);
     
@@ -651,12 +642,12 @@ export async function widenFacadeClientSide(item: {
     const refreshSeed = item.forceRefresh ? `\n\nCRITICAL: This is a RE-GENERATION request. You MUST create a DIFFERENT landscaping layout, sky, and background than you did last time. Random Seed: ${Date.now()}` : "";
 
     const promptText =
-      "I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, photorealistic background across the ENTIRE widescreen image.\n\n" +
-      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with bright, crisp, natural Australian daylight. Imagine a perfectly clear day with radiant sunshine that makes the colors vibrant, vivid, and clean. The extended sky must be a soft, luminous, natural light blue with subtle wisps of white clouds.\n\n" +
-      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, with beautiful manicured lawn, modern tropical/native landscaping, and clean concrete driveway. The original facade architecture must remain completely intact, but the lighting must make the textures (brickwork, glass, timber, render) look exceptionally clean, crisp, and high-detail.\n\n" +
-      "QUALITY DIRECTIVES: Render with ultra-high resolution 8K architectural photography details, crystal clear sharpness, hyper-realistic depth, balanced exposure, and an aesthetic that emphasizes a high-end luxury real estate magazine cover. Avoid dark vignettes, gloomy shadows, or flat lighting." + refreshSeed;
+      "I have provided an image of a house placed on a widescreen canvas. Your job is to outpaint the left and right empty space to create ONE seamless, photorealistic background across the ENTIRE widescreen image.\n\n" +
+      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with bright, crisp, natural Australian daylight. The sky must be a soft, luminous, natural light blue with subtle wisps of white clouds. The foreground below the house must be a clean concrete driveway leading into the garage. ABSOLUTELY NO GREEN BACKGROUNDS, NO GREEN TINT IN THE SKY, AND NO DARK VIGNETTES.\n\n" +
+      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, with modern suburban surroundings and clean concrete driveway. The original facade architecture must remain completely intact.\n\n" +
+      "QUALITY DIRECTIVES: Ultra-high resolution 8K architectural photography details, crystal clear sharpness, hyper-realistic depth, balanced daylight exposure, clean modern aesthetics." + refreshSeed;
 
-    const models = ["gemini-3.1-flash-image"];
+    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-flash-latest"];
     let apiRes: Response | null = null;
 
     for (const model of models) {
@@ -698,29 +689,25 @@ export async function widenFacadeClientSide(item: {
       }
     }
 
-    if (!apiRes || !apiRes.ok) {
-      console.error("[AI Outpaint] All Gemini API endpoints failed");
-      return null;
-    }
-
-    const json = (await apiRes.json()) as any;
-    console.log("[AI Outpaint] API returned OK. Keys:", Object.keys(json));
-
     let b64: string | undefined = undefined;
-    if (json?.candidates?.[0]?.content?.parts) {
-      for (const p of json.candidates[0].content.parts as any[]) {
-        const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
-        if (data && typeof data === "string" && data.length > 500) {
-          b64 = data;
-          console.log("[AI Outpaint] Found inline data, length:", data.length);
-          break;
+    if (apiRes && apiRes.ok) {
+      try {
+        const json = (await apiRes.json()) as any;
+        if (json?.candidates?.[0]?.content?.parts) {
+          for (const p of json.candidates[0].content.parts as any[]) {
+            const data = p.inlineData?.data ?? p.inline_data?.data ?? p.inlineData?.Data ?? p.inline_data?.Data;
+            if (data && typeof data === "string" && data.length > 500) {
+              b64 = data;
+              break;
+            }
+          }
         }
-      }
+      } catch {}
     }
-    
+
     if (!b64) {
-      console.error("[AI Outpaint] Gemini API did not return image inline_data:", JSON.stringify(json).substring(0, 300));
-      return null;
+      console.warn("[AI Outpaint] Gemini API unavailable or no image data, generating widescreen frame fallback");
+      return prepareFacade(rawPayload, item.originalUrl, item.id);
     }
 
     // -------------------------------------------------------------
@@ -1046,15 +1033,11 @@ const facadeCache = new Map<string, string>();
 
 /**
  * Prepares a facade render for widescreen 2.69:1 display:
- * Fills 100% of the canvas with real scenery (cover mode) so there is ZERO WHITE SPACE around the facade.
+ * Ensures 100% of double-storey and single-storey buildings are fully visible,
+ * with perfectly matched panoramic sky & ground background extension (zero white space).
  */
 export async function prepareFacade(dataUrl: string, originalUrl?: string, facadeId?: string): Promise<string | null> {
   if (!dataUrl) return dataUrl;
-
-  // 1. Check if a pre-rendered high-quality widescreen asset exists
-  if (facadeId && PRE_RENDERED_FACADES[facadeId]) {
-    return PRE_RENDERED_FACADES[facadeId];
-  }
 
   const cached = facadeCache.get(dataUrl);
   if (cached) return cached;
@@ -1068,7 +1051,7 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
     // Output canvas: 2.69 : 1 (flyer header proportion)
     const outW = Math.max(2400, srcW);
-    const outH = Math.round(outW / 2.69);
+    const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
@@ -1077,16 +1060,84 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Fill the entire widescreen frame edge-to-edge with the facade photo (cover mode)
-    // Ensures ZERO WHITE SPACE or white bars around the image
-    const coverScale = Math.max(outW / srcW, outH / srcH);
-    const drawW = Math.round(srcW * coverScale);
-    const drawH = Math.round(srcH * coverScale);
-    const drawX = Math.round((outW - drawW) / 2);
-    const drawY = Math.round((outH - drawH) / 2);
+    // Accurate house boundaries from deterministic pixel scan
+    const bounds = detectHouseBounds(img);
+    const houseRoofY = srcH * Math.max(0, bounds.ymin - 0.005);
+    const houseBaseY = srcH * Math.min(1.0, bounds.ymax);
+    const buildingH = Math.max(10, houseBaseY - houseRoofY);
 
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    const resUrl = canvas.toDataURL("image/jpeg", 0.94);
+    // Mathematical framing:
+    // 3.5mm top sky gap (~38px)
+    // House building spans ~74% of frame height (~660px)
+    const topGap = Math.round(outH * (3.5 / 82)); // 38px
+    const targetBuildingH = Math.round(outH * 0.74); // 660px
+    let scale = targetBuildingH / buildingH;
+
+    let drawW = Math.round(srcW * scale);
+    let drawH = Math.round(srcH * scale);
+    let drawY = Math.round(topGap - (houseRoofY * scale));
+
+    // Ensure driveway and lawn reach the bottom of the canvas seamlessly with 0 slice seams
+    if (drawY + drawH < outH) {
+      scale = (outH - topGap) / (srcH - houseRoofY);
+      drawW = Math.round(srcW * scale);
+      drawH = Math.round(srcH * scale);
+      drawY = Math.round(topGap - (houseRoofY * scale));
+    }
+
+    const drawX = Math.round((outW - drawW) / 2);
+
+    // 1. Fill canvas with soft panoramic background cover with heavy Gaussian blur
+    // This perfectly matches sky color, trees, and ground with ZERO hard seams or green tint
+    const bgScale = Math.max(outW / srcW, outH / srcH) * 1.05;
+    const bgW = Math.round(srcW * bgScale);
+    const bgH = Math.round(srcH * bgScale);
+    const bgX = Math.round((outW - bgW) / 2);
+    const bgY = Math.round((outH - bgH) / 2);
+
+    ctx.save();
+    ctx.filter = "blur(36px)";
+    ctx.drawImage(img, bgX, bgY, bgW, bgH);
+    ctx.restore();
+
+    // Subtle sky overlay to brighten and clean the ambient background
+    const ambientSky = ctx.createLinearGradient(0, 0, 0, outH);
+    ambientSky.addColorStop(0, "rgba(110, 164, 220, 0.25)");
+    ambientSky.addColorStop(0.65, "rgba(255, 255, 255, 0.1)");
+    ambientSky.addColorStop(0.70, "rgba(230, 233, 236, 0.15)");
+    ambientSky.addColorStop(1, "rgba(208, 213, 217, 0.25)");
+    ctx.fillStyle = ambientSky;
+    ctx.fillRect(0, 0, outW, outH);
+
+    // 2. Prepare foreground house canvas with soft alpha feathered edges on left and right
+    const houseCanvas = document.createElement("canvas");
+    houseCanvas.width = drawW;
+    houseCanvas.height = drawH;
+    const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
+    hCtx.imageSmoothingEnabled = true;
+    hCtx.imageSmoothingQuality = "high";
+    hCtx.drawImage(img, 0, 0, drawW, drawH);
+
+    const featherW = Math.round(drawW * 0.04);
+    if (drawX > 0) {
+      hCtx.globalCompositeOperation = "destination-out";
+      const maskL = hCtx.createLinearGradient(0, 0, featherW, 0);
+      maskL.addColorStop(0, "rgba(0,0,0,1)");
+      maskL.addColorStop(1, "rgba(0,0,0,0)");
+      hCtx.fillStyle = maskL;
+      hCtx.fillRect(0, 0, featherW, drawH);
+
+      const maskR = hCtx.createLinearGradient(drawW - featherW, 0, drawW, 0);
+      maskR.addColorStop(0, "rgba(0,0,0,0)");
+      maskR.addColorStop(1, "rgba(0,0,0,1)");
+      hCtx.fillStyle = maskR;
+      hCtx.fillRect(drawW - featherW, 0, featherW, drawH);
+      hCtx.globalCompositeOperation = "source-over";
+    }
+
+    ctx.drawImage(houseCanvas, drawX, drawY);
+
+    const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);
     return resUrl;
   } catch (err) {

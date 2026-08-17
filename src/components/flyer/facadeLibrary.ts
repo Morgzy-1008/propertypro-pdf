@@ -96,7 +96,7 @@ export function facadeUpliftFor(
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const AI_MARKER = "::AI_OUTPAINT_V4::";
+export const AI_MARKER = "::AI_OUTPAINT_V5::";
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   const tagged = await getIdbEnhanced(id);
@@ -107,9 +107,9 @@ export async function loadEnhancedAsync(id: string): Promise<string | null> {
     }
   }
 
-  // Local cache miss. Try Supabase for V4 global cache.
+  // Local cache miss. Try Supabase for V5 global cache.
   try {
-    const { data } = await supabase.from("facade_renders").select("widened_url").eq("id", `${id}_v4`).maybeSingle();
+    const { data } = await supabase.from("facade_renders").select("widened_url").eq("id", `${id}_v5`).maybeSingle();
     if (data?.widened_url) {
         // Save it locally so we don't hit Supabase again next time
         const b64 = data.widened_url;
@@ -167,14 +167,14 @@ export async function saveEnhanced(id: string, dataUrl: string, facadeName?: str
 
   // Save globally to Supabase
   void supabase.from("facade_renders").upsert({
-    id: `${id}_v4`,
+    id: `${id}_v5`,
     facade_name: facadeName || id,
     widened_url: cleanUrl,
   }).then(({ error }) => {
     if (error) {
       console.error("Failed to save facade to Supabase:", error);
     } else {
-      console.log(`[FacadeLibrary] Permanently saved ${id}_v4 to Supabase.`);
+      console.log(`[FacadeLibrary] Permanently saved ${id}_v5 to Supabase.`);
     }
   });
 }

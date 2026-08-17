@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
 import { getRange, rangeItems, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
@@ -83,14 +83,10 @@ function Facade({
   busy?: boolean;
   className?: string;
 }) {
-  const displayUrl = useMemo(() => {
-    if (!url) return "";
-    if (url.startsWith("data:")) return url;
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      if (url.includes("weserv.nl")) return url;
-      return `https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`;
-    }
-    return url;
+  const [imgSrc, setImgSrc] = useState(url || "");
+
+  useEffect(() => {
+    setImgSrc(url || "");
   }, [url]);
 
   if (busy && !url) {
@@ -120,17 +116,26 @@ function Facade({
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-100 ${className ?? ""}`}>
       <img
-        src={displayUrl}
+        src={imgSrc}
         alt="Facade render"
         loading="eager"
-        className={`h-full w-full object-cover object-center ${busy ? "opacity-50 blur-[2px] scale-[1.02]" : ""}`}
+        crossOrigin="anonymous"
+        onError={() => {
+          // If direct image fails to load, try first-party proxy
+          if (url && !imgSrc.includes("/api/proxy-image") && !url.startsWith("data:")) {
+            setImgSrc(`/api/proxy-image?url=${encodeURIComponent(url)}`);
+          } else if (url && !imgSrc.includes("weserv.nl") && !url.startsWith("data:")) {
+            setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`);
+          }
+        }}
+        className={`h-full w-full object-cover object-center ${busy ? "opacity-60 blur-[1px] scale-[1.01]" : ""}`}
         style={{ imageRendering: "auto" }}
       />
       {busy && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/40 backdrop-blur-[2px]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/30 backdrop-blur-[1px]">
           <Loader2 className="h-8 w-8 animate-spin text-brand-gold shadow-sm mb-2" />
           <span className="text-[2.5mm] font-bold tracking-[0.2em] text-white uppercase drop-shadow-md">
-            RE-GENERATING AI RENDER…
+            AI ENHANCING FACADE…
           </span>
         </div>
       )}
