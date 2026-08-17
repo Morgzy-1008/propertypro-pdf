@@ -619,7 +619,7 @@ export async function widenFacadeClientSide(item: {
     // Anchor vertically so the roof apex sits at exactly `topGap` (3.5mm sky clearance)
     const drawY = Math.round(topGap - (houseRoofY * scale));
     
-    // Position the house on a clean sky-to-driveway backdrop to send to Gemini
+    // Position the house on a pre-extended natural backdrop to send to Gemini
     const prepCanvas = document.createElement("canvas");
     prepCanvas.width = outW;
     prepCanvas.height = outH;
@@ -627,14 +627,15 @@ export async function widenFacadeClientSide(item: {
     prepCtx.imageSmoothingEnabled = true;
     prepCtx.imageSmoothingQuality = "high";
     
-    // Clean, natural background gradient (sky at top, clean concrete at bottom - NO GREEN)
-    const bgGrad = prepCtx.createLinearGradient(0, 0, 0, outH);
-    bgGrad.addColorStop(0, "#74a7e0");
-    bgGrad.addColorStop(0.68, "#e2effb");
-    bgGrad.addColorStop(0.72, "#e5e7eb");
-    bgGrad.addColorStop(1, "#d1d5db");
-    prepCtx.fillStyle = bgGrad;
-    prepCtx.fillRect(0, 0, outW, outH);
+    // Natural environment extension for AI input
+    if (drawW < outW) {
+      const stripW = Math.min(srcW * 0.15, 120);
+      prepCtx.drawImage(img, 0, 0, stripW, srcH, 0, drawY, drawX + 50, drawH);
+      prepCtx.drawImage(img, srcW - stripW, 0, stripW, srcH, drawX + drawW - 50, drawY, outW - (drawX + drawW - 50), drawH);
+      if (drawY > 0) {
+        prepCtx.drawImage(img, 0, 0, srcW, 5, 0, 0, outW, drawY);
+      }
+    }
     prepCtx.drawImage(img, drawX, drawY, drawW, drawH);
     
     const preparedPayload = prepCanvas.toDataURL("image/jpeg", 0.95);
@@ -642,10 +643,15 @@ export async function widenFacadeClientSide(item: {
     const refreshSeed = item.forceRefresh ? `\n\nCRITICAL: This is a RE-GENERATION request. You MUST create a DIFFERENT landscaping layout, sky, and background than you did last time. Random Seed: ${Date.now()}` : "";
 
     const promptText =
-      "I have provided an image of a house placed on a widescreen canvas. Your job is to outpaint the left and right empty space to create ONE seamless, photorealistic background across the ENTIRE widescreen image.\n\n" +
-      "CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with bright, crisp, natural Australian daylight. The sky must be a soft, luminous, natural light blue with subtle wisps of white clouds. The foreground below the house must be a clean concrete driveway leading into the garage. ABSOLUTELY NO GREEN BACKGROUNDS, NO GREEN TINT IN THE SKY, AND NO DARK VIGNETTES.\n\n" +
-      "You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, with modern suburban surroundings and clean concrete driveway. The original facade architecture must remain completely intact.\n\n" +
-      "QUALITY DIRECTIVES: Ultra-high resolution 8K architectural photography details, crystal clear sharpness, hyper-realistic depth, balanced daylight exposure, clean modern aesthetics." + refreshSeed;
+      "You are an expert architectural visualization artist specializing in Australian luxury residential property renders.\n\n" +
+      "TASK: Outpaint the left and right empty background regions of the provided widescreen house facade photo to create ONE continuous, ultra-photorealistic architectural panorama.\n\n" +
+      "LANDSCAPING & ENVIRONMENT DIRECTIVES:\n" +
+      "1. PREMIUM MODERN AUSTRALIAN SUBURBAN LANDSCAPING: Continue the lawn on both sides with seamless, vibrant green manicured turf (Sir Walter Buffalo / Kikuyu). Add contemporary architectural garden beds with native Australian flora (dwarf eucalyptus, Lomandra grasses, Westringia shrubs, architectural agave) in neat black mulch or light river pebble garden borders.\n" +
+      "2. BOUNDARY FENCING & NEIGHBORING DEPTH: Include neat, modern Australian boundary elements such as dark Colorbond Monument fencing or horizontal timber batten screens partially screened by lush green hedges in the background.\n" +
+      "3. SEAMLESS DRIVEWAY & PAVING: Extend the concrete driveway and garden edging naturally to the foreground borders, matching the exact color, texture, and aggregate finish of the original driveway.\n" +
+      "4. SKY & LIGHTING: Perfect, crystal clear Australian coastal/suburban daylight. Natural bright blue sky with soft, wispy cirrus clouds. Warm, balanced natural sun exposure matching the lighting angles and shadows of the original house.\n" +
+      "5. ARCHITECTURAL PRESERVATION: The house structure, walls, roof, windows, doors, gutters, and garage in the center must remain 100% untouched and pristine.\n" +
+      "6. ZERO ARTIFACTS: No blurring, no visible seams, no sudden background lines, no weird objects, no cars in the driveway, no distorted geometry. The entire panoramic image must look like a real, single-exposure 8K DSLR architectural photograph." + refreshSeed;
 
     const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-flash-latest"];
     let apiRes: Response | null = null;
@@ -723,8 +729,37 @@ export async function widenFacadeClientSide(item: {
     finalCtx.imageSmoothingEnabled = true;
     finalCtx.imageSmoothingQuality = "high";
 
-    // Draw the full AI-generated widescreen panoramic image directly (100% seamless edge-to-edge with ZERO hard lines and ZERO blur)
+    // 1. Draw the full AI-generated widescreen background environment
     finalCtx.drawImage(aiImg, 0, 0, outW, outH);
+
+    // 2. Composite original pristine central house with soft alpha-feathering for 100% seamless transition
+    if (drawW < outW) {
+      const houseCanvas = document.createElement("canvas");
+      houseCanvas.width = drawW;
+      houseCanvas.height = drawH;
+      const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
+      hCtx.imageSmoothingEnabled = true;
+      hCtx.imageSmoothingQuality = "high";
+      hCtx.drawImage(img, 0, 0, drawW, drawH);
+
+      // Feather left and right edges (50px)
+      hCtx.globalCompositeOperation = "destination-out";
+      const leftGrad = hCtx.createLinearGradient(0, 0, 50, 0);
+      leftGrad.addColorStop(0, "rgba(0,0,0,1)");
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      hCtx.fillStyle = leftGrad;
+      hCtx.fillRect(0, 0, 50, drawH);
+
+      const rightGrad = hCtx.createLinearGradient(drawW - 50, 0, drawW, 0);
+      rightGrad.addColorStop(0, "rgba(0,0,0,0)");
+      rightGrad.addColorStop(1, "rgba(0,0,0,1)");
+      hCtx.fillStyle = rightGrad;
+      hCtx.fillRect(drawW - 50, 0, 50, drawH);
+
+      finalCtx.drawImage(houseCanvas, drawX, drawY);
+    } else {
+      finalCtx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
 
     return finalCanvas.toDataURL("image/jpeg", 0.95);
   } catch (err) {
