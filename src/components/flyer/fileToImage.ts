@@ -1045,9 +1045,9 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     const srcW = img.naturalWidth  || 1200;
     const srcH = img.naturalHeight || 900;
 
-    // Output canvas: 2.69 : 1 (flyer header proportion)
+    // Output canvas: Exactly 210mm x 82mm flyer container proportion (2.56 : 1)
     const outW = Math.max(2400, srcW);
-    const outH = Math.round(outW / 2.69); // e.g. 892px for outW=2400
+    const outH = Math.round(outW * (82 / 210)); // e.g. 937px for outW=2400
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
@@ -1065,22 +1065,56 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     // 3.5mm top sky gap (~38px on 892px canvas, matching 82mm flyer container)
     const topGap = Math.round(outH * (3.5 / 82)); // ~38px
 
-    // Single-pass cover scale to guarantee 100% full-bleed edge-to-edge coverage (ZERO white boxes, ZERO sudden composite lines)
-    const coverScale = Math.max(outW / srcW, outH / srcH);
-    const drawW = Math.round(srcW * coverScale);
-    const drawH = Math.round(srcH * coverScale);
+    // Scale so the ENTIRE house from roof apex down to bottom driveway fits 100% inside the canvas (NEVER cut in half)
+    const targetH = outH - topGap;
+    const scale = targetH / (srcH - houseRoofY);
+
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+    const drawY = Math.round(topGap - (houseRoofY * scale));
     const drawX = Math.round((outW - drawW) / 2);
 
-    // Position vertically so the roof apex sits at exactly `topGap`
-    let drawY = Math.round(topGap - (houseRoofY * coverScale));
+    if (drawW < outW) {
+      // 1. Fill left wing: Sample leftmost strip and stretch across [0, drawX + 50]
+      const stripW = Math.min(srcW * 0.15, 120);
+      ctx.drawImage(img, 0, 0, stripW, srcH, 0, drawY, drawX + 50, drawH);
 
-    // Clamp drawY so the image completely covers the canvas without top or bottom gaps
-    const minDrawY = outH - drawH; // lowest allowed Y
-    const maxDrawY = 0;           // highest allowed Y
-    drawY = Math.min(maxDrawY, Math.max(minDrawY, drawY));
+      // 2. Fill right wing: Sample rightmost strip and stretch across [drawX + drawW - 50, outW]
+      ctx.drawImage(img, srcW - stripW, 0, stripW, srcH, drawX + drawW - 50, drawY, outW - (drawX + drawW - 50), drawH);
 
-    // Draw single-pass seamless image
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // 3. Fill top sky if needed
+      if (drawY > 0) {
+        ctx.drawImage(img, 0, 0, srcW, 5, 0, 0, outW, drawY);
+      }
+
+      // 4. Draw central house with soft feathered edges for seamless blending (ZERO hard lines, ZERO blur)
+      const houseCanvas = document.createElement("canvas");
+      houseCanvas.width = drawW;
+      houseCanvas.height = drawH;
+      const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
+      hCtx.imageSmoothingEnabled = true;
+      hCtx.imageSmoothingQuality = "high";
+      hCtx.drawImage(img, 0, 0, drawW, drawH);
+
+      // Feather left edge (50px) using destination-out
+      hCtx.globalCompositeOperation = "destination-out";
+      const leftGrad = hCtx.createLinearGradient(0, 0, 50, 0);
+      leftGrad.addColorStop(0, "rgba(0,0,0,1)");
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      hCtx.fillStyle = leftGrad;
+      hCtx.fillRect(0, 0, 50, drawH);
+
+      // Feather right edge (50px) using destination-out
+      const rightGrad = hCtx.createLinearGradient(drawW - 50, 0, drawW, 0);
+      rightGrad.addColorStop(0, "rgba(0,0,0,0)");
+      rightGrad.addColorStop(1, "rgba(0,0,0,1)");
+      hCtx.fillStyle = rightGrad;
+      hCtx.fillRect(drawW - 50, 0, 50, drawH);
+
+      ctx.drawImage(houseCanvas, drawX, drawY);
+    } else {
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);
