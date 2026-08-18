@@ -128,14 +128,14 @@ function Facade({
             setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`);
           }
         }}
-        className={`h-full w-full object-cover object-center ${busy ? "opacity-60 blur-[1px] scale-[1.01]" : ""}`}
+        className={`h-full w-full object-cover object-center ${busy ? "opacity-75" : ""}`}
         style={{ imageRendering: "auto" }}
       />
       {busy && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/30 backdrop-blur-[1px]">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-brand-navy-deep/40">
           <Loader2 className="h-8 w-8 animate-spin text-brand-gold shadow-sm mb-2" />
           <span className="text-[2.5mm] font-bold tracking-[0.2em] text-white uppercase drop-shadow-md">
-            AI ENHANCING FACADE…
+            PREPARING RENDER…
           </span>
         </div>
       )}

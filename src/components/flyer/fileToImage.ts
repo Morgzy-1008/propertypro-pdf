@@ -1082,7 +1082,7 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
     // Output canvas: Exactly 210mm x 82mm flyer container proportion (2.56 : 1)
     const outW = Math.max(2400, srcW);
-    const outH = Math.round(outW * (82 / 210)); // e.g. 937px for outW=2400
+    const outH = Math.round(outW * (82 / 210)); // 937px for outW=2400
 
     const canvas = document.createElement("canvas");
     canvas.width  = outW;
@@ -1091,74 +1091,52 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Accurate house boundaries from deterministic pixel scan
-    const bounds = detectHouseBounds(img);
-    const houseRoofY = srcH * Math.max(0, bounds.ymin - 0.005);
-    const houseBaseY = srcH * Math.min(1.0, bounds.ymax);
+    // 1. Accurate house apex detection from deterministic pixel scan
+    let houseRoofY = Math.round(srcH * 0.10);
+    try {
+      const scanCanvas = document.createElement("canvas");
+      scanCanvas.width = srcW;
+      scanCanvas.height = srcH;
+      const sCtx = scanCanvas.getContext("2d")!;
+      sCtx.drawImage(img, 0, 0);
+      const data = sCtx.getImageData(0, 0, srcW, srcH).data;
 
-    // Exact mathematical framing:
-    // 3.5mm top sky gap (~38px on 892px canvas, matching 82mm flyer container)
-    const topGap = Math.round(outH * (3.5 / 82)); // ~38px
+      for (let y = Math.round(srcH * 0.02); y < srcH * 0.50; y += 2) {
+        let nonSkyCount = 0;
+        for (let x = Math.round(srcW * 0.25); x < Math.round(srcW * 0.75); x += 4) {
+          const idx = (y * srcW + x) * 4;
+          const r = data[idx], g = data[idx+1], b = data[idx+2];
+          const isSky = (b > r + 15 && b > g - 10) || (r > 215 && g > 215 && b > 215);
+          if (!isSky) nonSkyCount++;
+        }
+        if (nonSkyCount > (srcW * 0.50 / 4) * 0.08) {
+          houseRoofY = y;
+          break;
+        }
+      }
+    } catch {}
 
-    // Scale so the ENTIRE house from roof apex down to bottom driveway fits 100% inside the canvas (NEVER cut in half)
-    const targetH = outH - topGap;
-    const scale = targetH / (srcH - houseRoofY);
+    const topGap = Math.round(outH * (3.5 / 82)); // 40px (3.5mm sky gap)
 
-    const drawW = Math.round(srcW * scale);
-    const drawH = Math.round(srcH * scale);
-    const drawY = Math.round(topGap - (houseRoofY * scale));
+    // 2. Full Panoramic Scenery Cover: Scale so the authentic photo covers 100% of the widescreen canvas
+    const coverScale = Math.max(outW / srcW, outH / srcH);
+    const drawW = Math.round(srcW * coverScale);
+    const drawH = Math.round(srcH * coverScale);
     const drawX = Math.round((outW - drawW) / 2);
 
-    if (drawW < outW) {
-      const wingW = Math.min(srcW * 0.10, 100);
+    // 3. Anchor vertically so the roof apex sits at exactly topGap (3.5mm sky clearance)
+    let drawY = Math.round(topGap - (houseRoofY * coverScale));
 
-      // 1. Left Wing: Mirrored outward from the left margin for continuous natural trees & lawn
-      ctx.save();
-      ctx.translate(drawX, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0, wingW, srcH, 0, drawY, drawX, drawH);
-      ctx.restore();
-
-      // 2. Right Wing: Mirrored outward from the right margin for continuous natural trees & lawn
-      ctx.save();
-      ctx.translate(drawX + drawW, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, srcW - wingW, 0, wingW, srcH, 0, drawY, outW - (drawX + drawW), drawH);
-      ctx.restore();
-
-      // 3. Top Sky if needed
-      if (drawY > 0) {
-        ctx.drawImage(img, 0, 0, srcW, 5, 0, 0, outW, drawY);
-      }
-
-      // 4. Center House with smooth 40px soft blend
-      const houseCanvas = document.createElement("canvas");
-      houseCanvas.width = drawW;
-      houseCanvas.height = drawH;
-      const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
-      hCtx.imageSmoothingEnabled = true;
-      hCtx.imageSmoothingQuality = "high";
-      hCtx.drawImage(img, 0, 0, drawW, drawH);
-
-      // Feather left edge (40px)
-      hCtx.globalCompositeOperation = "destination-out";
-      const leftGrad = hCtx.createLinearGradient(0, 0, 40, 0);
-      leftGrad.addColorStop(0, "rgba(0,0,0,1)");
-      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
-      hCtx.fillStyle = leftGrad;
-      hCtx.fillRect(0, 0, 40, drawH);
-
-      // Feather right edge (40px)
-      const rightGrad = hCtx.createLinearGradient(drawW - 40, 0, drawW, 0);
-      rightGrad.addColorStop(0, "rgba(0,0,0,0)");
-      rightGrad.addColorStop(1, "rgba(0,0,0,1)");
-      hCtx.fillStyle = rightGrad;
-      hCtx.fillRect(drawW - 40, 0, 40, drawH);
-
-      ctx.drawImage(houseCanvas, drawX, drawY);
-    } else {
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    // If drawY is too high (leaving bottom empty), clamp so bottom is at outH
+    if (drawY + drawH < outH) {
+      drawY = outH - drawH;
     }
+    // If roof apex would go off top, clamp drawY so roof apex is at minimum topGap
+    if (drawY + (houseRoofY * coverScale) < topGap) {
+      drawY = Math.round(topGap - (houseRoofY * coverScale));
+    }
+
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);
