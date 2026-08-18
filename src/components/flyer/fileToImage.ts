@@ -1118,25 +1118,57 @@ export async function prepareFacade(dataUrl: string, originalUrl?: string, facad
 
     const topGap = Math.round(outH * (3.5 / 82)); // 40px (3.5mm sky gap)
 
-    // 2. Full Panoramic Scenery Cover: Scale so the authentic photo covers 100% of the widescreen canvas
-    const coverScale = Math.max(outW / srcW, outH / srcH);
-    const drawW = Math.round(srcW * coverScale);
-    const drawH = Math.round(srcH * coverScale);
+    // 2. Scale so 100% of the entire house height (from roof apex down to driveway/foundation) fits perfectly
+    const targetH = outH - topGap;
+    const scale = targetH / (srcH - houseRoofY);
+
+    const drawW = Math.round(srcW * scale);
+    const drawH = Math.round(srcH * scale);
+    const drawY = Math.round(topGap - (houseRoofY * scale));
     const drawX = Math.round((outW - drawW) / 2);
 
-    // 3. Anchor vertically so the roof apex sits at exactly topGap (3.5mm sky clearance)
-    let drawY = Math.round(topGap - (houseRoofY * coverScale));
+    // 3. Fill Panoramic Landscape Wings if width is narrower than widescreen canvas
+    if (drawW < outW) {
+      const leftStripW = Math.min(srcW * 0.20, 160);
+      const rightStripW = Math.min(srcW * 0.20, 160);
 
-    // If drawY is too high (leaving bottom empty), clamp so bottom is at outH
-    if (drawY + drawH < outH) {
-      drawY = outH - drawH;
-    }
-    // If roof apex would go off top, clamp drawY so roof apex is at minimum topGap
-    if (drawY + (houseRoofY * coverScale) < topGap) {
-      drawY = Math.round(topGap - (houseRoofY * coverScale));
-    }
+      // Left Wing: Environmental margin smoothly extended to left edge
+      ctx.drawImage(img, 0, 0, leftStripW, srcH, 0, drawY, drawX + 60, drawH);
 
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // Right Wing: Environmental margin smoothly extended to right edge
+      ctx.drawImage(img, srcW - rightStripW, 0, rightStripW, srcH, drawX + drawW - 60, drawY, outW - (drawX + drawW - 60), drawH);
+
+      // Top Sky if needed
+      if (drawY > 0) {
+        ctx.drawImage(img, 0, 0, srcW, 5, 0, 0, outW, drawY);
+      }
+
+      // 4. Central House with soft 50px cosine alpha blend for zero hard lines and zero blur
+      const houseCanvas = document.createElement("canvas");
+      houseCanvas.width = drawW;
+      houseCanvas.height = drawH;
+      const hCtx = houseCanvas.getContext("2d", { willReadFrequently: true })!;
+      hCtx.imageSmoothingEnabled = true;
+      hCtx.imageSmoothingQuality = "high";
+      hCtx.drawImage(img, 0, 0, drawW, drawH);
+
+      hCtx.globalCompositeOperation = "destination-out";
+      const leftGrad = hCtx.createLinearGradient(0, 0, 50, 0);
+      leftGrad.addColorStop(0, "rgba(0,0,0,1)");
+      leftGrad.addColorStop(1, "rgba(0,0,0,0)");
+      hCtx.fillStyle = leftGrad;
+      hCtx.fillRect(0, 0, 50, drawH);
+
+      const rightGrad = hCtx.createLinearGradient(drawW - 50, 0, drawW, 0);
+      rightGrad.addColorStop(0, "rgba(0,0,0,0)");
+      rightGrad.addColorStop(1, "rgba(0,0,0,1)");
+      hCtx.fillStyle = rightGrad;
+      hCtx.fillRect(drawW - 50, 0, 50, drawH);
+
+      ctx.drawImage(houseCanvas, drawX, drawY);
+    } else {
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
 
     const resUrl = canvas.toDataURL("image/jpeg", 0.95);
     facadeCache.set(dataUrl, resUrl);
