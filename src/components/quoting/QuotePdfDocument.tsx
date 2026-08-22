@@ -9,10 +9,10 @@ import {
   Sparkles,
   Home,
   ShieldCheck,
-  Check,
   Building,
   FileCheck2,
 } from "lucide-react";
+import { PaymentQrCode } from "./PaymentQrCode";
 
 interface QuotePdfDocumentProps {
   quote: FullQuote;
@@ -732,20 +732,16 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
             </div>
 
-            {/* QR Code Container */}
-            <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-300 rounded-lg text-center flex-none">
-              <div className="w-20 h-20 bg-slate-900 p-1.5 rounded flex items-center justify-center">
-                <div className="w-full h-full bg-white p-1 grid grid-cols-5 gap-0.5">
-                  <div className="bg-slate-900 rounded-sm col-span-2 row-span-2" />
-                  <div className="bg-slate-900 rounded-sm" />
-                  <div className="bg-slate-900 rounded-sm col-span-2 row-span-2" />
-                  <div className="bg-slate-900 rounded-sm" />
-                  <div className="bg-slate-900 rounded-sm col-span-3" />
-                  <div className="bg-slate-900 rounded-sm col-span-2 row-span-2" />
-                  <div className="bg-slate-900 rounded-sm" />
-                  <div className="bg-slate-900 rounded-sm col-span-2 row-span-2" />
-                </div>
-              </div>
+            {/* Real Dynamic Payment QR Code */}
+            <div className="flex flex-col items-center justify-center p-2 bg-white border border-slate-300 rounded-lg text-center flex-none">
+              <PaymentQrCode
+                accountName="Hudson Homes (QLD) Pty Ltd"
+                bsb="082 778"
+                accountNumber="74-586-5607"
+                amount={client.depositAmount || 1650}
+                reference={`${client.estimateNumber || quote.quoteNumber} ${client.clientName.split(" ").pop()}`}
+                size={80}
+              />
               <span className="text-[9px] font-bold text-slate-600 mt-1 uppercase font-mono">
                 Scan to Pay
               </span>
