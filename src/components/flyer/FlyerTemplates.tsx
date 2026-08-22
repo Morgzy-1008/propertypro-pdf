@@ -21,6 +21,7 @@ export function HudsonMark({ size = 15, className = "" }: { size?: number; class
 }
 
 export function Logo({
+  light = false,
   size = 15,
   className = "",
 }: {
@@ -29,13 +30,33 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <img
-      src="/hudson-mark.png"
-      alt="Hudson Homes"
-      style={{ height: `${size}mm`, width: "auto" }}
-      className={`flex-none object-contain ${className}`}
-      loading="eager"
-    />
+    <div className={`flex items-center gap-[3mm] ${className}`}>
+      {/* Authentic Hudson Homes house mark emblem */}
+      <HudsonMark size={size} />
+      {/* Brand text to the right of emblem */}
+      <div
+        className={`border-l pl-[3mm] flex flex-col justify-center leading-none ${
+          light ? "border-brand-cream/30" : "border-brand-navy/20"
+        }`}
+      >
+        <div
+          className={`font-sans font-bold tracking-[0.16em] ${
+            light ? "text-white" : "text-brand-navy"
+          }`}
+          style={{ fontSize: `${size * 0.42}mm` }}
+        >
+          HUDSON HOMES
+        </div>
+        <div
+          className={`mt-[0.9mm] tracking-[0.28em] font-semibold ${
+            light ? "text-brand-gold" : "text-brand-gold-deep"
+          }`}
+          style={{ fontSize: `${size * 0.17}mm` }}
+        >
+          ZERO SURPRISES
+        </div>
+      </div>
+    </div>
   );
 }
 
