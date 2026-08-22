@@ -29,7 +29,7 @@ const GEMINI_KEY =
 
 /**
  * Deterministic text-based parser for Australian developer price lists.
- * Extracts lots directly from raw document text and filenames without requiring external AI.
+ * Extracts lots directly from raw document text, tables, and filenames without requiring external AI.
  */
 export function extractLotsFromText(rawText: string, filename = ""): ParseLotResult {
   const result: ParseLotResult = {
@@ -40,11 +40,11 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
   };
 
   // 1. Detect Estate and Suburb from filename (e.g. "Flagstone Price List - Aurora - 19.8.2026.pdf")
-  const cleanName = filename.replace(/\.pdf$/i, "");
+  const cleanName = filename.replace(/\.(pdf|csv|xlsx|txt)$/i, "");
   const nameParts = cleanName.split(/[-–—_]/).map((p) => p.trim()).filter(Boolean);
   
   for (const part of nameParts) {
-    if (/price\s*list/i.test(part) || /\d{1,2}\.\d{1,2}\.\d{2,4}/.test(part) || /stage/i.test(part)) {
+    if (/price\s*list/i.test(part) || /\d{1,2}\.\d{1,2}\.\d{2,4}/.test(part) || /stage/i.test(part) || /release/i.test(part)) {
       continue;
     }
     if (!result.estate) {
@@ -69,50 +69,92 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
   if (!rawText) return result;
 
   // 3. Line-by-line lot extraction
-  const lines = rawText.split(/\r?\n/);
+  const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const foundLots: ParsedLot[] = [];
   const seenLots = new Set<string>();
 
   for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.length < 5) continue;
+    // Skip pure header rows without prices
+    if (/^(lot|stage|land\s*size|frontage|price|status|registered|date|release|street|address|type|width|depth)/i.test(line)) {
+      if (!/(\$|[1-9]\d{5})/.test(line)) continue;
+    }
 
-    // Look for price pattern (e.g. $385,000 or $385000 or 385,000)
-    const priceMatch = trimmed.match(/\$?\s*([1-9]\d{2}(?:,\d{3})+|[2-9]\d{5})/);
-    if (!priceMatch) continue;
+    // Look for price pattern: $385,000 or $385000 or 385,000 or 385000 (typical Australian land $80k - $3.5m)
+    const priceMatches = [...line.matchAll(/(?:\$|AUD)?\s*([1-9]\d{2}(?:,\d{3})+|[1-9]\d{5})/g)];
+    if (priceMatches.length === 0) continue;
 
-    const rawPriceStr = priceMatch[1].replace(/,/g, "");
-    const priceNum = parseInt(rawPriceStr, 10);
-    if (isNaN(priceNum) || priceNum < 50000 || priceNum > 5000000) continue;
+    let priceNum = 0;
+    for (const pm of priceMatches) {
+      const val = parseInt(pm[1].replace(/,/g, ""), 10);
+      if (val >= 75000 && val <= 4000000) {
+        priceNum = val;
+        break;
+      }
+    }
+    if (!priceNum) continue;
+
+    // Tokens on this row
+    const tokens = line.split(/[\t\s,;|]+/).filter(Boolean);
 
     // Look for lot number pattern
-    const lotMatch = trimmed.match(/(?:Lot|LOT|#)?\s*([A-Za-z0-9\-\/]{1,10})/i);
-    if (!lotMatch) continue;
-    const lotNum = lotMatch[1].replace(/^Lot\s*/i, "").trim();
-    if (!lotNum || /^(the|and|for|size|price|m2|sqm|date|stage)$/i.test(lotNum)) continue;
+    let lotNum = "";
+    const lotPrefixMatch = line.match(/(?:Lot|LOT|#|L\.)\s*([A-Za-z0-9\-\/]{1,10})/i);
+    if (lotPrefixMatch) {
+      lotNum = lotPrefixMatch[1].replace(/^Lot\s*/i, "").trim();
+    } else {
+      // Find first alphanumeric token that looks like a lot number (e.g. 101, 45, 12B)
+      for (const tok of tokens) {
+        const cleanTok = tok.replace(/[^A-Za-z0-9\-]/g, "");
+        if (/^\d{1,5}[A-Za-z]?$/.test(cleanTok) && parseInt(cleanTok, 10) < 10000 && parseInt(cleanTok, 10) !== priceNum) {
+          lotNum = cleanTok;
+          break;
+        }
+      }
+    }
 
-    // Avoid duplicate lot numbers in the same document
+    if (!lotNum || /^(the|and|for|size|price|m2|sqm|date|stage|release|aud)$/i.test(lotNum)) continue;
     if (seenLots.has(lotNum.toLowerCase())) continue;
 
-    // Look for land size (e.g. 450m2, 450 sqm, 450.5m2)
-    const sizeMatch = trimmed.match(/(\d{2,4}(?:\.\d+)?)\s*(?:m2|sqm|m²)/i) ||
-                      trimmed.match(/(?:^|\s)(\d{3,4})(?:\s|$)/);
-    const landSize = sizeMatch ? parseFloat(sizeMatch[1]) : null;
+    // Look for land size (e.g. 450m2, 450 sqm, 450.5m2 or number between 150 and 2500)
+    let landSize: number | null = null;
+    const sizeMatch = line.match(/(\d{2,4}(?:\.\d+)?)\s*(?:m2|sqm|m²)/i);
+    if (sizeMatch) {
+      landSize = parseFloat(sizeMatch[1]);
+    } else {
+      for (const tok of tokens) {
+        const num = parseFloat(tok.replace(/,/g, ""));
+        if (num >= 150 && num <= 2500 && num !== priceNum && tok !== lotNum) {
+          landSize = num;
+          break;
+        }
+      }
+    }
 
-    // Look for frontage (e.g. 14m, 12.5m, 14.00)
-    const frontageMatch = trimmed.match(/(\d{1,2}(?:\.\d{1,2})?)\s*(?:m|mtrs)(?!\d)/i);
-    const frontage = frontageMatch ? parseFloat(frontageMatch[1]) : null;
+    // Look for frontage (e.g. 14m, 12.5m, 14.00 or number between 8.5 and 35)
+    let frontage: number | null = null;
+    const frontageMatch = line.match(/(\d{1,2}(?:\.\d{1,2})?)\s*(?:m|mtrs)(?!\d)/i);
+    if (frontageMatch) {
+      frontage = parseFloat(frontageMatch[1]);
+    } else {
+      for (const tok of tokens) {
+        const num = parseFloat(tok);
+        if (num >= 8.5 && num <= 35 && num !== landSize && num !== priceNum && tok !== lotNum) {
+          frontage = num;
+          break;
+        }
+      }
+    }
 
     // Look for registration status & date
-    const titled = /registered|titled/i.test(trimmed);
-    const regMatch = trimmed.match(/(?:Q[1-4]\s*\d{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s*\d{2,4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
+    const titled = /registered|titled|reg'd|ready/i.test(line);
+    const regMatch = line.match(/(?:Q[1-4]\s*\d{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-\/]*\d{2,4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
     const regDate = titled ? null : (regMatch ? regMatch[0].trim() : null);
 
     // Look for lot status
     let status: ParsedLot["status"] = "available";
-    if (/hold|deposit|under\s*offer/i.test(trimmed)) {
+    if (/hold|deposit|under\s*offer|reserved/i.test(line)) {
       status = "on_hold";
-    } else if (/sold|contracted/i.test(trimmed)) {
+    } else if (/sold|contracted|unconditional/i.test(line)) {
       status = "sold";
     }
 
@@ -256,6 +298,13 @@ Return ONLY a valid JSON object matching this schema:
     }
   }
 
-  throw new Error("Could not extract lots automatically. Please check the document format or enter lot details manually.");
+  // Graceful fallback: return detected estate/suburb from filename/headers so the user can easily review or paste
+  const meta = extractLotsFromText(rawText, filename);
+  return {
+    estate: meta.estate || "",
+    suburb: meta.suburb || "",
+    developer: meta.developer || "",
+    lots: [],
+  };
 }
 

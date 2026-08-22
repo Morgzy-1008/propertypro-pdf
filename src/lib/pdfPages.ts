@@ -48,16 +48,52 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i += 1) {
     const page = await doc.getPage(i);
     
-    // Extract text content from page
+    // Extract structured text content from page using Y/X coordinates for table rows
     try {
       const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      if (pageText.trim()) {
-        textChunks.push(pageText);
+      const items = (textContent.items || []).filter(
+        (it: any) => it && typeof it.str === "string" && it.str.trim() !== ""
+      );
+
+      if (items.length > 0) {
+        // Sort top to bottom (Y descending), then left to right (X ascending)
+        items.sort((a: any, b: any) => {
+          const yA = a.transform ? a.transform[5] : 0;
+          const yB = b.transform ? b.transform[5] : 0;
+          if (Math.abs(yA - yB) > 4) {
+            return yB - yA;
+          }
+          const xA = a.transform ? a.transform[4] : 0;
+          const xB = b.transform ? b.transform[4] : 0;
+          return xA - xB;
+        });
+
+        const lines: string[] = [];
+        let currentLine: string[] = [];
+        let lastY: number | null = null;
+
+        for (const it of items) {
+          const y = it.transform ? it.transform[5] : 0;
+          if (lastY !== null && Math.abs(y - lastY) > 4) {
+            if (currentLine.length > 0) {
+              lines.push(currentLine.join(" "));
+              currentLine = [];
+            }
+          }
+          currentLine.push(it.str.trim());
+          lastY = y;
+        }
+        if (currentLine.length > 0) {
+          lines.push(currentLine.join(" "));
+        }
+
+        if (lines.length > 0) {
+          textChunks.push(lines.join("\n"));
+        }
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[pdfPages] Text extraction warning:", e);
+    }
 
     const base = page.getViewport({ scale: 1 });
     const scale = Math.min(1600 / base.width, 2.5);

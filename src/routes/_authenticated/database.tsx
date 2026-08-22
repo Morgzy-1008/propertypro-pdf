@@ -34,12 +34,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import logoUrl from "@/assets/hudson-homes-logo.png";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
-import { parseDeveloperPriceList } from "@/lib/parseLotList";
+import { parseDeveloperPriceList, extractLotsFromText, type ParsedLot } from "@/lib/parseLotList";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
@@ -400,10 +399,12 @@ interface ParsedLot {
 const dupeKey = (estate: string, suburb: string, lotNumber: string | null | undefined) =>
   `${estate.trim().toLowerCase()}|${suburb.trim().toLowerCase()}|${(lotNumber ?? "").trim().toLowerCase()}`;
 
-/** Upload a developer price list (PDF or image) and auto-create every lot in it. */
+/** Upload a developer price list (PDF, image, CSV, TXT) or paste raw text and auto-create every lot. */
 function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existingLots: Lot[] }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"file" | "paste">("file");
+  const [pastedText, setPastedText] = useState("");
   const [estate, setEstate] = useState("");
   const [suburb, setSuburb] = useState("");
   const [developer, setDeveloper] = useState("");
@@ -439,56 +440,119 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     };
   }, [developer]);
 
-  const handleFile = async (file: File) => {
-    setBusy(true);
-    setRows([]);
-    try {
-      const doc = await pdfDocumentToPagesAndText(file);
-      const json = await parseDeveloperPriceList(doc);
-      if (json.estate) setEstate(json.estate);
-      if (json.suburb) setSuburb(json.suburb);
-      if (json.developer) setDeveloper(json.developer);
-      const lots = json.lots ?? [];
+  const applyParsedResult = (json: { estate?: string; suburb?: string; developer?: string; lots: ParsedLot[] }) => {
+    if (json.estate && !estate) setEstate(json.estate);
+    if (json.suburb && !suburb) setSuburb(json.suburb);
+    if (json.developer && !developer) setDeveloper(json.developer);
+    const lots = json.lots ?? [];
+    if (lots.length > 0) {
       setRows(lots);
       setPicked(lots.map(() => true));
       toast.success(`Found ${lots.length} lots — tick the ones to import`);
+    } else {
+      setRows([
+        {
+          lot_number: "",
+          land_size: null,
+          frontage: null,
+          land_price: null,
+          titled: false,
+          registration_date: "",
+          status: "available",
+        },
+      ]);
+      setPicked([true]);
+      toast.info("Document loaded — enter lot details below or paste price list text");
+    }
+  };
+
+  const handleFile = async (file: File) => {
+    setBusy(true);
+    try {
+      const isTextFile = /\.csv$/i.test(file.name) || /\.txt$/i.test(file.name) || /\.tsv$/i.test(file.name);
+      if (isTextFile) {
+        const text = await file.text();
+        const json = extractLotsFromText(text, file.name);
+        applyParsedResult(json);
+      } else {
+        const doc = await pdfDocumentToPagesAndText(file);
+        const json = await parseDeveloperPriceList(doc);
+        applyParsedResult(json);
+      }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not read that price list");
+      console.warn("[ImportDialog] File parsing error:", err);
+      // Fallback: extract from filename so user is never blocked
+      const meta = extractLotsFromText("", file.name);
+      applyParsedResult(meta);
     } finally {
       setBusy(false);
     }
   };
 
-  const selected = rows.filter((r, i) => picked[i] && !isDupe(r));
+  const handleParseText = () => {
+    if (!pastedText.trim()) {
+      toast.error("Please paste price list text or table rows first");
+      return;
+    }
+    const json = extractLotsFromText(pastedText, "");
+    applyParsedResult(json);
+  };
+
+  const addEmptyRow = () => {
+    setRows((prev) => [
+      ...prev,
+      {
+        lot_number: "",
+        land_size: null,
+        frontage: null,
+        land_price: null,
+        titled: false,
+        registration_date: "",
+        status: "available",
+      },
+    ]);
+    setPicked((prev) => [...prev, true]);
+  };
+
+  const removeRow = (index: number) => {
+    setRows((prev) => prev.filter((_, i) => i !== index));
+    setPicked((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateRow = (index: number, patch: Partial<ParsedLot>) => {
+    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+
+  const selected = rows.filter((r, i) => picked[i] && !isDupe(r) && (r.lot_number || r.land_price));
   const dupeCount = rows.filter(isDupe).length;
 
   const importAll = async () => {
-    if (!estate || !suburb) {
+    if (!estate.trim() || !suburb.trim()) {
       toast.error("Estate and suburb are required");
       return;
     }
     if (!selected.length) {
-      toast.error("No lots selected");
+      toast.error("No valid lots selected (enter at least lot number or price)");
       return;
     }
     setBusy(true);
     const { error } = await supabase.from("land_lots").insert(
       selected.map((r) => ({
-        estate,
-        suburb,
-        developer,
+        estate: estate.trim(),
+        suburb: suburb.trim(),
+        developer: developer.trim(),
         developer_contact_name: contactName || null,
         developer_contact_phone: contactPhone || null,
         developer_contact_email: contactEmail || null,
-        lot_number: r.lot_number ?? null,
-        address: r.address ?? null,
-        land_size: r.land_size ?? null,
-        frontage: r.frontage ?? null,
-        land_price: r.land_price ?? null,
-        registration_date: r.titled ? null : (r.registration_date ?? null),
+        lot_number: r.lot_number ? String(r.lot_number).trim() : null,
+        address: r.address ? String(r.address).trim() : null,
+        land_size: r.land_size ? Number(r.land_size) : null,
+        frontage: r.frontage ? Number(r.frontage) : null,
+        land_price: r.land_price ? Number(r.land_price) : null,
+        registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
         titled: Boolean(r.titled),
         status: r.status ?? "available",
-        notes: r.notes ?? null,
+        notes: r.notes ? String(r.notes).trim() : null,
       })),
     );
     if (!error) {
@@ -509,11 +573,12 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     );
     setRows([]);
     setPicked([]);
+    setPastedText("");
     setOpen(false);
     onSaved();
   };
 
-  const allOn = rows.every((r, i) => isDupe(r) || picked[i]);
+  const allOn = rows.length > 0 && rows.every((r, i) => isDupe(r) || picked[i]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -527,62 +592,107 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
           <DialogTitle>Import Developer Price List</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          Upload the developer&rsquo;s PDF (or a screenshot) and every lot, size, frontage, price
-          and registration date is read automatically.
+          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot is extracted automatically.
         </p>
-        <Input
-          type="file"
-          accept="application/pdf,image/*"
-          disabled={busy}
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void handleFile(f);
-          }}
-        />
-        {busy && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Reading the price list…
+
+        <div className="flex gap-2 border-b pb-2 text-xs">
+          <Button
+            size="sm"
+            variant={mode === "file" ? "default" : "outline"}
+            onClick={() => setMode("file")}
+            className="h-7 text-xs"
+          >
+            Upload Document (PDF / CSV / Image)
+          </Button>
+          <Button
+            size="sm"
+            variant={mode === "paste" ? "default" : "outline"}
+            onClick={() => setMode("paste")}
+            className="h-7 text-xs"
+          >
+            Paste Text / Table
+          </Button>
+        </div>
+
+        {mode === "file" ? (
+          <Input
+            type="file"
+            accept="application/pdf,image/*,.csv,.txt,.tsv"
+            disabled={busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+        ) : (
+          <div className="space-y-2">
+            <textarea
+              className="w-full min-h-[90px] rounded-md border p-2 text-xs font-mono"
+              placeholder="Paste table lines, tab-delimited text, or developer price list text here (e.g. Lot 101  450m2  14m  $385,000  Available  Nov 2026)"
+              value={pastedText}
+              onChange={(e) => setPastedText(e.target.value)}
+            />
+            <Button size="sm" onClick={handleParseText} disabled={busy || !pastedText.trim()}>
+              Parse Pasted Text
+            </Button>
           </div>
         )}
+
+        {busy && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Reading price list…
+          </div>
+        )}
+
+        <div className="grid grid-cols-3 gap-3 pt-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Estate *</Label>
+            <Input placeholder="e.g. Aurora" value={estate} onChange={(e) => setEstate(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Suburb *</Label>
+            <Input placeholder="e.g. Flagstone" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Developer</Label>
+            <Input placeholder="e.g. Peet" value={developer} onChange={(e) => setDeveloper(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Developer contact</Label>
+            <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Contact phone</Label>
+            <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Contact email</Label>
+            <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
+          </div>
+        </div>
+
         {rows.length > 0 && (
           <>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Estate</Label>
-                <Input value={estate} onChange={(e) => setEstate(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Suburb</Label>
-                <Input value={suburb} onChange={(e) => setSuburb(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Developer</Label>
-                <Input value={developer} onChange={(e) => setDeveloper(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Developer contact</Label>
-                <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Contact phone</Label>
-                <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Contact email</Label>
-                <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-              </div>
-            </div>
             {dupeCount > 0 && (
               <p className="text-xs text-orange-700">
-                {dupeCount} lot{dupeCount === 1 ? " is" : "s are"} already in the database and will
-                be skipped.
+                {dupeCount} lot{dupeCount === 1 ? " is" : "s are"} already in the database and will be skipped.
               </p>
             )}
-            <div className="max-h-[40vh] overflow-y-auto rounded border">
+
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-xs font-semibold text-muted-foreground">
+                Lots to Import ({rows.length} {rows.length === 1 ? "lot" : "lots"})
+              </span>
+              <Button size="sm" variant="outline" onClick={addEmptyRow} className="h-6 text-xs gap-1">
+                <Plus className="h-3 w-3" /> Add Lot
+              </Button>
+            </div>
+
+            <div className="max-h-[38vh] overflow-y-auto rounded border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/60 text-left text-muted-foreground">
                   <tr>
-                    <th className="p-2">
+                    <th className="p-2 w-8">
                       <input
                         type="checkbox"
                         className="h-3.5 w-3.5"
@@ -590,11 +700,13 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                         onChange={(e) => setPicked(rows.map(() => e.target.checked))}
                       />
                     </th>
-                    <th className="p-2">Lot</th>
-                    <th className="p-2">Size</th>
-                    <th className="p-2">Frontage</th>
-                    <th className="p-2">Price</th>
-                    <th className="p-2">Registration</th>
+                    <th className="p-2 w-20">Lot #</th>
+                    <th className="p-2 w-20">Size (m²)</th>
+                    <th className="p-2 w-20">Frontage</th>
+                    <th className="p-2 w-28">Price ($)</th>
+                    <th className="p-2 w-28">Registration</th>
+                    <th className="p-2 w-24">Status</th>
+                    <th className="p-2 w-8"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -609,21 +721,78 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                             disabled={dupe}
                             checked={!dupe && Boolean(picked[i])}
                             onChange={(e) =>
-                              setPicked((p) =>
-                                p.map((v, idx) => (idx === i ? e.target.checked : v)),
-                              )
+                              setPicked((p) => p.map((v, idx) => (idx === i ? e.target.checked : v)))
                             }
                           />
                         </td>
-                        <td className="p-2">
-                          {r.lot_number || "—"}
-                          {dupe && <span className="ml-2 text-[11px]">Already added</span>}
+                        <td className="p-1">
+                          <input
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder="101"
+                            value={r.lot_number || ""}
+                            onChange={(e) => updateRow(i, { lot_number: e.target.value })}
+                          />
                         </td>
-                        <td className="p-2">{r.land_size ? `${r.land_size} m²` : "—"}</td>
-                        <td className="p-2">{r.frontage ? `${r.frontage} m` : "—"}</td>
-                        <td className="p-2">{money(r.land_price ?? null)}</td>
-                        <td className="p-2">
-                          {r.titled ? "Registered" : r.registration_date || "—"}
+                        <td className="p-1">
+                          <input
+                            type="number"
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder="450"
+                            value={r.land_size ?? ""}
+                            onChange={(e) => updateRow(i, { land_size: e.target.value ? parseFloat(e.target.value) : null })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            type="number"
+                            step="0.1"
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder="14.0"
+                            value={r.frontage ?? ""}
+                            onChange={(e) => updateRow(i, { frontage: e.target.value ? parseFloat(e.target.value) : null })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            type="number"
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder="385000"
+                            value={r.land_price ?? ""}
+                            onChange={(e) => updateRow(i, { land_price: e.target.value ? parseInt(e.target.value, 10) : null })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder={r.titled ? "Registered" : "Nov 2026"}
+                            value={r.titled ? "Registered" : (r.registration_date || "")}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const isReg = /registered|titled/i.test(v);
+                              updateRow(i, { titled: isReg, registration_date: isReg ? null : v });
+                            }}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <select
+                            className="w-full rounded border px-1 py-0.5 text-xs bg-background"
+                            value={r.status || "available"}
+                            onChange={(e) => updateRow(i, { status: e.target.value as any })}
+                          >
+                            <option value="available">Available</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="sold">Sold</option>
+                          </select>
+                        </td>
+                        <td className="p-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeRow(i)}
+                            className="text-muted-foreground hover:text-destructive"
+                            title="Remove row"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -631,9 +800,10 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                 </tbody>
               </table>
             </div>
+
             <Button onClick={importAll} disabled={busy || !selected.length}>
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Import {selected.length} lot
-              {selected.length === 1 ? "" : "s"}
+              {selected.length === 1 ? "" : "s"} to Database
             </Button>
           </>
         )}
