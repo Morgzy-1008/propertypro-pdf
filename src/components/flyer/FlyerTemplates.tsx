@@ -5,37 +5,23 @@ import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
 
 /**
- * Pure vector SVG emblem for Hudson Homes house mark.
- * Razor-sharp at any resolution with zero pixelation or compression artifacts.
+ * Authentic Hudson Homes house mark emblem.
+ * Clean, sharp, exactly matching the top-left website brand logo without the words.
  */
-export function HudsonMark({ size = 16, className = "" }: { size?: number; className?: string }) {
+export function HudsonMark({ size = 15, className = "" }: { size?: number; className?: string }) {
   return (
-    <svg
-      viewBox="0 0 352 220"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+    <img
+      src="/hudson-mark.png"
+      alt="Hudson Homes"
       style={{ height: `${size}mm`, width: "auto" }}
       className={`flex-none object-contain ${className}`}
-    >
-      {/* Yellow / Gold (Left Foundation & Roof Angle) */}
-      <polygon points="12,142 54,100 78,124 78,215 48,215 48,178 12,142" fill="#ECA72C" />
-      {/* Lime Green (Left Tower Wall) */}
-      <polygon points="56,50 106,50 118,215 84,215" fill="#8CB82B" />
-      {/* Terracotta / Dark Red (Upper Left Roof Beam) */}
-      <polygon points="120,54 186,0 200,28 136,88" fill="#9E2A2B" />
-      {/* Cyan Blue (Center Body & Main Roof Slope) */}
-      <polygon points="148,96 210,38 272,98 226,215 124,215" fill="#00A3E0" />
-      {/* Magenta Pink (Right Facet) */}
-      <polygon points="278,106 312,156 288,215 234,215" fill="#D62578" />
-      {/* Purple (Right Accent Arrow) */}
-      <polygon points="318,148 350,175 318,205" fill="#6E2A8D" />
-    </svg>
+      loading="eager"
+    />
   );
 }
 
 export function Logo({
-  light = false,
-  size = 16,
+  size = 15,
   className = "",
 }: {
   light?: boolean;
@@ -43,33 +29,13 @@ export function Logo({
   className?: string;
 }) {
   return (
-    <div className={`flex items-center gap-[3.5mm] ${className}`}>
-      {/* Enlarged, centered Hudson logo emblem on LHS */}
-      <HudsonMark size={size * 1.05} />
-      {/* Text to the right of it */}
-      <div
-        className={`border-l pl-[3.5mm] flex flex-col justify-center leading-none ${
-          light ? "border-brand-cream/30" : "border-brand-navy/20"
-        }`}
-      >
-        <div
-          className={`font-sans font-bold tracking-[0.16em] ${
-            light ? "text-white" : "text-brand-navy"
-          }`}
-          style={{ fontSize: `${size * 0.44}mm` }}
-        >
-          HUDSON HOMES
-        </div>
-        <div
-          className={`mt-[1mm] tracking-[0.32em] font-semibold ${
-            light ? "text-brand-gold" : "text-brand-gold-deep"
-          }`}
-          style={{ fontSize: `${size * 0.17}mm` }}
-        >
-          ZERO SURPRISES
-        </div>
-      </div>
-    </div>
+    <img
+      src="/hudson-mark.png"
+      alt="Hudson Homes"
+      style={{ height: `${size}mm`, width: "auto" }}
+      className={`flex-none object-contain ${className}`}
+      loading="eager"
+    />
   );
 }
 
