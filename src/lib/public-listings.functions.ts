@@ -48,7 +48,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
     const { data: rows, error } = await supabase
       .from("land_lots")
       .select(
-        "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer_name, developer_contact_name, developer_contact_phone, developer_contact_email, status"
+        "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
       .eq("status", "available");
 
@@ -64,7 +64,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
       landPrice: r.land_price == null ? null : Number(r.land_price),
       titled: Boolean(r.titled),
       registrationDate: r.registration_date,
-      developer: r.developer_name,
+      developer: r.developer,
       developerContactName: r.developer_contact_name,
       developerContactPhone: r.developer_contact_phone,
       developerContactEmail: r.developer_contact_email,
@@ -78,37 +78,33 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
   try {
     const { data: rows, error } = await supabase
       .from("packages")
-      .select("id, name, design, range, total_price, flyer_data, status, land_lots(land_size)")
+      .select("id, name, design, range_id, total_price, flyer_data, status, lot_id")
       .eq("status", "live");
 
     if (error || !rows) return [];
 
     return rows.map((p) => {
       const f = (p.flyer_data ?? {}) as Record<string, unknown>;
-      const lot = (Array.isArray(p.land_lots) ? p.land_lots[0] : p.land_lots) as
-        | { land_size?: number | string | null }
-        | null
-        | undefined;
 
       return {
         id: p.id,
         name: p.name || p.design || "House & Land Package",
         design: p.design || "",
         facadeName: str(f.facadeName),
-        rangeLabel: p.range || str(f.range) || "Hudson Collection",
+        rangeLabel: p.range_id || str(f.range) || "Hudson Collection",
         estate: str(f.estate) || "",
         suburb: str(f.suburb) || "",
         address: str(f.address),
         beds: str(f.beds),
         baths: str(f.baths),
         cars: str(f.cars),
-        homeSize: str(f.floorplanSize),
-        landSize: lot?.land_size == null ? null : Number(lot.land_size),
+        homeSize: str(f.homeSize),
+        landSize: f.landSize == null ? null : Number(f.landSize),
         totalPrice: p.total_price == null ? null : Number(p.total_price),
-        consultantName: str(f.contactName),
-        consultantPhone: str(f.contactPhone),
-        consultantEmail: str(f.contactEmail),
-        consultantOffice: str(f.contactOffice),
+        consultantName: str(f.consultantName),
+        consultantPhone: str(f.consultantPhone),
+        consultantEmail: str(f.consultantEmail),
+        consultantOffice: str(f.consultantOffice),
       };
     });
   } catch {

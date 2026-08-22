@@ -830,17 +830,27 @@ function DatabasePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [lotRes, pkgRes] = await Promise.all([
-      supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-      supabase.from("packages").select("*").order("created_at", { ascending: false }),
-    ]);
-    if (lotRes.error) toast.error(lotRes.error.message);
-    if (pkgRes.error) toast.error(pkgRes.error.message);
-    setLots((lotRes.data ?? []) as Lot[]);
-    setPackages((pkgRes.data ?? []) as Pkg[]);
-    setSelLots([]);
-    setSelPkgs([]);
-    setLoading(false);
+    try {
+      const [lotRes, pkgRes] = await Promise.all([
+        supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
+        supabase.from("packages").select("*").order("created_at", { ascending: false }),
+      ]);
+      if (lotRes.error) {
+        console.warn("[database] land_lots load warning:", lotRes.error);
+      }
+      if (pkgRes.error) {
+        console.warn("[database] packages load warning:", pkgRes.error);
+      }
+      setLots((lotRes.data ?? []) as Lot[]);
+      setPackages((pkgRes.data ?? []) as Pkg[]);
+      setSelLots([]);
+      setSelPkgs([]);
+    } catch (e) {
+      console.error("[database] Load exception:", e);
+      toast.error("Could not refresh database rows");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
 
