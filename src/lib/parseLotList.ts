@@ -177,24 +177,42 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
       }
     }
 
-    // Fallback: iterate tokens to find landSize and lotNum without confusing them
-    for (const tok of cells) {
-      const cleanTok = tok.replace(/[^A-Za-z0-9\-]/g, "");
-      const numVal = parseFloat(tok.replace(/,/g, ""));
-
-      // Identify Land Size: number between 180 and 3000 that is not the lotNum or price
-      if (!landSize && numVal >= 180 && numVal <= 3000 && numVal !== priceNum && cleanTok !== lotNum) {
-        if (lotNum || cells.indexOf(tok) !== 0) {
-          landSize = numVal;
+    // Fallback if no header mapping and no explicit prefix/unit:
+    if (!lotNum || !landSize) {
+      const candidates: { raw: string; clean: string; num: number; index: number }[] = [];
+      for (let i = 0; i < cells.length; i++) {
+        const cell = cells[i];
+        const clean = cell.replace(/[^A-Za-z0-9.\-]/g, "");
+        const num = parseFloat(clean);
+        if (
+          /^(the|and|for|size|price|m2|sqm|date|stage|release|stg|aud|status|reg|sq)$/i.test(clean) ||
+          /^stage\d*$/i.test(clean) ||
+          /^release\d*$/i.test(clean)
+        ) {
           continue;
         }
+        if (num === priceNum || clean === rowStage) continue;
+        candidates.push({ raw: cell, clean, num, index: i });
       }
 
-      // Identify Lot Number: alphanumeric token that is not size, price, stage, or unit keyword
-      if (!lotNum && cleanTok && !/^(the|and|for|size|price|m2|sqm|date|stage|release|aud)$/i.test(cleanTok)) {
-        if (numVal !== landSize && numVal !== priceNum && cleanTok !== rowStage) {
-          lotNum = cleanTok;
+      if (!lotNum && candidates.length > 0) {
+        if (landSize) {
+          const other = candidates.find((c) => c.num !== landSize);
+          if (other) lotNum = other.clean;
+        } else if (candidates.length >= 2) {
+          // Table column order: first candidate is Lot Number, second candidate is Land Size
+          lotNum = candidates[0].clean;
+          if (!isNaN(candidates[1].num) && candidates[1].num >= 100 && candidates[1].num <= 4000) {
+            landSize = candidates[1].num;
+          }
+        } else if (candidates.length === 1) {
+          lotNum = candidates[0].clean;
         }
+      } else if (!landSize && candidates.length > 0) {
+        const sizeCand = candidates.find(
+          (c) => c.clean !== lotNum && !isNaN(c.num) && c.num >= 100 && c.num <= 4000
+        );
+        if (sizeCand) landSize = sizeCand.num;
       }
     }
 
@@ -276,32 +294,39 @@ export async function parseDeveloperPriceList(
   // 2. Try direct client-side Gemini fallback if API key is configured
   if (GEMINI_KEY && !GEMINI_KEY.startsWith("AQ.")) {
     try {
-      const parts: any[] = [
-        {
-          text: `You are an expert real estate data parser for Australian land developments. 
+      const promptText = `You are an expert real estate data parser for Australian land developments. 
 Extract every individual land lot from this developer price list document.
+
+CRITICAL PARSING RULES:
+1. LOT NUMBER: Found under columns "Lot", "Lot #", "Lot No." or preceded by "Lot" (e.g. "101", "45", "12B").
+2. LAND SIZE (SQM): Found under columns "Size", "SQM", "sq.m", "m2", "m²", or "Area" (e.g. 450, 375, 510). DO NOT confuse land size with lot number!
+3. STAGE: Found under columns "Stage", "Release", "Stg" or section banners (e.g. "4", "Stage 5A").
+4. FRONTAGE: Found under columns "Frontage", "Width" in metres (e.g. 14.0, 12.5).
+5. LAND PRICE: Total purchase price (e.g. 385000).
 
 Return ONLY a valid JSON object matching this schema:
 {
   "estate": "Estate Name",
   "suburb": "Suburb Name",
+  "stage": "Stage Name / Number",
   "developer": "Developer Name",
   "lots": [
     {
       "lot_number": "101",
+      "stage": "4",
       "address": "Street Name",
       "land_size": 450,
       "frontage": 14.0,
       "land_price": 385000,
-      "titled": true,
+      "titled": false,
       "registration_date": "Nov 2026",
       "status": "available",
-      "notes": ""
+      "notes": "Stage 4"
     }
   ]
-}`,
-        },
-      ];
+}`;
+
+      const parts: any[] = [{ text: promptText }];
 
       for (const p of pages.slice(0, 8)) {
         if (typeof p === "string" && p.startsWith("data:")) {
@@ -340,9 +365,16 @@ Return ONLY a valid JSON object matching this schema:
             const cleaned = rawAiText.replace(/```json/gi, "").replace(/```/g, "").trim();
             const parsed = JSON.parse(cleaned);
             if (Array.isArray(parsed.lots) && parsed.lots.length > 0) {
+              for (const l of parsed.lots) {
+                if (l.lot_number) l.lot_number = String(l.lot_number).replace(/^Lot\s*/i, "").trim();
+                if (l.land_size != null) l.land_size = Number(l.land_size);
+                if (l.land_price != null) l.land_price = Number(l.land_price);
+                if (l.frontage != null) l.frontage = Number(l.frontage);
+              }
               return {
                 estate: parsed.estate || "",
                 suburb: parsed.suburb || "",
+                stage: parsed.stage || "",
                 developer: parsed.developer || "",
                 lots: parsed.lots,
               };

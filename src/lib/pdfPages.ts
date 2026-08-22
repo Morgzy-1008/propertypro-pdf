@@ -76,7 +76,7 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
           const y = it.transform ? it.transform[5] : 0;
           if (lastY !== null && Math.abs(y - lastY) > 4) {
             if (currentLine.length > 0) {
-              lines.push(currentLine.join(" "));
+              lines.push(currentLine.join("\t"));
               currentLine = [];
             }
           }
@@ -84,7 +84,7 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
           lastY = y;
         }
         if (currentLine.length > 0) {
-          lines.push(currentLine.join(" "));
+          lines.push(currentLine.join("\t"));
         }
 
         if (lines.length > 0) {
