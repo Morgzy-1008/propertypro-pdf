@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import logoUrl from "@/assets/hudson-homes-logo.png";
 import { formatAud } from "@/lib/pricing";
-import { pdfPagesToDataUrls } from "@/lib/pdfPages";
+import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
 import { parseDeveloperPriceList } from "@/lib/parseLotList";
@@ -443,8 +443,8 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     setBusy(true);
     setRows([]);
     try {
-      const pages = await pdfPagesToDataUrls(file);
-      const json = await parseDeveloperPriceList(pages);
+      const doc = await pdfDocumentToPagesAndText(file);
+      const json = await parseDeveloperPriceList(doc);
       if (json.estate) setEstate(json.estate);
       if (json.suburb) setSuburb(json.suburb);
       if (json.developer) setDeveloper(json.developer);

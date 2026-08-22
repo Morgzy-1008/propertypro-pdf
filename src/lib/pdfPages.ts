@@ -9,8 +9,14 @@ if (typeof window !== "undefined") {
   }
 }
 
-/** Renders every page of a PDF (or a plain image file) to PNG/JPEG data URLs. */
-export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<string[]> {
+export interface DocumentPagesAndText {
+  pages: string[];
+  rawText: string;
+  filename: string;
+}
+
+/** Extracts both rendered page images and embedded text from a PDF or image file. */
+export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Promise<DocumentPagesAndText> {
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
   if (!isPdf) {
     const url = await new Promise<string>((resolve, reject) => {
@@ -19,7 +25,7 @@ export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<str
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
-    return [url];
+    return { pages: [url], rawText: "", filename: file.name };
   }
 
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
@@ -35,10 +41,23 @@ export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<str
   });
 
   const doc = await loadingTask.promise;
-  const out: string[] = [];
+  const pages: string[] = [];
+  const textChunks: string[] = [];
 
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i += 1) {
     const page = await doc.getPage(i);
+    
+    // Extract text content from page
+    try {
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      if (pageText.trim()) {
+        textChunks.push(pageText);
+      }
+    } catch {}
+
     const base = page.getViewport({ scale: 1 });
     const scale = Math.min(1600 / base.width, 2.5);
     const viewport = page.getViewport({ scale });
@@ -50,9 +69,19 @@ export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<str
     ctx.fillStyle = "#fff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-    out.push(canvas.toDataURL("image/jpeg", 0.85));
+    pages.push(canvas.toDataURL("image/jpeg", 0.85));
   }
 
-  return out;
+  return {
+    pages,
+    rawText: textChunks.join("\n\n"),
+    filename: file.name,
+  };
+}
+
+/** Renders every page of a PDF (or a plain image file) to PNG/JPEG data URLs. */
+export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<string[]> {
+  const result = await pdfDocumentToPagesAndText(file, maxPages);
+  return result.pages;
 }
 
