@@ -234,6 +234,74 @@
   background: var(--gradient-navy);
 }
 
+/* Ambient Floating Keyframes & Interactive Polish */
+@keyframes ambientOrbFloat1 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(40px, -30px) scale(1.1);
+  }
+}
+
+@keyframes ambientOrbFloat2 {
+  0%, 100% {
+    transform: translate(0px, 0px) scale(1);
+  }
+  50% {
+    transform: translate(-35px, 35px) scale(1.08);
+  }
+}
+
+@keyframes subtlePulse {
+  0%, 100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.75;
+  }
+}
+
+@utility ambient-glow-gold {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.78 0.13 78 / 0.18) 0%, oklch(0.78 0.13 78 / 0) 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  animation: ambientOrbFloat1 18s ease-in-out infinite;
+}
+
+@utility ambient-glow-cyan {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.7 0.15 205 / 0.15) 0%, oklch(0.7 0.15 205 / 0) 70%);
+  filter: blur(80px);
+  pointer-events: none;
+  animation: ambientOrbFloat2 22s ease-in-out infinite;
+}
+
+@utility glass-card {
+  border: 1px solid oklch(1 0 0 / 8%);
+  background-color: oklch(0.16 0.03 260 / 75%);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px -10px oklch(0 0 0 / 40%);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility glass-card-hover {
+  &:hover {
+    border-color: oklch(0.78 0.13 78 / 40%);
+    box-shadow: 0 16px 36px -12px oklch(0.78 0.13 78 / 15%), 0 0 0 1px oklch(0.78 0.13 78 / 20%);
+    transform: translateY(-2px);
+  }
+}
+
+@utility glass-header {
+  border-bottom: 1px solid oklch(1 0 0 / 8%);
+  background-color: oklch(0.13 0.035 262 / 80%);
+  backdrop-filter: blur(20px);
+}
+
 @page {
   size: A4;
   margin: 0;

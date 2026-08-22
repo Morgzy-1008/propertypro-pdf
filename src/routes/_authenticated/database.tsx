@@ -158,21 +158,21 @@ function lastUpdated(value: string | null) {
 }
 
 
-/** Green = available/live, orange = on hold/draft, red = sold. */
+/** Luxury Dark Tone Badges */
 function statusTone(value: string) {
   if (value === "available" || value === "live")
-    return "bg-emerald-100 text-emerald-800 border-emerald-300";
+    return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-sm";
   if (value === "on_hold" || value === "draft")
-    return "bg-orange-100 text-orange-800 border-orange-300";
-  if (value === "nhc_exclusive") return "bg-violet-100 text-violet-800 border-violet-300";
-  if (value === "sold") return "bg-red-100 text-red-800 border-red-300";
-  return "bg-muted text-muted-foreground";
+    return "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-sm";
+  if (value === "nhc_exclusive") return "bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-sm";
+  if (value === "sold") return "bg-slate-800 text-slate-400 border-slate-700";
+  return "bg-slate-800/60 text-slate-400 border-slate-800";
 }
 
 function StatusPill({ value }: { value: string }) {
   return (
     <span
-      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${statusTone(value)}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize transition-colors ${statusTone(value)}`}
     >
       {statusLabel(value)}
     </span>
@@ -275,12 +275,13 @@ function LotDialog({
     disabled = false,
   ) => (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-slate-400 font-medium">{label}</Label>
       <Input
         type={type}
         disabled={disabled}
         value={form[key]}
         onChange={(e) => update(key, e.target.value)}
+        className="h-8.5 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
       />
     </div>
   );
@@ -338,14 +339,14 @@ function LotDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button size="sm" className="bg-brand-navy text-brand-cream hover:bg-brand-navy-deep">
-            <Plus className="h-4 w-4" /> Add land lot
+          <Button size="sm" className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-semibold gap-1.5 shadow-sm">
+            <Plus className="h-3.5 w-3.5" /> Add land lot
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle>{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
+          <DialogTitle className="text-white font-bold tracking-wide">{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           {field("estate", "Estate *")}
@@ -358,10 +359,10 @@ function LotDialog({
           {field("land_price", "Land price", "number")}
           <div className="space-y-1.5">
             {field("registration_date", "Registration", "date", registered)}
-            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <label className="flex items-center gap-2 text-xs text-slate-400">
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5 accent-[hsl(var(--brand-navy,220_50%_15%))]"
+                className="h-3.5 w-3.5 accent-cyan-400 rounded"
                 checked={registered}
                 onChange={(e) => setRegistered(e.target.checked)}
               />
@@ -375,16 +376,16 @@ function LotDialog({
           {field("developer_contact_email", "Contact email")}
           {field("notes", "Notes")}
         </div>
-        <div className="mt-3 rounded-md border bg-muted/30 p-3">
-          <Label className="text-xs text-muted-foreground">
+        <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3.5 text-slate-300">
+          <Label className="text-xs text-slate-400 font-medium">
             NHC Exclusive — consultants who can sell this lot
           </Label>
           <div className="mt-2 flex flex-wrap gap-3">
             {CONSULTANTS.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-xs">
+              <label key={c.id} className="flex items-center gap-2 text-xs text-slate-300">
                 <input
                   type="checkbox"
-                  className="h-3.5 w-3.5"
+                  className="h-3.5 w-3.5 accent-purple-400 rounded"
                   checked={exclusive.includes(c.id)}
                   onChange={(e) =>
                     setExclusive((prev) =>
@@ -396,12 +397,12 @@ function LotDialog({
               </label>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-[11px] text-slate-400">
             Only used when the lot status is set to NHC Exclusive — the lot stays hidden from
             customer listings.
           </p>
         </div>
-        <Button onClick={save} disabled={busy} className="mt-2">
+        <Button onClick={save} disabled={busy} className="mt-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-400 text-xs shadow-md">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />} {lot ? "Save changes" : "Save lot"}
         </Button>
       </DialogContent>
@@ -619,24 +620,24 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Upload className="h-4 w-4" /> Import price list
+        <Button size="sm" variant="outline" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
+          <Upload className="h-3.5 w-3.5 text-amber-400" /> Import price list
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Import Developer Price List</DialogTitle>
+          <DialogTitle className="text-white font-bold tracking-wide">Import Developer Price List</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-slate-400">
           Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot, stage, size, and price is extracted automatically.
         </p>
 
-        <div className="flex gap-2 border-b pb-2 text-xs">
+        <div className="flex gap-2 border-b border-slate-800 pb-2 text-xs">
           <Button
             size="sm"
             variant={mode === "file" ? "default" : "outline"}
             onClick={() => setMode("file")}
-            className="h-7 text-xs"
+            className={`h-7 text-xs ${mode === "file" ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40" : "border-slate-800 bg-slate-900/60 text-slate-400"}`}
           >
             Upload Document (PDF / CSV / Image)
           </Button>
@@ -644,7 +645,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
             size="sm"
             variant={mode === "paste" ? "default" : "outline"}
             onClick={() => setMode("paste")}
-            className="h-7 text-xs"
+            className={`h-7 text-xs ${mode === "paste" ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40" : "border-slate-800 bg-slate-900/60 text-slate-400"}`}
           >
             Paste Text / Table
           </Button>
@@ -1083,52 +1084,58 @@ function DatabasePage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2 sm:flex sm:flex-wrap sm:justify-between sm:px-6 sm:py-2">
-          <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-85 transition-opacity">
-            <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-6" />
-            <div className="min-w-0 leading-tight">
-              <h1 className="truncate text-xs font-semibold text-brand-navy sm:text-sm">
+    <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden font-sans selection:bg-brand-gold/30 flex flex-col">
+      {/* Ambient Gradient Lights */}
+      <div className="ambient-glow-cyan h-96 w-96 -top-20 right-10" />
+      <div className="ambient-glow-gold h-96 w-96 top-96 -left-20" />
+
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 sm:flex sm:flex-wrap sm:justify-between sm:px-6">
+          <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition-opacity">
+            <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-7" />
+            <div className="min-w-0 leading-tight border-l border-slate-800 pl-3">
+              <h1 className="truncate text-xs font-bold tracking-[0.14em] text-white uppercase sm:text-sm">
                 QLD House &amp; Land Database
               </h1>
-              <p className="hidden text-xs text-muted-foreground sm:block">
-                Live availability, pricing and flyer-ready packages
+              <p className="hidden text-[10px] tracking-wider text-cyan-400 font-medium uppercase sm:block">
+                Live Availability &amp; Pricing CRM
               </p>
             </div>
           </Link>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
             <Link to="/hub">
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent hover:border-slate-800">
                 Hub
               </Button>
             </Link>
             <Link to="/flyer">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs">
                 Flyer builder
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => void load()}>
-              <RefreshCw className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={() => void load()} className="text-slate-400 hover:text-slate-100 hover:bg-slate-900" title="Refresh database">
+              <RefreshCw className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4" />
+            <Button variant="ghost" size="sm" onClick={signOut} className="text-slate-400 hover:text-rose-300 hover:bg-rose-500/10" title="Sign out">
+              <LogOut className="h-3.5 w-3.5" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className="space-y-4 p-3 sm:p-6">
+      <main className="space-y-5 p-4 sm:p-6 relative z-10 flex-1 max-w-[1700px] mx-auto w-full">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-md border bg-background p-1">
+          <div className="flex rounded-xl border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
             {(["lots", "packages"] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
-                className={`rounded px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
+                className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
                   tab === t
-                    ? "bg-brand-navy text-brand-cream"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? t === "lots"
+                      ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
                 }`}
               >
                 {t === "lots" ? `Land lots (${lots.length})` : `Packages (${packages.length})`}
@@ -1136,17 +1143,17 @@ function DatabasePage() {
             ))}
           </div>
           <Input
-            className="h-9 w-full sm:max-w-xs"
+            className="h-9 w-full rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 sm:max-w-xs"
             placeholder="Search estate, suburb, design…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {tab === "lots" && (
             <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
-              <SelectTrigger className="h-9 w-[190px] text-xs">
+              <SelectTrigger className="h-9 w-[190px] rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-200">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                 <SelectItem value="registration">Sort: Registration</SelectItem>
                 <SelectItem value="land_price">Sort: Land price</SelectItem>
                 <SelectItem value="land_size">Sort: Land size</SelectItem>
@@ -1157,16 +1164,18 @@ function DatabasePage() {
             <Button
               size="sm"
               variant="outline"
+              className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
               onClick={() => window.open("/browse/land", "_blank", "noopener")}
             >
-              <FileDown className="h-4 w-4" /> Customer land PDF
+              <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Customer land PDF
             </Button>
             <Button
               size="sm"
               variant="outline"
+              className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
               onClick={() => window.open("/browse/packages", "_blank", "noopener")}
             >
-              <FileDown className="h-4 w-4" /> Customer packages PDF
+              <FileDown className="h-3.5 w-3.5 text-amber-400" /> Customer packages PDF
             </Button>
             {tab === "lots" && (
               <>
@@ -1176,19 +1185,18 @@ function DatabasePage() {
               </>
             )}
           </div>
-
         </div>
 
         {tab === "lots" && selLots.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3 text-sm">
-            <span className="font-medium text-brand-navy">{selLots.length} lots selected</span>
+          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-cyan-500/30 bg-slate-900/90 backdrop-blur-xl p-3 text-sm shadow-xl">
+            <span className="font-semibold text-cyan-300">{selLots.length} lots selected</span>
             <Select
               onValueChange={(v) => void bulkLots({ status: v as Lot["status"] }, `set to ${v}`)}
             >
-              <SelectTrigger className="h-8 w-[150px] text-xs">
+              <SelectTrigger className="h-8 w-[150px] border-slate-800 bg-slate-950/80 text-xs text-slate-200">
                 <SelectValue placeholder="Set status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                 {LOT_STATUS.map((s) => (
                   <SelectItem key={s} value={s} className="capitalize">
                     {statusLabel(s)}
@@ -1198,13 +1206,14 @@ function DatabasePage() {
             </Select>
             <Input
               type="date"
-              className="h-8 w-[170px] text-xs"
+              className="h-8 w-[170px] border-slate-800 bg-slate-950/80 text-xs text-slate-200"
               value={bulkRegDate}
               onChange={(e) => setBulkRegDate(e.target.value)}
             />
             <Button
               size="sm"
               variant="outline"
+              className="border-slate-800 bg-slate-950/80 text-xs text-slate-300 hover:text-white"
               disabled={bulkBusy || !bulkRegDate}
               onClick={() =>
                 void bulkLots(
@@ -1218,18 +1227,19 @@ function DatabasePage() {
             <Button
               size="sm"
               variant="outline"
+              className="border-slate-800 bg-slate-950/80 text-xs text-slate-300 hover:text-white"
               disabled={bulkBusy}
               onClick={() => void bulkLots({ titled: true, registration_date: null }, "registered")}
             >
               Mark registered
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelLots([])}>
+            <Button size="sm" variant="ghost" className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setSelLots([])}>
               Clear
             </Button>
             <Button
               size="sm"
               variant="destructive"
-              className="ml-auto"
+              className="ml-auto text-xs"
               disabled={bulkBusy}
               onClick={() => void bulkDeleteLots()}
             >
@@ -1239,15 +1249,15 @@ function DatabasePage() {
         )}
 
         {tab === "packages" && selPkgs.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-3 text-sm">
-            <span className="font-medium text-brand-navy">{selPkgs.length} packages selected</span>
+          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-amber-500/30 bg-slate-900/90 backdrop-blur-xl p-3 text-sm shadow-xl">
+            <span className="font-semibold text-amber-300">{selPkgs.length} packages selected</span>
             <Select
               onValueChange={(v) => void bulkPkgs({ status: v as Pkg["status"] }, `set to ${v}`)}
             >
-              <SelectTrigger className="h-8 w-[150px] text-xs">
+              <SelectTrigger className="h-8 w-[150px] border-slate-800 bg-slate-950/80 text-xs text-slate-200">
                 <SelectValue placeholder="Set status" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                 {PKG_STATUS.map((s) => (
                   <SelectItem key={s} value={s} className="capitalize">
                     {s}
@@ -1258,18 +1268,19 @@ function DatabasePage() {
             <Button
               size="sm"
               variant="outline"
+              className="border-slate-800 bg-slate-950/80 text-xs text-slate-300 hover:text-white"
               disabled={bulkBusy}
               onClick={() => void bulkPkgs({ needs_review: false }, "cleared for review")}
             >
               Clear price review flag
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setSelPkgs([])}>
+            <Button size="sm" variant="ghost" className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setSelPkgs([])}>
               Clear
             </Button>
             <Button
               size="sm"
               variant="destructive"
-              className="ml-auto"
+              className="ml-auto text-xs"
               disabled={bulkBusy}
               onClick={() => void bulkDeletePkgs()}
             >
@@ -1279,19 +1290,18 @@ function DatabasePage() {
         )}
 
         {loading ? (
-          <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading database…
+          <div className="flex items-center justify-center gap-3 p-16 text-sm text-slate-400 rounded-2xl border border-slate-800/80 bg-slate-900/40">
+            <Loader2 className="h-5 w-5 animate-spin text-cyan-400" /> Loading QLD database…
           </div>
         ) : tab === "lots" ? (
-          <div className="overflow-x-auto rounded-lg border bg-background">
+          <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl">
             <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-left text-xs tracking-wide text-muted-foreground">
-
+              <thead className="bg-slate-950/80 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-800/80">
                 <tr>
                   <th className="p-3">
                     <input
                       type="checkbox"
-                      className="h-3.5 w-3.5"
+                      className="h-3.5 w-3.5 accent-cyan-400 rounded"
                       checked={filteredLots.length > 0 && selLots.length === filteredLots.length}
                       onChange={(e) =>
                         setSelLots(e.target.checked ? filteredLots.map((l) => l.id) : [])
@@ -1306,32 +1316,31 @@ function DatabasePage() {
                   <th className="p-3">Status</th>
                   <th className="p-3">Expected Registration</th>
                   <th className="p-3">Last Updated</th>
-
                   <th className="p-3">Packages</th>
                   <th className="p-3" />
                 </tr>
               </thead>
               {lotGroups.map((group) => (
-                <tbody key={group.key} className="divide-y">
+                <tbody key={group.key} className="divide-y divide-slate-800/50">
                   <tr
-                    className="cursor-pointer bg-brand-navy/5"
+                    className="cursor-pointer bg-slate-900/90 hover:bg-slate-850 transition-colors"
                     onClick={() =>
                       setOpenSuburbs((prev) => toggle(prev, group.key))
                     }
                   >
-                    <td colSpan={11} className="px-3 py-2.5">
-                      <div className="flex items-center gap-2 text-sm font-semibold text-brand-navy">
+                    <td colSpan={11} className="px-3.5 py-3">
+                      <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-100">
                         {isOpen(group.key) ? (
-                          <ChevronDown className="h-4 w-4 shrink-0" />
+                          <ChevronDown className="h-4 w-4 shrink-0 text-cyan-400" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0" />
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
                         )}
                         <span className="truncate">{titleCase(group.label)}</span>
-                        <span className="text-xs font-normal text-muted-foreground">
+                        <span className="text-xs font-normal text-slate-400">
                           {group.estates.length} estate{group.estates.length === 1 ? "" : "s"} ·{" "}
                           {group.count} lot{group.count === 1 ? "" : "s"}
                         </span>
-                        <span className="ml-auto text-xs font-medium text-brand-gold">
+                        <span className="ml-auto text-xs font-medium text-cyan-400 hover:underline">
                           {isOpen(group.key) ? "Hide" : "View"}
                         </span>
                       </div>
@@ -1340,54 +1349,53 @@ function DatabasePage() {
                   {isOpen(group.key) &&
                     group.estates.map(({ estate, lots: groupLots }) => (
                       <Fragment key={estate}>
-                        <tr className="bg-muted/40">
+                        <tr className="bg-slate-950/60 border-b border-slate-800/60">
                           <td
                             colSpan={11}
-                            className="px-3 py-2 pl-9 text-xs font-semibold text-brand-navy"
+                            className="px-3.5 py-2 pl-9 text-xs font-semibold text-slate-300"
                           >
                             {titleCase(estate)}{" "}
-
-                            <span className="ml-1 font-normal text-muted-foreground normal-case">
+                            <span className="ml-1 font-normal text-slate-500 normal-case">
                               {groupLots.length} lot{groupLots.length === 1 ? "" : "s"}
                             </span>
                           </td>
                         </tr>
                         {groupLots.map((l: Lot) => (
 
-                  <tr key={l.id} className="align-top">
+                  <tr key={l.id} className="align-top hover:bg-slate-800/40 transition-colors">
                     <td className="p-3">
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5"
+                        className="h-3.5 w-3.5 accent-cyan-400 rounded"
                         checked={selLots.includes(l.id)}
                         onChange={() => setSelLots((prev) => toggle(prev, l.id))}
                       />
                     </td>
                     <td className="p-3">
-                      <div className="font-medium text-brand-navy">{titleCase(l.estate)}</div>
-                      <div className="text-xs text-muted-foreground">{titleCase(l.suburb)}</div>
+                      <div className="font-semibold text-slate-100">{titleCase(l.estate)}</div>
+                      <div className="text-xs text-slate-400">{titleCase(l.suburb)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-medium text-brand-navy flex items-center gap-1.5 flex-wrap">
+                      <div className="font-medium text-slate-100 flex items-center gap-1.5 flex-wrap">
                         <span>{l.lot_number ? `Lot ${l.lot_number}` : "—"}</span>
                         {l.notes?.match(/Stage\s*([A-Za-z0-9\.\-]+)/i) && (
-                          <span className="inline-block rounded bg-brand-navy/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-navy border border-brand-navy/20">
+                          <span className="inline-block rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/30">
                             {l.notes.match(/Stage\s*([A-Za-z0-9\.\-]+)/i)![0]}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground">{titleCase(l.address)}</div>
+                      <div className="text-xs text-slate-400">{titleCase(l.address)}</div>
                     </td>
-                    <td className="p-3 whitespace-nowrap">
+                    <td className="p-3 whitespace-nowrap text-slate-200">
                       {l.land_size ? `${l.land_size} m²` : "—"}
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-xs text-slate-400">
                         {l.frontage ? `${l.frontage} m frontage` : ""}
                       </div>
                     </td>
-                    <td className="p-3 whitespace-nowrap">{money(l.land_price)}</td>
+                    <td className="p-3 whitespace-nowrap font-semibold text-cyan-300">{money(l.land_price)}</td>
                     <td className="p-3">
-                      <div>{l.developer || "—"}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-slate-200">{l.developer || "—"}</div>
+                      <div className="text-xs text-slate-400">
                         {[l.developer_contact_name, l.developer_contact_phone]
                           .filter(Boolean)
                           .join(" · ")}
@@ -1399,11 +1407,11 @@ function DatabasePage() {
                         onValueChange={(v) => updateLot(l.id, { status: v as Lot["status"] })}
                       >
                         <SelectTrigger
-                          className={`h-8 w-[130px] text-xs font-medium capitalize ${statusTone(l.status)}`}
+                          className={`h-8 w-[130px] text-xs font-medium capitalize rounded-full ${statusTone(l.status)}`}
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                           {LOT_STATUS.map((s) => (
                             <SelectItem key={s} value={s} className="capitalize">
                               {statusLabel(s)}
@@ -1412,14 +1420,14 @@ function DatabasePage() {
                         </SelectContent>
                       </Select>
                       {l.status === "nhc_exclusive" && (
-                        <div className="mt-1 text-[11px] text-violet-700">
+                        <div className="mt-1 text-[11px] text-purple-300">
                           {(l.exclusive_consultants ?? [])
                             .map((id) => CONSULTANTS.find((c) => c.id === id)?.name ?? id)
                             .join(", ") || "No consultant assigned"}
                         </div>
                       )}
                     </td>
-                      <td className="p-3 text-xs whitespace-nowrap">
+                      <td className="p-3 text-xs whitespace-nowrap text-slate-300">
                         <div>
                           {l.titled
                             ? "Registered"
@@ -1430,8 +1438,8 @@ function DatabasePage() {
                       </td>
 
                       <td className="p-3 text-xs whitespace-nowrap">
-                        <div>{lastUpdated(l.updated_at).rel}</div>
-                        <div className="text-muted-foreground">
+                        <div className="text-slate-300">{lastUpdated(l.updated_at).rel}</div>
+                        <div className="text-slate-500">
                           {lastUpdated(l.updated_at).exact}
                         </div>
                       </td>
@@ -1449,10 +1457,10 @@ function DatabasePage() {
                               );
                             }}
                           >
-                            <SelectTrigger className="h-8 w-[170px] text-xs">
+                            <SelectTrigger className="h-8 w-[170px] border-slate-800 bg-slate-900/80 text-xs text-slate-200 hover:border-slate-700">
                               <SelectValue placeholder={`${packagesByLot.get(l.id)?.length ?? 0} package${packagesByLot.get(l.id)?.length === 1 ? "" : "s"}`} />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                               {packagesByLot.get(l.id)?.map((pkg) => (
                                 <SelectItem key={pkg.id} value={pkg.id}>
                                   {pkg.name || pkg.design || "Untitled package"}
@@ -1461,15 +1469,16 @@ function DatabasePage() {
                             </SelectContent>
                           </Select>
                         ) : (
-                          <span className="text-xs text-muted-foreground">None yet</span>
+                          <span className="text-xs text-slate-400">None yet</span>
                         )}
                       </td>
 
                       <td className="p-3">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1.5">
                           <Button
                             size="sm"
                             variant="outline"
+                            className="border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-medium shadow-sm"
                             onClick={() =>
                               openInFlyer({
                                 lotId: l.id,
@@ -1482,18 +1491,18 @@ function DatabasePage() {
                               })
                             }
                           >
-                            <FileDown className="h-3.5 w-3.5" /> Flyer
+                            <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Flyer
                           </Button>
                           <LotDialog
                             lot={l}
                             onSaved={load}
                             trigger={
-                              <Button size="icon" variant="ghost">
+                              <Button size="icon" variant="ghost" className="text-slate-400 hover:text-slate-100 hover:bg-slate-800/60" title="Edit lot">
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             }
                           />
-                          <Button size="icon" variant="ghost" onClick={() => removeLot(l.id)}>
+                          <Button size="icon" variant="ghost" className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10" onClick={() => removeLot(l.id)} title="Delete lot">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -1517,14 +1526,14 @@ function DatabasePage() {
             </table>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-background">
+          <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl">
             <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-left text-xs tracking-wide text-muted-foreground">
+              <thead className="bg-slate-950/80 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-800/80">
                 <tr>
                   <th className="p-3">
                     <input
                       type="checkbox"
-                      className="h-3.5 w-3.5"
+                      className="h-3.5 w-3.5 accent-amber-400 rounded"
                       checked={
                         filteredPackages.length > 0 && selPkgs.length === filteredPackages.length
                       }
@@ -1544,54 +1553,53 @@ function DatabasePage() {
                   <th className="p-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y">
+              <tbody className="divide-y divide-slate-800/50">
                 {filteredPackages.map((p) => {
                   const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
                   return (
-                    <tr key={p.id} className="align-top">
+                    <tr key={p.id} className="align-top hover:bg-slate-800/40 transition-colors">
                       <td className="p-3">
                         <input
                           type="checkbox"
-                          className="h-3.5 w-3.5"
+                          className="h-3.5 w-3.5 accent-amber-400 rounded"
                           checked={selPkgs.includes(p.id)}
                           onChange={() => setSelPkgs((prev) => toggle(prev, p.id))}
                         />
                       </td>
                       <td className="p-3">
-                        <div className="font-medium text-brand-navy">
+                        <div className="font-semibold text-slate-100">
                           {titleCase(p.name || p.design) || "Untitled"}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-slate-400">
                           {[titleCase(p.facade_name), titleCase(p.range_id)]
                             .filter(Boolean)
                             .join(" · ")}
                           {p.needs_review && (
-                            <span className="ml-2 text-amber-700">Price Needs Review</span>
-
+                            <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30">Price Review</span>
                           )}
                         </div>
                       </td>
-                      <td className="p-3 text-xs">
+                      <td className="p-3 text-xs text-slate-300">
                         {lot ? `${titleCase(lot.estate)} · ${titleCase(lot.suburb)}` : "—"}
                       </td>
 
-                      <td className="p-3 text-xs whitespace-nowrap">
+                      <td className="p-3 text-xs whitespace-nowrap text-slate-300">
                         {[p.beds, p.baths, p.cars].filter(Boolean).join(" / ") || "—"}
                       </td>
-                      <td className="p-3 whitespace-nowrap">{money(p.house_price)}</td>
-                      <td className="p-3 whitespace-nowrap">{money(p.land_price)}</td>
-                      <td className="p-3 font-medium whitespace-nowrap">{money(p.total_price)}</td>
+                      <td className="p-3 whitespace-nowrap text-slate-200">{money(p.house_price)}</td>
+                      <td className="p-3 whitespace-nowrap text-slate-200">{money(p.land_price)}</td>
+                      <td className="p-3 font-bold whitespace-nowrap text-amber-300">{money(p.total_price)}</td>
                       <td className="p-3">
                         <Select
                           value={p.status}
                           onValueChange={(v) => updatePkg(p.id, { status: v as Pkg["status"] })}
                         >
                           <SelectTrigger
-                            className={`h-8 w-[110px] text-xs font-medium capitalize ${statusTone(p.status)}`}
+                            className={`h-8 w-[110px] text-xs font-medium capitalize rounded-full ${statusTone(p.status)}`}
                           >
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                             {PKG_STATUS.map((s) => (
                               <SelectItem key={s} value={s} className="capitalize">
                                 {s}
@@ -1601,8 +1609,8 @@ function DatabasePage() {
                         </Select>
                       </td>
                       <td className="p-3 text-xs whitespace-nowrap">
-                        <div>{lastUpdated(p.updated_at).rel}</div>
-                        <div className="text-muted-foreground">
+                        <div className="text-slate-300">{lastUpdated(p.updated_at).rel}</div>
+                        <div className="text-slate-500">
                           {lastUpdated(p.updated_at).exact}
                         </div>
                       </td>
@@ -1611,6 +1619,7 @@ function DatabasePage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
                             onClick={() =>
                               openInFlyer({
                                 ...(p.flyer_data && typeof p.flyer_data === "object"
@@ -1619,9 +1628,9 @@ function DatabasePage() {
                               })
                             }
                           >
-                            <FileDown className="h-3.5 w-3.5" /> Flyer
+                            <FileDown className="h-3.5 w-3.5 text-amber-400" /> Flyer
                           </Button>
-                          <Button size="icon" variant="ghost" onClick={() => removePkg(p.id)}>
+                          <Button size="icon" variant="ghost" className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10" onClick={() => removePkg(p.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -1631,7 +1640,7 @@ function DatabasePage() {
                 })}
                 {!filteredPackages.length && (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-sm text-muted-foreground">
+                    <td colSpan={10} className="p-12 text-center text-sm text-slate-400">
                       No packages saved yet — build one in the flyer studio and save it here.
                     </td>
                   </tr>
@@ -1640,9 +1649,8 @@ function DatabasePage() {
             </table>
           </div>
         )}
-        <p className="text-xs text-muted-foreground">
-          <StatusPill value="available" /> lots are sellable today. Everything here is shared — any
-          signed-in Hudson user can update it.
+        <p className="text-xs text-slate-400 pt-2 flex items-center gap-2">
+          <StatusPill value="available" /> <span>lots are sellable today. Everything here is shared across the QLD team.</span>
         </p>
       </main>
     </div>

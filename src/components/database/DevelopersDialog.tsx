@@ -81,68 +81,75 @@ export function DevelopersDialog({ onSaved }: { onSaved?: () => void }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <Contact className="h-4 w-4" /> Developer contacts
+        <Button size="sm" variant="outline" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
+          <Contact className="h-3.5 w-3.5 text-cyan-400" /> Developer contacts
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Developer Contacts</DialogTitle>
+          <DialogTitle className="text-white font-bold tracking-wide">Developer Contacts</DialogTitle>
         </DialogHeader>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-slate-400">
           Saved automatically whenever you add or import lots. Edit here and every future import
           for that developer picks up these details.
         </p>
         {busy && !rows.length && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin text-cyan-400" /> Loading…
           </div>
         )}
         <div className="space-y-3">
           {rows.map((r) => (
-            <div key={r.id} className="grid grid-cols-1 gap-2 rounded border p-3 sm:grid-cols-9">
+            <div key={r.id} className="grid grid-cols-1 gap-2.5 rounded-xl border border-slate-800 bg-slate-900/80 p-3 sm:grid-cols-9 shadow-inner">
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-muted-foreground">Developer</Label>
-                <Input value={r.name} onChange={(e) => patch(r.id, "name", e.target.value)} />
+                <Label className="text-[11px] text-slate-400 font-medium">Developer</Label>
+                <Input
+                  value={r.name}
+                  onChange={(e) => patch(r.id, "name", e.target.value)}
+                  className="h-8 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 focus:border-cyan-500/60"
+                />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-muted-foreground">Contact</Label>
+                <Label className="text-[11px] text-slate-400 font-medium">Contact</Label>
                 <Input
                   value={r.contact_name ?? ""}
                   onChange={(e) => patch(r.id, "contact_name", e.target.value)}
+                  className="h-8 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 focus:border-cyan-500/60"
                 />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-muted-foreground">Phone</Label>
+                <Label className="text-[11px] text-slate-400 font-medium">Phone</Label>
                 <Input
                   value={r.contact_phone ?? ""}
                   onChange={(e) => patch(r.id, "contact_phone", e.target.value)}
+                  className="h-8 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 focus:border-cyan-500/60"
                 />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label className="text-[11px] text-muted-foreground">Email</Label>
+                <Label className="text-[11px] text-slate-400 font-medium">Email</Label>
                 <Input
                   value={r.contact_email ?? ""}
                   onChange={(e) => patch(r.id, "contact_email", e.target.value)}
+                  className="h-8 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 focus:border-cyan-500/60"
                 />
               </div>
               <div className="flex items-end">
-                <Button variant="ghost" size="icon" onClick={() => void remove(r.id)}>
-                  <Trash2 className="h-4 w-4 text-red-600" />
+                <Button variant="ghost" size="icon" className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10" onClick={() => void remove(r.id)}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           ))}
           {!rows.length && !busy && (
-            <p className="text-sm text-muted-foreground">No developers saved yet.</p>
+            <p className="text-sm text-slate-400">No developers saved yet.</p>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void addBlank()}>
-            <Plus className="h-4 w-4" /> Add developer
+        <div className="flex gap-2 pt-2">
+          <Button variant="outline" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5" onClick={() => void addBlank()}>
+            <Plus className="h-3.5 w-3.5" /> Add developer
           </Button>
-          <Button onClick={() => void saveAll()} disabled={busy}>
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+          <Button onClick={() => void saveAll()} disabled={busy} className="bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 font-semibold hover:from-amber-400 text-xs">
+            {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Save changes
           </Button>
         </div>
       </DialogContent>

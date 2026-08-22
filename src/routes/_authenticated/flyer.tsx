@@ -17,6 +17,7 @@ import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flye
 import { useFitScale } from "@/components/flyer/useFitScale";
 import { parseAud } from "@/lib/pricing";
 import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
+import { findConsultantByEmail, type Consultant } from "@/components/flyer/consultants";
 
 export const Route = createFileRoute("/_authenticated/flyer")({
   head: () => ({
@@ -54,6 +55,25 @@ function Index() {
     [],
   );
 
+  /** Check if the signed-in user is one of the 3 consultants */
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: auth }) => {
+      if (auth.user?.email) {
+        const consultant = findConsultantByEmail(auth.user.email);
+        if (consultant) {
+          setData((prev) => ({
+            ...prev,
+            consultantId: consultant.id,
+            contactName: consultant.name,
+            contactPhone: consultant.phone,
+            contactEmail: consultant.email,
+            contactOffice: consultant.displayCentre,
+          }));
+        }
+      }
+    });
+  }, []);
+
   /** Pick up a lot or saved package handed over from the database page. */
   useEffect(() => {
     try {
@@ -61,7 +81,25 @@ function Index() {
       if (!raw) return;
       window.sessionStorage.removeItem("hudson-flyer-handoff");
       const patch = JSON.parse(raw) as Partial<FlyerData>;
-      setData((prev) => ({ ...prev, ...patch }));
+      
+      supabase.auth.getUser().then(({ data: auth }) => {
+        const consultant = auth.user?.email ? findConsultantByEmail(auth.user.email) : null;
+        if (consultant) {
+          // If signed in as one of the 3 consultants, apply their details over the package
+          setData((prev) => ({
+            ...prev,
+            ...patch,
+            consultantId: consultant.id,
+            contactName: consultant.name,
+            contactPhone: consultant.phone,
+            contactEmail: consultant.email,
+            contactOffice: consultant.displayCentre,
+          }));
+        } else {
+          // Keep original saved package details for non-consultant users
+          setData((prev) => ({ ...prev, ...patch }));
+        }
+      });
       toast.success("Package details loaded from the database");
     } catch {
       /* ignore malformed handoff */
@@ -75,23 +113,37 @@ function Index() {
       return;
     }
     setSaving(true);
+
+    // If the signed-in user is one of the 3 consultants, make sure their details are on the saved package
+    const consultant = auth.user.email ? findConsultantByEmail(auth.user.email) : null;
+    const finalData: FlyerData = consultant
+      ? {
+          ...data,
+          consultantId: consultant.id,
+          contactName: consultant.name,
+          contactPhone: consultant.phone,
+          contactEmail: consultant.email,
+          contactOffice: consultant.displayCentre,
+        }
+      : data;
+
     const { error } = await supabase.from("packages").insert({
-      lot_id: data.lotId || null,
-      name: `${data.designName || data.floorplanName} · ${data.estate}`,
-      housing_type: data.housingType,
-      design: data.designName || data.floorplanName,
-      range_id: data.range,
-      facade_id: data.facadeId || null,
-      facade_name: data.facadeName || null,
-      facade_url: data.facadeUrl || null,
-      house_price: parseAud(data.housePrice) || null,
-      land_price: parseAud(data.landPrice) || null,
-      total_price: parseAud(data.price) || null,
-      beds: data.beds,
-      baths: data.baths,
-      cars: data.cars,
-      floorplan_size: data.floorplanSize,
-      flyer_data: JSON.parse(JSON.stringify(data)),
+      lot_id: finalData.lotId || null,
+      name: `${finalData.designName || finalData.floorplanName} · ${finalData.estate}`,
+      housing_type: finalData.housingType,
+      design: finalData.designName || finalData.floorplanName,
+      range_id: finalData.range,
+      facade_id: finalData.facadeId || null,
+      facade_name: finalData.facadeName || null,
+      facade_url: finalData.facadeUrl || null,
+      house_price: parseAud(finalData.housePrice) || null,
+      land_price: parseAud(finalData.landPrice) || null,
+      total_price: parseAud(finalData.price) || null,
+      beds: finalData.beds,
+      baths: finalData.baths,
+      cars: finalData.cars,
+      floorplan_size: finalData.floorplanSize,
+      flyer_data: JSON.parse(JSON.stringify(finalData)),
       created_by: auth.user.id,
       updated_by: auth.user.id,
     });
@@ -116,7 +168,25 @@ function Index() {
     setDownloading(true);
     try {
       await document.fonts.ready;
-      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(data));
+      const { data: auth } = await supabase.auth.getUser();
+      const consultant = auth.user?.email ? findConsultantByEmail(auth.user.email) : null;
+      const pdfData: FlyerData = consultant
+        ? {
+            ...data,
+            consultantId: consultant.id,
+            contactName: consultant.name,
+            contactPhone: consultant.phone,
+            contactEmail: consultant.email,
+            contactOffice: consultant.displayCentre,
+          }
+        : data;
+
+      if (consultant && data.consultantId !== consultant.id) {
+        setData(pdfData);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+
+      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(pdfData));
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {
@@ -126,32 +196,39 @@ function Index() {
 
   return (
     <>
-      <div className="min-h-screen bg-muted/40 print:hidden">
-        <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur">
-          <div className="flex items-center justify-between gap-4 px-6 py-2">
-            <Link to="/hub" className="flex items-center gap-3 hover:opacity-85 transition-opacity">
-              <img src="/hudson-homes-logo.png" alt="Hudson Homes" className="h-10 w-auto object-contain" />
-              <div className="leading-tight border-l border-slate-200 pl-3">
-                <h1 className="text-xs font-bold tracking-[0.14em] text-brand-navy uppercase">
-                  QLD Package Studio
+      <div className="min-h-screen bg-slate-950 text-slate-100 print:hidden relative overflow-hidden flex flex-col font-sans selection:bg-brand-gold/30">
+        {/* Ambient Gradient Lights */}
+        <div className="ambient-glow-gold h-96 w-96 -top-20 right-10" />
+        <div className="ambient-glow-cyan h-96 w-96 top-96 -left-20" />
+
+        <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-4 px-6 py-2.5">
+            <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+              <HudsonMark light className="h-8 w-auto text-brand-gold" />
+              <div className="leading-tight border-l border-slate-800 pl-3">
+                <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
+                  Package Studio
                 </h1>
-                <p className="text-[11px] text-muted-foreground">House &amp; Land Flyer Builder</p>
+                <p className="text-[10px] tracking-wider text-brand-gold font-medium uppercase">
+                  Flyer Builder
+                </p>
               </div>
             </Link>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
               <Link to="/hub">
-                <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground">
+                <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent hover:border-slate-800">
                   Hub
                 </Button>
               </Link>
-              <div className="flex rounded-md border bg-background p-1">
+
+              <div className="flex rounded-lg border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
                 <button
                   onClick={() => setTemplate("express")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "express"
-                      ? "bg-brand-navy text-brand-cream"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
@@ -159,10 +236,10 @@ function Index() {
                 </button>
                 <button
                   onClick={() => setTemplate("showcase")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "showcase"
-                      ? "bg-brand-navy text-brand-cream"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <BookOpen className="h-3.5 w-3.5" />
@@ -170,10 +247,10 @@ function Index() {
                 </button>
                 <button
                   onClick={() => setTemplate("house-only")}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "house-only"
-                      ? "bg-brand-navy text-brand-cream"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <Home className="h-3.5 w-3.5" />
@@ -182,35 +259,41 @@ function Index() {
               </div>
 
               <Link to="/database">
-                <Button variant="outline" size="sm">
-                  <Database className="h-4 w-4" />
-                  Package database
+                <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
+                  <Database className="h-3.5 w-3.5 text-cyan-400" />
+                  Database
                 </Button>
               </Link>
 
-              <Button variant="outline" size="sm" disabled={saving} onClick={saveToDatabase}>
-                <Save className="h-4 w-4" />
-                Save package
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={saving}
+                onClick={saveToDatabase}
+                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+              >
+                <Save className="h-3.5 w-3.5 text-amber-400" />
+                {saving ? "Saving…" : "Save package"}
               </Button>
 
               <Button
                 onClick={downloadPdf}
                 disabled={downloading}
-                className="bg-brand-gold-deep text-brand-navy-deep hover:bg-brand-gold"
+                className="bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-300 shadow-md shadow-brand-gold/20 text-xs gap-1.5 transition-all"
               >
-                <Download className="h-4 w-4" />
-                {downloading ? "Creating PDF…" : "Download Print-Ready PDF"}
+                <Download className="h-3.5 w-3.5" />
+                {downloading ? "Creating PDF…" : "Download PDF"}
               </Button>
             </div>
           </div>
         </header>
 
-        <main className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-[360px_1fr]">
-          <aside className="h-fit rounded-lg border bg-background p-5 lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto">
+        <main className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-[380px_1fr] relative z-10 flex-1">
+          <aside className="h-fit rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-5 shadow-2xl lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto text-slate-200">
             <FlyerForm data={data} set={set} />
           </aside>
 
-          <section ref={ref} className="min-w-0">
+          <section ref={ref} className="min-w-0 flex justify-center lg:justify-start">
             <div
               className="flex flex-col items-start gap-6"
               style={{
@@ -219,7 +302,7 @@ function Index() {
                 height: (template === "showcase" ? 1123 * 2 + 24 : 1123) * scale,
               }}
             >
-              <div className="flyer-preview-container flex flex-col gap-6 [&>.flyer-page]:shadow-[var(--shadow-page)]">
+              <div className="flyer-preview-container flex flex-col gap-6 [&>.flyer-page]:shadow-[0_24px_60px_-18px_rgba(0,0,0,0.6)] [&>.flyer-page]:rounded-sm">
                 {pages}
               </div>
             </div>

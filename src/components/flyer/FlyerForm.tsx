@@ -54,16 +54,21 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs tracking-wide text-muted-foreground">{label}</Label>
-      <Input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />
+      <Label className="text-xs font-medium tracking-wide text-slate-300">{label}</Label>
+      <Input
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all"
+      />
     </div>
   );
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3">
-      <h3 className="text-[11px] font-semibold tracking-[0.18em] text-brand-gold-deep uppercase">
+    <div className="space-y-3.5 pt-1">
+      <h3 className="text-[11px] font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400 uppercase">
         {title}
       </h3>
       {children}
@@ -78,12 +83,12 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
   const update = (next: string[]) => set("inclusions", { ...data.inclusions, [data.range]: next });
 
   return (
-    <div className="space-y-2 rounded-md border bg-muted/40 p-3">
+    <div className="space-y-2 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 shadow-inner">
       {items.map((item, idx) => (
         <div key={`${item}-${idx}`} className="flex items-center gap-1.5">
           <Input
             value={item}
-            className="h-8 text-xs"
+            className="h-8 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200 focus:border-brand-gold/50"
             onChange={(e) => {
               const next = [...items];
               next[idx] = e.target.value;
@@ -94,7 +99,7 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
             type="button"
             size="icon"
             variant="ghost"
-            className="h-8 w-8 flex-none"
+            className="h-8 w-8 flex-none text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"
             onClick={() => update(items.filter((_, i) => i !== idx))}
           >
             <X className="h-3.5 w-3.5" />
@@ -105,7 +110,7 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
         <Input
           value={draft}
           placeholder="Add an inclusion…"
-          className="h-8 text-xs"
+          className="h-8 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200 placeholder:text-slate-500 focus:border-brand-gold/50"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && draft.trim()) {
@@ -119,7 +124,7 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
           type="button"
           size="icon"
           variant="secondary"
-          className="h-8 w-8 flex-none"
+          className="h-8 w-8 flex-none border border-slate-800 bg-slate-800 text-slate-200 hover:bg-slate-700"
           disabled={!draft.trim()}
           onClick={() => {
             update([...items, draft.trim()]);
@@ -131,7 +136,7 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
       </div>
       <button
         type="button"
-        className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+        className="text-[11px] text-slate-400 underline-offset-2 hover:text-amber-300 hover:underline transition-colors"
         onClick={() => set("inclusions", defaultInclusions())}
       >
         Reset all ranges to the standard inclusions
@@ -158,17 +163,17 @@ function ConsultantPicker({ data, set }: { data: FlyerData; set: Setter }) {
           key={c.id}
           type="button"
           onClick={() => choose(c.id)}
-          className={`w-full rounded-md border px-3 py-2 text-left text-xs leading-tight transition-colors ${
+          className={`w-full rounded-xl border p-3 text-left text-xs leading-tight transition-all ${
             data.consultantId === c.id
-              ? "border-brand-gold-deep bg-brand-navy text-brand-cream"
-              : "text-muted-foreground hover:border-primary hover:text-foreground"
+              ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/15 to-brand-gold/10 text-amber-200 shadow-md shadow-brand-gold/5"
+              : "border-slate-800/80 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
           }`}
         >
-          <span className="block font-medium">{c.name}</span>
-          <span className="block opacity-75">
+          <span className="block font-semibold text-slate-200">{c.name}</span>
+          <span className="block text-[11px] opacity-75 mt-0.5">
             {c.phone} · {c.email}
           </span>
-          <span className="mt-1 block opacity-75">{c.displayCentre}</span>
+          <span className="mt-1 block text-[10px] uppercase tracking-wider text-brand-gold font-medium">{c.displayCentre}</span>
         </button>
       ))}
     </div>
@@ -405,21 +410,12 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Prepare high-quality framed base64 render immediately so there is never an empty frame or CORS issue
-    try {
-      const baseRender = await prepareFacade(rawUrlToUse, rawUrlToUse, item.id);
-      if (baseRender) set("facadeUrl", baseRender);
-      else set("facadeUrl", rawUrlToUse);
-    } catch {
-      set("facadeUrl", rawUrlToUse);
-    }
-
-    // 3. Set facadeBusy = true while preparing enhanced wide crop / outpainting
+    // 2. Set facadeBusy = true while preparing Gemini AI outpainting
     setFacadeBusy(true);
     set("facadeBusy", true);
 
     try {
-      // 4. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
+      // 3. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
       const itemCategory = facadeCategory(item);
       const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
@@ -434,9 +430,12 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl, item.name);
+      } else {
+        set("facadeUrl", rawUrlToUse);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);
+      set("facadeUrl", rawUrlToUse);
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
@@ -592,14 +591,6 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           </div>
         )}
 
-        {data.designName && (
-          <p className="rounded-md border bg-muted/40 px-3 py-2 text-[11px] leading-snug text-muted-foreground">
-            {data.floorplanUrl
-              ? `${data.floorplanName} · ${data.beds} bed · ${data.baths} bath · ${data.cars} car · ${data.floorplanSize} m² — floorplan, specs and other sizes filled in automatically.`
-              : "No published floorplan drawing found for this design yet."}
-          </p>
-        )}
-
         <Section title="Inclusions range">
           <div className="grid grid-cols-3 gap-2">
             {INCLUSION_RANGES.map((r) => (
@@ -607,10 +598,10 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
                 key={r.id}
                 type="button"
                 onClick={() => selectRange(r.id)}
-                className={`rounded-md border px-2 py-2.5 text-[11px] font-medium leading-tight transition-colors ${
+                className={`rounded-xl border px-2 py-2.5 text-[11px] font-semibold leading-tight transition-all ${
                   data.range === r.id
-                    ? "border-brand-gold-deep bg-brand-navy text-brand-cream"
-                    : "text-muted-foreground hover:border-primary hover:text-foreground"
+                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
                 {r.label}
@@ -620,7 +611,6 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           <InclusionsEditor data={data} set={set} />
         </Section>
       </Section>
-
 
       <Section title="Facade">
         <div className="flex gap-2">
@@ -646,13 +636,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
                     size="sm"
                     disabled={facadeBusy || !data.facadeName}
                     onClick={handleReDoAiEnhancement}
-                    className="flex-none gap-1.5 border-brand-gold-deep/50 hover:border-brand-gold hover:bg-brand-gold/10 text-xs font-medium"
+                    className="flex-none gap-1.5 border-slate-800 bg-slate-900/80 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10 text-xs font-medium"
                     title="Re-generate AI facade outpainting variation"
                   >
                     {facadeBusy ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
-                      <Sparkles className="h-3.5 w-3.5 text-brand-gold-deep" />
+                      <Sparkles className="h-3.5 w-3.5 text-brand-gold" />
                     )}
                     Re-do AI
                   </Button>
@@ -663,7 +653,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
                       size="sm"
                       disabled={facadeBusy}
                       onClick={handleRevertAi}
-                      className="flex-none text-xs text-muted-foreground border-brand-gold-deep/30 hover:border-brand-gold hover:bg-brand-gold/5"
+                      className="flex-none text-xs text-slate-400 border-slate-800 hover:border-slate-700 hover:bg-slate-800"
                       title="Revert to previous AI generation"
                     >
                       Undo
@@ -675,77 +665,76 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           })()}
         </div>
         {designFacades && designFacades.length > 0 && (
-          <p className="text-[11px] leading-snug text-muted-foreground">
+          <p className="text-[11px] leading-snug text-slate-400">
             Showing only the facades Hudson publishes for this{" "}
             {data.housingType === "acreage" ? "acreage (Mulberry) design" : "duplex design"}.
           </p>
         )}
         {garage && !designFacades?.length && (
-          <p className="text-[11px] leading-snug text-muted-foreground">
+          <p className="text-[11px] leading-snug text-slate-400">
             Filtered to {garage === 1 ? "single" : "double"} garage facades to match the{" "}
             {data.cars} car floorplan.
           </p>
         )}
         {!data.designName && (
-          <p className="text-[11px] leading-snug text-muted-foreground">
+          <p className="text-[11px] leading-snug text-slate-400">
             Choose a design first — the library then only shows the facades offered for it.
           </p>
         )}
         {data.facadeName && (
-          <div className="space-y-1.5 rounded-md border bg-muted/40 p-3">
-            <div className="flex items-center gap-2 text-xs font-medium">
+          <div className="space-y-1.5 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 shadow-inner">
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
               {data.facadeName} facade
-              {facadeBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {facadeBusy && <Loader2 className="h-3.5 w-3.5 animate-spin text-brand-gold" />}
             </div>
-            <Label className="text-[11px] tracking-wide text-muted-foreground">
+            <Label className="text-[11px] tracking-wide text-slate-400">
               Facade upgrade cost (added to the house price)
             </Label>
             <Input
-              className="h-8 text-xs"
+              className="h-8 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60"
               value={uplift ? String(uplift) : ""}
               placeholder="0"
               inputMode="numeric"
               onChange={(e) => setUpliftValue(parseAud(e.target.value))}
             />
-            <p className="text-[11px] leading-snug text-muted-foreground">
-              Filled in automatically from the QLD retail facade price list for the selected housing
-              type. Editing it saves an override for this facade.
+            <p className="text-[11px] leading-snug text-slate-500">
+              Filled in automatically from the QLD retail facade price list.
             </p>
           </div>
         )}
       </Section>
 
       <Section title="Additional costs (automated, adjustable)">
-        <div className="space-y-2 rounded-md border bg-muted/40 p-3">
-          <label className="flex cursor-pointer items-start gap-2 rounded-md border bg-background p-2.5">
+        <div className="space-y-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
             <input
               type="checkbox"
-              className="mt-0.5 h-3.5 w-3.5 accent-current"
+              className="mt-0.5 h-3.5 w-3.5 accent-amber-400 rounded"
               checked={data.landscaping}
               onChange={(e) => toggleLandscaping(e.target.checked)}
             />
-            <span className="text-[11px] font-medium leading-snug">Landscaping package</span>
+            <span className="text-[11px] font-medium leading-snug text-slate-200">Landscaping package</span>
           </label>
           {COST_FIELDS.map((f) => (
             <div key={f.id} className="flex items-center gap-2">
-              <Label className="flex-1 text-[11px] leading-tight text-muted-foreground">
+              <Label className="flex-1 text-[11px] leading-tight text-slate-400">
                 {f.label}
               </Label>
               <Input
-                className="h-8 w-28 text-xs"
+                className="h-7.5 w-28 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
                 inputMode="numeric"
                 value={data.costs[f.id] ? String(data.costs[f.id]) : "0"}
                 onChange={(e) => setCost(f.id, parseAud(e.target.value))}
               />
             </div>
           ))}
-          <div className="flex items-center justify-between border-t pt-2 text-xs font-medium">
+          <div className="flex items-center justify-between border-t border-slate-800 pt-2 text-xs font-semibold text-slate-200">
             <span>Total additional costs</span>
-            <span>{formatAud(costsTotal(data.costs))}</span>
+            <span className="text-amber-300 font-bold">{formatAud(costsTotal(data.costs))}</span>
           </div>
           <button
             type="button"
-            className="text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+            className="text-[11px] text-slate-500 underline-offset-2 hover:text-slate-300 hover:underline transition-colors"
             onClick={() => {
               const base = defaultCosts(data.housingType);
               const next = data.landscaping
@@ -771,19 +760,18 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
               key={p.id}
               type="button"
               onClick={() => set("palette", p.id)}
-              className={`rounded-md border px-2.5 py-2 text-left text-[11px] leading-tight transition-colors ${
+              className={`rounded-xl border px-3 py-2.5 text-left text-[11px] leading-tight transition-all ${
                 data.palette === p.id
-                  ? "border-brand-gold-deep bg-brand-navy text-brand-cream"
-                  : "text-muted-foreground hover:border-primary hover:text-foreground"
+                  ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
               }`}
             >
-              <span className="block font-medium">{p.label}</span>
-              <span className="block opacity-70">{p.hint}</span>
+              <span className="block font-semibold text-slate-200">{p.label}</span>
+              <span className="block text-[10px] opacity-70 mt-0.5">{p.hint}</span>
             </button>
           ))}
         </div>
       </Section>
-
 
       <Section title="Consultant (footer + QR code)">
         <ConsultantPicker data={data} set={set} />

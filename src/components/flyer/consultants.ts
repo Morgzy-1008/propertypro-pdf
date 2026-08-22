@@ -39,6 +39,12 @@ export function findConsultant(id: string) {
   return CONSULTANTS.find((c) => c.id === id);
 }
 
+export function findConsultantByEmail(email?: string | null): Consultant | undefined {
+  if (!email) return undefined;
+  const clean = email.trim().toLowerCase();
+  return CONSULTANTS.find((c) => c.email.toLowerCase() === clean);
+}
+
 /** vCard payload used for the "scan to save my details" QR code. */
 export function consultantVCard(c: {
   name: string;

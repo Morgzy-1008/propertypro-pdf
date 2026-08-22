@@ -96,7 +96,7 @@ export function facadeUpliftFor(
 
 import { supabase } from "@/integrations/supabase/client";
 
-export const AI_MARKER = "::AI_OUTPAINT_V4::";
+export const AI_MARKER = "::AI_OUTPAINT_V7_FRESH::";
 
 export async function loadEnhancedAsync(id: string): Promise<string | null> {
   const tagged = await getIdbEnhanced(id);
@@ -107,63 +107,22 @@ export async function loadEnhancedAsync(id: string): Promise<string | null> {
     }
   }
 
-  // Local cache miss. Try Supabase for the crisp AI render across all version tags.
+  // Local cache miss. Try Supabase for latest v7 fresh render
   try {
-    const baseId = id.replace(/::v\d+[a-z]?|_v\d+[a-z]?/g, "").replace(/-(single|double)-garage/g, "");
-    const candidates = Array.from(new Set([
-      `${id}_v5`,
-      `${id}_v4`,
-      `${id}_v4d`,
-      `${id}_v4s`,
-      `${id}::v5d`,
-      `${id}::v5s`,
-      `${id}::v4d`,
-      `${id}::v4s`,
-      `${id}_v3`,
-      `${id}::v3`,
-      `${id}::v2`,
-      id,
-      `${baseId}_v5`,
-      `${baseId}_v4`,
-      `${baseId}::v5d`,
-      `${baseId}::v5s`,
-      `${baseId}::v4d`,
-      `${baseId}::v4s`,
-      `${baseId}_v3`,
-      `${baseId}::v3`,
-      `${baseId}::v2`,
-      baseId,
-      `${id}-double-garage`,
-      `${id}-double-garage_v5`,
-      `${id}-double-garage::v5d`,
-      `${id}-single-garage`,
-      `${id}-single-garage_v5`,
-      `${id}-single-garage::v5s`,
-      `${baseId}-double-garage`,
-      `${baseId}-double-garage_v5`,
-      `${baseId}-double-garage::v5d`,
-    ]));
+    const cand = `${id}_v7_fresh`;
+    const { data } = await supabase
+      .from("facade_renders")
+      .select("id, widened_url")
+      .eq("id", cand)
+      .maybeSingle();
 
-    for (const cand of candidates) {
-      const { data } = await supabase
-        .from("facade_renders")
-        .select("id, widened_url")
-        .eq("id", cand)
-        .maybeSingle();
-
-      if (data?.widened_url && data.widened_url.startsWith("data:image/") && data.widened_url.length > 1000) {
-        const b64 = data.widened_url;
-        const newTagged = `${AI_MARKER}${b64}`;
-        void saveIdbEnhanced(id, newTagged);
-        try {
-          window.localStorage.setItem(`${ENHANCED_KEY}:${id}`, newTagged);
-        } catch {}
-        return b64;
-      }
+    if (data?.widened_url && data.widened_url.startsWith("data:image/") && data.widened_url.length > 1000) {
+      const b64 = data.widened_url;
+      const newTagged = `${AI_MARKER}${b64}`;
+      void saveIdbEnhanced(id, newTagged);
+      return b64;
     }
-  } catch (e) {
-    console.error("Supabase load error", e);
-  }
+  } catch {}
 
   return null;
 }

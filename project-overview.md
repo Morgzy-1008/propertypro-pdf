@@ -75,21 +75,22 @@ The AI outpainting logic in `src/components/flyer/fileToImage.ts` is perfectly t
 
 ### LOCKED AI Prompt for Facade Generation:
 ```text
-I have provided an image of a house placed on a white widescreen canvas. Your job is to outpaint the white space to create ONE seamless, ultra-high-resolution, and photorealistic environment across the ENTIRE widescreen image.
+Task: High-end architectural rendering outpaint, upscale, and ultra-realistic photograph enhancement.
 
-CRITICAL INSTRUCTION: Master Lighting and Atmosphere. The entire scene must be rendered with an expansive, bright, and soft natural daylight. Imagine a perfectly clear day with soft, non-directional light that makes the colors vibrant and clean. The new extended sky must be a soft, luminous, light blue.
+Output Frame Dimensions:
+- Canvas Aspect Ratio: Strictly 210mm wide by 82mm high horizontal widescreen banner (2400 x 937 px).
 
-You must make the new landscaping, sky, driveway, and environment look exactly like a natural extension of the original facade, but with increased overall brightness and luminosity. The original facade itself should remain consistent, but the new lighting should make the textures (brickwork, glass, concrete) look exceptionally clean, crisp, and high-detail.
+Strict House Sizing & Framing (HERO PROPORTIONS):
+- Total Frame Height: 82mm (937 px).
+- The house building is hero-shooted at MAXIMUM SIZE, filling ~90% of the vertical banner height.
+- Roof ridge apex sits ~2mm to 3mm from the top border.
+- Base of the house (garage door and entry porch) sits ~5mm from the bottom border with shortened driveway.
+- Maintain the house at this exact large size.
 
-CRITICAL: Symmetry and Balance. The new landscaping MUST be visually balanced and consistent on BOTH the left and right sides of the house. Lawns should stretch symmetrically, and pathways should flow naturally into the driveway.
-
-NEW REQUIREMENT: Texture Superiority. The landscaping must show individual blades of lush green grass and detailed, clean garden plants. The extended driveway should have ultra-sharp concrete or aggregate texture.
-
-Preserve the architecture, proportions, size, and colors of the house itself EXACTLY as provided. Do not alter the building.
-
-Do NOT add fences, walls, or large trees that block the house.
-
-CRITICAL: Sharp Focus. Do NOT apply any background blur, depth-of-field blur, or vignetting. The entire image MUST BE 100% SHARP, CRISP, AND IN PERFECT FOCUS THROUGHOUT.
-
-QUALITY DIRECTIVES: Render with high-resolution textures, clean lines, and an aesthetic that emphasizes a high-end, professionally photographed real estate listing. Avoid flat lighting. keep everything hyper realistic.
+ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
+- 100% Architectural Authenticity: All original materials, wall render micro-texture, dark siding cladding, brick pillar mortar joints, timber/charcoal garage door woodgrain, window mullions, and roof tiles must remain 100% FAITHFUL to the source house with ultra-crisp 8K detail.
+- Ultra-Realistic Landscaping: Lush manicured green grass with realistic micro-texture, authentic native Australian flowering shrubs, gum trees, and clean boundary Colorbond fencing.
+- Top Sky: Vibrant clear blue Australian sky with subtle wispy clouds.
+- Foreground: Natural aggregate concrete driveway connecting seamlessly to the garage door.
+- 100% seamless continuity across the entire 2400px width with zero blur or hard cut seams.
 ```

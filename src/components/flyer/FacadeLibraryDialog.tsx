@@ -186,14 +186,20 @@ export function FacadeLibrary({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline" size="sm" className="w-full" disabled={disabled}>
-          <Search className="h-3.5 w-3.5" />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-700 text-xs font-medium gap-2 shadow-sm transition-all"
+          disabled={disabled}
+        >
+          <Search className="h-3.5 w-3.5 text-brand-gold" />
           {disabled ? "Select a design first" : `Browse facade library (${eligible.length})`}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
         <DialogHeader>
-          <DialogTitle>Hudson facade library</DialogTitle>
+          <DialogTitle className="text-white font-bold tracking-wide">Hudson facade library</DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-2">
@@ -202,6 +208,7 @@ export function FacadeLibrary({
             placeholder="Search by name, range or style…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            className="border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60"
           />
           <input
             ref={inputRef}
@@ -211,8 +218,13 @@ export function FacadeLibrary({
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />
-          <Button type="button" variant="secondary" onClick={() => inputRef.current?.click()}>
-            <Upload className="h-4 w-4" />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => inputRef.current?.click()}
+            className="border border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 flex-none"
+          >
+            <Upload className="h-4 w-4 text-brand-gold" />
             Add renders
           </Button>
         </div>
@@ -224,10 +236,10 @@ export function FacadeLibrary({
                 key={c.id}
                 type="button"
                 onClick={() => setCategory(c.id)}
-                className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
                   active === c.id
-                    ? "border-brand-gold-deep bg-brand-navy text-brand-cream"
-                    : "text-muted-foreground hover:border-primary hover:text-foreground"
+                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
                 {c.label} (
@@ -239,16 +251,16 @@ export function FacadeLibrary({
             ))}
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">Sort</span>
+            <span className="text-[11px] text-slate-400 font-medium">Sort</span>
             {SORTS.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => setSort(s.id)}
-                className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
                   sort === s.id
-                    ? "border-brand-gold-deep bg-brand-navy text-brand-cream"
-                    : "text-muted-foreground hover:border-primary hover:text-foreground"
+                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
                 {s.label}
@@ -268,27 +280,27 @@ export function FacadeLibrary({
                     onSelect(f);
                     setOpen(false);
                   }}
-                  className={`w-full overflow-hidden rounded-md border text-left transition-colors ${
+                  className={`w-full overflow-hidden rounded-xl border text-left transition-all ${
                     value === f.url
-                      ? "border-brand-gold-deep ring-2 ring-brand-gold"
-                      : "hover:border-primary"
+                      ? "border-brand-gold ring-2 ring-brand-gold/50 bg-slate-900 shadow-lg shadow-brand-gold/10"
+                      : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
                   }`}
                 >
                   <img
                     src={f.url}
                     alt={f.name}
                     loading="lazy"
-                    className="h-28 w-full bg-muted object-cover"
+                    className="h-28 w-full bg-slate-950 object-cover"
                   />
-                  <div className="flex items-baseline justify-between gap-2 px-2 py-1.5">
-                    <span className="truncate text-xs font-medium">{f.name}</span>
-                    <span className="flex-none text-[11px] font-medium text-brand-gold-deep">
+                  <div className="flex items-baseline justify-between gap-2 px-2.5 py-2">
+                    <span className="truncate text-xs font-semibold text-slate-200">{f.name}</span>
+                    <span className="flex-none text-[11px] font-bold text-brand-gold">
                       {price === null ? "—" : price === 0 ? "Included" : `+${formatAud(price)}`}
                     </span>
                   </div>
                   {value === f.url && (
-                    <span className="absolute left-1.5 top-1.5 rounded-full bg-brand-gold p-1 text-brand-navy-deep">
-                      <Check className="h-3 w-3" />
+                    <span className="absolute left-2 top-2 rounded-full bg-brand-gold p-1 text-slate-950 font-bold shadow-md">
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </span>
                   )}
                 </button>
@@ -297,7 +309,7 @@ export function FacadeLibrary({
                     type="button"
                     size="icon"
                     variant="secondary"
-                    className="absolute right-1.5 top-1.5 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute right-1.5 top-1.5 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 bg-slate-800 text-slate-200 hover:text-rose-400"
                     onClick={() => persist(custom.filter((c) => c.id !== f.id))}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -307,7 +319,7 @@ export function FacadeLibrary({
             );
           })}
           {results.length === 0 && (
-            <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">
+            <p className="col-span-3 py-8 text-center text-sm text-slate-400">
               No facades match “{query}”. Add renders to build out the library.
             </p>
           )}

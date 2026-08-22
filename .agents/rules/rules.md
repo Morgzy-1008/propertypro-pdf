@@ -38,5 +38,9 @@ To prevent long prompt delays and execution stalls:
 - **No Lingering Background Tasks**: Always terminate background test processes after execution. Never leave orphan processes accumulating.
 - **Modular Code**: Keep source files clean and under 800 lines to avoid slow file-editing operations and syntax re-tries.
 
+## Facade Engine Code Freeze (CRITICAL GUARDRAIL)
+- **STRICTLY LOCKED**: `src/components/flyer/facadeEngine.ts`, `src/components/flyer/preRenderedFacades.data.ts`, and `src/components/flyer/facadeLibrary.ts` are 100% frozen and locked.
+- Under NO circumstances should any styling, refactoring, or website UI changes touch or modify the facade outpainting, bounding box detection, or scaling algorithms unless the user explicitly requests changes to that specific function.
+
 ## Terminology
 Use internal Hudson Homes terminology consistently across all documentation and comments (e.g., "Lot Matrix", "Facade Tier", "Turnkey Inclusions", "Print-Ready PDF"). Do not substitute alternative naming conventions.

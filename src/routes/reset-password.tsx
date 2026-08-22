@@ -75,13 +75,17 @@ function ResetPasswordPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
-      <div className="w-full max-w-sm rounded-xl border bg-background p-7 shadow-sm">
+    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-slate-100 font-sans relative overflow-hidden selection:bg-brand-gold/30">
+      {/* Ambient Gradient Lights */}
+      <div className="ambient-glow-gold h-96 w-96 -top-20 -right-20" />
+      <div className="ambient-glow-cyan h-96 w-96 -bottom-20 -left-20" />
+
+      <div className="w-full max-w-md rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-8 sm:p-10 shadow-2xl relative z-10">
         <img src={logoUrl} alt="Hudson Homes" className="mx-auto h-12 w-auto object-contain" />
-        <h1 className="mt-5 text-center text-lg font-semibold text-brand-navy">
+        <h1 className="mt-6 text-center text-xl font-bold tracking-tight text-white">
           {forced ? "Choose your own password" : "Set a new password"}
         </h1>
-        <p className="mt-1 text-center text-xs text-muted-foreground">
+        <p className="mt-2 text-center text-xs text-slate-400 leading-relaxed">
           {forced
             ? "The old shared password is retired. Set a private password now to keep using the studio."
             : ready
@@ -89,21 +93,23 @@ function ResetPasswordPage() {
               : "Open this page from the reset link in your email."}
         </p>
 
-        <form onSubmit={submit} className="mt-6 space-y-3">
+        <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="space-y-1.5">
-            <Label className="text-xs">New password</Label>
+            <Label className="text-xs text-slate-300">New password</Label>
             <Input
               type="password"
               required
               minLength={10}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 10 characters"
+              className="bg-slate-950/70 border-slate-800 text-slate-100 focus:border-brand-gold/60 focus:ring-brand-gold/20"
             />
           </div>
           <Button
             type="submit"
             disabled={busy || !ready}
-            className="w-full bg-brand-navy text-brand-cream hover:bg-brand-navy-deep"
+            className="w-full bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-300 transition-all shadow-md mt-2"
           >
             Update password
           </Button>
