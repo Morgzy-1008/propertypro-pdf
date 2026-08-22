@@ -1,9 +1,10 @@
 import * as pdfjs from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-// Configure worker source statically so dynamic chunk fetching never fails
+// Configure worker source to match the exact bundled pdfjs version
 if (typeof window !== "undefined") {
   try {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
   } catch (e) {
     console.warn("[pdfPages] Could not initialize pdf.worker.min.mjs:", e);
   }
@@ -29,15 +30,15 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
   }
 
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
   }
 
   const data = new Uint8Array(await file.arrayBuffer());
   const loadingTask = pdfjs.getDocument({
     data,
-    cMapUrl: "https://unpkg.com/pdfjs-dist@6.1.200/cmaps/",
+    cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
     cMapPacked: true,
-    standardFontDataUrl: "https://unpkg.com/pdfjs-dist@6.1.200/standard_fonts/",
+    standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
   });
 
   const doc = await loadingTask.promise;

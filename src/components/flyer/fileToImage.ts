@@ -1,4 +1,5 @@
 import * as pdfjs from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
 export * from "./facadeEngine";
 export * from "./floorplanEngine";
@@ -32,7 +33,7 @@ export async function floorplanFileToDataUrl(file: File): Promise<string | null>
 
 async function pdfFirstPageToDataUrl(file: File): Promise<string | null> {
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
   }
 
   const data = new Uint8Array(await file.arrayBuffer());

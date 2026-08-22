@@ -1,4 +1,5 @@
 import * as pdfjs from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { loadImage, cropToContent, blobToBase64 } from "./fileToImage";
 
 /** Trimmed floorplans, keyed by their published URL. */
@@ -78,7 +79,7 @@ export async function prepareFloorplan(plan: import("./floorplans.data").Floorpl
 
 export async function cropPdfFloorplan(plan: import("./floorplans.data").FloorplanRecord): Promise<string | null> {
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
   }
 
   const crops = plan.cropBoxes!;
