@@ -3,6 +3,7 @@ import type { DocumentPagesAndText } from "./pdfPages";
 
 export interface ParsedLot {
   lot_number?: string | null;
+  stage?: string | null;
   address?: string | null;
   land_size?: number | null;
   frontage?: number | null;
@@ -16,6 +17,7 @@ export interface ParsedLot {
 export interface ParseLotResult {
   estate?: string;
   suburb?: string;
+  stage?: string;
   developer?: string;
   lots: ParsedLot[];
 }
@@ -30,19 +32,25 @@ const GEMINI_KEY =
 /**
  * Deterministic text-based parser for Australian developer price lists.
  * Extracts lots directly from raw document text, tables, and filenames without requiring external AI.
+ * Uses header column-mapping to strictly distinguish Lot Number, Stage, and Land Size (sqm).
  */
 export function extractLotsFromText(rawText: string, filename = ""): ParseLotResult {
   const result: ParseLotResult = {
     estate: "",
     suburb: "",
+    stage: "",
     developer: "",
     lots: [],
   };
 
-  // 1. Detect Estate and Suburb from filename (e.g. "Flagstone Price List - Aurora - 19.8.2026.pdf")
+  // 1. Detect Estate, Suburb and Stage from filename (e.g. "Flagstone - Aurora - Stage 4 Price List.pdf")
   const cleanName = filename.replace(/\.(pdf|csv|xlsx|txt)$/i, "");
+  const stageFileMatch = cleanName.match(/(?:Stage|Release|Stg)\s*([A-Za-z0-9\.\-]+)/i);
+  if (stageFileMatch) {
+    result.stage = stageFileMatch[1].trim();
+  }
+
   const nameParts = cleanName.split(/[-–—_]/).map((p) => p.trim()).filter(Boolean);
-  
   for (const part of nameParts) {
     if (/price\s*list/i.test(part) || /\d{1,2}\.\d{1,2}\.\d{2,4}/.test(part) || /stage/i.test(part) || /release/i.test(part)) {
       continue;
@@ -54,7 +62,7 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
     }
   }
 
-  // 2. Scan text for estate, suburb, developer keywords if still blank
+  // 2. Scan text for estate, suburb, developer, stage keywords if still blank
   if (rawText) {
     const estateMatch = rawText.match(/(?:Estate|Development|Community|Project)\s*[:\-–]?\s*([A-Za-z0-9\s]{3,30})/i);
     if (estateMatch && !result.estate) result.estate = estateMatch[1].trim();
@@ -62,24 +70,56 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
     const suburbMatch = rawText.match(/(?:Suburb|Location)\s*[:\-–]?\s*([A-Za-z0-9\s]{3,30})/i);
     if (suburbMatch && !result.suburb) result.suburb = suburbMatch[1].trim();
 
+    const stageMatch = rawText.match(/(?:Stage|Release|Stg)\s*[:\-–]?\s*([A-Za-z0-9\.\-]+)/i);
+    if (stageMatch && !result.stage) result.stage = stageMatch[1].trim();
+
     const devMatch = rawText.match(/(?:Developer|Vendor)\s*[:\-–]?\s*([A-Za-z0-9\s]{3,30})/i);
     if (devMatch) result.developer = devMatch[1].trim();
   }
 
   if (!rawText) return result;
 
-  // 3. Line-by-line lot extraction
+  // 3. Line-by-line lot extraction with header column-mapping
   const lines = rawText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const foundLots: ParsedLot[] = [];
   const seenLots = new Set<string>();
+  let colMap: Record<string, number> | null = null;
+  let currentStage = result.stage || "";
 
   for (const line of lines) {
-    // Skip pure header rows without prices
-    if (/^(lot|stage|land\s*size|frontage|price|status|registered|date|release|street|address|type|width|depth)/i.test(line)) {
-      if (!/(\$|[1-9]\d{5})/.test(line)) continue;
+    const lower = line.toLowerCase();
+
+    // Detect header row to map exact column indices
+    if (
+      (lower.includes("lot") || lower.includes("size") || lower.includes("sqm") || lower.includes("price")) &&
+      (lower.includes("price") || lower.includes("size") || lower.includes("sqm") || lower.includes("frontage"))
+    ) {
+      const headerTokens = line.split(/\t+|[\s,|;]{2,}/).map((t) => t.trim().toLowerCase());
+      if (headerTokens.length >= 3) {
+        colMap = {};
+        headerTokens.forEach((tok, idx) => {
+          if (/^stage|^release|^stg/i.test(tok)) colMap!.stage = idx;
+          else if (/^lot|^#|lot\s*no/i.test(tok)) colMap!.lot = idx;
+          else if (/size|sqm|sq\.m|m2|m²|area/i.test(tok)) colMap!.size = idx;
+          else if (/front|width/i.test(tok)) colMap!.frontage = idx;
+          else if (/price|list\s*price|amount/i.test(tok)) colMap!.price = idx;
+          else if (/status|avail/i.test(tok)) colMap!.status = idx;
+          else if (/reg|title|date/i.test(tok)) colMap!.reg = idx;
+          else if (/street|address/i.test(tok)) colMap!.address = idx;
+        });
+      }
+      continue;
     }
 
-    // Look for price pattern: $385,000 or $385000 or 385,000 or 385000 (typical Australian land $80k - $3.5m)
+    // Check for section stage banners, e.g. "STAGE 5 - THE ORCHARD"
+    const stageBannerMatch = line.match(/^(?:Stage|Release|Stg)\s*([A-Za-z0-9\.\-]+)/i);
+    if (stageBannerMatch && !/\$|[1-9]\d{5}/.test(line)) {
+      currentStage = stageBannerMatch[1].trim();
+      if (!result.stage) result.stage = currentStage;
+      continue;
+    }
+
+    // Look for price pattern: $385,000 or $385000 or 385,000
     const priceMatches = [...line.matchAll(/(?:\$|AUD)?\s*([1-9]\d{2}(?:,\d{3})+|[1-9]\d{5})/g)];
     if (priceMatches.length === 0) continue;
 
@@ -93,64 +133,85 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
     }
     if (!priceNum) continue;
 
-    // Tokens on this row
-    const tokens = line.split(/[\t\s,;|]+/).filter(Boolean);
+    // Tokens split by tabs or multiple spaces
+    let cells = line.split(/\t+| {2,}/).map((c) => c.trim()).filter(Boolean);
+    if (cells.length <= 2) {
+      cells = line.split(/[\t\s,;|]+/).map((c) => c.trim()).filter(Boolean);
+    }
 
-    // Look for lot number pattern
     let lotNum = "";
+    let landSize: number | null = null;
+    let frontage: number | null = null;
+    let rowStage = currentStage;
+
+    // 1. Identify Land Size (look for sqm / m2 explicitly)
+    const sizeUnitMatch = line.match(/(\d{2,4}(?:\.\d+)?)\s*(?:m2|sqm|sq\.m|m²)/i);
+    if (sizeUnitMatch) {
+      landSize = parseFloat(sizeUnitMatch[1]);
+    }
+
+    // 2. Identify Stage from row
+    const rowStageMatch = line.match(/(?:Stage|Release|Stg)\s*([A-Za-z0-9\.\-]+)/i);
+    if (rowStageMatch) {
+      rowStage = rowStageMatch[1].trim();
+    } else if (colMap && colMap.stage !== undefined && cells[colMap.stage]) {
+      rowStage = cells[colMap.stage].replace(/^stage\s*/i, "").trim();
+    }
+
+    // 3. Identify Lot Number (look for 'Lot 101' or '#101')
     const lotPrefixMatch = line.match(/(?:Lot|LOT|#|L\.)\s*([A-Za-z0-9\-\/]{1,10})/i);
     if (lotPrefixMatch) {
       lotNum = lotPrefixMatch[1].replace(/^Lot\s*/i, "").trim();
-    } else {
-      // Find first alphanumeric token that looks like a lot number (e.g. 101, 45, 12B)
-      for (const tok of tokens) {
-        const cleanTok = tok.replace(/[^A-Za-z0-9\-]/g, "");
-        if (/^\d{1,5}[A-Za-z]?$/.test(cleanTok) && parseInt(cleanTok, 10) < 10000 && parseInt(cleanTok, 10) !== priceNum) {
+    } else if (colMap && colMap.lot !== undefined && cells[colMap.lot]) {
+      const candidate = cells[colMap.lot].replace(/[^A-Za-z0-9\-]/g, "");
+      if (candidate && candidate !== String(landSize) && candidate !== String(priceNum)) {
+        lotNum = candidate;
+      }
+    }
+
+    // If colMap has size and landSize wasn't found by explicit unit
+    if (!landSize && colMap && colMap.size !== undefined && cells[colMap.size]) {
+      const val = parseFloat(cells[colMap.size].replace(/[^0-9.]/g, ""));
+      if (val >= 100 && val <= 4000) {
+        landSize = val;
+      }
+    }
+
+    // Fallback: iterate tokens to find landSize and lotNum without confusing them
+    for (const tok of cells) {
+      const cleanTok = tok.replace(/[^A-Za-z0-9\-]/g, "");
+      const numVal = parseFloat(tok.replace(/,/g, ""));
+
+      // Identify Land Size: number between 180 and 3000 that is not the lotNum or price
+      if (!landSize && numVal >= 180 && numVal <= 3000 && numVal !== priceNum && cleanTok !== lotNum) {
+        if (lotNum || cells.indexOf(tok) !== 0) {
+          landSize = numVal;
+          continue;
+        }
+      }
+
+      // Identify Lot Number: alphanumeric token that is not size, price, stage, or unit keyword
+      if (!lotNum && cleanTok && !/^(the|and|for|size|price|m2|sqm|date|stage|release|aud)$/i.test(cleanTok)) {
+        if (numVal !== landSize && numVal !== priceNum && cleanTok !== rowStage) {
           lotNum = cleanTok;
-          break;
         }
       }
     }
 
-    if (!lotNum || /^(the|and|for|size|price|m2|sqm|date|stage|release|aud)$/i.test(lotNum)) continue;
-    if (seenLots.has(lotNum.toLowerCase())) continue;
-
-    // Look for land size (e.g. 450m2, 450 sqm, 450.5m2 or number between 150 and 2500)
-    let landSize: number | null = null;
-    const sizeMatch = line.match(/(\d{2,4}(?:\.\d+)?)\s*(?:m2|sqm|m²)/i);
-    if (sizeMatch) {
-      landSize = parseFloat(sizeMatch[1]);
-    } else {
-      for (const tok of tokens) {
-        const num = parseFloat(tok.replace(/,/g, ""));
-        if (num >= 150 && num <= 2500 && num !== priceNum && tok !== lotNum) {
-          landSize = num;
-          break;
-        }
-      }
-    }
-
-    // Look for frontage (e.g. 14m, 12.5m, 14.00 or number between 8.5 and 35)
-    let frontage: number | null = null;
+    // Frontage (e.g. 14m, 12.5m, 14.00 or number between 7 and 45)
     const frontageMatch = line.match(/(\d{1,2}(?:\.\d{1,2})?)\s*(?:m|mtrs)(?!\d)/i);
     if (frontageMatch) {
       frontage = parseFloat(frontageMatch[1]);
-    } else {
-      for (const tok of tokens) {
-        const num = parseFloat(tok);
-        if (num >= 8.5 && num <= 35 && num !== landSize && num !== priceNum && tok !== lotNum) {
-          frontage = num;
-          break;
-        }
-      }
+    } else if (colMap && colMap.frontage !== undefined && cells[colMap.frontage]) {
+      const val = parseFloat(cells[colMap.frontage].replace(/[^0-9.]/g, ""));
+      if (val >= 7 && val <= 45) frontage = val;
     }
 
-    // Look for registration status & date
+    // Registration & Status
     const titled = /registered|titled|reg'd|ready/i.test(line);
     const regMatch = line.match(/(?:Q[1-4]\s*\d{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-\/]*\d{2,4}|\d{1,2}\/\d{1,2}\/\d{2,4})/i);
     const regDate = titled ? null : (regMatch ? regMatch[0].trim() : null);
 
-    // Look for lot status
     let status: ParsedLot["status"] = "available";
     if (/hold|deposit|under\s*offer|reserved/i.test(line)) {
       status = "on_hold";
@@ -158,9 +219,13 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
       status = "sold";
     }
 
+    if (!lotNum) continue;
+    if (seenLots.has(lotNum.toLowerCase())) continue;
     seenLots.add(lotNum.toLowerCase());
+
     foundLots.push({
       lot_number: lotNum,
+      stage: rowStage || null,
       address: null,
       land_size: landSize,
       frontage: frontage,
@@ -168,7 +233,7 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
       titled: titled,
       registration_date: regDate,
       status: status,
-      notes: null,
+      notes: rowStage ? `Stage ${rowStage}` : null,
     });
   }
 

@@ -182,6 +182,7 @@ function StatusPill({ value }: { value: string }) {
 const emptyLotForm = {
   estate: "",
   suburb: "",
+  stage: "",
   developer: "",
   developer_contact_name: "",
   developer_contact_phone: "",
@@ -199,9 +200,13 @@ const emptyLotForm = {
 type LotForm = typeof emptyLotForm;
 
 function lotToForm(lot: Lot): LotForm {
+  const stageMatch = lot.notes?.match(/Stage\s*([A-Za-z0-9\.\-]+)/i);
+  const cleanNotes = lot.notes ? lot.notes.replace(/Stage\s*[A-Za-z0-9\.\-]+(\s*·\s*)?/i, "").trim() : "";
+
   return {
     estate: lot.estate ?? "",
     suburb: lot.suburb ?? "",
+    stage: stageMatch ? stageMatch[1] : "",
     developer: lot.developer ?? "",
     developer_contact_name: lot.developer_contact_name ?? "",
     developer_contact_phone: lot.developer_contact_phone ?? "",
@@ -213,7 +218,7 @@ function lotToForm(lot: Lot): LotForm {
     land_price: lot.land_price == null ? "" : String(lot.land_price),
     registration_date: lot.registration_date ?? "",
     deadline: lot.deadline ?? "",
-    notes: lot.notes ?? "",
+    notes: cleanNotes,
   };
 }
 
@@ -248,45 +253,64 @@ function LotDialog({
       if (cancelled) return;
       const match = devs.find((d) => devKey(d.name) === devKey(name));
       if (!match) return;
-      setForm((p) => ({
-        ...p,
-        developer_contact_name: p.developer_contact_name || match.contact_name || "",
-        developer_contact_phone: p.developer_contact_phone || match.contact_phone || "",
-        developer_contact_email: p.developer_contact_email || match.contact_email || "",
+      setForm((prev) => ({
+        ...prev,
+        developer_contact_name: prev.developer_contact_name || match.contact_name || "",
+        developer_contact_phone: prev.developer_contact_phone || match.contact_phone || "",
+        developer_contact_email: prev.developer_contact_email || match.contact_email || "",
       }));
     });
     return () => {
       cancelled = true;
     };
-  }, [open, form.developer]);
+  }, [form.developer, open]);
 
+  const update = (key: keyof LotForm, value: string) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
 
-  const field = (k: keyof LotForm, label: string, type = "text", disabled = false) => (
+  const field = (
+    key: keyof LotForm,
+    label: string,
+    type: "text" | "number" | "date" = "text",
+    disabled = false,
+  ) => (
     <div className="space-y-1.5">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input
         type={type}
         disabled={disabled}
-        value={form[k]}
-        onChange={(e) => setForm((p) => ({ ...p, [k]: e.target.value }))}
+        value={form[key]}
+        onChange={(e) => update(key, e.target.value)}
       />
     </div>
   );
 
   const save = async () => {
-    if (!form.estate || !form.suburb) {
+    if (!form.estate.trim() || !form.suburb.trim()) {
       toast.error("Estate and suburb are required");
       return;
     }
     setBusy(true);
+
+    const stagePrefix = form.stage.trim() ? (form.stage.toLowerCase().startsWith("stage") ? form.stage.trim() : `Stage ${form.stage.trim()}`) : null;
+    const combinedNotes = [stagePrefix, form.notes.trim()].filter(Boolean).join(" · ") || null;
+
     const payload = {
-      ...form,
+      estate: form.estate.trim(),
+      suburb: form.suburb.trim(),
+      developer: form.developer.trim(),
+      developer_contact_name: form.developer_contact_name.trim() || null,
+      developer_contact_phone: form.developer_contact_phone.trim() || null,
+      developer_contact_email: form.developer_contact_email.trim() || null,
+      lot_number: form.lot_number.trim() || null,
+      address: form.address.trim() || null,
       land_size: form.land_size ? Number(form.land_size) : null,
       frontage: form.frontage ? Number(form.frontage) : null,
       land_price: form.land_price ? Number(form.land_price) : null,
-      registration_date: registered ? null : form.registration_date || null,
+      registration_date: registered ? null : (form.registration_date.trim() || null),
       titled: registered,
-      deadline: form.deadline || null,
+      deadline: form.deadline.trim() || null,
+      notes: combinedNotes,
       exclusive_consultants: exclusive,
     };
     const { error } = lot
@@ -324,10 +348,11 @@ function LotDialog({
           <DialogTitle>{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          {field("estate", "Estate")}
-          {field("suburb", "Suburb")}
+          {field("estate", "Estate *")}
+          {field("suburb", "Suburb *")}
+          {field("stage", "Stage / Release")}
           {field("lot_number", "Lot number")}
-          {field("address", "Address")}
+          {field("address", "Street Address")}
           {field("land_size", "Land size m²", "number")}
           {field("frontage", "Frontage m", "number")}
           {field("land_price", "Land price", "number")}
@@ -408,6 +433,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   const [pastedText, setPastedText] = useState("");
   const [estate, setEstate] = useState("");
   const [suburb, setSuburb] = useState("");
+  const [stage, setStage] = useState("");
   const [developer, setDeveloper] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -441,9 +467,10 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     };
   }, [developer]);
 
-  const applyParsedResult = (json: { estate?: string; suburb?: string; developer?: string; lots: ParsedLot[] }) => {
+  const applyParsedResult = (json: { estate?: string; suburb?: string; stage?: string; developer?: string; lots: ParsedLot[] }) => {
     if (json.estate && !estate) setEstate(json.estate);
     if (json.suburb && !suburb) setSuburb(json.suburb);
+    if (json.stage && !stage) setStage(json.stage);
     if (json.developer && !developer) setDeveloper(json.developer);
     const lots = json.lots ?? [];
     if (lots.length > 0) {
@@ -454,6 +481,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       setRows([
         {
           lot_number: "",
+          stage: json.stage || stage || "",
           land_size: null,
           frontage: null,
           land_price: null,
@@ -504,6 +532,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       ...prev,
       {
         lot_number: "",
+        stage: stage || "",
         land_size: null,
         frontage: null,
         land_price: null,
@@ -538,23 +567,29 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     }
     setBusy(true);
     const { error } = await supabase.from("land_lots").insert(
-      selected.map((r) => ({
-        estate: estate.trim(),
-        suburb: suburb.trim(),
-        developer: developer.trim(),
-        developer_contact_name: contactName || null,
-        developer_contact_phone: contactPhone || null,
-        developer_contact_email: contactEmail || null,
-        lot_number: r.lot_number ? String(r.lot_number).trim() : null,
-        address: r.address ? String(r.address).trim() : null,
-        land_size: r.land_size ? Number(r.land_size) : null,
-        frontage: r.frontage ? Number(r.frontage) : null,
-        land_price: r.land_price ? Number(r.land_price) : null,
-        registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
-        titled: Boolean(r.titled),
-        status: r.status ?? "available",
-        notes: r.notes ? String(r.notes).trim() : null,
-      })),
+      selected.map((r) => {
+        const rowStage = (r.stage || stage || "").trim();
+        const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
+        const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
+
+        return {
+          estate: estate.trim(),
+          suburb: suburb.trim(),
+          developer: developer.trim(),
+          developer_contact_name: contactName || null,
+          developer_contact_phone: contactPhone || null,
+          developer_contact_email: contactEmail || null,
+          lot_number: r.lot_number ? String(r.lot_number).trim() : null,
+          address: r.address ? String(r.address).trim() : null,
+          land_size: r.land_size ? Number(r.land_size) : null,
+          frontage: r.frontage ? Number(r.frontage) : null,
+          land_price: r.land_price ? Number(r.land_price) : null,
+          registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
+          titled: Boolean(r.titled),
+          status: r.status ?? "available",
+          notes: combinedNotes,
+        };
+      }),
     );
     if (!error) {
       await rememberDeveloper({
@@ -588,12 +623,12 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
           <Upload className="h-4 w-4" /> Import price list
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Import Developer Price List</DialogTitle>
         </DialogHeader>
         <p className="text-xs text-muted-foreground">
-          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot is extracted automatically.
+          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot, stage, size, and price is extracted automatically.
         </p>
 
         <div className="flex gap-2 border-b pb-2 text-xs">
@@ -629,7 +664,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
           <div className="space-y-2">
             <textarea
               className="w-full min-h-[90px] rounded-md border p-2 text-xs font-mono"
-              placeholder="Paste table lines, tab-delimited text, or developer price list text here (e.g. Lot 101  450m2  14m  $385,000  Available  Nov 2026)"
+              placeholder="Paste table lines, tab-delimited text, or developer price list text here (e.g. Stage 4  Lot 101  450m2  14m  $385,000  Available  Nov 2026)"
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
             />
@@ -645,7 +680,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Estate *</Label>
             <Input placeholder="e.g. Aurora" value={estate} onChange={(e) => setEstate(e.target.value)} />
@@ -653,6 +688,10 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Suburb *</Label>
             <Input placeholder="e.g. Flagstone" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Stage / Release</Label>
+            <Input placeholder="e.g. Stage 4" value={stage} onChange={(e) => setStage(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Developer</Label>
@@ -666,7 +705,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
             <Label className="text-xs text-muted-foreground">Contact phone</Label>
             <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
           </div>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 sm:col-span-2">
             <Label className="text-xs text-muted-foreground">Contact email</Label>
             <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
           </div>
@@ -702,6 +741,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                       />
                     </th>
                     <th className="p-2 w-20">Lot #</th>
+                    <th className="p-2 w-20">Stage</th>
                     <th className="p-2 w-20">Size (m²)</th>
                     <th className="p-2 w-20">Frontage</th>
                     <th className="p-2 w-28">Price ($)</th>
@@ -728,10 +768,18 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            className="w-full rounded border px-1.5 py-0.5 text-xs font-medium"
                             placeholder="101"
                             value={r.lot_number || ""}
                             onChange={(e) => updateRow(i, { lot_number: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder={stage || "4"}
+                            value={r.stage || ""}
+                            onChange={(e) => updateRow(i, { stage: e.target.value })}
                           />
                         </td>
                         <td className="p-1">
@@ -875,7 +923,7 @@ function DatabasePage() {
     const q = query.trim().toLowerCase();
     if (!q) return lots;
     return lots.filter((l) =>
-      [l.estate, l.suburb, l.lot_number, l.address, l.developer]
+      [l.estate, l.suburb, l.lot_number, l.address, l.developer, l.notes]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -1320,9 +1368,15 @@ function DatabasePage() {
                       <div className="text-xs text-muted-foreground">{titleCase(l.suburb)}</div>
                     </td>
                     <td className="p-3">
-                      <div>{l.lot_number || "—"}</div>
+                      <div className="font-medium text-brand-navy flex items-center gap-1.5 flex-wrap">
+                        <span>{l.lot_number ? `Lot ${l.lot_number}` : "—"}</span>
+                        {l.notes?.match(/Stage\s*([A-Za-z0-9\.\-]+)/i) && (
+                          <span className="inline-block rounded bg-brand-navy/10 px-1.5 py-0.5 text-[10px] font-semibold text-brand-navy border border-brand-navy/20">
+                            {l.notes.match(/Stage\s*([A-Za-z0-9\.\-]+)/i)![0]}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted-foreground">{titleCase(l.address)}</div>
-
                     </td>
                     <td className="p-3 whitespace-nowrap">
                       {l.land_size ? `${l.land_size} m²` : "—"}
