@@ -78,36 +78,78 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
   try {
     const { data: rows, error } = await supabase
       .from("packages")
-      .select("id, name, design, range_id, total_price, flyer_data, status, lot_id")
-      .eq("status", "live");
+      .select(`
+        id,
+        name,
+        design,
+        range_id,
+        housing_type,
+        facade_name,
+        house_price,
+        land_price,
+        total_price,
+        beds,
+        baths,
+        cars,
+        floorplan_size,
+        flyer_data,
+        status,
+        lot_id,
+        land_lots (
+          id,
+          estate,
+          suburb,
+          lot_number,
+          address,
+          land_size,
+          frontage,
+          land_price,
+          titled,
+          registration_date,
+          notes
+        )
+      `)
+      .neq("status", "sold");
 
-    if (error || !rows) return [];
+    if (error || !rows) {
+      console.warn("[listPublicPackages] Query notice:", error);
+      return [];
+    }
 
-    return rows.map((p) => {
+    return rows.map((p: any) => {
       const f = (p.flyer_data ?? {}) as Record<string, unknown>;
+      const lot = p.land_lots;
+
+      const estate = lot?.estate || str(f.estate) || "Queensland";
+      const suburb = lot?.suburb || str(f.suburb) || "";
+      const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
+      const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
+      const landSize = lot?.land_size ? Number(lot.land_size) : (f.landSize == null ? null : Number(f.landSize));
+      const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
 
       return {
         id: p.id,
         name: p.name || p.design || "House & Land Package",
-        design: p.design || "",
-        facadeName: str(f.facadeName),
+        design: p.design || str(f.designName) || "",
+        facadeName: p.facade_name || str(f.facadeName),
         rangeLabel: p.range_id || str(f.range) || "Hudson Collection",
-        estate: str(f.estate) || "",
-        suburb: str(f.suburb) || "",
-        address: str(f.address),
-        beds: str(f.beds),
-        baths: str(f.baths),
-        cars: str(f.cars),
-        homeSize: str(f.homeSize),
-        landSize: f.landSize == null ? null : Number(f.landSize),
-        totalPrice: p.total_price == null ? null : Number(p.total_price),
-        consultantName: str(f.consultantName),
-        consultantPhone: str(f.consultantPhone),
-        consultantEmail: str(f.consultantEmail),
-        consultantOffice: str(f.consultantOffice),
+        estate: estate,
+        suburb: suburb,
+        address: address,
+        beds: p.beds || str(f.beds),
+        baths: p.baths || str(f.baths),
+        cars: p.cars || str(f.cars),
+        homeSize: homeSize,
+        landSize: landSize,
+        totalPrice: totalPrice,
+        consultantName: str(f.consultantName) || str(f.contactName),
+        consultantPhone: str(f.consultantPhone) || str(f.contactPhone),
+        consultantEmail: str(f.consultantEmail) || str(f.contactEmail),
+        consultantOffice: str(f.consultantOffice) || str(f.contactOffice),
       };
     });
-  } catch {
+  } catch (err) {
+    console.error("[listPublicPackages] Load error:", err);
     return [];
   }
 }

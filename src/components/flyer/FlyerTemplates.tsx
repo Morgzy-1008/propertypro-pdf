@@ -151,12 +151,11 @@ function Spec({
 }
 
 function ContactStrip({ d }: { d: FlyerData }) {
-  const vcard = consultantVCard({
-    name: d.contactName,
-    phone: d.contactPhone,
-    email: d.contactEmail,
-    office: d.contactOffice,
-  });
+  const packagesUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/browse/packages`
+      : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
+
   return (
     <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[5mm] px-[12mm] py-[2.4mm]">
       <div className="min-w-0">
@@ -180,12 +179,12 @@ function ContactStrip({ d }: { d: FlyerData }) {
         </span>
       </div>
       <div className="flex flex-none items-center gap-[1.8mm]">
-        <div className="text-right text-[1.9mm] leading-[1.2] tracking-[0.12em] text-brand-cream/70">
-          SCAN TO SAVE
+        <div className="text-right text-[1.8mm] font-semibold leading-[1.2] tracking-[0.12em] text-brand-cream/80 uppercase">
+          SCAN TO VIEW
           <br />
-          MY DETAILS
+          OTHER PACKAGES
         </div>
-        <QrCode value={vcard} size={11.5} />
+        <QrCode value={packagesUrl} size={11.5} />
       </div>
     </div>
   );

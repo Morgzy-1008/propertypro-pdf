@@ -46,7 +46,7 @@ function PackagesBrowse() {
 
   const groups = new Map<string, PublicPackage[]>();
   for (const p of packages) {
-    const key = `${p.suburb || "Queensland"} — ${p.estate}`;
+    const key = [p.suburb, p.estate].filter(Boolean).join(" — ") || "Queensland";
     const arr = groups.get(key);
     if (arr) arr.push(p);
     else groups.set(key, [p]);
@@ -60,7 +60,8 @@ function PackagesBrowse() {
       .forEach((p) => blocks.push({ kind: "pkg", key: p.id, pkg: p }));
   }
 
-  const pages = paginate(blocks, (b) => (b.kind === "group" ? 1.2 : 1), 6);
+  const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 1.2 : 1), 6);
+  const pages = rawPages.length > 0 ? rawPages : [[]];
 
   return (
     <div className="min-h-screen bg-muted/40">
