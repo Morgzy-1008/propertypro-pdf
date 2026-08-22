@@ -93,10 +93,17 @@ function PackagesBrowse() {
                     className="flex items-start justify-between gap-[5mm] rounded-[1.5mm] border border-brand-sand bg-white/70 px-[4mm] py-[3mm]"
                   >
                     <div className="min-w-0">
-                      <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
-                        {b.pkg.name}
+                      <div className="flex items-center gap-[2.2mm] flex-wrap">
+                        <span className="inline-flex items-center rounded-[1mm] bg-brand-navy px-[2.2mm] py-[0.8mm] text-[2.4mm] font-bold tracking-[0.14em] text-brand-cream uppercase shadow-xs">
+                          {b.pkg.housingType || "Single Storey"}
+                        </span>
+                        <div className="font-display text-[4.8mm] leading-[1.1] text-brand-navy">
+                          {b.pkg.name.includes("—")
+                            ? b.pkg.name
+                            : `${b.pkg.housingType || "Single Storey"} — ${b.pkg.design || b.pkg.name}`}
+                        </div>
                       </div>
-                      <div className="mt-[1mm] text-[2.6mm] text-brand-ink/65">
+                      <div className="mt-[1.2mm] text-[2.6mm] text-brand-ink/65">
                         {[
                           b.pkg.facadeName ? `${b.pkg.facadeName} facade` : null,
                           b.pkg.rangeLabel,

@@ -20,6 +20,7 @@ export interface PublicPackage {
   id: string;
   name: string;
   design: string;
+  housingType: string;
   facadeName: string | null;
   rangeLabel: string;
   estate: string;
@@ -35,6 +36,85 @@ export interface PublicPackage {
   consultantPhone: string | null;
   consultantEmail: string | null;
   consultantOffice: string | null;
+}
+
+export function determineHousingType(designName: string, explicitType?: string | null): string {
+  if (explicitType) {
+    const norm = explicitType.toLowerCase();
+    if (norm.includes("double") || norm.includes("two") || norm.includes("2 storey") || norm.includes("2 story")) {
+      return "Double Storey";
+    }
+    if (norm.includes("split")) return "Split Level";
+    if (norm.includes("dual") || norm.includes("duplex")) return "Dual Living";
+    if (norm.includes("single") || norm.includes("one") || norm.includes("1 storey") || norm.includes("1 story")) {
+      return "Single Storey";
+    }
+  }
+
+  const d = (designName || "").toLowerCase();
+  if (d.includes("two story") || d.includes("two storey") || d.includes("double")) {
+    return "Double Storey";
+  }
+  if (
+    d.includes("split") ||
+    d.includes("highview") ||
+    d.includes("hilltop") ||
+    d.includes("horizon") ||
+    d.includes("outlook") ||
+    d.includes("panorama") ||
+    d.includes("ridgeview") ||
+    d.includes("summit") ||
+    d.includes("valleyview") ||
+    d.includes("vista")
+  ) {
+    return "Split Level";
+  }
+  if (
+    d.includes("dual") ||
+    d.includes("duet") ||
+    d.includes("harmony") ||
+    d.includes("matrix") ||
+    d.includes("symphony") ||
+    d.includes("twin") ||
+    d.includes("unity") ||
+    d.includes("alabaster") ||
+    d.includes("cayene") ||
+    d.includes("magnolia") ||
+    d.includes("maize") ||
+    d.includes("raven") ||
+    d.includes("teal") ||
+    d.includes("wisteria")
+  ) {
+    if (d.includes("two story") || d.includes("two storey")) return "Double Storey";
+    return "Dual Living";
+  }
+  if (
+    d.includes("amethyst") ||
+    d.includes("aquamarine") ||
+    d.includes("beryl") ||
+    d.includes("citrine") ||
+    d.includes("fluorite") ||
+    d.includes("heliodor") ||
+    d.includes("iolite") ||
+    d.includes("morganite") ||
+    d.includes("onyx") ||
+    d.includes("peridot") ||
+    d.includes("spinel") ||
+    d.includes("tanzanite") ||
+    d.includes("tourmaline") ||
+    d.includes("zircon") ||
+    d.includes("lime") ||
+    d.includes("mahogany") ||
+    d.includes("ruby 26") ||
+    d.includes("sabel") ||
+    d.includes("tangerine") ||
+    d.includes("terracotta 36") ||
+    d.includes("turquoise")
+  ) {
+    return "Double Storey";
+  }
+
+  return "Single Storey";
 }
 
 function str(val: unknown): string | null {
@@ -120,6 +200,8 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
         const f = (p.flyer_data ?? {}) as Record<string, unknown>;
         const lot = p.land_lots;
 
+        const design = p.design || str(f.designName) || "";
+        const housingType = determineHousingType(design, p.housing_type || str(f.housingType));
         const estate = lot?.estate || str(f.estate) || "Queensland";
         const suburb = lot?.suburb || str(f.suburb) || "";
         const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
@@ -129,8 +211,9 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
 
         return {
           id: p.id,
-          name: p.name || p.design || "House & Land Package",
-          design: p.design || str(f.designName) || "",
+          name: p.name || (design ? `${housingType} — ${design}` : "House & Land Package"),
+          design: design,
+          housingType: housingType,
           facadeName: p.facade_name || str(f.facadeName),
           rangeLabel: p.range_id || str(f.range) || "Hudson Collection",
           estate: estate,
@@ -170,21 +253,25 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
       let cars = "2";
       let homeSize = "188";
       let baseHousePrice = 310000;
+      let housingType = "Single Storey";
 
       if (frontage <= 10.5 || size < 350) {
         design = "Jasper 15";
         homeSize = "142";
         baseHousePrice = 285000;
+        housingType = "Single Storey";
       } else if (frontage >= 16 || size >= 550) {
         design = "Sapphire 24";
         homeSize = "225";
         baseHousePrice = 345000;
+        housingType = "Single Storey";
       }
 
       return {
         id: l.id || `lot-pkg-${i}`,
-        name: `${design} — ${l.estate || "Hudson Package"}`,
+        name: `${housingType} — ${design}`,
         design: design,
+        housingType: housingType,
         facadeName: "Classic",
         rangeLabel: "Smart Spec",
         estate: l.estate || "Queensland",
