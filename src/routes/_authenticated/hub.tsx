@@ -1,6 +1,17 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { FileText, Database, Sparkles, ArrowRight, Building2, Layers, LogOut, CheckCircle2, ShieldCheck } from "lucide-react";
+import {
+  FileText,
+  Database,
+  Sparkles,
+  ArrowRight,
+  Building2,
+  Layers,
+  LogOut,
+  CheckCircle2,
+  ShieldCheck,
+  Clock,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
@@ -110,34 +121,36 @@ function WelcomeHubPage() {
         </div>
 
         {/* Primary Module Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
           {/* Card 1: Flyer Builder */}
           <Link
             to="/flyer"
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-8 transition-all duration-300 hover:border-brand-gold/60 hover:shadow-2xl hover:shadow-brand-gold/10 hover:-translate-y-1"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-brand-gold/60 hover:shadow-2xl hover:shadow-brand-gold/10 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div className="absolute top-0 right-0 h-32 w-32 bg-brand-gold/5 rounded-full blur-3xl group-hover:bg-brand-gold/15 transition-all duration-500" />
             
-            <div className="flex items-center justify-between mb-6">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-amber-500/20 to-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                <FileText className="h-7 w-7" />
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-brand-gold/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-brand-gold bg-brand-gold/10 px-2.5 py-0.5 rounded-full border border-brand-gold/20">
+                  Studio
+                </span>
               </div>
-              <span className="text-xs font-semibold tracking-wider uppercase text-brand-gold bg-brand-gold/10 px-3 py-1 rounded-full border border-brand-gold/20">
-                Studio
-              </span>
+
+              <h2 className="text-xl font-bold text-white group-hover:text-amber-200 transition-colors">
+                Flyer Builder
+              </h2>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed min-h-[48px]">
+                Design and export print-ready 1-page Express, 2-page Showcase, and House-Only flyers with widescreen facade renders, pricing calculations, and floorplans.
+              </p>
             </div>
 
-            <h2 className="text-2xl font-bold text-white group-hover:text-amber-200 transition-colors">
-              Flyer Builder
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed min-h-[56px]">
-              Design and export print-ready 1-page Express, 2-page Showcase, and House-Only flyers with widescreen facade renders, pricing calculations, and floorplans.
-            </p>
-
-            <div className="mt-6 pt-6 border-t border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>AI Facades &amp; Floorplans</span>
+                <span>AI Facades &amp; Plans</span>
               </div>
               <span className="inline-flex items-center text-xs font-semibold text-brand-gold group-hover:translate-x-1 transition-transform">
                 Launch Studio <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -148,33 +161,77 @@ function WelcomeHubPage() {
           {/* Card 2: House & Land Database */}
           <Link
             to="/database"
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-8 transition-all duration-300 hover:border-cyan-500/60 hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-1"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-cyan-500/60 hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div className="absolute top-0 right-0 h-32 w-32 bg-cyan-500/5 rounded-full blur-3xl group-hover:bg-cyan-500/15 transition-all duration-500" />
             
-            <div className="flex items-center justify-between mb-6">
-              <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                <Database className="h-7 w-7" />
+            <div>
+              <div className="flex items-center justify-between mb-5">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <Database className="h-6 w-6" />
+                </div>
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/20">
+                  Database
+                </span>
               </div>
-              <span className="text-xs font-semibold tracking-wider uppercase text-cyan-400 bg-cyan-500/10 px-3 py-1 rounded-full border border-cyan-500/20">
-                Database
-              </span>
+
+              <h2 className="text-xl font-bold text-white group-hover:text-cyan-200 transition-colors">
+                House &amp; Land Database
+              </h2>
+              <p className="mt-2.5 text-xs text-slate-400 leading-relaxed min-h-[48px]">
+                Explore active QLD land estates, import developer price lists via automated AI parsing, manage packages, and export instant flyers.
+              </p>
             </div>
 
-            <h2 className="text-2xl font-bold text-white group-hover:text-cyan-200 transition-colors">
-              House &amp; Land Database
-            </h2>
-            <p className="mt-3 text-sm text-slate-400 leading-relaxed min-h-[56px]">
-              Explore active QLD land estates, import developer price lists via automated AI parsing, manage packages, and export instant flyers.
-            </p>
-
-            <div className="mt-6 pt-6 border-t border-slate-800/80 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-slate-400">
                 <CheckCircle2 className="h-3.5 w-3.5 text-cyan-400" />
                 <span>Price List AI Import</span>
               </div>
               <span className="inline-flex items-center text-xs font-semibold text-cyan-400 group-hover:translate-x-1 transition-transform">
                 Open Database <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </span>
+            </div>
+          </Link>
+
+          {/* Card 3: Hudson Quoting System with "Coming Soon, Currently Under Development" Sign */}
+          <Link
+            to="/quote-builder"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1 flex flex-col justify-between"
+          >
+            <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
+            
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <Layers className="h-6 w-6" />
+                </div>
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                  Quoting
+                </span>
+              </div>
+
+              {/* Prominent Coming Soon / Under Development Sign */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2.5 shadow-sm">
+                <Clock className="h-3 w-3 animate-pulse text-amber-400" />
+                Coming Soon · Currently Under Development
+              </div>
+
+              <h2 className="text-xl font-bold text-white group-hover:text-emerald-200 transition-colors">
+                Hudson Quoting System
+              </h2>
+              <p className="mt-2 text-xs text-slate-400 leading-relaxed min-h-[48px]">
+                Technical Builders Estimate calculation engine, H1/H2/H3 luxury inclusions, site earthworks &amp; topography formulas, custom floorplans, and 5-page architectural PDF export.
+              </p>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-amber-400/90 font-medium">
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                <span>Beta Preview Mode</span>
+              </div>
+              <span className="inline-flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                Preview System <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </span>
             </div>
           </Link>

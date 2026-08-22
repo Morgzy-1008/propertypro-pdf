@@ -17,9 +17,11 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
+import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
 import { Route as PackageIdRouteImport } from './routes/package/$id'
+import { Route as QuoteIdRouteImport } from './routes/quote/$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -60,6 +62,12 @@ const AuthenticatedHubRoute = AuthenticatedHubRouteImport.update({
   path: '/hub',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedQuoteBuilderRoute =
+  AuthenticatedQuoteBuilderRouteImport.update({
+    id: '/quote-builder',
+    path: '/quote-builder',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const BrowseLandRoute = BrowseLandRouteImport.update({
   id: '/browse/land',
   path: '/browse/land',
@@ -75,6 +83,11 @@ const PackageIdRoute = PackageIdRouteImport.update({
   path: '/package/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QuoteIdRoute = QuoteIdRouteImport.update({
+  id: '/quote/$id',
+  path: '/quote/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -84,9 +97,11 @@ export interface FileRoutesByFullPath {
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
+  '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
+  '/quote/$id': typeof QuoteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,9 +111,11 @@ export interface FileRoutesByTo {
   '/database': typeof AuthenticatedDatabaseRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
+  '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
+  '/quote/$id': typeof QuoteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,9 +127,11 @@ export interface FileRoutesById {
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
+  '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/package/$id': typeof PackageIdRoute
+  '/quote/$id': typeof QuoteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -124,9 +143,11 @@ export interface FileRouteTypes {
     | '/database'
     | '/flyer'
     | '/hub'
+    | '/quote-builder'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
+    | '/quote/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -136,9 +157,11 @@ export interface FileRouteTypes {
     | '/database'
     | '/flyer'
     | '/hub'
+    | '/quote-builder'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
+    | '/quote/$id'
   id:
     | '__root__'
     | '/'
@@ -149,9 +172,11 @@ export interface FileRouteTypes {
     | '/_authenticated/database'
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
+    | '/_authenticated/quote-builder'
     | '/browse/land'
     | '/browse/packages'
     | '/package/$id'
+    | '/quote/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -163,6 +188,7 @@ export interface RootRouteChildren {
   BrowseLandRoute: typeof BrowseLandRoute
   BrowsePackagesRoute: typeof BrowsePackagesRoute
   PackageIdRoute: typeof PackageIdRoute
+  QuoteIdRoute: typeof QuoteIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -223,6 +249,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHubRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/quote-builder': {
+      id: '/_authenticated/quote-builder'
+      path: '/quote-builder'
+      fullPath: '/quote-builder'
+      preLoaderRoute: typeof AuthenticatedQuoteBuilderRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/browse/land': {
       id: '/browse/land'
       path: '/browse/land'
@@ -244,6 +277,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PackageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/quote/$id': {
+      id: '/quote/$id'
+      path: '/quote/$id'
+      fullPath: '/quote/$id'
+      preLoaderRoute: typeof QuoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -251,12 +291,14 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
+  AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
+  AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -271,6 +313,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseLandRoute: BrowseLandRoute,
   BrowsePackagesRoute: BrowsePackagesRoute,
   PackageIdRoute: PackageIdRoute,
+  QuoteIdRoute: QuoteIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
