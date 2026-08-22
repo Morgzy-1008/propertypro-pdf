@@ -14,6 +14,7 @@ export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
     bayside: 7200,
     breeze: 7200,
     chateaux: 21300,
+    classic: 0,
     "classic plus": 4700,
     coastal: 21300,
     contemporary: 9900,
@@ -58,23 +59,35 @@ export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
     cambridge: 24800,
     centro: 53400,
     chateaux: 24800,
+    "chateaux (no balcony)": 24800,
+    "chateaux (with balcony)": 38900,
     clarence: 89200,
+    classic: 0,
     "classic plus": 5900,
     como: 53400,
     contemporary: 16300,
     deco: 12300,
+    "deco (terracotta 23)": 12300,
     delta: 38900,
     deluxe: 39000,
     flair: 53400,
     grande: 39000,
     hamptons: 27400,
+    "hamptons (front, no balcony)": 27400,
+    "hamptons (front, with balcony)": 38900,
     madison: 32700,
+    "madison (turquoise only)": 32700,
     majestic: 16300,
+    "majestic (terracotta 23)": 16300,
     mantra: 16300,
+    "mantra (terracotta 23)": 16300,
     marina: 16300,
     meridian: 53400,
     metro: 53500,
     "mocha hamptons": 32700,
+    "mocha hamptons (corner lot, no balcony)": 32700,
+    "mocha hamptons (corner lot, balcony)": 44400,
+    "mocha hamptons (premium corner lot, balcony)": 53400,
     "modern barn": 34900,
     "modern box": 32700,
     "modern classical": 50900,
@@ -95,6 +108,8 @@ export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
     statesman: 32700,
     tempo: 53500,
     vista: 24700,
+    "vista (without balcony)": 24700,
+    "vista (with balcony)": 53400,
     vogue: 53500,
     windsor: 12300,
   },
@@ -117,6 +132,8 @@ const ALIASES: Record<string, string> = {
   vienna: "veinna",
   "infinity mkii": "infinity",
   pavilion: "pavillion",
+  "modern farmhouse": "modern farmhouse option b",
+  "modern classical": "modern classical option a",
 };
 
 /** "Chateaux (No Balcony)" / "Deco (Double Garage)" -> "chateaux" / "deco" */
@@ -140,12 +157,19 @@ export function facadeCategory(item: { url: string; name: string; range?: string
 
 /** Facade upgrade cost for a facade name in a given storey category. */
 export function facadePriceFor(name: string, storey: FacadeStorey): number | null {
+  const direct = name.trim().toLowerCase();
+  const directMatch = FACADE_PRICES[storey]?.[direct];
+  if (directMatch !== undefined) return directMatch;
+
   const base = facadeBaseName(name);
-  const exact = FACADE_PRICES[storey][base];
+  const exact = FACADE_PRICES[storey]?.[base];
   if (exact !== undefined) return exact;
+
   for (const s of ["single", "double", "acreage"] as FacadeStorey[]) {
-    const v = FACADE_PRICES[s][base];
-    if (v !== undefined) return v;
+    const vDirect = FACADE_PRICES[s]?.[direct];
+    if (vDirect !== undefined) return vDirect;
+    const vBase = FACADE_PRICES[s]?.[base];
+    if (vBase !== undefined) return vBase;
   }
   return null;
 }
