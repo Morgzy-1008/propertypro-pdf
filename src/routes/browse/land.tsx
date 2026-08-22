@@ -64,13 +64,14 @@ function LandBrowse() {
   }
 
   const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 2.4 : 1), 34);
+  const basePages = rawPages.length > 0 ? rawPages : [[]];
 
   // Repeat the estate heading when a group spills onto the next sheet.
   let cursor = 0;
-  const pages = rawPages.map((pageBlocks) => {
+  const pages = basePages.map((pageBlocks) => {
     const before = blocks.slice(0, cursor);
     cursor += pageBlocks.length;
-    if (pageBlocks[0]?.kind === "group") return pageBlocks;
+    if (!pageBlocks.length || pageBlocks[0]?.kind === "group") return pageBlocks;
     const last = [...before].reverse().find((b) => b.kind === "group");
     return last ? [{ ...last, key: `${last.key}-cont` }, ...pageBlocks] : pageBlocks;
   });

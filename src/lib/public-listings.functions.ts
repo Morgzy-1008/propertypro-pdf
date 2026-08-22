@@ -50,13 +50,16 @@ export async function listPublicLots(): Promise<PublicLot[]> {
       .select(
         "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
-      .eq("status", "available");
+      .neq("status", "sold");
 
-    if (error || !rows) return [];
+    if (error || !rows) {
+      console.warn("[listPublicLots] Query error:", error);
+      return [];
+    }
 
     return rows.map((r) => ({
-      estate: r.estate,
-      suburb: r.suburb,
+      estate: r.estate || "Queensland",
+      suburb: r.suburb || "",
       lotNumber: r.lot_number,
       address: r.address,
       landSize: r.land_size == null ? null : Number(r.land_size),
@@ -69,7 +72,8 @@ export async function listPublicLots(): Promise<PublicLot[]> {
       developerContactPhone: r.developer_contact_phone,
       developerContactEmail: r.developer_contact_email,
     }));
-  } catch {
+  } catch (err) {
+    console.error("[listPublicLots] Exception:", err);
     return [];
   }
 }
@@ -111,41 +115,91 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
       `)
       .neq("status", "sold");
 
-    if (error || !rows) {
-      console.warn("[listPublicPackages] Query notice:", error);
-      return [];
+    if (!error && rows && rows.length > 0) {
+      return rows.map((p: any) => {
+        const f = (p.flyer_data ?? {}) as Record<string, unknown>;
+        const lot = p.land_lots;
+
+        const estate = lot?.estate || str(f.estate) || "Queensland";
+        const suburb = lot?.suburb || str(f.suburb) || "";
+        const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
+        const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
+        const landSize = lot?.land_size ? Number(lot.land_size) : (f.landSize == null ? null : Number(f.landSize));
+        const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
+
+        return {
+          id: p.id,
+          name: p.name || p.design || "House & Land Package",
+          design: p.design || str(f.designName) || "",
+          facadeName: p.facade_name || str(f.facadeName),
+          rangeLabel: p.range_id || str(f.range) || "Hudson Collection",
+          estate: estate,
+          suburb: suburb,
+          address: address,
+          beds: p.beds || str(f.beds),
+          baths: p.baths || str(f.baths),
+          cars: p.cars || str(f.cars),
+          homeSize: homeSize,
+          landSize: landSize,
+          totalPrice: totalPrice,
+          consultantName: str(f.consultantName) || str(f.contactName),
+          consultantPhone: str(f.consultantPhone) || str(f.contactPhone),
+          consultantEmail: str(f.consultantEmail) || str(f.contactEmail),
+          consultantOffice: str(f.consultantOffice) || str(f.contactOffice),
+        };
+      });
     }
 
-    return rows.map((p: any) => {
-      const f = (p.flyer_data ?? {}) as Record<string, unknown>;
-      const lot = p.land_lots;
+    // Fallback: If no packages are saved in packages table, generate packages for available land lots
+    const { data: lots, error: lotsErr } = await supabase
+      .from("land_lots")
+      .select("*")
+      .neq("status", "sold");
 
-      const estate = lot?.estate || str(f.estate) || "Queensland";
-      const suburb = lot?.suburb || str(f.suburb) || "";
-      const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
-      const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
-      const landSize = lot?.land_size ? Number(lot.land_size) : (f.landSize == null ? null : Number(f.landSize));
-      const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
+    if (lotsErr || !lots || lots.length === 0) return [];
+
+    return lots.map((l: any, i: number) => {
+      const landPrice = Number(l.land_price) || 350000;
+      const frontage = Number(l.frontage) || 14;
+      const size = Number(l.land_size) || 450;
+
+      // Select suitable Hudson design based on frontage & size
+      let design = "Emerald 20";
+      let beds = "4";
+      let baths = "2";
+      let cars = "2";
+      let homeSize = "188";
+      let baseHousePrice = 310000;
+
+      if (frontage <= 10.5 || size < 350) {
+        design = "Jasper 15";
+        homeSize = "142";
+        baseHousePrice = 285000;
+      } else if (frontage >= 16 || size >= 550) {
+        design = "Sapphire 24";
+        homeSize = "225";
+        baseHousePrice = 345000;
+      }
 
       return {
-        id: p.id,
-        name: p.name || p.design || "House & Land Package",
-        design: p.design || str(f.designName) || "",
-        facadeName: p.facade_name || str(f.facadeName),
-        rangeLabel: p.range_id || str(f.range) || "Hudson Collection",
-        estate: estate,
-        suburb: suburb,
-        address: address,
-        beds: p.beds || str(f.beds),
-        baths: p.baths || str(f.baths),
-        cars: p.cars || str(f.cars),
+        id: l.id || `lot-pkg-${i}`,
+        name: `${design} — ${l.estate || "Hudson Package"}`,
+        design: design,
+        facadeName: "Classic",
+        rangeLabel: "Smart Spec",
+        estate: l.estate || "Queensland",
+        suburb: l.suburb || "",
+        address: l.address || (l.lot_number ? `Lot ${l.lot_number}` : null),
+        beds: beds,
+        baths: baths,
+        cars: cars,
         homeSize: homeSize,
-        landSize: landSize,
-        totalPrice: totalPrice,
-        consultantName: str(f.consultantName) || str(f.contactName),
-        consultantPhone: str(f.consultantPhone) || str(f.contactPhone),
-        consultantEmail: str(f.consultantEmail) || str(f.contactEmail),
-        consultantOffice: str(f.consultantOffice) || str(f.contactOffice),
+        landSize: l.land_size ? Number(l.land_size) : null,
+        totalPrice: landPrice + baseHousePrice,
+        consultantName: "Hudson Homes QLD",
+        consultantPhone: "1300 246 700",
+        consultantEmail: "salesqld@hudsonhomes.com.au",
+        consultantOffice: "Queensland Studio",
       };
     });
   } catch (err) {
