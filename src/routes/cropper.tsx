@@ -1,3 +1,4 @@
+import * as pdfjs from "pdfjs-dist";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { HUDSON_FLOORPLANS, FloorplanRecord } from "@/components/flyer/floorplans.data";
@@ -119,9 +120,9 @@ function CropperPage() {
       const buffer = await res.arrayBuffer();
       const data = new Uint8Array(buffer);
 
-      const pdfjs = await import("pdfjs-dist");
-      const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+      }
 
       const doc = await pdfjs.getDocument({ data }).promise;
       setPdfDoc(doc);

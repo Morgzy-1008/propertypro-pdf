@@ -1,4 +1,15 @@
-/** Renders every page of a PDF (or a plain image file) to PNG data URLs. */
+import * as pdfjs from "pdfjs-dist";
+
+// Configure worker source statically so dynamic chunk fetching never fails
+if (typeof window !== "undefined") {
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  } catch (e) {
+    console.warn("[pdfPages] Could not initialize pdf.worker.min.mjs:", e);
+  }
+}
+
+/** Renders every page of a PDF (or a plain image file) to PNG/JPEG data URLs. */
 export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<string[]> {
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
   if (!isPdf) {
@@ -11,12 +22,19 @@ export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<str
     return [url];
   }
 
-  const pdfjs = await import("pdfjs-dist");
-  const workerUrl = (await import("pdfjs-dist/build/pdf.worker.min.mjs?url")).default;
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+  if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+  }
 
   const data = new Uint8Array(await file.arrayBuffer());
-  const doc = await pdfjs.getDocument({ data }).promise;
+  const loadingTask = pdfjs.getDocument({
+    data,
+    cMapUrl: "https://unpkg.com/pdfjs-dist@6.1.200/cmaps/",
+    cMapPacked: true,
+    standardFontDataUrl: "https://unpkg.com/pdfjs-dist@6.1.200/standard_fonts/",
+  });
+
+  const doc = await loadingTask.promise;
   const out: string[] = [];
 
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i += 1) {
@@ -37,3 +55,4 @@ export async function pdfPagesToDataUrls(file: File, maxPages = 12): Promise<str
 
   return out;
 }
+
