@@ -10,7 +10,6 @@ import {
   Home,
   ShieldCheck,
   Check,
-  QrCode,
   Building,
   FileCheck2,
 } from "lucide-react";
@@ -129,7 +128,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           <div className="border-t border-slate-200 pt-6 flex items-end justify-between">
             <Logo size={14} />
             <div className="text-[10px] text-slate-400 font-mono">
-              Hudson Homes (QLD) Pty Ltd · Lic 15078318
+              Hudson Homes Pty Ltd · ABN 49 163 189 071 · Lic 259372C
             </div>
           </div>
         </div>
@@ -145,7 +144,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             <div>
               <Logo size={12} />
               <div className="text-[10px] text-slate-500 mt-1">
-                Hudson Homes (QLD) Pty Ltd · ABN 92 623 431 685 · License 15078318
+                Hudson Homes Pty Ltd · ABN 49 163 189 071 · License 259372C
               </div>
             </div>
             <div className="text-right text-xs">
@@ -301,7 +300,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
         {/* Page 2 Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes (QLD) Pty Ltd · ABN: 92 623 431 685 · License No: 15078318
+            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
@@ -382,7 +381,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
         {/* Page 3 Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes (QLD) Pty Ltd · ABN: 92 623 431 685 · License No: 15078318
+            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
@@ -457,7 +456,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           {/* Page 4 Footer */}
           <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
             <div>
-              Hudson Homes (QLD) Pty Ltd · ABN: 92 623 431 685 · License No: 15078318
+              Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
             </div>
             <div className="flex items-center gap-4">
               <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
@@ -621,7 +620,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
         {/* Inclusions Page Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes (QLD) Pty Ltd · ABN: 92 623 431 685 · License No: 15078318
+            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
@@ -633,7 +632,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* FINAL PAGE: LIFETIME GUARANTEE, INITIAL DEPOSIT & BANKING DETAILS         */}
+      {/* FINAL PAGE: LIFETIME GUARANTEE, INITIAL DEPOSIT & OFFICIAL NAB BANKING    */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm]">
         <div>
@@ -694,42 +693,47 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Direct Electronic Funds Transfer (EFT) Banking Details & QR Code */}
+          {/* Official National Australia Bank (NAB) Transfer Details & QR Code */}
           <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 flex items-center justify-between gap-6 mb-5">
             <div className="space-y-1 text-xs">
               <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 flex items-center gap-1.5">
                 <Building className="h-3.5 w-3.5 text-cyan-600" />
-                Hudson Homes Direct Transfer Banking Details
+                HUDSON HOMES QLD BANK DETAILS
               </div>
               <div className="grid grid-cols-2 gap-x-6 gap-y-1 pt-1 text-[11px]">
                 <div>
-                  <span className="text-slate-500 text-[10px] block">Bank:</span>
-                  <span className="font-bold text-slate-900">Westpac Banking Corporation</span>
+                  <span className="text-slate-500 text-[10px] block">Account Name:</span>
+                  <span className="font-bold text-slate-900">Hudson Homes (QLD) Pty Ltd</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[10px] block">Account Name:</span>
-                  <span className="font-bold text-slate-900">Hudson Homes (QLD) Pty Ltd Trust</span>
+                  <span className="text-slate-500 text-[10px] block">Bank:</span>
+                  <span className="font-bold text-slate-900">National Australia Bank</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">BSB Number:</span>
-                  <span className="font-bold font-mono text-slate-900">032-000</span>
+                  <span className="font-bold font-mono text-slate-900">082 778</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                  <span className="font-bold font-mono text-slate-900">884 192 340</span>
+                  <span className="font-bold font-mono text-slate-900">74-586-5607</span>
                 </div>
-                <div className="col-span-2 pt-1 border-t border-slate-200">
-                  <span className="text-slate-500 text-[10px] block">EFT Payment Reference:</span>
-                  <span className="font-bold font-mono text-cyan-800">
-                    {client.estimateNumber || quote.quoteNumber} {client.clientName.split(" ").pop()}
-                  </span>
+                <div className="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
+                  <div>
+                    <span className="text-slate-500 text-[10px] block">EFT Payment Reference:</span>
+                    <span className="font-bold font-mono text-cyan-800">
+                      {client.estimateNumber || quote.quoteNumber} {client.clientName.split(" ").pop()}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-500 text-[10px] block">Currency:</span>
+                    <span className="font-bold font-mono text-slate-800">AUD</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* QR Code Container */}
             <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-300 rounded-lg text-center flex-none">
-              {/* Clean sharp visual QR Code representation */}
               <div className="w-20 h-20 bg-slate-900 p-1.5 rounded flex items-center justify-center">
                 <div className="w-full h-full bg-white p-1 grid grid-cols-5 gap-0.5">
                   <div className="bg-slate-900 rounded-sm col-span-2 row-span-2" />
@@ -784,9 +788,9 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
 
               <div className="p-2.5 bg-slate-100 rounded-lg border border-slate-200 text-[9.5px] text-slate-600">
-                <span className="font-bold block text-slate-800 mb-0.5">Hudson Homes Queensland</span>
+                <span className="font-bold block text-slate-800 mb-0.5">Hudson Homes Pty Ltd</span>
                 Level 5, 106 City Road, Beenleigh QLD 4207
-                <br />Phone: 1300 246 600 · info@hudsonhomes.com.au
+                <br />Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au
               </div>
             </div>
           </div>
@@ -795,7 +799,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
         {/* Final Page Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes (QLD) Pty Ltd · ABN: 92 623 431 685 · License No: 15078318
+            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
