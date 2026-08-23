@@ -185,9 +185,26 @@ export async function listPublicLots(): Promise<PublicLot[]> {
 
 /**
  * Lists packages available in the database.
+ * First queries /api/public-packages for reliable public & mobile QR access, with Supabase fallback.
  */
 export async function listPublicPackages(): Promise<PublicPackage[]> {
   try {
+    // 1. Try serverless endpoint first (bypasses RLS for public scanning)
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/public-packages");
+        if (res.ok) {
+          const json = await res.json();
+          if (json.packages && Array.isArray(json.packages) && json.packages.length > 0) {
+            return json.packages.map((p: any) => formatPublicPackage(p));
+          }
+        }
+      } catch {
+        /* Fall back to direct Supabase query */
+      }
+    }
+
+    // 2. Direct Supabase query
     const { data: rows } = await supabase
       .from("packages")
       .select(`
@@ -227,53 +244,55 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
       return [];
     }
 
-    return rows.map((p: any) => {
-      const f = (p.flyer_data ?? {}) as Record<string, unknown>;
-      const lot = p.land_lots;
-
-      const design = p.design || str(f.designName) || "";
-      const housingType = determineHousingType(design, p.housing_type || str(f.housingType));
-      const estate = lot?.estate || str(f.estate) || "Queensland";
-      const suburb = lot?.suburb || str(f.suburb) || "";
-      const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
-      const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
-      const landSize = lot?.land_size ? Number(lot.land_size) : (f.landSize == null ? null : Number(f.landSize));
-      const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
-      const facadeName = p.facade_name || str(f.facadeName);
-      const facadeUrl = str(f.facadeUrl) || findFacadeUrl(facadeName);
-      const floorplanUrl = str(f.floorplanUrl) || plansForDesign(design)[0]?.url;
-
-      return {
-        id: p.id,
-        name: p.name || (design ? `${housingType} — ${design}` : "House & Land Package"),
-        design: design,
-        housingType: housingType,
-        facadeName: facadeName,
-        facadeUrl: facadeUrl,
-        floorplanUrl: floorplanUrl,
-        rangeLabel: p.range_id || str(f.range) || "Designer",
-        estate: estate,
-        suburb: suburb,
-        address: address,
-        beds: p.beds || str(f.beds) || "4",
-        baths: p.baths || str(f.baths) || "2",
-        cars: p.cars || str(f.cars) || "2",
-        homeSize: homeSize,
-        landSize: landSize,
-        housePrice: p.house_price != null ? Number(p.house_price) : null,
-        landPrice: p.land_price != null ? Number(p.land_price) : null,
-        totalPrice: totalPrice,
-        consultantName: str(f.consultantName) || str(f.contactName) || "Hudson Homes Consultant",
-        consultantPhone: str(f.consultantPhone) || str(f.contactPhone) || "1300 246 700",
-        consultantEmail: str(f.consultantEmail) || str(f.contactEmail) || "salesqld@hudsonhomes.com.au",
-        consultantOffice: str(f.consultantOffice) || str(f.contactOffice) || "Hudson Homes Queensland",
-        flyerJson: JSON.stringify(f),
-      };
-    });
+    return rows.map((p: any) => formatPublicPackage(p));
   } catch (err) {
     console.error("[listPublicPackages] Load error:", err);
     return [];
   }
+}
+
+function formatPublicPackage(p: any): PublicPackage {
+  const f = (p.flyer_data ?? {}) as Record<string, unknown>;
+  const lot = p.land_lots;
+
+  const design = p.design || str(f.designName) || "";
+  const housingType = determineHousingType(design, p.housing_type || str(f.housingType));
+  const estate = lot?.estate || str(f.estate) || "Queensland";
+  const suburb = lot?.suburb || str(f.suburb) || "";
+  const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
+  const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
+  const landSize = lot?.land_size ? Number(lot.land_size) : (f.landSize == null ? null : Number(f.landSize));
+  const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
+  const facadeName = p.facade_name || str(f.facadeName);
+  const facadeUrl = str(f.facadeUrl) || findFacadeUrl(facadeName);
+  const floorplanUrl = str(f.floorplanUrl) || plansForDesign(design)[0]?.url;
+
+  return {
+    id: p.id,
+    name: p.name || (design ? `${housingType} — ${design}` : "House & Land Package"),
+    design: design,
+    housingType: housingType,
+    facadeName: facadeName,
+    facadeUrl: facadeUrl,
+    floorplanUrl: floorplanUrl,
+    rangeLabel: p.range_id || str(f.range) || "Designer",
+    estate: estate,
+    suburb: suburb,
+    address: address,
+    beds: p.beds || str(f.beds) || "4",
+    baths: p.baths || str(f.baths) || "2",
+    cars: p.cars || str(f.cars) || "2",
+    homeSize: homeSize,
+    landSize: landSize,
+    housePrice: p.house_price != null ? Number(p.house_price) : null,
+    landPrice: p.land_price != null ? Number(p.land_price) : null,
+    totalPrice: totalPrice,
+    consultantName: str(f.consultantName) || str(f.contactName) || "Hudson Homes Consultant",
+    consultantPhone: str(f.consultantPhone) || str(f.contactPhone) || "1300 246 700",
+    consultantEmail: str(f.consultantEmail) || str(f.contactEmail) || "salesqld@hudsonhomes.com.au",
+    consultantOffice: str(f.consultantOffice) || str(f.contactOffice) || "Hudson Homes Queensland",
+    flyerJson: JSON.stringify(f),
+  };
 }
 
 /**
@@ -283,6 +302,25 @@ export async function getPublicPackage(input: { data: { id: string } }) {
   try {
     const id = String(input?.data?.id ?? "");
     if (!id) return null;
+
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch(`/api/public-packages?id=${encodeURIComponent(id)}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.package) {
+            const f = (json.package.flyer_data ?? {}) as Record<string, unknown>;
+            return {
+              id: json.package.id,
+              name: json.package.name || json.package.design || "House & Land Package",
+              flyerJson: JSON.stringify(f),
+            };
+          }
+        }
+      } catch {
+        /* Fall back to direct query */
+      }
+    }
 
     const { data: row, error } = await supabase
       .from("packages")
