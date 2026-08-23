@@ -26,11 +26,11 @@ export function findHouseBounds(
   const srcW = img.width;
   const srcH = img.height;
 
-  // 1. Precise Roof Apex scan (scans central 25% to 75% region, ignoring sky AND perimeter tree foliage)
-  let roofY = Math.round(srcH * 0.15);
-  for (let y = 10; y < srcH * 0.70; y += 2) {
+  // 1. Precise Roof Apex scan (scans central 20% to 80% region, ignoring sky AND perimeter tree foliage)
+  let roofY = Math.round(srcH * 0.10);
+  for (let y = 5; y < srcH * 0.70; y += 2) {
     let roofTileCount = 0;
-    for (let x = Math.round(srcW * 0.25); x < Math.round(srcW * 0.75); x += 4) {
+    for (let x = Math.round(srcW * 0.20); x < Math.round(srcW * 0.80); x += 4) {
       const idx = (y * srcW + x) * 4;
       const r = data[idx], g = data[idx + 1], b = data[idx + 2];
 
@@ -40,7 +40,7 @@ export function findHouseBounds(
 
       if (isRoofOrBldg) roofTileCount++;
     }
-    if (roofTileCount > (srcW * 0.50 / 4) * 0.08) {
+    if (roofTileCount > (srcW * 0.60 / 4) * 0.06) {
       roofY = y;
       break;
     }
@@ -106,11 +106,9 @@ export function findHouseBounds(
 }
 
 /**
- * Pre-frames the house using exact physical millimeter geometry:
- * - Red Line (Roof Apex to Top Border): EXACTLY 5mm (57px).
- * - Blue Line (House Base to Bottom Border): EXACTLY 15mm (171px).
- * - House Height (Roof Apex to House Base): EXACTLY 62mm (709px).
- * - Total Banner Height: EXACTLY 82mm (937px).
+ * Pre-frames the house onto a widescreen 210mm x 82mm banner (2400 x 937 px):
+ * - Single Storey: Hero proportion (2mm top gap, 5mm bottom gap) — UNTOUCHED.
+ * - Double Storey: Slightly smaller, ensuring at least 5mm (57px) clearance between the house and all 4 borders.
  */
 export async function preframeFacadeImage(
   rawB64: string,
@@ -137,26 +135,65 @@ export async function preframeFacadeImage(
     const houseW = Math.max(100, rightX - leftX);
     const houseH = Math.max(100, baseY - roofY);
 
-    // MAXIMUM HERO PROPORTIONS (2mm top gap, 5mm bottom gap, 75mm house height):
-    const targetRoofApexY = Math.round(2.0 * pxPerMm); // 23px (2mm from top)
-    const targetHouseBaseY = outH - Math.round(5.0 * pxPerMm); // 880px (5mm from bottom)
-    const targetHouseH = targetHouseBaseY - targetRoofApexY; // 857px (75mm)
+    const isDouble =
+      housingType === "double-storey" ||
+      housingType === "double" ||
+      housingType === "Double Storey" ||
+      housingType === "Double";
 
-    let scale = targetHouseH / houseH;
-    const maxAllowedW = 2360; // 206.5mm (leaves only 1.75mm side safety margins)
-    if (houseW * scale > maxAllowedW) {
-      scale = maxAllowedW / houseW;
+    let scale: number;
+    let drawX: number;
+    let drawY: number;
+
+    if (isDouble) {
+      // DOUBLE STOREY: Guarantees at least 5mm clearance on all 4 borders (57.1px)
+      const minMarginPx = Math.round(5.0 * pxPerMm); // 57px (5mm)
+      const maxAllowedH = outH - (minMarginPx * 2);  // 823px (72mm max house height)
+      const maxAllowedW = outW - (minMarginPx * 2);  // 2286px (200mm max house width)
+
+      scale = maxAllowedH / houseH;
+      if (houseW * scale > maxAllowedW) {
+        scale = maxAllowedW / houseW;
+      }
+
+      const scaledW = houseW * scale;
+      const scaledH = houseH * scale;
+      const scaledLeft = leftX * scale;
+
+      // Perfectly center house within the 5mm safe boundary box
+      drawX = Math.round(((outW - scaledW) / 2) - scaledLeft);
+      drawY = Math.round(((outH - scaledH) / 2) - (roofY * scale));
+
+      // Extra boundary assertion: if any roof/gutter or base peak touches or exceeds 5mm margin, clamp & rescale
+      const topDistance = drawY + (roofY * scale);
+      const bottomDistance = outH - (drawY + (baseY * scale));
+      if (topDistance < minMarginPx || bottomDistance < minMarginPx) {
+        const excess = Math.max(minMarginPx - topDistance, minMarginPx - bottomDistance);
+        scale = scale * ((maxAllowedH - excess) / maxAllowedH);
+        drawY = Math.round(((outH - (houseH * scale)) / 2) - (roofY * scale));
+      }
+    } else {
+      // SINGLE STOREY: 100% UNCHANGED
+      const targetRoofApexY = Math.round(2.0 * pxPerMm); // 23px (2mm from top)
+      const targetHouseBaseY = outH - Math.round(5.0 * pxPerMm); // 880px (5mm from bottom)
+      const targetHouseH = targetHouseBaseY - targetRoofApexY; // 857px (75mm)
+
+      scale = targetHouseH / houseH;
+      const maxAllowedW = 2360; // 206.5mm (leaves only 1.75mm side safety margins)
+      if (houseW * scale > maxAllowedW) {
+        scale = maxAllowedW / houseW;
+      }
+
+      drawY = Math.round(targetRoofApexY - (roofY * scale));
+
+      const scaledLeft = leftX * scale;
+      const scaledRight = rightX * scale;
+      const scaledW = scaledRight - scaledLeft;
+      drawX = Math.round(((outW - scaledW) / 2) - scaledLeft);
     }
 
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
-    const drawY = Math.round(targetRoofApexY - (roofY * scale));
-
-    // Center house horizontally
-    const scaledLeft = leftX * scale;
-    const scaledRight = rightX * scale;
-    const scaledW = scaledRight - scaledLeft;
-    const drawX = Math.round(((outW - scaledW) / 2) - scaledLeft);
 
     const canvas = document.createElement("canvas");
     canvas.width = outW;
@@ -164,7 +201,6 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // Single draw operation directly onto canvas
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     return canvas.toDataURL("image/jpeg", 0.94);
   } catch (e) {
@@ -234,10 +270,6 @@ export async function enhanceImageCrispness(dataUrl: string): Promise<string> {
 /**
  * Calls Gemini AI Image Generation / Outpaint API directly using VITE_GEMINI_API_KEY.
  * Fast-path sub-20s latency.
- * Strictly enforces:
- * - Zero structural modifications (100% preservation of windows, doors, columns, rooflines).
- * - 100% Material & Color Fidelity.
- * - 210:82 Widescreen Banner (2400 x 937 px).
  */
 export async function callGeminiOutpaint(
   rawImageBase64: string,
@@ -254,7 +286,32 @@ export async function callGeminiOutpaint(
   const cleanB64 = preframeB64.replace(/^data:image\/[a-z]+;base64,/, "");
   const mimeType = preframeB64.startsWith("data:image/png") ? "image/png" : "image/jpeg";
 
-  const prompt = `Task: High-end architectural rendering outpaint, upscale, and ultra-realistic photograph enhancement.
+  const isDouble =
+    housingType === "double-storey" ||
+    housingType === "double" ||
+    housingType === "Double Storey" ||
+    housingType === "Double";
+
+  const prompt = isDouble
+    ? `Task: High-end architectural rendering outpaint, upscale, and ultra-realistic photograph enhancement for a DOUBLE STOREY house.
+
+Output Frame Dimensions:
+- Canvas Aspect Ratio: Strictly 210mm wide by 82mm high horizontal widescreen banner (2400 x 937 px).
+
+Strict House Sizing & Framing (DOUBLE STOREY PROPORTIONS):
+- Total Frame Height: 82mm (937 px).
+- The entire 2-storey house must be completely visible without any part touching or cutting off at the border.
+- Maintain at least 5mm (57px) of clean margin between the house (roof apex, gutters, upper balcony, side walls, and ground base) and all 4 outer borders.
+- If any part of the house touches or gets cut off, rescale it down so there is a clean 5mm gap.
+- Maintain the entire house building intact with zero cut-offs.
+
+ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
+- 100% Architectural Authenticity: All original materials, wall render micro-texture, dark siding cladding, brick pillar mortar joints, timber/charcoal garage door woodgrain, window mullions, and roof tiles must remain 100% FAITHFUL to the source house with ultra-crisp 8K detail.
+- Ultra-Realistic Landscaping: Lush manicured green grass with realistic micro-texture, authentic native Australian flowering shrubs, gum trees, and clean boundary Colorbond fencing.
+- Top Sky: Vibrant clear blue Australian sky with subtle wispy clouds.
+- Foreground: Natural aggregate concrete driveway connecting seamlessly to the garage door.
+- 100% seamless continuity across the entire 2400px width with zero blur or hard cut seams.`
+    : `Task: High-end architectural rendering outpaint, upscale, and ultra-realistic photograph enhancement.
 
 Output Frame Dimensions:
 - Canvas Aspect Ratio: Strictly 210mm wide by 82mm high horizontal widescreen banner (2400 x 937 px).
@@ -354,7 +411,13 @@ export async function prepareFacade(
     return PRE_RENDERED_FACADES[normId];
   }
 
-  const cacheKey = `${dataUrl}::v15_ultra_realistic_hero_${housingType || "auto"}`;
+  const isDouble =
+    housingType === "double-storey" ||
+    housingType === "double" ||
+    housingType === "Double Storey" ||
+    housingType === "Double";
+
+  const cacheKey = `${dataUrl}::v16_scaled_${isDouble ? "double_storey_5mm_margin" : "single_hero"}`;
   if (!forceRefresh) {
     const cached = facadeCache.get(cacheKey);
     if (cached) return cached;
