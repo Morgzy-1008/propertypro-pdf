@@ -108,6 +108,76 @@ export function calculateTopographyFallCost(fallMeters: number, gfaM2: number): 
 }
 
 /**
+ * Calculates Bushfire Attack Level (BAL) cost based on design storeys (Single vs Double).
+ */
+export function getBushfireCost(
+  bal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40",
+  isDoubleStorey: boolean,
+): number {
+  if (bal === "None") return 0;
+  if (isDoubleStorey) {
+    switch (bal) {
+      case "BAL-12.5":
+        return 10000;
+      case "BAL-19":
+        return 12000;
+      case "BAL-29":
+        return 14000;
+      case "BAL-40":
+        return 19000;
+      default:
+        return 0;
+    }
+  } else {
+    switch (bal) {
+      case "BAL-12.5":
+        return 6500;
+      case "BAL-19":
+        return 8000;
+      case "BAL-29":
+        return 10000;
+      case "BAL-40":
+        return 15000;
+      default:
+        return 0;
+    }
+  }
+}
+
+/**
+ * Calculates Acoustic Attenuation Requirements cost based on design storeys (Single vs Double).
+ */
+export function getAcousticCost(
+  tier: "None" | "Category 1" | "Category 2" | "Category 3",
+  isDoubleStorey: boolean,
+): number {
+  if (tier === "None") return 0;
+  if (isDoubleStorey) {
+    switch (tier) {
+      case "Category 1":
+        return 10000;
+      case "Category 2":
+        return 20000;
+      case "Category 3":
+        return 40000;
+      default:
+        return 0;
+    }
+  } else {
+    switch (tier) {
+      case "Category 1":
+        return 5000;
+      case "Category 2":
+        return 10000;
+      case "Category 3":
+        return 20000;
+      default:
+        return 0;
+    }
+  }
+}
+
+/**
  * Computes line item subtotal based on quantity and rate.
  */
 export function computeLineItemSubtotal(item: QuoteSelectedLineItem): number {
@@ -136,6 +206,11 @@ export function calculateQuotePricing(
     baseHousePrice = Number(design.basePrice) || 0;
   }
 
+  const isDouble =
+    design.mode === "custom_floorplan"
+      ? design.customSpec.storeys === "double"
+      : design.housingType === "Double Storey";
+
   const facadePrice = Number(design.facadePrice) || 0;
   const promotionName = design.promotionName || "Builder Promotion / Special Savings";
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
@@ -145,9 +220,10 @@ export function calculateQuotePricing(
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
   const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2);
-  const siteCostsSubtotal =
-    soilTotalCost + fallTotalCost + (Number(site.bushfireCost) || 0) + (Number(site.acousticCost) || 0);
+  const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
+  const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
+  const siteCostsSubtotal = soilTotalCost + fallTotalCost + bushfireCost + acousticCost;
   const councilStatutorySubtotal = Number(site.councilFee) || 0;
 
   // Group line items by category
@@ -185,6 +261,8 @@ export function calculateQuotePricing(
     "internal_bedrooms",
     "internal_laundry",
     "colour_upgrades",
+    "site_earthworks",
+    "council_statutory",
   ];
 
   for (const cat of categoryOrder) {

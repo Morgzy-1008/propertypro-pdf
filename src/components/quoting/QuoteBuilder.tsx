@@ -288,6 +288,7 @@ export function QuoteBuilder() {
 
             {activeTab === "inclusions" && (
               <QuoteInclusionsStep
+                quote={quote}
                 lineItems={quote.lineItems}
                 onChange={handleLineItemsChange}
               />

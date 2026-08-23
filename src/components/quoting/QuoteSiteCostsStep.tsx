@@ -23,6 +23,8 @@ import { formatAud } from "@/lib/pricing";
 import {
   calculateDesignGFA,
   calculateTopographyFallCost,
+  getAcousticCost,
+  getBushfireCost,
   getSoilRatePerM2,
 } from "@/lib/quoting/quoteEngine";
 import type { FullQuote, SiteConditions, SoilClass } from "@/lib/quoting/quoteTypes";
@@ -79,21 +81,26 @@ const SOIL_CLASSES: { id: SoilClass; name: string; rate: number; desc: string }[
 ];
 
 const BUSHFIRE_LEVELS = [
-  { id: "None", cost: 0, desc: "Standard site (No BAL requirements)" },
-  { id: "BAL-12.5", cost: 4600, desc: "Aluminium ember mesh to weep holes and subfloor" },
-  { id: "BAL-19", cost: 10000, desc: "Solid timber doors, 5mm Grade A safety glass & sarking" },
-  { id: "BAL-29", cost: 16500, desc: "Toughened glazing, non-combustible cladding & ember seals" },
-  { id: "BAL-40", cost: 24500, desc: "Extreme fire protection with radiant heat shielding" },
-] as const;
+  { id: "None" as const, desc: "Standard site (No BAL requirements)" },
+  { id: "BAL-12.5" as const, desc: "Aluminium ember mesh to weep holes and subfloor" },
+  { id: "BAL-19" as const, desc: "Solid timber doors, 5mm Grade A safety glass & sarking" },
+  { id: "BAL-29" as const, desc: "Toughened glazing, non-combustible cladding & ember seals" },
+  { id: "BAL-40" as const, desc: "Extreme fire protection with radiant heat shielding" },
+];
 
 const ACOUSTIC_TIERS = [
-  { id: "None", cost: 0, desc: "Standard quiet residential zone" },
-  { id: "Category 1", cost: 2800, desc: "Thickened 6.38mm laminate acoustic glazing to exposed facade" },
-  { id: "Category 2", cost: 4200, desc: "Acoustic perimeter seals and upgraded external glass" },
-  { id: "Category 3", cost: 6800, desc: "Heavy acoustic insulation batts & laminated glass" },
-] as const;
+  { id: "None" as const, desc: "Standard quiet residential zone" },
+  { id: "Category 1" as const, desc: "Thickened 6.38mm laminate acoustic glazing to exposed facade" },
+  { id: "Category 2" as const, desc: "Acoustic perimeter seals and upgraded external glass" },
+  { id: "Category 3" as const, desc: "Heavy acoustic insulation batts & laminated glass" },
+];
 
 export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCostsStepProps) {
+  const isDouble =
+    quote.design.mode === "custom_floorplan"
+      ? quote.design.customSpec.storeys === "double"
+      : quote.design.housingType === "Double Storey";
+
   const gfaM2 = calculateDesignGFA(quote.design);
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
@@ -101,6 +108,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   const fallCost = calculateTopographyFallCost(site.fallMeters, gfaM2);
   const excessMeters = Math.max(0, site.fallMeters - 1.0);
   const tenthsAbove1m = Math.round(excessMeters * 10);
+
+  const currentBalCost = getBushfireCost(site.bushfireBal, isDouble);
+  const currentAcousticCost = getAcousticCost(site.acousticTier, isDouble);
 
   const handleSoilSelect = (soilClass: SoilClass) => {
     const rate = getSoilRatePerM2(soilClass);
@@ -121,13 +131,13 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   };
 
   const handleBalChange = (bal: (typeof BUSHFIRE_LEVELS)[number]["id"]) => {
-    const item = BUSHFIRE_LEVELS.find((b) => b.id === bal) || BUSHFIRE_LEVELS[0];
-    onSiteChange({ bushfireBal: bal, bushfireCost: item.cost });
+    const cost = getBushfireCost(bal, isDouble);
+    onSiteChange({ bushfireBal: bal, bushfireCost: cost });
   };
 
   const handleAcousticChange = (tier: (typeof ACOUSTIC_TIERS)[number]["id"]) => {
-    const item = ACOUSTIC_TIERS.find((a) => a.id === tier) || ACOUSTIC_TIERS[0];
-    onSiteChange({ acousticTier: tier, acousticCost: item.cost });
+    const cost = getAcousticCost(tier, isDouble);
+    onSiteChange({ acousticTier: tier, acousticCost: cost });
   };
 
   const handleCouncilChange = (region: string) => {
@@ -310,20 +320,23 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-              {BUSHFIRE_LEVELS.map((b) => (
-                <SelectItem key={b.id} value={b.id}>
-                  {b.id} {b.cost > 0 ? `(+${formatAud(b.cost)})` : "(Included)"}
-                </SelectItem>
-              ))}
+              {BUSHFIRE_LEVELS.map((b) => {
+                const cost = getBushfireCost(b.id, isDouble);
+                return (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "(Included $0)"}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
 
-        {/* Transport Noise Corridor */}
+        {/* Acoustic Attenuation Requirements */}
         <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
             <Volume2 className="h-3.5 w-3.5 text-indigo-400" />
-            Transport Noise Corridor
+            Acoustic Attenuation Requirements
           </Label>
           <Select
             value={site.acousticTier}
@@ -333,11 +346,14 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-              {ACOUSTIC_TIERS.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.id} {a.cost > 0 ? `(+${formatAud(a.cost)})` : "(Quiet Zone)"}
-                </SelectItem>
-              ))}
+              {ACOUSTIC_TIERS.map((a) => {
+                const cost = getAcousticCost(a.id, isDouble);
+                return (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "(Quiet Residential Zone $0)"}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>

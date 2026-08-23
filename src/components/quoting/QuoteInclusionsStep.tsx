@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   PackageCheck,
   Plus,
@@ -7,6 +7,7 @@ import {
   Layers,
   Search,
   CheckCircle2,
+  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,19 +27,23 @@ import {
 } from "@/components/ui/dialog";
 import { formatAud } from "@/lib/pricing";
 import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
+import { calculateDesignGFA } from "@/lib/quoting/quoteEngine";
 import type {
   CatalogueCategory,
+  FullQuote,
   QuoteSelectedLineItem,
   UnitType,
 } from "@/lib/quoting/quoteTypes";
 
 interface QuoteInclusionsStepProps {
+  quote: FullQuote;
   lineItems: QuoteSelectedLineItem[];
   onChange: (items: QuoteSelectedLineItem[]) => void;
 }
 
-const CATEGORY_TABS: { id: CatalogueCategory | "all"; label: string }[] = [
+const CATEGORY_TABS: { id: CatalogueCategory | "all" | "selected"; label: string }[] = [
   { id: "all", label: "All Items" },
+  { id: "selected", label: "Selected Only" },
   { id: "structural", label: "Structural" },
   { id: "doors_windows", label: "Doors & Windows" },
   { id: "external", label: "Floorplan & External" },
@@ -51,10 +56,55 @@ const CATEGORY_TABS: { id: CatalogueCategory | "all"; label: string }[] = [
   { id: "council_statutory", label: "Council & Statutory" },
 ];
 
-export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStepProps) {
-  const [activeTab, setActiveTab] = useState<CatalogueCategory | "all">("all");
+/**
+ * Filter items by storey relevance so NHCs only see items applicable to the active house design.
+ */
+function isItemApplicableToStorey(item: QuoteSelectedLineItem, isDouble: boolean): boolean {
+  const name = item.name.toLowerCase();
+  const id = (item.catalogueItemId || item.id).toLowerCase();
+
+  const isDsSpecific =
+    name.includes("double storey") ||
+    name.includes("first floor") ||
+    name.includes("upper floor") ||
+    name.includes("upper living") ||
+    name.includes("scaffolding") ||
+    name.includes("balcony") ||
+    id.endsWith("_ds") ||
+    id === "str_custom_ds_h2_gf" ||
+    id === "str_custom_ds_h2_ff" ||
+    id === "str_custom_ds_h3_gf" ||
+    id === "str_custom_ds_h3_ff" ||
+    id === "str_add_gf_ds" ||
+    id === "str_add_ff_ds" ||
+    id === "str_balcony_uncovered" ||
+    id === "str_balcony_covered";
+
+  const isSsSpecific =
+    name.includes("single storey") ||
+    id.endsWith("_ss") ||
+    id === "str_custom_ss_h2" ||
+    id === "str_custom_ss_h3" ||
+    id === "str_add_gf_ss";
+
+  if (isDouble) {
+    return !isSsSpecific;
+  } else {
+    return !isDsSpecific;
+  }
+}
+
+export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusionsStepProps) {
+  const [activeTab, setActiveTab] = useState<CatalogueCategory | "all" | "selected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddCustomOpen, setIsAddCustomOpen] = useState(false);
+
+  const isDouble =
+    quote.design.mode === "custom_floorplan"
+      ? quote.design.customSpec.storeys === "double"
+      : quote.design.housingType === "Double Storey";
+
+  const gfaM2 = calculateDesignGFA(quote.design);
 
   // New custom item draft
   const [customName, setCustomName] = useState("");
@@ -64,17 +114,31 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
   const [customRate, setCustomRate] = useState<number | "">("");
   const [customQty, setCustomQty] = useState(1);
 
+  const selectedCount = useMemo(
+    () => lineItems.filter((i) => i.isIncluded).length,
+    [lineItems],
+  );
+
   const toggleItemIncluded = (id: string) => {
     onChange(
-      lineItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              isIncluded: !item.isIncluded,
-              clientSelected: !item.isIncluded,
-            }
-          : item,
-      ),
+      lineItems.map((item) => {
+        if (item.id === id) {
+          const nextIncluded = !item.isIncluded;
+          // If item is per_m2 (like 32mpa concrete or floor finishes) and quantity is 1, auto-fill design GFA
+          let nextQty = item.quantity;
+          if (nextIncluded && item.unitType === "per_m2" && item.quantity <= 1 && gfaM2 > 0) {
+            nextQty = Math.round(gfaM2);
+          }
+          return {
+            ...item,
+            isIncluded: nextIncluded,
+            clientSelected: nextIncluded,
+            quantity: nextQty,
+            subtotal: nextQty * item.unitRate,
+          };
+        }
+        return item;
+      }),
     );
   };
 
@@ -102,7 +166,6 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
               ...item,
               unitRate: validRate,
               subtotal: (item.quantity || 1) * validRate,
-              isIncluded: validRate > 0,
             }
           : item,
       ),
@@ -141,14 +204,29 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
     setIsAddCustomOpen(false);
   };
 
-  const filteredItems = lineItems.filter((item) => {
-    const matchesTab = activeTab === "all" || item.category === activeTab;
-    const matchesSearch =
-      searchQuery === "" ||
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
+  const filteredItems = useMemo(() => {
+    return lineItems.filter((item) => {
+      // Filter 1: Storey relevance (Single vs Double storey)
+      if (!isItemApplicableToStorey(item, isDouble)) {
+        return false;
+      }
+
+      // Filter 2: Tab category filter
+      if (activeTab === "selected") {
+        if (!item.isIncluded) return false;
+      } else if (activeTab !== "all") {
+        if (item.category !== activeTab) return false;
+      }
+
+      // Filter 3: Search text
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.description && item.description.toLowerCase().includes(q))
+      );
+    });
+  }, [lineItems, isDouble, activeTab, searchQuery]);
 
   return (
     <div className="space-y-6">
@@ -162,17 +240,19 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Add or price floorplan variations across structural, kitchen, bathrooms, bedrooms, and finishes.
+            Tailored for <strong className="text-slate-200">{quote.design.housingType}</strong> ({quote.design.designName}). Showing {filteredItems.length} applicable variations.
           </p>
         </div>
 
-        <Button
-          size="sm"
-          onClick={() => setIsAddCustomOpen(true)}
-          className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs gap-1.5 self-start"
-        >
-          <Plus className="h-3.5 w-3.5" /> Add Custom Variation
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => setIsAddCustomOpen(true)}
+            className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Add Custom Variation
+          </Button>
+        </div>
       </div>
 
       {/* Category Tabs & Search Filter */}
@@ -183,18 +263,27 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === tab.id
-                  ? "bg-emerald-500 text-slate-950 font-bold shadow-md"
-                  : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
+                  ? tab.id === "selected"
+                    ? "bg-amber-400 text-slate-950 font-bold shadow-md"
+                    : "bg-emerald-500 text-slate-950 font-bold shadow-md"
+                  : tab.id === "selected"
+                    ? "bg-amber-950/40 text-amber-300 border border-amber-800/60 hover:bg-amber-900/50"
+                    : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
               }`}
             >
               {tab.label}
+              {tab.id === "selected" && selectedCount > 0 && (
+                <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+                  {selectedCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-64 flex-none">
           <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <Input
             value={searchQuery}
@@ -206,10 +295,12 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
       </div>
 
       {/* Line Items List */}
-      <div className="space-y-3">
+      <div className="space-y-2.5">
         {filteredItems.length === 0 ? (
           <div className="text-center py-12 text-xs text-slate-500 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
-            No variation items found in this section. Click &ldquo;Add Custom Variation&rdquo; above to add a line item.
+            {activeTab === "selected"
+              ? "No variations currently selected. Check any item from the categories above to add it to the estimate."
+              : "No variation items match your search filter."}
           </div>
         ) : (
           filteredItems.map((item) => {
@@ -217,49 +308,52 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
             return (
               <div
                 key={item.id}
-                className={`p-4 rounded-xl border transition-all ${
-                  item.isIncluded && isPriced
-                    ? "border-slate-700 bg-slate-900/90 shadow-sm"
-                    : "border-slate-800/80 bg-slate-950/50 opacity-80 hover:opacity-100"
+                className={`p-3.5 rounded-xl border transition-all ${
+                  item.isIncluded
+                    ? "border-emerald-500/60 bg-slate-900/95 shadow-md ring-1 ring-emerald-500/20"
+                    : "border-slate-800/80 bg-slate-950/60 opacity-85 hover:opacity-100 hover:border-slate-700"
                 }`}
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <input
                       type="checkbox"
                       checked={item.isIncluded}
                       onChange={() => toggleItemIncluded(item.id)}
-                      className="mt-1 h-4 w-4 accent-emerald-500 rounded cursor-pointer flex-none"
+                      className="mt-0.5 h-4 w-4 accent-emerald-500 rounded cursor-pointer flex-none"
                     />
 
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-100 truncate">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs text-slate-100">
                           {item.name}
                         </span>
                         <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
                           {CATEGORY_LABELS[item.category] || item.category}
                         </span>
+                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-900 text-emerald-400 border border-slate-800">
+                          {item.unitType.replace(/_/g, " ")}
+                        </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
                         {item.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Quantity & Unit Rate Editor */}
-                  <div className="flex items-center gap-3 self-end sm:self-center flex-none">
+                  <div className="flex items-center gap-2.5 self-end sm:self-center flex-none">
                     {item.unitType !== "fixed" && (
-                      <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 text-xs">
+                      <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-xs">
                         <span className="text-[10px] text-slate-500 uppercase font-mono">
-                          {item.unitType.replace(/_/g, " ")}:
+                          Qty:
                         </span>
                         <input
                           type="number"
                           min="1"
                           value={item.quantity || 1}
                           onChange={(e) => handleQtyChange(item.id, Number(e.target.value))}
-                          className="w-12 bg-transparent text-right font-mono font-bold text-slate-200 outline-none"
+                          className="w-12 bg-transparent text-right font-mono font-bold text-slate-100 outline-none"
                         />
                       </div>
                     )}
@@ -277,6 +371,12 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
                           className="h-8 pl-6 text-xs text-right border-slate-800 bg-slate-950 text-emerald-400 font-bold font-mono"
                         />
                       </div>
+                    </div>
+
+                    <div className="w-24 text-right">
+                      <span className="text-xs font-bold font-mono text-emerald-400">
+                        {item.isIncluded ? formatAud(item.quantity * item.unitRate) : "$0"}
+                      </span>
                     </div>
 
                     <button
@@ -316,6 +416,16 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
               />
             </div>
 
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-300">Description / Specifications</Label>
+              <Input
+                value={customDesc}
+                onChange={(e) => setCustomDesc(e.target.value)}
+                placeholder="Brief client-friendly specification note"
+                className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-slate-300">Category</Label>
@@ -335,6 +445,8 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
                     <SelectItem value="internal_bedrooms">Internal - Bedrooms</SelectItem>
                     <SelectItem value="internal_laundry">Internal - Laundry</SelectItem>
                     <SelectItem value="colour_upgrades">Colour Upgrades</SelectItem>
+                    <SelectItem value="site_earthworks">Site &amp; Earthworks</SelectItem>
+                    <SelectItem value="council_statutory">Council &amp; Statutory</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -350,8 +462,9 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
                   </SelectTrigger>
                   <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
                     <SelectItem value="fixed">Fixed Price ($)</SelectItem>
-                    <SelectItem value="per_lm">Per Linear Metre ($/lm)</SelectItem>
-                    <SelectItem value="per_m2">Per Square Metre ($/m²)</SelectItem>
+                    <SelectItem value="per_lm">Per LM ($/lm)</SelectItem>
+                    <SelectItem value="per_m2">Per m² ($/m²)</SelectItem>
+                    <SelectItem value="custom_qty">Custom Qty</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -359,39 +472,29 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Estimated Cost ($)</Label>
-                <Input
-                  type="number"
-                  value={customRate}
-                  onChange={(e) => setCustomRate(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="e.g. 1450"
-                  className="h-9 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
                 <Label className="text-xs text-slate-300">Quantity</Label>
                 <Input
                   type="number"
                   min="1"
                   value={customQty}
-                  onChange={(e) => setCustomQty(Math.max(1, Number(e.target.value)))}
-                  className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100 font-bold"
+                  onChange={(e) => setCustomQty(Number(e.target.value))}
+                  className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-slate-300">Unit Rate ($)</Label>
+                <Input
+                  type="number"
+                  value={customRate}
+                  onChange={(e) => setCustomRate(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="0"
+                  className="h-9 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-300">Client Specification Brief</Label>
-              <Input
-                value={customDesc}
-                onChange={(e) => setCustomDesc(e.target.value)}
-                placeholder="Brief description for quotation document…"
-                className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+            <div className="flex justify-end gap-2 pt-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -403,9 +506,9 @@ export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStep
               <Button
                 size="sm"
                 onClick={handleAddCustomItem}
-                className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs gap-1"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs"
               >
-                <Plus className="h-3.5 w-3.5" /> Add Variation
+                Add Line Item
               </Button>
             </div>
           </div>

@@ -10,9 +10,9 @@ import type {
   SiteConditions,
 } from "./quoteTypes";
 
-const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v6";
-const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v6";
-const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v6";
+const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v7";
+const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v7";
+const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v7";
 
 export function loadCatalogue(): CatalogueItem[] {
   if (typeof window === "undefined") return DEFAULT_CATALOGUE;
@@ -65,9 +65,9 @@ export function convertCatalogueToLineItems(catalogue: CatalogueItem[]): QuoteSe
     unitRate: cat.unitRate,
     quantity: cat.defaultQty ?? 1,
     subtotal: (cat.defaultQty ?? 1) * cat.unitRate,
-    isIncluded: cat.unitRate > 0,
+    isIncluded: false, // Fresh clean canvas: zero pre-selected variations
     isClientSelectable: !!cat.isClientSelectable,
-    clientSelected: true,
+    clientSelected: false,
   }));
 }
 
@@ -139,18 +139,18 @@ export function createNewBlankQuote(): FullQuote {
     updatedAt: new Date().toISOString(),
     status: "draft",
     client: {
-      clientName: "Jordan Samuel Mitchell",
-      clientEmail: "jordan.mitchell@example.com",
-      clientPhone: "0417 555 123",
-      hasClient2: true,
-      client2Name: "Stephannie Ann Krause",
-      client2Email: "stephannie.krause@example.com",
-      client2Phone: "0418 777 888",
-      siteAddress: "31 Broad Axe Crescent",
-      lotNumber: "Lot 134",
-      suburb: "New Beith",
-      estate: "New Beith Estate",
-      postcode: "4124",
+      clientName: "",
+      clientEmail: "",
+      clientPhone: "",
+      hasClient2: false,
+      client2Name: "",
+      client2Email: "",
+      client2Phone: "",
+      siteAddress: "",
+      lotNumber: "",
+      suburb: "",
+      estate: "",
+      postcode: "",
       estimateNumber: estimateNo,
       estimateVersion: 1,
       depositType: "greenfield",
@@ -161,7 +161,7 @@ export function createNewBlankQuote(): FullQuote {
       consultantPhone: "0417 571 864",
       consultantEmail: "Morgan.hales@hudsonhomes.com.au",
       consultantOffice: "Flagstone Display Home",
-      notes: "This Builders Estimate is valid for 14 days and has been prepared based on the Hudson Homes H3 Luxury Specification Range.",
+      notes: "",
     },
     design: defaultDesign,
     siteConditions: defaultSite,
