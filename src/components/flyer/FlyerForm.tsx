@@ -386,7 +386,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
-    if (forceRefresh || isDouble) {
+    if (forceRefresh) {
       await clearIdbEnhanced(item.id);
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
     } else {
@@ -395,11 +395,11 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
     const rawUrlToUse = item.originalUrl || item.url;
 
-    // 1. Check for pre-rendered local static catalogue FIRST for single-storey only
-    if (!forceRefresh && !isDouble) {
+    // 1. Check for pre-rendered local static catalogue FIRST
+    if (!forceRefresh) {
       const normId = item.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId];
-      if (preRendered) {
+      if (preRendered && !isDouble) {
         set("facadeUrl", preRendered);
         setFacadeBusy(false);
         set("facadeBusy", false);
@@ -414,15 +414,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Immediately pre-frame raw image to guarantee the entire roof is 100% inside the frame instantly
-    try {
-      const immediateFramed = await preframeFacadeImage(rawUrlToUse, targetHousingType);
-      if (immediateFramed && immediateFramed.startsWith("data:image/")) {
-        set("facadeUrl", immediateFramed);
-      }
-    } catch {}
-
-    // 3. Set facadeBusy = true while preparing Gemini AI outpainting
+    // 2. Set facadeBusy = true while preparing Gemini AI outpainting
     setFacadeBusy(true);
     set("facadeBusy", true);
 
@@ -439,9 +431,12 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl, item.name);
+      } else {
+        set("facadeUrl", rawUrlToUse);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);
+      set("facadeUrl", rawUrlToUse);
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
