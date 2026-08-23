@@ -56,16 +56,18 @@ export function QuoteSummarySidebar({
           <div className="flex items-center justify-between">
             <span className="font-bold text-xs text-white">
               {design.mode === "standard"
-                ? design.designName
+                ? design.designName || "Select Home Design"
                 : `Custom Plan (${design.customSpec.storeys === "double" ? "Double" : "Single"})`}
             </span>
             <span className="text-xs font-bold text-amber-400 font-mono">
-              {formatAud(pricing.baseHousePrice)}
+              {design.designName || design.mode === "custom_floorplan"
+                ? formatAud(pricing.baseHousePrice)
+                : "$0"}
             </span>
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>{design.specTier}</span>
-            <span>{design.designM2 || 0} m²</span>
+            <span>{design.designM2 > 0 ? `${design.designM2} m²` : "0 m²"}</span>
           </div>
         </div>
 

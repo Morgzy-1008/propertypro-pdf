@@ -116,6 +116,9 @@ export interface ClientDetails {
 }
 
 export type InclusionTier =
+  | "H1 Smart Inclusions"
+  | "H2 Design Inclusions"
+  | "H3 Luxury Inclusions"
   | "H1 Inclusions (2025)"
   | "H2 Inclusions (2025)"
   | "H3 Inclusions (2025)"

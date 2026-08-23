@@ -25,17 +25,21 @@ export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   council_statutory: "Council & Statutory Requirements",
 };
 
-export interface DuplicateGroup {
-  primaryItem: CatalogueItem;
-  relatedItems: CatalogueItem[];
-  matchReason: string;
+export interface DuplicatePair {
+  id: string; // unique pair key e.g. "itemA::itemB"
+  itemA: CatalogueItem;
+  itemB: CatalogueItem;
+  reason: string;
 }
 
 /**
  * Automatically flags potential duplicate or overlapping items in the catalogue.
- * Compares names, categories, and high-specificity keywords (e.g. Flood, Town Planning, Traffic, Cooktop, etc.).
+ * Returns distinct pairs of matching items (Item A vs Item B).
  */
-export function findPotentialDuplicates(items: CatalogueItem[]): DuplicateGroup[] {
+export function findPotentialDuplicates(
+  items: CatalogueItem[],
+  unflaggedPairKeys: Set<string> = new Set(),
+): DuplicatePair[] {
   const clean = (s: string) =>
     s
       .toLowerCase()
@@ -50,11 +54,22 @@ export function findPotentialDuplicates(items: CatalogueItem[]): DuplicateGroup[
     "finish", "lining", "linings", "line", "report", "package", "system", "wall",
     "ceiling", "ceilings", "ground", "first", "upper", "footprint", "under", "roof",
     "roofline", "builder", "specification", "luxury", "tiles", "tiled", "ceramic",
-    "throughout", "structure", "engineered", "engineering", "architectural", "unit"
+    "throughout", "structure", "engineered", "engineering", "architectural", "unit",
+    "complete", "front", "rear", "side", "entry", "main", "feature", "supply", "install"
   ]);
 
-  const groups: DuplicateGroup[] = [];
+  const pairs: DuplicatePair[] = [];
   const processedPairs = new Set<string>();
+
+  const HIGH_SPECIFICITY_KEYWORDS = [
+    "flood", "traffic", "cooktop", "rangehood", "covenant", "demolition",
+    "acoustic", "bushfire", "elevator", "lodgement", "planner", "assessment",
+    "pedestrian", "asbestos", "rock", "breaker", "potholing", "cctv", "hstp",
+    "sewer", "survey", "pegs", "balcony", "alfresco", "theatre", "pool", "piering",
+    "stacker", "screen", "oven", "fridge", "cupboards",
+    "stone", "benchtop", "sink", "ensuite", "robe", "shelving",
+    "3phase", "charger", "aircon", "solar", "battery", "epoxy", "render", "driveway", "turf"
+  ];
 
   for (let i = 0; i < items.length; i++) {
     const a = items[i];
@@ -63,21 +78,21 @@ export function findPotentialDuplicates(items: CatalogueItem[]): DuplicateGroup[
         .split(/\s+/)
         .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
     );
-    const related: CatalogueItem[] = [];
-    let matchReason = "";
 
-    for (let j = 0; j < items.length; j++) {
-      if (i === j) continue;
+    for (let j = i + 1; j < items.length; j++) {
       const b = items[j];
       const pairKey = [a.id, b.id].sort().join("::");
+      if (processedPairs.has(pairKey) || unflaggedPairKeys.has(pairKey)) continue;
 
       // Check 1: Exact / near exact name
       if (clean(a.name) === clean(b.name)) {
-        if (!processedPairs.has(pairKey)) {
-          related.push(b);
-          matchReason = "Identical item name";
-          processedPairs.add(pairKey);
-        }
+        pairs.push({
+          id: pairKey,
+          itemA: a,
+          itemB: b,
+          reason: "Identical or near-identical item name",
+        });
+        processedPairs.add(pairKey);
         continue;
       }
 
@@ -88,38 +103,22 @@ export function findPotentialDuplicates(items: CatalogueItem[]): DuplicateGroup[
           .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
         const commonWords = wordsB.filter((w) => wordsA.has(w));
 
-        const HIGH_SPECIFICITY_KEYWORDS = [
-          "flood", "traffic", "cooktop", "rangehood", "covenant", "demolition",
-          "acoustic", "bushfire", "elevator", "lodgement", "planner", "assessment",
-          "pedestrian", "asbestos", "rock", "breaker", "potholing", "cctv", "hstp",
-          "sewer", "survey", "pegs", "balcony", "alfresco", "theatre", "pool", "piering",
-          "sliding", "stacker", "security", "screen", "oven", "fridge", "cupboards",
-          "stone", "benchtop", "sink", "ensuite", "tiles", "robe", "shelving",
-          "3phase", "charger", "aircon", "solar", "battery", "epoxy", "render", "driveway", "turf"
-        ];
-
         const matchedHighSpec = commonWords.filter((w) => HIGH_SPECIFICITY_KEYWORDS.includes(w));
 
         if (commonWords.length >= 2 || matchedHighSpec.length >= 1) {
-          if (!processedPairs.has(pairKey)) {
-            related.push(b);
-            matchReason = `Related item sharing terms: "${commonWords.join(", ")}"`;
-            processedPairs.add(pairKey);
-          }
+          pairs.push({
+            id: pairKey,
+            itemA: a,
+            itemB: b,
+            reason: `Potential match sharing keyword(s): "${commonWords.join(", ")}"`,
+          });
+          processedPairs.add(pairKey);
         }
       }
     }
-
-    if (related.length > 0) {
-      groups.push({
-        primaryItem: a,
-        relatedItems: related,
-        matchReason,
-      });
-    }
   }
 
-  return groups;
+  return pairs;
 }
 
 /**

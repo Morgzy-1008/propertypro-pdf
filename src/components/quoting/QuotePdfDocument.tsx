@@ -18,6 +18,13 @@ interface QuotePdfDocumentProps {
   quote: FullQuote;
 }
 
+function formatInclusionTierTitle(tier: string): string {
+  if (tier.includes("H1")) return "H1 Smart Inclusions";
+  if (tier.includes("H2")) return "H2 Design Inclusions";
+  if (tier.includes("H3")) return "H3 Luxury Inclusions";
+  return tier;
+}
+
 export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const { client, design, siteConditions, lineItems, pricing } = quote;
 
@@ -118,7 +125,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 </div>
                 <div>
                   <span className="font-semibold text-slate-900">Inclusions: </span>
-                  <span className="font-bold text-cyan-800">{design.specTier}</span>
+                  <span className="font-bold text-cyan-800">{formatInclusionTierTitle(design.specTier)}</span>
                 </div>
               </div>
             </div>
@@ -201,7 +208,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 <tr className="font-semibold">
                   <td className="py-2.5 px-3">
                     {design.mode === "standard"
-                      ? `${design.designName} with ${design.specTier}`
+                      ? `${design.designName || "Select Design"} with ${formatInclusionTierTitle(design.specTier)}`
                       : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
                   </td>
                   <td className="py-2.5 px-3 text-right font-mono font-bold">
@@ -480,7 +487,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 STANDARD INCLUSIONS SPECIFICATION SCHEDULE
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
-                {design.specTier}
+                {formatInclusionTierTitle(design.specTier)}
               </h2>
             </div>
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">

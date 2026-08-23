@@ -10,9 +10,9 @@ import type {
   SiteConditions,
 } from "./quoteTypes";
 
-const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v7";
-const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v7";
-const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v7";
+const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v8";
+const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v8";
+const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v8";
 
 export function loadCatalogue(): CatalogueItem[] {
   if (typeof window === "undefined") return DEFAULT_CATALOGUE;
@@ -76,35 +76,31 @@ export function createNewBlankQuote(): FullQuote {
   const rates = loadCustomRates();
   const lineItems = convertCatalogueToLineItems(catalogue);
 
-  const initialModel = SINGLE_STOREY_PRICES.find((m) => m.name === "Mulberry 33") || SINGLE_STOREY_PRICES[0];
-  const plans = plansForDesign(initialModel.name);
-  const floorplanUrl = plans[0]?.url || "/floorplans/MULBERRY 33.png";
-
   const defaultDesign: QuoteDesignSelection = {
     mode: "standard",
     housingType: "Single Storey",
-    designName: initialModel.name,
-    designM2: initialModel.m2,
-    facadeName: "Classic Plus",
-    facadePrice: 4700,
+    designName: "",
+    designM2: 0,
+    facadeName: "",
+    facadePrice: 0,
     isCustomFacade: false,
     customFacadeDescription: "",
-    specTier: "H3 Inclusions (2025)",
-    basePrice: initialModel.h3 || 530900,
-    floorplanUrl,
-    beds: plans[0]?.beds || "4",
-    baths: plans[0]?.baths || "2.5",
-    cars: plans[0]?.cars || "2",
-    widthM: plans[0]?.width || "14.2m",
-    lengthM: plans[0]?.depth || "23.5m",
+    specTier: "H2 Design Inclusions",
+    basePrice: 0,
+    floorplanUrl: "",
+    beds: "",
+    baths: "",
+    cars: "",
+    widthM: "",
+    lengthM: "",
     promotionName: "Hudson Special Builder Promotion",
     promotionsDiscount: 0,
     customSpec: {
-      groundLivingM2: 185,
+      groundLivingM2: 0,
       firstLivingM2: 0,
-      garageM2: 38,
-      alfrescoM2: 18,
-      porchM2: 6,
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
       balconyM2: 0,
       storeys: "single",
       groundRateM2: rates.singleGroundLivingM2Rate,

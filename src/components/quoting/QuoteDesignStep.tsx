@@ -45,33 +45,30 @@ const HOUSING_TYPE_PRICES: Record<string, PriceRow[]> = {
   "Dual Living": DUAL_OC_PRICES,
 };
 
-// Inclusions order: H1 on LHS, H2 in Middle, H3 on RHS
-const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string; desc: string }[] = [
+// Clean titles for Inclusions without paragraph descriptions to save space
+export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[] = [
   {
-    id: "H1 Inclusions (2025)",
-    label: "H1 Standard Inclusions (2025)",
+    id: "H1 Smart Inclusions",
+    label: "H1 Smart Inclusions",
     tag: "Essential Value",
-    desc: "Quality turnkey inclusions with 2,440mm ceilings, Haier/Fisher & Paykel appliances, reverse cycle split system A/C, and floor tiles/carpet throughout.",
   },
   {
-    id: "H2 Inclusions (2025)",
-    label: "H2 Premium Inclusions (2025)",
+    id: "H2 Design Inclusions",
+    label: "H2 Design Inclusions",
     tag: "Most Popular",
-    desc: "Day/Night ducted air conditioning, 20mm stone benchtops throughout, 2,590mm high ceilings, and Fisher & Paykel 900mm luxury appliances.",
   },
   {
-    id: "H3 Inclusions (2025)",
-    label: "H3 Luxury Inclusions (2025)",
+    id: "H3 Luxury Inclusions",
+    label: "H3 Luxury Inclusions",
     tag: "Ultimate Luxury",
-    desc: "Fully zoned MyAir5 touchscreen ducted A/C, 40mm/20mm stone benchtops, 2,740mm high ceilings, Fisher & Paykel 900mm luxury appliances, and solar PV.",
   },
 ];
 
-const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
+// Exact facade lists and pricing from official Hudson Homes Price Lists (Single, Double, Split, Dual)
+export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
   "Single Storey": [
     { name: "Classic", uplift: 0 },
     { name: "Classic Plus", uplift: 4700 },
-    { name: "Traditional", uplift: 0 },
     { name: "Avoca", uplift: 7200 },
     { name: "Bayside", uplift: 7200 },
     { name: "Breeze", uplift: 7200 },
@@ -103,14 +100,15 @@ const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
     { name: "Merlot", uplift: 28400 },
     { name: "Modern Barn", uplift: 28400 },
     { name: "Modern Box", uplift: 28400 },
+    { name: "Modern Farmhouse Option B", uplift: 28400 },
     { name: "Nuvo", uplift: 28400 },
     { name: "Regal", uplift: 28400 },
     { name: "Veinna", uplift: 28400 },
     { name: "Vogue", uplift: 28400 },
     { name: "Vibe", uplift: 37700 },
     { name: "Visage", uplift: 37700 },
-    { name: "Modern Classical", uplift: 41900 },
-    { name: "Modern Farmhouse", uplift: 28400 },
+    { name: "Modern Classical Option A", uplift: 41900 },
+    { name: "Modern Classical Option B", uplift: 41900 },
   ],
   "Double Storey": [
     { name: "Classic", uplift: 0 },
@@ -148,7 +146,8 @@ const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
     { name: "Grande", uplift: 39000 },
     { name: "Royale", uplift: 39000 },
     { name: "Saville", uplift: 39000 },
-    { name: "Modern Farmhouse", uplift: 41900 },
+    { name: "Modern Farmhouse Option B", uplift: 41900 },
+    { name: "Mocha Hamptons (with Balcony)", uplift: 44400 },
     { name: "Modern Classical", uplift: 50900 },
     { name: "Ascot", uplift: 53400 },
     { name: "Centro", uplift: 53400 },
@@ -192,40 +191,39 @@ const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const models = HOUSING_TYPE_PRICES[design.housingType] || SINGLE_STOREY_PRICES;
-  const currentModel = models.find((m) => m.name === design.designName) || models[0];
+  const currentModel = models.find((m) => m.name === design.designName);
 
   const suitableFacades = HOUSING_FACADES[design.housingType] || HOUSING_FACADES["Single Storey"];
 
-  const getTierPrice = (model: PriceRow, tier: InclusionTier): number => {
-    if (tier === "H3 Inclusions (2025)") return model.h3 || model.hbs || 0;
-    if (tier === "H2 Inclusions (2025)") return model.h2 || model.hbs || 0;
-    if (tier === "H1 Inclusions (2025)") return model.h1 || model.hbs || 0;
+  const getTierPrice = (model: PriceRow | undefined, tier: InclusionTier): number => {
+    if (!model) return 0;
+    if (tier === "H3 Luxury Inclusions" || tier === "H3 Inclusions (2025)") {
+      return model.h3 || model.hbs || 0;
+    }
+    if (tier === "H2 Design Inclusions" || tier === "H2 Inclusions (2025)") {
+      return model.h2 || model.hbs || 0;
+    }
+    if (tier === "H1 Smart Inclusions" || tier === "H1 Inclusions (2025)") {
+      return model.h1 || model.hbs || 0;
+    }
     return model.hbs || 0;
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
-    const newModels = HOUSING_TYPE_PRICES[type] || SINGLE_STOREY_PRICES;
-    const first = newModels[0];
-    const plans = plansForDesign(first.name);
-    const floorplanUrl = plans[0]?.url || "";
-    const basePrice = getTierPrice(first, design.specTier);
-    const facadesForType = HOUSING_FACADES[type] || HOUSING_FACADES["Single Storey"];
-    const firstFacade = facadesForType[0];
-
     onChange({
       housingType: type,
-      designName: first.name,
-      designM2: first.m2,
-      basePrice,
-      facadeName: firstFacade.name,
-      facadePrice: firstFacade.uplift,
+      designName: "",
+      designM2: 0,
+      basePrice: 0,
+      facadeName: "",
+      facadePrice: 0,
       isCustomFacade: false,
-      floorplanUrl,
-      beds: plans[0]?.beds || "4",
-      baths: plans[0]?.baths || "2",
-      cars: plans[0]?.cars || "2",
-      widthM: plans[0]?.width || "14.0m",
-      lengthM: plans[0]?.depth || "22.0m",
+      floorplanUrl: "",
+      beds: "",
+      baths: "",
+      cars: "",
+      widthM: "",
+      lengthM: "",
     });
   };
 
@@ -236,11 +234,14 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const plans = plansForDesign(m.name);
     const floorplanUrl = plans[0]?.url || "";
     const basePrice = getTierPrice(m, design.specTier);
+    const defaultFacade = suitableFacades[0] || { name: "Classic", uplift: 0 };
 
     onChange({
       designName: m.name,
       designM2: m.m2,
       basePrice,
+      facadeName: design.facadeName || defaultFacade.name,
+      facadePrice: design.facadeName ? design.facadePrice : defaultFacade.uplift,
       floorplanUrl,
       beds: plans[0]?.beds || "4",
       baths: plans[0]?.baths || "2",
@@ -251,7 +252,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleTierChange = (tier: InclusionTier) => {
-    const basePrice = getTierPrice(currentModel, tier);
+    const basePrice = currentModel ? getTierPrice(currentModel, tier) : 0;
     onChange({ specTier: tier, basePrice });
   };
 
@@ -301,7 +302,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Choose a standard Hudson design with H1/H2/H3 inclusions, or calculate custom floorplan dimensions.
+            Select a Hudson home design and tailored inclusions, or calculate custom floorplan dimensions.
           </p>
         </div>
 
@@ -353,13 +354,16 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300">Home Design Model</Label>
               <Select
-                value={design.designName}
-                onValueChange={(v) => handleDesignModelChange(v)}
+                value={design.designName || "UNSELECTED"}
+                onValueChange={(v) => v !== "UNSELECTED" && handleDesignModelChange(v)}
               >
-                <SelectTrigger className="border-slate-800 bg-slate-950/70 text-xs text-slate-200">
-                  <SelectValue />
+                <SelectTrigger className={`border-slate-800 text-xs ${!design.designName ? "bg-slate-950/90 text-amber-400 border-amber-500/40 font-semibold" : "bg-slate-950/70 text-slate-200"}`}>
+                  <SelectValue placeholder="Select a Home Design..." />
                 </SelectTrigger>
                 <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                  <SelectItem value="UNSELECTED" disabled>
+                    -- Select a Home Design Model --
+                  </SelectItem>
                   {models.map((m) => (
                     <SelectItem key={m.name} value={m.name}>
                       {m.name} — {m.m2} m² ({formatAud(getTierPrice(m, design.specTier))})
@@ -373,13 +377,17 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               <Label className="text-xs text-slate-300">Total Floor Area</Label>
               <Input
                 readOnly
-                value={`${design.designM2} m² (${(design.designM2 * 0.107639).toFixed(1)} sq)`}
+                value={
+                  design.designM2 > 0
+                    ? `${design.designM2} m² (${(design.designM2 * 0.107639).toFixed(1)} sq)`
+                    : "— Select design model —"
+                }
                 className="border-slate-800 bg-slate-950/50 text-xs text-slate-400 cursor-not-allowed font-medium"
               />
             </div>
           </div>
 
-          {/* Inclusion Tier Range: FLIPPED ORDER -> H1 on LHS, H2 in Middle, H3 on RHS */}
+          {/* Inclusion Tier Range: Simplified Clean Titles */}
           <div className="space-y-2">
             <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
@@ -387,13 +395,17 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             </Label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {INCLUSION_TIERS.map((tier) => {
-                const isSelected = design.specTier === tier.id;
+                const isSelected =
+                  design.specTier === tier.id ||
+                  (tier.id === "H1 Smart Inclusions" && design.specTier === "H1 Inclusions (2025)") ||
+                  (tier.id === "H2 Design Inclusions" && design.specTier === "H2 Inclusions (2025)") ||
+                  (tier.id === "H3 Luxury Inclusions" && design.specTier === "H3 Inclusions (2025)");
                 const tierPrice = getTierPrice(currentModel, tier.id);
                 return (
                   <div
                     key={tier.id}
                     onClick={() => handleTierChange(tier.id)}
-                    className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                    className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                       isSelected
                         ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
                         : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
@@ -408,13 +420,10 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                       </div>
                       {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
-                      {tier.desc}
-                    </p>
-                    <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400">Base Price:</span>
+                    <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                      <span className="text-[10px] text-slate-400">Base House Price:</span>
                       <span className="font-bold text-emerald-400 font-mono">
-                        {formatAud(tierPrice)}
+                        {currentModel ? formatAud(tierPrice) : "—"}
                       </span>
                     </div>
                   </div>
@@ -433,14 +442,14 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   Architectural Facade ({design.housingType} Range)
                 </Label>
                 <span className="text-xs font-mono font-bold text-amber-400">
-                  {design.facadePrice === 0 ? "Standard Included" : `+${formatAud(design.facadePrice)}`}
+                  {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}
                 </span>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[11px] text-slate-400">Select Facade from Price List</Label>
+                <Label className="text-[11px] text-slate-400">Select Facade from Price List ({suitableFacades.length} available)</Label>
                 <Select
-                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName}
+                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
                   onValueChange={handleFacadeSelect}
                 >
                   <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
@@ -521,7 +530,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   <Input
                     value={design.promotionName || ""}
                     onChange={(e) => onChange({ promotionName: e.target.value })}
-                    placeholder="e.g. Hudson Super Savings Promotion"
+                    placeholder="e.g. Summer Gold Coast Builder Promotion"
                     className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100"
                   />
                 </div>
@@ -532,112 +541,49 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                     type="number"
                     value={design.promotionsDiscount || ""}
                     onChange={(e) => onChange({ promotionsDiscount: Number(e.target.value) || 0 })}
-                    placeholder="e.g. 10000"
+                    placeholder="0"
                     className="h-8.5 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
                   />
                 </div>
-                <span className="text-[11px] text-slate-400 block pt-0.5">
-                  This promotional discount will be itemized on its own distinct line in the Builders Estimate.
-                </span>
               </div>
-            </div>
-          </div>
-
-          {/* Floorplan Drawing Preview */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                <ImageIcon className="h-3.5 w-3.5 text-cyan-400" />
-                Selected Floorplan Drawing
-              </Label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleCustomFloorplanUpload}
-                  accept="image/*"
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
-                >
-                  <Upload className="h-3 w-3" /> Upload Custom / Cropped Plan
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4 flex flex-col items-center justify-center gap-4 min-h-[220px]">
-              {design.floorplanUrl ? (
-                <div className="flex flex-col items-center w-full">
-                  <img
-                    src={design.floorplanUrl}
-                    alt={design.designName}
-                    className="max-h-64 object-contain rounded border border-slate-800 bg-white p-3 shadow-md"
-                  />
-                  <div className="mt-3 text-center">
-                    <span className="text-xs font-bold text-slate-200">{design.designName} Floorplan</span>
-                    <span className="text-[10px] text-slate-400 block mt-0.5">
-                      {design.beds || 4} Bed · {design.baths || 2} Bath · {design.cars || 2} Car · Total Area: {design.designM2} m² ({(design.designM2 * 0.107639).toFixed(1)} sq)
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-slate-500 text-xs py-8">
-                  No floorplan graphic loaded. Click upload to attach custom plan drawing.
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* MODE 2: CUSTOM FLOORPLAN (M2 CALCULATOR) */}
+      {/* MODE 2: CUSTOM ARCHITECTURAL FLOORPLAN */}
       {design.mode === "custom_floorplan" && (
         <div className="space-y-6">
-          <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/10 p-4 text-xs text-cyan-300">
-            <span className="font-bold">Custom Floorplan Formula Engine:</span> Specify custom room and area dimensions in square metres (m²). Rates dynamically calculate based on single vs double storey engineering.
+          <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-800/40 text-xs text-cyan-200">
+            <strong>Custom Floorplan Calculator:</strong> Enter individual floor area dimensions below. The base price calculates automatically using the Hudson custom formula rates.
           </div>
 
-          <div className="flex items-center gap-4">
-            <Label className="text-xs text-slate-300">Storeys Configuration:</Label>
-            <div className="flex gap-2">
-              {[
-                { id: "single", label: "Single Storey" },
-                { id: "double", label: "Double Storey" },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => handleCustomSpecChange("storeys", s.id)}
-                  className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
-                    design.customSpec.storeys === s.id
-                      ? "border-cyan-500 bg-cyan-500/20 text-cyan-200"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-300">Storey Configuration</Label>
+              <Select
+                value={design.customSpec.storeys}
+                onValueChange={(v: any) => handleCustomSpecChange("storeys", v)}
+              >
+                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  <SelectItem value="single">Single Storey</SelectItem>
+                  <SelectItem value="double">Two Storey / Double</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          </div>
 
-          {/* Area Inputs Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300">Ground Living Area (m²)</Label>
               <Input
                 type="number"
-                step="0.1"
                 value={design.customSpec.groundLivingM2 || ""}
                 onChange={(e) => handleCustomSpecChange("groundLivingM2", Number(e.target.value))}
-                placeholder="150.0"
-                className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                placeholder="0"
+                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
               />
-              <span className="text-[10px] text-slate-400">
-                Rate: ${design.customSpec.groundRateM2}/m²
-              </span>
             </div>
 
             {design.customSpec.storeys === "double" && (
@@ -645,139 +591,75 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 <Label className="text-xs text-slate-300">First Floor Living Area (m²)</Label>
                 <Input
                   type="number"
-                  step="0.1"
                   value={design.customSpec.firstLivingM2 || ""}
                   onChange={(e) => handleCustomSpecChange("firstLivingM2", Number(e.target.value))}
-                  placeholder="95.0"
-                  className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                  placeholder="0"
+                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
                 />
-                <span className="text-[10px] text-slate-400">
-                  Rate: ${design.customSpec.upperRateM2}/m²
-                </span>
               </div>
             )}
+          </div>
 
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300">Garage Area (m²)</Label>
               <Input
                 type="number"
-                step="0.1"
                 value={design.customSpec.garageM2 || ""}
                 onChange={(e) => handleCustomSpecChange("garageM2", Number(e.target.value))}
-                placeholder="36.0"
-                className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                placeholder="0"
+                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
               />
-              <span className="text-[10px] text-slate-400">
-                Rate: ${design.customSpec.ancillaryRateM2}/m²
-              </span>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Under-Roof Alfresco (m²)</Label>
+              <Label className="text-xs text-slate-300">Alfresco Area (m²)</Label>
               <Input
                 type="number"
-                step="0.1"
                 value={design.customSpec.alfrescoM2 || ""}
                 onChange={(e) => handleCustomSpecChange("alfrescoM2", Number(e.target.value))}
-                placeholder="15.0"
-                className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                placeholder="0"
+                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
               />
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Entry Porch (m²)</Label>
+              <Label className="text-xs text-slate-300">Porch Area (m²)</Label>
               <Input
                 type="number"
-                step="0.1"
                 value={design.customSpec.porchM2 || ""}
                 onChange={(e) => handleCustomSpecChange("porchM2", Number(e.target.value))}
-                placeholder="4.5"
-                className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                placeholder="0"
+                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
               />
             </div>
 
             {design.customSpec.storeys === "double" && (
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Upper Balcony (m²)</Label>
+                <Label className="text-xs text-slate-300">Balcony Area (m²)</Label>
                 <Input
                   type="number"
-                  step="0.1"
                   value={design.customSpec.balconyM2 || ""}
                   onChange={(e) => handleCustomSpecChange("balconyM2", Number(e.target.value))}
-                  placeholder="8.0"
-                  className="border-slate-800 bg-slate-950/70 text-xs text-slate-100"
+                  placeholder="0"
+                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
                 />
               </div>
             )}
           </div>
 
-          {/* Summary Box */}
-          <div className="flex items-center justify-between p-4 rounded-xl border border-slate-800 bg-slate-950/80">
+          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
             <div>
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                Total Custom Floorplan Area:
+              <span className="text-xs text-slate-400 block">Total Calculated Area</span>
+              <span className="text-base font-bold text-slate-100 font-mono">
+                {calculateCustomTotalM2(design.customSpec)} m²
               </span>
-              <div className="text-base font-extrabold text-white">
-                {calculateCustomTotalM2(design.customSpec)} m²{" "}
-                <span className="text-xs text-slate-400 font-normal">
-                  ({(calculateCustomTotalM2(design.customSpec) * 0.107639).toFixed(1)} sq)
-                </span>
-              </div>
             </div>
-
             <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">
-                Calculated Custom Base Price:
+              <span className="text-xs text-slate-400 block">Calculated Custom Base Price</span>
+              <span className="text-lg font-bold text-emerald-400 font-mono">
+                {formatAud(design.basePrice)}
               </span>
-              <div className="text-lg font-extrabold text-cyan-400 font-mono">
-                {formatAud(calculateCustomFloorplanPrice(design.customSpec))}
-              </div>
-            </div>
-          </div>
-
-          {/* Custom Plan Uploader */}
-          <div className="space-y-2">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-              <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              Upload Custom Floorplan Drawing
-            </Label>
-            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-950/60 p-6 text-center space-y-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleCustomFloorplanUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              {design.floorplanUrl ? (
-                <div className="flex flex-col items-center">
-                  <img
-                    src={design.floorplanUrl}
-                    alt="Custom Plan"
-                    className="max-h-56 object-contain rounded border border-slate-800 bg-white p-3"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-2 text-xs text-cyan-400 hover:underline"
-                  >
-                    Replace Custom Drawing
-                  </button>
-                </div>
-              ) : (
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-slate-200 hover:bg-slate-800"
-                  >
-                    <Upload className="h-4 w-4 text-cyan-400" /> Choose Drawing File
-                  </button>
-                  <p className="text-[11px] text-slate-400 mt-2">
-                    Upload PNG, JPG or WebP floorplan drawing for the quotation document.
-                  </p>
-                </div>
-              )}
             </div>
           </div>
         </div>
