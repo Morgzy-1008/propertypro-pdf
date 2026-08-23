@@ -47,7 +47,7 @@ function ConsultantContactPage() {
 
   const cleanPhone = c.phone.replace(/[^\d+]/g, "");
 
-  const downloadVCard = () => {
+  const handleSaveContact = async () => {
     const vcard = consultantVCard({
       name: c.name,
       phone: c.phone,
@@ -56,6 +56,40 @@ function ConsultantContactPage() {
       website: "www.hudsonhomes.com.au",
     });
 
+    // 1. Try Web Share API with File (Native iOS / Android Contacts prompt)
+    try {
+      if (typeof navigator !== "undefined" && navigator.canShare) {
+        const file = new File([vcard], `${c.name.replace(/\s+/g, "_")}.vcf`, {
+          type: "text/vcard;charset=utf-8",
+        });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `${c.name} · Hudson Homes`,
+            text: `Contact details for ${c.name}, New Home Consultant at Hudson Homes`,
+          });
+          setDownloaded(true);
+          return;
+        }
+      }
+    } catch (e: any) {
+      if (e.name === "AbortError") return; // User cancelled share sheet
+    }
+
+    // 2. iOS / Android Direct Data URI navigation (opens Contacts app sheet directly)
+    const isIOS =
+      typeof navigator !== "undefined" &&
+      (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1));
+
+    if (isIOS) {
+      const base64Vcard = btoa(unescape(encodeURIComponent(vcard)));
+      window.location.href = `data:text/vcard;charset=utf-8;base64,${base64Vcard}`;
+      setDownloaded(true);
+      return;
+    }
+
+    // 3. Android / Universal Blob URL navigation and fallback
     const blob = new Blob([vcard], { type: "text/vcard;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -64,7 +98,7 @@ function ConsultantContactPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
     setDownloaded(true);
   };
 
@@ -100,14 +134,19 @@ function ConsultantContactPage() {
           </div>
 
           {/* Main Action: Add to Phone Contacts */}
-          <button
-            type="button"
-            onClick={downloadVCard}
-            className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2.5 transition-all transform active:scale-[0.98]"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span>{downloaded ? "✓ Contact File Saved" : "Save Contact to Phone"}</span>
-          </button>
+          <div className="space-y-1.5">
+            <button
+              type="button"
+              onClick={handleSaveContact}
+              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2.5 transition-all transform active:scale-[0.98]"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>{downloaded ? "✓ Adding to Phone Contacts..." : "Add to Phone Contacts"}</span>
+            </button>
+            <p className="text-[10px] text-slate-400">
+              Opens directly in your iPhone or Android Contacts app
+            </p>
+          </div>
 
           {/* Quick Action Grid */}
           <div className="grid grid-cols-3 gap-2.5 pt-2">
