@@ -93,6 +93,8 @@ export interface OtherSize {
 }
 
 export interface FlyerData {
+  id?: string;
+  packageId?: string;
   lotId: string;
   suburb: string;
   estate: string;

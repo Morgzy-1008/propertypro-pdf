@@ -1450,11 +1450,13 @@ function DatabasePage() {
                             onValueChange={(id) => {
                               const pkg = packages.find((item) => item.id === id);
                               if (!pkg) return;
-                              openInFlyer(
-                                pkg.flyer_data && typeof pkg.flyer_data === "object"
+                              openInFlyer({
+                                ...(pkg.flyer_data && typeof pkg.flyer_data === "object"
                                   ? (pkg.flyer_data as Record<string, unknown>)
-                                  : {},
-                              );
+                                  : {}),
+                                packageId: pkg.id,
+                                id: pkg.id,
+                              });
                             }}
                           >
                             <SelectTrigger className="h-8 w-[170px] border-slate-800 bg-slate-900/80 text-xs text-slate-200 hover:border-slate-700">
@@ -1625,6 +1627,8 @@ function DatabasePage() {
                                 ...(p.flyer_data && typeof p.flyer_data === "object"
                                   ? (p.flyer_data as Record<string, unknown>)
                                   : {}),
+                                packageId: p.id,
+                                id: p.id,
                               })
                             }
                           >

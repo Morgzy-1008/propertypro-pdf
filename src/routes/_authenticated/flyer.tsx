@@ -127,29 +127,40 @@ function Index() {
         }
       : data;
 
-    const { error } = await supabase.from("packages").insert({
-      lot_id: finalData.lotId || null,
-      name: `${finalData.designName || finalData.floorplanName} · ${finalData.estate}`,
-      housing_type: finalData.housingType,
-      design: finalData.designName || finalData.floorplanName,
-      range_id: finalData.range,
-      facade_id: finalData.facadeId || null,
-      facade_name: finalData.facadeName || null,
-      facade_url: finalData.facadeUrl || null,
-      house_price: parseAud(finalData.housePrice) || null,
-      land_price: parseAud(finalData.landPrice) || null,
-      total_price: parseAud(finalData.price) || null,
-      beds: finalData.beds,
-      baths: finalData.baths,
-      cars: finalData.cars,
-      floorplan_size: finalData.floorplanSize,
-      flyer_data: JSON.parse(JSON.stringify(finalData)),
-      created_by: auth.user.id,
-      updated_by: auth.user.id,
-    });
+    const { data: savedPkg, error } = await supabase
+      .from("packages")
+      .insert({
+        lot_id: finalData.lotId || null,
+        name: `${finalData.designName || finalData.floorplanName} · ${finalData.estate}`,
+        housing_type: finalData.housingType,
+        design: finalData.designName || finalData.floorplanName,
+        range_id: finalData.range,
+        facade_id: finalData.facadeId || null,
+        facade_name: finalData.facadeName || null,
+        facade_url: finalData.facadeUrl || null,
+        house_price: parseAud(finalData.housePrice) || null,
+        land_price: parseAud(finalData.landPrice) || null,
+        total_price: parseAud(finalData.price) || null,
+        beds: finalData.beds,
+        baths: finalData.baths,
+        cars: finalData.cars,
+        floorplan_size: finalData.floorplanSize,
+        flyer_data: JSON.parse(JSON.stringify(finalData)),
+        created_by: auth.user.id,
+        updated_by: auth.user.id,
+      })
+      .select("id")
+      .single();
+
     setSaving(false);
-    if (error) toast.error(error.message);
-    else toast.success("Package saved to the QLD database");
+    if (error) {
+      toast.error(error.message);
+    } else {
+      if (savedPkg?.id) {
+        setData((prev) => ({ ...prev, packageId: savedPkg.id, id: savedPkg.id }));
+      }
+      toast.success("Package saved to the QLD database");
+    }
   };
 
   const pages =

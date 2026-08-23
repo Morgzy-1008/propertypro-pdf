@@ -156,9 +156,12 @@ function ContactStrip({ d }: { d: FlyerData }) {
   const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
   const office = d.contactOffice || "Hudson Homes Queensland";
 
+  const targetPackageId = d.packageId || d.id;
   const packagesUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/browse/packages`
+      ? (targetPackageId
+          ? `${window.location.origin}/package/${targetPackageId}`
+          : `${window.location.origin}/browse/packages`)
       : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
 
   const vCardPayload = useMemo(
@@ -178,7 +181,7 @@ function ContactStrip({ d }: { d: FlyerData }) {
       {/* Left Side: Contact QR Code, NHC Name & Location, plus Phone & Email shifted left next to NHC name */}
       <div className="flex items-center gap-[3.5mm] min-w-0">
         <div className="flex items-center gap-[2.2mm] flex-none">
-          <QrCode value={vCardPayload} size={11.5} />
+          <QrCode value={vCardPayload} size={12.5} />
           <div className="flex flex-col justify-center min-w-0">
             <div className="text-[1.6mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
               SCAN TO SAVE CONTACT
@@ -207,14 +210,24 @@ function ContactStrip({ d }: { d: FlyerData }) {
         </div>
       </div>
 
-      {/* Right Side: Scan to View Other Packages QR */}
+      {/* Right Side: Scan to View Customer Package PDF Webpage */}
       <div className="flex flex-none items-center gap-[1.6mm] pl-[1mm]">
         <div className="text-right text-[1.6mm] font-semibold leading-[1.2] tracking-[0.1em] text-brand-cream/80 uppercase whitespace-nowrap">
-          SCAN TO VIEW
-          <br />
-          OTHER PACKAGES
+          {targetPackageId ? (
+            <>
+              SCAN TO VIEW
+              <br />
+              PACKAGE FLYER
+            </>
+          ) : (
+            <>
+              SCAN TO VIEW
+              <br />
+              OTHER PACKAGES
+            </>
+          )}
         </div>
-        <QrCode value={packagesUrl} size={11.5} />
+        <QrCode value={packagesUrl} size={12.5} />
       </div>
     </div>
   );

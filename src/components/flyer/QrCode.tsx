@@ -20,9 +20,9 @@ export function QrCode({ value, size = 14 }: { value: string; size?: number }) {
 
     let active = true;
     QRCode.toDataURL(value, {
-      margin: 0,
+      margin: 2,
       width: 512,
-      errorCorrectionLevel: "M",
+      errorCorrectionLevel: "L",
       color: { dark: "#000000", light: "#ffffff" },
     })
       .then((url) => {
@@ -41,9 +41,9 @@ export function QrCode({ value, size = 14 }: { value: string; size?: number }) {
   return (
     <img
       src={src}
-      alt="Scan to save contact details"
+      alt="QR Code"
       style={{ width: `${size}mm`, height: `${size}mm` }}
-      className="rounded-[0.8mm] bg-white p-[0.6mm]"
+      className="bg-white p-[0.3mm] shadow-xs"
     />
   );
 }
