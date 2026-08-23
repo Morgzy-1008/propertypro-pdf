@@ -187,18 +187,7 @@ export async function preframeFacadeImage(
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, outW, outH);
 
-    // 3. Draw blurred/expanded natural wings on left and right for seamless texture continuity
-    if (drawX > 0) {
-      // Left wing texture
-      ctx.save();
-      ctx.filter = "blur(18px)";
-      ctx.drawImage(img, 0, 0, Math.round(srcW * 0.35), srcH, 0, drawY, drawX + 40, drawH);
-      // Right wing texture
-      ctx.drawImage(img, Math.round(srcW * 0.65), 0, Math.round(srcW * 0.35), srcH, drawX + drawW - 40, drawY, outW - (drawX + drawW) + 40, drawH);
-      ctx.restore();
-    }
-
-    // 4. Draw the main sharp house photo centered
+    // 3. Draw the main sharp house photo centered with zero blur
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     return canvas.toDataURL("image/jpeg", 0.94);
   } catch (e) {
