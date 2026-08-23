@@ -156,19 +156,36 @@ function ContactStrip({ d }: { d: FlyerData }) {
       ? `${window.location.origin}/browse/packages`
       : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
 
+  const vCardPayload = consultantVCard({
+    name: d.contactName || "Morgan Hales",
+    phone: d.contactPhone || "0417 571 864",
+    email: d.contactEmail || "Morgan.hales@hudsonhomes.com.au",
+    office: d.contactOffice || "Hudson Homes Queensland",
+    website: "www.hudsonhomes.com.au",
+  });
+
   return (
-    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[5mm] px-[12mm] py-[2.4mm]">
-      <div className="min-w-0">
-        <div className="font-sans font-bold text-[3.8mm] leading-[1.1] text-brand-cream tracking-[0.02em]">
-          {d.contactName}
-        </div>
-        {d.contactOffice && (
-          <div className="mt-[0.5mm] truncate text-[2.4mm] text-brand-cream/70">
-            {d.contactOffice}
+    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[4mm] px-[8mm] py-[2.2mm]">
+      {/* Left Side: Contact QR Code directly to the left of NHC name */}
+      <div className="flex items-center gap-[2.5mm] min-w-0">
+        <QrCode value={vCardPayload} size={11.5} />
+        <div className="flex flex-col justify-center min-w-0">
+          <div className="text-[1.7mm] font-semibold leading-tight tracking-[0.12em] text-brand-gold uppercase">
+            SCAN TO SAVE CONTACT
           </div>
-        )}
+          <div className="font-sans font-bold text-[3.6mm] leading-[1.1] text-brand-cream tracking-[0.02em] mt-[0.3mm]">
+            {d.contactName}
+          </div>
+          {d.contactOffice && (
+            <div className="mt-[0.3mm] truncate text-[2.3mm] text-brand-cream/70">
+              {d.contactOffice}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex flex-none items-center gap-[4.5mm] text-[3.2mm] text-brand-cream/90">
+
+      {/* Middle: Phone & Email */}
+      <div className="flex flex-none items-center gap-[4mm] text-[3.1mm] text-brand-cream/90">
         <span className="flex items-center gap-[1.4mm]">
           <Phone className="h-[3.3mm] w-[3.3mm] text-brand-gold" strokeWidth={1.8} />
           {d.contactPhone}
@@ -178,8 +195,10 @@ function ContactStrip({ d }: { d: FlyerData }) {
           {d.contactEmail}
         </span>
       </div>
+
+      {/* Right Side: Scan to View Other Packages QR */}
       <div className="flex flex-none items-center gap-[1.8mm]">
-        <div className="text-right text-[1.8mm] font-semibold leading-[1.2] tracking-[0.12em] text-brand-cream/80 uppercase">
+        <div className="text-right text-[1.7mm] font-semibold leading-[1.2] tracking-[0.12em] text-brand-cream/80 uppercase">
           SCAN TO VIEW
           <br />
           OTHER PACKAGES
