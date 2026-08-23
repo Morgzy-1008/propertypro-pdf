@@ -279,8 +279,16 @@ export async function callGeminiOutpaint(
     return null;
   }
 
-  const cleanB64 = rawImageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
-  const mimeType = rawImageBase64.startsWith("data:image/png") ? "image/png" : "image/jpeg";
+  let srcData = rawImageBase64;
+  if (srcData.startsWith("http://") || srcData.startsWith("https://")) {
+    const fetchedB64 = await getRawFacadeBase64(srcData);
+    if (fetchedB64) {
+      srcData = fetchedB64;
+    }
+  }
+
+  const cleanB64 = srcData.replace(/^data:image\/[a-z]+;base64,/, "");
+  const mimeType = srcData.startsWith("data:image/png") ? "image/png" : "image/jpeg";
 
   const isDouble =
     housingType === "double-storey" ||
@@ -403,7 +411,7 @@ export async function prepareFacade(
     housingType === "Double";
 
   const normId = (facadeId || "").toLowerCase().trim();
-  if (!forceRefresh && normId && PRE_RENDERED_FACADES[normId] && !isDouble) {
+  if (!forceRefresh && normId && PRE_RENDERED_FACADES[normId]) {
     return PRE_RENDERED_FACADES[normId];
   }
 

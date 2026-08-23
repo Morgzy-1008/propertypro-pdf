@@ -395,11 +395,11 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
     const rawUrlToUse = item.originalUrl || item.url;
 
-    // 1. Check for pre-rendered local static catalogue FIRST
+    // 1. Check for pre-rendered local static catalogue FIRST for instant 0-second load
     if (!forceRefresh) {
       const normId = item.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId];
-      if (preRendered && !isDouble) {
+      if (preRendered) {
         set("facadeUrl", preRendered);
         setFacadeBusy(false);
         set("facadeBusy", false);

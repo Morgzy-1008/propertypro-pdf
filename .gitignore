@@ -38,6 +38,8 @@ dist-ssr
 # Test screenshots and scratch scripts
 *.png
 *.jpg
+!public/facades/*
+!public/assets/*
 scripts/test_*.cjs
 scripts/test_*.mjs
 scripts/check_*.cjs
