@@ -10,9 +10,9 @@ import type {
   SiteConditions,
 } from "./quoteTypes";
 
-const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v4";
-const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v4";
-const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v4";
+const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v5";
+const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v5";
+const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v5";
 
 export function loadCatalogue(): CatalogueItem[] {
   if (typeof window === "undefined") return DEFAULT_CATALOGUE;

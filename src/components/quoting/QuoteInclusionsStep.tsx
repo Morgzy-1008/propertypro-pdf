@@ -41,12 +41,14 @@ const CATEGORY_TABS: { id: CatalogueCategory | "all"; label: string }[] = [
   { id: "all", label: "All Items" },
   { id: "structural", label: "Structural" },
   { id: "doors_windows", label: "Doors & Windows" },
-  { id: "external", label: "External" },
+  { id: "external", label: "Floorplan & External" },
   { id: "internal_kitchen", label: "Kitchen" },
   { id: "internal_bathroom", label: "Bathroom" },
-  { id: "internal_bedrooms", label: "Bedrooms" },
+  { id: "internal_bedrooms", label: "Bedrooms & Storage" },
   { id: "internal_laundry", label: "Laundry" },
-  { id: "colour_upgrades", label: "Colour Upgrades" },
+  { id: "colour_upgrades", label: "Electrical, HVAC & Finishes" },
+  { id: "site_earthworks", label: "Site & Engineering Reports" },
+  { id: "council_statutory", label: "Council & Statutory" },
 ];
 
 export function QuoteInclusionsStep({ lineItems, onChange }: QuoteInclusionsStepProps) {
