@@ -165,19 +165,19 @@ function ContactStrip({ d }: { d: FlyerData }) {
   });
 
   return (
-    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[4mm] px-[8mm] py-[2.2mm]">
-      {/* Left Side: Contact QR Code directly to the left of NHC name */}
-      <div className="flex items-center gap-[2.5mm] min-w-0">
+    <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[3mm] px-[6mm] py-[2.2mm]">
+      {/* Left Side: Contact QR Code directly to the left of NHC name & Full Display Centre Location */}
+      <div className="flex items-center gap-[2.4mm] flex-1 min-w-0 pr-[2mm]">
         <QrCode value={vCardPayload} size={11.5} />
         <div className="flex flex-col justify-center min-w-0">
-          <div className="text-[1.7mm] font-semibold leading-tight tracking-[0.12em] text-brand-gold uppercase">
+          <div className="text-[1.6mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
             SCAN TO SAVE CONTACT
           </div>
-          <div className="font-sans font-bold text-[3.6mm] leading-[1.1] text-brand-cream tracking-[0.02em] mt-[0.3mm]">
+          <div className="font-sans font-bold text-[3.5mm] leading-[1.1] text-brand-cream tracking-[0.01em] mt-[0.3mm] whitespace-nowrap">
             {d.contactName}
           </div>
           {d.contactOffice && (
-            <div className="mt-[0.3mm] truncate text-[2.3mm] text-brand-cream/70">
+            <div className="mt-[0.3mm] text-[2.2mm] leading-[1.15] text-brand-cream/80 whitespace-nowrap font-normal">
               {d.contactOffice}
             </div>
           )}
@@ -185,20 +185,20 @@ function ContactStrip({ d }: { d: FlyerData }) {
       </div>
 
       {/* Middle: Phone & Email */}
-      <div className="flex flex-none items-center gap-[4mm] text-[3.1mm] text-brand-cream/90">
-        <span className="flex items-center gap-[1.4mm]">
-          <Phone className="h-[3.3mm] w-[3.3mm] text-brand-gold" strokeWidth={1.8} />
+      <div className="flex flex-none items-center gap-[3.5mm] text-[3.0mm] text-brand-cream/90">
+        <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+          <Phone className="h-[3.2mm] w-[3.2mm] text-brand-gold flex-none" strokeWidth={1.8} />
           {d.contactPhone}
         </span>
-        <span className="flex items-center gap-[1.4mm]">
-          <Mail className="h-[3.3mm] w-[3.3mm] text-brand-gold" strokeWidth={1.8} />
+        <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+          <Mail className="h-[3.2mm] w-[3.2mm] text-brand-gold flex-none" strokeWidth={1.8} />
           {d.contactEmail}
         </span>
       </div>
 
       {/* Right Side: Scan to View Other Packages QR */}
-      <div className="flex flex-none items-center gap-[1.8mm]">
-        <div className="text-right text-[1.7mm] font-semibold leading-[1.2] tracking-[0.12em] text-brand-cream/80 uppercase">
+      <div className="flex flex-none items-center gap-[1.6mm] pl-[1mm]">
+        <div className="text-right text-[1.6mm] font-semibold leading-[1.2] tracking-[0.1em] text-brand-cream/80 uppercase whitespace-nowrap">
           SCAN TO VIEW
           <br />
           OTHER PACKAGES
