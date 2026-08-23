@@ -251,7 +251,7 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
   }
 }
 
-function formatPublicPackage(p: any): PublicPackage {
+export function formatPublicPackage(p: any): PublicPackage {
   const f = (p.flyer_data ?? {}) as Record<string, unknown>;
   const lot = p.land_lots;
 

@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListingSheet, PrintBar, paginate } from "@/components/listing/ListingSheet";
 import { QrCode } from "@/components/flyer/QrCode";
-import { listPublicPackages, type PublicPackage } from "@/lib/public-listings.functions";
+import { listPublicPackages, formatPublicPackage, type PublicPackage } from "@/lib/public-listings.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import {
@@ -22,6 +23,7 @@ import {
   CheckCircle2,
   Sparkles,
   ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,8 +65,56 @@ type Block =
   | { kind: "pkg"; key: string; pkg: PublicPackage };
 
 function PackagesBrowse() {
-  const packages = Route.useLoaderData();
+  const initialPackages = Route.useLoaderData();
+  const [packages, setPackages] = useState<PublicPackage[]>(initialPackages || []);
+  const [loading, setLoading] = useState(false);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
+
+  const loadPackages = useCallback(async () => {
+    try {
+      // 1. Try serverless endpoint first
+      if (typeof window !== "undefined") {
+        try {
+          const res = await fetch("/api/public-packages");
+          if (res.ok) {
+            const json = await res.json();
+            if (json.packages && Array.isArray(json.packages) && json.packages.length > 0) {
+              setPackages(json.packages.map((p: any) => formatPublicPackage(p)));
+              return;
+            }
+          }
+        } catch {
+          /* Fall back */
+        }
+      }
+
+      // 2. Direct Supabase query matching database.tsx exactly
+      const [lotRes, pkgRes] = await Promise.all([
+        supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
+        supabase.from("packages").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      const lots = (lotRes.data ?? []) as any[];
+      const lotById = new Map(lots.map((l) => [l.id, l]));
+
+      const rawPkgs = (pkgRes.data ?? []) as any[];
+      if (rawPkgs.length > 0) {
+        const formatted = rawPkgs
+          .filter((p) => p.status !== "sold")
+          .map((p) => {
+            const lot = p.lot_id ? lotById.get(p.lot_id) : null;
+            return formatPublicPackage({ ...p, land_lots: lot });
+          });
+        setPackages(formatted);
+      }
+    } catch (e) {
+      console.error("[PackagesBrowse] Sync error:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadPackages();
+  }, [loadPackages]);
 
   const [viewMode, setViewMode] = useState<"grid" | "sheet">("grid");
   const [searchQuery, setSearchQuery] = useState("");
