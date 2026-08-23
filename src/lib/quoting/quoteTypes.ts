@@ -60,7 +60,16 @@ export interface CustomFloorplanSpec {
   customPlanUrl?: string;
 }
 
-export type SoilClass = "Class S" | "Class M" | "Class H1" | "Class H2" | "Class E" | "Class P";
+export type SoilClass =
+  | "Class S"
+  | "Class M"
+  | "Class H1"
+  | "Class H2"
+  | "Class E1"
+  | "Class E2"
+  | "Class E"
+  | "32 MPa Concrete (Acid Sulfate)"
+  | "Class P";
 
 export interface SiteConditions {
   soilClass: SoilClass;

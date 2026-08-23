@@ -70,8 +70,8 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
 }
 
 /**
- * Calculates soil cost rate per m2 of GFA
- * Class S: -$30, Class M: $0, Class H1: +$30, Class H2: +$60, Class E: +$100, Class P: +$150
+ * Calculates soil cost rate per m2 of GFA (Engineered Soil Classification Multiplier)
+ * Class S: -$30, Class M: $0, Class H1: +$30, Class H2: +$55, Class E1: +$80, Class E2: +$100, 32MPa: +$17, Class P: +$150
  */
 export function getSoilRatePerM2(soilClass: SoilClass): number {
   switch (soilClass) {
@@ -82,9 +82,14 @@ export function getSoilRatePerM2(soilClass: SoilClass): number {
     case "Class H1":
       return 30;
     case "Class H2":
-      return 60;
+      return 55;
+    case "Class E1":
+      return 80;
+    case "Class E2":
     case "Class E":
       return 100;
+    case "32 MPa Concrete (Acid Sulfate)":
+      return 17;
     case "Class P":
       return 150;
     default:

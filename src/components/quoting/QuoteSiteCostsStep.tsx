@@ -36,9 +36,9 @@ interface QuoteSiteCostsStepProps {
 const SOIL_CLASSES: { id: SoilClass; name: string; rate: number; desc: string }[] = [
   {
     id: "Class S",
-    name: "Class S — Slightly Reactive",
+    name: "Class S — Slightly Reactive Soil",
     rate: -30,
-    desc: "Sand / gravel ground with negligible movement. Saves $30/m² on slab platform.",
+    desc: "Sand / gravel ground with negligible movement (-$30/m² GFA credit on base slab).",
   },
   {
     id: "Class M",
@@ -54,21 +54,33 @@ const SOIL_CLASSES: { id: SoilClass; name: string; rate: number; desc: string }[
   },
   {
     id: "Class H2",
-    name: "Class H2 — Highly Reactive (Severe)",
-    rate: 60,
-    desc: "Heavy duty reinforcement and 300mm deepened perimeter beams (+$60/m² of GFA).",
+    name: "Class H2 — Highly Reactive (Severe Clay)",
+    rate: 55,
+    desc: "Heavy-duty slab reinforcement with 300mm deepened perimeter beams (+$55/m² of GFA).",
   },
   {
-    id: "Class E",
-    name: "Class E — Extremely Reactive Soil",
+    id: "Class E1",
+    name: "Class E1 — Extremely Reactive Soil",
+    rate: 80,
+    desc: "Engineered ultra-stiff foundation design for expansive reactive clay (+$80/m² of GFA).",
+  },
+  {
+    id: "Class E2",
+    name: "Class E2 — Extremely Reactive (Severe)",
     rate: 100,
-    desc: "Specialised geotechnical design for extreme reactive clay ground (+$100/m² of GFA).",
+    desc: "Maximum foundation stiffness with dense reinforcement cage (+$100/m² of GFA).",
+  },
+  {
+    id: "32 MPa Concrete (Acid Sulfate)",
+    name: "32 MPa Concrete (Acid Sulfate Soil RL < 5.0m)",
+    rate: 17,
+    desc: "High-density chemical-resistant 32 MPa concrete mix design for low-lying RL < 5.0m (+$17/m² of GFA).",
   },
   {
     id: "Class P",
-    name: "Class P — Problem / Fill / Mine Subsidence",
+    name: "Class P — Problem Soil / Uncontrolled Fill",
     rate: 150,
-    desc: "Uncontrolled fill or soft ground requiring bored concrete piers (+$150/m² of GFA).",
+    desc: "Soft ground or mine subsidence requiring bored concrete piers / screw piers (+$150/m² of GFA).",
   },
 ];
 
