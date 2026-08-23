@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListingSheet, PrintBar, paginate } from "@/components/listing/ListingSheet";
 import { QrCode } from "@/components/flyer/QrCode";
-import { listPublicPackages, formatPublicPackage, type PublicPackage } from "@/lib/public-listings.functions";
+import { listPublicPackages, formatPublicPackage, BASE_QLD_PACKAGES, type PublicPackage } from "@/lib/public-listings.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
@@ -66,12 +66,17 @@ type Block =
 
 function PackagesBrowse() {
   const initialPackages = Route.useLoaderData();
-  const [packages, setPackages] = useState<PublicPackage[]>(initialPackages || []);
+  const [packages, setPackages] = useState<PublicPackage[]>(
+    initialPackages && initialPackages.length > 0 ? initialPackages : BASE_QLD_PACKAGES
+  );
   const [loading, setLoading] = useState(false);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
   const loadPackages = useCallback(async () => {
     try {
+      const combinedMap = new Map<string, PublicPackage>();
+      BASE_QLD_PACKAGES.forEach((p) => combinedMap.set(p.id, p));
+
       // 1. Try serverless endpoint first
       if (typeof window !== "undefined") {
         try {
@@ -79,7 +84,11 @@ function PackagesBrowse() {
           if (res.ok) {
             const json = await res.json();
             if (json.packages && Array.isArray(json.packages) && json.packages.length > 0) {
-              setPackages(json.packages.map((p: any) => formatPublicPackage(p)));
+              json.packages.forEach((p: any) => {
+                const formatted = formatPublicPackage(p);
+                combinedMap.set(formatted.id, formatted);
+              });
+              setPackages(Array.from(combinedMap.values()));
               return;
             }
           }
@@ -99,14 +108,15 @@ function PackagesBrowse() {
 
       const rawPkgs = (pkgRes.data ?? []) as any[];
       if (rawPkgs.length > 0) {
-        const formatted = rawPkgs
+        rawPkgs
           .filter((p) => p.status !== "sold")
-          .map((p) => {
+          .forEach((p) => {
             const lot = p.lot_id ? lotById.get(p.lot_id) : null;
-            return formatPublicPackage({ ...p, land_lots: lot });
+            const formatted = formatPublicPackage({ ...p, land_lots: lot });
+            combinedMap.set(formatted.id, formatted);
           });
-        setPackages(formatted);
       }
+      setPackages(Array.from(combinedMap.values()));
     } catch (e) {
       console.error("[PackagesBrowse] Sync error:", e);
     }
