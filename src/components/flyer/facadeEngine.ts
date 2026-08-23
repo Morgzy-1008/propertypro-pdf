@@ -286,22 +286,25 @@ export async function callGeminiOutpaint(
     housingType === "Double";
 
   const prompt = isDouble
-    ? `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions for a DOUBLE STOREY house.
+    ? `Task: High-end architectural rendering outpaint, upscale, and hero framing for a DOUBLE STOREY house.
 
-Exact Dimensions & Aspect Ratio:
-- Canvas Aspect Ratio: Strictly 210:82 (210mm x 82mm widescreen flyer banner frame, exactly 2400 x 937 px).
-- Center the house horizontally within the 210:82 frame.
-- Resize and fit the facade render so that:
-  * Top Margin: Leave a consistent clearance (~6% of total height / 5mm) between the highest roof ridge/apex and the top canvas edge so the roof is 100% visible inside the frame.
-  * Bottom Placement: Ground the garage base and ground line in the lower third with clean driveway space below.
+Canvas & Framing Specifications:
+- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
+- House Scale & Position: The double-storey house must be LARGE, PROMINENT, and HEROIC, occupying ~85% of the total canvas height.
+- Roofline Clearance: Ensure the highest roof ridge/apex, gutters, and upper eaves are 100% visible inside the frame with a clean 4mm to 5mm margin between the roof and the top canvas edge.
+- Grounding: Ground the base of the garage and front porch in the lower third with 5mm to 6mm of clean driveway visible at the bottom.
+- Center the house horizontally.
 
-Architectural Integrity:
-- Preserve the exact architectural details, materials, roof tiles/Colorbond profile, brick mortar, timber stains, window frames, balcony railings, and geometry of the original house. Do not modify or hallucinate changes to the building.
+STRICT ARCHITECTURAL INTEGRITY (DO NOT MODIFY ROOF OR BUILDING STRUCTURE):
+- Preserve the exact architectural geometry, facade materials, roof shape, roof pitch, parapets, and structural design of the original house 100% faithfully.
+- DO NOT alter the roof structure, roof pitch, flat roof parapets, or roof ridges (for example, facades like Centro, Ascot, Deco, and Contemporary must preserve their exact authentic rooflines).
+- Do NOT modify brick mortar, timber battens, window frames, balcony glass, or garage doors.
 
-Environment & Seamless Outpainting (FULL WIDESCREEN EDGE-TO-EDGE):
-- Outpaint and seamlessly extend the left and right wings to fill the full 2400px width with matching residential surroundings: lush green manicured turf, garden beds with native shrubs/plants, gum trees, and authentic Colorbond or timber boundary fences.
-- Extend the clear blue sky overhead with minimal soft wispy clouds, matching the natural midday daylight of the original photo.
-- ZERO black bars, ZERO black boxes, ZERO empty borders, ZERO blur, zero sliced foliage. High-resolution 8K UHD architectural photography style with sharp textures.`
+Seamless Ultra-Realistic Outpainting:
+- Outpaint the entire background to create ONE SEAMLESS, ULTRA-REALISTIC architectural photograph across the full 2400px widescreen canvas.
+- Extend the left and right wings with authentic Australian residential surroundings: lush manicured turf, flowering native garden beds, gum trees, and matching Colorbond boundary fencing.
+- Seamlessly extend the clear blue sky overhead.
+- ZERO blur, ZERO blurred edges, ZERO visual artifacts, ZERO seams. Render every detail with razor-sharp 8K UHD architectural photography clarity.`
     : `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions.
 
 Exact Dimensions & Aspect Ratio:
@@ -339,7 +342,7 @@ Environment & Seamless Outpainting (FULL WIDESCREEN EDGE-TO-EDGE):
         ],
         generationConfig: {
           responseModalities: ["IMAGE"],
-          temperature: 0.2,
+          temperature: 0.1,
         },
       };
 

@@ -447,16 +447,20 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     if (facadeBusy) return;
     const facadeId = data.facadeId || "custom";
     const attempts = reRenderAttempts[facadeId] ?? 0;
-    // Removed MAX_RERENDERS restriction so the user can keep re-doing it if they don't like the AI result
 
-    // Find original facade item details
-    const matched = BUILT_IN_FACADES.find((f) => f.id === facadeId);
-    const facadeItem: FacadeItem = matched ?? {
+    // Find original raw facade item details from catalog
+    const matched =
+      HUDSON_FACADES.find((f) => f.id === facadeId) ||
+      BUILT_IN_FACADES.find((f) => f.id === facadeId);
+    const rawOriginalUrl = matched?.url || data.rawFacadeUrl || data.facadeUrl;
+
+    const facadeItem: FacadeItem = {
       id: facadeId,
-      name: data.facadeName || "Custom",
-      range: "Standard",
-      tags: [],
-      url: data.rawFacadeUrl || data.facadeUrl,
+      name: data.facadeName || matched?.name || "Custom",
+      range: matched?.range || "Standard",
+      tags: matched?.tags || [],
+      url: rawOriginalUrl,
+      originalUrl: rawOriginalUrl,
     };
 
     await selectFacade(facadeItem, true);
