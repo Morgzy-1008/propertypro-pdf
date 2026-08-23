@@ -109,7 +109,7 @@ export function findHouseBounds(
  * Pre-frames the house onto a widescreen 210mm x 82mm banner (2400 x 937 px):
  * - Single Storey: Hero proportion (2mm top gap, 5mm bottom gap) — 100% UNTOUCHED.
  * - Double Storey: Cleanly calibrated (6mm top gap, 8mm bottom gap, 68mm house height)
- *   so the roof apex is fully inside frame with zero cut-off and crisp, photorealistic AI outpainting.
+ *   with full background texture fill (ZERO black boxes or transparent voids).
  */
 export async function preframeFacadeImage(
   rawB64: string,
@@ -171,7 +171,34 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // Single draw operation directly onto canvas
+    // Fill background with realistic sky and lawn so there are ZERO black bars
+    // 1. Sample sky and lawn colors from source image
+    const sampleTopPixel = sCtx.getImageData(Math.round(srcW / 2), 4, 1, 1).data;
+    const topSky = `rgb(${sampleTopPixel[0]}, ${sampleTopPixel[1]}, ${sampleTopPixel[2]})`;
+
+    const sampleBtmPixel = sCtx.getImageData(Math.round(srcW / 2), srcH - 4, 1, 1).data;
+    const btmGround = `rgb(${sampleBtmPixel[0]}, ${sampleBtmPixel[1]}, ${sampleBtmPixel[2]})`;
+
+    // 2. Draw smooth natural sky & ground backdrop
+    const grad = ctx.createLinearGradient(0, 0, 0, outH);
+    grad.addColorStop(0, topSky);
+    grad.addColorStop(0.60, topSky);
+    grad.addColorStop(1, btmGround);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, outW, outH);
+
+    // 3. Draw blurred/expanded natural wings on left and right for seamless texture continuity
+    if (drawX > 0) {
+      // Left wing texture
+      ctx.save();
+      ctx.filter = "blur(18px)";
+      ctx.drawImage(img, 0, 0, Math.round(srcW * 0.35), srcH, 0, drawY, drawX + 40, drawH);
+      // Right wing texture
+      ctx.drawImage(img, Math.round(srcW * 0.65), 0, Math.round(srcW * 0.35), srcH, drawX + drawW - 40, drawY, outW - (drawX + drawW) + 40, drawH);
+      ctx.restore();
+    }
+
+    // 4. Draw the main sharp house photo centered
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     return canvas.toDataURL("image/jpeg", 0.94);
   } catch (e) {
@@ -252,27 +279,47 @@ export async function callGeminiOutpaint(
     return null;
   }
 
-  // 1. Pre-frame the isolated house building onto the canvas at exact calibrated scale
-  const preframeB64 = await preframeFacadeImage(rawImageBase64, housingType);
-  const cleanB64 = preframeB64.replace(/^data:image\/[a-z]+;base64,/, "");
-  const mimeType = preframeB64.startsWith("data:image/png") ? "image/png" : "image/jpeg";
+  const cleanB64 = rawImageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
+  const mimeType = rawImageBase64.startsWith("data:image/png") ? "image/png" : "image/jpeg";
 
-  const prompt = `Task: High-end architectural rendering outpaint, upscale, and ultra-realistic photograph enhancement.
+  const isDouble =
+    housingType === "double-storey" ||
+    housingType === "double" ||
+    housingType === "Double Storey" ||
+    housingType === "Double";
 
-Output Frame Dimensions:
-- Canvas Aspect Ratio: Strictly 210mm wide by 82mm high horizontal widescreen banner (2400 x 937 px).
+  const prompt = isDouble
+    ? `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions for a DOUBLE STOREY house.
 
-Strict House Sizing & Framing:
-- Total Frame Height: 82mm (937 px).
-- The house building is centered with the entire roofline and gutters visible within the frame.
-- Keep the house at this exact size with clean boundary clearance.
+Exact Dimensions & Aspect Ratio:
+- Canvas Aspect Ratio: Strictly 210:82 (210mm x 82mm widescreen flyer banner frame, exactly 2400 x 937 px).
+- Center the house horizontally within the 210:82 frame.
+- Resize and fit the facade render so that:
+  * Top Margin: Leave a consistent clearance (~6% of total height / 5mm) between the highest roof ridge/apex and the top canvas edge so the roof is 100% visible inside the frame.
+  * Bottom Placement: Ground the garage base and ground line in the lower third with clean driveway space below.
 
-ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
-- 100% Architectural Authenticity: All original materials, wall render micro-texture, dark siding cladding, brick pillar mortar joints, timber/charcoal garage door woodgrain, window mullions, and roof tiles must remain 100% FAITHFUL to the source house with ultra-crisp 8K detail.
-- Ultra-Realistic Landscaping: Lush manicured green grass with realistic micro-texture, authentic native Australian flowering shrubs, gum trees, and clean boundary Colorbond fencing.
-- Top Sky: Vibrant clear blue Australian sky with subtle wispy clouds.
-- Foreground: Natural aggregate concrete driveway connecting seamlessly to the garage door.
-- 100% seamless continuity across the entire 2400px width with zero blur or hard cut seams.`;
+Architectural Integrity:
+- Preserve the exact architectural details, materials, roof tiles/Colorbond profile, brick mortar, timber stains, window frames, balcony railings, and geometry of the original house. Do not modify or hallucinate changes to the building.
+
+Environment & Seamless Outpainting (FULL WIDESCREEN EDGE-TO-EDGE):
+- Outpaint and seamlessly extend the left and right wings to fill the full 2400px width with matching residential surroundings: lush green manicured turf, garden beds with native shrubs/plants, gum trees, and authentic Colorbond or timber boundary fences.
+- Extend the clear blue sky overhead with minimal soft wispy clouds, matching the natural midday daylight of the original photo.
+- ZERO black bars, ZERO black boxes, ZERO empty borders, ZERO blur, zero sliced foliage. High-resolution 8K UHD architectural photography style with sharp textures.`
+    : `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions.
+
+Exact Dimensions & Aspect Ratio:
+- Canvas Aspect Ratio: Strictly 210:82 (210mm x 82mm widescreen flyer banner frame, exactly 2400 x 937 px).
+- Center the house horizontally within the 210:82 frame.
+- Top Margin: Leave a narrow margin (~3mm) between the highest roof ridge and the top canvas edge.
+- Bottom Placement: Ground the garage base in the lower third with clean driveway space below.
+
+Architectural Integrity:
+- Preserve the exact architectural details, materials, roof tiles/Colorbond profile, brick mortar, timber stains, window frames, and geometry of the original house. Do not modify or hallucinate changes to the building.
+
+Environment & Seamless Outpainting (FULL WIDESCREEN EDGE-TO-EDGE):
+- Outpaint and seamlessly extend the left and right wings to fill the full 2400px width with matching residential surroundings: lush green manicured turf, garden beds with native shrubs/plants, gum trees, and authentic Colorbond boundary fences.
+- Extend the clear blue sky overhead with minimal soft wispy clouds.
+- ZERO black bars, ZERO black boxes, ZERO empty borders, ZERO blur. High-resolution 8K UHD architectural photography style.`;
 
   const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 
@@ -295,7 +342,7 @@ ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
         ],
         generationConfig: {
           responseModalities: ["IMAGE"],
-          temperature: 0.1,
+          temperature: 0.2,
         },
       };
 
@@ -324,7 +371,6 @@ ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
       if (candidate?.inlineData?.data) {
         const outMime = candidate.inlineData.mimeType || "image/jpeg";
         const rawAiUrl = `data:${outMime};base64,${candidate.inlineData.data}`;
-        // Apply crisp detail enhancement pass
         return await enhanceImageCrispness(rawAiUrl);
       }
     } catch (e) {
@@ -339,7 +385,7 @@ ULTRA-REALISTIC PHOTOREALISTIC QUALITY & MATERIAL FIDELITY:
  * Prepares facade:
  * 1. Checks pre-rendered catalogue.
  * 2. If Gemini AI key is available, calls Gemini AI Outpainting directly.
- * 3. Falls back to base render if API key is invalid/unavailable.
+ * 3. Falls back to pre-framed render with natural background wings if API key is invalid/unavailable.
  */
 export async function prepareFacade(
   dataUrl: string,
@@ -361,7 +407,7 @@ export async function prepareFacade(
     return PRE_RENDERED_FACADES[normId];
   }
 
-  const cacheKey = `${dataUrl}::v20_crystal_${isDouble ? "double_calibrated_68mm" : "single_hero"}`;
+  const cacheKey = `${dataUrl}::v22_edge_to_edge_${isDouble ? "double" : "single"}`;
   if (!forceRefresh) {
     const cached = facadeCache.get(cacheKey);
     if (cached) return cached;
@@ -370,7 +416,7 @@ export async function prepareFacade(
   const rawB64 = await getRawFacadeBase64(dataUrl, originalUrl, facadeId);
   const srcUrl = rawB64 || dataUrl;
 
-  // Trigger Gemini AI Outpaint
+  // Trigger Gemini AI Outpaint on raw source image
   try {
     const aiResult = await callGeminiOutpaint(srcUrl, housingType);
     if (aiResult && aiResult.startsWith("data:image/")) {
@@ -381,7 +427,7 @@ export async function prepareFacade(
     console.warn("[prepareFacade: Gemini AI outpaint failed, falling back]", err);
   }
 
-  // Clean fallback render with calibrated height
+  // Fallback: Generate pre-framed widescreen render with natural background fill (ZERO black boxes)
   try {
     const fallbackFramed = await preframeFacadeImage(srcUrl, housingType);
     facadeCache.set(cacheKey, fallbackFramed);
