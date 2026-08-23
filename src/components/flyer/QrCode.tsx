@@ -1,11 +1,23 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import QRCode from "qrcode";
+
+const qrCache = new Map<string, string>();
 
 /** Renders `value` as a crisp black-on-white QR code sized in millimetres. */
 export function QrCode({ value, size = 14 }: { value: string; size?: number }) {
-  const [src, setSrc] = useState("");
+  const [src, setSrc] = useState(() => qrCache.get(value) || "");
 
   useEffect(() => {
+    if (!value) {
+      setSrc("");
+      return;
+    }
+    const cached = qrCache.get(value);
+    if (cached) {
+      setSrc(cached);
+      return;
+    }
+
     let active = true;
     QRCode.toDataURL(value, {
       margin: 0,
@@ -13,7 +25,12 @@ export function QrCode({ value, size = 14 }: { value: string; size?: number }) {
       errorCorrectionLevel: "M",
       color: { dark: "#000000", light: "#ffffff" },
     })
-      .then((url) => active && setSrc(url))
+      .then((url) => {
+        if (active) {
+          qrCache.set(value, url);
+          setSrc(url);
+        }
+      })
       .catch(() => active && setSrc(""));
     return () => {
       active = false;

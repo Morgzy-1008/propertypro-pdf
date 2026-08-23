@@ -28,23 +28,36 @@ const RANGE_COLUMN: Record<RangeId, "h1" | "h2" | "h3"> = {
 const isAcreage = (row: PriceRow) => /^mulberry\b/i.test(row.name);
 
 const PRICE_LISTS: Record<HousingType, PriceRow[]> = {
-  "single-storey": SINGLE_STOREY_PRICES.filter((r) => !isAcreage(r)),
-  "double-storey": DOUBLE_STOREY_PRICES,
-  "split-level": SPLIT_LEVEL_PRICES,
-  "dual-oc": DUAL_OC_PRICES,
-  acreage: SINGLE_STOREY_PRICES.filter(isAcreage),
+  "single-storey": SINGLE_STOREY_PRICES.filter((r) => !isAcreage(r)).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  ),
+  "double-storey": [...DOUBLE_STOREY_PRICES].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  ),
+  "split-level": [...SPLIT_LEVEL_PRICES].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  ),
+  "dual-oc": [...DUAL_OC_PRICES].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  ),
+  acreage: SINGLE_STOREY_PRICES.filter(isAcreage).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true }),
+  ),
 };
 
+const ALL_DESIGNS_MAP = new Map<string, PriceRow>();
+for (const list of Object.values(PRICE_LISTS)) {
+  for (const row of list) {
+    ALL_DESIGNS_MAP.set(row.name, row);
+  }
+}
+
 export function designsFor(type: HousingType): PriceRow[] {
-  return [...(PRICE_LISTS[type] ?? [])].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { numeric: true }),
-  );
+  return PRICE_LISTS[type] ?? [];
 }
 
 export function findDesign(name: string): PriceRow | undefined {
-  return Object.values(PRICE_LISTS)
-    .flat()
-    .find((r) => r.name === name);
+  return ALL_DESIGNS_MAP.get(name);
 }
 
 /** Current promotion: every listed house price is reduced by $30,000. */

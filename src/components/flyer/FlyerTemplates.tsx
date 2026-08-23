@@ -151,49 +151,60 @@ function Spec({
 }
 
 function ContactStrip({ d }: { d: FlyerData }) {
+  const name = d.contactName || "Morgan Hales";
+  const phone = d.contactPhone || "0417 571 864";
+  const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
+  const office = d.contactOffice || "Hudson Homes Queensland";
+
   const packagesUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/browse/packages`
       : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
 
-  const vCardPayload = consultantVCard({
-    name: d.contactName || "Morgan Hales",
-    phone: d.contactPhone || "0417 571 864",
-    email: d.contactEmail || "Morgan.hales@hudsonhomes.com.au",
-    office: d.contactOffice || "Hudson Homes Queensland",
-    website: "www.hudsonhomes.com.au",
-  });
+  const vCardPayload = useMemo(
+    () =>
+      consultantVCard({
+        name,
+        phone,
+        email,
+        office,
+        website: "www.hudsonhomes.com.au",
+      }),
+    [name, phone, email, office],
+  );
 
   return (
     <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[3mm] px-[6mm] py-[2.2mm]">
-      {/* Left Side: Contact QR Code directly to the left of NHC name & Full Display Centre Location */}
-      <div className="flex items-center gap-[2.4mm] flex-1 min-w-0 pr-[2mm]">
-        <QrCode value={vCardPayload} size={11.5} />
-        <div className="flex flex-col justify-center min-w-0">
-          <div className="text-[1.6mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
-            SCAN TO SAVE CONTACT
-          </div>
-          <div className="font-sans font-bold text-[3.5mm] leading-[1.1] text-brand-cream tracking-[0.01em] mt-[0.3mm] whitespace-nowrap">
-            {d.contactName}
-          </div>
-          {d.contactOffice && (
-            <div className="mt-[0.3mm] text-[2.2mm] leading-[1.15] text-brand-cream/80 whitespace-nowrap font-normal">
-              {d.contactOffice}
+      {/* Left Side: Contact QR Code, NHC Name & Location, plus Phone & Email shifted left next to NHC name */}
+      <div className="flex items-center gap-[3.5mm] min-w-0">
+        <div className="flex items-center gap-[2.2mm] flex-none">
+          <QrCode value={vCardPayload} size={11.5} />
+          <div className="flex flex-col justify-center min-w-0">
+            <div className="text-[1.6mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
+              SCAN TO SAVE CONTACT
             </div>
-          )}
+            <div className="font-sans font-bold text-[3.4mm] leading-[1.1] text-brand-cream tracking-[0.01em] mt-[0.3mm] whitespace-nowrap">
+              {name}
+            </div>
+            {office && (
+              <div className="mt-[0.3mm] text-[2.1mm] leading-[1.15] text-brand-cream/80 whitespace-nowrap font-normal">
+                {office}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Middle: Phone & Email */}
-      <div className="flex flex-none items-center gap-[3.5mm] text-[3.0mm] text-brand-cream/90">
-        <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
-          <Phone className="h-[3.2mm] w-[3.2mm] text-brand-gold flex-none" strokeWidth={1.8} />
-          {d.contactPhone}
-        </span>
-        <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
-          <Mail className="h-[3.2mm] w-[3.2mm] text-brand-gold flex-none" strokeWidth={1.8} />
-          {d.contactEmail}
-        </span>
+        {/* NHC Mobile & Email shifted to the left right next to NHC name */}
+        <div className="flex flex-col justify-center gap-[0.7mm] text-[2.8mm] text-brand-cream/90 border-l border-white/20 pl-[3.5mm] flex-none">
+          <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+            <Phone className="h-[2.8mm] w-[2.8mm] text-brand-gold flex-none" strokeWidth={1.8} />
+            {phone}
+          </span>
+          <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+            <Mail className="h-[2.8mm] w-[2.8mm] text-brand-gold flex-none" strokeWidth={1.8} />
+            {email}
+          </span>
+        </div>
       </div>
 
       {/* Right Side: Scan to View Other Packages QR */}

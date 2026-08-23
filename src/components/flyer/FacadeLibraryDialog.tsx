@@ -183,18 +183,28 @@ export function FacadeLibrary({
     persist([...custom, ...added]);
   };
 
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const c of tabs) {
+      counts[c.id] =
+        c.id === "design"
+          ? eligible.filter((f) => f.range !== "Uploaded").length
+          : eligible.filter((f) => facadeBelongsToCategory(f, c.id)).length;
+    }
+    return counts;
+  }, [tabs, eligible]);
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="w-full border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white hover:border-slate-700 text-xs font-medium gap-2 shadow-sm transition-all"
           disabled={disabled}
+          className="border-brand-gold/40 bg-slate-900/90 text-slate-100 hover:border-brand-gold hover:bg-slate-850 hover:text-white text-xs gap-1.5 shadow-sm"
         >
           <Search className="h-3.5 w-3.5 text-brand-gold" />
-          {disabled ? "Select a design first" : `Browse facade library (${eligible.length})`}
+          Browse facade library ({eligible.length})
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
@@ -242,11 +252,7 @@ export function FacadeLibrary({
                     : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
-                {c.label} (
-                {c.id === "design"
-                  ? eligible.filter((f) => f.range !== "Uploaded").length
-                  : eligible.filter((f) => facadeBelongsToCategory(f, c.id)).length}
-                )
+                {c.label} ({tabCounts[c.id] ?? 0})
               </button>
             ))}
           </div>
