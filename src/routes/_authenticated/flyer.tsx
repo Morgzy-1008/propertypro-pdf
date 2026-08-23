@@ -135,6 +135,7 @@ function Index() {
         housing_type: finalData.housingType,
         design: finalData.designName || finalData.floorplanName,
         range_id: finalData.range,
+        status: "live",
         facade_id: finalData.facadeId || null,
         facade_name: finalData.facadeName || null,
         facade_url: finalData.facadeUrl || null,
