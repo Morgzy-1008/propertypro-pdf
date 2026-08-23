@@ -53,21 +53,25 @@ export function consultantVCard(c: {
   office?: string;
   website?: string;
 }) {
-  const [first, ...rest] = c.name.split(" ");
-  const last = rest.join(" ");
+  const parts = (c.name || "Morgan Hales").trim().split(/\s+/);
+  const first = parts[0] || "";
+  const last = parts.slice(1).join(" ") || "";
+  const cleanPhone = (c.phone || "").replace(/[^\d+]/g, "");
+  const website = c.website ? `https://${c.website.replace(/^https?:\/\//, "")}` : "https://www.hudsonhomes.com.au";
+
   return [
     "BEGIN:VCARD",
     "VERSION:3.0",
-    `N:${last};${first};;;`,
     `FN:${c.name}`,
+    `N:${last};${first};;;`,
     "ORG:Hudson Homes",
     "TITLE:New Home Consultant",
-    `TEL;TYPE=CELL:${c.phone.replace(/\s+/g, "")}`,
-    `EMAIL;TYPE=WORK:${c.email}`,
+    `TEL;TYPE=CELL,VOICE:${cleanPhone}`,
+    `EMAIL;TYPE=INTERNET,WORK:${c.email}`,
     c.office ? `NOTE:${c.office}` : "",
-    c.website ? `URL:https://${c.website.replace(/^https?:\/\//, "")}` : "",
+    `URL:${website}`,
     "END:VCARD",
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\r\n");
 }
