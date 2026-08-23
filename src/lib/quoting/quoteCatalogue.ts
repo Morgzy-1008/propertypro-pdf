@@ -25,6 +25,103 @@ export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   council_statutory: "Council & Statutory Requirements",
 };
 
+export interface DuplicateGroup {
+  primaryItem: CatalogueItem;
+  relatedItems: CatalogueItem[];
+  matchReason: string;
+}
+
+/**
+ * Automatically flags potential duplicate or overlapping items in the catalogue.
+ * Compares names, categories, and high-specificity keywords (e.g. Flood, Town Planning, Traffic, Cooktop, etc.).
+ */
+export function findPotentialDuplicates(items: CatalogueItem[]): DuplicateGroup[] {
+  const clean = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, " ")
+      .trim();
+
+  const STOP_WORDS = new Set([
+    "allowance", "provide", "standard", "upgrade", "storey", "single", "double",
+    "inclusions", "range", "with", "from", "level", "living", "area", "custom",
+    "floor", "plasterboard", "concrete", "steel", "doors", "windows", "internal",
+    "external", "additional", "house", "slab", "height", "timber", "framing",
+    "finish", "lining", "linings", "line", "report", "package", "system", "wall",
+    "ceiling", "ceilings", "ground", "first", "upper", "footprint", "under", "roof",
+    "roofline", "builder", "specification", "luxury", "tiles", "tiled", "ceramic",
+    "throughout", "structure", "engineered", "engineering", "architectural", "unit"
+  ]);
+
+  const groups: DuplicateGroup[] = [];
+  const processedPairs = new Set<string>();
+
+  for (let i = 0; i < items.length; i++) {
+    const a = items[i];
+    const wordsA = new Set(
+      clean(a.name)
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
+    );
+    const related: CatalogueItem[] = [];
+    let matchReason = "";
+
+    for (let j = 0; j < items.length; j++) {
+      if (i === j) continue;
+      const b = items[j];
+      const pairKey = [a.id, b.id].sort().join("::");
+
+      // Check 1: Exact / near exact name
+      if (clean(a.name) === clean(b.name)) {
+        if (!processedPairs.has(pairKey)) {
+          related.push(b);
+          matchReason = "Identical item name";
+          processedPairs.add(pairKey);
+        }
+        continue;
+      }
+
+      // Check 2: Same category keyword overlap with specific terms
+      if (a.category === b.category) {
+        const wordsB = clean(b.name)
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+        const commonWords = wordsB.filter((w) => wordsA.has(w));
+
+        const HIGH_SPECIFICITY_KEYWORDS = [
+          "flood", "traffic", "cooktop", "rangehood", "covenant", "demolition",
+          "acoustic", "bushfire", "elevator", "lodgement", "planner", "assessment",
+          "pedestrian", "asbestos", "rock", "breaker", "potholing", "cctv", "hstp",
+          "sewer", "survey", "pegs", "balcony", "alfresco", "theatre", "pool", "piering",
+          "sliding", "stacker", "security", "screen", "oven", "fridge", "cupboards",
+          "stone", "benchtop", "sink", "ensuite", "tiles", "robe", "shelving",
+          "3phase", "charger", "aircon", "solar", "battery", "epoxy", "render", "driveway", "turf"
+        ];
+
+        const matchedHighSpec = commonWords.filter((w) => HIGH_SPECIFICITY_KEYWORDS.includes(w));
+
+        if (commonWords.length >= 2 || matchedHighSpec.length >= 1) {
+          if (!processedPairs.has(pairKey)) {
+            related.push(b);
+            matchReason = `Related item sharing terms: "${commonWords.join(", ")}"`;
+            processedPairs.add(pairKey);
+          }
+        }
+      }
+    }
+
+    if (related.length > 0) {
+      groups.push({
+        primaryItem: a,
+        relatedItems: related,
+        matchReason,
+      });
+    }
+  }
+
+  return groups;
+}
+
 /**
  * Master Hudson Homes Price Catalogue
  * Pre-populated with professional, client-friendly construction descriptions and standard rates.
@@ -345,6 +442,33 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   // 2. COUNCIL & STATUTORY REQUIREMENTS
   // ==========================================
   {
+    id: "counc_town_planner_da_gccc",
+    category: "council_statutory",
+    name: "Town Planner Development Assessment Report (Gold Coast City Council)",
+    description: "Comprehensive Town Planner Development Assessment report including preparation, submission, and coordination of formal Request for Information (RFI) responses for Gold Coast City Council.",
+    unitType: "fixed",
+    unitRate: 10478,
+    isClientSelectable: true,
+  },
+  {
+    id: "counc_gccc_lodgement_fee",
+    category: "council_statutory",
+    name: "Council Lodgement Fee for Development Assessment (Gold Coast City Council)",
+    description: "Statutory municipal development assessment application lodgement and processing fee paid directly to Gold Coast City Council.",
+    unitType: "fixed",
+    unitRate: 11249,
+    isClientSelectable: true,
+  },
+  {
+    id: "counc_traffic_pedestrian_control",
+    category: "council_statutory",
+    name: "Traffic & Pedestrian Control Plan with Implementation",
+    description: "Provisional allowance for a certified Traffic and Pedestrian Control Plan, site set up, safety signage hire, and implementation during construction operations ($5,000 increments).",
+    unitType: "fixed",
+    unitRate: 5000,
+    isClientSelectable: true,
+  },
+  {
     id: "counc_da_app",
     category: "council_statutory",
     name: "Council Development Application (DA)",
@@ -438,6 +562,24 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   // ==========================================
   // 3. SITE SPECIFIC & ENGINEERING REPORTS
   // ==========================================
+  {
+    id: "site_flood_overlay_code_report",
+    category: "site_earthworks",
+    name: "Site Specific Flood Overlay Code Assessment Report",
+    description: "Comprehensive site-specific flood overlay code assessment and hydraulic engineering report to satisfy local government flood planning codes.",
+    unitType: "fixed",
+    unitRate: 7600,
+    isClientSelectable: true,
+  },
+  {
+    id: "site_flood_report",
+    category: "site_earthworks",
+    name: "Flood Hazard Overlay & Hydrology Engineering Report",
+    description: "Hydraulic flood modeling and technical engineering report to determine minimum habitable floor level (RL) above flood level.",
+    unitType: "fixed",
+    unitRate: 7000,
+    isClientSelectable: true,
+  },
   {
     id: "site_slab_h1",
     category: "site_earthworks",
@@ -670,15 +812,6 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     description: "Maximum noise attenuation package with decoupled wall assemblies, ultra-heavy acoustic glazing, and sound baffles.",
     unitType: "fixed",
     unitRate: 40000,
-    isClientSelectable: true,
-  },
-  {
-    id: "site_flood_report",
-    category: "site_earthworks",
-    name: "Flood Hazard Overlay & Hydrology Engineering Report",
-    description: "Hydraulic flood modeling and technical engineering report to determine minimum habitable floor level (RL) above flood level.",
-    unitType: "fixed",
-    unitRate: 7000,
     isClientSelectable: true,
   },
   {
@@ -950,6 +1083,24 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   // ==========================================
   // 5. INTERNAL - KITCHEN & APPLIANCES
   // ==========================================
+  {
+    id: "kit_fp_cooktop_600_electric",
+    category: "internal_kitchen",
+    name: "Fisher & Paykel 600mm Black Glass Electric Cooktop (CE604LBX2)",
+    description: "Fisher & Paykel 600mm 4-zone black ceramic glass electric cooktop (CE604LBX2) with touch controls and flat easy-clean surface.",
+    unitType: "fixed",
+    unitRate: 1263,
+    isClientSelectable: true,
+  },
+  {
+    id: "kit_fp_rangehood_600_slideout",
+    category: "internal_kitchen",
+    name: "Fisher & Paykel 600mm Slide-Out Rangehood (HS60LRX4)",
+    description: "Fisher & Paykel 600mm stainless steel slide-out rangehood (HS60LRX4) with dual multi-layer filters and ducted exhaust.",
+    unitType: "fixed",
+    unitRate: 713,
+    isClientSelectable: true,
+  },
   {
     id: "kit_900_appliances_h2",
     category: "internal_kitchen",

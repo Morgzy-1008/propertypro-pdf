@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Settings,
   Plus,
@@ -11,6 +11,10 @@ import {
   Search,
   Check,
   X,
+  AlertTriangle,
+  CheckCheck,
+  Eye,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +42,11 @@ import {
   saveCatalogue,
   saveCustomRates,
 } from "@/lib/quoting/quoteStorage";
-import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
+import {
+  CATEGORY_LABELS,
+  findPotentialDuplicates,
+  type DuplicateGroup,
+} from "@/lib/quoting/quoteCatalogue";
 import type { CatalogueCategory, CatalogueItem, UnitType } from "@/lib/quoting/quoteTypes";
 
 interface QuoteAdminCatalogueProps {
@@ -47,8 +55,9 @@ interface QuoteAdminCatalogueProps {
   onCatalogueUpdated: () => void;
 }
 
-const ADMIN_CATEGORIES: { id: CatalogueCategory | "all"; label: string }[] = [
+const ADMIN_CATEGORIES: { id: CatalogueCategory | "all" | "duplicates"; label: string }[] = [
   { id: "all", label: "All Items" },
+  { id: "duplicates", label: "⚠️ Duplicates & Overlaps" },
   { id: "structural", label: "Structural" },
   { id: "doors_windows", label: "Doors & Windows" },
   { id: "external", label: "Floorplan & External" },
@@ -68,8 +77,9 @@ export function QuoteAdminCatalogue({
 }: QuoteAdminCatalogueProps) {
   const [items, setItems] = useState<CatalogueItem[]>(() => loadCatalogue());
   const [customRates, setCustomRates] = useState(() => loadCustomRates());
-  const [activeCategory, setActiveCategory] = useState<CatalogueCategory | "all">("all");
+  const [activeCategory, setActiveCategory] = useState<CatalogueCategory | "all" | "duplicates">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dismissedDuplicates, setDismissedDuplicates] = useState<Set<string>>(new Set());
 
   // New item form
   const [newItemName, setNewItemName] = useState("");
@@ -80,6 +90,31 @@ export function QuoteAdminCatalogue({
 
   // Edit item modal state
   const [editingItem, setEditingItem] = useState<CatalogueItem | null>(null);
+
+  // Duplicate detection
+  const duplicateGroups = useMemo(() => findPotentialDuplicates(items), [items]);
+  const activeDuplicateItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    duplicateGroups.forEach((g) => {
+      if (!dismissedDuplicates.has(g.primaryItem.id)) {
+        ids.add(g.primaryItem.id);
+      }
+      g.relatedItems.forEach((r) => {
+        if (!dismissedDuplicates.has(r.id)) {
+          ids.add(r.id);
+        }
+      });
+    });
+    return ids;
+  }, [duplicateGroups, dismissedDuplicates]);
+
+  const duplicateMap = useMemo(() => {
+    const map = new Map<string, DuplicateGroup>();
+    duplicateGroups.forEach((g) => {
+      map.set(g.primaryItem.id, g);
+    });
+    return map;
+  }, [duplicateGroups]);
 
   const handleRateChange = (field: keyof typeof customRates, val: number) => {
     setCustomRates((prev) => ({ ...prev, [field]: val }));
@@ -98,11 +133,24 @@ export function QuoteAdminCatalogue({
     }
   };
 
+  const handleDismissDuplicate = (id: string) => {
+    setDismissedDuplicates((prev) => new Set(prev).add(id));
+    toast.success("Duplicate flag dismissed for this item");
+  };
+
   const handleAddNewItem = () => {
     if (!newItemName.trim()) {
       toast.error("Please enter an item name");
       return;
     }
+
+    // Check if new item matches an existing item
+    const clean = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, " ").trim();
+    const cleanNew = clean(newItemName);
+    const existingMatch = items.find(
+      (it) => clean(it.name) === cleanNew || it.name.toLowerCase().includes(cleanNew) || cleanNew.includes(clean(it.name)),
+    );
+
     const newItem: CatalogueItem = {
       id: `cat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       category: newItemCategory,
@@ -114,11 +162,17 @@ export function QuoteAdminCatalogue({
       isIncludedByDefault: false,
       isClientSelectable: true,
     };
+
     setItems((prev) => [newItem, ...prev]);
     setNewItemName("");
     setNewItemDesc("");
     setNewItemRate("");
-    toast.success(`"${newItem.name}" added to master catalogue`);
+
+    if (existingMatch) {
+      toast.warning(`Added "${newItem.name}". Notice: A similar item "${existingMatch.name}" ($${existingMatch.unitRate}) already exists in the catalogue.`);
+    } else {
+      toast.success(`"${newItem.name}" added to master catalogue`);
+    }
   };
 
   const handleSaveEditingItem = () => {
@@ -143,21 +197,27 @@ export function QuoteAdminCatalogue({
   };
 
   const handleResetDefaults = () => {
-    if (confirm("Reset to default catalogue items and rates? This will restore the full 80+ item Hudson Homes master list.")) {
+    if (confirm("Reset to default catalogue items and rates? This will restore the full Hudson Homes master list with all latest items.")) {
       const def = resetCatalogueToDefault();
       setItems(def);
+      setDismissedDuplicates(new Set());
       toast.success("Catalogue reset to default master templates");
       onCatalogueUpdated();
     }
   };
 
   const filtered = items.filter((it) => {
-    const matchesCat = activeCategory === "all" || it.category === activeCategory;
-    const matchesSearch =
-      !searchQuery.trim() ||
+    if (activeCategory === "duplicates") {
+      if (!activeDuplicateItemIds.has(it.id)) return false;
+    } else if (activeCategory !== "all") {
+      if (it.category !== activeCategory) return false;
+    }
+
+    if (!searchQuery.trim()) return true;
+    return (
       it.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      it.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
+      it.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
 
   return (
@@ -171,6 +231,15 @@ export function QuoteAdminCatalogue({
                 Admin Quoting Catalogue &amp; Rate Engine
               </DialogTitle>
               <div className="flex items-center gap-2 text-xs text-slate-400">
+                {activeDuplicateItemIds.size > 0 && (
+                  <button
+                    onClick={() => setActiveCategory("duplicates")}
+                    className="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-full text-xs font-bold hover:bg-amber-500/30 transition-colors animate-pulse"
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    {activeDuplicateItemIds.size} Potential Overlaps
+                  </button>
+                )}
                 <span className="bg-slate-900 border border-slate-800 px-3 py-1 rounded-full text-emerald-400 font-mono font-bold">
                   {items.length} Active Items
                 </span>
@@ -180,6 +249,26 @@ export function QuoteAdminCatalogue({
 
           {/* Scrollable Container */}
           <div className="flex-1 overflow-y-auto space-y-6 pr-2 pt-3">
+            {/* Duplicate Notice Banner */}
+            {activeDuplicateItemIds.size > 0 && activeCategory !== "duplicates" && (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-xs text-amber-200">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-none" />
+                  <span>
+                    <strong>Duplicate Flag:</strong> We detected {activeDuplicateItemIds.size} potential duplicate or overlapping items (e.g. Flood Reports, Development Assessment, Traffic Control, Cooktops).
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setActiveCategory("duplicates")}
+                  className="h-7 text-xs border-amber-500/50 bg-amber-900/40 text-amber-200 hover:bg-amber-800/60"
+                >
+                  Review Overlaps
+                </Button>
+              </div>
+            )}
+
             {/* Panel 1: Formula Rates for Custom Floorplans */}
             <div className="bg-slate-900/60 rounded-2xl border border-slate-800 p-5 space-y-3">
               <div className="flex items-center justify-between">
@@ -326,13 +415,22 @@ export function QuoteAdminCatalogue({
                     key={cat.id}
                     type="button"
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                    className={`px-3 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
                       activeCategory === cat.id
-                        ? "bg-emerald-500 text-slate-950 font-bold shadow"
-                        : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
+                        ? cat.id === "duplicates"
+                          ? "bg-amber-500 text-slate-950 font-bold shadow"
+                          : "bg-emerald-500 text-slate-950 font-bold shadow"
+                        : cat.id === "duplicates"
+                          ? "bg-amber-950/40 text-amber-300 border border-amber-800/50 hover:bg-amber-900/40"
+                          : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
                     }`}
                   >
                     {cat.label}
+                    {cat.id === "duplicates" && activeDuplicateItemIds.size > 0 && (
+                      <span className="bg-amber-400 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                        {activeDuplicateItemIds.size}
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -344,7 +442,7 @@ export function QuoteAdminCatalogue({
                   <Input
                     value={newItemName}
                     onChange={(e) => setNewItemName(e.target.value)}
-                    placeholder="e.g. 2,340mm Internal Hume Linear Doors"
+                    placeholder="e.g. Fisher & Paykel 600mm Ceramic Cooktop"
                     className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100"
                   />
                 </div>
@@ -417,66 +515,94 @@ export function QuoteAdminCatalogue({
               <div className="space-y-2 max-h-[42vh] overflow-y-auto pr-1">
                 {filtered.length === 0 ? (
                   <div className="text-center py-10 text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl bg-slate-950/40">
-                    No items match your search. Use the form above to add catalogue items.
+                    {activeCategory === "duplicates"
+                      ? "No duplicates or overlapping items found! All catalogue items are unique."
+                      : "No items match your search. Use the form above to add catalogue items."}
                   </div>
                 ) : (
-                  filtered.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-800 bg-slate-950/70 text-xs hover:border-slate-700 transition-colors group"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-slate-200 text-xs">{item.name}</span>
+                  filtered.map((item) => {
+                    const isDuplicate = activeDuplicateItemIds.has(item.id);
+                    const dupInfo = duplicateMap.get(item.id);
+
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-xl border text-xs transition-colors group ${
+                          isDuplicate
+                            ? "border-amber-500/40 bg-amber-950/20 hover:border-amber-500/60"
+                            : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-slate-200 text-xs">{item.name}</span>
+                            {isDuplicate && (
+                              <span className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-600/50 font-bold">
+                                <AlertTriangle className="h-3 w-3" /> Potential Match
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setEditingItem({ ...item })}
+                              className="text-slate-500 hover:text-cyan-400 p-1 rounded hover:bg-slate-900 transition-colors opacity-80 group-hover:opacity-100"
+                              title="Edit wording, description or category"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
+                            {item.description}
+                          </div>
+                          {isDuplicate && dupInfo && (
+                            <div className="text-[10px] text-amber-400/90 mt-1 flex items-center gap-1.5">
+                              <Info className="h-3 w-3" />
+                              <span>{dupInfo.matchReason}</span>
+                              <button
+                                onClick={() => handleDismissDuplicate(item.id)}
+                                className="underline ml-2 hover:text-amber-200"
+                              >
+                                Keep &amp; dismiss flag
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2.5 flex-none self-end sm:self-center">
+                          <span className="text-[10px] uppercase font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                            {CATEGORY_LABELS[item.category] || item.category}
+                          </span>
+                          <span className="text-[10px] uppercase text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 font-mono">
+                            {item.unitType.replace(/_/g, " ")}
+                          </span>
+                          <div className="w-24">
+                            <Input
+                              type="number"
+                              value={item.unitRate}
+                              onChange={(e) => handleItemRateChange(item.id, Number(e.target.value))}
+                              placeholder="0"
+                              className="h-8 text-xs text-right border-slate-800 bg-slate-900 text-emerald-400 font-bold"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => setEditingItem({ ...item })}
-                            className="text-slate-500 hover:text-cyan-400 p-1 rounded hover:bg-slate-900 transition-colors opacity-80 group-hover:opacity-100"
-                            title="Edit wording, description or category"
+                            className="text-slate-400 hover:text-cyan-300 p-1.5 rounded hover:bg-cyan-950/30 transition-colors"
+                            title="Edit complete details & wording"
                           >
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteItem(item.id)}
+                            className="text-slate-400 hover:text-rose-400 p-1.5 rounded hover:bg-rose-950/30 transition-colors"
+                            title="Delete item"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
-                        <div className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                          {item.description}
-                        </div>
                       </div>
-
-                      <div className="flex items-center gap-2.5 flex-none">
-                        <span className="text-[10px] uppercase font-mono text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
-                          {CATEGORY_LABELS[item.category] || item.category}
-                        </span>
-                        <span className="text-[10px] uppercase text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/40 font-mono">
-                          {item.unitType.replace(/_/g, " ")}
-                        </span>
-                        <div className="w-24">
-                          <Input
-                            type="number"
-                            value={item.unitRate}
-                            onChange={(e) => handleItemRateChange(item.id, Number(e.target.value))}
-                            placeholder="0"
-                            className="h-8 text-xs text-right border-slate-800 bg-slate-900 text-emerald-400 font-bold"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setEditingItem({ ...item })}
-                          className="text-slate-400 hover:text-cyan-300 p-1.5 rounded hover:bg-cyan-950/30 transition-colors"
-                          title="Edit complete details"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteItem(item.id)}
-                          className="text-slate-400 hover:text-rose-400 p-1.5 rounded hover:bg-rose-950/30 transition-colors"
-                          title="Delete item"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
