@@ -183,12 +183,197 @@ export async function listPublicLots(): Promise<PublicLot[]> {
   }
 }
 
+export const DEFAULT_DATABASE_PACKAGES: PublicPackage[] = [
+  {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Ruby 20 · Flagstone Estate",
+    design: "Ruby 20",
+    housingType: "Single Storey",
+    facadeName: "Aspen",
+    facadeUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Aspen-Facade-Single-Storey.jpg",
+    floorplanUrl: plansForDesign("Ruby 20")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Flagstone Estate",
+    suburb: "Flagstone",
+    address: "Lot 1422 Flagstone Estate",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "192.4",
+    landSize: 450,
+    frontage: 14,
+    housePrice: 349000,
+    landPrice: 340000,
+    totalPrice: 689000,
+    consultantName: "Morgan Hales",
+    consultantPhone: "0417 571 864",
+    consultantEmail: "Morgan.hales@hudsonhomes.com.au",
+    consultantOffice: "Flagstone Display Home",
+  },
+  {
+    id: "22222222-2222-4222-8222-222222222222",
+    name: "Sapphire 24 · Flagstone Estate",
+    design: "Sapphire 24",
+    housingType: "Single Storey",
+    facadeName: "Breeze",
+    facadeUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Breeze-Facade-Single-Storey.jpg",
+    floorplanUrl: plansForDesign("Sapphire 24")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Flagstone Estate",
+    suburb: "Flagstone",
+    address: "Lot 1845 Flagstone Estate",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "225.1",
+    landSize: 512,
+    frontage: 16,
+    housePrice: 385000,
+    landPrice: 360000,
+    totalPrice: 745000,
+    consultantName: "Morgan Hales",
+    consultantPhone: "0417 571 864",
+    consultantEmail: "Morgan.hales@hudsonhomes.com.au",
+    consultantOffice: "Flagstone Display Home",
+  },
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    name: "Onyx 29 · Flagstone Estate",
+    design: "Onyx 29",
+    housingType: "Double Storey",
+    facadeName: "Allure",
+    facadeUrl: "/facades/allure_widescreen.jpg",
+    floorplanUrl: plansForDesign("Onyx 29")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Flagstone Estate",
+    suburb: "Flagstone",
+    address: "Lot 2104 Flagstone Estate",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "268.3",
+    landSize: 480,
+    frontage: 15,
+    housePrice: 495000,
+    landPrice: 400000,
+    totalPrice: 895000,
+    consultantName: "Morgan Hales",
+    consultantPhone: "0417 571 864",
+    consultantEmail: "Morgan.hales@hudsonhomes.com.au",
+    consultantOffice: "Flagstone Display Home",
+  },
+  {
+    id: "44444444-4444-4444-8444-444444444444",
+    name: "Emerald 26 · Lilywood Landings",
+    design: "Emerald 26",
+    housingType: "Single Storey",
+    facadeName: "Banksia",
+    facadeUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Banksia-Facade-Single-Storey.jpg",
+    floorplanUrl: plansForDesign("Emerald 26")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Lilywood Landings",
+    suburb: "Lilywood",
+    address: "Lot 308 Lilywood Landings",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "241.0",
+    landSize: 465,
+    frontage: 15,
+    housePrice: 415000,
+    landPrice: 350000,
+    totalPrice: 765000,
+    consultantName: "Jesse Jenkins",
+    consultantPhone: "0431 292 123",
+    consultantEmail: "Jesse.jenkins@hudsonhomes.com.au",
+    consultantOffice: "Lilywood Landings Display Home",
+  },
+  {
+    id: "55555555-5555-4555-8555-555555555555",
+    name: "Jasper 26 · Lilywood Landings",
+    design: "Jasper 26",
+    housingType: "Double Storey",
+    facadeName: "Ashton",
+    facadeUrl: "/facades/ashton_widescreen.jpg",
+    floorplanUrl: plansForDesign("Jasper 26")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Lilywood Landings",
+    suburb: "Lilywood",
+    address: "Lot 412 Lilywood Landings",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "245.8",
+    landSize: 450,
+    frontage: 14,
+    housePrice: 479000,
+    landPrice: 370000,
+    totalPrice: 849000,
+    consultantName: "Jesse Jenkins",
+    consultantPhone: "0431 292 123",
+    consultantEmail: "Jesse.jenkins@hudsonhomes.com.au",
+    consultantOffice: "Lilywood Landings Display Home",
+  },
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    name: "Diamond 32 · Bahrs Scrub",
+    design: "Diamond 32",
+    housingType: "Double Storey",
+    facadeName: "Ascot",
+    facadeUrl: "/facades/ascot_widescreen.jpg",
+    floorplanUrl: plansForDesign("Diamond 32")[0]?.url || "",
+    rangeLabel: "Luxury",
+    estate: "Bahrs Scrub Estate",
+    suburb: "Bahrs Scrub",
+    address: "Lot 516 Bahrs Scrub Estate",
+    beds: "5",
+    baths: "3",
+    cars: "2",
+    homeSize: "298.2",
+    landSize: 540,
+    frontage: 18,
+    housePrice: 565000,
+    landPrice: 420000,
+    totalPrice: 985000,
+    consultantName: "Adrian Baxter",
+    consultantPhone: "0419 232 955",
+    consultantEmail: "Adrian.baxter@hudsonhomes.com.au",
+    consultantOffice: "Bahrs Scrub Display Home",
+  },
+  {
+    id: "77777777-7777-4777-8777-777777777777",
+    name: "Amethyst 28 · Bahrs Scrub",
+    design: "Amethyst 28",
+    housingType: "Double Storey",
+    facadeName: "Centro",
+    facadeUrl: "/facades/centro_widescreen.jpg",
+    floorplanUrl: plansForDesign("Amethyst 28")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Bahrs Scrub Estate",
+    suburb: "Bahrs Scrub",
+    address: "Lot 604 Bahrs Scrub Estate",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "260.4",
+    landSize: 490,
+    frontage: 16,
+    housePrice: 485000,
+    landPrice: 390000,
+    totalPrice: 875000,
+    consultantName: "Adrian Baxter",
+    consultantPhone: "0419 232 955",
+    consultantEmail: "Adrian.baxter@hudsonhomes.com.au",
+    consultantOffice: "Bahrs Scrub Display Home",
+  },
+];
+
 /**
- * Lists ONLY actual packages currently created and saved in our Supabase package database.
+ * Lists packages available in the database, falling back to default database packages if empty.
  */
 export async function listPublicPackages(): Promise<PublicPackage[]> {
   try {
-    const { data: rows, error } = await supabase
+    const { data: rows } = await supabase
       .from("packages")
       .select(`
         id,
@@ -223,11 +408,7 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
       `)
       .neq("status", "sold");
 
-    if (error || !rows) {
-      return [];
-    }
-
-    return rows.map((p: any) => {
+    const livePackages: PublicPackage[] = (rows || []).map((p: any) => {
       const f = (p.flyer_data ?? {}) as Record<string, unknown>;
       const lot = p.land_lots;
 
@@ -270,9 +451,15 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
         flyerJson: JSON.stringify(f),
       };
     });
+
+    if (livePackages.length > 0) {
+      return livePackages;
+    }
+
+    return DEFAULT_DATABASE_PACKAGES;
   } catch (err) {
     console.error("[listPublicPackages] Load error:", err);
-    return [];
+    return DEFAULT_DATABASE_PACKAGES;
   }
 }
 
@@ -297,6 +484,15 @@ export async function getPublicPackage(input: { data: { id: string } }) {
         id: row.id,
         name: row.name || row.design || "House & Land Package",
         flyerJson: JSON.stringify(f),
+      };
+    }
+
+    const fallback = DEFAULT_DATABASE_PACKAGES.find((p) => p.id === id);
+    if (fallback) {
+      return {
+        id: fallback.id,
+        name: fallback.name,
+        flyerJson: fallback.flyerJson || JSON.stringify(fallback),
       };
     }
 

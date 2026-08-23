@@ -20,6 +20,7 @@ import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hu
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
+import { Route as CIdRouteImport } from './routes/c/$id'
 import { Route as PackageIdRouteImport } from './routes/package/$id'
 import { Route as QuoteIdRouteImport } from './routes/quote/$id'
 
@@ -78,6 +79,11 @@ const BrowsePackagesRoute = BrowsePackagesRouteImport.update({
   path: '/browse/packages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CIdRoute = CIdRouteImport.update({
+  id: '/c/$id',
+  path: '/c/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PackageIdRoute = PackageIdRouteImport.update({
   id: '/package/$id',
   path: '/package/$id',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
+  '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
 }
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
+  '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
 }
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
+  '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
 }
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/quote-builder'
     | '/browse/land'
     | '/browse/packages'
+    | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/quote-builder'
     | '/browse/land'
     | '/browse/packages'
+    | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
   id:
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_authenticated/quote-builder'
     | '/browse/land'
     | '/browse/packages'
+    | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
   fileRoutesById: FileRoutesById
@@ -187,6 +199,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   BrowseLandRoute: typeof BrowseLandRoute
   BrowsePackagesRoute: typeof BrowsePackagesRoute
+  CIdRoute: typeof CIdRoute
   PackageIdRoute: typeof PackageIdRoute
   QuoteIdRoute: typeof QuoteIdRoute
 }
@@ -270,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BrowsePackagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$id': {
+      id: '/c/$id'
+      path: '/c/$id'
+      fullPath: '/c/$id'
+      preLoaderRoute: typeof CIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/package/$id': {
       id: '/package/$id'
       path: '/package/$id'
@@ -312,6 +332,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   BrowseLandRoute: BrowseLandRoute,
   BrowsePackagesRoute: BrowsePackagesRoute,
+  CIdRoute: CIdRoute,
   PackageIdRoute: PackageIdRoute,
   QuoteIdRoute: QuoteIdRoute,
 }

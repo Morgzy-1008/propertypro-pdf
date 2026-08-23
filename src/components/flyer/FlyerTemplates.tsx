@@ -164,24 +164,22 @@ function ContactStrip({ d }: { d: FlyerData }) {
           : `${window.location.origin}/browse/packages`)
       : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
 
-  const vCardPayload = useMemo(
-    () =>
-      consultantVCard({
-        name,
-        phone,
-        email,
-        office,
-        website: "www.hudsonhomes.com.au",
-      }),
-    [name, phone, email, office],
-  );
+  const consultantSlug =
+    d.consultantId ||
+    name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") ||
+    "morgan-hales";
+
+  const contactUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/c/${consultantSlug}`
+      : `https://www.hudsonhomeshouselandflyer.dev/c/${consultantSlug}`;
 
   return (
     <div className="navy-panel absolute inset-x-0 bottom-0 flex items-center justify-between gap-[3mm] px-[6mm] py-[2.2mm]">
       {/* Left Side: Contact QR Code, NHC Name & Location, plus Phone & Email shifted left next to NHC name */}
       <div className="flex items-center gap-[3.5mm] min-w-0">
         <div className="flex items-center gap-[2.2mm] flex-none">
-          <QrCode value={vCardPayload} size={12.5} />
+          <QrCode value={contactUrl} size={12.5} />
           <div className="flex flex-col justify-center min-w-0">
             <div className="text-[1.6mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
               SCAN TO SAVE CONTACT
