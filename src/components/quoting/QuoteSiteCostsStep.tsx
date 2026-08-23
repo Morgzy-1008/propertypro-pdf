@@ -71,12 +71,6 @@ const SOIL_CLASSES: { id: SoilClass; name: string; rate: number; desc: string }[
     desc: "Maximum foundation stiffness with dense reinforcement cage (+$100/m² of GFA).",
   },
   {
-    id: "32 MPa Concrete (Acid Sulfate)",
-    name: "32 MPa Concrete (Acid Sulfate Soil RL < 5.0m)",
-    rate: 17,
-    desc: "High-density chemical-resistant 32 MPa concrete mix design for low-lying RL < 5.0m (+$17/m² of GFA).",
-  },
-  {
     id: "Class P",
     name: "Class P — Problem Soil / Uncontrolled Fill",
     rate: 150,

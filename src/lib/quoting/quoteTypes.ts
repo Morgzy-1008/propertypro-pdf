@@ -68,7 +68,6 @@ export type SoilClass =
   | "Class E1"
   | "Class E2"
   | "Class E"
-  | "32 MPa Concrete (Acid Sulfate)"
   | "Class P";
 
 export interface SiteConditions {
