@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FacadeLibrary } from "./FacadeLibraryDialog";
 import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, loadEnhancedAsync, saveEnhanced, hasPreviousEnhanced, revertEnhanced, clearIdbEnhanced, BUILT_IN_FACADES, type FacadeItem } from "./facadeLibrary";
-import { prepareFloorplan, prepareFacade, widenFacadeClientSide } from "./fileToImage";
+import { prepareFloorplan, prepareFacade, widenFacadeClientSide, preframeFacadeImage } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
 
@@ -378,11 +378,15 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   const selectFacade = async (item: FacadeItem, forceRefresh = false) => {
     set("facadeId", item.id);
     set("facadeName", item.name);
-    const amount = facadeUpliftFor(item.id, item.name, facadeCategory(item), data.designName);
+    const itemCategory = facadeCategory(item);
+    const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
+    const isDouble = targetHousingType === "double-storey";
+
+    const amount = facadeUpliftFor(item.id, item.name, itemCategory, data.designName);
     setUplift(amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
-    if (forceRefresh) {
+    if (forceRefresh || isDouble) {
       await clearIdbEnhanced(item.id);
       setReRenderAttempts((prev) => ({ ...prev, [item.id]: (prev[item.id] ?? 0) + 1 }));
     } else {
@@ -391,8 +395,8 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
 
     const rawUrlToUse = item.originalUrl || item.url;
 
-    // 1. Check for pre-rendered local static catalogue FIRST for instant zero-delay render
-    if (!forceRefresh) {
+    // 1. Check for pre-rendered local static catalogue FIRST for single-storey only
+    if (!forceRefresh && !isDouble) {
       const normId = item.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const preRendered = PRE_RENDERED_FACADES[item.id] || PRE_RENDERED_FACADES[normId];
       if (preRendered) {
@@ -410,14 +414,19 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       }
     }
 
-    // 2. Set facadeBusy = true while preparing Gemini AI outpainting
+    // 2. Immediately pre-frame raw image to guarantee the entire roof is 100% inside the frame instantly
+    try {
+      const immediateFramed = await preframeFacadeImage(rawUrlToUse, targetHousingType);
+      if (immediateFramed && immediateFramed.startsWith("data:image/")) {
+        set("facadeUrl", immediateFramed);
+      }
+    } catch {}
+
+    // 3. Set facadeBusy = true while preparing Gemini AI outpainting
     setFacadeBusy(true);
     set("facadeBusy", true);
 
     try {
-      // 3. Trigger Google Gemini AI Outpainting on the raw Hudson Homes facade photo
-      const itemCategory = facadeCategory(item);
-      const targetHousingType = itemCategory === "double" ? "double-storey" : data.housingType;
       const aiUrl = await widenFacadeClientSide({
         id: item.id,
         name: item.name,
@@ -430,12 +439,9 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       if (aiUrl && aiUrl.startsWith("data:image/")) {
         set("facadeUrl", aiUrl);
         await saveEnhanced(item.id, aiUrl, item.name);
-      } else {
-        set("facadeUrl", rawUrlToUse);
       }
     } catch (err) {
       console.error("[AI Outpaint Error]", err);
-      set("facadeUrl", rawUrlToUse);
     } finally {
       setFacadeBusy(false);
       set("facadeBusy", false);
