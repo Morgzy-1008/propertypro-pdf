@@ -124,11 +124,33 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       lineItems.map((item) => {
         if (item.id === id) {
           const nextIncluded = !item.isIncluded;
-          // If item is per_m2 (like 32mpa concrete or floor finishes) and quantity is 1, auto-fill design GFA
           let nextQty = item.quantity;
-          if (nextIncluded && item.unitType === "per_m2" && item.quantity <= 1 && gfaM2 > 0) {
+
+          // Only auto-fill whole-slab items (e.g. 32mpa concrete slab) with Ground Floor Area footprint.
+          // Selective area items like Raked Ceilings (family/dining/kitchen) must NEVER pre-fill with whole-house area!
+          const nameLower = item.name.toLowerCase();
+          const isSelectiveAreaItem =
+            nameLower.includes("raked") ||
+            nameLower.includes("ceiling") ||
+            nameLower.includes("selected") ||
+            nameLower.includes("custom") ||
+            nameLower.includes("porch") ||
+            nameLower.includes("alfresco") ||
+            nameLower.includes("tiling") ||
+            nameLower.includes("carpet");
+
+          const isWholeSlabFootprintItem =
+            item.unitType === "per_m2" &&
+            (nameLower.includes("concrete") || nameLower.includes("slab") || nameLower.includes("termite")) &&
+            !isSelectiveAreaItem;
+
+          if (nextIncluded && isWholeSlabFootprintItem && item.quantity <= 1 && gfaM2 > 0) {
             nextQty = Math.round(gfaM2);
+          } else if (nextIncluded && isSelectiveAreaItem) {
+            // Keep at 1 or preserved manual entry so NHC enters specific room sqm (family/dining/kitchen)
+            nextQty = item.quantity > 1 && item.quantity === Math.round(gfaM2) ? 1 : Math.max(1, item.quantity);
           }
+
           return {
             ...item,
             isIncluded: nextIncluded,

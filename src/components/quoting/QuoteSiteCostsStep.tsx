@@ -162,13 +162,13 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Configure site-specific engineering parameters. Surcharges dynamically calculate based on the selected floorplan GFA ({gfaM2} m²).
+            Slab soil classifications and topography fall surcharges calculate strictly on the Ground Floor Area (Ground Living, Garage, Porch &amp; Alfresco = {gfaM2} m²), excluding upper storeys.
           </p>
         </div>
 
         <div className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2 self-start">
           <Layers className="h-3.5 w-3.5 text-cyan-400" />
-          <span className="text-slate-400">Design Footprint GFA:</span>
+          <span className="text-slate-400">Ground Floor Slab GFA:</span>
           <span className="font-bold text-slate-100 font-mono">{gfaM2} m²</span>
         </div>
       </div>
