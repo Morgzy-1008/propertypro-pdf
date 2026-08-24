@@ -25,15 +25,19 @@ function safeFilename(value: string) {
 
 /** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
 export async function downloadA4Pdf(root: ParentNode, filename: string) {
-  // Prefer visible sheets from the on-screen preview to ensure layout and images are loaded
-  let sheets = Array.from(document.querySelectorAll<HTMLElement>(".flyer-preview-container .flyer-page"));
-  if (!sheets.length) {
-    sheets = Array.from(root.querySelectorAll<HTMLElement>(".flyer-page"));
+  // Support both House & Land flyers (.flyer-page) and Builders Estimate Quotes (.quote-page)
+  let sheets = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      ".flyer-preview-container .flyer-page, .quote-pdf-root .quote-page, #quote-pdf-export-container .quote-page, .quote-page, .flyer-page"
+    ),
+  );
+  if (!sheets.length && root) {
+    sheets = Array.from(root.querySelectorAll<HTMLElement>(".flyer-page, .quote-page"));
   }
   if (!sheets.length) {
-    sheets = Array.from(document.querySelectorAll<HTMLElement>(".flyer-page"));
+    sheets = Array.from(document.querySelectorAll<HTMLElement>(".flyer-page, .quote-page"));
   }
-  if (!sheets.length) throw new Error("No flyer pages found");
+  if (!sheets.length) throw new Error("No PDF printable pages found (.quote-page or .flyer-page)");
 
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
@@ -105,20 +109,16 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         ),
       ]);
 
-      // Render canvas at 5x scale (ultra-high definition studio print resolution)
+      // Render canvas at 2.5x scale (approx 250-300 DPI studio print resolution)
       const canvas = await html2canvas(clone, {
         backgroundColor: "#ffffff",
-        scale: 5.0,
+        scale: 2.5,
         useCORS: true,
         logging: false,
-        // letterRendering: true,
         windowWidth: 794,
         windowHeight: 1123,
         imageTimeout: 15000,
         allowTaint: true,
-        onclone: (doc) => {
-            // No kerning hacks needed if letterRendering is enabled
-        }
       });
 
       // Enforce strict ISO A4 page dimensions (210mm x 297mm)
@@ -126,9 +126,9 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         pdf.addPage([210, 297], "portrait");
       }
 
-      // Use PNG format for absolute crispness and lossless text rendering
-      const imgData = canvas.toDataURL("image/png");
-      pdf.addImage(imgData, "PNG", 0, 0, 210, 297, undefined, "NONE");
+      // Use high-quality JPEG for fast generation and compact, crystal-clear output
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
     } finally {
       host.remove();
     }

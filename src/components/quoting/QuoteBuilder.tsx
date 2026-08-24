@@ -143,16 +143,21 @@ export function QuoteBuilder() {
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
-      await document.fonts.ready;
-      const root = document.querySelector(".quote-pdf-root") as HTMLElement;
-      if (!root) {
-        setActiveTab("pdf_preview");
-        await new Promise((r) => setTimeout(r, 400));
+      if (document.fonts) {
+        await document.fonts.ready;
       }
-      const target = (document.querySelector(".quote-pdf-root") as HTMLElement) ?? document.body;
-      await downloadA4Pdf(target, `${quote.quoteNumber}-${quote.client.clientName || "HudsonEstimate"}.pdf`);
+      const exportHost =
+        document.getElementById("quote-pdf-export-container") ||
+        document.querySelector(".quote-pdf-root") ||
+        document.body;
+
+      const clientNameSafe = (quote.client.clientName || "HudsonEstimate").replace(/[^a-zA-Z0-9_-]/g, "_");
+      const filename = `Builders-Estimate-${quote.quoteNumber || "MH"}-${clientNameSafe}`;
+
+      await downloadA4Pdf(exportHost, filename);
       toast.success("Builders Estimate PDF downloaded successfully");
-    } catch {
+    } catch (err) {
+      console.error("PDF Export error:", err);
       toast.error("Failed to generate PDF. Please try again.");
     } finally {
       setDownloading(false);
@@ -379,6 +384,15 @@ export function QuoteBuilder() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden background render host for 1-click PDF download from any tab */}
+      <div
+        id="quote-pdf-export-container"
+        className="fixed -left-[99999px] top-0 opacity-0 pointer-events-none z-[-99999] quote-pdf-root"
+        aria-hidden="true"
+      >
+        <QuotePdfDocument quote={quote} />
+      </div>
     </div>
   );
 }
