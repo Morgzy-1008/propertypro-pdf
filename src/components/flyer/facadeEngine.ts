@@ -143,21 +143,27 @@ export async function preframeFacadeImage(
       housingType === "Double";
 
     // Calibrated physical millimeter geometry:
-    // Single Storey: 2mm top gap, 5mm bottom gap (75mm house height) — UNTOUCHED
+    // Single Storey: 2.5mm top gap, 5mm bottom gap — maximum hero size with safe roof & boundary clearance
     // Double Storey: 6mm top gap, 8mm bottom gap (68mm house height) — Safe roof clearance
-    const targetRoofApexY = Math.round((isDouble ? 6.0 : 2.0) * pxPerMm); // 69px (6mm) or 23px (2mm)
+    const targetRoofApexY = Math.round((isDouble ? 6.0 : 2.5) * pxPerMm); // 69px (6mm) or 29px (2.5mm)
     const targetHouseBaseY = outH - Math.round((isDouble ? 8.0 : 5.0) * pxPerMm); // 846px (74mm) or 880px (77mm)
-    const targetHouseH = targetHouseBaseY - targetRoofApexY; // 777px (68mm) or 857px (75mm)
+    const targetHouseH = targetHouseBaseY - targetRoofApexY; // 777px (68mm) or 851px (74.5mm)
 
     let scale = targetHouseH / houseH;
-    const maxAllowedW = isDouble ? 2200 : 2360;
+    const maxAllowedW = isDouble ? 2180 : 2300;
     if (houseW * scale > maxAllowedW) {
       scale = maxAllowedW / houseW;
     }
 
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
-    const drawY = Math.round(targetRoofApexY - (roofY * scale));
+    let drawY = Math.round(targetRoofApexY - (roofY * scale));
+
+    // Ensure roof apex never crosses or gets clipped by the top border
+    const minTopMargin = Math.round((isDouble ? 5.0 : 2.0) * pxPerMm);
+    if (drawY + (roofY * scale) < minTopMargin) {
+      drawY = minTopMargin - Math.round(roofY * scale);
+    }
 
     // Center house horizontally
     const scaledLeft = leftX * scale;
@@ -260,13 +266,38 @@ export async function enhanceImageCrispness(dataUrl: string): Promise<string> {
 }
 
 /**
- * Calls Gemini AI Image Generation / Outpaint API directly using VITE_GEMINI_API_KEY.
- * Fast-path sub-20s latency.
+ * Calls Gemini AI Image Generation / Outpaint API:
+ * 1. First tries serverless /api/redo-ai endpoint (handles server-side proxying & keys).
+ * 2. Fallbacks to client-side direct API call using VITE_GEMINI_API_KEY.
  */
 export async function callGeminiOutpaint(
   rawImageBase64: string,
   housingType = "single-storey"
 ): Promise<string | null> {
+  // 1. Try serverless backend route first
+  try {
+    const isUrl = rawImageBase64.startsWith("http://") || rawImageBase64.startsWith("https://");
+    const serverPayload = isUrl
+      ? { imageUrl: rawImageBase64, housingType }
+      : { imageBase64: rawImageBase64, housingType };
+
+    const serverRes = await fetch("/api/redo-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(serverPayload),
+    });
+
+    if (serverRes.ok) {
+      const json = await serverRes.json();
+      if (json.success && json.widenedUrl) {
+        return await enhanceImageCrispness(json.widenedUrl);
+      }
+    }
+  } catch (err) {
+    console.warn("[callGeminiOutpaint: /api/redo-ai fallback to client]", err);
+  }
+
+  // 2. Direct client-side fallback
   const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
     console.warn("[Gemini AI] VITE_GEMINI_API_KEY is not configured.");
@@ -302,7 +333,7 @@ Canvas & Framing Specifications:
 
 STRICT ARCHITECTURAL INTEGRITY (DO NOT MODIFY ROOF OR BUILDING STRUCTURE):
 - Preserve the exact architectural geometry, facade materials, roof shape, roof pitch, parapets, and structural design of the original house 100% faithfully.
-- DO NOT alter the roof structure, roof pitch, flat roof parapets, or roof ridges (for example, facades like Centro, Ascot, Deco, and Contemporary must preserve their exact authentic rooflines).
+- DO NOT alter the roof structure, roof pitch, flat roof parapets, or roof ridges.
 - Do NOT modify brick mortar, timber battens, window frames, balcony glass, or garage doors.
 
 Seamless Ultra-Realistic Outpainting:

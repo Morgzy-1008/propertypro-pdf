@@ -49,11 +49,9 @@ function facadeBelongsToCategory(
   if (category === "uploaded") return f.range === "Uploaded";
   if (f.range === "Uploaded") return false;
 
-  const tags = f.tags || [];
   const range = (f.range || "").toLowerCase();
-  const url = f.url.toLowerCase();
-  const name = f.name.toLowerCase();
-  const fullText = `${name} ${range} ${tags.join(" ")} ${url}`;
+  const tags = f.tags || [];
+  const name = (f.name || "").toLowerCase();
 
   // Wisteria / Duplex / Dual-Occupancy specific facades belong ONLY to the design gallery when Wisteria is selected
   const isDuplexWisteria = tags.includes("duplex") || tags.includes("wisteria") || /duplex|dual[-\s]?occupancy/i.test(range);
@@ -64,7 +62,7 @@ function facadeBelongsToCategory(
   if (category === "design") return true;
 
   // Acreage / Ranch facades belong STRICTLY to the Acreage category tab, NEVER to standard Single Storey or Double Storey!
-  const isAcreage = tags.includes("acreage") || /mulberry|ranch|acreage/i.test(fullText);
+  const isAcreage = tags.includes("acreage") || /mulberry|ranch|acreage/i.test(range) || /mulberry|ranch|acreage/i.test(name);
   if (isAcreage) {
     return category === "acreage";
   }
@@ -72,15 +70,18 @@ function facadeBelongsToCategory(
   if (category === "acreage") return false;
 
   if (category === "split") {
-    return tags.includes("split") || /split[-\s]?level/i.test(fullText);
+    return tags.includes("split") || /split/i.test(range);
   }
 
+  const isDoubleRange = range.includes("double") || tags.includes("double") || /double\s+storey/i.test(name) || /2[-\s]?stry/i.test(f.url);
+  const isSingleRange = range.includes("single") || tags.includes("single") || /single\s+storey/i.test(name);
+
   if (category === "double") {
-    return tags.includes("double") || /2-?\s?stry|double[-\s]?storey|garage2/i.test(fullText);
+    return isDoubleRange && !range.includes("single");
   }
 
   if (category === "single") {
-    return tags.includes("single") || /single[-\s]?stry|single[-\s]?storey/i.test(fullText);
+    return isSingleRange && !range.includes("double");
   }
 
   return true;
