@@ -30,6 +30,7 @@ import { plansForDesign } from "@/components/flyer/floorplans";
 import {
   calculateCustomFloorplanPrice,
   calculateCustomTotalM2,
+  getAutomatedPromotionDiscount,
 } from "@/lib/quoting/quoteEngine";
 import type { InclusionTier, QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
 
@@ -107,8 +108,6 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Vogue", uplift: 28400 },
     { name: "Vibe", uplift: 37700 },
     { name: "Visage", uplift: 37700 },
-    { name: "Modern Classical Option A", uplift: 41900 },
-    { name: "Modern Classical Option B", uplift: 41900 },
   ],
   "Double Storey": [
     { name: "Classic", uplift: 0 },
@@ -195,18 +194,32 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
 
   const suitableFacades = HOUSING_FACADES[design.housingType] || HOUSING_FACADES["Single Storey"];
 
-  const getTierPrice = (model: PriceRow | undefined, tier: InclusionTier): number => {
+  const getTierPrice = (
+    model: PriceRow | undefined,
+    tier: InclusionTier,
+    housingType: string = design.housingType,
+  ): number => {
     if (!model) return 0;
+    let raw = 0;
     if (tier === "H3 Luxury Inclusions" || tier === "H3 Inclusions (2025)") {
-      return model.h3 || model.hbs || 0;
+      raw = model.h3 || model.hbs || 0;
+    } else if (tier === "H2 Design Inclusions" || tier === "H2 Inclusions (2025)") {
+      raw = model.h2 || model.hbs || 0;
+    } else if (tier === "H1 Smart Inclusions" || tier === "H1 Inclusions (2025)") {
+      raw = model.h1 || model.hbs || 0;
+    } else {
+      raw = model.hbs || 0;
     }
-    if (tier === "H2 Design Inclusions" || tier === "H2 Inclusions (2025)") {
-      return model.h2 || model.hbs || 0;
+
+    // For Duplex and Dual Occ plans:
+    // They are already priced with the discount in the base price, so increase the base price
+    // by that discount amount + $5,000 extra buffer (so every design has a $5k buffer).
+    if (housingType === "Dual Living" || model.name.includes(" - TD") || model.name.includes(" - SD")) {
+      const discount = getAutomatedPromotionDiscount(model.m2);
+      return raw + discount + 5000;
     }
-    if (tier === "H1 Smart Inclusions" || tier === "H1 Inclusions (2025)") {
-      return model.h1 || model.hbs || 0;
-    }
-    return model.hbs || 0;
+
+    return raw;
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
@@ -218,6 +231,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       facadeName: "",
       facadePrice: 0,
       isCustomFacade: false,
+      promotionsDiscount: 0,
       floorplanUrl: "",
       beds: "",
       baths: "",
@@ -233,8 +247,9 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
 
     const plans = plansForDesign(m.name);
     const floorplanUrl = plans[0]?.url || "";
-    const basePrice = getTierPrice(m, design.specTier);
+    const basePrice = getTierPrice(m, design.specTier, design.housingType);
     const defaultFacade = suitableFacades[0] || { name: "Classic", uplift: 0 };
+    const autoDiscount = getAutomatedPromotionDiscount(m.m2);
 
     onChange({
       designName: m.name,
@@ -242,6 +257,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       basePrice,
       facadeName: design.facadeName || defaultFacade.name,
       facadePrice: design.facadeName ? design.facadePrice : defaultFacade.uplift,
+      promotionsDiscount: autoDiscount,
+      promotionName: design.promotionName || "Hudson Special Builder Promotion",
       floorplanUrl,
       beds: plans[0]?.beds || "4",
       baths: plans[0]?.baths || "2",
@@ -252,7 +269,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleTierChange = (tier: InclusionTier) => {
-    const basePrice = currentModel ? getTierPrice(currentModel, tier) : 0;
+    const basePrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
     onChange({ specTier: tier, basePrice });
   };
 
@@ -284,9 +301,13 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const handleCustomSpecChange = (field: keyof typeof design.customSpec, val: any) => {
     const updated = { ...design.customSpec, [field]: val };
     const calculatedBase = calculateCustomFloorplanPrice(updated);
+    const totalM2 = calculateCustomTotalM2(updated);
+    const autoDiscount = getAutomatedPromotionDiscount(totalM2);
     onChange({
       customSpec: updated,
       basePrice: calculatedBase,
+      designM2: totalM2,
+      promotionsDiscount: autoDiscount,
     });
   };
 

@@ -49,6 +49,27 @@ export function calculateCustomTotalM2(spec: CustomFloorplanSpec): number {
 }
 
 /**
+ * Calculates automated builder promotion discount based on house size in Squares (sq):
+ * - <= 42 sq (<= 42.99 sq): $25,000
+ * - 43 sq to 52 sq (<= 52.99 sq): $30,000
+ * - 53 sq to 62 sq (<= 62.99 sq): $35,000
+ * - 63 sq and over: $42,000
+ */
+export function getAutomatedPromotionDiscount(designM2: number): number {
+  if (!designM2 || designM2 <= 0) return 0;
+  const sq = designM2 * 0.107639;
+  if (sq <= 42.99) {
+    return 25000;
+  } else if (sq <= 52.99) {
+    return 30000;
+  } else if (sq <= 62.99) {
+    return 35000;
+  } else {
+    return 42000;
+  }
+}
+
+/**
  * Calculates GFA (Ground Floor Area = Ground living + Porch + Garage + Alfresco).
  */
 export function calculateDesignGFA(design: QuoteDesignSelection): number {
