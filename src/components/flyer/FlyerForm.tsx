@@ -12,6 +12,7 @@ import { authHeaders } from "@/lib/api-auth";
 import { facadeCategory, facadeGarage, garageFromCars, type FacadeStorey } from "./facadePricing";
 import { duplexFacadesForDesign } from "./duplexFacades.data";
 import { MULBERRY_FACADES } from "./acreageFacades.data";
+import { HUDSON_FACADES } from "./facades.data";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 import { INCLUSION_RANGES, PALETTES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
@@ -444,6 +445,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   };
 
   const handleReDoAiEnhancement = async () => {
+    console.log("[handleReDoAiEnhancement] Clicked! facadeBusy:", facadeBusy, "facadeId:", data.facadeId, "facadeName:", data.facadeName);
     if (facadeBusy) return;
     const facadeId = data.facadeId || "custom";
     const attempts = reRenderAttempts[facadeId] ?? 0;
@@ -453,6 +455,7 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       HUDSON_FACADES.find((f) => f.id === facadeId) ||
       BUILT_IN_FACADES.find((f) => f.id === facadeId);
     const rawOriginalUrl = matched?.url || data.rawFacadeUrl || data.facadeUrl;
+    console.log("[handleReDoAiEnhancement] Found matched facade:", matched?.name, "rawOriginalUrl:", rawOriginalUrl);
 
     const facadeItem: FacadeItem = {
       id: facadeId,

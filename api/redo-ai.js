@@ -12,7 +12,20 @@ export default async function handler(req, res) {
 
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  const key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!key) {
+    try {
+      const fs = await import("fs");
+      if (fs.existsSync(".env")) {
+        const envContent = fs.readFileSync(".env", "utf8");
+        const match = envContent.match(/VITE_GEMINI_API_KEY\s*=\s*(.+)/) || envContent.match(/GEMINI_API_KEY\s*=\s*(.+)/);
+        if (match) {
+          key = match[1].trim().replace(/["']/g, "");
+        }
+      }
+    } catch {}
+  }
+
   if (!key) {
     return res.status(500).json({ error: "Gemini API key is not configured on server." });
   }

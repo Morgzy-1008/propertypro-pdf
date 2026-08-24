@@ -274,24 +274,44 @@ export async function callGeminiOutpaint(
   rawImageBase64: string,
   housingType = "single-storey"
 ): Promise<string | null> {
+  console.log("[callGeminiOutpaint] Starting outpaint for housingType:", housingType);
+  let srcData = rawImageBase64;
+
+  // If input is a URL or relative path, convert to full base64 dataUrl first
+  if (!srcData.startsWith("data:image/")) {
+    console.log("[callGeminiOutpaint] Resolving base64 from URL/path:", srcData.substring(0, 60));
+    const fetched = await getRawFacadeBase64(srcData);
+    if (fetched) {
+      srcData = fetched;
+      console.log("[callGeminiOutpaint] Base64 resolved successfully, bytes:", srcData.length);
+    } else {
+      console.warn("[callGeminiOutpaint] Failed to resolve base64 for:", srcData.substring(0, 60));
+    }
+  }
+
   // 1. Try serverless backend route first
   try {
-    const isUrl = rawImageBase64.startsWith("http://") || rawImageBase64.startsWith("https://");
-    const serverPayload = isUrl
-      ? { imageUrl: rawImageBase64, housingType }
-      : { imageBase64: rawImageBase64, housingType };
+    const serverPayload = srcData.startsWith("data:image/")
+      ? { imageBase64: srcData, housingType }
+      : { imageUrl: srcData, housingType };
 
+    console.log("[callGeminiOutpaint] Calling /api/redo-ai endpoint...");
     const serverRes = await fetch("/api/redo-ai", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serverPayload),
     });
 
+    console.log("[callGeminiOutpaint] /api/redo-ai response status:", serverRes.status);
     if (serverRes.ok) {
       const json = await serverRes.json();
+      console.log("[callGeminiOutpaint] /api/redo-ai result success:", json.success);
       if (json.success && json.widenedUrl) {
         return await enhanceImageCrispness(json.widenedUrl);
       }
+    } else {
+      const errTxt = await serverRes.text();
+      console.warn("[callGeminiOutpaint] /api/redo-ai error response:", serverRes.status, errTxt);
     }
   } catch (err) {
     console.warn("[callGeminiOutpaint: /api/redo-ai fallback to client]", err);
@@ -304,12 +324,9 @@ export async function callGeminiOutpaint(
     return null;
   }
 
-  let srcData = rawImageBase64;
-  if (srcData.startsWith("http://") || srcData.startsWith("https://")) {
-    const fetchedB64 = await getRawFacadeBase64(srcData);
-    if (fetchedB64) {
-      srcData = fetchedB64;
-    }
+  if (!srcData.startsWith("data:image/")) {
+    console.warn("[Gemini AI] Could not resolve base64 data for image.");
+    return null;
   }
 
   const cleanB64 = srcData.replace(/^data:image\/[a-z]+;base64,/, "");
@@ -501,6 +518,18 @@ export async function getRawFacadeBase64(
     if (res.ok) {
       const blob = await res.blob();
       return blobToBase64(blob);
+    }
+  } catch {}
+
+  try {
+    const img = await loadImage(targetUrl);
+    const c = document.createElement("canvas");
+    c.width = img.naturalWidth || img.width;
+    c.height = img.naturalHeight || img.height;
+    const ctx = c.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(img, 0, 0);
+      return c.toDataURL("image/jpeg", 0.95);
     }
   } catch {}
 
