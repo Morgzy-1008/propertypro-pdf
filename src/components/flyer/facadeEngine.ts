@@ -171,23 +171,28 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // Fill background with realistic sky and lawn so there are ZERO black bars
-    // 1. Sample sky and lawn colors from source image
-    const sampleTopPixel = sCtx.getImageData(Math.round(srcW / 2), 4, 1, 1).data;
-    const topSky = `rgb(${sampleTopPixel[0]}, ${sampleTopPixel[1]}, ${sampleTopPixel[2]})`;
+    // Fill background with realistic continuous landscape backdrop so there are ZERO empty boxes
+    // 1. Draw full-bleed landscape background texture with subtle atmospheric blur to seamlessly fill left & right wings
+    ctx.save();
+    ctx.filter = "blur(16px)";
+    // Cover the full widescreen canvas with proportional landscape background
+    const bgScale = Math.max(outW / srcW, outH / srcH) * 1.08;
+    const bgW = Math.round(srcW * bgScale);
+    const bgH = Math.round(srcH * bgScale);
+    const bgX = Math.round((outW - bgW) / 2);
+    const bgY = Math.round((outH - bgH) / 2);
+    ctx.drawImage(img, bgX, bgY, bgW, bgH);
+    ctx.restore();
 
-    const sampleBtmPixel = sCtx.getImageData(Math.round(srcW / 2), srcH - 4, 1, 1).data;
-    const btmGround = `rgb(${sampleBtmPixel[0]}, ${sampleBtmPixel[1]}, ${sampleBtmPixel[2]})`;
-
-    // 2. Draw smooth natural sky & ground backdrop
+    // 2. Soft natural light overlay to match daytime exposure
     const grad = ctx.createLinearGradient(0, 0, 0, outH);
-    grad.addColorStop(0, topSky);
-    grad.addColorStop(0.60, topSky);
-    grad.addColorStop(1, btmGround);
+    grad.addColorStop(0, "rgba(255, 255, 255, 0.15)");
+    grad.addColorStop(0.5, "rgba(255, 255, 255, 0.0)");
+    grad.addColorStop(1, "rgba(0, 0, 0, 0.08)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, outW, outH);
 
-    // 3. Draw the main sharp house photo centered with zero blur
+    // 3. Draw the main razor-sharp house photo centered with clean edge-to-edge blending
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
     return canvas.toDataURL("image/jpeg", 0.94);
   } catch (e) {
