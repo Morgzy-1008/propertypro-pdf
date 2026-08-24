@@ -753,8 +753,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 <div className="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
                   <div>
                     <span className="text-slate-500 text-[10px] block">EFT Payment Reference:</span>
-                    <span className="font-bold font-mono text-cyan-800">
-                      {client.estimateNumber || quote.quoteNumber} {client.clientName.split(" ").pop()}
+                    <span className="font-bold font-mono text-cyan-800 text-xs">
+                      {((client.clientName || "Client").trim().split(/\s+/).pop() || "Client")}-{(client.estimateNumber || quote.quoteNumber || "MH").trim()}
                     </span>
                   </div>
                   <div className="text-right">
@@ -765,18 +765,19 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
             </div>
 
-            {/* Real Dynamic Payment QR Code */}
+            {/* Real Dynamic Payment QR Code - Directs to 1-Click Copy Web Portal */}
             <div className="flex flex-col items-center justify-center p-2 bg-white border border-slate-300 rounded-lg text-center flex-none">
               <PaymentQrCode
                 accountName="Hudson Homes (QLD) Pty Ltd"
                 bsb="082 778"
                 accountNumber="74-586-5607"
                 amount={client.depositAmount || 1650}
-                reference={`${client.estimateNumber || quote.quoteNumber} ${client.clientName.split(" ").pop()}`}
+                reference={`${(client.clientName || "Client").trim().split(/\s+/).pop() || "Client"}-${(client.estimateNumber || quote.quoteNumber || "MH").trim()}`}
+                quoteId={quote.id}
                 size={80}
               />
-              <span className="text-[9px] font-bold text-slate-600 mt-1 uppercase font-mono">
-                Scan to Pay
+              <span className="text-[8.5px] font-bold text-slate-600 mt-1 uppercase font-mono tracking-tight">
+                Scan to Copy Details
               </span>
             </div>
           </div>

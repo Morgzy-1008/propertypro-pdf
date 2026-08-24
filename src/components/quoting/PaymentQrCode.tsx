@@ -7,6 +7,7 @@ interface PaymentQrCodeProps {
   accountNumber: string;
   amount: number;
   reference: string;
+  quoteId?: string;
   size?: number;
   className?: string;
 }
@@ -17,27 +18,38 @@ export function PaymentQrCode({
   accountNumber,
   amount,
   reference,
+  quoteId,
   size = 120,
   className = "",
 }: PaymentQrCodeProps) {
   const [dataUrl, setDataUrl] = useState<string>("");
 
   useEffect(() => {
-    // Formatted Australian Banking EFT & Prompt String
-    const formattedBsb = bsb.replace(/\D/g, "");
+    const cleanBsb = bsb.replace(/\D/g, "");
     const cleanAcc = accountNumber.replace(/\D/g, "");
 
-    // Australian Banking / AusPayNet QR standard & Smart Prompt payload
-    const payload = [
-      `HUDSON HOMES EFT PAYMENT`,
-      `Account: ${accountName}`,
-      `BSB: ${bsb}`,
-      `Account Number: ${accountNumber}`,
-      `Amount: $${amount.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      `Reference: ${reference}`,
-    ].join("\n");
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : "https://propertypro-pdf.vercel.app";
 
-    QRCode.toDataURL(payload, {
+    // Direct client payment portal URL with pre-populated transfer parameters
+    const params = new URLSearchParams({
+      name: accountName,
+      bsb: cleanBsb,
+      acc: cleanAcc,
+      ref: reference,
+      amt: amount.toString(),
+      bank: "National Australia Bank (NAB)",
+    });
+
+    if (quoteId) {
+      params.set("quoteId", quoteId);
+    }
+
+    const payPortalUrl = `${origin}/pay?${params.toString()}`;
+
+    QRCode.toDataURL(payPortalUrl, {
       width: size * 2,
       margin: 1,
       color: {
@@ -47,8 +59,8 @@ export function PaymentQrCode({
       errorCorrectionLevel: "M",
     })
       .then((url) => setDataUrl(url))
-      .catch((err) => console.error("Error generating payment QR code:", err));
-  }, [accountName, bsb, accountNumber, amount, reference, size]);
+      .catch((err) => console.error("Error generating payment portal QR code:", err));
+  }, [accountName, bsb, accountNumber, amount, reference, quoteId, size]);
 
   if (!dataUrl) {
     return (
@@ -62,7 +74,7 @@ export function PaymentQrCode({
   return (
     <img
       src={dataUrl}
-      alt="Scan to Pay via Banking App"
+      alt="Scan to open fast 1-click EFT copy payment portal"
       style={{ width: size, height: size }}
       className={`rounded-lg border border-slate-300 object-contain shadow-xs ${className}`}
     />
