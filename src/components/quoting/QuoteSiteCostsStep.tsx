@@ -35,48 +35,41 @@ interface QuoteSiteCostsStepProps {
   onSiteChange: (patch: Partial<SiteConditions>) => void;
 }
 
-const SOIL_CLASSES: { id: SoilClass; name: string; rate: number; desc: string }[] = [
+const SOIL_CLASSES: { id: SoilClass; name: string; rate: number }[] = [
   {
     id: "Class S",
     name: "Class S — Slightly Reactive Soil",
     rate: -30,
-    desc: "Sand / gravel ground with negligible movement (-$30/m² GFA credit on base slab).",
   },
   {
     id: "Class M",
-    name: "Class M — Moderately Reactive (Standard Included)",
+    name: "Class M — Moderately Reactive (Included)",
     rate: 0,
-    desc: "Standard engineered waffle pod slab system suitable for moderately reactive soil ($0).",
   },
   {
     id: "Class H1",
     name: "Class H1 — Highly Reactive Soil",
     rate: 30,
-    desc: "Deepened edge beams and extra internal stiffening ribs (+$30/m² of GFA).",
   },
   {
     id: "Class H2",
     name: "Class H2 — Highly Reactive (Severe Clay)",
     rate: 55,
-    desc: "Heavy-duty slab reinforcement with 300mm deepened perimeter beams (+$55/m² of GFA).",
   },
   {
     id: "Class E1",
     name: "Class E1 — Extremely Reactive Soil",
     rate: 80,
-    desc: "Engineered ultra-stiff foundation design for expansive reactive clay (+$80/m² of GFA).",
   },
   {
     id: "Class E2",
     name: "Class E2 — Extremely Reactive (Severe)",
     rate: 100,
-    desc: "Maximum foundation stiffness with dense reinforcement cage (+$100/m² of GFA).",
   },
   {
     id: "Class P",
     name: "Class P — Problem Soil / Uncontrolled Fill",
     rate: 150,
-    desc: "Soft ground or mine subsidence requiring bored concrete piers / screw piers (+$150/m² of GFA).",
   },
 ];
 
@@ -101,11 +94,16 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
       ? quote.design.customSpec.storeys === "double"
       : quote.design.housingType === "Double Storey";
 
+  const isSplitLevel =
+    quote.design.mode === "custom_floorplan"
+      ? quote.design.customSpec.storeys === "split"
+      : quote.design.housingType === "Split Level";
+
   const gfaM2 = calculateDesignGFA(quote.design);
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
 
-  const fallCost = calculateTopographyFallCost(site.fallMeters, gfaM2);
+  const fallCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplitLevel);
   const excessMeters = Math.max(0, site.fallMeters - 1.0);
   const tenthsAbove1m = Math.round(excessMeters * 10);
 
@@ -123,7 +121,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   };
 
   const handleFallChange = (fall: number) => {
-    const cost = calculateTopographyFallCost(fall, gfaM2);
+    const cost = calculateTopographyFallCost(fall, gfaM2, isSplitLevel);
     onSiteChange({
       fallMeters: fall,
       fallTotalCost: cost,
@@ -154,8 +152,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+      {/* Step Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div>
           <div className="flex items-center gap-2">
             <Compass className="h-4 w-4 text-emerald-400" />
@@ -168,15 +166,15 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           </p>
         </div>
 
-        <div className="flex items-center gap-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800 text-xs">
+        <div className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2 self-start">
           <Layers className="h-3.5 w-3.5 text-cyan-400" />
           <span className="text-slate-400">Design Footprint GFA:</span>
-          <span className="font-bold text-white font-mono">{gfaM2} m²</span>
+          <span className="font-bold text-slate-100 font-mono">{gfaM2} m²</span>
         </div>
       </div>
 
-      {/* Section 1: Engineered Soil Classification */}
-      <div className="space-y-3">
+      {/* Section 1: Soil Classification (Clean Titles Only) */}
+      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-cyan-400" />
@@ -187,7 +185,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
           {SOIL_CLASSES.map((soil) => {
             const isSelected = site.soilClass === soil.id;
             const cost = Math.round(soil.rate * gfaM2);
@@ -195,26 +193,23 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               <div
                 key={soil.id}
                 onClick={() => handleSoilSelect(soil.id)}
-                className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                   isSelected
                     ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
                     : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">{soil.name}</span>
-                  {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  {soil.desc}
-                </p>
-                <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+                <div className="min-w-0 flex-1">
+                  <span className="font-bold text-xs text-white truncate block">{soil.name}</span>
                   <span className="text-[10px] text-slate-500 font-mono">
                     {soil.rate === 0 ? "Included" : `${soil.rate > 0 ? "+" : ""}$${soil.rate}/m²`}
                   </span>
-                  <span className={`font-bold font-mono ${cost < 0 ? "text-cyan-400" : cost > 0 ? "text-amber-400" : "text-slate-300"}`}>
+                </div>
+                <div className="flex items-center gap-2 flex-none">
+                  <span className={`font-bold text-xs font-mono ${cost < 0 ? "text-cyan-400" : cost > 0 ? "text-amber-400" : "text-slate-300"}`}>
                     {cost === 0 ? "Included" : cost < 0 ? `-${formatAud(Math.abs(cost))}` : `+${formatAud(cost)}`}
                   </span>
+                  {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none" />}
                 </div>
               </div>
             );
@@ -222,7 +217,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
         </div>
       </div>
 
-      {/* Section 2: Topography & Fall Across Building Envelope (Rate multiplied by 10) */}
+      {/* Section 2: Topography & Fall Across Building Envelope */}
       <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
@@ -231,8 +226,12 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               Topography &amp; Fall Across Building Envelope (m)
             </Label>
             <span className="text-[11px] text-slate-400 block mt-0.5">
-              Standard equal cut &amp; fill is included up to 1.0m fall. Every 0.1m above 1.0m is calculated as:{" "}
-              <span className="font-mono text-slate-300 font-semibold">Tenths × $10 × {gfaM2} m² GFA</span>
+              Standard equal cut &amp; fill is included up to 1.0m fall ($0).{" "}
+              {isSplitLevel ? (
+                <span className="text-cyan-300 font-semibold">Split Level Rates: $12.50/0.1m under 2m, $15.00/0.1m above 2m × {gfaM2} m² GFA</span>
+              ) : (
+                <span className="text-slate-300 font-semibold">Rates: $15.00/0.1m under 2m, $20.00/0.1m above 2m × {gfaM2} m² GFA</span>
+              )}
             </span>
           </div>
 

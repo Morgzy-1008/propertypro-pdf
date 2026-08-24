@@ -33,7 +33,39 @@ export interface DuplicatePair {
 }
 
 /**
- * Automatically flags potential duplicate or overlapping items in the catalogue.
+ * Calculates bi-gram Dice coefficient string similarity between 0.0 and 1.0.
+ */
+function calculateStringSimilarity(str1: string, str2: string): number {
+  const s1 = str1.toLowerCase().replace(/[^a-z0-9]/g, " ").trim().replace(/\s+/g, " ");
+  const s2 = str2.toLowerCase().replace(/[^a-z0-9]/g, " ").trim().replace(/\s+/g, " ");
+  if (s1 === s2) return 1.0;
+  if (s1.length < 2 || s2.length < 2) return 0.0;
+
+  const getBigrams = (s: string) => {
+    const bigrams = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) {
+      const gram = s.slice(i, i + 2);
+      bigrams.set(gram, (bigrams.get(gram) || 0) + 1);
+    }
+    return bigrams;
+  };
+
+  const bg1 = getBigrams(s1);
+  const bg2 = getBigrams(s2);
+  let intersection = 0;
+
+  for (const [gram, count1] of bg1.entries()) {
+    if (bg2.has(gram)) {
+      intersection += Math.min(count1, bg2.get(gram)!);
+    }
+  }
+
+  const total = (s1.length - 1) + (s2.length - 1);
+  return total > 0 ? (2.0 * intersection) / total : 0;
+}
+
+/**
+ * Flags potential duplicate items in the catalogue requiring ~90% wording match.
  * Returns distinct pairs of matching items (Item A vs Item B).
  */
 export function findPotentialDuplicates(
@@ -44,73 +76,44 @@ export function findPotentialDuplicates(
     s
       .toLowerCase()
       .replace(/[^a-z0-9]/g, " ")
-      .trim();
-
-  const STOP_WORDS = new Set([
-    "allowance", "provide", "standard", "upgrade", "storey", "single", "double",
-    "inclusions", "range", "with", "from", "level", "living", "area", "custom",
-    "floor", "plasterboard", "concrete", "steel", "doors", "windows", "internal",
-    "external", "additional", "house", "slab", "height", "timber", "framing",
-    "finish", "lining", "linings", "line", "report", "package", "system", "wall",
-    "ceiling", "ceilings", "ground", "first", "upper", "footprint", "under", "roof",
-    "roofline", "builder", "specification", "luxury", "tiles", "tiled", "ceramic",
-    "throughout", "structure", "engineered", "engineering", "architectural", "unit",
-    "complete", "front", "rear", "side", "entry", "main", "feature", "supply", "install"
-  ]);
+      .trim()
+      .replace(/\s+/g, " ");
 
   const pairs: DuplicatePair[] = [];
   const processedPairs = new Set<string>();
 
-  const HIGH_SPECIFICITY_KEYWORDS = [
-    "flood", "traffic", "cooktop", "rangehood", "covenant", "demolition",
-    "acoustic", "bushfire", "elevator", "lodgement", "planner", "assessment",
-    "pedestrian", "asbestos", "rock", "breaker", "potholing", "cctv", "hstp",
-    "sewer", "survey", "pegs", "balcony", "alfresco", "theatre", "pool", "piering",
-    "stacker", "screen", "oven", "fridge", "cupboards",
-    "stone", "benchtop", "sink", "ensuite", "robe", "shelving",
-    "3phase", "charger", "aircon", "solar", "battery", "epoxy", "render", "driveway", "turf"
-  ];
-
   for (let i = 0; i < items.length; i++) {
     const a = items[i];
-    const wordsA = new Set(
-      clean(a.name)
-        .split(/\s+/)
-        .filter((w) => w.length > 2 && !STOP_WORDS.has(w)),
-    );
+    const nameA = clean(a.name);
 
     for (let j = i + 1; j < items.length; j++) {
       const b = items[j];
       const pairKey = [a.id, b.id].sort().join("::");
       if (processedPairs.has(pairKey) || unflaggedPairKeys.has(pairKey)) continue;
 
-      // Check 1: Exact / near exact name
-      if (clean(a.name) === clean(b.name)) {
+      const nameB = clean(b.name);
+
+      // Check 1: Exact name match
+      if (nameA === nameB) {
         pairs.push({
           id: pairKey,
           itemA: a,
           itemB: b,
-          reason: "Identical or near-identical item name",
+          reason: "Identical item name (100% match)",
         });
         processedPairs.add(pairKey);
         continue;
       }
 
-      // Check 2: Same category keyword overlap with specific terms
+      // Check 2: Near identical wording match (~90% threshold in same category)
       if (a.category === b.category) {
-        const wordsB = clean(b.name)
-          .split(/\s+/)
-          .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
-        const commonWords = wordsB.filter((w) => wordsA.has(w));
-
-        const matchedHighSpec = commonWords.filter((w) => HIGH_SPECIFICITY_KEYWORDS.includes(w));
-
-        if (commonWords.length >= 2 || matchedHighSpec.length >= 1) {
+        const similarity = calculateStringSimilarity(nameA, nameB);
+        if (similarity >= 0.88) {
           pairs.push({
             id: pairKey,
             itemA: a,
             itemB: b,
-            reason: `Potential match sharing keyword(s): "${commonWords.join(", ")}"`,
+            reason: `Near-identical wording (${Math.round(similarity * 100)}% match)`,
           });
           processedPairs.add(pairKey);
         }

@@ -97,14 +97,29 @@ export function getSoilRatePerM2(soilClass: SoilClass): number {
 
 /**
  * Calculates topography fall cost:
- * For every 0.1m above 1.0m, multiply amount by 10 (instead of 100), then by floorplan GFA.
+ * - Base allowance covers up to 1.0m fall ($0 included).
+ * - For fall between 1.0m and 2.0m: Standard = $15 per 0.1m / m² GFA; Split Level = $12.50 per 0.1m / m² GFA.
+ * - For fall above 2.0m: Standard = $20 per 0.1m / m² GFA; Split Level = $15.00 per 0.1m / m² GFA.
  */
-export function calculateTopographyFallCost(fallMeters: number, gfaM2: number): number {
+export function calculateTopographyFallCost(
+  fallMeters: number,
+  gfaM2: number,
+  isSplitLevel: boolean = false,
+): number {
   if (fallMeters <= 1.0) return 0;
+
   const excessMeters = Math.max(0, fallMeters - 1.0);
-  const tenthsAbove1m = Math.round(excessMeters * 10);
-  const fallRate = tenthsAbove1m * 10;
-  return Math.round(fallRate * gfaM2);
+  const under2mMeters = Math.min(excessMeters, 1.0); // portion between 1.0m and 2.0m (max 1.0m)
+  const above2mMeters = Math.max(0, fallMeters - 2.0); // portion above 2.0m
+
+  const under2mTenths = Math.round(under2mMeters * 10);
+  const above2mTenths = Math.round(above2mMeters * 10);
+
+  const rateUnder2m = isSplitLevel ? 12.5 : 15;
+  const rateAbove2m = isSplitLevel ? 15 : 20;
+
+  const costPerM2 = under2mTenths * rateUnder2m + above2mTenths * rateAbove2m;
+  return Math.round(costPerM2 * gfaM2);
 }
 
 /**
@@ -211,6 +226,11 @@ export function calculateQuotePricing(
       ? design.customSpec.storeys === "double"
       : design.housingType === "Double Storey";
 
+  const isSplit =
+    design.mode === "custom_floorplan"
+      ? design.customSpec.storeys === "split"
+      : design.housingType === "Split Level";
+
   const facadePrice = Number(design.facadePrice) || 0;
   const promotionName = design.promotionName || "Builder Promotion / Special Savings";
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
@@ -219,7 +239,7 @@ export function calculateQuotePricing(
   // Dynamic Site Calculations
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
-  const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2);
+  const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplit);
   const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
   const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
