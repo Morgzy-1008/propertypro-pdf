@@ -101,29 +101,29 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE                             */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative overflow-hidden shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-12 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         {/* Colorful Geometric Poly Banner (Top) */}
-        <div className="absolute top-0 left-0 right-0 h-72 bg-gradient-to-br from-amber-400 via-teal-400 to-indigo-600 opacity-90 [clip-path:polygon(0_0,100%_0,100%_70%,60%_90%,0_45%)]" />
-        <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-tr from-pink-500 via-cyan-400 to-emerald-400 opacity-70 [clip-path:polygon(30%_0,100%_0,100%_85%,40%_60%)]" />
+        <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-amber-400 via-teal-400 to-indigo-600 opacity-90 [clip-path:polygon(0_0,100%_0,100%_75%,60%_95%,0_50%)] pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-80 bg-gradient-to-tr from-pink-500 via-cyan-400 to-emerald-400 opacity-70 [clip-path:polygon(30%_0,100%_0,100%_90%,40%_65%)] pointer-events-none" />
 
         {/* Top Spacer */}
-        <div className="h-44 relative z-10" />
+        <div className="h-36 relative z-10 flex-none" />
 
-        {/* Title Area */}
-        <div className="relative z-10 my-auto text-right pr-4">
+        {/* Center Title Area - Gracefully centered */}
+        <div className="relative z-10 my-auto text-right pr-6 flex-1 flex flex-col justify-center">
           <div className="text-4xl font-extrabold uppercase tracking-widest text-slate-900">
             YOUR
           </div>
-          <div className="text-3xl font-extrabold uppercase tracking-wider text-slate-900 mt-1">
+          <div className="text-4xl font-extrabold uppercase tracking-wider text-slate-900 mt-1">
             NEW HOME
           </div>
-          <div className="text-6xl font-serif italic text-cyan-600 font-bold -mt-2 tracking-tight">
+          <div className="text-7xl font-serif italic text-cyan-600 font-bold -mt-2 tracking-tight">
             Builders Estimate
           </div>
         </div>
 
         {/* Bottom Metadata Block */}
-        <div className="relative z-10 space-y-6 pt-6">
+        <div className="relative z-10 space-y-6 pt-6 flex-none">
           <div className="text-right space-y-5">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">

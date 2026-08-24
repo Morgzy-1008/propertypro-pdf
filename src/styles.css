@@ -186,6 +186,22 @@
   flex: none;
 }
 
+@utility quote-page {
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  background: #ffffff;
+  color: #0f172a;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
 /* Alternate brand palette: picks up the teal + copper in the Hudson mark. */
 [data-palette="coastal"] {
   --brand-navy: oklch(0.28 0.048 205);

@@ -59,17 +59,28 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
     host.style.pointerEvents = "none";
     host.style.width = "794px"; // 210mm @ 96dpi
     host.style.height = "1123px"; // 297mm @ 96dpi
+    host.style.minHeight = "1123px";
+    host.style.maxHeight = "1123px";
     host.style.overflow = "hidden";
     host.style.background = "#ffffff";
+    host.style.boxSizing = "border-box";
 
     const clone = originalSheet.cloneNode(true) as HTMLElement;
     clone.style.transform = "none";
     clone.style.opacity = "1";
-    clone.style.display = "block";
+    clone.style.boxSizing = "border-box";
     clone.style.margin = "0";
     clone.style.boxShadow = "none";
     clone.style.width = "794px";
     clone.style.height = "1123px";
+    clone.style.minHeight = "1123px";
+    clone.style.maxHeight = "1123px";
+
+    if (originalSheet.classList.contains("quote-page")) {
+      clone.style.display = "flex";
+      clone.style.flexDirection = "column";
+      clone.style.justifyContent = "space-between";
+    }
 
     // Ensure all images inside clone retain 100% opacity and high-contrast rendering
     const cloneImages = Array.from(clone.querySelectorAll("img"));
