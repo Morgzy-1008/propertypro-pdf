@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { PaymentQrCode } from "./PaymentQrCode";
 
+import { plansForDesign } from "@/components/flyer/floorplans";
+import { prepareFloorplan } from "@/components/flyer/floorplanEngine";
+
 interface QuotePdfDocumentProps {
   quote: FullQuote;
 }
@@ -23,6 +26,39 @@ function formatInclusionTierTitle(tier: string): string {
   if (tier.includes("H2")) return "H2 Design Inclusions";
   if (tier.includes("H3")) return "H3 Luxury Inclusions";
   return tier;
+}
+
+function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
+  const [src, setSrc] = React.useState(design.floorplanUrl || "");
+
+  React.useEffect(() => {
+    setSrc(design.floorplanUrl || "");
+    if (design.designName && (!design.floorplanUrl || !design.floorplanUrl.startsWith("data:"))) {
+      const plans = plansForDesign(design.designName);
+      if (plans[0]) {
+        prepareFloorplan(plans[0]).then((enhanced) => {
+          if (enhanced) setSrc(enhanced);
+        }).catch(() => {});
+      }
+    }
+  }, [design.designName, design.floorplanUrl]);
+
+  if (!src) {
+    return (
+      <div className="text-center text-slate-400 text-sm py-24">
+        Architectural Floorplan Drawing — Standard Hudson Design
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Selected Floorplan Drawing"
+      className="w-full h-full max-h-[830px] max-w-full object-contain mix-blend-multiply drop-shadow-sm transition-all"
+      style={{ imageRendering: "auto" }}
+    />
+  );
 }
 
 export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
@@ -321,72 +357,62 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 3: DEDICATED FULL-PAGE HIGH-QUALITY FLOORPLAN DRAWING                */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-        <div>
-          {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-6">
+      <div className="quote-page bg-white min-h-[297mm] px-8 pt-6 pb-4 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Compact Header */}
+          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
                 ARCHITECTURAL FLOORPLAN &amp; SPATIAL SPECIFICATIONS
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-900 mt-0.5">
+              <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
                 {design.mode === "standard"
                   ? `${design.designName} — ${design.specTier}`
                   : "Custom Architectural Floorplan"}
               </h2>
-              <div className="text-xs text-slate-600 mt-1">
+              <div className="text-[11px] text-slate-600 mt-0.5">
                 Facade: <span className="font-semibold text-slate-900">{design.facadeName}</span>
                 {design.widthM && design.lengthM && (
                   <span> · Overall Dimensions: {design.widthM} wide × {design.lengthM} deep</span>
                 )}
               </div>
             </div>
-            <div className="text-right">
-              <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Total Area</span>
-              <span className="text-base font-extrabold text-cyan-700 font-mono">
+            <div className="text-right flex-none">
+              <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-semibold">Total Area</span>
+              <span className="text-sm font-extrabold text-cyan-700 font-mono">
                 {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq)
               </span>
             </div>
           </div>
 
-          {/* Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3 mb-6 text-center text-xs">
+          {/* Compact Area & Configuration Pill Bar */}
+          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 mb-2 text-center text-xs flex-none">
             <div>
-              <span className="text-slate-500 text-[10px] block">Bedrooms:</span>
-              <span className="font-bold text-slate-900">{design.beds || 4} Bedrooms</span>
+              <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
+              <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
             </div>
             <div>
-              <span className="text-slate-500 text-[10px] block">Bathrooms:</span>
-              <span className="font-bold text-slate-900">{design.baths || 2} Bathrooms</span>
+              <span className="text-slate-500 text-[9px] block">Bathrooms:</span>
+              <span className="font-bold text-slate-900 text-xs">{design.baths || 2} Baths</span>
             </div>
             <div>
-              <span className="text-slate-500 text-[10px] block">Garage:</span>
-              <span className="font-bold text-slate-900">{design.cars || 2} Car Garage</span>
+              <span className="text-slate-500 text-[9px] block">Garage:</span>
+              <span className="font-bold text-slate-900 text-xs">{design.cars || 2} Cars</span>
             </div>
             <div>
-              <span className="text-slate-500 text-[10px] block">GFA Platform:</span>
-              <span className="font-bold text-slate-900">{pricing.gfaM2} m²</span>
+              <span className="text-slate-500 text-[9px] block">GFA Platform:</span>
+              <span className="font-bold text-slate-900 text-xs">{pricing.gfaM2} m²</span>
             </div>
           </div>
 
-          {/* High-Resolution Dedicated Full-Page Floorplan Drawing */}
-          <div className="border border-slate-300 rounded-2xl p-6 bg-white flex items-center justify-center min-h-[500px] max-h-[560px] overflow-hidden shadow-inner">
-            {design.floorplanUrl ? (
-              <img
-                src={design.floorplanUrl}
-                alt="Selected Floorplan Drawing"
-                className="max-h-[540px] max-w-full object-contain mix-blend-multiply drop-shadow-sm"
-              />
-            ) : (
-              <div className="text-center text-slate-400 text-sm py-20">
-                Architectural Floorplan Drawing — Standard Hudson Design
-              </div>
-            )}
+          {/* Maximized High-Resolution Full-Page Floorplan Drawing */}
+          <div className="flex-1 w-full border border-slate-200 rounded-xl p-2 bg-white flex items-center justify-center min-h-[760px] max-h-[840px] overflow-hidden shadow-inner">
+            <QuoteFloorplanViewer design={design} />
           </div>
         </div>
 
         {/* Page 3 Footer */}
-        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+        <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
           <div>
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
