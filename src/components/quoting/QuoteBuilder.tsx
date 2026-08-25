@@ -44,7 +44,7 @@ type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 export function QuoteBuilder() {
   const [quote, setQuote] = useState<FullQuote>(() => createNewBlankQuote());
 
-  const [activeTab, setActiveTab] = useState<TabId>("design");
+  const [activeTab, setActiveTab] = useState<TabId>("client");
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);

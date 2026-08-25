@@ -125,6 +125,8 @@ export interface SiteConditions {
   screwPieringCost?: number; // auto-calculated at $90 × GFA m²
   rockExcavationAllowance?: number; // default $2,500 (increments of $2,500)
   retainingWallAllowance?: number; // increments of $2,500
+  materialHandlingRequired?: boolean;
+  materialHandlingAllowance?: number; // increments of $2,500
   pieringAllowanceMeters?: number;
   pieringCost?: number;
 }
@@ -182,6 +184,7 @@ export interface QuoteDesignSelection {
   specTier: InclusionTier;
   basePrice: number;
   floorplanUrl?: string;
+  isModifiedFloorplan?: boolean;
   beds?: string;
   baths?: string;
   cars?: string;

@@ -20,6 +20,7 @@ import {
   Plus,
   Minus,
   Check,
+  Truck,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -239,6 +240,15 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
     const current = Number(site.retainingWallAllowance) || 0;
     const next = Math.max(0, current + delta);
     onSiteChange({ retainingWallAllowance: next });
+  };
+
+  const handleMaterialHandlingStep = (delta: number) => {
+    const current = Number(site.materialHandlingAllowance) || 0;
+    const next = Math.max(0, current + delta);
+    onSiteChange({
+      materialHandlingAllowance: next,
+      materialHandlingRequired: next > 0,
+    });
   };
 
   const handleSlabHeightChange = (height: number) => {
@@ -836,33 +846,35 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
 
           {/* Traffic Control ($10,000 with increments of $2,500) */}
           <div
-            className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+            onClick={() => onSiteChange({ trafficControlRequired: !site.trafficControlRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.trafficControlRequired
                 ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span
-                  onClick={() => onSiteChange({ trafficControlRequired: !site.trafficControlRequired })}
-                  className="font-bold text-xs text-white cursor-pointer hover:underline"
-                >
-                  Traffic Management Plan
-                </span>
-                <input
-                  type="checkbox"
-                  checked={site.trafficControlRequired || false}
-                  onChange={(e) => onSiteChange({ trafficControlRequired: e.target.checked })}
-                  className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                />
+                <span className="font-bold text-xs text-white">Traffic Management Plan</span>
+                {site.trafficControlRequired ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
                 Certified TGS &amp; safety corridor management ($2,500 increments).
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800">
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => handleTrafficStep(-2500)}
@@ -871,7 +883,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className="font-bold text-xs text-emerald-400 font-mono">
+              <span className={`font-bold text-xs font-mono ${site.trafficControlRequired ? "text-emerald-400" : "text-slate-400"}`}>
                 {formatAud(site.trafficControlCost ?? 10000)}
               </span>
               <button
@@ -917,7 +929,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           Geotechnical &amp; Site Allowances
         </Label>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Screw Piering Allowance ($90/m2) */}
           <div
             onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
@@ -930,12 +942,12 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             <div>
               <div className="flex items-center justify-between">
                 <span className="font-bold text-xs text-white">
-                  Allowance for Screw Piering (KDRB / Fill)
+                  Screw Piering (KDRB / Fill)
                 </span>
                 {site.screwPieringRequired && <Check className="h-4 w-4 text-emerald-400" />}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Allowance for helical screw piering due to KDRB site or uncontrolled fill ($90 × {gfaM2} m² GFA).
+                Allowance for helical screw piering due to KDRB site or fill ($90 × {gfaM2} m² GFA).
               </p>
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
@@ -943,36 +955,44 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </span>
           </div>
 
-          {/* Rock Excavation Allowance ($0 prefilled, stepped in $2,500 with +/- buttons matching Traffic Management) */}
+          {/* Rock Excavation Allowance ($0 prefilled, stepped in $2,500 with +/- buttons) */}
           <div
-            className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+            onClick={() => {
+              const current = Number(site.rockExcavationAllowance) || 0;
+              const next = current > 0 ? 0 : 2500;
+              onSiteChange({ rockExcavationAllowance: next });
+            }}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               (site.rockExcavationAllowance ?? 0) > 0
                 ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span
-                  onClick={() => handleRockStep((site.rockExcavationAllowance ?? 0) > 0 ? -(site.rockExcavationAllowance ?? 0) : 2500)}
-                  className="font-bold text-xs text-white cursor-pointer hover:underline flex items-center gap-1.5"
-                >
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
                   <Mountain className="h-3.5 w-3.5 text-amber-400" />
                   Rock Excavation Allowance
                 </span>
-                <input
-                  type="checkbox"
-                  checked={(site.rockExcavationAllowance ?? 0) > 0}
-                  onChange={(e) => onSiteChange({ rockExcavationAllowance: e.target.checked ? 2500 : 0 })}
-                  className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                />
+                {(site.rockExcavationAllowance ?? 0) > 0 ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Hydraulic rock breaker allowance ($2,500 increments).
+                Hydraulic rock breaker &amp; heavy excavator rock extraction allowance ($2,500 increments).
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800">
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => handleRockStep(-2500)}
@@ -995,36 +1015,44 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </div>
           </div>
 
-          {/* Retaining Wall Allowance ($0 prefilled, stepped in $2,500 with +/- buttons matching Traffic Management) */}
+          {/* Retaining Wall Allowance ($0 prefilled, stepped in $2,500 with +/- buttons) */}
           <div
-            className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+            onClick={() => {
+              const current = Number(site.retainingWallAllowance) || 0;
+              const next = current > 0 ? 0 : 2500;
+              onSiteChange({ retainingWallAllowance: next });
+            }}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               (site.retainingWallAllowance ?? 0) > 0
                 ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span
-                  onClick={() => handleRetainingStep((site.retainingWallAllowance ?? 0) > 0 ? -(site.retainingWallAllowance ?? 0) : 2500)}
-                  className="font-bold text-xs text-white cursor-pointer hover:underline flex items-center gap-1.5"
-                >
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
                   <Hammer className="h-3.5 w-3.5 text-cyan-400" />
                   Retaining Wall Allowance
                 </span>
-                <input
-                  type="checkbox"
-                  checked={(site.retainingWallAllowance ?? 0) > 0}
-                  onChange={(e) => onSiteChange({ retainingWallAllowance: e.target.checked ? 2500 : 0 })}
-                  className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                />
+                {(site.retainingWallAllowance ?? 0) > 0 ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Concrete sleeper / masonry retaining ($2,500 increments).
+                Engineered concrete sleeper / masonry retaining wall construction ($2,500 increments).
               </p>
             </div>
 
-            <div className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800">
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => handleRetainingStep(-2500)}
@@ -1039,6 +1067,69 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               <button
                 type="button"
                 onClick={() => handleRetainingStep(2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Material Handling Allowance ($0 prefilled, stepped in $2,500 with +/- buttons) */}
+          <div
+            onClick={() => {
+              const current = Number(site.materialHandlingAllowance) || 0;
+              const next = current > 0 ? 0 : 2500;
+              onSiteChange({
+                materialHandlingAllowance: next,
+                materialHandlingRequired: next > 0,
+              });
+            }}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              (site.materialHandlingAllowance ?? 0) > 0
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                  <Truck className="h-3.5 w-3.5 text-amber-400" />
+                  Material Handling Allowance
+                </span>
+                {(site.materialHandlingAllowance ?? 0) > 0 ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Allowance for crane truck offloading, spotters, or restricted access due to limited access, overhead powerlines, or narrow lot ($2,500 increments).
+              </p>
+            </div>
+
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleMaterialHandlingStep(-2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Decrease $2,500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className={`font-bold text-xs font-mono ${(site.materialHandlingAllowance ?? 0) > 0 ? "text-emerald-400" : "text-slate-400"}`}>
+                {formatAud(site.materialHandlingAllowance ?? 0)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleMaterialHandlingStep(2500)}
                 className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
                 title="Increase $2,500"
               >

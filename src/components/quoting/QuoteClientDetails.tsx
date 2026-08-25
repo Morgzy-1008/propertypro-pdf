@@ -18,6 +18,7 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -432,6 +433,35 @@ export function QuoteClientDetails({
             </span>
           </div>
         </div>
+
+        {/* Unrecognized / New Council Notification Alert */}
+        {(currentCouncil.includes("Approval Required") || currentCouncil.includes("Other") || currentCouncil.includes("Unlisted")) && (
+          <div className="mt-2 bg-amber-950/30 border border-amber-500/50 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200">
+            <div className="flex items-start gap-2">
+              <Shield className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+              <div>
+                <strong className="block text-white font-bold">⚠️ Unrecognized Council LGA for Suburb &quot;{client.suburb || "Custom Location"}&quot;</strong>
+                <p className="text-[11px] text-amber-300/90 mt-0.5">
+                  This suburb is not currently mapped to an existing approved council schedule. Standard allowance ($2,200) applied pending approval.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              size="sm"
+              onClick={() => {
+                const subject = encodeURIComponent(`[Hudson Quoting] New Council Approval Request: ${client.suburb || "New Suburb"}`);
+                const body = encodeURIComponent(`Hi Morgan,\n\nA new suburb/location was entered into the Hudson Quote Builder:\n- Suburb: ${client.suburb || "TBA"}\n- Address: ${client.siteAddress || "TBA"}\n- Estate: ${client.estate || "TBA"}\n- Client: ${client.clientName || "TBA"}\n- Consultant: ${client.consultantName || "Consultant"}\n\nPlease review and approve the council jurisdiction and statutory fee schedule.\n\nThank you!`);
+                window.open(`mailto:morgan.hales@hudsonhomes.com.au?subject=${subject}&body=${body}`, "_blank");
+                toast.success("Council approval notification email prepared for Morgan Hales.");
+              }}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5 h-8 whitespace-nowrap self-start sm:self-center shadow-md flex-none"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              Request Council Approval
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Consultant & Initial Deposit Section */}

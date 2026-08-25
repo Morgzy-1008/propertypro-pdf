@@ -560,6 +560,17 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           },
         ]
       : []),
+    ...(Number(siteConditions.materialHandlingAllowance) > 0
+      ? [
+          {
+            id: "material_handling",
+            name: "Material Handling & Restricted Access Allowance",
+            description: "Specialized material handling, crane truck offloading, spotters, or restricted access due to limited access, overhead powerlines, or narrow lot.",
+            qtyLabel: "1 Allowance",
+            amount: Number(siteConditions.materialHandlingAllowance),
+          },
+        ]
+      : []),
   ];
 
   const activeSiteSchedule = [

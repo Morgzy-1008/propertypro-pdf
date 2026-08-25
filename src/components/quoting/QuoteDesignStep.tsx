@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useState, useRef } from "react";
 import {
   Home,
   Sparkles,
@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ModifiedFloorplanModal } from "./ModifiedFloorplanModal";
 import {
   Select,
   SelectContent,
@@ -193,9 +196,33 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
 };
 
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const models = HOUSING_TYPE_PRICES[design.housingType] || SINGLE_STOREY_PRICES;
   const currentModel = models.find((m) => m.name === design.designName);
+
+  const customSpec = design.customSpec || {
+    groundLivingM2: 0,
+    firstLivingM2: 0,
+    garageM2: 0,
+    alfrescoM2: 0,
+    porchM2: 0,
+    balconyM2: 0,
+    storeys: "single" as const,
+    groundRateM2: 1580,
+    upperRateM2: 2050,
+    ancillaryRateM2: 1050,
+    scaffoldingAllowance: 8500,
+  };
+
+  const isDouble =
+    design.mode === "custom_floorplan"
+      ? customSpec.storeys === "double"
+      : design.housingType === "Double Storey" || design.housingType === "double";
+
+  const standardPlans = design.designName ? plansForDesign(design.designName) : [];
+  const standardFloorplanUrl = standardPlans[0]?.url || "";
+  const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
   const suitableFacades = HOUSING_FACADES[design.housingType] || HOUSING_FACADES["Single Storey"];
 
@@ -303,8 +330,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     }
   };
 
-  const handleCustomSpecChange = (field: keyof typeof design.customSpec, val: any) => {
-    const updated = { ...design.customSpec, [field]: val };
+  const handleCustomSpecChange = (field: keyof typeof customSpec, val: any) => {
+    const updated = { ...customSpec, [field]: val };
     const calculatedBase = calculateCustomFloorplanPrice(updated);
     const totalM2 = calculateCustomTotalM2(updated);
     const autoDiscount = getAutomatedPromotionDiscount(totalM2);
@@ -457,7 +484,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               })}
             </div>
 
-            {/* External Site Packages: Turnkey Landscaping & Exposed Agg Driveway (2-Column Grid) */}
+            {/* External Site Packages: Turnkey Landscaping & Exposed Agg Driveway (Mutually Exclusive) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Option 1: Complete Turnkey Landscaping Package */}
               <div
@@ -469,6 +496,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                     landscapingSelected: next,
                     landscapingLandSize: size,
                     landscapingCost: price,
+                    // Deselect driveway if landscaping is chosen
+                    ...(next ? { exposedDrivewaySelected: false, exposedDrivewayCost: 0 } : {}),
                   });
                 }}
                 className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
@@ -513,6 +542,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                           landscapingSelected: true,
                           landscapingLandSize: size,
                           landscapingCost: price,
+                          exposedDrivewaySelected: false,
+                          exposedDrivewayCost: 0,
                         });
                       }}
                     >
@@ -549,6 +580,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                     exposedDrivewaySelected: next,
                     exposedDrivewayM2: m2,
                     exposedDrivewayCost: price,
+                    // Deselect landscaping if driveway is chosen
+                    ...(next ? { landscapingSelected: false, landscapingCost: 0 } : {}),
                   });
                 }}
                 className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
@@ -596,6 +629,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                             exposedDrivewaySelected: true,
                             exposedDrivewayM2: val,
                             exposedDrivewayCost: Math.round(val * 230),
+                            landscapingSelected: false,
+                            landscapingCost: 0,
                           });
                         }}
                         className="h-8 text-xs text-right border-slate-800 bg-slate-900 text-cyan-300 font-mono font-bold"
@@ -745,7 +780,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300">Storey Configuration</Label>
               <Select
-                value={design.customSpec.storeys}
+                value={customSpec.storeys}
                 onValueChange={(v: any) => handleCustomSpecChange("storeys", v)}
               >
                 <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
@@ -762,19 +797,19 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               <Label className="text-xs text-slate-300">Ground Living Area (m²)</Label>
               <Input
                 type="number"
-                value={design.customSpec.groundLivingM2 || ""}
+                value={customSpec.groundLivingM2 || ""}
                 onChange={(e) => handleCustomSpecChange("groundLivingM2", Number(e.target.value))}
                 placeholder="0"
                 className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
               />
             </div>
 
-            {design.customSpec.storeys === "double" && (
+            {customSpec.storeys === "double" && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-300">First Floor Living Area (m²)</Label>
                 <Input
                   type="number"
-                  value={design.customSpec.firstLivingM2 || ""}
+                  value={customSpec.firstLivingM2 || ""}
                   onChange={(e) => handleCustomSpecChange("firstLivingM2", Number(e.target.value))}
                   placeholder="0"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
@@ -788,7 +823,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               <Label className="text-xs text-slate-300">Garage Area (m²)</Label>
               <Input
                 type="number"
-                value={design.customSpec.garageM2 || ""}
+                value={customSpec.garageM2 || ""}
                 onChange={(e) => handleCustomSpecChange("garageM2", Number(e.target.value))}
                 placeholder="0"
                 className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
@@ -799,7 +834,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               <Label className="text-xs text-slate-300">Alfresco Area (m²)</Label>
               <Input
                 type="number"
-                value={design.customSpec.alfrescoM2 || ""}
+                value={customSpec.alfrescoM2 || ""}
                 onChange={(e) => handleCustomSpecChange("alfrescoM2", Number(e.target.value))}
                 placeholder="0"
                 className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
@@ -810,19 +845,19 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               <Label className="text-xs text-slate-300">Porch Area (m²)</Label>
               <Input
                 type="number"
-                value={design.customSpec.porchM2 || ""}
+                value={customSpec.porchM2 || ""}
                 onChange={(e) => handleCustomSpecChange("porchM2", Number(e.target.value))}
                 placeholder="0"
                 className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
               />
             </div>
 
-            {design.customSpec.storeys === "double" && (
+            {customSpec.storeys === "double" && (
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-300">Balcony Area (m²)</Label>
                 <Input
                   type="number"
-                  value={design.customSpec.balconyM2 || ""}
+                  value={customSpec.balconyM2 || ""}
                   onChange={(e) => handleCustomSpecChange("balconyM2", Number(e.target.value))}
                   placeholder="0"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
@@ -835,7 +870,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             <div>
               <span className="text-xs text-slate-400 block">Total Calculated Area</span>
               <span className="text-base font-bold text-slate-100 font-mono">
-                {calculateCustomTotalM2(design.customSpec)} m²
+                {calculateCustomTotalM2(customSpec)} m²
               </span>
             </div>
             <div className="text-right">
@@ -847,6 +882,91 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
           </div>
         </div>
       )}
+
+      {/* Architectural Floorplan Display & Modified Design Section */}
+      <div className="space-y-3 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <ImageIcon className="h-4 w-4 text-emerald-400" />
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">
+                Architectural Floorplan Specification
+              </h4>
+              {design.isModifiedFloorplan && (
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Modified Design Attached (Client Estimate Only)
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              {design.isModifiedFloorplan
+                ? "A custom/modified floorplan has been uploaded and cropped for this estimate. It will only be saved with this client's quote."
+                : "Standard Hudson architectural floorplan layout. If you have made custom revisions, click 'Update with Modified Design' to crop and attach."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {design.isModifiedFloorplan && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  onChange({
+                    floorplanUrl: standardFloorplanUrl,
+                    isModifiedFloorplan: false,
+                  });
+                  toast.info("Reverted to standard Hudson floorplan.");
+                }}
+                className="h-8 text-xs border-slate-800 bg-slate-900 text-slate-300 hover:text-white"
+              >
+                Revert to Standard Plan
+              </Button>
+            )}
+            <Button
+              size="sm"
+              onClick={() => setIsCropperOpen(true)}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-8 shadow-md"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              {design.isModifiedFloorplan ? "Re-crop / Update Modified Plan" : "Update with Modified Design"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Floorplan Preview Canvas */}
+        <div className="w-full bg-white rounded-xl p-4 border border-slate-800 min-h-[260px] max-h-[420px] flex items-center justify-center overflow-hidden shadow-inner relative group">
+          {activeFloorplanUrl ? (
+            <img
+              src={activeFloorplanUrl}
+              alt="Architectural Floorplan"
+              className="max-h-[380px] w-auto max-w-full object-contain mx-auto transition-transform"
+            />
+          ) : (
+            <div className="text-center text-slate-400 py-10 space-y-2">
+              <Home className="h-10 w-10 mx-auto text-slate-300 opacity-60" />
+              <p className="text-xs text-slate-500">
+                {design.mode === "standard"
+                  ? "Select a Home Design model above to display the standard floorplan layout, or upload a modified design."
+                  : "Click 'Update with Modified Design' above to upload and crop your custom floorplan."}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modified Floorplan Cropper Dialog */}
+      <ModifiedFloorplanModal
+        isOpen={isCropperOpen}
+        onClose={() => setIsCropperOpen(false)}
+        isDoubleStorey={isDouble}
+        designName={design.designName || (design.mode === "custom_floorplan" ? "Custom Floorplan" : undefined)}
+        onSave={(croppedDataUrl) => {
+          onChange({
+            floorplanUrl: croppedDataUrl,
+            isModifiedFloorplan: true,
+          });
+        }}
+      />
     </div>
   );
 }

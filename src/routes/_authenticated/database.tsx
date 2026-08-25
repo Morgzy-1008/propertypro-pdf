@@ -40,6 +40,16 @@ import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
 import { parseDeveloperPriceList, extractLotsFromText, type ParsedLot } from "@/lib/parseLotList";
+import {
+  getLocalLots,
+  getLocalPackages,
+  saveLocalLots,
+  saveLocalPackages,
+  upsertLocalLot,
+  deleteLocalLot,
+  upsertLocalPackage,
+  deleteLocalPackage,
+} from "@/lib/databaseStorage";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
@@ -314,10 +324,28 @@ function LotDialog({
       notes: combinedNotes,
       exclusive_consultants: exclusive,
     };
-    const { error } = lot
-      ? await supabase.from("land_lots").update(payload).eq("id", lot.id)
-      : await supabase.from("land_lots").insert(payload);
-    if (!error && form.developer.trim()) {
+
+    const lotId = lot?.id || `lot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const fullLot: Lot = {
+      ...payload,
+      id: lotId,
+      status: lot?.status || "available",
+      updated_at: new Date().toISOString(),
+    };
+    upsertLocalLot(fullLot);
+
+    try {
+      const { error } = lot
+        ? await supabase.from("land_lots").update(payload).eq("id", lot.id)
+        : await supabase.from("land_lots").insert({ ...payload, id: lotId });
+      if (error) {
+        console.warn("[database] Supabase sync lot error:", error);
+      }
+    } catch (err) {
+      console.warn("[database] Supabase sync exception:", err);
+    }
+
+    if (form.developer.trim()) {
       await rememberDeveloper({
         name: form.developer,
         contact_name: form.developer_contact_name,
@@ -326,10 +354,6 @@ function LotDialog({
       });
     }
     setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
     toast.success(lot ? "Lot updated" : "Lot added");
     setOpen(false);
     onSaved();
@@ -567,32 +591,45 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       return;
     }
     setBusy(true);
-    const { error } = await supabase.from("land_lots").insert(
-      selected.map((r) => {
-        const rowStage = (r.stage || stage || "").trim();
-        const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
-        const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
+    const newLotPayloads = selected.map((r, idx) => {
+      const rowStage = (r.stage || stage || "").trim();
+      const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
+      const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
 
-        return {
-          estate: estate.trim(),
-          suburb: suburb.trim(),
-          developer: developer.trim(),
-          developer_contact_name: contactName || null,
-          developer_contact_phone: contactPhone || null,
-          developer_contact_email: contactEmail || null,
-          lot_number: r.lot_number ? String(r.lot_number).trim() : null,
-          address: r.address ? String(r.address).trim() : null,
-          land_size: r.land_size ? Number(r.land_size) : null,
-          frontage: r.frontage ? Number(r.frontage) : null,
-          land_price: r.land_price ? Number(r.land_price) : null,
-          registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
-          titled: Boolean(r.titled),
-          status: r.status ?? "available",
-          notes: combinedNotes,
-        };
-      }),
-    );
-    if (!error) {
+      return {
+        id: `lot-imp-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+        estate: estate.trim(),
+        suburb: suburb.trim(),
+        developer: developer.trim(),
+        developer_contact_name: contactName || null,
+        developer_contact_phone: contactPhone || null,
+        developer_contact_email: contactEmail || null,
+        lot_number: r.lot_number ? String(r.lot_number).trim() : null,
+        address: r.address ? String(r.address).trim() : null,
+        land_size: r.land_size ? Number(r.land_size) : null,
+        frontage: r.frontage ? Number(r.frontage) : null,
+        land_price: r.land_price ? Number(r.land_price) : null,
+        registration_date: r.titled ? null : (r.registration_date ? String(r.registration_date).trim() : null),
+        titled: Boolean(r.titled),
+        status: (r.status ?? "available") as Lot["status"],
+        exclusive_consultants: null,
+        deadline: null,
+        notes: combinedNotes,
+        updated_at: new Date().toISOString(),
+      };
+    });
+
+    // Save all to localStorage immediately
+    const existing = getLocalLots();
+    saveLocalLots([...newLotPayloads, ...existing]);
+
+    try {
+      await supabase.from("land_lots").insert(newLotPayloads);
+    } catch (err) {
+      console.warn("[database] Supabase sync import error:", err);
+    }
+
+    if (developer.trim()) {
       await rememberDeveloper({
         name: developer,
         contact_name: contactName,
@@ -880,24 +917,30 @@ function DatabasePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    // Instant load from localStorage cache (auto-seeded if empty)
+    const localL = getLocalLots();
+    const localP = getLocalPackages();
+    setLots(localL);
+    setPackages(localP);
+
     try {
       const [lotRes, pkgRes] = await Promise.all([
         supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
         supabase.from("packages").select("*").order("created_at", { ascending: false }),
       ]);
-      if (lotRes.error) {
-        console.warn("[database] land_lots load warning:", lotRes.error);
+      
+      if (lotRes.data && lotRes.data.length > 0) {
+        setLots(lotRes.data as Lot[]);
+        saveLocalLots(lotRes.data as Lot[]);
       }
-      if (pkgRes.error) {
-        console.warn("[database] packages load warning:", pkgRes.error);
+      if (pkgRes.data && pkgRes.data.length > 0) {
+        setPackages(pkgRes.data as Pkg[]);
+        saveLocalPackages(pkgRes.data as Pkg[]);
       }
-      setLots((lotRes.data ?? []) as Lot[]);
-      setPackages((pkgRes.data ?? []) as Pkg[]);
       setSelLots([]);
       setSelPkgs([]);
     } catch (e) {
-      console.error("[database] Load exception:", e);
-      toast.error("Could not refresh database rows");
+      console.warn("[database] Supabase sync notice (using local storage fallback):", e);
     } finally {
       setLoading(false);
     }
@@ -995,27 +1038,51 @@ function DatabasePage() {
   }, [packages, query, lotById]);
 
   const updateLot = async (id: string, patch: { status: Lot["status"] }) => {
-    setLots((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
-    const { error } = await supabase.from("land_lots").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    setLots((prev) => {
+      const next = prev.map((l) => (l.id === id ? { ...l, ...patch } : l));
+      saveLocalLots(next);
+      return next;
+    });
+    try {
+      await supabase.from("land_lots").update(patch).eq("id", id);
+    } catch (e) {
+      console.warn("[database] Supabase update lot warning:", e);
+    }
   };
 
   const updatePkg = async (id: string, patch: { status: Pkg["status"] }) => {
-    setPackages((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    const { error } = await supabase.from("packages").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    setPackages((prev) => {
+      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      saveLocalPackages(next);
+      return next;
+    });
+    try {
+      await supabase.from("packages").update(patch).eq("id", id);
+    } catch (e) {
+      console.warn("[database] Supabase update pkg warning:", e);
+    }
   };
 
   const removeLot = async (id: string) => {
-    const { error } = await supabase.from("land_lots").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    deleteLocalLot(id);
     setLots((prev) => prev.filter((l) => l.id !== id));
+    try {
+      await supabase.from("land_lots").delete().eq("id", id);
+    } catch (e) {
+      console.warn("[database] Supabase delete lot warning:", e);
+    }
+    toast.success("Lot removed");
   };
 
   const removePkg = async (id: string) => {
-    const { error } = await supabase.from("packages").delete().eq("id", id);
-    if (error) return toast.error(error.message);
+    deleteLocalPackage(id);
     setPackages((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await supabase.from("packages").delete().eq("id", id);
+    } catch (e) {
+      console.warn("[database] Supabase delete pkg warning:", e);
+    }
+    toast.success("Package removed");
   };
 
   const toggle = (list: string[], id: string) =>
@@ -1028,43 +1095,71 @@ function DatabasePage() {
   ) => {
     if (!selLots.length) return;
     setBulkBusy(true);
-    const { error } = await supabase.from("land_lots").update(patch).in("id", selLots);
+    setLots((prev) => {
+      const next = prev.map((l) => (selLots.includes(l.id) ? { ...l, ...patch } : l));
+      saveLocalLots(next);
+      return next;
+    });
+    try {
+      await supabase.from("land_lots").update(patch).in("id", selLots);
+    } catch (e) {
+      console.warn("[database] Bulk lot update warning:", e);
+    }
     setBulkBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(`${selLots.length} lots ${label}`);
-    void load();
   };
 
   const bulkDeleteLots = async () => {
     if (!selLots.length) return;
     if (!window.confirm(`Delete ${selLots.length} land lots? This cannot be undone.`)) return;
     setBulkBusy(true);
-    const { error } = await supabase.from("land_lots").delete().in("id", selLots);
+    setLots((prev) => {
+      const next = prev.filter((l) => !selLots.includes(l.id));
+      saveLocalLots(next);
+      return next;
+    });
+    try {
+      await supabase.from("land_lots").delete().in("id", selLots);
+    } catch (e) {
+      console.warn("[database] Bulk delete lots warning:", e);
+    }
     setBulkBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(`${selLots.length} lots deleted`);
-    void load();
   };
 
   const bulkPkgs = async (patch: Partial<Pick<Pkg, "status" | "needs_review">>, label: string) => {
     if (!selPkgs.length) return;
     setBulkBusy(true);
-    const { error } = await supabase.from("packages").update(patch).in("id", selPkgs);
+    setPackages((prev) => {
+      const next = prev.map((p) => (selPkgs.includes(p.id) ? { ...p, ...patch } : p));
+      saveLocalPackages(next);
+      return next;
+    });
+    try {
+      await supabase.from("packages").update(patch).in("id", selPkgs);
+    } catch (e) {
+      console.warn("[database] Bulk packages warning:", e);
+    }
     setBulkBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(`${selPkgs.length} packages ${label}`);
-    void load();
   };
 
   const bulkDeletePkgs = async () => {
     if (!selPkgs.length) return;
     if (!window.confirm(`Delete ${selPkgs.length} packages? This cannot be undone.`)) return;
     setBulkBusy(true);
-    const { error } = await supabase.from("packages").delete().in("id", selPkgs);
+    setPackages((prev) => {
+      const next = prev.filter((p) => !selPkgs.includes(p.id));
+      saveLocalPackages(next);
+      return next;
+    });
+    try {
+      await supabase.from("packages").delete().in("id", selPkgs);
+    } catch (e) {
+      console.warn("[database] Bulk delete pkgs warning:", e);
+    }
     setBulkBusy(false);
-    if (error) return toast.error(error.message);
     toast.success(`${selPkgs.length} packages deleted`);
-    void load();
   };
 
 

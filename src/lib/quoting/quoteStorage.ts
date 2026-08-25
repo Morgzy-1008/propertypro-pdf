@@ -172,6 +172,8 @@ export function createNewBlankQuote(): FullQuote {
     screwPieringCost: 0,
     rockExcavationAllowance: 0,
     retainingWallAllowance: 0,
+    materialHandlingRequired: false,
+    materialHandlingAllowance: 0,
   };
 
   const defaultDeposit = 1650;

@@ -14,7 +14,8 @@ import type {
 /**
  * Calculates base price for custom floorplan based on area dimensions and tiered rates.
  */
-export function calculateCustomFloorplanPrice(spec: CustomFloorplanSpec): number {
+export function calculateCustomFloorplanPrice(spec?: CustomFloorplanSpec): number {
+  if (!spec) return 0;
   const isDouble = spec.storeys === "double";
   const groundLivingArea = Number(spec.groundLivingM2) || 0;
   const firstLivingArea = Number(spec.firstLivingM2) || 0;
@@ -38,12 +39,15 @@ export function calculateCustomFloorplanPrice(spec: CustomFloorplanSpec): number
 /**
  * Calculates total m2 area for custom spec
  */
-export function calculateCustomTotalM2(spec: CustomFloorplanSpec): number {
+export function calculateCustomTotalM2(spec?: CustomFloorplanSpec): number {
+  if (!spec) return 0;
   const isDouble = spec.storeys === "double";
   const ground = Number(spec.groundLivingM2) || 0;
   const upper = isDouble ? Number(spec.firstLivingM2) || 0 : 0;
   const garage = Number(spec.garageM2) || 0;
   const alfresco = Number(spec.alfrescoM2) || 0;
+  const porch = Number(spec.porchM2) || 0;
+  const balcony = isDouble ? Number(spec.balconyM2) || 0 : 0;
   return Number((ground + upper + garage + alfresco + porch + balcony).toFixed(2));
 }
 
@@ -349,6 +353,7 @@ export function calculateQuotePricing(
   const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 90)) : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
+  const materialHandlingCost = Number(site.materialHandlingAllowance) || 0;
 
   const siteCostsSubtotal =
     soilTotalCost +
@@ -369,6 +374,7 @@ export function calculateQuotePricing(
     screwPieringCost +
     rockCost +
     retainingCost +
+    materialHandlingCost +
     sedimentCost;
 
   const councilStatutorySubtotal = (Number(site.councilFee) || 0) + councilDaCost + dualLivingCost;
@@ -601,7 +607,11 @@ export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEs
     return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
   }
 
-  // If a location is provided but council not matched
+  // If a location is provided but council not matched, flag as unrecognized for consultant review
+  if (text.length > 2) {
+    return { region: "Other / Unlisted Council (Approval Required)", fee: 2200, isUnrecognized: true };
+  }
+
   return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
 }
 
