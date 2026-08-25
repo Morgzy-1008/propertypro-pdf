@@ -201,15 +201,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const totalPages = hasVariations ? 7 : 6;
 
   // Site items for Page 4 breakdown
-  const gfaM2 = pricing.gfaM2 || 192;
+  // Dedicated Site & Soil items
   const concrete32Cost = siteConditions.concrete32MpaRequired ? (siteConditions.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const flexibleConnectionsCost = siteConditions.flexibleConnectionsRequired ? (siteConditions.flexibleConnectionsCost ?? 1800) : 0;
+
+  // Site Overlay Reports (LHS)
+  const bushfireReportCost = siteConditions.bushfireReportRequired ? (siteConditions.bushfireReportCost ?? 850) : 0;
+  const floodReportCost = siteConditions.floodReportRequired ? (siteConditions.floodReportCost ?? 1500) : 0;
+  const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
+
+  // Site Overlay Allowances (RHS)
   const floodCost = siteConditions.floodOverlayRequired ? (siteConditions.floodOverlayCost ?? 4800) : 0;
-  const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 3500) : 0;
-  const trafficCost = siteConditions.trafficControlRequired ? (siteConditions.trafficControlCost ?? 2850) : 0;
-  const pieringCost = Number(siteConditions.pieringCost) || (Number(siteConditions.pieringAllowanceMeters) || 0) * 110;
+
+  // Council & Statutory
+  const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 8000) : 0;
+  const trafficCost = siteConditions.trafficControlRequired ? (siteConditions.trafficControlCost ?? 10000) : 0;
+  const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
+  const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
+
+  // Geotechnical Allowances
+  const screwPieringCost = siteConditions.screwPieringRequired ? (siteConditions.screwPieringCost ?? Math.round(gfaM2 * 85)) : 0;
   const rockCost = Number(siteConditions.rockExcavationAllowance) || 0;
   const retainingCost = Number(siteConditions.retainingWallAllowance) || 0;
-  const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
   const totalSiteAndStatutorySubtotal = pricing.siteCostsSubtotal + pricing.councilStatutorySubtotal;
 
@@ -222,6 +235,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       qtyLabel: `${pricing.gfaM2} m² footprint`,
       amount: siteConditions.soilTotalCost,
     },
+    ...(siteConditions.concrete32MpaRequired
+      ? [
+          {
+            id: "concrete_32mpa",
+            name: "32 MPa Concrete Slab Upgrade",
+            description: "High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.",
+            qtyLabel: `${pricing.gfaM2} m²`,
+            amount: concrete32Cost,
+          },
+        ]
+      : []),
+    ...(siteConditions.flexibleConnectionsRequired
+      ? [
+          {
+            id: "flexible_connections",
+            name: "Flexible Service Connections (Plumbing & Drainage)",
+            description: "Heavy-duty flexible articulation joints for plumbing and drainage in reactive clay soil.",
+            qtyLabel: "1 House",
+            amount: flexibleConnectionsCost,
+          },
+        ]
+      : []),
     ...(siteConditions.fallMeters > 0 || siteConditions.fallTotalCost > 0
       ? [
           {
@@ -242,15 +277,37 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
     },
   ];
 
-  const structuralEnvironmentalItems = [
-    ...(siteConditions.concrete32MpaRequired
+  const overlayReportsAndAllowances = [
+    ...(siteConditions.bushfireReportRequired
       ? [
           {
-            id: "concrete_32mpa",
-            name: "32 MPa Concrete Slab Upgrade",
-            description: "High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.",
-            qtyLabel: `${pricing.gfaM2} m²`,
-            amount: concrete32Cost,
+            id: "bushfire_report",
+            name: "Bushfire Hazard Assessment Report",
+            description: "Site BAL assessment report, property vegetation categorization & fire management certificate.",
+            qtyLabel: "1 Report",
+            amount: bushfireReportCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.bushfireCost > 0
+      ? [
+          {
+            id: "bushfire_bal",
+            name: `Bushfire Attack Level Protection (${siteConditions.bushfireBal})`,
+            description: "AS 3959 ember protection mesh, toughened glazing, and fire-resistant perimeter seals.",
+            qtyLabel: "1 House",
+            amount: siteConditions.bushfireCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.floodReportRequired
+      ? [
+          {
+            id: "flood_report",
+            name: "Flood Overlay Code Assessment Report",
+            description: "Hydraulic engineering overland flow modeling, DFL certification & flood code statement.",
+            qtyLabel: "1 Report",
+            amount: floodReportCost,
           },
         ]
       : []),
@@ -265,14 +322,14 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           },
         ]
       : []),
-    ...(siteConditions.bushfireCost > 0
+    ...(siteConditions.acousticReportRequired
       ? [
           {
-            id: "bushfire_bal",
-            name: `Bushfire Attack Level Protection (${siteConditions.bushfireBal})`,
-            description: "AS 3959 ember protection mesh, toughened glazing, and fire-resistant perimeter seals.",
-            qtyLabel: "1 House",
-            amount: siteConditions.bushfireCost,
+            id: "acoustic_report",
+            name: "Acoustic Noise Corridor Assessment Report",
+            description: "QDC MP 4.4 transport noise corridor testing, decibel analysis & engineering glazing schedule.",
+            qtyLabel: "1 Report",
+            amount: acousticReportCost,
           },
         ]
       : []),
@@ -319,6 +376,17 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           },
         ]
       : []),
+    ...(siteConditions.dualLivingInfrastructureRequired
+      ? [
+          {
+            id: "dual_living_infra",
+            name: "Dual Living Infrastructure Charge",
+            description: "Council headworks, water & sewer network infrastructure contribution for dual living build.",
+            qtyLabel: "1 Dwelling",
+            amount: dualLivingCost,
+          },
+        ]
+      : []),
     ...(sedimentCost > 0
       ? [
           {
@@ -333,14 +401,14 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   ];
 
   const geotechnicalSiteItems = [
-    ...(pieringCost > 0
+    ...(siteConditions.screwPieringRequired
       ? [
           {
-            id: "piering_allowance",
-            name: "Engineered Piering Allowance",
-            description: `${siteConditions.pieringAllowanceMeters || 0} lm @ $110/m depth into load-bearing strata.`,
-            qtyLabel: `${siteConditions.pieringAllowanceMeters || 0} lm`,
-            amount: pieringCost,
+            id: "screw_piering",
+            name: "Allowance for Screw Piering (KDRB / Fill Site)",
+            description: `Helical screw piering driven to solid strata due to KDRB site or uncontrolled fill ($85 × ${pricing.gfaM2} m²).`,
+            qtyLabel: `${pricing.gfaM2} m² GFA`,
+            amount: screwPieringCost,
           },
         ]
       : []),
@@ -370,16 +438,16 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
 
   const activeSiteSchedule = [
     {
-      label: "1. Site Specific Earthworks & Foundation Engineering",
+      label: "1. Site Specific Earthworks, Foundation & Soil Engineering",
       total: earthworksItems.reduce((s, it) => s + it.amount, 0),
       items: earthworksItems,
     },
-    ...(structuralEnvironmentalItems.length > 0
+    ...(overlayReportsAndAllowances.length > 0
       ? [
           {
-            label: "2. Structural Concrete & Environmental Overlays",
-            total: structuralEnvironmentalItems.reduce((s, it) => s + it.amount, 0),
-            items: structuralEnvironmentalItems,
+            label: "2. Site Overlay Reports & Allowances",
+            total: overlayReportsAndAllowances.reduce((s, it) => s + it.amount, 0),
+            items: overlayReportsAndAllowances,
           },
         ]
       : []),

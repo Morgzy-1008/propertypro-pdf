@@ -3,13 +3,15 @@ export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty";
 export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living";
 
 export type CatalogueCategory =
-  | "external"
-  | "internal_bathroom"
-  | "internal_kitchen"
-  | "internal_bedrooms"
-  | "internal_laundry"
+  | "floorplan_extensions"
+  | "ceiling_heights"
   | "structural"
   | "doors_windows"
+  | "external"
+  | "internal_kitchen"
+  | "internal_bathroom"
+  | "internal_bedrooms"
+  | "internal_laundry"
   | "colour_upgrades"
   | "site_earthworks"
   | "council_statutory";
@@ -71,32 +73,51 @@ export type SoilClass =
   | "Class P";
 
 export interface SiteConditions {
+  // Soil & Foundation Earthworks
   soilClass: SoilClass;
   soilCostSqm: number;
   soilTotalCost: number;
+  concrete32MpaRequired?: boolean;
+  concrete32MpaCost?: number;
+  flexibleConnectionsRequired?: boolean;
+  flexibleConnectionsCost?: number; // default $1,800
   fallMeters: number;
   fallTotalCost: number;
-  councilRegion: string;
-  councilFee: number;
+
+  // Site Overlay Reports (LHS)
+  bushfireReportRequired?: boolean;
+  bushfireReportCost?: number; // default $850
+  floodReportRequired?: boolean;
+  floodReportCost?: number; // default $1,500
+  acousticReportRequired?: boolean;
+  acousticReportCost?: number; // default $1,200
+
+  // Site Overlay Allowances & Physical Works (RHS)
   bushfireBal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";
   bushfireCost: number;
+  floodOverlayRequired?: boolean;
+  floodOverlayCost?: number; // default $4,800
   acousticTier: "None" | "Category 1" | "Category 2" | "Category 3";
   acousticCost: number;
 
-  // Dedicated Site & Engineering Requirements
-  concrete32MpaRequired?: boolean;
-  concrete32MpaCost?: number;
-  floodOverlayRequired?: boolean;
-  floodOverlayCost?: number;
+  // Council & Statutory Applications
+  councilRegion: string;
+  councilFee: number;
   councilDaRequired?: boolean;
-  councilDaCost?: number;
+  councilDaCost?: number; // default $8,000
   trafficControlRequired?: boolean;
-  trafficControlCost?: number;
+  trafficControlCost?: number; // default $10,000 (steps of $2,500)
+  dualLivingInfrastructureRequired?: boolean;
+  dualLivingInfrastructureCost?: number; // default $23,000
+  sedimentAssetProtectionCost?: number;
+
+  // Geotechnical & Site Allowances
+  screwPieringRequired?: boolean;
+  screwPieringCost?: number; // auto-calculated at $85 × GFA m²
+  rockExcavationAllowance?: number; // default $2,500
+  retainingWallAllowance?: number;
   pieringAllowanceMeters?: number;
   pieringCost?: number;
-  rockExcavationAllowance?: number;
-  retainingWallAllowance?: number;
-  sedimentAssetProtectionCost?: number;
 }
 
 export type DepositType = "greenfield" | "brownfield" | "custom";

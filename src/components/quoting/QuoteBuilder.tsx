@@ -248,9 +248,9 @@ export function QuoteBuilder() {
       </div>
 
       {/* Main Grid: Steps Container (Left) + Summary Sidebar (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px] gap-6 items-start">
         {/* Left Column: Multi-Step Navigation & Tab Content */}
-        <div className="space-y-6">
+        <div className="space-y-6 min-w-0">
           {/* Step Selector Tabs */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-800/80 scrollbar-thin">
             {tabs.map((tab) => {

@@ -44,9 +44,11 @@ interface QuoteInclusionsStepProps {
 const CATEGORY_TABS: { id: CatalogueCategory | "all" | "selected"; label: string }[] = [
   { id: "all", label: "All Items" },
   { id: "selected", label: "Selected Only" },
+  { id: "floorplan_extensions", label: "Floorplan Extensions" },
+  { id: "ceiling_heights", label: "Ceiling Heights" },
   { id: "structural", label: "Structural" },
   { id: "doors_windows", label: "Doors & Windows" },
-  { id: "external", label: "Floorplan & External" },
+  { id: "external", label: "External Finishes" },
   { id: "internal_kitchen", label: "Kitchen" },
   { id: "internal_bathroom", label: "Bathroom" },
   { id: "internal_bedrooms", label: "Bedrooms & Storage" },

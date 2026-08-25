@@ -374,10 +374,15 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const site = quote.siteConditions;
   const gfaM2 = quote.design.designM2 || 192;
   const concrete32Cost = site.concrete32MpaRequired ? (site.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 1800) : 0;
+  const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
+  const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 1500) : 0;
+  const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
   const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
-  const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 3500) : 0;
-  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 2850) : 0;
-  const pieringCost = Number(site.pieringCost) || (Number(site.pieringAllowanceMeters) || 0) * 110;
+  const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
+  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 10000) : 0;
+  const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
+  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 85)) : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
@@ -759,17 +764,6 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </span>
             </div>
 
-            {/* Topography Fall */}
-            <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
-              <div>
-                <span className="font-bold text-white block">Topography Fall</span>
-                <span className="text-slate-400 text-[11px]">{site.fallMeters}m Envelope Fall</span>
-              </div>
-              <span className="font-mono font-bold text-slate-200">
-                {site.fallTotalCost === 0 ? "Included ($0)" : `+${formatAud(site.fallTotalCost)}`}
-              </span>
-            </div>
-
             {/* 32MPa Concrete */}
             {site.concrete32MpaRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
@@ -783,15 +777,106 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
-            {/* Flood Overlay */}
+            {/* Flexible Connections */}
+            {site.flexibleConnectionsRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Flexible Service Connections</span>
+                  <span className="text-slate-400 text-[11px]">Plumbing &amp; Stormwater Articulation</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(flexibleConnectionsCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Topography Fall */}
+            {site.fallMeters > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Topography Fall</span>
+                  <span className="text-slate-400 text-[11px]">{site.fallMeters}m Envelope Fall</span>
+                </div>
+                <span className="font-mono font-bold text-slate-200">
+                  {site.fallTotalCost === 0 ? "Included ($0)" : `+${formatAud(site.fallTotalCost)}`}
+                </span>
+              </div>
+            )}
+
+            {/* Bushfire Report */}
+            {site.bushfireReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Bushfire Assessment Report</span>
+                  <span className="text-slate-400 text-[11px]">Site BAL Certificate</span>
+                </div>
+                <span className="font-mono font-bold text-amber-400">
+                  +{formatAud(bushfireReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Bushfire BAL */}
+            {site.bushfireCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Bushfire Attack Level</span>
+                  <span className="text-slate-400 text-[11px]">{site.bushfireBal} Protection</span>
+                </div>
+                <span className="font-mono font-bold text-amber-400">
+                  +{formatAud(site.bushfireCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Flood Report */}
+            {site.floodReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Flood Code Assessment Report</span>
+                  <span className="text-slate-400 text-[11px]">Hydraulic Modeling</span>
+                </div>
+                <span className="font-mono font-bold text-cyan-400">
+                  +{formatAud(floodReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Flood Overlay Works */}
             {site.floodOverlayRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-white block">Flood Hazard Overlay</span>
-                  <span className="text-slate-400 text-[11px]">Hydraulic Pad Elevation</span>
+                  <span className="font-bold text-white block">Flood Pad Elevation</span>
+                  <span className="text-slate-400 text-[11px]">Hydraulic Pad Earthworks</span>
                 </div>
-                <span className="font-mono font-bold text-emerald-400">
+                <span className="font-mono font-bold text-cyan-400">
                   +{formatAud(floodCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Acoustic Report */}
+            {site.acousticReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Acoustic Noise Report</span>
+                  <span className="text-slate-400 text-[11px]">QDC MP 4.4 Assessment</span>
+                </div>
+                <span className="font-mono font-bold text-indigo-400">
+                  +{formatAud(acousticReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Acoustic Attenuation */}
+            {site.acousticCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Acoustic Attenuation Package</span>
+                  <span className="text-slate-400 text-[11px]">{site.acousticTier} Glazing &amp; Batts</span>
+                </div>
+                <span className="font-mono font-bold text-indigo-400">
+                  +{formatAud(site.acousticCost)}
                 </span>
               </div>
             )}
@@ -833,15 +918,28 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
-            {/* Piering */}
-            {pieringCost > 0 && (
+            {/* Dual Living Infrastructure */}
+            {site.dualLivingInfrastructureRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-white block">Engineered Piering</span>
-                  <span className="text-slate-400 text-[11px]">{site.pieringAllowanceMeters} lm Allowance</span>
+                  <span className="font-bold text-white block">Dual Living Infrastructure Charge</span>
+                  <span className="text-slate-400 text-[11px]">Council Headworks &amp; Sewer Contribution</span>
                 </div>
                 <span className="font-mono font-bold text-emerald-400">
-                  +{formatAud(pieringCost)}
+                  +{formatAud(dualLivingCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Screw Piering */}
+            {site.screwPieringRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Screw Piering Allowance</span>
+                  <span className="text-slate-400 text-[11px]">KDRB / Disturbed Fill Foundation</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(screwPieringCost)}
                 </span>
               </div>
             )}

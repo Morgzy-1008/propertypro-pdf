@@ -13,9 +13,11 @@ export const DEFAULT_CUSTOM_RATES = {
 };
 
 export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
+  floorplan_extensions: "Floorplan Extensions",
+  ceiling_heights: "Ceiling Heights",
   structural: "Structural Modifications",
   doors_windows: "Doors and Windows",
-  external: "Floorplan & External",
+  external: "External & Facade Upgrades",
   internal_kitchen: "Internal - Kitchen",
   internal_bathroom: "Internal - Bathroom",
   internal_bedrooms: "Internal - Bedrooms & Storage",
@@ -131,20 +133,11 @@ export function findPotentialDuplicates(
  */
 export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   // ==========================================
-  // 1. STRUCTURAL MODIFICATIONS
+  // 1. FLOORPLAN EXTENSIONS
   // ==========================================
   {
-    id: "str_raked_ceiling",
-    category: "structural",
-    name: "Raked Ceiling with Engineered Trusses",
-    description: "Architectural pitched raked ceiling structure with engineered scissor trusses to selected living areas in lieu of standard flat ceiling.",
-    unitType: "per_m2",
-    unitRate: 310,
-    isClientSelectable: true,
-  },
-  {
     id: "str_custom_ss_h2",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Custom Single Storey Living Area (H2 Inclusions)",
     description: "Custom ground floor enclosed living area framing, insulation, plasterboard, and finishes based on H2 Builder specification.",
     unitType: "per_m2",
@@ -153,7 +146,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_ss_h3",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Custom Single Storey Living Area (H3 Inclusions)",
     description: "Custom ground floor enclosed living area framing, insulation, plasterboard, and finishes based on H3 Luxury specification.",
     unitType: "per_m2",
@@ -162,7 +155,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_garage",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Custom Garage Floor Footprint Extension",
     description: "Reinforced concrete slab, timber/steel wall framing, exterior brickwork/cladding, and engineered roof trusses for garage.",
     unitType: "per_m2",
@@ -171,7 +164,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_porch_alfresco",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Custom Porch / Alfresco Under-Roof Area",
     description: "Integrated concrete slab and roofline framing extension for outdoor porch or alfresco entertaining footprint.",
     unitType: "per_m2",
@@ -180,7 +173,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_ds_h2_gf",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Double Storey Ground Floor Living (H2 Inclusions)",
     description: "Ground floor structural living area construction with engineered floor joists above for double storey custom home.",
     unitType: "per_m2",
@@ -189,7 +182,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_ds_h2_ff",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Double Storey First Floor Living (H2 Inclusions)",
     description: "Upper floor structural living area framing, floor sheeting, insulation, and roofline based on H2 Builder specification.",
     unitType: "per_m2",
@@ -198,7 +191,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_ds_h3_gf",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Double Storey Ground Floor Living (H3 Inclusions)",
     description: "Ground floor structural living area construction with engineered upper joist framing for double storey custom home (H3 spec).",
     unitType: "per_m2",
@@ -207,7 +200,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_custom_ds_h3_ff",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Double Storey First Floor Living (H3 Inclusions)",
     description: "Upper floor structural living area framing, premium acoustic floor sheeting, and roofline based on H3 Luxury specification.",
     unitType: "per_m2",
@@ -216,7 +209,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_balcony_uncovered",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Uncovered Balcony Structure with H2 Range Tiles",
     description: "External cantilevered or post-supported balcony structure, waterproofed and finished with H2 range ceramic floor tiles.",
     unitType: "per_m2",
@@ -225,7 +218,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_balcony_covered",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Covered Balcony Structure with H2 Range Tiles",
     description: "Covered upper floor balcony structure with extended roofline, ceiling lining, waterproofing, and H2 range floor tiles.",
     unitType: "per_m2",
@@ -234,7 +227,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_add_gf_ss",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Additional Ground Floor Living Area (Single Storey)",
     description: "Extended ground floor enclosed living area with integrated roof trusses, insulation, and external cladding.",
     unitType: "per_m2",
@@ -243,7 +236,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_add_gf_ds",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Additional Ground Floor Living Area (Double Storey)",
     description: "Extended ground floor structural footprint with intermediate engineered floor joists and load-bearing framing.",
     unitType: "per_m2",
@@ -252,7 +245,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_add_ff_ds",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Additional First Floor Living Area (Double Storey)",
     description: "Extended upper floor structural living area including structural joists, wall framing, and roof structure.",
     unitType: "per_m2",
@@ -261,7 +254,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_add_alfresco",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Additional Alfresco Footprint Area",
     description: "Extended under-roof alfresco slab and roofline for enlarged outdoor entertaining space.",
     unitType: "per_m2",
@@ -270,7 +263,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_add_wet_area_surcharge",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Additional Wet Area Surcharge (Bathroom/Ensuite/Laundry)",
     description: "Specialized waterproofing membrane, sub-floor plumbing rough-in, and sand-cement screed surcharge for enlarged wet areas.",
     unitType: "per_m2",
@@ -279,13 +272,102 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_alfresco_integral_slab_tiled",
-    category: "structural",
+    category: "floorplan_extensions",
     name: "Integral Concrete Slab to Alfresco with Level 1 Floor Tiles",
     description: "Monolithic engineered slab poured integrally with main house foundation and tiled in Level 1 outdoor ceramic tiles.",
     unitType: "per_m2",
     unitRate: 228,
     isClientSelectable: true,
   },
+  {
+    id: "str_drop_edge_beam",
+    category: "floorplan_extensions",
+    name: "Reinforced Drop Edge Beam (DEB)",
+    description: "Deepened vertical concrete perimeter footing beam to retain site fill and accommodate natural ground slope across building pad.",
+    unitType: "per_lm",
+    unitRate: 1050,
+    isClientSelectable: true,
+  },
+
+  // ==========================================
+  // 2. CEILING HEIGHTS & DETAILS
+  // ==========================================
+  {
+    id: "str_raked_ceiling",
+    category: "ceiling_heights",
+    name: "Raked Ceiling with Engineered Trusses",
+    description: "Architectural pitched raked ceiling structure with engineered scissor trusses to selected living areas in lieu of standard flat ceiling.",
+    unitType: "per_m2",
+    unitRate: 310,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_2590_from_2440",
+    category: "ceiling_heights",
+    name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
+    description: "Height increase to 2,590mm wall framing throughout ($45/m² ceiling framing + $3/m² for 2,340mm internal door heights).",
+    unitType: "per_m2",
+    unitRate: 48,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_2740_from_2590",
+    category: "ceiling_heights",
+    name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
+    description: "Height increase to 2,740mm framing including 2,400mm header heights to external doors and windows.",
+    unitType: "per_m2",
+    unitRate: 55,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_2740_from_2440",
+    category: "ceiling_heights",
+    name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
+    description: "Full height increase from standard 2,440mm to 2,740mm framing including 2,400mm door/window header heights.",
+    unitType: "per_m2",
+    unitRate: 73,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_3000_from_2740",
+    category: "ceiling_heights",
+    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,740mm)",
+    description: "Luxury 3,000mm ceiling framing upgrade from 2,740mm height throughout living areas.",
+    unitType: "per_m2",
+    unitRate: 35,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_3000_from_2590",
+    category: "ceiling_heights",
+    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
+    description: "Luxury 3,000mm ceiling framing upgrade from 2,590mm including 2,340mm internal doors.",
+    unitType: "per_m2",
+    unitRate: 73,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_ceiling_3000_from_2440",
+    category: "ceiling_heights",
+    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (ilo 2,440mm)",
+    description: "Full luxury 3,000mm ceiling framing upgrade from standard 2,440mm including 2,340mm internal doors.",
+    unitType: "per_m2",
+    unitRate: 83,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_square_set_ceilings",
+    category: "ceiling_heights",
+    name: "Square Set Cornice Finish Throughout",
+    description: "Modern architectural square-set plaster joint between walls and ceiling in lieu of standard cove cornice.",
+    unitType: "per_m2",
+    unitRate: 10,
+    isClientSelectable: true,
+  },
+
+  // ==========================================
+  // 3. STRUCTURAL MODIFICATIONS
+  // ==========================================
   {
     id: "str_wall_70mm",
     category: "structural",
@@ -305,75 +387,12 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     isClientSelectable: true,
   },
   {
-    id: "str_ceiling_2590_from_2440",
-    category: "structural",
-    name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
-    description: "Height increase to 2,590mm wall framing throughout ($45/m² ceiling framing + $3/m² for 2,340mm internal door heights).",
-    unitType: "per_m2",
-    unitRate: 48,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_ceiling_2740_from_2590",
-    category: "structural",
-    name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
-    description: "Height increase to 2,740mm framing including 2,400mm header heights to external doors and windows.",
-    unitType: "per_m2",
-    unitRate: 55,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_ceiling_2740_from_2440",
-    category: "structural",
-    name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
-    description: "Full height increase from standard 2,440mm to 2,740mm framing including 2,400mm door/window header heights.",
-    unitType: "per_m2",
-    unitRate: 73,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_ceiling_3000_from_2740",
-    category: "structural",
-    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,740mm)",
-    description: "Luxury 3,000mm ceiling framing upgrade from 2,740mm height throughout living areas.",
-    unitType: "per_m2",
-    unitRate: 35,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_ceiling_3000_from_2590",
-    category: "structural",
-    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
-    description: "Luxury 3,000mm ceiling framing upgrade from 2,590mm including 2,340mm internal doors.",
-    unitType: "per_m2",
-    unitRate: 73,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_ceiling_3000_from_2440",
-    category: "structural",
-    name: "Upgrade to 3,000mm (10'0\") Ceiling Height (ilo 2,440mm)",
-    description: "Full luxury 3,000mm ceiling framing upgrade from standard 2,440mm including 2,340mm internal doors.",
-    unitType: "per_m2",
-    unitRate: 83,
-    isClientSelectable: true,
-  },
-  {
     id: "str_steel_beam_300pfc",
     category: "structural",
     name: "Structural Steel Beam (Up to 300 PFC)",
     description: "Heavy structural parallel flange channel (PFC) steel beam with engineering connections and crane installation ($483/lm + $1,100 base installation).",
     unitType: "per_lm",
     unitRate: 483,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_square_set_ceilings",
-    category: "structural",
-    name: "Square Set Cornice Finish Throughout",
-    description: "Modern architectural square-set plaster joint between walls and ceiling in lieu of standard cove cornice.",
-    unitType: "per_m2",
-    unitRate: 10,
     isClientSelectable: true,
   },
   {
@@ -392,24 +411,6 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     description: "Deep concrete piering to zone of influence, hard safety cover, and structural engineering to allow future pool excavation adjacent to house.",
     unitType: "fixed",
     unitRate: 5000,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_screw_piering_kdrb",
-    category: "structural",
-    name: "Engineered Screw Piering to Base Slab (KDRB Sites)",
-    description: "Heavy-duty helical steel screw piers driven to solid bearing stratum to stabilize foundation on disturbed soil/demolition sites.",
-    unitType: "per_m2",
-    unitRate: 70,
-    isClientSelectable: true,
-  },
-  {
-    id: "str_drop_edge_beam",
-    category: "structural",
-    name: "Reinforced Drop Edge Beam (DEB)",
-    description: "Deepened vertical concrete perimeter footing beam to retain site fill and accommodate natural ground slope across building pad.",
-    unitType: "per_lm",
-    unitRate: 1050,
     isClientSelectable: true,
   },
   {

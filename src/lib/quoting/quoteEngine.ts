@@ -261,43 +261,62 @@ export function calculateQuotePricing(
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
   const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplit);
+
+  // Dedicated Site & Soil Engineering items
+  const concrete32Cost = site.concrete32MpaRequired ? (Number(site.concrete32MpaCost) || Math.round(gfaM2 * 14)) : 0;
+  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (Number(site.flexibleConnectionsCost) || 1800) : 0;
+
+  // Site Overlay Reports (LHS)
+  const bushfireReportCost = site.bushfireReportRequired ? (Number(site.bushfireReportCost) || 850) : 0;
+  const floodReportCost = site.floodReportRequired ? (Number(site.floodReportCost) || 1500) : 0;
+  const acousticReportCost = site.acousticReportRequired ? (Number(site.acousticReportCost) || 1200) : 0;
+
+  // Site Overlay Physical Allowances (RHS)
   const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
+  const floodCost = site.floodOverlayRequired ? (Number(site.floodOverlayCost) || 4800) : 0;
   const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
-  // Dedicated Site & Engineering items
-  const concrete32Cost = site.concrete32MpaRequired ? (Number(site.concrete32MpaCost) || Math.round(gfaM2 * 14)) : 0;
-  const floodCost = site.floodOverlayRequired ? (Number(site.floodOverlayCost) || 4800) : 0;
-  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 3500) : 0;
-  const trafficCost = site.trafficControlRequired ? (Number(site.trafficControlCost) || 2850) : 0;
-  const rockCost = Number(site.rockExcavationAllowance) || 0;
-  const pieringCost = Number(site.pieringCost) || (Number(site.pieringAllowanceMeters) || 0) * 110;
-  const retainingCost = Number(site.retainingWallAllowance) || 0;
+  // Council & Statutory
+  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 8000) : 0;
+  const trafficCost = site.trafficControlRequired ? (Number(site.trafficControlCost) || 10000) : 0;
+  const dualLivingCost = site.dualLivingInfrastructureRequired ? (Number(site.dualLivingInfrastructureCost) || 23000) : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
+
+  // Geotechnical & Site Allowances
+  const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 85)) : 0;
+  const rockCost = Number(site.rockExcavationAllowance) || 0;
+  const retainingCost = Number(site.retainingWallAllowance) || 0;
 
   const siteCostsSubtotal =
     soilTotalCost +
-    fallTotalCost +
-    bushfireCost +
-    acousticCost +
     concrete32Cost +
+    flexibleConnectionsCost +
+    fallTotalCost +
+    bushfireReportCost +
+    bushfireCost +
+    floodReportCost +
     floodCost +
+    acousticReportCost +
+    acousticCost +
     trafficCost +
+    screwPieringCost +
     rockCost +
-    pieringCost +
     retainingCost +
     sedimentCost;
 
-  const councilStatutorySubtotal = (Number(site.councilFee) || 0) + councilDaCost;
+  const councilStatutorySubtotal = (Number(site.councilFee) || 0) + councilDaCost + dualLivingCost;
 
   // Group line items by category
   const categoryGroups: Record<CatalogueCategory, QuoteSelectedLineItem[]> = {
-    external: [],
-    internal_bathroom: [],
-    internal_kitchen: [],
-    internal_bedrooms: [],
-    internal_laundry: [],
+    floorplan_extensions: [],
+    ceiling_heights: [],
     structural: [],
     doors_windows: [],
+    external: [],
+    internal_kitchen: [],
+    internal_bathroom: [],
+    internal_bedrooms: [],
+    internal_laundry: [],
     colour_upgrades: [],
     site_earthworks: [],
     council_statutory: [],
@@ -316,6 +335,8 @@ export function calculateQuotePricing(
   let variationsSubtotal = 0;
 
   const categoryOrder: CatalogueCategory[] = [
+    "floorplan_extensions",
+    "ceiling_heights",
     "structural",
     "doors_windows",
     "external",
