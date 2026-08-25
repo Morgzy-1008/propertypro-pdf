@@ -213,6 +213,192 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
 
   const totalSiteAndStatutorySubtotal = pricing.siteCostsSubtotal + pricing.councilStatutorySubtotal;
 
+  // Active Site Categories formatted in the exact same table format as Page 5 (only active items)
+  const earthworksItems = [
+    {
+      id: "soil_class",
+      name: `Engineered Slab Footing & Foundation (Soil ${siteConditions.soilClass})`,
+      description: `Engineered slab footing depth & steel mesh reinforcement (${pricing.gfaM2} m² GFA footprint).`,
+      qtyLabel: `${pricing.gfaM2} m² footprint`,
+      amount: siteConditions.soilTotalCost,
+    },
+    ...(siteConditions.fallMeters > 0 || siteConditions.fallTotalCost > 0
+      ? [
+          {
+            id: "fall_topography",
+            name: `Topography Fall Allowance (${siteConditions.fallMeters}m Fall)`,
+            description: `Standard cut & fill included up to 1.0m fall across building pad, with excess topography engineered fall surcharge.`,
+            qtyLabel: `${siteConditions.fallMeters}m envelope`,
+            amount: siteConditions.fallTotalCost,
+          },
+        ]
+      : []),
+    {
+      id: "geotech_survey",
+      name: "Geotechnical Soil Borehole Test & Registered Contour Survey",
+      description: "Comprehensive geotechnical borehole soil classification and precision laser contour survey.",
+      qtyLabel: "1 Site",
+      amount: 0,
+    },
+  ];
+
+  const structuralEnvironmentalItems = [
+    ...(siteConditions.concrete32MpaRequired
+      ? [
+          {
+            id: "concrete_32mpa",
+            name: "32 MPa Concrete Slab Upgrade",
+            description: "High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.",
+            qtyLabel: `${pricing.gfaM2} m²`,
+            amount: concrete32Cost,
+          },
+        ]
+      : []),
+    ...(siteConditions.floodOverlayRequired
+      ? [
+          {
+            id: "flood_overlay",
+            name: "Flood Hazard Overlay & Pad Elevation",
+            description: "Hydraulic overland flow assessment, DFL compliance & elevated finished floor pad.",
+            qtyLabel: "1 Pad",
+            amount: floodCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.bushfireCost > 0
+      ? [
+          {
+            id: "bushfire_bal",
+            name: `Bushfire Attack Level Protection (${siteConditions.bushfireBal})`,
+            description: "AS 3959 ember protection mesh, toughened glazing, and fire-resistant perimeter seals.",
+            qtyLabel: "1 House",
+            amount: siteConditions.bushfireCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.acousticCost > 0
+      ? [
+          {
+            id: "acoustic_tier",
+            name: `Acoustic Attenuation Package (${siteConditions.acousticTier})`,
+            description: "QDC MP 4.4 acoustic laminated glazing and high-density perimeter wall insulation.",
+            qtyLabel: "1 House",
+            amount: siteConditions.acousticCost,
+          },
+        ]
+      : []),
+  ];
+
+  const councilStatutoryItems = [
+    {
+      id: "council_statutory",
+      name: `Council Statutory Plumbing & Lodgement Fees (${siteConditions.councilRegion})`,
+      description: `${siteConditions.councilRegion} statutory plumbing, sewer connection & archiving fees.`,
+      qtyLabel: "1 Lodgement",
+      amount: siteConditions.councilFee,
+    },
+    ...(siteConditions.councilDaRequired
+      ? [
+          {
+            id: "council_da",
+            name: "Council Development Application (DA)",
+            description: "Town planning statement of reasons, overlay code triggers, and formal council lodgement.",
+            qtyLabel: "1 Lodgement",
+            amount: councilDaCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.trafficControlRequired
+      ? [
+          {
+            id: "traffic_control",
+            name: "Traffic Management Plan & Safety Control",
+            description: "Certified Traffic Guidance Scheme (TGS) and pedestrian safety barriers during deliveries.",
+            qtyLabel: "1 Setup",
+            amount: trafficCost,
+          },
+        ]
+      : []),
+    ...(sedimentCost > 0
+      ? [
+          {
+            id: "sediment_asset",
+            name: "Sediment & Council Asset Protection",
+            description: "Silt fencing, stabilized crushed rock construction entry & council kerb protection.",
+            qtyLabel: "1 Site",
+            amount: sedimentCost,
+          },
+        ]
+      : []),
+  ];
+
+  const geotechnicalSiteItems = [
+    ...(pieringCost > 0
+      ? [
+          {
+            id: "piering_allowance",
+            name: "Engineered Piering Allowance",
+            description: `${siteConditions.pieringAllowanceMeters || 0} lm @ $110/m depth into load-bearing strata.`,
+            qtyLabel: `${siteConditions.pieringAllowanceMeters || 0} lm`,
+            amount: pieringCost,
+          },
+        ]
+      : []),
+    ...(rockCost > 0
+      ? [
+          {
+            id: "rock_excavation",
+            name: "Rock Excavation Allowance",
+            description: "Hydraulic rock breaker allowance for sub-surface trenching.",
+            qtyLabel: "1 Allowance",
+            amount: rockCost,
+          },
+        ]
+      : []),
+    ...(retainingCost > 0
+      ? [
+          {
+            id: "retaining_wall",
+            name: "Retaining Wall Allowance",
+            description: "Concrete sleeper or masonry retaining wall structure allowance.",
+            qtyLabel: "1 Allowance",
+            amount: retainingCost,
+          },
+        ]
+      : []),
+  ];
+
+  const activeSiteSchedule = [
+    {
+      label: "1. Site Specific Earthworks & Foundation Engineering",
+      total: earthworksItems.reduce((s, it) => s + it.amount, 0),
+      items: earthworksItems,
+    },
+    ...(structuralEnvironmentalItems.length > 0
+      ? [
+          {
+            label: "2. Structural Concrete & Environmental Overlays",
+            total: structuralEnvironmentalItems.reduce((s, it) => s + it.amount, 0),
+            items: structuralEnvironmentalItems,
+          },
+        ]
+      : []),
+    {
+      label: "3. Council Approvals & Statutory Applications",
+      total: councilStatutoryItems.reduce((s, it) => s + it.amount, 0),
+      items: councilStatutoryItems,
+    },
+    ...(geotechnicalSiteItems.length > 0
+      ? [
+          {
+            label: "4. Geotechnical & Site Allowances",
+            total: geotechnicalSiteItems.reduce((s, it) => s + it.amount, 0),
+            items: geotechnicalSiteItems,
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
       {/* ========================================================================= */}
@@ -510,24 +696,6 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     {formatAud(pricing.grossEstimatedInvestment)}
                   </td>
                 </tr>
-
-                {/* Deposit & Balance Rows */}
-                <tr className="bg-slate-50 text-[11px]">
-                  <td className="py-1.5 px-3 text-slate-600 font-medium">
-                    Initial Deposit to Proceed ({client.depositType === "brownfield" ? "Brownfield Site" : "Greenfield Site"} Allocation)
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">
-                    {formatAud(pricing.initialDepositAmount)}
-                  </td>
-                </tr>
-                <tr className="bg-slate-50 text-[11px]">
-                  <td className="py-1.5 px-3 text-slate-600 font-medium">
-                    Estimated Balance Due on Building Contract
-                  </td>
-                  <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
-                    {formatAud(pricing.balanceDueOnContract)}
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
@@ -559,7 +727,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 3: DEDICATED ARCHITECTURAL FACADE RENDER & FLOORPLAN DRAWING         */}
+      {/* PAGE 3: DEDICATED ARCHITECTURAL FACADE RENDER & MAXIMIZED FLOORPLAN       */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
@@ -590,7 +758,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           {/* Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 mb-2 text-center text-xs flex-none">
+          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-2 text-center text-xs flex-none">
             <div>
               <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
               <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
@@ -612,8 +780,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           {/* 1. Chosen Facade Render (Towards the top of the page, high quality & enhanced) */}
           <QuoteFacadeViewer design={design} />
 
-          {/* 2. Architectural Floorplan Layout Drawing (Below the facade) */}
-          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-2 bg-white flex items-center justify-center min-h-[440px] max-h-[470px] overflow-hidden shadow-inner">
+          {/* 2. Architectural Floorplan Layout Drawing (Maximized to fill the lower page area) */}
+          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[500px] max-h-[550px] overflow-hidden shadow-inner">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>
@@ -633,7 +801,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 4: COMPREHENSIVE SITE SPECIFIC EARTHWORKS & STATUTORY SCHEDULE        */}
+      {/* PAGE 4: SITE SPECIFIC REQUIREMENTS SCHEDULE (MATCHING PAGE 5 TABLE FORMAT) */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
@@ -657,200 +825,40 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* 4 Card Seamless Grid Layout */}
-          <div className="space-y-4 text-xs">
-            {/* Card 1: Earthworks & Foundation Engineering */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
-                <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                  <Layers className="h-3.5 w-3.5 text-cyan-700" />
-                  1. Earthworks &amp; Foundation Engineering
-                </span>
-                <span className="font-mono text-cyan-800">
-                  +{formatAud(siteConditions.soilTotalCost + siteConditions.fallTotalCost)}
-                </span>
+          {/* Unified Table Format matching Page 5 for only active site items */}
+          <div className="space-y-4">
+            {activeSiteSchedule.map((group) => (
+              <div key={group.label} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
+                  <span className="uppercase tracking-wider">{group.label}</span>
+                  <span className="font-mono text-cyan-800">
+                    {group.total === 0 ? "Included ($0)" : `+${formatAud(group.total)}`}
+                  </span>
+                </div>
+                <table className="w-full text-[11px] border-collapse">
+                  <tbody className="divide-y divide-slate-100">
+                    {group.items.map((it) => (
+                      <tr key={it.id} className="hover:bg-slate-50/50">
+                        <td className="py-2 px-3">
+                          <div className="font-semibold text-slate-900">{it.name}</div>
+                          {it.description && (
+                            <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">
+                              {it.description}
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 text-center text-slate-600 w-28 font-mono">
+                          {it.qtyLabel}
+                        </td>
+                        <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900 w-28">
+                          {it.amount === 0 ? "Included" : `+${formatAud(it.amount)}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <div className="p-3.5 space-y-2 bg-slate-50/50">
-                <div className="grid grid-cols-2 gap-3 text-[11px]">
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                    <div className="flex justify-between font-semibold text-slate-900">
-                      <span>Soil Classification ({siteConditions.soilClass})</span>
-                      <span className="font-mono">{siteConditions.soilTotalCost === 0 ? "Included ($0)" : `+${formatAud(siteConditions.soilTotalCost)}`}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Engineered slab footing depth &amp; steel mesh reinforcement ({gfaM2} m² GFA footprint).
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                    <div className="flex justify-between font-semibold text-slate-900">
-                      <span>Topography Fall ({siteConditions.fallMeters}m Fall)</span>
-                      <span className="font-mono">{siteConditions.fallTotalCost === 0 ? "Included ($0)" : `+${formatAud(siteConditions.fallTotalCost)}`}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
-                      Standard cut &amp; fill included up to 1.0m fall across building pad.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="text-[10px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200/80 flex items-center justify-between">
-                  <span>✓ Geotechnical Soil Borehole Test &amp; Precision Laser Contour Survey</span>
-                  <span className="font-bold text-emerald-700 font-mono">FULLY INCLUDED</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Structural Concrete & Environmental Overlays */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
-                <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                  <Shield className="h-3.5 w-3.5 text-indigo-700" />
-                  2. Structural Concrete &amp; Environmental Overlays
-                </span>
-                <span className="font-mono text-cyan-800">
-                  +{formatAud(concrete32Cost + floodCost + siteConditions.bushfireCost + siteConditions.acousticCost)}
-                </span>
-              </div>
-              <div className="p-3.5 grid grid-cols-2 gap-3 text-[11px] bg-slate-50/50">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>32 MPa Concrete Slab Upgrade</span>
-                    <span className="font-mono">{siteConditions.concrete32MpaRequired ? `+${formatAud(concrete32Cost)}` : "Standard 25MPa ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Flood Overlay &amp; Pad Elevation</span>
-                    <span className="font-mono">{siteConditions.floodOverlayRequired ? `+${formatAud(floodCost)}` : "None ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Hydraulic overland flow assessment, DFL compliance &amp; elevated finished floor pad.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Bushfire Attack Level ({siteConditions.bushfireBal})</span>
-                    <span className="font-mono">{siteConditions.bushfireCost > 0 ? `+${formatAud(siteConditions.bushfireCost)}` : "Standard ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    AS 3959 ember protection mesh, toughened glazing, and fire-resistant seals.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Acoustic Attenuation ({siteConditions.acousticTier})</span>
-                    <span className="font-mono">{siteConditions.acousticCost > 0 ? `+${formatAud(siteConditions.acousticCost)}` : "Quiet Zone ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    QDC MP 4.4 acoustic laminated glazing and high-density perimeter wall insulation.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Council Approvals & Statutory Applications */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
-                <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                  <Building2 className="h-3.5 w-3.5 text-cyan-700" />
-                  3. Council Approvals &amp; Statutory Applications
-                </span>
-                <span className="font-mono text-cyan-800">
-                  +{formatAud(siteConditions.councilFee + councilDaCost + trafficCost + sedimentCost)}
-                </span>
-              </div>
-              <div className="p-3.5 grid grid-cols-2 gap-3 text-[11px] bg-slate-50/50">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Council Statutory Lodgement</span>
-                    <span className="font-mono">+{formatAud(siteConditions.councilFee)}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {siteConditions.councilRegion} statutory plumbing, sewer &amp; archiving fees.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Development Application (DA)</span>
-                    <span className="font-mono">{siteConditions.councilDaRequired ? `+${formatAud(councilDaCost)}` : "Standard BA ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Town planning statement of reasons, overlay code triggers, and formal council lodgement.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Traffic Management Plan</span>
-                    <span className="font-mono">{siteConditions.trafficControlRequired ? `+${formatAud(trafficCost)}` : "Standard Access ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Certified Traffic Guidance Scheme (TGS) and pedestrian safety barriers during deliveries.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Sediment &amp; Council Asset Protection</span>
-                    <span className="font-mono">{sedimentCost > 0 ? `+${formatAud(sedimentCost)}` : "Included ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Silt fencing, stabilized crushed rock construction entry &amp; council kerb protection.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Geotechnical & Site Allowances */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
-                <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                  <Hammer className="h-3.5 w-3.5 text-amber-700" />
-                  4. Geotechnical &amp; Site Allowances
-                </span>
-                <span className="font-mono text-cyan-800">
-                  +{formatAud(pieringCost + rockCost + retainingCost)}
-                </span>
-              </div>
-              <div className="p-3.5 grid grid-cols-3 gap-3 text-[11px] bg-slate-50/50">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Piering Allowance</span>
-                    <span className="font-mono">{pieringCost > 0 ? `+${formatAud(pieringCost)}` : "Nil ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    {siteConditions.pieringAllowanceMeters || 0} lm @ $110/m depth into load-bearing strata.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Rock Excavation</span>
-                    <span className="font-mono">{rockCost > 0 ? `+${formatAud(rockCost)}` : "Nil ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Hydraulic rock breaker allowance for sub-surface trenching.
-                  </p>
-                </div>
-
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
-                  <div className="flex justify-between font-semibold text-slate-900">
-                    <span>Retaining Wall</span>
-                    <span className="font-mono">{retainingCost > 0 ? `+${formatAud(retainingCost)}` : "Nil ($0)"}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Concrete sleeper or masonry retaining wall structure allowance.
-                  </p>
-                </div>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 

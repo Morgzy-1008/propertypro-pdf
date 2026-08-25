@@ -15,6 +15,8 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Tag,
+  Palette,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,6 +39,7 @@ import { HUDSON_FACADES } from "@/components/flyer/facades.data";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
 import { prepareFacade } from "@/components/flyer/facadeEngine";
 import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
+import { HOUSING_FACADES } from "@/components/quoting/QuoteDesignStep";
 
 function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
@@ -97,11 +100,11 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   if (!src) return null;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-lg bg-slate-950 flex items-center justify-center max-h-72 mb-4">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 mb-4">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className="w-full h-full max-h-72 object-cover object-center"
+        className="w-full h-full max-h-80 object-cover object-center"
       />
       <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5">
         <Sparkles className="h-3.5 w-3.5 text-amber-400" />
@@ -126,12 +129,14 @@ const INCLUSION_TIERS: {
   id: InclusionTier;
   label: string;
   badge: string;
+  brochureUrl: string;
   highlights: string[];
 }[] = [
   {
     id: "H1 Inclusions (2025)",
     label: "H1 Standard Inclusions (2025)",
     badge: "Essential Value",
+    brochureUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf",
     highlights: [
       "2,440mm ceiling height throughout",
       "Haier 600mm stainless steel appliances",
@@ -144,6 +149,7 @@ const INCLUSION_TIERS: {
     id: "H2 Inclusions (2025)",
     label: "H2 Premium Inclusions (2025)",
     badge: "Most Popular",
+    brochureUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf",
     highlights: [
       "2,590mm raised ceiling height",
       "Fisher & Paykel 900mm luxury appliances",
@@ -156,6 +162,7 @@ const INCLUSION_TIERS: {
     id: "H3 Inclusions (2025)",
     label: "H3 Luxury Inclusions (2025)",
     badge: "Ultimate Luxury",
+    brochureUrl: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf",
     highlights: [
       "2,740mm high ground floor ceilings",
       "Fisher & Paykel 900mm luxury appliances",
@@ -203,6 +210,12 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
       familyModels[0]
     );
   }, [quote.design.designName, familyModels]);
+
+  // Available facades for housing type
+  const availableFacades = useMemo(() => {
+    const housingType = quote.design.housingType || "Single Storey";
+    return HOUSING_FACADES[housingType as keyof typeof HOUSING_FACADES] || HOUSING_FACADES["Single Storey"];
+  }, [quote.design.housingType]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -277,6 +290,33 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     toast.success(`Updated inclusion range to ${tier}`);
   };
 
+  // Handler for selecting facade option
+  const handleSelectFacade = (facadeName: string, uplift: number) => {
+    const updatedDesign = {
+      ...quote.design,
+      facadeName,
+      facadePrice: uplift,
+    };
+
+    const updatedPricing = calculateQuotePricing(
+      updatedDesign,
+      quote.siteConditions,
+      quote.lineItems,
+      quote.client.depositAmount,
+    );
+
+    const updated: FullQuote = {
+      ...quote,
+      design: updatedDesign,
+      pricing: updatedPricing,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setQuote(updated);
+    saveQuote(updated);
+    toast.success(`Selected architectural facade: ${facadeName} (${uplift === 0 ? "Standard $0" : `+${formatAud(uplift)}`})`);
+  };
+
   // Handler for Client toggling optional variation checkboxes
   const toggleUpgrade = (itemId: string) => {
     const updatedLineItems = quote.lineItems.map((item) => {
@@ -332,8 +372,6 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
   // Site items for display
   const site = quote.siteConditions;
-  const isDouble = quote.design.housingType === "Double Storey";
-  const isSplit = quote.design.housingType === "Split Level";
   const gfaM2 = quote.design.designM2 || 192;
   const concrete32Cost = site.concrete32MpaRequired ? (site.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
   const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
@@ -343,6 +381,8 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
+
+  const variationsTotal = quote.pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 relative overflow-hidden flex flex-col">
@@ -378,7 +418,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             <span className="text-slate-200 font-semibold">
               {[quote.client.lotNumber, quote.client.siteAddress, quote.client.suburb].filter(Boolean).join(", ") || "your proposed Queensland building site"}
             </span>
-            . You can explore different floorplan sizes and switch inclusion tiers below with instant pricing updates.
+            . You can explore different floorplan sizes, switch facades, and customize inclusion tiers below with instant pricing updates.
           </p>
 
           <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
@@ -396,7 +436,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Facade Style:</span>
-              <span className="font-bold text-white text-sm">{quote.design.facadeName}</span>
+              <span className="font-bold text-white text-sm">{quote.design.facadeName || "Classic"}</span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Total Estimated Cost:</span>
@@ -519,10 +559,95 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               );
             })}
           </div>
+
+          {/* Digital Brochure Links beneath inclusion range boxes */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+            <a
+              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
+            >
+              <span className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-emerald-400" />
+                <span>View the entire H1 range here</span>
+              </span>
+              <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-400" />
+            </a>
+
+            <a
+              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
+            >
+              <span className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-emerald-400" />
+                <span>View the entire H2 range here</span>
+              </span>
+              <ExternalLink className="h-3.5 w-3.5 text-emerald-400 group-hover:text-emerald-400" />
+            </a>
+
+            <a
+              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
+            >
+              <span className="flex items-center gap-2">
+                <FileCheck2 className="h-4 w-4 text-emerald-400" />
+                <span>View the entire H3 range here</span>
+              </span>
+              <ExternalLink className="h-3.5 w-3.5 text-emerald-400 group-hover:text-emerald-400" />
+            </a>
+          </div>
         </div>
 
-        {/* SECTION 3: ARCHITECTURAL FACADE & FLOORPLAN PREVIEW */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-4">
+        {/* SECTION 2.5: ARCHITECTURAL FACADE SELECTOR */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Palette className="h-4 w-4 text-cyan-400" />
+                Select Architectural Facade Design
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Browse official architectural facades available for this home design. Selecting a facade updates your high-res render and live quote investment.
+              </p>
+            </div>
+            <span className="text-xs text-slate-400">
+              Current: <strong className="text-cyan-400">{quote.design.facadeName || "Classic"}</strong>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 max-h-64 overflow-y-auto p-1 rounded-xl border border-slate-800 bg-slate-900/40">
+            {availableFacades.map((f) => {
+              const isSelected = (quote.design.facadeName || "Classic").toLowerCase() === f.name.toLowerCase();
+              return (
+                <div
+                  key={f.name}
+                  onClick={() => handleSelectFacade(f.name, f.uplift)}
+                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    isSelected
+                      ? "border-cyan-400 bg-cyan-950/40 ring-1 ring-cyan-400/50 shadow-md"
+                      : "border-slate-800 bg-slate-950/70 hover:border-slate-700 hover:bg-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="font-bold text-xs text-white truncate">{f.name}</span>
+                    {isSelected && <Check className="h-3.5 w-3.5 text-cyan-400 flex-none" />}
+                  </div>
+                  <span className="text-[11px] font-mono font-semibold text-slate-300 block">
+                    {f.uplift === 0 ? "Standard ($0)" : `+${formatAud(f.uplift)}`}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* SECTION 3: ARCHITECTURAL FACADE & MAXIMIZED FLOORPLAN PREVIEW */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
@@ -538,13 +663,13 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           {/* High-Resolution Facade Render */}
           <ClientFacadeViewer design={quote.design} />
 
-          {/* Floorplan Layout Drawing */}
+          {/* Floorplan Layout Drawing (Maximized Size) */}
           {quote.design.floorplanUrl && (
-            <div className="rounded-xl border border-slate-800 bg-white p-4 flex items-center justify-center max-h-80 overflow-hidden shadow-inner">
+            <div className="rounded-xl border border-slate-800 bg-white p-4 flex items-center justify-center min-h-[500px] max-h-[560px] overflow-hidden shadow-inner">
               <img
                 src={quote.design.floorplanUrl}
                 alt={quote.design.designName}
-                className="max-h-72 object-contain mix-blend-multiply drop-shadow-sm"
+                className="max-h-[520px] w-full h-auto object-contain mix-blend-multiply drop-shadow-sm"
               />
             </div>
           )}
@@ -736,7 +861,135 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           </div>
         </div>
 
-        {/* SECTION 5: INITIAL DEPOSIT & OFFICIAL NAB DIRECT TRANSFER DETAILS */}
+        {/* SECTION 5: COMPLETE ITEMISED QUOTE COST SUMMARY (MOVED UP) */}
+        <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-slate-900 via-emerald-950/20 to-slate-950 p-6 shadow-2xl space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+            <div>
+              <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold block">
+                Total Estimated Builders Investment:
+              </span>
+              <div className="text-3xl font-extrabold text-white mt-1 bg-gradient-to-r from-emerald-300 to-teal-200 bg-clip-text text-transparent font-mono">
+                {formatAud(quote.pricing.grossEstimatedInvestment)}
+              </div>
+              <span className="text-xs text-slate-400">
+                Preliminary Builders Estimate (14-day validity) · Inclusive of 10% GST
+              </span>
+            </div>
+
+            <div className="text-left sm:text-right">
+              <span className="text-xs text-slate-400 block">Assigned New Home Consultant:</span>
+              <span className="font-bold text-white text-sm">{quote.client.consultantName}</span>
+              <span className="text-xs text-slate-400 block font-mono">{quote.client.consultantPhone}</span>
+            </div>
+          </div>
+
+          {/* Complete Itemized Cost Summary List */}
+          <div className="space-y-2 text-xs">
+            <span className="font-bold text-slate-200 uppercase tracking-wider text-[11px] block mb-2">
+              Complete Itemised Investment Breakdown:
+            </span>
+
+            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 space-y-2.5 divide-y divide-slate-800/60">
+              {/* Base House Price */}
+              <div className="flex items-center justify-between text-slate-300">
+                <span>
+                  Base House Price ({quote.design.designName} with {quote.design.specTier})
+                </span>
+                <span className="font-mono font-bold text-white">
+                  {formatAud(quote.pricing.baseHousePrice)}
+                </span>
+              </div>
+
+              {/* Facade */}
+              {quote.pricing.facadePrice > 0 && (
+                <div className="pt-2 flex items-center justify-between text-slate-300">
+                  <span>Architectural Facade ({quote.design.facadeName})</span>
+                  <span className="font-mono text-slate-200">
+                    +{formatAud(quote.pricing.facadePrice)}
+                  </span>
+                </div>
+              )}
+
+              {/* Promotion */}
+              {quote.pricing.promotionsDiscount > 0 && (
+                <div className="pt-2 flex items-center justify-between text-emerald-400 font-semibold">
+                  <span>{quote.pricing.promotionName} (Special Savings)</span>
+                  <span className="font-mono">
+                    -{formatAud(quote.pricing.promotionsDiscount)}
+                  </span>
+                </div>
+              )}
+
+              {/* Site Earthworks & Engineering */}
+              <div className="pt-2 flex items-center justify-between text-slate-300">
+                <span>Site Specific Earthworks, Foundations &amp; Overlays</span>
+                <span className="font-mono text-slate-200">
+                  +{formatAud(quote.pricing.siteCostsSubtotal)}
+                </span>
+              </div>
+
+              {/* Council Statutory */}
+              <div className="pt-2 flex items-center justify-between text-slate-300">
+                <span>Council Statutory Lodgement &amp; Approvals ({quote.siteConditions.councilRegion})</span>
+                <span className="font-mono text-slate-200">
+                  +{formatAud(quote.pricing.councilStatutorySubtotal)}
+                </span>
+              </div>
+
+              {/* Variations */}
+              {variationsTotal > 0 && (
+                <div className="pt-2 flex items-center justify-between text-slate-300">
+                  <span>Selected Optional Variations &amp; Upgrades</span>
+                  <span className="font-mono text-slate-200">
+                    +{formatAud(variationsTotal)}
+                  </span>
+                </div>
+              )}
+
+              {/* Net + GST + Total */}
+              <div className="pt-3 border-t border-slate-700/80 flex items-center justify-between text-slate-200 font-extrabold text-sm">
+                <span>TOTAL ESTIMATED BUILDERS INVESTMENT (INC. GST)</span>
+                <span className="font-mono text-emerald-400 text-base">
+                  {formatAud(quote.pricing.grossEstimatedInvestment)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Consultant Alteration Notes & Submit Button */}
+          <div className="space-y-4 pt-2 border-t border-slate-800">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-300">
+                Have questions or custom alteration requests for your consultant?
+              </label>
+              <Textarea
+                value={clientNotes}
+                onChange={(e) => setClientNotes(e.target.value)}
+                placeholder="Type any questions, layout modifications, or custom requests here..."
+                rows={3}
+                className="border-slate-800 bg-slate-950/80 text-xs text-slate-100 placeholder:text-slate-500"
+              />
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <div className="text-xs text-slate-400">
+                {submitted
+                  ? "✓ Your selections have been saved and registered with your consultant."
+                  : "Click below to confirm your chosen design size, inclusions, and upgrades."}
+              </div>
+
+              <Button
+                onClick={handleSubmitSelections}
+                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-2 shadow-md shadow-emerald-500/20"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {submitted ? "Update My Selections" : "Submit My Selected Preferences"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* SECTION 6: INITIAL DEPOSIT & OFFICIAL NAB DIRECT TRANSFER DETAILS (MOVED TO BOTTOM) */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
             <div>
@@ -884,60 +1137,6 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               <span className="text-[9px] text-slate-500 mt-0.5">
                 Pre-fills BSB, Acc &amp; Ref
               </span>
-            </div>
-          </div>
-        </div>
-
-        {/* SECTION 6: LIVE TOTAL & SUBMISSION */}
-        <div className="rounded-2xl border border-emerald-500/40 bg-gradient-to-br from-slate-900 via-emerald-950/20 to-slate-950 p-6 shadow-2xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
-            <div>
-              <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold block">
-                Total Estimated Builders Investment:
-              </span>
-              <div className="text-3xl font-extrabold text-white mt-1 bg-gradient-to-r from-emerald-300 to-teal-200 bg-clip-text text-transparent font-mono">
-                {formatAud(quote.pricing.grossEstimatedInvestment)}
-              </div>
-              <span className="text-xs text-slate-400">
-                Preliminary Builders Estimate (14-day validity) · Inclusive of 10% GST
-              </span>
-            </div>
-
-            <div className="text-left sm:text-right">
-              <span className="text-xs text-slate-400 block">Assigned New Home Consultant:</span>
-              <span className="font-bold text-white text-sm">{quote.client.consultantName}</span>
-              <span className="text-xs text-slate-400 block font-mono">{quote.client.consultantPhone}</span>
-            </div>
-          </div>
-
-          <div className="mt-5 space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">
-                Have questions or custom alteration requests for your consultant?
-              </label>
-              <Textarea
-                value={clientNotes}
-                onChange={(e) => setClientNotes(e.target.value)}
-                placeholder="Type any questions, layout modifications, or custom requests here..."
-                rows={3}
-                className="border-slate-800 bg-slate-950/80 text-xs text-slate-100 placeholder:text-slate-500"
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-              <div className="text-xs text-slate-400">
-                {submitted
-                  ? "✓ Your selections have been saved and registered with your consultant."
-                  : "Click below to confirm your chosen design size, inclusions, and upgrades."}
-              </div>
-
-              <Button
-                onClick={handleSubmitSelections}
-                className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-2 shadow-md shadow-emerald-500/20"
-              >
-                <Send className="h-3.5 w-3.5" />
-                {submitted ? "Update My Selections" : "Submit My Selected Preferences"}
-              </Button>
             </div>
           </div>
         </div>

@@ -141,17 +141,6 @@ export function QuoteSummarySidebar({
               Preliminary Builders Estimate (14-day validity) · Inc. 10% GST
             </span>
           </div>
-
-          {/* Initial Deposit Required */}
-          <div className="pt-2.5 flex justify-between text-cyan-300 text-xs font-semibold bg-cyan-950/20 px-2 py-1.5 rounded border border-cyan-800/30">
-            <span>Initial Deposit to Proceed:</span>
-            <span className="font-mono">{formatAud(pricing.initialDepositAmount)}</span>
-          </div>
-
-          <div className="pt-2 flex justify-between text-xs font-bold text-white">
-            <span>Balance on Agreement:</span>
-            <span className="font-mono text-slate-100">{formatAud(pricing.balanceDueOnContract)}</span>
-          </div>
         </div>
 
         {/* Action Buttons */}
