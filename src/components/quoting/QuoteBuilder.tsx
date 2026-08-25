@@ -147,6 +147,7 @@ export function QuoteBuilder() {
         await document.fonts.ready;
       }
       const exportHost =
+        document.querySelector(".quote-pdf-root:not(#quote-pdf-export-container)") ||
         document.getElementById("quote-pdf-export-container") ||
         document.querySelector(".quote-pdf-root") ||
         document.body;
@@ -385,14 +386,24 @@ export function QuoteBuilder() {
         </DialogContent>
       </Dialog>
 
-      {/* Hidden background render host for 1-click PDF download from any tab */}
-      <div
-        id="quote-pdf-export-container"
-        className="fixed -left-[99999px] top-0 opacity-0 pointer-events-none z-[-99999] quote-pdf-root"
-        aria-hidden="true"
-      >
-        <QuotePdfDocument quote={quote} />
-      </div>
+      {/* Hidden background render host for 1-click PDF download from non-preview tabs */}
+      {activeTab !== "pdf_preview" && (
+        <div
+          id="quote-pdf-export-container"
+          style={{
+            position: "fixed",
+            left: "-9999px",
+            top: "0",
+            width: "794px",
+            opacity: 0,
+            pointerEvents: "none",
+            zIndex: -9999,
+          }}
+          aria-hidden="true"
+        >
+          <QuotePdfDocument quote={quote} />
+        </div>
+      )}
     </div>
   );
 }

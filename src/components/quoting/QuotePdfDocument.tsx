@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   Building,
   FileCheck2,
+  Check,
 } from "lucide-react";
 import { PaymentQrCode } from "./PaymentQrCode";
 
@@ -22,9 +23,10 @@ interface QuotePdfDocumentProps {
 }
 
 function formatInclusionTierTitle(tier: string): string {
-  if (tier.includes("H1")) return "H1 Smart Inclusions";
-  if (tier.includes("H2")) return "H2 Design Inclusions";
-  if (tier.includes("H3")) return "H3 Luxury Inclusions";
+  if (!tier) return "H2 Design Inclusions (2025)";
+  if (tier.includes("H1")) return "H1 Smart Inclusions (2025)";
+  if (tier.includes("H2")) return "H2 Design Inclusions (2025)";
+  if (tier.includes("H3")) return "H3 Luxury Inclusions (2025)";
   return tier;
 }
 
@@ -32,10 +34,16 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState(design.floorplanUrl || "");
 
   React.useEffect(() => {
-    setSrc(design.floorplanUrl || "");
-    if (design.designName && (!design.floorplanUrl || !design.floorplanUrl.startsWith("data:"))) {
+    if (design.floorplanUrl && design.floorplanUrl.startsWith("data:")) {
+      setSrc(design.floorplanUrl);
+      return;
+    }
+    if (design.designName) {
       const plans = plansForDesign(design.designName);
       if (plans[0]) {
+        if (plans[0].url && !plans[0].url.startsWith("data:")) {
+          setSrc(plans[0].url);
+        }
         prepareFloorplan(plans[0]).then((enhanced) => {
           if (enhanced) setSrc(enhanced);
         }).catch(() => {});
@@ -45,19 +53,22 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) {
     return (
-      <div className="text-center text-slate-400 text-sm py-24">
-        Architectural Floorplan Drawing — Standard Hudson Design
+      <div className="text-center text-slate-400 text-xs py-32">
+        <Home className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+        Architectural Floorplan Drawing — Standard Hudson Design Layout
       </div>
     );
   }
 
   return (
-    <img
-      src={src}
-      alt="Selected Floorplan Drawing"
-      className="w-full h-full max-h-[830px] max-w-full object-contain mix-blend-multiply drop-shadow-sm transition-all"
-      style={{ imageRendering: "auto" }}
-    />
+    <div className="w-full h-full flex items-center justify-center p-2 bg-white">
+      <img
+        src={src}
+        alt="Selected Floorplan Drawing"
+        className="max-h-[690px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        style={{ imageRendering: "auto" }}
+      />
+    </div>
   );
 }
 
@@ -87,13 +98,13 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const siteAddressFull =
     [client.lotNumber, client.siteAddress, client.suburb, `QLD ${client.postcode || ""}`]
       .filter(Boolean)
-      .join(", ") || "Site Address TBA, Queensland";
+      .join(", ") || "Proposed Site Address TBA, Queensland";
 
   const clientCombinedNames = [client.clientName, client.hasClient2 && client.client2Name]
     .filter(Boolean)
     .join(" & ");
 
-  const hasVariations = pricing.categorySubtotals.length > 0;
+  const hasVariations = pricing.categorySubtotals && pricing.categorySubtotals.length > 0;
   const totalPages = hasVariations ? 6 : 5;
 
   return (
@@ -101,78 +112,128 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE                             */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-12 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-        {/* Colorful Geometric Poly Banner (Top) */}
-        <div className="absolute top-0 left-0 right-0 h-96 bg-gradient-to-br from-amber-400 via-teal-400 to-indigo-600 opacity-90 [clip-path:polygon(0_0,100%_0,100%_75%,60%_95%,0_50%)] pointer-events-none" />
-        <div className="absolute top-0 left-0 right-0 h-80 bg-gradient-to-tr from-pink-500 via-cyan-400 to-emerald-400 opacity-70 [clip-path:polygon(30%_0,100%_0,100%_90%,40%_65%)] pointer-events-none" />
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        {/* Crisp Vector Top Poly Header Banner (Supported 100% in html2canvas) */}
+        <div className="absolute top-0 left-0 right-0 h-80 pointer-events-none overflow-hidden">
+          <svg
+            viewBox="0 0 794 320"
+            className="w-full h-full"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="polyGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.95" />
+                <stop offset="45%" stopColor="#06b6d4" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.95" />
+              </linearGradient>
+              <linearGradient id="polyGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="polyGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
+              </linearGradient>
+            </defs>
+            <polygon points="0,0 794,0 794,220 480,290 0,160" fill="url(#polyGrad1)" />
+            <polygon points="220,0 794,0 794,270 320,200" fill="url(#polyGrad2)" />
+            <polygon points="0,0 450,0 300,180 0,140" fill="url(#polyGrad3)" />
+          </svg>
+        </div>
 
-        {/* Top Spacer */}
-        <div className="h-36 relative z-10 flex-none" />
+        {/* Top Header Row with Badges & Logo */}
+        <div className="relative z-10 flex items-center justify-between pt-2">
+          <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/60 flex items-center gap-3">
+            <Logo size={11} />
+          </div>
 
-        {/* Center Title Area - Gracefully centered */}
-        <div className="relative z-10 my-auto text-right pr-6 flex-1 flex flex-col justify-center">
-          <div className="text-4xl font-extrabold uppercase tracking-widest text-slate-900">
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-900/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-slate-700 shadow-md flex items-center gap-1.5">
+              <Sparkles className="h-3 w-3 text-amber-400" />
+              Builders Estimate #{quote.quoteNumber || "MH"}
+            </div>
+            <div className="bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase shadow-md">
+              14-Day Price Hold
+            </div>
+          </div>
+        </div>
+
+        {/* Center Hero Title Area */}
+        <div className="relative z-10 my-auto text-right pr-4 flex flex-col justify-center">
+          <div className="text-3xl font-extrabold uppercase tracking-widest text-slate-900">
             YOUR
           </div>
           <div className="text-4xl font-extrabold uppercase tracking-wider text-slate-900 mt-1">
             NEW HOME
           </div>
-          <div className="text-7xl font-serif italic text-cyan-600 font-bold -mt-2 tracking-tight">
+          <div className="text-6xl font-serif italic text-cyan-600 font-bold -mt-1 tracking-tight">
             Builders Estimate
           </div>
+          <p className="text-xs text-slate-500 font-medium tracking-wide mt-2">
+            Comprehensive Architectural Tender &amp; Site Investment Breakdown
+          </p>
         </div>
 
-        {/* Bottom Metadata Block */}
-        <div className="relative z-10 space-y-6 pt-6 flex-none">
-          <div className="text-right space-y-5">
+        {/* Presentation Metadata Card (Matching Website Aesthetic) */}
+        <div className="relative z-10 bg-slate-50/90 border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="grid grid-cols-2 gap-6 text-xs">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
                 PRESENTED TO
               </div>
-              <div className="text-base font-bold text-slate-900 mt-0.5">
+              <div className="text-base font-bold text-slate-900 mt-1">
                 {clientCombinedNames || "Valued Client"}
               </div>
+              <div className="text-slate-500 text-[11px] mt-0.5">
+                {client.clientPhone && <span>{client.clientPhone} · </span>}
+                {client.clientEmail || "client@email.com"}
+              </div>
             </div>
 
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
-                SITE ADDRESS
+                PROPOSED SITE ADDRESS
               </div>
-              <div className="text-sm font-semibold text-slate-900 mt-0.5">
-                {[client.lotNumber, client.siteAddress].filter(Boolean).join(", ")}
+              <div className="text-sm font-bold text-slate-900 mt-1">
+                {[client.lotNumber, client.siteAddress].filter(Boolean).join(", ") || "Site Address TBA"}
               </div>
-              <div className="text-xs text-slate-600">
+              <div className="text-slate-600 text-xs mt-0.5">
                 {[client.suburb, `QLD ${client.postcode || ""}`].filter(Boolean).join(" ")}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
-                SELECTIONS
-              </div>
-              <div className="text-xs text-slate-700 mt-1 space-y-1">
-                <div>
-                  <span className="font-semibold text-slate-900">Homes Design: </span>
-                  {design.mode === "standard" ? design.designName : "Custom Architectural Floorplan"}
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-900">Facade: </span>
-                  {design.facadeName}
-                </div>
-                <div>
-                  <span className="font-semibold text-slate-900">Inclusions: </span>
-                  <span className="font-bold text-cyan-800">{formatInclusionTierTitle(design.specTier)}</span>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Logo & Footer */}
-          <div className="border-t border-slate-200 pt-6 flex items-end justify-between">
-            <Logo size={14} />
-            <div className="text-[10px] text-slate-400 font-mono">
-              Hudson Homes Pty Ltd · ABN 49 163 189 071 · Lic 259372C
+          <div className="pt-4 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Selected Design:</span>
+              <span className="font-bold text-slate-900 text-sm">
+                {design.mode === "standard" ? design.designName : "Custom Architectural Plan"}
+              </span>
             </div>
+
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Facade Style:</span>
+              <span className="font-bold text-slate-900 text-sm">{design.facadeName || "Standard"}</span>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase block">Inclusions Tier:</span>
+              <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                {formatInclusionTierTitle(design.specTier)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Page 1 Footer */}
+        <div className="relative z-10 border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+          <div>
+            Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
+          </div>
+          <div className="font-mono">
+            Estimate #{quote.quoteNumber || "MH"} · Issued {formattedCreatedDate}
           </div>
         </div>
       </div>
@@ -180,14 +241,14 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 2: EXECUTIVE LETTER & ESTIMATED CONSTRUCTION COST SUMMARY            */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Top Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4 mb-6">
+          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
             <div>
               <Logo size={12} />
               <div className="text-[10px] text-slate-500 mt-1">
-                Hudson Homes Pty Ltd · ABN 49 163 189 071 · License 259372C
+                Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
               </div>
             </div>
             <div className="text-right text-xs">
@@ -196,12 +257,12 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Owner Details Table */}
-          <div className="mb-6">
+          {/* Owner & Estimate Details Box */}
+          <div className="mb-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-700 mb-2">
               OWNER &amp; ESTIMATE DETAILS
             </h3>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div>
                 <span className="text-slate-500 block text-[10px]">Owner/s Details:</span>
                 <span className="font-bold text-slate-900">{clientCombinedNames || "Client Name"}</span>
@@ -228,8 +289,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Construction Cost Summary Table */}
-          <div className="mb-6">
+          {/* Comprehensive Itemized Construction Cost Summary Table */}
+          <div className="mb-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-700 mb-2">
               ESTIMATED CONSTRUCTION COST SUMMARY
             </h3>
@@ -243,11 +304,16 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               <tbody className="divide-y divide-slate-200">
                 <tr className="font-semibold">
                   <td className="py-2.5 px-3">
-                    {design.mode === "standard"
-                      ? `${design.designName || "Select Design"} with ${formatInclusionTierTitle(design.specTier)}`
-                      : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
+                    <div className="text-slate-900 font-bold">
+                      {design.mode === "standard"
+                        ? `${design.designName || "Selected Design"} with ${formatInclusionTierTitle(design.specTier)}`
+                        : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-normal">
+                      Living area {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform {pricing.gfaM2} m²
+                    </div>
                   </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold">
+                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
                     {formatAud(pricing.baseHousePrice)}
                   </td>
                 </tr>
@@ -255,7 +321,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {pricing.facadePrice > 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      Architectural Facade: {design.facadeName}
+                      <span className="font-semibold text-slate-900">Architectural Facade:</span> {design.facadeName}
                       {design.isCustomFacade && design.customFacadeDescription && (
                         <span className="block text-[10px] text-slate-500 italic mt-0.5">
                           {design.customFacadeDescription}
@@ -268,14 +334,21 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   </tr>
                 )}
 
-                {/* Builder Promotion on its own distinct line */}
+                {/* Builder Promotion on its own distinct emerald highlighted line */}
                 {pricing.promotionsDiscount > 0 && (
-                  <tr className="text-emerald-700 font-semibold bg-emerald-50/60 border-l-4 border-l-emerald-500">
+                  <tr className="text-emerald-800 font-semibold bg-emerald-50/80 border-l-4 border-l-emerald-500">
                     <td className="py-2 px-3">
-                      <span className="font-bold">{pricing.promotionName}</span>
-                      <span className="block text-[10px] text-emerald-600">Builder Special Promotional Savings</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-emerald-900">{pricing.promotionName}</span>
+                        <span className="text-[9px] font-bold uppercase bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded">
+                          Special Savings
+                        </span>
+                      </div>
+                      <span className="block text-[10px] text-emerald-700">
+                        Automated builder promotion applied to base house price
+                      </span>
                     </td>
-                    <td className="py-2 px-3 text-right font-mono font-bold">
+                    <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800">
                       -{formatAud(pricing.promotionsDiscount)}
                     </td>
                   </tr>
@@ -284,7 +357,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {pricing.siteCostsSubtotal !== 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      Site Specific Requirements &amp; Earthworks (Topography Fall &amp; {siteConditions.soilClass})
+                      <span className="font-semibold text-slate-900">Site Specific Earthworks &amp; Engineering:</span>
+                      <span className="block text-[10px] text-slate-500">
+                        Topography Fall ({siteConditions.fallMeters || 1.0}m fall) &amp; Soil Classification ({siteConditions.soilClass || "Class M"})
+                      </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800">
                       {pricing.siteCostsSubtotal > 0 ? `+${formatAud(pricing.siteCostsSubtotal)}` : `-${formatAud(Math.abs(pricing.siteCostsSubtotal))}`}
@@ -295,7 +371,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {pricing.councilStatutorySubtotal > 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      Council / Statutory and Other Statutory Requirements ({siteConditions.councilRegion})
+                      <span className="font-semibold text-slate-900">Council &amp; Statutory Approvals:</span> {siteConditions.councilRegion}
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800">
                       +{formatAud(pricing.councilStatutorySubtotal)}
@@ -303,11 +379,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   </tr>
                 )}
 
-                {/* Conditional Variations by Category — ONLY displayed if cost > $0 */}
+                {/* Conditional Variations by Category */}
                 {pricing.categorySubtotals.map((cat) => (
                   <tr key={cat.category}>
                     <td className="py-2 px-3 text-slate-700">
-                      {cat.label} ({cat.items.length} item{cat.items.length > 1 ? "s" : ""})
+                      <span className="font-semibold text-slate-900">{cat.label}</span> ({cat.items.length} item{cat.items.length > 1 ? "s" : ""})
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800">
                       +{formatAud(cat.amount)}
@@ -324,18 +400,36 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     {formatAud(pricing.grossEstimatedInvestment)}
                   </td>
                 </tr>
+
+                {/* Deposit & Balance Rows */}
+                <tr className="bg-slate-50 text-[11px]">
+                  <td className="py-1.5 px-3 text-slate-600 font-medium">
+                    Initial Deposit to Proceed ({client.depositType === "brownfield" ? "Brownfield Site" : "Greenfield Site"} Allocation)
+                  </td>
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-700">
+                    {formatAud(pricing.initialDepositAmount)}
+                  </td>
+                </tr>
+                <tr className="bg-slate-50 text-[11px]">
+                  <td className="py-1.5 px-3 text-slate-600 font-medium">
+                    Estimated Balance Due on Building Contract
+                  </td>
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                    {formatAud(pricing.balanceDueOnContract)}
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
 
           {/* Letter / Notes Summary */}
-          <div className="border border-slate-200 rounded-lg p-3.5 bg-slate-50 text-[11px] text-slate-600 leading-relaxed space-y-1.5">
-            <div className="font-bold text-slate-800">Executive Estimate Note:</div>
+          <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50 text-[11px] text-slate-600 leading-relaxed space-y-1.5">
+            <div className="font-bold text-slate-800">Executive Estimate Notice:</div>
             <p>
-              Thank you for the opportunity to present this Builders Estimate for your new Hudson home. This estimate remains valid for 14 days from the date of issue.
+              Thank you for the opportunity to present this Builders Estimate for your new Hudson home. This quotation remains valid for 14 days from the date of issue.
             </p>
             <p className="text-[10px] text-slate-500 italic">
-              *** This document represents a preliminary Builders Estimate and is subject to soil classification, registered contour survey, and developer covenant approval. ***
+              *** This document represents a preliminary Builders Estimate and is subject to geotechnical soil classification, registered contour survey, and developer covenant approval. ***
             </p>
           </div>
         </div>
@@ -346,7 +440,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
+            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
             <div className="font-mono">Page 2 of {totalPages}</div>
@@ -357,9 +451,9 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 3: DEDICATED FULL-PAGE HIGH-QUALITY FLOORPLAN DRAWING                */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] px-8 pt-6 pb-4 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Compact Header */}
+          {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
@@ -373,7 +467,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               <div className="text-[11px] text-slate-600 mt-0.5">
                 Facade: <span className="font-semibold text-slate-900">{design.facadeName}</span>
                 {design.widthM && design.lengthM && (
-                  <span> · Overall Dimensions: {design.widthM} wide × {design.lengthM} deep</span>
+                  <span> · Dimensions: {design.widthM}m wide × {design.lengthM}m deep</span>
                 )}
               </div>
             </div>
@@ -385,8 +479,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Compact Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-lg py-1.5 px-3 mb-2 text-center text-xs flex-none">
+          {/* Area & Configuration Pill Bar */}
+          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 mb-2 text-center text-xs flex-none">
             <div>
               <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
               <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
@@ -405,8 +499,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Maximized High-Resolution Full-Page Floorplan Drawing */}
-          <div className="flex-1 w-full border border-slate-200 rounded-xl p-2 bg-white flex items-center justify-center min-h-[760px] max-h-[840px] overflow-hidden shadow-inner">
+          {/* Maximized High-Resolution Floorplan Drawing (Proportionally sized with zero zooming) */}
+          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-4 bg-white flex items-center justify-center min-h-[690px] max-h-[730px] overflow-hidden shadow-inner">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>
@@ -417,7 +511,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
+            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
             <div className="font-mono">Page 3 of {totalPages}</div>
@@ -429,7 +523,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* PAGE 4 (OPTIONAL): DETAILED VARIATIONS & UPGRADES BREAKDOWN SCHEDULE       */}
       {/* ========================================================================= */}
       {hasVariations && (
-        <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
           <div>
             {/* Header */}
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
@@ -454,7 +548,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             {/* Grouped Category Variations */}
             <div className="space-y-4">
               {pricing.categorySubtotals.map((cat) => (
-                <div key={cat.category} className="border border-slate-200 rounded-xl overflow-hidden">
+                <div key={cat.category} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
                   <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
                     <span className="uppercase tracking-wider">{cat.label}</span>
                     <span className="font-mono text-cyan-800">+{formatAud(cat.amount)}</span>
@@ -492,7 +586,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
             </div>
             <div className="flex items-center gap-4">
-              <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
+              <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
                 CUSTOMER INITIAL
               </div>
               <div className="font-mono">Page 4 of {totalPages}</div>
@@ -502,9 +596,9 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       )}
 
       {/* ========================================================================= */}
-      {/* PAGE 5 / 4: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE               */}
+      {/* PAGE 5: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE                    */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
@@ -516,18 +610,18 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {formatInclusionTierTitle(design.specTier)}
               </h2>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded border border-emerald-200">
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-300">
               ✓ Fully Included in Base Builders Estimate
             </span>
           </div>
 
-          {/* Comprehensive 10-Category Inclusions Grid filling the full page */}
+          {/* Comprehensive 8-Category Inclusions Grid */}
           <div className="space-y-2.5 text-[9.5px] leading-snug">
             {/* Certification & Approvals */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">CERTIFICATION AND APPROVALS</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• Site contour survey by registered surveyor &amp; physical set out</div>
@@ -540,10 +634,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Site Costs, Preparation & Foundation */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">SITE COSTS, PREPARATION &amp; FOUNDATION</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• Bulk earthworks &amp; levelling up to 1.0m fall across building pad</div>
@@ -556,10 +650,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* External Features, Roof & Windows */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">EXTERNAL FEATURES, ROOF &amp; GLAZING</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• {design.specTier.includes("H3") ? "Colorbond® steel roof or flat profile concrete designer roof tiles" : "Colorbond® corrugated steel roofing with medium duty reflective foil"}</div>
@@ -572,10 +666,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Internal Ceilings, Walls & Doors */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">INTERNAL CEILINGS, WALLS &amp; DOORS</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• {design.specTier.includes("H3") ? "2,740mm ceiling height to single storey / ground floor" : design.specTier.includes("H2") ? "2,590mm ceiling height throughout" : "2,440mm ceiling height throughout"}</div>
@@ -588,10 +682,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Gourmet Kitchen & Luxury Appliances */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">GOURMET KITCHEN &amp; APPLIANCES</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• {design.specTier.includes("H3") ? "40mm mitred edge stone kitchen benchtops" : design.specTier.includes("H2") ? "20mm stone kitchen benchtops" : "Laminated benchtops with rolled edge"}</div>
@@ -604,10 +698,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Bathrooms, Ensuite & Powder Room */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">BATHROOM, ENSUITE &amp; POWDER ROOM</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• Contemporary floating vanities with {design.specTier.includes("H1") ? "laminate" : "20mm stone"} benchtops</div>
@@ -620,10 +714,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Laundry & Interior Floor Coverings */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">LAUNDRY &amp; INTERNAL FLOOR COVERINGS</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• Built-in laundry cabinet (up to 1,200mm) with {design.specTier.includes("H1") ? "metal tub" : "20mm stone top & Clark 45L drop-in tub"}</div>
@@ -634,10 +728,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Air-Conditioning & Electrical */}
-            <div className="border border-slate-200 rounded-lg p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
                 <span className="tracking-wide">AIR-CONDITIONING &amp; ELECTRICAL</span>
-                <span className="text-emerald-600 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
               </div>
               <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <div>• {design.specTier.includes("H3") ? "Fully Zoned Ducted Air-Conditioning with MyAir5 Touch Screen Controller" : design.specTier.includes("H2") ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)" : "Reverse Cycle Split System Air-Conditioner to Living Room"}</div>
@@ -656,7 +750,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
+            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
             <div className="font-mono">Page {hasVariations ? 5 : 4} of {totalPages}</div>
@@ -667,10 +761,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* FINAL PAGE: LIFETIME GUARANTEE, INITIAL DEPOSIT & OFFICIAL NAB BANKING    */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-12 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm]">
+      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm]">
         <div>
           {/* Lifetime Structural Guarantee Header */}
-          <div className="border-2 border-slate-900 rounded-xl p-5 mb-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white text-center relative overflow-hidden">
+          <div className="border-2 border-slate-900 rounded-2xl p-5 mb-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white text-center relative overflow-hidden shadow-md">
             <div className="text-xs font-bold uppercase tracking-widest text-amber-400">
               HUDSON HOMES PEACE OF MIND
             </div>
@@ -690,7 +784,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           {/* Initial Deposit & Preliminary Works Container */}
-          <div className="border border-emerald-600/60 bg-emerald-50/40 rounded-xl p-4 mb-5">
+          <div className="border border-emerald-600/60 bg-emerald-50/50 rounded-2xl p-4 mb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200 pb-2.5 mb-2.5">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
@@ -727,32 +821,32 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           {/* Official National Australia Bank (NAB) Transfer Details & QR Code */}
-          <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 flex items-center justify-between gap-6 mb-5">
-            <div className="space-y-1 text-xs">
+          <div className="border border-slate-300 rounded-2xl p-4 bg-slate-50 flex items-center justify-between gap-6 mb-4">
+            <div className="space-y-1 text-xs flex-1">
               <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 flex items-center gap-1.5">
                 <Building className="h-3.5 w-3.5 text-cyan-600" />
                 HUDSON HOMES QLD BANK DETAILS
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1 pt-1 text-[11px]">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 pt-1 text-[11px]">
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Name:</span>
                   <span className="font-bold text-slate-900">Hudson Homes (QLD) Pty Ltd</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Bank:</span>
-                  <span className="font-bold text-slate-900">National Australia Bank</span>
+                  <span className="font-bold text-slate-900">National Australia Bank (NAB)</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">BSB Number:</span>
-                  <span className="font-bold font-mono text-slate-900">082 778</span>
+                  <span className="font-bold font-mono text-slate-900 text-sm">082 778</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                  <span className="font-bold font-mono text-slate-900">74-586-5607</span>
+                  <span className="font-bold font-mono text-slate-900 text-sm">74-586-5607</span>
                 </div>
                 <div className="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
                   <div>
-                    <span className="text-slate-500 text-[10px] block">EFT Payment Reference:</span>
+                    <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
                     <span className="font-bold font-mono text-cyan-800 text-xs">
                       {((client.clientName || "Client").trim().split(/\s+/).pop() || "Client")}-{(client.estimateNumber || quote.quoteNumber || "MH").trim()}
                     </span>
@@ -766,7 +860,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
 
             {/* Real Dynamic Payment QR Code - Directs to 1-Click Copy Web Portal */}
-            <div className="flex flex-col items-center justify-center p-2 bg-white border border-slate-300 rounded-lg text-center flex-none">
+            <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-300 rounded-xl text-center flex-none shadow-sm">
               <PaymentQrCode
                 accountName="Hudson Homes (QLD) Pty Ltd"
                 bsb="082 778"
@@ -774,10 +868,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 amount={client.depositAmount || 1650}
                 reference={`${(client.clientName || "Client").trim().split(/\s+/).pop() || "Client"}-${(client.estimateNumber || quote.quoteNumber || "MH").trim()}`}
                 quoteId={quote.id}
-                size={80}
+                size={85}
               />
               <span className="text-[8.5px] font-bold text-slate-600 mt-1 uppercase font-mono tracking-tight">
-                Scan to Copy Details
+                Scan with Banking App
               </span>
             </div>
           </div>
@@ -786,7 +880,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           <div className="pt-2 grid grid-cols-2 gap-8 text-xs">
             <div className="space-y-4">
               <div>
-                <div className="text-[10px] font-bold uppercase text-slate-500 mb-6">
+                <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
                   Client 1 Signature:
                 </div>
                 <div className="border-b-2 border-slate-900 mb-1" />
@@ -796,7 +890,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
 
               {client.hasClient2 && client.client2Name && (
                 <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500 mb-6">
+                  <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
                     Client 2 Signature:
                   </div>
                   <div className="border-b-2 border-slate-900 mb-1" />
@@ -808,7 +902,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
 
             <div className="space-y-4">
               <div>
-                <div className="text-[10px] font-bold uppercase text-slate-500 mb-6">
+                <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
                   Authorised New Home Consultant:
                 </div>
                 <div className="border-b-2 border-slate-900 mb-1" />
@@ -817,7 +911,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 <div className="text-[10px] text-slate-500 mt-0.5">Date: {formattedCreatedDate}</div>
               </div>
 
-              <div className="p-2.5 bg-slate-100 rounded-lg border border-slate-200 text-[9.5px] text-slate-600">
+              <div className="p-2.5 bg-slate-100 rounded-xl border border-slate-200 text-[9.5px] text-slate-600">
                 <span className="font-bold block text-slate-800 mb-0.5">Hudson Homes Pty Ltd</span>
                 Level 5, 106 City Road, Beenleigh QLD 4207
                 <br />Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au
@@ -832,7 +926,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600">
+            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
             <div className="font-mono">Page {totalPages} of {totalPages}</div>

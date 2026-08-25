@@ -26,17 +26,32 @@ function safeFilename(value: string) {
 /** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
 export async function downloadA4Pdf(root: ParentNode, filename: string) {
   // Support both House & Land flyers (.flyer-page) and Builders Estimate Quotes (.quote-page)
-  let sheets = Array.from(
-    document.querySelectorAll<HTMLElement>(
-      ".flyer-preview-container .flyer-page, .quote-pdf-root .quote-page, #quote-pdf-export-container .quote-page, .quote-page, .flyer-page"
-    ),
-  );
-  if (!sheets.length && root) {
-    sheets = Array.from(root.querySelectorAll<HTMLElement>(".flyer-page, .quote-page"));
+  let sheets: HTMLElement[] = [];
+  
+  if (root) {
+    sheets = Array.from(root.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
   }
+  
   if (!sheets.length) {
-    sheets = Array.from(document.querySelectorAll<HTMLElement>(".flyer-page, .quote-page"));
+    const visibleContainer = document.querySelector(
+      ".quote-pdf-root:not(#quote-pdf-export-container), .flyer-preview-container"
+    );
+    if (visibleContainer) {
+      sheets = Array.from(visibleContainer.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
+    }
   }
+
+  if (!sheets.length) {
+    const exportContainer = document.getElementById("quote-pdf-export-container");
+    if (exportContainer) {
+      sheets = Array.from(exportContainer.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
+    }
+  }
+
+  if (!sheets.length) {
+    sheets = Array.from(document.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
+  }
+
   if (!sheets.length) throw new Error("No PDF printable pages found (.quote-page or .flyer-page)");
 
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
@@ -75,12 +90,6 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
     clone.style.height = "1123px";
     clone.style.minHeight = "1123px";
     clone.style.maxHeight = "1123px";
-
-    if (originalSheet.classList.contains("quote-page")) {
-      clone.style.display = "flex";
-      clone.style.flexDirection = "column";
-      clone.style.justifyContent = "space-between";
-    }
 
     // Ensure all images inside clone retain 100% opacity and high-contrast rendering
     const cloneImages = Array.from(clone.querySelectorAll("img"));
