@@ -165,6 +165,76 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
   );
 }
 
+interface SpecItem {
+  id: string;
+  name: string;
+  description?: string;
+  qtyLabel: string;
+  amount: number;
+}
+
+interface SpecGroup {
+  label: string;
+  total: number;
+  items: SpecItem[];
+}
+
+function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
+  const pages: SpecGroup[][] = [];
+  let currentPage: SpecGroup[] = [];
+  let currentUnits = 0;
+  let isFirstPage = true;
+
+  for (const group of groups) {
+    if (!group.items || group.items.length === 0) continue;
+    const maxUnits = isFirstPage ? 16 : 22;
+    const groupUnits = 1.2 + group.items.length * 1.4;
+
+    if (currentUnits + groupUnits <= maxUnits || currentPage.length === 0) {
+      currentPage.push(group);
+      currentUnits += groupUnits;
+    } else {
+      const remainingUnits = maxUnits - currentUnits;
+      if (remainingUnits >= 4.0 && group.items.length >= 4) {
+        const canFitCount = Math.floor((remainingUnits - 1.2) / 1.4);
+        if (canFitCount >= 2 && group.items.length - canFitCount >= 1) {
+          const part1 = group.items.slice(0, canFitCount);
+          const part2 = group.items.slice(canFitCount);
+
+          currentPage.push({
+            label: group.label,
+            total: part1.reduce((s, it) => s + it.amount, 0),
+            items: part1,
+          });
+          pages.push(currentPage);
+
+          isFirstPage = false;
+          currentPage = [
+            {
+              label: `${group.label} (Continued)`,
+              total: part2.reduce((s, it) => s + it.amount, 0),
+              items: part2,
+            },
+          ];
+          currentUnits = 1.2 + part2.length * 1.4;
+          continue;
+        }
+      }
+
+      pages.push(currentPage);
+      isFirstPage = false;
+      currentPage = [group];
+      currentUnits = groupUnits;
+    }
+  }
+
+  if (currentPage.length > 0) {
+    pages.push(currentPage);
+  }
+
+  return pages.length > 0 ? pages : [[]];
+}
+
 export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const { client, design, siteConditions, lineItems, pricing } = quote;
 
@@ -198,9 +268,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
     .join(" & ");
 
   const hasVariations = pricing.categorySubtotals && pricing.categorySubtotals.length > 0;
-  const totalPages = hasVariations ? 7 : 6;
 
-  // Site items for Page 4 breakdown
+  // Site items for Advanced Estimate Specification schedule
   const gfaM2 = pricing.gfaM2 || 192;
   // Dedicated Site & Soil items
   const concrete32Cost = siteConditions.concrete32MpaRequired
@@ -524,6 +593,29 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       : []),
   ];
 
+  const totalVariationsAmount = (pricing.categorySubtotals || []).reduce((s, c) => s + c.amount, 0);
+  const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAmount;
+
+  const variationGroups: SpecGroup[] = (pricing.categorySubtotals || []).map((cat) => ({
+    label: cat.label,
+    total: cat.amount,
+    items: cat.items.map((it) => ({
+      id: it.id,
+      name: it.name,
+      description: it.description,
+      qtyLabel: it.quantity > 1 ? `${it.quantity} × ${formatAud(it.unitRate)}` : "1 Item",
+      amount: it.quantity * it.unitRate,
+    })),
+  }));
+
+  const allSpecGroups: SpecGroup[] = [
+    ...activeSiteSchedule,
+    ...variationGroups,
+  ];
+
+  const specPages = paginateSpecGroups(allSpecGroups);
+  const totalPages = 3 + specPages.length + 2;
+
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
       {/* ========================================================================= */}
@@ -822,7 +914,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     <td className="py-2 px-3 text-slate-700">
                       <span className="font-semibold text-slate-900">Site Specific Earthworks, Engineering &amp; Statutory Requirements:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Comprehensive schedule detailed on Page 4 ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
+                        Detailed in Advanced Estimate Specification on Page 4 ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
@@ -837,11 +929,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     <td className="py-2 px-3 text-slate-700">
                       <span className="font-semibold text-slate-900">Estimate Variations &amp; Custom Upgrades:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Detailed itemized breakdown schedule on Page 5
+                        Detailed in Advanced Estimate Specification schedule starting on Page 4
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
-                      +{formatAud(pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0))}
+                      +{formatAud(totalVariationsAmount)}
                     </td>
                   </tr>
                 )}
@@ -960,159 +1052,125 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 4: SITE SPECIFIC REQUIREMENTS SCHEDULE (MATCHING PAGE 5 TABLE FORMAT) */}
+      {/* ADVANCED ESTIMATE SPECIFICATION (COMBINED SITE, STATUTORY & VARIATIONS)   */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-        <div>
-          {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
-            <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
-                SITE SPECIFIC EARTHWORKS, FOUNDATIONS &amp; STATUTORY SCHEDULE
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
-                Technical Engineering &amp; Authority Compliance Breakdown
-              </h2>
-            </div>
-            <div className="text-right">
-              <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
-                Total Site &amp; Statutory Investment
-              </span>
-              <span className="text-sm font-extrabold text-cyan-800 font-mono">
-                +{formatAud(totalSiteAndStatutorySubtotal)}
-              </span>
-            </div>
-          </div>
+      {specPages.map((pageGroups, pageIdx) => {
+        const pageNumber = 4 + pageIdx;
+        const isFirstSpecPage = pageIdx === 0;
 
-          {/* Unified Table Format matching Page 5 for only active site items */}
-          <div className="space-y-4">
-            {activeSiteSchedule.map((group) => (
-              <div key={group.label} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
-                  <span className="uppercase tracking-wider">{group.label}</span>
-                  <span className="font-mono text-cyan-800">
-                    {group.total === 0 ? "Included ($0)" : `+${formatAud(group.total)}`}
+        return (
+          <div
+            key={`spec-page-${pageIdx}`}
+            className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
+          >
+            <div>
+              {/* Header */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+                    {isFirstSpecPage
+                      ? "SITE ENGINEERING, STATUTORY & VARIATIONS SCHEDULE"
+                      : "SPECIFICATION VARIATIONS & UPGRADES (CONTINUED)"}
+                  </div>
+                  <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
+                    {isFirstSpecPage
+                      ? "Advanced Estimate Specification"
+                      : `Advanced Estimate Specification (Page ${pageIdx + 1})`}
+                  </h2>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
+                    {isFirstSpecPage ? "Specification & Variations Total" : "Page Subtotal"}
+                  </span>
+                  <span className="text-sm font-extrabold text-cyan-800 font-mono">
+                    +{formatAud(
+                      isFirstSpecPage
+                        ? totalSpecAndVariations
+                        : pageGroups.reduce((s, g) => s + g.total, 0)
+                    )}
                   </span>
                 </div>
-                <table className="w-full text-[11px] border-collapse">
-                  <tbody className="divide-y divide-slate-100">
-                    {group.items.map((it) => (
-                      <tr key={it.id} className="hover:bg-slate-50/50">
-                        <td className="py-2 px-3">
-                          <div className="font-semibold text-slate-900">{it.name}</div>
-                          {it.description && (
-                            <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-                              {it.description}
-                            </div>
-                          )}
-                        </td>
-                        <td className="py-2 px-3 text-center text-slate-600 w-28 font-mono">
-                          {it.qtyLabel}
-                        </td>
-                        <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900 w-28">
-                          {it.amount === 0 ? "Included" : `+${formatAud(it.amount)}`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Page 4 Footer */}
-        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
-          <div>
-            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
-            </div>
-            <div className="font-mono">Page 4 of {totalPages}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* PAGE 5 (OPTIONAL): DETAILED VARIATIONS & UPGRADES BREAKDOWN SCHEDULE       */}
-      {/* ========================================================================= */}
-      {hasVariations && (
-        <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-          <div>
-            {/* Header */}
-            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
-              <div>
-                <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
-                  ESTIMATE VARIATIONS &amp; CUSTOM UPGRADES SCHEDULE
-                </div>
-                <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
-                  Itemized Specification Breakdown
-                </h2>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
-                  Variations Subtotal
-                </span>
-                <span className="text-sm font-bold text-slate-900 font-mono">
-                  {formatAud(pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0))}
-                </span>
-              </div>
-            </div>
-
-            {/* Grouped Category Variations */}
-            <div className="space-y-4">
-              {pricing.categorySubtotals.map((cat) => (
-                <div key={cat.category} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="bg-slate-100 px-3 py-2 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
-                    <span className="uppercase tracking-wider">{cat.label}</span>
-                    <span className="font-mono text-cyan-800">+{formatAud(cat.amount)}</span>
+              {/* Sub-header info bar on first spec page */}
+              {isFirstSpecPage && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 mb-4 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900">Council Jurisdiction:</span>
+                    <span className="text-slate-700 font-medium">{siteConditions.councilRegion}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="font-bold text-slate-900">Soil:</span>
+                    <span className="text-slate-700 font-medium">{siteConditions.soilClass}</span>
+                    <span className="text-slate-400">·</span>
+                    <span className="font-bold text-slate-900">Topography Fall:</span>
+                    <span className="text-slate-700 font-medium">{siteConditions.fallMeters}m</span>
                   </div>
-                  <table className="w-full text-[11px] border-collapse">
-                    <tbody className="divide-y divide-slate-100">
-                      {cat.items.map((it) => (
-                        <tr key={it.id} className="hover:bg-slate-50/50">
-                          <td className="py-2 px-3">
-                            <div className="font-semibold text-slate-900">{it.name}</div>
-                            {it.description && (
-                              <div className="text-[10px] text-slate-500 mt-0.5 leading-snug">
-                                {it.description}
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-2 px-3 text-center text-slate-600 w-24 font-mono">
-                            {it.quantity > 1 ? `${it.quantity} × ${formatAud(it.unitRate)}` : "1 Item"}
-                          </td>
-                          <td className="py-2 px-3 text-right font-mono font-semibold text-slate-900 w-28">
-                            +{formatAud(it.quantity * it.unitRate)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="font-mono text-slate-600 text-[11px]">
+                    Building Pad: <strong>{pricing.gfaM2} m² GFA</strong>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
 
-          {/* Page 5 Footer */}
-          <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
-            <div>
-              Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-                CUSTOMER INITIAL
+              {/* Specification Tables */}
+              <div className="space-y-3.5">
+                {pageGroups.map((group) => (
+                  <div
+                    key={group.label}
+                    className="border border-slate-200 rounded-xl overflow-hidden shadow-xs"
+                  >
+                    <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
+                      <span className="uppercase tracking-wider text-[10.5px]">{group.label}</span>
+                      <span className="font-mono text-cyan-800 text-[11px]">
+                        {group.total === 0 ? "Included ($0)" : `+${formatAud(group.total)}`}
+                      </span>
+                    </div>
+                    <table className="w-full text-[10.5px] border-collapse">
+                      <tbody className="divide-y divide-slate-100">
+                        {group.items.map((it) => (
+                          <tr key={it.id} className="hover:bg-slate-50/50">
+                            <td className="py-1.5 px-3">
+                              <div className="font-semibold text-slate-900">{it.name}</div>
+                              {it.description && (
+                                <div className="text-[9.5px] text-slate-500 mt-0.5 leading-snug">
+                                  {it.description}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3 text-center text-slate-600 w-24 font-mono text-[10px]">
+                              {it.qtyLabel}
+                            </td>
+                            <td className="py-1.5 px-3 text-right font-mono font-semibold text-slate-900 w-28 text-[10.5px]">
+                              {it.amount === 0 ? "Included" : `+${formatAud(it.amount)}`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
               </div>
-              <div className="font-mono">Page 5 of {totalPages}</div>
+            </div>
+
+            {/* Spec Page Footer */}
+            <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
+              <div>
+                Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
+                  CUSTOMER INITIAL
+                </div>
+                <div className="font-mono">
+                  Page {pageNumber} of {totalPages}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })}
 
       {/* ========================================================================= */}
-      {/* PAGE 6: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED)   */}
+      {/* PAGE 5+: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED) */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
@@ -1294,7 +1352,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page {hasVariations ? 6 : 5} of {totalPages}</div>
+            <div className="font-mono">Page {3 + specPages.length + 1} of {totalPages}</div>
           </div>
         </div>
       </div>
