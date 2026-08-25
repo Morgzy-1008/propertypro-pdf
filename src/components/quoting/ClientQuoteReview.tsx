@@ -33,6 +33,83 @@ import {
 } from "@/lib/pricelist.data";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { PaymentQrCode } from "./PaymentQrCode";
+import { HUDSON_FACADES } from "@/components/flyer/facades.data";
+import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
+import { prepareFacade } from "@/components/flyer/facadeEngine";
+import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
+
+function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
+  const [src, setSrc] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const facadeName = design.facadeName || "Classic";
+    const housingType = design.housingType || "Single Storey";
+    const isDouble =
+      design.mode === "custom_floorplan"
+        ? design.customSpec?.storeys === "double"
+        : housingType === "Double Storey" || housingType === "double";
+
+    const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
+
+    const matches = HUDSON_FACADES.filter((f) => {
+      const fNorm = f.name.toLowerCase().replace(/[\s\-_]/g, "");
+      const fIdNorm = f.id.toLowerCase().replace(/[\s\-_]/g, "");
+      return fNorm === normName || fIdNorm === normName;
+    });
+
+    let matched = isDouble
+      ? matches.find((f) => f.range.toLowerCase().includes("double")) || matches[0]
+      : matches.find((f) => !f.range.toLowerCase().includes("double")) || matches[0];
+
+    if (!matched) {
+      matched = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(normName)) || HUDSON_FACADES[0];
+    }
+
+    if (matched) {
+      if (PRE_RENDERED_FACADES[matched.id]) {
+        setSrc(PRE_RENDERED_FACADES[matched.id]);
+        return;
+      }
+
+      getIdbEnhanced(matched.id)
+        .then((cached) => {
+          if (cached) {
+            const clean = cached.replace("::AI_OUTPAINT_V7_FRESH::", "");
+            if (clean.startsWith("data:image/")) {
+              setSrc(clean);
+              return;
+            }
+          }
+          prepareFacade(matched.url, matched.originalUrl, matched.id, housingType)
+            .then((res) => {
+              if (res) setSrc(res);
+            })
+            .catch(() => {
+              setSrc(matched.url);
+            });
+        })
+        .catch(() => {
+          setSrc(matched.url);
+        });
+    }
+  }, [design.facadeName, design.housingType, design.mode, design.customSpec]);
+
+  if (!src) return null;
+
+  return (
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-lg bg-slate-950 flex items-center justify-center max-h-72 mb-4">
+      <img
+        src={src}
+        alt={design.facadeName || "Architectural Facade Render"}
+        className="w-full h-full max-h-72 object-cover object-center"
+      />
+      <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5">
+        <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+        <span>Selected Facade: {design.facadeName || "Classic"}</span>
+      </div>
+    </div>
+  );
+}
 
 interface ClientQuoteReviewProps {
   initialQuote: FullQuote;
@@ -444,21 +521,25 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           </div>
         </div>
 
-        {/* SECTION 3: FLOORPLAN DRAWING PREVIEW */}
-        {quote.design.floorplanUrl && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Layers className="h-4 w-4 text-cyan-400" />
-                  Floorplan Layout Drawing — {quote.design.designName}
-                </h3>
-                <span className="text-xs text-slate-400">
-                  {quote.design.beds || 4} Beds · {quote.design.baths || 2} Baths · {quote.design.cars || 2} Cars · Total Area: {quote.design.designM2} m²
-                </span>
-              </div>
+        {/* SECTION 3: ARCHITECTURAL FACADE & FLOORPLAN PREVIEW */}
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Layers className="h-4 w-4 text-cyan-400" />
+                Architectural Facade &amp; Floorplan Layout — {quote.design.designName}
+              </h3>
+              <span className="text-xs text-slate-400">
+                Selected Facade: <strong className="text-slate-200">{quote.design.facadeName || "Classic"}</strong> · {quote.design.beds || 4} Beds · {quote.design.baths || 2} Baths · {quote.design.cars || 2} Cars · Total Area: {quote.design.designM2} m²
+              </span>
             </div>
+          </div>
 
+          {/* High-Resolution Facade Render */}
+          <ClientFacadeViewer design={quote.design} />
+
+          {/* Floorplan Layout Drawing */}
+          {quote.design.floorplanUrl && (
             <div className="rounded-xl border border-slate-800 bg-white p-4 flex items-center justify-center max-h-80 overflow-hidden shadow-inner">
               <img
                 src={quote.design.floorplanUrl}
@@ -466,8 +547,8 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 className="max-h-72 object-contain mix-blend-multiply drop-shadow-sm"
               />
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* SECTION 4: OPTIONAL UPGRADES CHECKLIST */}
         {clientSelectableItems.length > 0 && (

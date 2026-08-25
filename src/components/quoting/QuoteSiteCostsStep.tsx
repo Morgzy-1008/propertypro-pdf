@@ -173,9 +173,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
 
   const handleCouncilChange = (region: string) => {
     let fee = 0;
-    if (region.includes("Logan") || region.includes("Ipswich") || region.includes("Moreton Bay")) {
+    if (region.includes("No Location") || region.includes("Allowance")) {
+      fee = 2200;
+    } else if (region.includes("Logan") || region.includes("Ipswich") || region.includes("Moreton Bay") || region.includes("Regional")) {
       fee = 2227;
-    } else if (region.includes("Gold Coast")) {
+    } else if (region.includes("Gold Coast") || region.includes("Sunshine Coast")) {
       fee = 2950;
     } else {
       fee = 0; // Brisbane City Council
@@ -401,6 +403,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 <SelectItem value="Ipswich City Council">Ipswich City Council (+$2,227)</SelectItem>
                 <SelectItem value="Moreton Bay Regional Council">Moreton Bay Regional Council (+$2,227)</SelectItem>
                 <SelectItem value="Gold Coast City Council">Gold Coast City Council (+$2,950)</SelectItem>
+                <SelectItem value="Sunshine Coast Council">Sunshine Coast Council (+$2,950)</SelectItem>
+                <SelectItem value="Council Fee Allowance (No Location Mentioned)">Council Fee Allowance — No Location Mentioned (+$2,200)</SelectItem>
               </SelectContent>
             </Select>
             <span className="text-[10px] text-slate-400 block pt-1">

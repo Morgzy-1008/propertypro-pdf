@@ -11,6 +11,9 @@ import {
   UserPlus,
   CheckCircle2,
   FileCheck2,
+  MapPinOff,
+  Building2,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,14 +27,17 @@ import {
 } from "@/components/ui/select";
 import { CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { formatAud } from "@/lib/pricing";
-import type { ClientDetails, DepositType } from "@/lib/quoting/quoteTypes";
+import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
+import type { ClientDetails, DepositType, SiteConditions } from "@/lib/quoting/quoteTypes";
 
 interface QuoteClientDetailsProps {
   client: ClientDetails;
+  site?: SiteConditions;
   onChange: (updated: Partial<ClientDetails>) => void;
+  onSiteChange?: (updated: Partial<SiteConditions>) => void;
 }
 
-export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps) {
+export function QuoteClientDetails({ client, site, onChange, onSiteChange }: QuoteClientDetailsProps) {
   const handleConsultantChange = (id: string) => {
     const c = findConsultant(id);
     if (!c) return;
@@ -50,6 +56,42 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
     if (type === "custom") amount = client.depositAmount || 1650;
     onChange({ depositType: type, depositAmount: amount });
   };
+
+  const handleAddressChange = (patch: Partial<ClientDetails>) => {
+    const merged = { ...client, ...patch };
+    onChange(patch);
+
+    if (onSiteChange) {
+      const detected = detectCouncilFromLocation(
+        `${merged.siteAddress || ""} ${merged.suburb || ""} ${merged.estate || ""}`,
+        merged.postcode
+      );
+      onSiteChange({
+        councilRegion: detected.region,
+        councilFee: detected.fee,
+      });
+    }
+  };
+
+  const handleNoAddressYet = () => {
+    onChange({
+      lotNumber: "TBA",
+      siteAddress: "Address To Be Advised (Land Not Purchased)",
+      suburb: "Location TBA",
+      estate: "",
+      postcode: "",
+    });
+
+    if (onSiteChange) {
+      onSiteChange({
+        councilRegion: "Council Fee Allowance (No Location Mentioned)",
+        councilFee: 2200,
+      });
+    }
+  };
+
+  const currentCouncil = site?.councilRegion || "Logan City Council";
+  const currentFee = site?.councilFee ?? 2227;
 
   return (
     <div className="space-y-6">
@@ -171,11 +213,23 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
         </div>
       )}
 
-      {/* Proposed Building Site Address */}
+      {/* Proposed Building Site Address with Auto-Council Detection */}
       <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-          <MapPin className="h-3.5 w-3.5 text-cyan-400" />
-          Proposed Building Site Location
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
+            <MapPin className="h-3.5 w-3.5 text-cyan-400" />
+            Proposed Building Site Location
+          </div>
+
+          {/* "No Address Yet" One-Tap Button */}
+          <button
+            type="button"
+            onClick={handleNoAddressYet}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 text-xs font-semibold transition-all"
+          >
+            <MapPinOff className="h-3.5 w-3.5 text-amber-400" />
+            No Address Yet / Land Not Purchased (Auto $2,200 Council Allowance)
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
@@ -183,7 +237,7 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
             <Label className="text-[11px] text-slate-400">Lot Number</Label>
             <Input
               value={client.lotNumber}
-              onChange={(e) => onChange({ lotNumber: e.target.value })}
+              onChange={(e) => handleAddressChange({ lotNumber: e.target.value })}
               placeholder="e.g. Lot 134"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
@@ -193,7 +247,7 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
             <Label className="text-[11px] text-slate-400">Street Address</Label>
             <Input
               value={client.siteAddress}
-              onChange={(e) => onChange({ siteAddress: e.target.value })}
+              onChange={(e) => handleAddressChange({ siteAddress: e.target.value })}
               placeholder="e.g. 31 Broad Axe Crescent"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
@@ -203,8 +257,8 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
             <Label className="text-[11px] text-slate-400">Suburb</Label>
             <Input
               value={client.suburb}
-              onChange={(e) => onChange({ suburb: e.target.value })}
-              placeholder="e.g. New Beith"
+              onChange={(e) => handleAddressChange({ suburb: e.target.value })}
+              placeholder="e.g. Flagstone / Coomera / Ripley"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
@@ -213,8 +267,8 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
             <Label className="text-[11px] text-slate-400">Estate Name</Label>
             <Input
               value={client.estate}
-              onChange={(e) => onChange({ estate: e.target.value })}
-              placeholder="e.g. New Beith Estate"
+              onChange={(e) => handleAddressChange({ estate: e.target.value })}
+              placeholder="e.g. Flagstone Rise"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
@@ -227,6 +281,23 @@ export function QuoteClientDetails({ client, onChange }: QuoteClientDetailsProps
               onChange={(e) => onChange({ quoteValidityDays: Number(e.target.value) || 14 })}
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100"
             />
+          </div>
+        </div>
+
+        {/* Live Detected Council Fee Notification Card */}
+        <div className="mt-2 bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-cyan-400 flex-none" />
+            <div>
+              <span className="text-slate-400 text-[11px] block">Auto-Configured Council Jurisdiction:</span>
+              <span className="font-bold text-white text-xs">{currentCouncil}</span>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Statutory Fee:</span>
+            <span className="font-mono font-bold text-emerald-400 text-xs">
+              {currentFee === 0 ? "Standard ($0 Included)" : `+${formatAud(currentFee)}`}
+            </span>
           </div>
         </div>
       </div>

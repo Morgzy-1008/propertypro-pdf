@@ -28,6 +28,10 @@ import { PaymentQrCode } from "./PaymentQrCode";
 
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { prepareFloorplan } from "@/components/flyer/floorplanEngine";
+import { HUDSON_FACADES } from "@/components/flyer/facades.data";
+import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
+import { prepareFacade } from "@/components/flyer/facadeEngine";
+import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
 
 interface QuotePdfDocumentProps {
   quote: FullQuote;
@@ -39,6 +43,84 @@ function formatInclusionTierTitle(tier: string): string {
   if (tier.includes("H2")) return "H2 Design Inclusions (2025)";
   if (tier.includes("H3")) return "H3 Luxury Inclusions (2025)";
   return tier;
+}
+
+function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
+  const [src, setSrc] = React.useState<string>("");
+
+  React.useEffect(() => {
+    const facadeName = design.facadeName || "Classic";
+    const housingType = design.housingType || "Single Storey";
+    const isDouble =
+      design.mode === "custom_floorplan"
+        ? design.customSpec?.storeys === "double"
+        : housingType === "Double Storey" || housingType === "double";
+
+    const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
+
+    // Search HUDSON_FACADES
+    const matches = HUDSON_FACADES.filter((f) => {
+      const fNorm = f.name.toLowerCase().replace(/[\s\-_]/g, "");
+      const fIdNorm = f.id.toLowerCase().replace(/[\s\-_]/g, "");
+      return fNorm === normName || fIdNorm === normName;
+    });
+
+    let matched = isDouble
+      ? matches.find((f) => f.range.toLowerCase().includes("double")) || matches[0]
+      : matches.find((f) => !f.range.toLowerCase().includes("double")) || matches[0];
+
+    if (!matched) {
+      matched = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(normName)) || HUDSON_FACADES[0];
+    }
+
+    if (matched) {
+      // 1. Check pre-rendered high-res static catalogue first
+      if (PRE_RENDERED_FACADES[matched.id]) {
+        setSrc(PRE_RENDERED_FACADES[matched.id]);
+        return;
+      }
+
+      // 2. Check IndexedDB cache for AI-enhanced render
+      getIdbEnhanced(matched.id)
+        .then((cached) => {
+          if (cached) {
+            const clean = cached.replace("::AI_OUTPAINT_V7_FRESH::", "");
+            if (clean.startsWith("data:image/")) {
+              setSrc(clean);
+              return;
+            }
+          }
+          // 3. Fallback to prepareFacade
+          prepareFacade(matched.url, matched.originalUrl, matched.id, housingType)
+            .then((res) => {
+              if (res) setSrc(res);
+            })
+            .catch(() => {
+              setSrc(matched.url);
+            });
+        })
+        .catch(() => {
+          setSrc(matched.url);
+        });
+    }
+  }, [design.facadeName, design.housingType, design.mode, design.customSpec]);
+
+  if (!src) return null;
+
+  return (
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[215px] max-h-[215px] mb-2.5 flex-none">
+      <img
+        src={src}
+        alt={design.facadeName || "Architectural Facade Render"}
+        className="w-full h-full object-cover object-center"
+        style={{ imageRendering: "auto" }}
+      />
+      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-amber-400" />
+        <span>Selected Architectural Facade: {design.facadeName || "Classic"}</span>
+      </div>
+    </div>
+  );
 }
 
 function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
@@ -64,7 +146,7 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) {
     return (
-      <div className="text-center text-slate-400 text-xs py-32">
+      <div className="text-center text-slate-400 text-xs py-20">
         <Home className="h-8 w-8 mx-auto mb-2 text-slate-300" />
         Architectural Floorplan Drawing — Standard Hudson Design Layout
       </div>
@@ -76,7 +158,7 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
       <img
         src={src}
         alt="Selected Floorplan Drawing"
-        className="max-h-[690px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "auto" }}
       />
     </div>
@@ -477,7 +559,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 3: DEDICATED FULL-PAGE HIGH-QUALITY FLOORPLAN DRAWING                */}
+      {/* PAGE 3: DEDICATED ARCHITECTURAL FACADE RENDER & FLOORPLAN DRAWING         */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
@@ -485,7 +567,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
             <div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
-                ARCHITECTURAL FLOORPLAN &amp; SPATIAL SPECIFICATIONS
+                ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
                 {design.mode === "standard"
@@ -493,7 +575,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   : "Custom Architectural Floorplan"}
               </h2>
               <div className="text-[11px] text-slate-600 mt-0.5">
-                Facade: <span className="font-semibold text-slate-900">{design.facadeName}</span>
+                Selected Facade: <span className="font-semibold text-slate-900">{design.facadeName || "Classic"}</span>
                 {design.widthM && design.lengthM && (
                   <span> · Dimensions: {design.widthM}m wide × {design.lengthM}m deep</span>
                 )}
@@ -508,7 +590,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           {/* Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-2 px-3 mb-2 text-center text-xs flex-none">
+          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1.5 px-3 mb-2 text-center text-xs flex-none">
             <div>
               <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
               <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
@@ -527,8 +609,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Maximized High-Resolution Floorplan Drawing (Proportionally sized with zero zooming) */}
-          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-4 bg-white flex items-center justify-center min-h-[690px] max-h-[730px] overflow-hidden shadow-inner">
+          {/* 1. Chosen Facade Render (Towards the top of the page, high quality & enhanced) */}
+          <QuoteFacadeViewer design={design} />
+
+          {/* 2. Architectural Floorplan Layout Drawing (Below the facade) */}
+          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-2 bg-white flex items-center justify-center min-h-[440px] max-h-[470px] overflow-hidden shadow-inner">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>

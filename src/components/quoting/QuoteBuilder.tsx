@@ -277,7 +277,12 @@ export function QuoteBuilder() {
           {/* Active Tab Step Content */}
           <div className="rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-6 shadow-2xl">
             {activeTab === "client" && (
-              <QuoteClientDetails client={quote.client} onChange={handleClientChange} />
+              <QuoteClientDetails
+                client={quote.client}
+                site={quote.siteConditions}
+                onChange={handleClientChange}
+                onSiteChange={handleSiteChange}
+              />
             )}
 
             {activeTab === "design" && (
