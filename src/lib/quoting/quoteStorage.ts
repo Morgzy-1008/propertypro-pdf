@@ -11,7 +11,7 @@ import type {
 } from "./quoteTypes";
 
 const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v8";
-const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v8";
+const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v9";
 const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v8";
 
 export function loadCatalogue(): CatalogueItem[] {
@@ -122,6 +122,19 @@ export function createNewBlankQuote(): FullQuote {
     bushfireCost: 0,
     acousticTier: "None",
     acousticCost: 0,
+    concrete32MpaRequired: false,
+    concrete32MpaCost: 0,
+    floodOverlayRequired: false,
+    floodOverlayCost: 4800,
+    councilDaRequired: false,
+    councilDaCost: 3500,
+    trafficControlRequired: false,
+    trafficControlCost: 2850,
+    pieringAllowanceMeters: 0,
+    pieringCost: 0,
+    rockExcavationAllowance: 0,
+    retainingWallAllowance: 0,
+    sedimentAssetProtectionCost: 0,
   };
 
   const defaultDeposit = 1650;

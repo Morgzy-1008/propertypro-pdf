@@ -82,6 +82,21 @@ export interface SiteConditions {
   bushfireCost: number;
   acousticTier: "None" | "Category 1" | "Category 2" | "Category 3";
   acousticCost: number;
+
+  // Dedicated Site & Engineering Requirements
+  concrete32MpaRequired?: boolean;
+  concrete32MpaCost?: number;
+  floodOverlayRequired?: boolean;
+  floodOverlayCost?: number;
+  councilDaRequired?: boolean;
+  councilDaCost?: number;
+  trafficControlRequired?: boolean;
+  trafficControlCost?: number;
+  pieringAllowanceMeters?: number;
+  pieringCost?: number;
+  rockExcavationAllowance?: number;
+  retainingWallAllowance?: number;
+  sedimentAssetProtectionCost?: number;
 }
 
 export type DepositType = "greenfield" | "brownfield" | "custom";

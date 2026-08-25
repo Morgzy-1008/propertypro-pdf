@@ -257,15 +257,37 @@ export function calculateQuotePricing(
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
   const gfaM2 = calculateDesignGFA(design);
 
-  // Dynamic Site Calculations
+  // Dynamic Site & Statutory Calculations
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
   const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplit);
   const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
   const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
-  const siteCostsSubtotal = soilTotalCost + fallTotalCost + bushfireCost + acousticCost;
-  const councilStatutorySubtotal = Number(site.councilFee) || 0;
+  // Dedicated Site & Engineering items
+  const concrete32Cost = site.concrete32MpaRequired ? (Number(site.concrete32MpaCost) || Math.round(gfaM2 * 14)) : 0;
+  const floodCost = site.floodOverlayRequired ? (Number(site.floodOverlayCost) || 4800) : 0;
+  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 3500) : 0;
+  const trafficCost = site.trafficControlRequired ? (Number(site.trafficControlCost) || 2850) : 0;
+  const rockCost = Number(site.rockExcavationAllowance) || 0;
+  const pieringCost = Number(site.pieringCost) || (Number(site.pieringAllowanceMeters) || 0) * 110;
+  const retainingCost = Number(site.retainingWallAllowance) || 0;
+  const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
+
+  const siteCostsSubtotal =
+    soilTotalCost +
+    fallTotalCost +
+    bushfireCost +
+    acousticCost +
+    concrete32Cost +
+    floodCost +
+    trafficCost +
+    rockCost +
+    pieringCost +
+    retainingCost +
+    sedimentCost;
+
+  const councilStatutorySubtotal = (Number(site.councilFee) || 0) + councilDaCost;
 
   // Group line items by category
   const categoryGroups: Record<CatalogueCategory, QuoteSelectedLineItem[]> = {

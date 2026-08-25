@@ -8,7 +8,15 @@ import {
   CheckCircle2,
   Layers,
   ArrowDownUp,
-  Info,
+  Shield,
+  Waves,
+  FileCheck2,
+  Truck,
+  Mountain,
+  Hammer,
+  TreeDeciduous,
+  DollarSign,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,6 +118,31 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   const currentBalCost = getBushfireCost(site.bushfireBal, isDouble);
   const currentAcousticCost = getAcousticCost(site.acousticTier, isDouble);
 
+  // Dedicated Site costs
+  const concrete32Cost = site.concrete32MpaRequired ? (site.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
+  const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 3500) : 0;
+  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 2850) : 0;
+  const pieringCost = Number(site.pieringCost) || (Number(site.pieringAllowanceMeters) || 0) * 110;
+  const rockCost = Number(site.rockExcavationAllowance) || 0;
+  const retainingCost = Number(site.retainingWallAllowance) || 0;
+  const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
+
+  const totalSiteAndStatutory =
+    soilTotalCost +
+    fallCost +
+    currentBalCost +
+    currentAcousticCost +
+    site.councilFee +
+    concrete32Cost +
+    floodCost +
+    councilDaCost +
+    trafficCost +
+    pieringCost +
+    rockCost +
+    retainingCost +
+    sedimentCost;
+
   const handleSoilSelect = (soilClass: SoilClass) => {
     const rate = getSoilRatePerM2(soilClass);
     const cost = Math.round(rate * gfaM2);
@@ -158,22 +191,27 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           <div className="flex items-center gap-2">
             <Compass className="h-4 w-4 text-emerald-400" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100">
-              Step 3: Site Earthworks, Soil &amp; Statutory Compliance
+              Step 3: Site Earthworks, Soil &amp; Statutory Requirements
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Slab soil classifications and topography fall surcharges calculate strictly on the Ground Floor Area (Ground Living, Garage, Porch &amp; Alfresco = {gfaM2} m²), excluding upper storeys.
+            Configure all site-specific engineering foundations, topography fall, concrete ratings, flood overlays, statutory applications, and geotechnical allowances.
           </p>
         </div>
 
-        <div className="bg-slate-950 px-3.5 py-1.5 rounded-xl border border-slate-800 text-xs flex items-center gap-2 self-start">
-          <Layers className="h-3.5 w-3.5 text-cyan-400" />
-          <span className="text-slate-400">Ground Floor Slab GFA:</span>
-          <span className="font-bold text-slate-100 font-mono">{gfaM2} m²</span>
+        <div className="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 text-xs flex items-center gap-3 self-start">
+          <div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Ground Slab GFA:</span>
+            <span className="font-bold text-cyan-400 font-mono">{gfaM2} m²</span>
+          </div>
+          <div className="border-l border-slate-800 pl-3">
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Total Site Investment:</span>
+            <span className="font-extrabold text-emerald-400 font-mono text-sm">{formatAud(totalSiteAndStatutory)}</span>
+          </div>
         </div>
       </div>
 
-      {/* Section 1: Soil Classification (Clean Titles Only) */}
+      {/* Section 1: Soil Classification */}
       <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
         <div className="flex items-center justify-between">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
@@ -280,41 +318,153 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
         </div>
       </div>
 
-      {/* Section 3: Statutory Compliance Overlays (Council, BAL, Acoustics) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Council Jurisdiction */}
-        <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-          <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-cyan-400" />
-            Council Jurisdiction
-          </Label>
-          <Select
-            value={site.councilRegion}
-            onValueChange={handleCouncilChange}
-          >
-            <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-              <SelectItem value="Brisbane City Council">Brisbane City Council (Standard $0)</SelectItem>
-              <SelectItem value="Logan City Council">Logan City Council (+$2,227)</SelectItem>
-              <SelectItem value="Ipswich City Council">Ipswich City Council (+$2,227)</SelectItem>
-              <SelectItem value="Moreton Bay Regional Council">Moreton Bay Regional Council (+$2,227)</SelectItem>
-              <SelectItem value="Gold Coast City Council">Gold Coast City Council (+$2,950)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      {/* Section 3: Structural Concrete & Environmental Overlays */}
+      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
+        <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+          <Shield className="h-3.5 w-3.5 text-cyan-400" />
+          Structural Concrete &amp; Environmental Overlays
+        </Label>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* 32MPa Concrete Slab */}
+          <div
+            onClick={() => onSiteChange({ concrete32MpaRequired: !site.concrete32MpaRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+              site.concrete32MpaRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-white">32 MPa Concrete Slab Upgrade</span>
+                {site.concrete32MpaRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground conditions.
+              </p>
+            </div>
+            <div className="text-right flex-none">
+              <span className="font-bold text-xs text-emerald-400 font-mono block">
+                +{formatAud(site.concrete32MpaCost ?? Math.round(gfaM2 * 14))}
+              </span>
+            </div>
+          </div>
+
+          {/* Flood Overlay */}
+          <div
+            onClick={() => onSiteChange({ floodOverlayRequired: !site.floodOverlayRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+              site.floodOverlayRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-white">Flood Overlay &amp; Engineered Pad Elevation</span>
+                {site.floodOverlayRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Hydraulic overland flow assessment, Defined Flood Level (DFL) compliance, and elevated finished floor pad.
+              </p>
+            </div>
+            <div className="text-right flex-none">
+              <span className="font-bold text-xs text-emerald-400 font-mono block">
+                +{formatAud(site.floodOverlayCost ?? 4800)}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 4: Council & Statutory Applications */}
+      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
+        <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+          <Building2 className="h-3.5 w-3.5 text-indigo-400" />
+          Council &amp; Statutory Applications
+        </Label>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Council Jurisdiction */}
+          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
+            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+              Council Jurisdiction Fee
+            </Label>
+            <Select value={site.councilRegion} onValueChange={handleCouncilChange}>
+              <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                <SelectItem value="Brisbane City Council">Brisbane City Council (Standard $0)</SelectItem>
+                <SelectItem value="Logan City Council">Logan City Council (+$2,227)</SelectItem>
+                <SelectItem value="Ipswich City Council">Ipswich City Council (+$2,227)</SelectItem>
+                <SelectItem value="Moreton Bay Regional Council">Moreton Bay Regional Council (+$2,227)</SelectItem>
+                <SelectItem value="Gold Coast City Council">Gold Coast City Council (+$2,950)</SelectItem>
+              </SelectContent>
+            </Select>
+            <span className="text-[10px] text-slate-400 block pt-1">
+              Statutory plumbing, sewer &amp; archiving fees: <strong className="text-slate-200">{formatAud(site.councilFee)}</strong>
+            </span>
+          </div>
+
+          {/* Council DA Application */}
+          <div
+            onClick={() => onSiteChange({ councilDaRequired: !site.councilDaRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              site.councilDaRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white">Council Development Application (DA)</span>
+                {site.councilDaRequired && <Check className="h-4 w-4 text-emerald-400" />}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Town planning statement of reasons, overlay code triggers, and formal council lodgement.
+              </p>
+            </div>
+            <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
+              +{formatAud(site.councilDaCost ?? 3500)}
+            </span>
+          </div>
+
+          {/* Traffic Control */}
+          <div
+            onClick={() => onSiteChange({ trafficControlRequired: !site.trafficControlRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              site.trafficControlRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white">Traffic Control Management Plan</span>
+                {site.trafficControlRequired && <Check className="h-4 w-4 text-emerald-400" />}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Certified Traffic Guidance Scheme (TGS), road reserve corridor permits, and pedestrian safety barriers.
+              </p>
+            </div>
+            <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
+              +{formatAud(site.trafficControlCost ?? 2850)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Section 5: BAL, Acoustics & Geotechnical Allowances */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Bushfire BAL Rating */}
         <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
             <Flame className="h-3.5 w-3.5 text-amber-400" />
             Bushfire Attack Level (BAL)
           </Label>
-          <Select
-            value={site.bushfireBal}
-            onValueChange={(v: any) => handleBalChange(v)}
-          >
+          <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
             <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
               <SelectValue />
             </SelectTrigger>
@@ -323,7 +473,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 const cost = getBushfireCost(b.id, isDouble);
                 return (
                   <SelectItem key={b.id} value={b.id}>
-                    {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "(Included $0)"}
+                    {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
                   </SelectItem>
                 );
               })}
@@ -335,12 +485,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
         <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
             <Volume2 className="h-3.5 w-3.5 text-indigo-400" />
-            Acoustic Attenuation Requirements
+            Acoustic Attenuation
           </Label>
-          <Select
-            value={site.acousticTier}
-            onValueChange={(v: any) => handleAcousticChange(v)}
-          >
+          <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
             <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
               <SelectValue />
             </SelectTrigger>
@@ -349,12 +496,62 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 const cost = getAcousticCost(a.id, isDouble);
                 return (
                   <SelectItem key={a.id} value={a.id}>
-                    {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "(Quiet Residential Zone $0)"}
+                    {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
                   </SelectItem>
                 );
               })}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Piering Allowance */}
+        <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+          <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+            <Hammer className="h-3.5 w-3.5 text-emerald-400" />
+            Piering Depth (lm @ $110/m)
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              value={site.pieringAllowanceMeters || ""}
+              onChange={(e) => {
+                const m = Math.max(0, Number(e.target.value));
+                onSiteChange({
+                  pieringAllowanceMeters: m,
+                  pieringCost: m * 110,
+                });
+              }}
+              placeholder="0"
+              className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100 font-mono font-bold"
+            />
+            <span className="text-xs text-slate-400 font-mono">lm</span>
+          </div>
+          <span className="text-[10px] text-slate-500 font-mono block">
+            Cost: {formatAud(pieringCost)}
+          </span>
+        </div>
+
+        {/* Rock Excavation Allowance */}
+        <div className="space-y-1.5 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+          <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+            <Mountain className="h-3.5 w-3.5 text-amber-400" />
+            Rock Excavation Allowance ($)
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min="0"
+              step="500"
+              value={site.rockExcavationAllowance || ""}
+              onChange={(e) => onSiteChange({ rockExcavationAllowance: Math.max(0, Number(e.target.value)) })}
+              placeholder="0"
+              className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100 font-mono font-bold"
+            />
+          </div>
+          <span className="text-[10px] text-slate-500 font-mono block">
+            Allowance: {formatAud(rockCost)}
+          </span>
         </div>
       </div>
     </div>

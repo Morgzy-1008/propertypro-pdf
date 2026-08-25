@@ -245,13 +245,27 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     toast.success("Your selections have been submitted to your Hudson Homes Sales Consultant!");
   };
 
-  const clientSelectableItems = quote.lineItems.filter((i) => i.isClientSelectable && i.unitRate > 0);
+  const clientSelectableItems = quote.lineItems.filter((i) => (i.isIncluded || i.clientSelected) && i.unitRate > 0);
 
   const clientCombinedNames = [quote.client.clientName, quote.client.hasClient2 && quote.client.client2Name]
     .filter(Boolean)
     .join(" & ");
 
   const paymentReference = `${quote.client.estimateNumber || quote.quoteNumber} ${quote.client.clientName.split(" ").pop()}`;
+
+  // Site items for display
+  const site = quote.siteConditions;
+  const isDouble = quote.design.housingType === "Double Storey";
+  const isSplit = quote.design.housingType === "Split Level";
+  const gfaM2 = quote.design.designM2 || 192;
+  const concrete32Cost = site.concrete32MpaRequired ? (site.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
+  const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 3500) : 0;
+  const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 2850) : 0;
+  const pieringCost = Number(site.pieringCost) || (Number(site.pieringAllowanceMeters) || 0) * 110;
+  const rockCost = Number(site.rockExcavationAllowance) || 0;
+  const retainingCost = Number(site.retainingWallAllowance) || 0;
+  const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 relative overflow-hidden flex flex-col">
@@ -509,6 +523,137 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             </div>
           </div>
         )}
+
+        {/* SECTION 4.5: SITE SPECIFIC EARTHWORKS & STATUTORY INCLUSIONS */}
+        <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Layers className="h-4 w-4 text-cyan-400" />
+                Site Specific Earthworks, Engineering &amp; Statutory Requirements
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Included site preparation, engineered soil foundations, and local authority approvals for your lot.
+              </p>
+            </div>
+            <span className="font-extrabold text-cyan-400 font-mono text-sm">
+              +{formatAud(quote.pricing.siteCostsSubtotal + quote.pricing.councilStatutorySubtotal)} Total
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-2 text-xs">
+            {/* Soil Class */}
+            <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-white block">Engineered Soil Class</span>
+                <span className="text-slate-400 text-[11px]">{site.soilClass} Foundation</span>
+              </div>
+              <span className="font-mono font-bold text-slate-200">
+                {site.soilTotalCost === 0 ? "Standard ($0)" : `+${formatAud(site.soilTotalCost)}`}
+              </span>
+            </div>
+
+            {/* Topography Fall */}
+            <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-white block">Topography Fall</span>
+                <span className="text-slate-400 text-[11px]">{site.fallMeters}m Envelope Fall</span>
+              </div>
+              <span className="font-mono font-bold text-slate-200">
+                {site.fallTotalCost === 0 ? "Included ($0)" : `+${formatAud(site.fallTotalCost)}`}
+              </span>
+            </div>
+
+            {/* 32MPa Concrete */}
+            {site.concrete32MpaRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">32 MPa Concrete Upgrade</span>
+                  <span className="text-slate-400 text-[11px]">Saline / Marine Protection</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(concrete32Cost)}
+                </span>
+              </div>
+            )}
+
+            {/* Flood Overlay */}
+            {site.floodOverlayRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Flood Hazard Overlay</span>
+                  <span className="text-slate-400 text-[11px]">Hydraulic Pad Elevation</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(floodCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Council Jurisdiction */}
+            <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+              <div>
+                <span className="font-bold text-white block">Council Statutory Fees</span>
+                <span className="text-slate-400 text-[11px]">{site.councilRegion}</span>
+              </div>
+              <span className="font-mono font-bold text-slate-200">
+                +{formatAud(site.councilFee)}
+              </span>
+            </div>
+
+            {/* Council DA */}
+            {site.councilDaRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Development Application (DA)</span>
+                  <span className="text-slate-400 text-[11px]">Town Planning &amp; Lodgement</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(councilDaCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Traffic Control */}
+            {site.trafficControlRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Traffic Management Plan</span>
+                  <span className="text-slate-400 text-[11px]">TGS &amp; Safety Signage</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(trafficCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Piering */}
+            {pieringCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Engineered Piering</span>
+                  <span className="text-slate-400 text-[11px]">{site.pieringAllowanceMeters} lm Allowance</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(pieringCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Rock */}
+            {rockCost > 0 && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Rock Excavation Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Sub-surface Excavator</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(rockCost)}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* SECTION 5: INITIAL DEPOSIT & OFFICIAL NAB DIRECT TRANSFER DETAILS */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/70 p-6 space-y-5">

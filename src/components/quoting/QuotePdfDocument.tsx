@@ -10,8 +10,19 @@ import {
   Home,
   ShieldCheck,
   Building,
+  Building2,
   FileCheck2,
   Check,
+  Layers,
+  ArrowDownUp,
+  Shield,
+  Waves,
+  Hammer,
+  Mountain,
+  Flame,
+  Volume2,
+  Truck,
+  CheckSquare,
 } from "lucide-react";
 import { PaymentQrCode } from "./PaymentQrCode";
 
@@ -105,7 +116,20 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
     .join(" & ");
 
   const hasVariations = pricing.categorySubtotals && pricing.categorySubtotals.length > 0;
-  const totalPages = hasVariations ? 6 : 5;
+  const totalPages = hasVariations ? 7 : 6;
+
+  // Site items for Page 4 breakdown
+  const gfaM2 = pricing.gfaM2 || 192;
+  const concrete32Cost = siteConditions.concrete32MpaRequired ? (siteConditions.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const floodCost = siteConditions.floodOverlayRequired ? (siteConditions.floodOverlayCost ?? 4800) : 0;
+  const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 3500) : 0;
+  const trafficCost = siteConditions.trafficControlRequired ? (siteConditions.trafficControlCost ?? 2850) : 0;
+  const pieringCost = Number(siteConditions.pieringCost) || (Number(siteConditions.pieringAllowanceMeters) || 0) * 110;
+  const rockCost = Number(siteConditions.rockExcavationAllowance) || 0;
+  const retainingCost = Number(siteConditions.retainingWallAllowance) || 0;
+  const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
+
+  const totalSiteAndStatutorySubtotal = pricing.siteCostsSubtotal + pricing.councilStatutorySubtotal;
 
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
@@ -150,153 +174,164 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-slate-900/90 text-white px-3 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase border border-slate-700 shadow-md flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-amber-400" />
-              Builders Estimate #{quote.quoteNumber || "MH"}
+            <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
             </div>
-            <div className="bg-emerald-500 text-slate-950 px-3 py-1.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase shadow-md">
+            <div className="bg-emerald-500 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
               14-Day Price Hold
             </div>
           </div>
         </div>
 
-        {/* Center Hero Title Area */}
-        <div className="relative z-10 my-auto text-right pr-4 flex flex-col justify-center">
+        {/* Hero Title Section */}
+        <div className="relative z-10 my-auto text-right pr-6 space-y-1">
           <div className="text-3xl font-extrabold uppercase tracking-widest text-slate-900">
             YOUR
           </div>
-          <div className="text-4xl font-extrabold uppercase tracking-wider text-slate-900 mt-1">
+          <div className="text-4xl font-extrabold tracking-tight text-slate-900">
             NEW HOME
           </div>
-          <div className="text-6xl font-serif italic text-cyan-600 font-bold -mt-1 tracking-tight">
+          <div className="text-6xl font-serif italic text-cyan-700 tracking-tight leading-none pt-1">
             Builders Estimate
           </div>
-          <p className="text-xs text-slate-500 font-medium tracking-wide mt-2">
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 pt-3">
             Comprehensive Architectural Tender &amp; Site Investment Breakdown
-          </p>
+          </div>
         </div>
 
-        {/* Presentation Metadata Card (Matching Website Aesthetic) */}
-        <div className="relative z-10 bg-slate-50/90 border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-          <div className="grid grid-cols-2 gap-6 text-xs">
+        {/* Bottom Presentation Metadata Box */}
+        <div className="relative z-10 bg-slate-50/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="grid grid-cols-2 gap-6 pb-4 border-b border-slate-200">
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
                 PRESENTED TO
-              </div>
-              <div className="text-base font-bold text-slate-900 mt-1">
+              </span>
+              <div className="text-base font-extrabold text-slate-900 mt-0.5">
                 {clientCombinedNames || "Valued Client"}
               </div>
-              <div className="text-slate-500 text-[11px] mt-0.5">
-                {client.clientPhone && <span>{client.clientPhone} · </span>}
+              <div className="text-xs text-slate-600 mt-0.5">
                 {client.clientEmail || "client@email.com"}
+                {client.clientPhone && ` · ${client.clientPhone}`}
               </div>
             </div>
 
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
                 PROPOSED SITE ADDRESS
+              </span>
+              <div className="text-sm font-bold text-slate-900 mt-0.5">
+                {client.siteAddress || "Site Address TBA"}
               </div>
-              <div className="text-sm font-bold text-slate-900 mt-1">
-                {[client.lotNumber, client.siteAddress].filter(Boolean).join(", ") || "Site Address TBA"}
-              </div>
-              <div className="text-slate-600 text-xs mt-0.5">
-                {[client.suburb, `QLD ${client.postcode || ""}`].filter(Boolean).join(" ")}
+              <div className="text-xs text-slate-600">
+                {[client.lotNumber, client.suburb, "QLD", client.postcode].filter(Boolean).join(" ")}
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-200 grid grid-cols-3 gap-4 text-xs">
+          <div className="grid grid-cols-3 gap-4 text-xs">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">Selected Design:</span>
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                SELECTED DESIGN:
+              </span>
               <span className="font-bold text-slate-900 text-sm">
-                {design.mode === "standard" ? design.designName : "Custom Architectural Plan"}
+                {design.mode === "standard" ? design.designName : "Custom Design"}
               </span>
             </div>
-
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">Facade Style:</span>
-              <span className="font-bold text-slate-900 text-sm">{design.facadeName || "Standard"}</span>
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                FACADE STYLE:
+              </span>
+              <span className="font-bold text-slate-900 text-sm">
+                {design.facadeName || "Standard"}
+              </span>
             </div>
-
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase block">Inclusions Tier:</span>
-              <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                INCLUSIONS TIER:
+              </span>
+              <span className="inline-block bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
                 {formatInclusionTierTitle(design.specTier)}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Page 1 Footer */}
-        <div className="relative z-10 border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+        {/* Cover Page Footer */}
+        <div className="relative z-10 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
             Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
           </div>
           <div className="font-mono">
-            Estimate #{quote.quoteNumber || "MH"} · Issued {formattedCreatedDate}
+            Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 2: EXECUTIVE LETTER & ESTIMATED CONSTRUCTION COST SUMMARY            */}
+      {/* PAGE 2: EXECUTIVE ESTIMATE & CONSTRUCTION COST SUMMARY                     */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
-          {/* Top Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
-            <div>
-              <Logo size={12} />
-              <div className="text-[10px] text-slate-500 mt-1">
-                Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
-              </div>
-            </div>
+          {/* Header */}
+          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-6">
+            <Logo size={10} />
             <div className="text-right text-xs">
               <div className="font-bold text-slate-900">Date: {formattedCreatedDate}</div>
-              <div className="text-slate-600 font-mono">Estimate No: {client.estimateNumber || quote.quoteNumber}</div>
+              <div className="text-slate-500 font-mono">Estimate No: {quote.quoteNumber || "MH678"}</div>
             </div>
           </div>
 
-          {/* Owner & Estimate Details Box */}
-          <div className="mb-5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-700 mb-2">
+          {/* Owner & Job Meta Box */}
+          <div className="mb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-2">
               OWNER &amp; ESTIMATE DETAILS
-            </h3>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div>
-                <span className="text-slate-500 block text-[10px]">Owner/s Details:</span>
-                <span className="font-bold text-slate-900">{clientCombinedNames || "Client Name"}</span>
+            </div>
+            <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 grid grid-cols-2 gap-4 text-xs">
+              <div className="space-y-1">
+                <div>
+                  <span className="text-slate-500 text-[10px] block">Owner/s Details:</span>
+                  <span className="font-bold text-slate-900">{clientCombinedNames || "Client Name"}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 text-[10px] block">New Home Consultant:</span>
+                  <span className="font-bold text-slate-900">{client.consultantName || "Morgan Hales"}</span>
+                  <span className="text-slate-500 text-[11px] block">{client.consultantOffice} · {client.consultantPhone}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 text-[10px] block">Proposed Site Address:</span>
+                  <span className="font-bold text-slate-900">{siteAddressFull}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-500 block text-[10px]">Estimate No / Version:</span>
-                <span className="font-mono font-bold text-slate-900">
-                  {client.estimateNumber || quote.quoteNumber} / Version {client.estimateVersion || 1}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[10px]">New Home Consultant:</span>
-                <span className="font-semibold text-slate-900">{client.consultantName}</span>
-                <span className="text-slate-500 block text-[10px]">{client.consultantOffice} · {client.consultantPhone}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block text-[10px]">Estimate Valid To:</span>
-                <span className="font-semibold text-amber-700">{formattedValidDate} (14-day validity)</span>
-              </div>
-              <div className="col-span-2">
-                <span className="text-slate-500 block text-[10px]">Proposed Site Address:</span>
-                <span className="font-semibold text-slate-900">{siteAddressFull}</span>
+
+              <div className="space-y-1">
+                <div>
+                  <span className="text-slate-500 text-[10px] block">Estimate No / Version:</span>
+                  <span className="font-bold text-slate-900 font-mono">{quote.quoteNumber || "MH678"} / Version {client.estimateVersion || 1}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 text-[10px] block">Estimate Valid To:</span>
+                  <span className="font-bold text-amber-700 font-mono">{formattedValidDate} (14-day validity)</span>
+                </div>
+                {client.notes && (
+                  <div>
+                    <span className="text-slate-500 text-[10px] block">Consultant Notes:</span>
+                    <span className="text-slate-700 italic">{client.notes}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Comprehensive Itemized Construction Cost Summary Table */}
-          <div className="mb-5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-cyan-700 mb-2">
+          {/* Itemized Construction Cost Table */}
+          <div className="mb-6">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-2">
               ESTIMATED CONSTRUCTION COST SUMMARY
-            </h3>
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b-2 border-slate-900 bg-slate-100 text-[10px] uppercase text-slate-700 font-bold">
+            </div>
+
+            <table className="w-full text-xs border-collapse border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <thead className="bg-slate-100 text-slate-700 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                <tr>
                   <th className="py-2.5 px-3 text-left">Description</th>
                   <th className="py-2.5 px-3 text-right w-36">Estimated Amount</th>
                 </tr>
@@ -354,42 +389,35 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   </tr>
                 )}
 
-                {pricing.siteCostsSubtotal !== 0 && (
+                {/* Site Specific Earthworks & Statutory Inclusions Subtotal */}
+                {totalSiteAndStatutorySubtotal > 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">Site Specific Earthworks &amp; Engineering:</span>
+                      <span className="font-semibold text-slate-900">Site Specific Earthworks, Engineering &amp; Statutory Requirements:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Topography Fall ({siteConditions.fallMeters || 1.0}m fall) &amp; Soil Classification ({siteConditions.soilClass || "Class M"})
+                        Comprehensive schedule detailed on Page 4 ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
                       </span>
                     </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-800">
-                      {pricing.siteCostsSubtotal > 0 ? `+${formatAud(pricing.siteCostsSubtotal)}` : `-${formatAud(Math.abs(pricing.siteCostsSubtotal))}`}
+                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
+                      +{formatAud(totalSiteAndStatutorySubtotal)}
                     </td>
                   </tr>
                 )}
 
-                {pricing.councilStatutorySubtotal > 0 && (
+                {/* Variations Subtotal if any */}
+                {hasVariations && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">Council &amp; Statutory Approvals:</span> {siteConditions.councilRegion}
+                      <span className="font-semibold text-slate-900">Estimate Variations &amp; Custom Upgrades:</span>
+                      <span className="block text-[10px] text-slate-500">
+                        Detailed itemized breakdown schedule on Page 5
+                      </span>
                     </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-800">
-                      +{formatAud(pricing.councilStatutorySubtotal)}
+                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
+                      +{formatAud(pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0))}
                     </td>
                   </tr>
                 )}
-
-                {/* Conditional Variations by Category */}
-                {pricing.categorySubtotals.map((cat) => (
-                  <tr key={cat.category}>
-                    <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">{cat.label}</span> ({cat.items.length} item{cat.items.length > 1 ? "s" : ""})
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-800">
-                      +{formatAud(cat.amount)}
-                    </td>
-                  </tr>
-                ))}
 
                 {/* Total Cost Line */}
                 <tr className="border-t-2 border-slate-900 bg-slate-900 text-white font-extrabold text-sm">
@@ -520,7 +548,243 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 4 (OPTIONAL): DETAILED VARIATIONS & UPGRADES BREAKDOWN SCHEDULE       */}
+      {/* PAGE 4: COMPREHENSIVE SITE SPECIFIC EARTHWORKS & STATUTORY SCHEDULE        */}
+      {/* ========================================================================= */}
+      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        <div>
+          {/* Header */}
+          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-5">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-widest text-cyan-700">
+                SITE SPECIFIC EARTHWORKS, FOUNDATIONS &amp; STATUTORY SCHEDULE
+              </div>
+              <h2 className="text-xl font-extrabold text-slate-900 mt-0.5">
+                Technical Engineering &amp; Authority Compliance Breakdown
+              </h2>
+            </div>
+            <div className="text-right">
+              <span className="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">
+                Total Site &amp; Statutory Investment
+              </span>
+              <span className="text-sm font-extrabold text-cyan-800 font-mono">
+                +{formatAud(totalSiteAndStatutorySubtotal)}
+              </span>
+            </div>
+          </div>
+
+          {/* 4 Card Seamless Grid Layout */}
+          <div className="space-y-4 text-xs">
+            {/* Card 1: Earthworks & Foundation Engineering */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
+                <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                  <Layers className="h-3.5 w-3.5 text-cyan-700" />
+                  1. Earthworks &amp; Foundation Engineering
+                </span>
+                <span className="font-mono text-cyan-800">
+                  +{formatAud(siteConditions.soilTotalCost + siteConditions.fallTotalCost)}
+                </span>
+              </div>
+              <div className="p-3.5 space-y-2 bg-slate-50/50">
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                    <div className="flex justify-between font-semibold text-slate-900">
+                      <span>Soil Classification ({siteConditions.soilClass})</span>
+                      <span className="font-mono">{siteConditions.soilTotalCost === 0 ? "Included ($0)" : `+${formatAud(siteConditions.soilTotalCost)}`}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Engineered slab footing depth &amp; steel mesh reinforcement ({gfaM2} m² GFA footprint).
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                    <div className="flex justify-between font-semibold text-slate-900">
+                      <span>Topography Fall ({siteConditions.fallMeters}m Fall)</span>
+                      <span className="font-mono">{siteConditions.fallTotalCost === 0 ? "Included ($0)" : `+${formatAud(siteConditions.fallTotalCost)}`}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Standard cut &amp; fill included up to 1.0m fall across building pad.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200/80 flex items-center justify-between">
+                  <span>✓ Geotechnical Soil Borehole Test &amp; Precision Laser Contour Survey</span>
+                  <span className="font-bold text-emerald-700 font-mono">FULLY INCLUDED</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Structural Concrete & Environmental Overlays */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
+                <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                  <Shield className="h-3.5 w-3.5 text-indigo-700" />
+                  2. Structural Concrete &amp; Environmental Overlays
+                </span>
+                <span className="font-mono text-cyan-800">
+                  +{formatAud(concrete32Cost + floodCost + siteConditions.bushfireCost + siteConditions.acousticCost)}
+                </span>
+              </div>
+              <div className="p-3.5 grid grid-cols-2 gap-3 text-[11px] bg-slate-50/50">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>32 MPa Concrete Slab Upgrade</span>
+                    <span className="font-mono">{siteConditions.concrete32MpaRequired ? `+${formatAud(concrete32Cost)}` : "Standard 25MPa ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Flood Overlay &amp; Pad Elevation</span>
+                    <span className="font-mono">{siteConditions.floodOverlayRequired ? `+${formatAud(floodCost)}` : "None ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Hydraulic overland flow assessment, DFL compliance &amp; elevated finished floor pad.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Bushfire Attack Level ({siteConditions.bushfireBal})</span>
+                    <span className="font-mono">{siteConditions.bushfireCost > 0 ? `+${formatAud(siteConditions.bushfireCost)}` : "Standard ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    AS 3959 ember protection mesh, toughened glazing, and fire-resistant seals.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Acoustic Attenuation ({siteConditions.acousticTier})</span>
+                    <span className="font-mono">{siteConditions.acousticCost > 0 ? `+${formatAud(siteConditions.acousticCost)}` : "Quiet Zone ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    QDC MP 4.4 acoustic laminated glazing and high-density perimeter wall insulation.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Council Approvals & Statutory Applications */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
+                <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                  <Building2 className="h-3.5 w-3.5 text-cyan-700" />
+                  3. Council Approvals &amp; Statutory Applications
+                </span>
+                <span className="font-mono text-cyan-800">
+                  +{formatAud(siteConditions.councilFee + councilDaCost + trafficCost + sedimentCost)}
+                </span>
+              </div>
+              <div className="p-3.5 grid grid-cols-2 gap-3 text-[11px] bg-slate-50/50">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Council Statutory Lodgement</span>
+                    <span className="font-mono">+{formatAud(siteConditions.councilFee)}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {siteConditions.councilRegion} statutory plumbing, sewer &amp; archiving fees.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Development Application (DA)</span>
+                    <span className="font-mono">{siteConditions.councilDaRequired ? `+${formatAud(councilDaCost)}` : "Standard BA ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Town planning statement of reasons, overlay code triggers, and formal council lodgement.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Traffic Management Plan</span>
+                    <span className="font-mono">{siteConditions.trafficControlRequired ? `+${formatAud(trafficCost)}` : "Standard Access ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Certified Traffic Guidance Scheme (TGS) and pedestrian safety barriers during deliveries.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Sediment &amp; Council Asset Protection</span>
+                    <span className="font-mono">{sedimentCost > 0 ? `+${formatAud(sedimentCost)}` : "Included ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Silt fencing, stabilized crushed rock construction entry &amp; council kerb protection.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Geotechnical & Site Allowances */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-100 px-3.5 py-2 border-b border-slate-200 flex justify-between items-center font-bold text-slate-900">
+                <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                  <Hammer className="h-3.5 w-3.5 text-amber-700" />
+                  4. Geotechnical &amp; Site Allowances
+                </span>
+                <span className="font-mono text-cyan-800">
+                  +{formatAud(pieringCost + rockCost + retainingCost)}
+                </span>
+              </div>
+              <div className="p-3.5 grid grid-cols-3 gap-3 text-[11px] bg-slate-50/50">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Piering Allowance</span>
+                    <span className="font-mono">{pieringCost > 0 ? `+${formatAud(pieringCost)}` : "Nil ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    {siteConditions.pieringAllowanceMeters || 0} lm @ $110/m depth into load-bearing strata.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Rock Excavation</span>
+                    <span className="font-mono">{rockCost > 0 ? `+${formatAud(rockCost)}` : "Nil ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Hydraulic rock breaker allowance for sub-surface trenching.
+                  </p>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-lg border border-slate-200/80">
+                  <div className="flex justify-between font-semibold text-slate-900">
+                    <span>Retaining Wall</span>
+                    <span className="font-mono">{retainingCost > 0 ? `+${formatAud(retainingCost)}` : "Nil ($0)"}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Concrete sleeper or masonry retaining wall structure allowance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Page 4 Footer */}
+        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+          <div>
+            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
+              CUSTOMER INITIAL
+            </div>
+            <div className="font-mono">Page 4 of {totalPages}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* PAGE 5 (OPTIONAL): DETAILED VARIATIONS & UPGRADES BREAKDOWN SCHEDULE       */}
       {/* ========================================================================= */}
       {hasVariations && (
         <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
@@ -580,7 +844,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Page 4 Footer */}
+          {/* Page 5 Footer */}
           <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
             <div>
               Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
@@ -589,14 +853,14 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
                 CUSTOMER INITIAL
               </div>
-              <div className="font-mono">Page 4 of {totalPages}</div>
+              <div className="font-mono">Page 5 of {totalPages}</div>
             </div>
           </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* PAGE 5: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE                    */}
+      {/* PAGE 6: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED)   */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
@@ -610,135 +874,160 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {formatInclusionTierTitle(design.specTier)}
               </h2>
             </div>
-            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-300">
-              ✓ Fully Included in Base Builders Estimate
+            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-3.5 py-1.5 rounded-full border border-emerald-300 shadow-sm flex items-center gap-1.5">
+              <Check className="h-3.5 w-3.5 text-emerald-700" />
+              Fully Included in Base Builders Estimate
             </span>
           </div>
 
-          {/* Comprehensive 8-Category Inclusions Grid */}
+          {/* Comprehensive 8-Category Inclusions Grid with Website Rich Aesthetic */}
           <div className="space-y-2.5 text-[9.5px] leading-snug">
             {/* Certification & Approvals */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">CERTIFICATION AND APPROVALS</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <FileCheck2 className="h-3.5 w-3.5 text-cyan-700" />
+                  CERTIFICATION AND APPROVALS
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• Site contour survey by registered surveyor &amp; physical set out</div>
-                <div>• Building Application (BA) preparation, lodgement &amp; fees</div>
-                <div>• Structural engineering design for concrete slab &amp; footing</div>
-                <div>• Form 15 Pre-nail frame/truss layout &amp; Form 16 Structural certs</div>
-                <div>• Glazing acoustics Form 15 &amp; energy efficiency assessment report</div>
-                <div>• Final Occupation Certificate (Form 21) upon completion</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Site contour survey by registered surveyor &amp; physical set out</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Building Application (BA) preparation, lodgement &amp; fees</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Structural engineering design for concrete slab &amp; footing</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Form 15 Pre-nail frame/truss layout &amp; Form 16 Structural certs</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Glazing acoustics Form 15 &amp; energy efficiency assessment report</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Final Occupation Certificate (Form 21) upon completion</span></div>
               </div>
             </div>
 
             {/* Site Costs, Preparation & Foundation */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">SITE COSTS, PREPARATION &amp; FOUNDATION</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Layers className="h-3.5 w-3.5 text-cyan-700" />
+                  SITE COSTS, PREPARATION &amp; FOUNDATION
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• Bulk earthworks &amp; levelling up to 1.0m fall across building pad</div>
-                <div>• Engineered waffle pod concrete slab on ground including alfresco</div>
-                <div>• Roof edge safety rail &amp; scaffolding to strict WHS compliance</div>
-                <div>• Connect sewer, water, power &amp; storm water services to mains</div>
-                <div>• Part A &amp; Part B Termite Management System with warranty</div>
-                <div>• Smooth power-trowelled finish to garage and internal living areas</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bulk earthworks &amp; levelling up to 1.0m fall across building pad</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered waffle pod concrete slab on ground including alfresco</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Roof edge safety rail &amp; scaffolding to strict WHS compliance</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Connect sewer, water, power &amp; storm water services to mains</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Part A &amp; Part B Termite Management System with warranty</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Smooth power-trowelled finish to garage and internal living areas</span></div>
               </div>
             </div>
 
             {/* External Features, Roof & Windows */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">EXTERNAL FEATURES, ROOF &amp; GLAZING</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Building className="h-3.5 w-3.5 text-cyan-700" />
+                  EXTERNAL FEATURES, ROOF &amp; GLAZING
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• {design.specTier.includes("H3") ? "Colorbond® steel roof or flat profile concrete designer roof tiles" : "Colorbond® corrugated steel roofing with medium duty reflective foil"}</div>
-                <div>• Colorbond® fascia and gutters with painted UPVC downpipes</div>
-                <div>• Engineered T2 treated timber roof trusses and wall framing</div>
-                <div>• {design.specTier.includes("H3") ? "Stain grade decorative solid core front door up to 1200mm wide" : "Hume Newington 2040mm solid core front entry door with double lock"}</div>
-                <div>• Powder coated aluminium windows &amp; flyscreens with fibreglass mesh</div>
-                <div>• 2 external garden taps &amp; energy-efficient heat pump hot water system</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Colorbond® steel roof or flat profile concrete designer roof tiles" : "Colorbond® corrugated steel roofing with medium duty reflective foil"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Colorbond® fascia and gutters with painted UPVC downpipes</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Engineered T2 treated timber roof trusses and wall framing</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Stain grade decorative solid core front door up to 1200mm wide" : "Hume Newington 2040mm solid core front entry door with double lock"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Powder coated aluminium windows &amp; flyscreens with fibreglass mesh</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>2 external garden taps &amp; energy-efficient heat pump hot water system</span></div>
               </div>
             </div>
 
             {/* Internal Ceilings, Walls & Doors */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">INTERNAL CEILINGS, WALLS &amp; DOORS</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Home className="h-3.5 w-3.5 text-cyan-700" />
+                  INTERNAL CEILINGS, WALLS &amp; DOORS
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• {design.specTier.includes("H3") ? "2,740mm ceiling height to single storey / ground floor" : design.specTier.includes("H2") ? "2,590mm ceiling height throughout" : "2,440mm ceiling height throughout"}</div>
-                <div>• {design.specTier.includes("H3") ? "Hume Linear HLR270 2340mm high internal doors" : "Hume Linear 2040mm internal doors"} with Dulux gloss enamel</div>
-                <div>• Dulux multi-coat paint system to all internal walls and ceilings</div>
-                <div>• {design.specTier.includes("H3") ? "2400mm high frameless mirror sliding doors to wardrobes" : "Frameless mirror or vinyl sliding wardrobe doors"}</div>
-                <div>• 67x18mm skirting &amp; architraves with Dulux painted full gloss enamel</div>
-                <div>• Glass wool insulation batts to external walls &amp; ceilings</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "2,740mm ceiling height to single storey / ground floor" : design.specTier.includes("H2") ? "2,590mm ceiling height throughout" : "2,440mm ceiling height throughout"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Hume Linear HLR270 2340mm high internal doors" : "Hume Linear 2040mm internal doors"} with Dulux gloss enamel</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Dulux multi-coat paint system to all internal walls and ceilings</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "2400mm high frameless mirror sliding doors to wardrobes" : "Frameless mirror or vinyl sliding wardrobe doors"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>67x18mm skirting &amp; architraves with Dulux painted full gloss enamel</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Glass wool insulation batts to external walls &amp; ceilings</span></div>
               </div>
             </div>
 
             {/* Gourmet Kitchen & Luxury Appliances */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">GOURMET KITCHEN &amp; APPLIANCES</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
+                  GOURMET KITCHEN &amp; APPLIANCES
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• {design.specTier.includes("H3") ? "40mm mitred edge stone kitchen benchtops" : design.specTier.includes("H2") ? "20mm stone kitchen benchtops" : "Laminated benchtops with rolled edge"}</div>
-                <div>• Fully lined overhead cupboards with plaster bulkhead feature</div>
-                <div>• Bank of 4 soft-close cutlery drawers and matching pot drawers</div>
-                <div>• {design.specTier.includes("H1") ? "Haier 600mm stainless steel electric oven, cooktop & dishwasher" : "Fisher & Paykel 900mm luxury stainless steel electric oven & 900mm cooktop"}</div>
-                <div>• Fisher &amp; Paykel stainless steel dishwasher &amp; built-in microwave oven</div>
-                <div>• Clark Polar undermount/drop-in sink with Liano II designer pull-out mixer</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "40mm mitred edge stone kitchen benchtops" : design.specTier.includes("H2") ? "20mm stone kitchen benchtops" : "Laminated benchtops with rolled edge"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Fully lined overhead cupboards with plaster bulkhead feature</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Bank of 4 soft-close cutlery drawers and matching pot drawers</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H1") ? "Haier 600mm stainless steel electric oven, cooktop & dishwasher" : "Fisher & Paykel 900mm luxury stainless steel electric oven & 900mm cooktop"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Fisher &amp; Paykel stainless steel dishwasher &amp; built-in microwave oven</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Clark Polar undermount/drop-in sink with Liano II designer pull-out mixer</span></div>
               </div>
             </div>
 
             {/* Bathrooms, Ensuite & Powder Room */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">BATHROOM, ENSUITE &amp; POWDER ROOM</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Waves className="h-3.5 w-3.5 text-cyan-700" />
+                  BATHROOM, ENSUITE &amp; POWDER ROOM
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• Contemporary floating vanities with {design.specTier.includes("H1") ? "laminate" : "20mm stone"} benchtops</div>
-                <div>• {design.specTier.includes("H3") ? "10mm frameless glass shower screen with pivot doors" : "Semi-frameless shower screens with clear safety glass"}</div>
-                <div>• Caroma Aura 1,775mm freestanding white bathtub &amp; Caroma tapware</div>
-                <div>• Wall-faced closed coupled toilet suites with soft-close seats</div>
-                <div>• {design.specTier.includes("H3") ? "Ceramic full-height wall tiling to wet areas with shower" : "Ceramic wall tiles to 2,100mm in shower recess"}</div>
-                <div>• Smart tile floor wastes &amp; tiled shower recess niche</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Contemporary floating vanities with {design.specTier.includes("H1") ? "laminate" : "20mm stone"} benchtops</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "10mm frameless glass shower screen with pivot doors" : "Semi-frameless shower screens with clear safety glass"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Caroma Aura 1,775mm freestanding white bathtub &amp; Caroma tapware</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Wall-faced closed coupled toilet suites with soft-close seats</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Ceramic full-height wall tiling to wet areas with shower" : "Ceramic wall tiles to 2,100mm in shower recess"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Smart tile floor wastes &amp; tiled shower recess niche</span></div>
               </div>
             </div>
 
             {/* Laundry & Interior Floor Coverings */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">LAUNDRY &amp; INTERNAL FLOOR COVERINGS</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Award className="h-3.5 w-3.5 text-cyan-700" />
+                  LAUNDRY &amp; INTERNAL FLOOR COVERINGS
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• Built-in laundry cabinet (up to 1,200mm) with {design.specTier.includes("H1") ? "metal tub" : "20mm stone top & Clark 45L drop-in tub"}</div>
-                <div>• {design.specTier.includes("H3") ? "Choice of 8.5mm Hybrid Timber flooring or Gold Range floor tiles" : "Floor tiles to entry, hallway, kitchen, family & meals"}</div>
-                <div>• Quality carpet with underlay to all bedrooms and media rooms</div>
-                <div>• Main floor outdoor ceramic tiling to under-roof alfresco</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Built-in laundry cabinet (up to 1,200mm) with {design.specTier.includes("H1") ? "metal tub" : "20mm stone top & Clark 45L drop-in tub"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Choice of 8.5mm Hybrid Timber flooring or Gold Range floor tiles" : "Floor tiles to entry, hallway, kitchen, family & meals"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Quality carpet with underlay to all bedrooms and media rooms</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Main floor outdoor ceramic tiling to under-roof alfresco</span></div>
               </div>
             </div>
 
             {/* Air-Conditioning & Electrical */}
-            <div className="border border-slate-200 rounded-xl p-2.5 bg-slate-50">
+            <div className="border border-slate-200 rounded-xl p-2.5 bg-gradient-to-r from-slate-50 to-white shadow-xs">
               <div className="font-bold text-slate-900 flex items-center justify-between border-b border-slate-200 pb-1 mb-1">
-                <span className="tracking-wide">AIR-CONDITIONING &amp; ELECTRICAL</span>
-                <span className="text-emerald-700 font-bold text-[8.5px]">INCLUDED</span>
+                <span className="tracking-wide flex items-center gap-1 text-slate-900">
+                  <Sparkles className="h-3.5 w-3.5 text-cyan-700" />
+                  AIR-CONDITIONING &amp; ELECTRICAL
+                </span>
+                <span className="text-emerald-700 font-bold text-[8.5px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">INCLUDED</span>
               </div>
-              <div className="text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <div>• {design.specTier.includes("H3") ? "Fully Zoned Ducted Air-Conditioning with MyAir5 Touch Screen Controller" : design.specTier.includes("H2") ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)" : "Reverse Cycle Split System Air-Conditioner to Living Room"}</div>
-                <div>• LED downlights throughout plus ceiling fan/lights to all bedrooms</div>
-                <div>• {design.specTier.includes("H3") ? "1.5kW Solar PV Power System with single-phase inverter" : "Energy-efficient electrical fitout"}</div>
-                <div>• Interconnected hardwired photoelectric smoke detectors</div>
-                <div>• NBN pre-wiring with telephone &amp; data points to living</div>
+              <div className="text-slate-700 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "Fully Zoned Ducted Air-Conditioning with MyAir5 Touch Screen Controller" : design.specTier.includes("H2") ? "Day/Night Ducted Air-Conditioning System (Living & Bedroom Zones)" : "Reverse Cycle Split System Air-Conditioner to Living Room"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>LED downlights throughout plus ceiling fan/lights to all bedrooms</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>{design.specTier.includes("H3") ? "1.5kW Solar PV Power System with single-phase inverter" : "Energy-efficient electrical fitout"}</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>Interconnected hardwired photoelectric smoke detectors</span></div>
+                <div className="flex items-start gap-1.5"><Check className="h-3 w-3 text-emerald-600 flex-none mt-0.5" /><span>NBN pre-wiring with telephone &amp; data points to living</span></div>
               </div>
             </div>
           </div>
@@ -753,29 +1042,29 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page {hasVariations ? 5 : 4} of {totalPages}</div>
+            <div className="font-mono">Page {hasVariations ? 6 : 5} of {totalPages}</div>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* FINAL PAGE: LIFETIME GUARANTEE, INITIAL DEPOSIT & OFFICIAL NAB BANKING    */}
+      {/* FINAL PAGE: LIFETIME GUARANTEE, DEPOSIT & OFFICIAL NAB BANK TRANSFER      */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm]">
-        <div>
-          {/* Lifetime Structural Guarantee Header */}
-          <div className="border-2 border-slate-900 rounded-2xl p-5 mb-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white text-center relative overflow-hidden shadow-md">
-            <div className="text-xs font-bold uppercase tracking-widest text-amber-400">
+        <div className="space-y-5">
+          {/* Top Lifetime Structural Guarantee Banner */}
+          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md text-center space-y-2 border border-slate-800">
+            <div className="text-[11px] font-bold tracking-widest text-amber-400 uppercase">
               HUDSON HOMES PEACE OF MIND
             </div>
-            <h2 className="text-2xl font-serif italic text-white font-extrabold mt-1">
+            <h3 className="text-2xl font-serif italic text-white tracking-wide">
               Lifetime Structural Integrity Guarantee
-            </h2>
-            <p className="text-xs text-slate-300 max-w-xl mx-auto mt-1.5 leading-relaxed">
-              Every Hudson home is engineered and constructed to the highest standards of Australian building compliance. We proudly back our workmanship with a **Lifetime Structural Integrity Guarantee** for total peace of mind.
+            </h3>
+            <p className="text-xs text-slate-300 max-w-xl mx-auto leading-relaxed">
+              Every Hudson home is engineered and constructed to the highest standards of Australian building compliance.
+              We proudly back our workmanship with a **Lifetime Structural Integrity Guarantee** for total peace of mind.
             </p>
-
-            <div className="flex justify-center gap-6 mt-3 pt-3 border-t border-slate-700 text-[10px] text-amber-300 font-bold uppercase tracking-wider">
+            <div className="pt-2 flex items-center justify-center gap-6 text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
               <span>★ 100% Australian Owned</span>
               <span>★ Lifetime Structural Guarantee</span>
               <span>★ ISO 9001 Certified</span>
@@ -783,32 +1072,33 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Initial Deposit & Preliminary Works Container */}
-          <div className="border border-emerald-600/60 bg-emerald-50/50 rounded-2xl p-4 mb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200 pb-2.5 mb-2.5">
+          {/* Initial Deposit Allocation Box */}
+          <div className="border border-emerald-500/40 rounded-2xl p-5 bg-emerald-50/30 space-y-3">
+            <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
                   INITIAL DEPOSIT TO PROCEED
-                </div>
-                <div className="text-base font-extrabold text-slate-900">
+                </span>
+                <span className="text-base font-extrabold text-slate-900">
                   {client.depositType === "brownfield" ? "Brownfield Site Allocation" : "Greenfield Site Allocation"}
-                </div>
+                </span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-slate-500 uppercase tracking-wider block font-semibold">Deposit Amount</span>
-                <span className="text-xl font-extrabold text-emerald-700 font-mono">
-                  {formatAud(client.depositAmount || 1650)}
+                <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+                  Deposit Amount
+                </span>
+                <span className="text-2xl font-black text-emerald-700 font-mono">
+                  {formatAud(pricing.initialDepositAmount || 1650)}
                 </span>
               </div>
             </div>
 
-            {/* List of preliminary work completed */}
-            <div className="text-[10.5px] text-slate-700 leading-relaxed">
+            <div className="text-xs text-slate-700">
               <div className="font-bold text-slate-900 mb-1 flex items-center gap-1.5">
-                <FileCheck2 className="h-3.5 w-3.5 text-emerald-600" />
+                <FileCheck2 className="h-3.5 w-3.5 text-emerald-700" />
                 Preliminary Work Completed as a result of the Initial Deposit:
               </div>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 pt-0.5">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-slate-600">
                 <div>• On-site Investigation Report</div>
                 <div>• Geotechnical Soil Test</div>
                 <div>• Wind Classification Report</div>
@@ -820,14 +1110,15 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Official National Australia Bank (NAB) Transfer Details & QR Code */}
-          <div className="border border-slate-300 rounded-2xl p-4 bg-slate-50 flex items-center justify-between gap-6 mb-4">
-            <div className="space-y-1 text-xs flex-1">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 flex items-center gap-1.5">
-                <Building className="h-3.5 w-3.5 text-cyan-600" />
+          {/* NAB Direct Transfer Banking Box with Real Dynamic QR Code */}
+          <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50 flex items-center justify-between gap-6 shadow-sm">
+            <div className="space-y-2.5 text-xs flex-1">
+              <div className="font-bold text-cyan-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                <Building className="h-4 w-4 text-cyan-700" />
                 HUDSON HOMES QLD BANK DETAILS
               </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 pt-1 text-[11px]">
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Name:</span>
                   <span className="font-bold text-slate-900">Hudson Homes (QLD) Pty Ltd</span>
@@ -838,83 +1129,88 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">BSB Number:</span>
-                  <span className="font-bold font-mono text-slate-900 text-sm">082 778</span>
+                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">082 778</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                  <span className="font-bold font-mono text-slate-900 text-sm">74-586-5607</span>
+                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">74-586-5607</span>
                 </div>
-                <div className="col-span-2 pt-1 border-t border-slate-200 flex justify-between items-center">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
-                    <span className="font-bold font-mono text-cyan-800 text-xs">
-                      {((client.clientName || "Client").trim().split(/\s+/).pop() || "Client")}-{(client.estimateNumber || quote.quoteNumber || "MH").trim()}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-slate-500 text-[10px] block">Currency:</span>
-                    <span className="font-bold font-mono text-slate-800">AUD</span>
-                  </div>
+              </div>
+
+              <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
+                  <span className="font-extrabold text-cyan-800 font-mono text-sm">
+                    {client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
+                  </span>
                 </div>
+                <span className="text-[10px] text-slate-500 uppercase font-mono font-bold">Currency: AUD</span>
               </div>
             </div>
 
-            {/* Real Dynamic Payment QR Code - Directs to 1-Click Copy Web Portal */}
-            <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-300 rounded-xl text-center flex-none shadow-sm">
+            {/* Dynamic Payment QR Code Box */}
+            <div className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl text-center flex-none shadow-xs">
               <PaymentQrCode
                 accountName="Hudson Homes (QLD) Pty Ltd"
                 bsb="082 778"
                 accountNumber="74-586-5607"
-                amount={client.depositAmount || 1650}
-                reference={`${(client.clientName || "Client").trim().split(/\s+/).pop() || "Client"}-${(client.estimateNumber || quote.quoteNumber || "MH").trim()}`}
-                quoteId={quote.id}
-                size={85}
+                amount={pricing.initialDepositAmount || 1650}
+                reference={client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
+                size={95}
               />
-              <span className="text-[8.5px] font-bold text-slate-600 mt-1 uppercase font-mono tracking-tight">
+              <span className="text-[9px] font-bold text-slate-700 mt-1.5 uppercase font-mono tracking-wider">
                 Scan with Banking App
               </span>
             </div>
           </div>
 
-          {/* Signature Block */}
-          <div className="pt-2 grid grid-cols-2 gap-8 text-xs">
+          {/* Customer & Consultant Authorization Signatures */}
+          <div className="grid grid-cols-2 gap-8 pt-2">
             <div className="space-y-4">
-              <div>
-                <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
-                  Client 1 Signature:
-                </div>
-                <div className="border-b-2 border-slate-900 mb-1" />
-                <div className="font-bold text-slate-900">{client.clientName || "Primary Applicant"}</div>
-                <div className="text-[10px] text-slate-500">Date: ____ / ____ / 2026</div>
+              <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
+                CLIENT 1 SIGNATURE:
+              </div>
+              <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+                {/* Space for physical or digital signing */}
+              </div>
+              <div className="text-xs">
+                <span className="font-bold text-slate-900 block">{client.clientName || "Primary Applicant"}</span>
+                <span className="text-[10px] text-slate-500">Date: ____ / _____ / 2026</span>
               </div>
 
-              {client.hasClient2 && client.client2Name && (
-                <div>
-                  <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
-                    Client 2 Signature:
+              {client.hasClient2 && (
+                <div className="pt-2 space-y-4">
+                  <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
+                    CLIENT 2 SIGNATURE:
                   </div>
-                  <div className="border-b-2 border-slate-900 mb-1" />
-                  <div className="font-bold text-slate-900">{client.client2Name}</div>
-                  <div className="text-[10px] text-slate-500">Date: ____ / ____ / 2026</div>
+                  <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+                    {/* Space for Client 2 signature */}
+                  </div>
+                  <div className="text-xs">
+                    <span className="font-bold text-slate-900 block">{client.client2Name || "Secondary Applicant"}</span>
+                    <span className="text-[10px] text-slate-500">Date: ____ / _____ / 2026</span>
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="space-y-4">
-              <div>
-                <div className="text-[10px] font-bold uppercase text-slate-500 mb-5">
-                  Authorised New Home Consultant:
-                </div>
-                <div className="border-b-2 border-slate-900 mb-1" />
-                <div className="font-bold text-slate-900">{client.consultantName}</div>
-                <div className="text-[10px] text-slate-500">{client.consultantOffice} · {client.consultantPhone}</div>
-                <div className="text-[10px] text-slate-500 mt-0.5">Date: {formattedCreatedDate}</div>
+              <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
+                AUTHORISED NEW HOME CONSULTANT:
+              </div>
+              <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+                {/* Space for consultant signing */}
+              </div>
+              <div className="text-xs">
+                <span className="font-bold text-slate-900 block">{client.consultantName || "Morgan Hales"}</span>
+                <span className="text-[10px] text-slate-500">{client.consultantOffice} · {client.consultantPhone}</span>
+                <span className="text-[10px] text-slate-500 block">Date: {formattedCreatedDate}</span>
               </div>
 
-              <div className="p-2.5 bg-slate-100 rounded-xl border border-slate-200 text-[9.5px] text-slate-600">
-                <span className="font-bold block text-slate-800 mb-0.5">Hudson Homes Pty Ltd</span>
-                Level 5, 106 City Road, Beenleigh QLD 4207
-                <br />Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au
+              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[9px] text-slate-500 space-y-0.5">
+                <div className="font-bold text-slate-700">Hudson Homes Pty Ltd</div>
+                <div>Level 5, 106 City Road, Beenleigh QLD 4207</div>
+                <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
               </div>
             </div>
           </div>
