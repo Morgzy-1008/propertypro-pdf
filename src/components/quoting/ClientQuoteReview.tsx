@@ -376,13 +376,25 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const concrete32Cost = site.concrete32MpaRequired ? (site.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
   const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 1800) : 0;
   const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
-  const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 1500) : 0;
+  const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 7600) : 0;
+  const hydraulicReportCost = site.hydraulicReportRequired ? (site.hydraulicReportCost ?? 2200) : 0;
+  const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 1850) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
-  const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
+  const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 850) : 0;
+
+  const slabHeight = site.slabElevationMeters ?? 0.3;
+  const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
+  const floodCost = site.floodOverlayRequired
+    ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && site.floodOverlayCost > 0
+        ? site.floodOverlayCost
+        : calculatedSlabCost)
+    : 0;
+
   const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
   const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 10000) : 0;
   const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
-  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 85)) : 0;
+  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
@@ -608,16 +620,16 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           </div>
         </div>
 
-        {/* SECTION 2.5: ARCHITECTURAL FACADE SELECTOR */}
+        {/* SECTION 2.5: FACADE SELECTOR */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Palette className="h-4 w-4 text-cyan-400" />
-                Select Architectural Facade Design
+                Select Facade Design
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Browse official architectural facades available for this home design. Selecting a facade updates your high-res render and live quote investment.
+                Browse official facades available for this home design. Selecting a facade updates your high-res render and live quote investment.
               </p>
             </div>
             <span className="text-xs text-slate-400">
@@ -651,13 +663,13 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           </div>
         </div>
 
-        {/* SECTION 3: ARCHITECTURAL FACADE & MAXIMIZED FLOORPLAN PREVIEW */}
+        {/* SECTION 3: FACADE & MAXIMIZED FLOORPLAN PREVIEW */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Layers className="h-4 w-4 text-cyan-400" />
-                Architectural Facade &amp; Floorplan Layout — {quote.design.designName}
+                Selected Facade &amp; Floorplan Layout — {quote.design.designName}
               </h3>
               <span className="text-xs text-slate-400">
                 Selected Facade: <strong className="text-slate-200">{quote.design.facadeName || "Classic"}</strong> · {quote.design.beds || 4} Beds · {quote.design.baths || 2} Baths · {quote.design.cars || 2} Cars · Total Area: {quote.design.designM2} m²
@@ -842,12 +854,38 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
+            {/* Hydraulic Engineering Report */}
+            {site.hydraulicReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Hydraulic Engineering Report</span>
+                  <span className="text-slate-400 text-[11px]">Stormwater Catchment Design</span>
+                </div>
+                <span className="font-mono font-bold text-cyan-400">
+                  +{formatAud(hydraulicReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Landslide Report */}
+            {site.landslideReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Landslide Overlay Report</span>
+                  <span className="text-slate-400 text-[11px]">Slope Stability Assessment</span>
+                </div>
+                <span className="font-mono font-bold text-amber-400">
+                  +{formatAud(landslideReportCost)}
+                </span>
+              </div>
+            )}
+
             {/* Flood Overlay Works */}
             {site.floodOverlayRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-white block">Flood Pad Elevation</span>
-                  <span className="text-slate-400 text-[11px]">Hydraulic Pad Earthworks</span>
+                  <span className="font-bold text-white block">Slab Elevation Works</span>
+                  <span className="text-slate-400 text-[11px]">{slabHeight}m Elevated Pad ($270/m × GFA)</span>
                 </div>
                 <span className="font-mono font-bold text-cyan-400">
                   +{formatAud(floodCost)}
@@ -877,6 +915,32 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 </div>
                 <span className="font-mono font-bold text-indigo-400">
                   +{formatAud(site.acousticCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Arborist Report */}
+            {site.arboristReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Arborist Tree Report</span>
+                  <span className="text-slate-400 text-[11px]">TPZ Vegetation Assessment</span>
+                </div>
+                <span className="font-mono font-bold text-emerald-400">
+                  +{formatAud(arboristReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* CCTV Sewer Inspection */}
+            {site.cctvSewerReportRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">CCTV Sewer Pipe Camera Inspection</span>
+                  <span className="text-slate-400 text-[11px]">Drainage Depth Verification</span>
+                </div>
+                <span className="font-mono font-bold text-teal-400">
+                  +{formatAud(cctvSewerReportCost)}
                 </span>
               </div>
             )}

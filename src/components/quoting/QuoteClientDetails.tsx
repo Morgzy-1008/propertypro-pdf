@@ -55,6 +55,10 @@ export function QuoteClientDetails({ client, site, onChange, onSiteChange }: Quo
     if (type === "brownfield") amount = 3300;
     if (type === "custom") amount = client.depositAmount || 1650;
     onChange({ depositType: type, depositAmount: amount });
+
+    if (type === "brownfield" && onSiteChange) {
+      onSiteChange({ screwPieringRequired: true });
+    }
   };
 
   const handleAddressChange = (patch: Partial<ClientDetails>) => {

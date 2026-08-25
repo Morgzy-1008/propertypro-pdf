@@ -88,15 +88,24 @@ export interface SiteConditions {
   bushfireReportRequired?: boolean;
   bushfireReportCost?: number; // default $850
   floodReportRequired?: boolean;
-  floodReportCost?: number; // default $1,500
+  floodReportCost?: number; // default $7,600
+  hydraulicReportRequired?: boolean;
+  hydraulicReportCost?: number; // default $2,200
+  landslideReportRequired?: boolean;
+  landslideReportCost?: number; // default $1,850
   acousticReportRequired?: boolean;
   acousticReportCost?: number; // default $1,200
+  arboristReportRequired?: boolean;
+  arboristReportCost?: number; // default $1,100
+  cctvSewerReportRequired?: boolean;
+  cctvSewerReportCost?: number; // default $850
 
   // Site Overlay Allowances & Physical Works (RHS)
   bushfireBal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";
   bushfireCost: number;
   floodOverlayRequired?: boolean;
-  floodOverlayCost?: number; // default $4,800
+  slabElevationMeters?: number; // Height in metres (e.g. 0.3m) -> calculated as height * $270 * GFA
+  floodOverlayCost?: number;
   acousticTier: "None" | "Category 1" | "Category 2" | "Category 3";
   acousticCost: number;
 
@@ -113,9 +122,9 @@ export interface SiteConditions {
 
   // Geotechnical & Site Allowances
   screwPieringRequired?: boolean;
-  screwPieringCost?: number; // auto-calculated at $85 × GFA m²
-  rockExcavationAllowance?: number; // default $2,500
-  retainingWallAllowance?: number;
+  screwPieringCost?: number; // auto-calculated at $90 × GFA m²
+  rockExcavationAllowance?: number; // default $2,500 (increments of $2,500)
+  retainingWallAllowance?: number; // increments of $2,500
   pieringAllowanceMeters?: number;
   pieringCost?: number;
 }

@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatAud } from "@/lib/pricing";
 import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
-import { calculateDesignGFA } from "@/lib/quoting/quoteEngine";
+import { calculateDesignGFA, resolveItemCategory } from "@/lib/quoting/quoteEngine";
 import type {
   CatalogueCategory,
   FullQuote,
@@ -239,7 +239,8 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       if (activeTab === "selected") {
         if (!item.isIncluded) return false;
       } else if (activeTab !== "all") {
-        if (item.category !== activeTab) return false;
+        const itemCat = resolveItemCategory(item);
+        if (itemCat !== activeTab) return false;
       }
 
       // Filter 3: Search text
@@ -353,7 +354,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           {item.name}
                         </span>
                         <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                          {CATEGORY_LABELS[item.category] || item.category}
+                          {CATEGORY_LABELS[resolveItemCategory(item)] || item.category}
                         </span>
                         <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-900 text-emerald-400 border border-slate-800">
                           {item.unitType.replace(/_/g, " ")}

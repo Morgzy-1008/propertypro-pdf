@@ -1,7 +1,6 @@
 import React from "react";
 import {
   Compass,
-  AlertTriangle,
   Flame,
   Volume2,
   Building2,
@@ -11,15 +10,16 @@ import {
   Shield,
   Waves,
   FileCheck2,
-  Truck,
   Mountain,
   Hammer,
   TreeDeciduous,
-  DollarSign,
-  Check,
+  Camera,
+  Droplets,
+  Activity,
   FileText,
   Plus,
   Minus,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,13 +124,34 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
 
   // Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
-  const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 1500) : 0;
+  const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 7600) : 0;
+  const hydraulicReportCost = site.hydraulicReportRequired ? (site.hydraulicReportCost ?? 2200) : 0;
+  const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 1850) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
+  const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 850) : 0;
+
+  const totalReportsCost =
+    bushfireReportCost +
+    floodReportCost +
+    hydraulicReportCost +
+    landslideReportCost +
+    acousticReportCost +
+    arboristReportCost +
+    cctvSewerReportCost;
 
   // Overlay Allowances (RHS)
   const currentBalCost = getBushfireCost(site.bushfireBal, isDouble);
-  const floodCost = site.floodOverlayRequired ? (site.floodOverlayCost ?? 4800) : 0;
+  const slabHeight = site.slabElevationMeters ?? 0.3;
+  const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
+  const floodCost = site.floodOverlayRequired
+    ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && site.floodOverlayCost > 0
+        ? site.floodOverlayCost
+        : calculatedSlabCost)
+    : 0;
   const currentAcousticCost = getAcousticCost(site.acousticTier, isDouble);
+
+  const totalAllowancesCost = currentBalCost + floodCost + currentAcousticCost;
 
   // Council & Statutory
   const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
@@ -138,8 +159,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
-  // Geotechnical Allowances
-  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 85)) : 0;
+  // Geotechnical Allowances ($90 / m2 for screw piering)
+  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
 
@@ -148,12 +169,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
     concrete32Cost +
     flexibleConnectionsCost +
     fallCost +
-    bushfireReportCost +
-    currentBalCost +
-    floodReportCost +
-    floodCost +
-    acousticReportCost +
-    currentAcousticCost +
+    totalReportsCost +
+    totalAllowancesCost +
     site.councilFee +
     councilDaCost +
     trafficCost +
@@ -209,6 +226,28 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
     const current = site.trafficControlCost ?? 10000;
     const next = Math.max(2500, current + delta);
     onSiteChange({ trafficControlCost: next, trafficControlRequired: true });
+  };
+
+  const handleRockStep = (delta: number) => {
+    const current = Number(site.rockExcavationAllowance) || 0;
+    const next = Math.max(0, current + delta);
+    onSiteChange({ rockExcavationAllowance: next });
+  };
+
+  const handleRetainingStep = (delta: number) => {
+    const current = Number(site.retainingWallAllowance) || 0;
+    const next = Math.max(0, current + delta);
+    onSiteChange({ retainingWallAllowance: next });
+  };
+
+  const handleSlabHeightChange = (height: number) => {
+    const sanitized = Math.max(0, height);
+    const newCost = Math.round(sanitized * 270 * gfaM2);
+    onSiteChange({
+      slabElevationMeters: sanitized,
+      floodOverlayCost: newCost,
+      floodOverlayRequired: true,
+    });
   };
 
   return (
@@ -408,38 +447,43 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               Site Overlay Reports &amp; Allowances
             </Label>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Left side: specialist engineering assessment reports. Right side: physical construction rating allowances.
+              Left side: specialist engineering assessment reports. Right side: physical construction &amp; elevation allowances.
             </p>
           </div>
           <span className="text-xs font-mono font-bold text-emerald-400">
-            +{formatAud(bushfireReportCost + currentBalCost + floodReportCost + floodCost + acousticReportCost + currentAcousticCost)}
+            +{formatAud(totalReportsCost + totalAllowancesCost)}
           </span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-2">
           {/* LHS: Overlay Assessment Reports */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
-              <FileText className="h-3.5 w-3.5 text-amber-400" />
-              1. Overlay Assessment Reports (LHS)
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <FileText className="h-3.5 w-3.5 text-amber-400" />
+                1. Overlay Assessment Reports (LHS)
+              </div>
+              <span className="text-[11px] font-mono text-amber-400 font-semibold">
+                +{formatAud(totalReportsCost)}
+              </span>
             </div>
 
             {/* Bushfire Report */}
             <div
               onClick={() => onSiteChange({ bushfireReportRequired: !site.bushfireReportRequired })}
-              className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
                 site.bushfireReportRequired
                   ? "border-amber-500 bg-amber-950/20 ring-1 ring-amber-500/40"
                   : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
               }`}
             >
-              <div className="space-y-1">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-xs text-white">Bushfire Hazard Assessment Report</span>
-                  {site.bushfireReportRequired && <Check className="h-3.5 w-3.5 text-amber-400" />}
+                  {site.bushfireReportRequired && <Check className="h-3.5 w-3.5 text-amber-400 flex-none" />}
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Certified site BAL assessment, property vegetation categorization, and bushfire management statement.
+                  Certified site BAL assessment, property vegetation categorization, and bushfire statement.
                 </p>
               </div>
               <span className="font-bold text-xs text-amber-400 font-mono flex-none">
@@ -447,58 +491,210 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </span>
             </div>
 
-            {/* Flood Report */}
+            {/* Flood Report ($7,600) */}
             <div
               onClick={() => onSiteChange({ floodReportRequired: !site.floodReportRequired })}
-              className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
                 site.floodReportRequired
                   ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
                   : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
               }`}
             >
-              <div className="space-y-1">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-xs text-white">Flood Overlay Code Assessment Report</span>
-                  {site.floodReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400" />}
+                  {site.floodReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400 flex-none" />}
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  Registered hydraulic engineering overland flow modeling, DFL certification, and pad level report.
+                  Certified hydraulic engineering overland flow modeling, DFL certification, and flood statement.
                 </p>
               </div>
               <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
-                +{formatAud(site.floodReportCost ?? 1500)}
+                +{formatAud(site.floodReportCost ?? 7600)}
               </span>
             </div>
 
-            {/* Acoustic Report */}
+            {/* Hydraulic Engineering Report ($2,200) */}
+            <div
+              onClick={() => onSiteChange({ hydraulicReportRequired: !site.hydraulicReportRequired })}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                site.hydraulicReportRequired
+                  ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-white">Hydraulic Engineering Report</span>
+                  {site.hydraulicReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400 flex-none" />}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Stormwater catchment management, civil detention sizing, and engineering discharge designs.
+                </p>
+              </div>
+              <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
+                +{formatAud(site.hydraulicReportCost ?? 2200)}
+              </span>
+            </div>
+
+            {/* Landslide Overlay Report ($1,850) */}
+            <div
+              onClick={() => onSiteChange({ landslideReportRequired: !site.landslideReportRequired })}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                site.landslideReportRequired
+                  ? "border-amber-500 bg-amber-950/20 ring-1 ring-amber-500/40"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-white">Landslide Hazard Overlay Report</span>
+                  {site.landslideReportRequired && <Check className="h-3.5 w-3.5 text-amber-400 flex-none" />}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Slope stability analysis, geotechnical risk categorization, and foundation retention statement.
+                </p>
+              </div>
+              <span className="font-bold text-xs text-amber-400 font-mono flex-none">
+                +{formatAud(site.landslideReportCost ?? 1850)}
+              </span>
+            </div>
+
+            {/* Acoustic Report ($1,200) */}
             <div
               onClick={() => onSiteChange({ acousticReportRequired: !site.acousticReportRequired })}
-              className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
                 site.acousticReportRequired
                   ? "border-indigo-500 bg-indigo-950/20 ring-1 ring-indigo-500/40"
                   : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
               }`}
             >
-              <div className="space-y-1">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-xs text-white">Acoustic Noise Corridor Assessment Report</span>
-                  {site.acousticReportRequired && <Check className="h-3.5 w-3.5 text-indigo-400" />}
+                  {site.acousticReportRequired && <Check className="h-3.5 w-3.5 text-indigo-400 flex-none" />}
                 </div>
                 <p className="text-[10px] text-slate-400">
-                  QDC MP 4.4 transport noise corridor testing, decibel frequency analysis, and engineering glazing schedule.
+                  QDC MP 4.4 transport noise corridor testing, decibel analysis, and engineering glazing schedule.
                 </p>
               </div>
               <span className="font-bold text-xs text-indigo-400 font-mono flex-none">
                 +{formatAud(site.acousticReportCost ?? 1200)}
               </span>
             </div>
+
+            {/* Arborist Report ($1,100) */}
+            <div
+              onClick={() => onSiteChange({ arboristReportRequired: !site.arboristReportRequired })}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                site.arboristReportRequired
+                  ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-white">Arborist Tree Assessment Report</span>
+                  {site.arboristReportRequired && <Check className="h-3.5 w-3.5 text-emerald-400 flex-none" />}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Tree protection zone (TPZ) inspection, root mapping, and vegetation management plan.
+                </p>
+              </div>
+              <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                +{formatAud(site.arboristReportCost ?? 1100)}
+              </span>
+            </div>
+
+            {/* CCTV Sewer Pipe Inspection ($850) */}
+            <div
+              onClick={() => onSiteChange({ cctvSewerReportRequired: !site.cctvSewerReportRequired })}
+              className={`p-3 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
+                site.cctvSewerReportRequired
+                  ? "border-teal-500 bg-teal-950/20 ring-1 ring-teal-500/40"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="space-y-0.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-white">CCTV Sewer Pipe Camera Inspection</span>
+                  {site.cctvSewerReportRequired && <Check className="h-3.5 w-3.5 text-teal-400 flex-none" />}
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Robotic CCTV drainage camera log, connection point depth verification &amp; council asset check.
+                </p>
+              </div>
+              <span className="font-bold text-xs text-teal-400 font-mono flex-none">
+                +{formatAud(site.cctvSewerReportCost ?? 850)}
+              </span>
+            </div>
           </div>
 
-          {/* RHS: Physical Construction Rating Allowances */}
+          {/* RHS: Physical Construction Rating & Elevation Allowances */}
           <div className="space-y-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
-              <Shield className="h-3.5 w-3.5 text-emerald-400" />
-              2. Construction &amp; Rating Allowances (RHS)
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+                <Shield className="h-3.5 w-3.5 text-emerald-400" />
+                2. Construction &amp; Elevation Allowances (RHS)
+              </div>
+              <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                +{formatAud(totalAllowancesCost)}
+              </span>
+            </div>
+
+            {/* Slab Elevation & Flood Pad Works Allowance ($270/m height x GFA) */}
+            <div
+              className={`p-3.5 rounded-xl border transition-all space-y-3 ${
+                site.floodOverlayRequired
+                  ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
+                  : "border-slate-800 bg-slate-900/60"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div
+                  onClick={() => onSiteChange({ floodOverlayRequired: !site.floodOverlayRequired })}
+                  className="space-y-0.5 min-w-0 flex-1 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-white">Slab Elevation &amp; Flood Pad Works</span>
+                    {site.floodOverlayRequired && <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-semibold">Active</span>}
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    Engineered building pad elevation for flood minimum floor levels ($270 × Height × {gfaM2} m² GFA).
+                  </p>
+                </div>
+                <div className="text-right flex-none">
+                  <span className="font-bold text-xs text-cyan-400 font-mono block">
+                    +{formatAud(floodCost)}
+                  </span>
+                </div>
+              </div>
+
+              {site.floodOverlayRequired && (
+                <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-[11px] text-slate-300 font-semibold">
+                      Required Slab Elevation Height:
+                    </Label>
+                    <div className="flex items-center gap-1.5 w-32">
+                      <Input
+                        type="number"
+                        step="0.05"
+                        min="0.1"
+                        max="2.5"
+                        value={site.slabElevationMeters ?? 0.3}
+                        onChange={(e) => handleSlabHeightChange(Number(e.target.value))}
+                        className="h-8 text-xs text-right border-slate-700 bg-slate-950 text-cyan-300 font-mono font-bold"
+                      />
+                      <span className="text-xs text-slate-400 font-mono">m</span>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-slate-400 flex justify-between bg-slate-950/60 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                    <span>Formula: $270 × {site.slabElevationMeters ?? 0.3}m × {gfaM2} m²</span>
+                    <span className="font-mono text-cyan-400 font-bold">{formatAud(calculatedSlabCost)}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bushfire BAL Rating Dropdown */}
@@ -527,29 +723,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                   })}
                 </SelectContent>
               </Select>
-            </div>
-
-            {/* Flood Pad Elevation Allowance */}
-            <div
-              onClick={() => onSiteChange({ floodOverlayRequired: !site.floodOverlayRequired })}
-              className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
-                site.floodOverlayRequired
-                  ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
-                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-              }`}
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-white">Slab Elevation &amp; Flood Pad Works</span>
-                  {site.floodOverlayRequired && <Check className="h-3.5 w-3.5 text-cyan-400" />}
-                </div>
-                <p className="text-[10px] text-slate-400">
-                  Engineered elevated building pad, compaction testing, and perimeter swale drainage.
-                </p>
-              </div>
-              <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
-                +{formatAud(site.floodOverlayCost ?? 4800)}
-              </span>
             </div>
 
             {/* Acoustic Attenuation Tier Dropdown */}
@@ -722,80 +895,117 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
         </Label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Screw Piering Allowance ($85/m2) */}
+          {/* Screw Piering Allowance ($90/m2) - Clean selectable box identical to infrastructure fee */}
           <div
-            className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
+            onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.screwPieringRequired
                 ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
-                : "border-slate-800 bg-slate-900/60"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span
-                  onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
-                  className="font-bold text-xs text-white cursor-pointer hover:underline"
-                >
-                  Screw Piering Allowance (KDRB / Fill)
+                <span className="font-bold text-xs text-white">
+                  Allowance for Screw Piering (KDRB / Fill)
                 </span>
-                <input
-                  type="checkbox"
-                  checked={site.screwPieringRequired || false}
-                  onChange={(e) => onSiteChange({ screwPieringRequired: e.target.checked })}
-                  className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                />
+                {site.screwPieringRequired && <Check className="h-4 w-4 text-emerald-400" />}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                Allowance for helical screw piering due to KDRB demolition site or uncontrolled fill ($85 × {gfaM2} m² GFA).
+                Allowance for helical screw piering due to KDRB site or uncontrolled fill ($90 × {gfaM2} m² GFA).
               </p>
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
-              +{formatAud(site.screwPieringCost ?? Math.round(gfaM2 * 85))}
+              +{formatAud(site.screwPieringCost ?? Math.round(gfaM2 * 90))}
             </span>
           </div>
 
-          {/* Rock Excavation Allowance */}
-          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-              <Mountain className="h-3.5 w-3.5 text-amber-400" />
-              Rock Excavation Allowance ($)
-            </Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min="0"
-                step="500"
-                value={site.rockExcavationAllowance || ""}
-                onChange={(e) => onSiteChange({ rockExcavationAllowance: Math.max(0, Number(e.target.value)) })}
-                placeholder="2500"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono font-bold"
-              />
+          {/* Rock Excavation Allowance ($2,500 increments) */}
+          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <div>
+              <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                <Mountain className="h-3.5 w-3.5 text-amber-400" />
+                Rock Excavation Allowance ($)
+              </Label>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Hydraulic rock breaker allowance ($2,500 increments).
+              </p>
             </div>
-            <span className="text-[10px] text-slate-500 font-mono block">
-              Allowance: {formatAud(rockCost)}
-            </span>
+
+            <div className="flex items-center justify-between gap-1.5 pt-2 mt-1 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => handleRockStep(-2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Decrease $2,500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500 font-mono">$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="2500"
+                  value={site.rockExcavationAllowance ?? ""}
+                  onChange={(e) => onSiteChange({ rockExcavationAllowance: Math.max(0, Number(e.target.value)) })}
+                  placeholder="2500"
+                  className="h-8 w-24 text-xs border-slate-800 bg-slate-950 text-emerald-400 font-mono font-bold text-right"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRockStep(2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
-          {/* Retaining Wall Allowance */}
-          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-              <Hammer className="h-3.5 w-3.5 text-cyan-400" />
-              Retaining Wall Allowance ($)
-            </Label>
-            <div className="flex items-center gap-2">
-              <Input
-                type="number"
-                min="0"
-                step="500"
-                value={site.retainingWallAllowance || ""}
-                onChange={(e) => onSiteChange({ retainingWallAllowance: Math.max(0, Number(e.target.value)) })}
-                placeholder="0"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono font-bold"
-              />
+          {/* Retaining Wall Allowance ($2,500 increments) */}
+          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+            <div>
+              <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                <Hammer className="h-3.5 w-3.5 text-cyan-400" />
+                Retaining Wall Allowance ($)
+              </Label>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Concrete sleeper / masonry retaining ($2,500 increments).
+              </p>
             </div>
-            <span className="text-[10px] text-slate-500 font-mono block">
-              Allowance: {formatAud(retainingCost)}
-            </span>
+
+            <div className="flex items-center justify-between gap-1.5 pt-2 mt-1 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => handleRetainingStep(-2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Decrease $2,500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-slate-500 font-mono">$</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="2500"
+                  value={site.retainingWallAllowance ?? ""}
+                  onChange={(e) => onSiteChange({ retainingWallAllowance: Math.max(0, Number(e.target.value)) })}
+                  placeholder="0"
+                  className="h-8 w-24 text-xs border-slate-800 bg-slate-950 text-emerald-400 font-mono font-bold text-right"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRetainingStep(2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

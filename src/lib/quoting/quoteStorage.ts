@@ -1,5 +1,5 @@
 import { DEFAULT_CATALOGUE, DEFAULT_CUSTOM_RATES } from "./quoteCatalogue";
-import { calculateQuotePricing, generateQuoteNumber } from "./quoteEngine";
+import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "./quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { SINGLE_STOREY_PRICES } from "@/lib/pricelist.data";
 import type {
@@ -10,19 +10,24 @@ import type {
   SiteConditions,
 } from "./quoteTypes";
 
-const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v8";
-const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v9";
+const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v9";
+const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v11";
 const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v8";
 
 export function loadCatalogue(): CatalogueItem[] {
-  if (typeof window === "undefined") return DEFAULT_CATALOGUE;
+  if (typeof window === "undefined") {
+    return DEFAULT_CATALOGUE.map((it) => ({ ...it, category: resolveItemCategory(it) }));
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CATALOGUE);
-    if (!raw) return DEFAULT_CATALOGUE;
+    if (!raw) {
+      return DEFAULT_CATALOGUE.map((it) => ({ ...it, category: resolveItemCategory(it) }));
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : DEFAULT_CATALOGUE;
+    const items = Array.isArray(parsed) ? parsed : DEFAULT_CATALOGUE;
+    return items.map((it: CatalogueItem) => ({ ...it, category: resolveItemCategory(it) }));
   } catch {
-    return DEFAULT_CATALOGUE;
+    return DEFAULT_CATALOGUE.map((it) => ({ ...it, category: resolveItemCategory(it) }));
   }
 }
 
@@ -35,7 +40,7 @@ export function resetCatalogueToDefault(): CatalogueItem[] {
   if (typeof window !== "undefined") {
     localStorage.removeItem(STORAGE_KEY_CATALOGUE);
   }
-  return DEFAULT_CATALOGUE;
+  return DEFAULT_CATALOGUE.map((it) => ({ ...it, category: resolveItemCategory(it) }));
 }
 
 export function loadCustomRates() {
@@ -55,20 +60,23 @@ export function saveCustomRates(rates: typeof DEFAULT_CUSTOM_RATES): void {
 }
 
 export function convertCatalogueToLineItems(catalogue: CatalogueItem[]): QuoteSelectedLineItem[] {
-  return catalogue.map((cat) => ({
-    id: `item_${cat.id}_${Math.random().toString(36).slice(2, 7)}`,
-    catalogueItemId: cat.id,
-    category: cat.category,
-    name: cat.name,
-    description: cat.description,
-    unitType: cat.unitType,
-    unitRate: cat.unitRate,
-    quantity: cat.defaultQty ?? 1,
-    subtotal: (cat.defaultQty ?? 1) * cat.unitRate,
-    isIncluded: false, // Fresh clean canvas: zero pre-selected variations
-    isClientSelectable: !!cat.isClientSelectable,
-    clientSelected: false,
-  }));
+  return catalogue.map((cat) => {
+    const resolvedCat = resolveItemCategory(cat);
+    return {
+      id: `item_${cat.id}_${Math.random().toString(36).slice(2, 7)}`,
+      catalogueItemId: cat.id,
+      category: resolvedCat,
+      name: cat.name,
+      description: cat.description,
+      unitType: cat.unitType,
+      unitRate: cat.unitRate,
+      quantity: cat.defaultQty ?? 1,
+      subtotal: (cat.defaultQty ?? 1) * cat.unitRate,
+      isIncluded: false, // Fresh clean canvas: zero pre-selected variations
+      isClientSelectable: !!cat.isClientSelectable,
+      clientSelected: false,
+    };
+  });
 }
 
 export function createNewBlankQuote(): FullQuote {
@@ -124,14 +132,23 @@ export function createNewBlankQuote(): FullQuote {
     bushfireReportRequired: false,
     bushfireReportCost: 850,
     floodReportRequired: false,
-    floodReportCost: 1500,
+    floodReportCost: 7600,
+    hydraulicReportRequired: false,
+    hydraulicReportCost: 2200,
+    landslideReportRequired: false,
+    landslideReportCost: 1850,
     acousticReportRequired: false,
     acousticReportCost: 1200,
+    arboristReportRequired: false,
+    arboristReportCost: 1100,
+    cctvSewerReportRequired: false,
+    cctvSewerReportCost: 850,
 
     bushfireBal: "None",
     bushfireCost: 0,
     floodOverlayRequired: false,
-    floodOverlayCost: 4800,
+    slabElevationMeters: 0.3,
+    floodOverlayCost: undefined,
     acousticTier: "None",
     acousticCost: 0,
 
@@ -196,10 +213,34 @@ export function createNewBlankQuote(): FullQuote {
 export function loadAllQuotes(): FullQuote[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_QUOTES);
+    let raw = localStorage.getItem(STORAGE_KEY_QUOTES);
+    if (!raw) {
+      // Fallback check for v8 quotes
+      raw = localStorage.getItem("hudson_builders_estimate_quotes_v8");
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.map((q: FullQuote) => {
+      const normalizedLineItems = (q.lineItems || []).map((it) => ({
+        ...it,
+        category: resolveItemCategory(it),
+      }));
+
+      // If depositType is brownfield, ensure screw piering is active
+      const isBrownfield = q.client?.depositType === "brownfield";
+      const updatedSite = {
+        ...q.siteConditions,
+        screwPieringRequired: isBrownfield ? true : (q.siteConditions?.screwPieringRequired ?? false),
+      };
+
+      return {
+        ...q,
+        siteConditions: updatedSite,
+        lineItems: normalizedLineItems,
+      };
+    });
   } catch {
     return [];
   }

@@ -43,9 +43,52 @@ export function calculateCustomTotalM2(spec: CustomFloorplanSpec): number {
   const upper = isDouble ? Number(spec.firstLivingM2) || 0 : 0;
   const garage = Number(spec.garageM2) || 0;
   const alfresco = Number(spec.alfrescoM2) || 0;
-  const porch = Number(spec.porchM2) || 0;
-  const balcony = Number(spec.balconyM2) || 0;
   return Number((ground + upper + garage + alfresco + porch + balcony).toFixed(2));
+}
+
+/**
+ * Automatically maps line items to the correct category based on keywords (e.g. ceiling, extension).
+ */
+export function resolveItemCategory(item: { name: string; description?: string; category?: CatalogueCategory }): CatalogueCategory {
+  const text = `${item.name} ${item.description || ""}`.toLowerCase();
+
+  if (
+    text.includes("ceiling") ||
+    text.includes("ceilings") ||
+    text.includes("raked") ||
+    text.includes("square set") ||
+    text.includes("cornice")
+  ) {
+    return "ceiling_heights";
+  }
+
+  if (
+    text.includes("floorplan extension") ||
+    text.includes("footprint extension") ||
+    text.includes("extending") ||
+    text.includes("extension") ||
+    text.includes("additional ground floor living") ||
+    text.includes("additional first floor living") ||
+    text.includes("additional alfresco") ||
+    text.includes("additional porch") ||
+    text.includes("custom single storey living") ||
+    text.includes("custom double storey living") ||
+    text.includes("custom garage floor") ||
+    text.includes("custom porch") ||
+    text.includes("uncovered balcony") ||
+    text.includes("covered balcony") ||
+    text.includes("balcony structure") ||
+    text.includes("drop edge beam") ||
+    text.includes("integral concrete slab to alfresco") ||
+    text.includes("additional wet area surcharge") ||
+    text.includes("add floor space") ||
+    text.includes("adding floor space") ||
+    text.includes("extend floor area")
+  ) {
+    return "floorplan_extensions";
+  }
+
+  return item.category || "structural";
 }
 
 /**
@@ -268,12 +311,20 @@ export function calculateQuotePricing(
 
   // Site Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (Number(site.bushfireReportCost) || 850) : 0;
-  const floodReportCost = site.floodReportRequired ? (Number(site.floodReportCost) || 1500) : 0;
+  const floodReportCost = site.floodReportRequired ? (Number(site.floodReportCost) || 7600) : 0;
+  const hydraulicReportCost = site.hydraulicReportRequired ? (Number(site.hydraulicReportCost) || 2200) : 0;
+  const landslideReportCost = site.landslideReportRequired ? (Number(site.landslideReportCost) || 1850) : 0;
   const acousticReportCost = site.acousticReportRequired ? (Number(site.acousticReportCost) || 1200) : 0;
+  const arboristReportCost = site.arboristReportRequired ? (Number(site.arboristReportCost) || 1100) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 850) : 0;
 
   // Site Overlay Physical Allowances (RHS)
   const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
-  const floodCost = site.floodOverlayRequired ? (Number(site.floodOverlayCost) || 4800) : 0;
+  const slabElevationCost = site.floodOverlayRequired
+    ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && !isNaN(Number(site.floodOverlayCost)) && site.floodOverlayCost > 0
+        ? Number(site.floodOverlayCost)
+        : Math.round((Number(site.slabElevationMeters) || 0.3) * 270 * gfaM2))
+    : 0;
   const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
   // Council & Statutory
@@ -283,7 +334,7 @@ export function calculateQuotePricing(
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances
-  const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 85)) : 0;
+  const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 90)) : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
 
@@ -295,9 +346,13 @@ export function calculateQuotePricing(
     bushfireReportCost +
     bushfireCost +
     floodReportCost +
-    floodCost +
+    hydraulicReportCost +
+    landslideReportCost +
+    slabElevationCost +
     acousticReportCost +
     acousticCost +
+    arboristReportCost +
+    cctvSewerReportCost +
     trafficCost +
     screwPieringCost +
     rockCost +
@@ -325,8 +380,9 @@ export function calculateQuotePricing(
   for (const item of lineItems) {
     if (!item.isIncluded) continue;
     if (item.isClientSelectable && item.clientSelected === false) continue;
-    if (categoryGroups[item.category]) {
-      categoryGroups[item.category].push(item);
+    const cat = resolveItemCategory(item);
+    if (categoryGroups[cat]) {
+      categoryGroups[cat].push({ ...item, category: cat });
     }
   }
 

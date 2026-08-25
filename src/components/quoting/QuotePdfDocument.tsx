@@ -117,7 +117,7 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
       />
       <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-amber-400" />
-        <span>Selected Architectural Facade: {design.facadeName || "Classic"}</span>
+        <span>Selected Facade: {design.facadeName || "Classic"}</span>
       </div>
     </div>
   );
@@ -201,17 +201,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const totalPages = hasVariations ? 7 : 6;
 
   // Site items for Page 4 breakdown
+  const gfaM2 = pricing.gfaM2 || 192;
   // Dedicated Site & Soil items
   const concrete32Cost = siteConditions.concrete32MpaRequired ? (siteConditions.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
   const flexibleConnectionsCost = siteConditions.flexibleConnectionsRequired ? (siteConditions.flexibleConnectionsCost ?? 1800) : 0;
 
   // Site Overlay Reports (LHS)
   const bushfireReportCost = siteConditions.bushfireReportRequired ? (siteConditions.bushfireReportCost ?? 850) : 0;
-  const floodReportCost = siteConditions.floodReportRequired ? (siteConditions.floodReportCost ?? 1500) : 0;
+  const floodReportCost = siteConditions.floodReportRequired ? (siteConditions.floodReportCost ?? 7600) : 0;
+  const hydraulicReportCost = siteConditions.hydraulicReportRequired ? (siteConditions.hydraulicReportCost ?? 2200) : 0;
+  const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 1850) : 0;
   const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
+  const arboristReportCost = siteConditions.arboristReportRequired ? (siteConditions.arboristReportCost ?? 1100) : 0;
+  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 850) : 0;
 
   // Site Overlay Allowances (RHS)
-  const floodCost = siteConditions.floodOverlayRequired ? (siteConditions.floodOverlayCost ?? 4800) : 0;
+  const slabHeight = siteConditions.slabElevationMeters ?? 0.3;
+  const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
+  const floodCost = siteConditions.floodOverlayRequired
+    ? (siteConditions.floodOverlayCost !== undefined && siteConditions.floodOverlayCost !== null && siteConditions.floodOverlayCost > 0
+        ? siteConditions.floodOverlayCost
+        : calculatedSlabCost)
+    : 0;
 
   // Council & Statutory
   const councilDaCost = siteConditions.councilDaRequired ? (siteConditions.councilDaCost ?? 8000) : 0;
@@ -219,8 +230,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
-  // Geotechnical Allowances
-  const screwPieringCost = siteConditions.screwPieringRequired ? (siteConditions.screwPieringCost ?? Math.round(gfaM2 * 85)) : 0;
+  // Geotechnical Allowances ($90 / m2)
+  const screwPieringCost = siteConditions.screwPieringRequired ? (siteConditions.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
   const rockCost = Number(siteConditions.rockExcavationAllowance) || 0;
   const retainingCost = Number(siteConditions.retainingWallAllowance) || 0;
 
@@ -315,10 +326,32 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       ? [
           {
             id: "flood_overlay",
-            name: "Flood Hazard Overlay & Pad Elevation",
-            description: "Hydraulic overland flow assessment, DFL compliance & elevated finished floor pad.",
-            qtyLabel: "1 Pad",
+            name: `Slab Elevation & Flood Pad Works (${slabHeight}m Elevation)`,
+            description: `Engineered building pad elevation for minimum floor level compliance ($270 × ${slabHeight}m × ${gfaM2} m² GFA).`,
+            qtyLabel: `${slabHeight}m elevation`,
             amount: floodCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.hydraulicReportRequired
+      ? [
+          {
+            id: "hydraulic_report",
+            name: "Hydraulic Engineering Assessment Report",
+            description: "Stormwater catchment modeling, civil detention sizing, and engineering discharge designs.",
+            qtyLabel: "1 Report",
+            amount: hydraulicReportCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.landslideReportRequired
+      ? [
+          {
+            id: "landslide_report",
+            name: "Landslide Hazard Overlay Assessment Report",
+            description: "Slope stability analysis, geotechnical risk categorization, and foundation retention statement.",
+            qtyLabel: "1 Report",
+            amount: landslideReportCost,
           },
         ]
       : []),
@@ -341,6 +374,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             description: "QDC MP 4.4 acoustic laminated glazing and high-density perimeter wall insulation.",
             qtyLabel: "1 House",
             amount: siteConditions.acousticCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.arboristReportRequired
+      ? [
+          {
+            id: "arborist_report",
+            name: "Arborist Tree Assessment Report",
+            description: "Tree protection zone (TPZ) inspection, root mapping, and vegetation management plan.",
+            qtyLabel: "1 Report",
+            amount: arboristReportCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.cctvSewerReportRequired
+      ? [
+          {
+            id: "cctv_sewer_report",
+            name: "CCTV Sewer Pipe Camera Inspection & Report",
+            description: "Robotic CCTV drainage camera log, connection point depth verification & council asset check.",
+            qtyLabel: "1 Inspection",
+            amount: cctvSewerReportCost,
           },
         ]
       : []),
@@ -406,7 +461,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           {
             id: "screw_piering",
             name: "Allowance for Screw Piering (KDRB / Fill Site)",
-            description: `Helical screw piering driven to solid strata due to KDRB site or uncontrolled fill ($85 × ${pricing.gfaM2} m²).`,
+            description: `Helical screw piering driven to solid strata due to KDRB site or uncontrolled fill ($90 × ${pricing.gfaM2} m²).`,
             qtyLabel: `${pricing.gfaM2} m² GFA`,
             amount: screwPieringCost,
           },
@@ -692,7 +747,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {pricing.facadePrice > 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">Architectural Facade:</span> {design.facadeName}
+                      <span className="font-semibold text-slate-900">Selected Facade:</span> {design.facadeName}
                       {design.isCustomFacade && design.customFacadeDescription && (
                         <span className="block text-[10px] text-slate-500 italic mt-0.5">
                           {design.customFacadeDescription}
