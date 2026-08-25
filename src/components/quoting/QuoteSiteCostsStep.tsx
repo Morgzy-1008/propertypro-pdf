@@ -126,11 +126,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
   // Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
   const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 7600) : 0;
-  const hydraulicReportCost = site.hydraulicReportRequired ? (site.hydraulicReportCost ?? 2200) : 0;
-  const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 1850) : 0;
+  const hydraulicReportCost = site.hydraulicReportRequired ? (site.hydraulicReportCost ?? 2600) : 0;
+  const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 850) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 3300) : 0;
 
   const totalReportsCost =
     bushfireReportCost +
@@ -704,11 +704,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </p>
             </div>
             <span className="font-bold text-xs text-cyan-400 font-mono text-right mt-2 block">
-              +{formatAud(site.hydraulicReportCost ?? 2200)}
+              +{formatAud(site.hydraulicReportCost ?? 2600)}
             </span>
           </div>
 
-          {/* Landslide Hazard Report ($1,850) */}
+          {/* Landslide Hazard Report ($7,000) */}
           <div
             onClick={() => onSiteChange({ landslideReportRequired: !site.landslideReportRequired })}
             className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
@@ -727,7 +727,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </p>
             </div>
             <span className="font-bold text-xs text-amber-400 font-mono text-right mt-2 block">
-              +{formatAud(site.landslideReportCost ?? 1850)}
+              +{formatAud(site.landslideReportCost ?? 7000)}
             </span>
           </div>
 
@@ -754,7 +754,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </span>
           </div>
 
-          {/* CCTV Sewer Pipe Inspection ($850) */}
+          {/* CCTV Sewer Pipe Inspection ($3,300) */}
           <div
             onClick={() => onSiteChange({ cctvSewerReportRequired: !site.cctvSewerReportRequired })}
             className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
@@ -773,7 +773,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </p>
             </div>
             <span className="font-bold text-xs text-teal-400 font-mono text-right mt-2 block">
-              +{formatAud(site.cctvSewerReportCost ?? 850)}
+              +{formatAud(site.cctvSewerReportCost ?? 3300)}
             </span>
           </div>
         </div>

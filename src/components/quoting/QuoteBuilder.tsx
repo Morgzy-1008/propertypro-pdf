@@ -42,10 +42,7 @@ import { QuotePdfDocument } from "./QuotePdfDocument";
 type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 
 export function QuoteBuilder() {
-  const [quote, setQuote] = useState<FullQuote>(() => {
-    const existing = loadAllQuotes();
-    return existing.length > 0 ? existing[0] : createNewBlankQuote();
-  });
+  const [quote, setQuote] = useState<FullQuote>(() => createNewBlankQuote());
 
   const [activeTab, setActiveTab] = useState<TabId>("design");
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -282,6 +279,7 @@ export function QuoteBuilder() {
                 site={quote.siteConditions}
                 onChange={handleClientChange}
                 onSiteChange={handleSiteChange}
+                onLoadEntireQuote={(loaded) => setQuote(loaded)}
               />
             )}
 

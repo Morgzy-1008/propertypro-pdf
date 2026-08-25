@@ -18,6 +18,7 @@ import {
   Tag,
   Palette,
   Trees,
+  Car,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -569,95 +570,90 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     </ul>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">Base House Price:</span>
-                    <span className="font-bold text-emerald-400 font-mono text-sm">
-                      {formatAud(tierBasePrice)}
-                    </span>
+                  <div className="space-y-2.5 pt-3 border-t border-slate-800">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Base House Price:</span>
+                      <span className="font-bold text-emerald-400 font-mono text-sm">
+                        {formatAud(tierBasePrice)}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-800/80">
+                      <a
+                        href={tier.brochureUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center justify-between text-[11px] text-slate-300 hover:text-emerald-400 font-medium transition-colors group"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <FileCheck2 className="h-3.5 w-3.5 text-emerald-400" />
+                          <span>View the entire {tier.label.split(" ")[0]} range here</span>
+                        </span>
+                        <ExternalLink className="h-3 w-3 text-slate-400 group-hover:text-emerald-400" />
+                      </a>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
 
-          {/* Digital Brochure Links beneath inclusion range boxes */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-            <a
-              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
-            >
-              <span className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 text-emerald-400" />
-                <span>View the entire H1 range here</span>
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-400" />
-            </a>
-
-            <a
-              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
-            >
-              <span className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 text-emerald-400" />
-                <span>View the entire H2 range here</span>
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 text-emerald-400 group-hover:text-emerald-400" />
-            </a>
-
-            <a
-              href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-800/80 hover:border-emerald-500/50 text-xs text-slate-300 hover:text-white transition-all group"
-            >
-              <span className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 text-emerald-400" />
-                <span>View the entire H3 range here</span>
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 text-emerald-400 group-hover:text-emerald-400" />
-            </a>
-          </div>
-
-          {/* Turnkey Landscaping Package if selected or view brochure */}
-          <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mt-0.5">
-                <Trees className="h-4 w-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-white">Turnkey Landscaping Package</span>
-                  {quote.design.landscapingSelected && (
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
-                      Included in Estimate
-                    </span>
-                  )}
+          {/* Turnkey Landscaping Package & Exposed Agg Driveway */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+            {/* Landscaping Package */}
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 flex flex-col justify-between gap-2.5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 mt-0.5">
+                  <Trees className="h-4 w-4" />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Turf, Garden Beds, Treated Timber Fencing, Exposed Aggregate Driveway &amp; Path, Clothesline &amp; Letterbox.
-                </p>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-white">Turnkey Landscaping Package</span>
+                    {quote.design.landscapingSelected && (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
+                        Included (+{formatAud(quote.pricing.landscapingCost)})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Turf, Garden Beds, Treated Timber Fencing, Exposed Aggregate Driveway &amp; Path, Clothesline &amp; Letterbox.
+                  </p>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-800/80">
                 <a
                   href="http://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-Landscape-Brochure-Hudson-Homes-Jan-25.pdf"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 text-[11px] font-semibold underline mt-1"
+                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 text-[11px] font-semibold underline"
                 >
                   View the entire Landscaping Package Brochure here <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
-            {quote.design.landscapingSelected && quote.pricing.landscapingCost > 0 && (
-              <div className="text-right flex-none">
-                <span className="text-[10px] text-slate-400 block">Package Investment:</span>
-                <span className="font-bold text-emerald-400 font-mono text-sm">
-                  +{formatAud(quote.pricing.landscapingCost)}
-                </span>
+
+            {/* Exposed Agg Driveway Only */}
+            <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/50 flex flex-col justify-between gap-2.5">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mt-0.5">
+                  <Car className="h-4 w-4" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-white">Exposed Agg Driveway Only</span>
+                    {quote.design.exposedDrivewaySelected && (
+                      <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-semibold">
+                        Included (+{formatAud(quote.pricing.exposedDrivewayCost)})
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Exposed aggregate concrete paving from council crossover to double garage &amp; entry porch ({quote.design.exposedDrivewayM2 || 55} m²).
+                  </p>
+                </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
 

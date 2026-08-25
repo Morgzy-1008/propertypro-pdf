@@ -9,6 +9,7 @@ import {
   Tag,
   PenTool,
   Trees,
+  Car,
   ExternalLink,
   Check,
 } from "lucide-react";
@@ -456,85 +457,52 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               })}
             </div>
 
-            {/* Inclusion Range Brochure Links */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60">
-              <span className="font-semibold text-slate-300">View Inclusions Range Brochures:</span>
-              <div className="flex items-center gap-3">
-                <a
-                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 underline"
-                >
-                  H1 Smart Brochure <ExternalLink className="h-3 w-3" />
-                </a>
-                <a
-                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 underline"
-                >
-                  H2 Design Brochure <ExternalLink className="h-3 w-3" />
-                </a>
-                <a
-                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 underline"
-                >
-                  H3 Luxury Brochure <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </div>
-
-            {/* Turnkey Landscaping Package Option */}
-            <div
-              className={`p-4 rounded-xl border transition-all ${
-                design.landscapingSelected
-                  ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-md"
-                  : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div
-                  onClick={() => {
-                    const next = !design.landscapingSelected;
-                    const size = design.landscapingLandSize || 450;
-                    const price = next ? landscapingPriceFor(size, design.housingType, design.designName) : 0;
-                    onChange({
-                      landscapingSelected: next,
-                      landscapingLandSize: size,
-                      landscapingCost: price,
-                    });
-                  }}
-                  className="flex items-start gap-3 cursor-pointer flex-1"
-                >
-                  <input
-                    type="checkbox"
-                    checked={design.landscapingSelected || false}
-                    onChange={() => {}}
-                    className="h-4 w-4 accent-emerald-500 rounded cursor-pointer mt-0.5"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                        <Trees className="h-3.5 w-3.5 text-emerald-400" />
-                        Complete Turnkey Landscaping Package
+            {/* External Site Packages: Turnkey Landscaping & Exposed Agg Driveway (2-Column Grid) */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Option 1: Complete Turnkey Landscaping Package */}
+              <div
+                onClick={() => {
+                  const next = !design.landscapingSelected;
+                  const size = design.landscapingLandSize || 450;
+                  const price = next ? landscapingPriceFor(size, design.housingType, design.designName) : 0;
+                  onChange({
+                    landscapingSelected: next,
+                    landscapingLandSize: size,
+                    landscapingCost: price,
+                  });
+                }}
+                className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
+                  design.landscapingSelected
+                    ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-md"
+                    : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                      <Trees className="h-4 w-4 text-emerald-400" />
+                      Complete Turnkey Landscaping Package
+                    </span>
+                    {design.landscapingSelected ? (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Selected
                       </span>
-                      {design.landscapingSelected && (
-                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
-                          Selected
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Includes Turf &amp; Garden Beds, Treated Timber Perimeter Fencing &amp; Return Gate, Exposed Aggregate Concrete Driveway &amp; Path, Fold-down Clothesline, and Rendered Letterbox.
-                    </p>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        Optional
+                      </span>
+                    )}
                   </div>
+                  <p className="text-[11px] text-slate-400">
+                    Includes Turf &amp; Garden Beds, Treated Timber Perimeter Fencing &amp; Return Gate, Exposed Aggregate Concrete Driveway &amp; Path, Clothesline, and Rendered Letterbox.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-3 flex-none self-end sm:self-center">
-                  <div className="space-y-1">
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
+                  <div
+                    className="space-y-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     <Label className="text-[10px] text-slate-400 block">Lot / Land Size:</Label>
                     <Select
                       value={String(design.landscapingLandSize || 450)}
@@ -563,7 +531,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   </div>
 
                   <div className="text-right pl-2">
-                    <span className="text-[10px] text-slate-400 block">Package Investment:</span>
+                    <span className="text-[10px] text-slate-400 block">Package Total:</span>
                     <span className="font-extrabold text-emerald-400 font-mono text-sm block">
                       +{formatAud(landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))}
                     </span>
@@ -571,15 +539,78 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 </div>
               </div>
 
-              <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                <a
-                  href="http://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-Landscape-Brochure-Hudson-Homes-Jan-25.pdf"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 font-semibold underline"
-                >
-                  View the entire Landscaping Package Brochure here <ExternalLink className="h-3 w-3" />
-                </a>
+              {/* Option 2: Exposed Agg Driveway Only */}
+              <div
+                onClick={() => {
+                  const next = !design.exposedDrivewaySelected;
+                  const m2 = design.exposedDrivewayM2 || 55;
+                  const price = next ? Math.round(m2 * 230) : 0;
+                  onChange({
+                    exposedDrivewaySelected: next,
+                    exposedDrivewayM2: m2,
+                    exposedDrivewayCost: price,
+                  });
+                }}
+                className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between space-y-3 ${
+                  design.exposedDrivewaySelected
+                    ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40 shadow-md"
+                    : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+                }`}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                      <Car className="h-4 w-4 text-cyan-400" />
+                      Exposed Agg Driveway Only ($230/m²)
+                    </span>
+                    {design.exposedDrivewaySelected ? (
+                      <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                        <Check className="h-3 w-3" /> Selected
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                        Optional
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Exposed aggregate concrete paving from road crossover to double garage and front entry porch ($230/m² × {design.exposedDrivewayM2 || 55} m²).
+                  </p>
+                </div>
+
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
+                  <div
+                    className="space-y-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Label className="text-[10px] text-slate-400 block">Driveway Area (m²):</Label>
+                    <div className="flex items-center gap-1.5 w-28">
+                      <Input
+                        type="number"
+                        min="1"
+                        max="300"
+                        value={design.exposedDrivewayM2 ?? 55}
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 55;
+                          onChange({
+                            exposedDrivewaySelected: true,
+                            exposedDrivewayM2: val,
+                            exposedDrivewayCost: Math.round(val * 230),
+                          });
+                        }}
+                        className="h-8 text-xs text-right border-slate-800 bg-slate-900 text-cyan-300 font-mono font-bold"
+                      />
+                      <span className="text-xs text-slate-400 font-mono">m²</span>
+                    </div>
+                  </div>
+
+                  <div className="text-right pl-2">
+                    <span className="text-[10px] text-slate-400 block">Driveway Total:</span>
+                    <span className="font-extrabold text-cyan-400 font-mono text-sm block">
+                      +{formatAud((design.exposedDrivewayM2 || 55) * 230)}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   User,
   MapPin,
@@ -14,7 +14,10 @@ import {
   MapPinOff,
   Building2,
   Sparkles,
+  Users,
+  FolderOpen,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,16 +31,70 @@ import {
 import { CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { formatAud } from "@/lib/pricing";
 import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
-import type { ClientDetails, DepositType, SiteConditions } from "@/lib/quoting/quoteTypes";
+import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
+import type { ClientDetails, DepositType, FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
 
 interface QuoteClientDetailsProps {
   client: ClientDetails;
   site?: SiteConditions;
   onChange: (updated: Partial<ClientDetails>) => void;
   onSiteChange?: (updated: Partial<SiteConditions>) => void;
+  onLoadEntireQuote?: (savedQuote: FullQuote) => void;
 }
 
-export function QuoteClientDetails({ client, site, onChange, onSiteChange }: QuoteClientDetailsProps) {
+export function QuoteClientDetails({
+  client,
+  site,
+  onChange,
+  onSiteChange,
+  onLoadEntireQuote,
+}: QuoteClientDetailsProps) {
+  // Consultant-scoped saved clients
+  const savedQuotes = useMemo(() => loadAllQuotes(), []);
+
+  const consultantQuotes = useMemo(() => {
+    return savedQuotes.filter((q) => {
+      if (!q.client?.clientName || q.client.clientName.trim() === "") return false;
+      // Filter by consultant ID or email if present, or show if matches
+      if (client.consultantId && q.client.consultantId) {
+        return q.client.consultantId === client.consultantId;
+      }
+      if (client.consultantEmail && q.client.consultantEmail) {
+        return q.client.consultantEmail.toLowerCase() === client.consultantEmail.toLowerCase();
+      }
+      return true;
+    });
+  }, [savedQuotes, client.consultantId, client.consultantEmail]);
+
+  const handleSelectExistingClient = (quoteId: string) => {
+    const found = consultantQuotes.find((q) => q.id === quoteId || q.quoteNumber === quoteId);
+    if (!found) return;
+
+    if (onLoadEntireQuote) {
+      onLoadEntireQuote(found);
+      toast.success(`Loaded client details & estimate for ${found.client.clientName}`);
+    } else {
+      onChange({
+        clientName: found.client.clientName,
+        clientPhone: found.client.clientPhone,
+        clientEmail: found.client.clientEmail,
+        hasClient2: found.client.hasClient2,
+        client2Name: found.client.client2Name,
+        client2Phone: found.client.client2Phone,
+        client2Email: found.client.client2Email,
+        siteAddress: found.client.siteAddress,
+        lotNumber: found.client.lotNumber,
+        suburb: found.client.suburb,
+        estate: found.client.estate,
+        postcode: found.client.postcode,
+        depositType: found.client.depositType,
+        depositAmount: found.client.depositAmount,
+        notes: found.client.notes,
+      });
+      toast.success(`Loaded client details for ${found.client.clientName}`);
+    }
+  };
+
   const handleConsultantChange = (id: string) => {
     const c = findConsultant(id);
     if (!c) return;
@@ -132,6 +189,47 @@ export function QuoteClientDetails({ client, site, onChange, onSiteChange }: Quo
         <p className="text-xs text-slate-400 mt-1">
           Enter primary client details, secondary applicant information (optional), proposed site address, and initial deposit options.
         </p>
+      </div>
+
+      {/* Select Existing Client Banner (Scoped to current consultant) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/90 p-4 rounded-xl border border-slate-800 ring-1 ring-emerald-500/20 shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex-none">
+            <Users className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
+              Select Existing Client
+              <span className="text-[10px] font-mono font-normal bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
+                {consultantQuotes.length} saved for {client.consultantName?.split(" ")[0] || "Consultant"}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Instantly load contact &amp; site data from your previously saved client estimates.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-none">
+          <Select value="" onValueChange={handleSelectExistingClient}>
+            <SelectTrigger className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-200 w-72">
+              <SelectValue placeholder="Choose an existing client…" />
+            </SelectTrigger>
+            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+              {consultantQuotes.length === 0 ? (
+                <div className="p-3 text-center text-xs text-slate-500">
+                  No saved client estimates found for your account yet.
+                </div>
+              ) : (
+                consultantQuotes.map((q) => (
+                  <SelectItem key={q.id} value={q.id}>
+                    {q.client.clientName} — {q.client.siteAddress ? `${q.client.lotNumber ? `Lot ${q.client.lotNumber}, ` : ""}${q.client.suburb || q.client.siteAddress}` : "Site TBA"} ({q.quoteNumber})
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Primary Client (Client 1) Contact Info */}

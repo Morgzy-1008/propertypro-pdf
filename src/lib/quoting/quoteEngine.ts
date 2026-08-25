@@ -301,9 +301,13 @@ export function calculateQuotePricing(
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
   const gfaM2 = calculateDesignGFA(design);
 
-  // Landscaping Package Calculation
+  // Landscaping & Driveway Calculations
   const landscapingCost = design.landscapingSelected
     ? (Number(design.landscapingCost) || landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))
+    : 0;
+
+  const exposedDrivewayCost = design.exposedDrivewaySelected
+    ? (Number(design.exposedDrivewayCost) > 0 ? Number(design.exposedDrivewayCost) : Math.round((Number(design.exposedDrivewayM2) || 55) * 230))
     : 0;
 
   // Dynamic Site & Statutory Calculations
@@ -320,11 +324,11 @@ export function calculateQuotePricing(
   // Site Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (Number(site.bushfireReportCost) || 850) : 0;
   const floodReportCost = site.floodReportRequired ? (Number(site.floodReportCost) || 7600) : 0;
-  const hydraulicReportCost = site.hydraulicReportRequired ? (Number(site.hydraulicReportCost) || 2200) : 0;
-  const landslideReportCost = site.landslideReportRequired ? (Number(site.landslideReportCost) || 1850) : 0;
+  const hydraulicReportCost = site.hydraulicReportRequired ? (Number(site.hydraulicReportCost) || 2600) : 0;
+  const landslideReportCost = site.landslideReportRequired ? (Number(site.landslideReportCost) || 7000) : 0;
   const acousticReportCost = site.acousticReportRequired ? (Number(site.acousticReportCost) || 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (Number(site.arboristReportCost) || 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 850) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 3300) : 0;
 
   // Site Overlay Physical Allowances (RHS)
   const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
@@ -431,6 +435,7 @@ export function calculateQuotePricing(
     facadePrice -
     promotionsDiscount +
     landscapingCost +
+    exposedDrivewayCost +
     siteCostsSubtotal +
     councilStatutorySubtotal +
     variationsSubtotal;
@@ -448,6 +453,7 @@ export function calculateQuotePricing(
     promotionName,
     promotionsDiscount,
     landscapingCost,
+    exposedDrivewayCost,
     customFloorplanPrice,
     gfaM2,
     siteCostsSubtotal,

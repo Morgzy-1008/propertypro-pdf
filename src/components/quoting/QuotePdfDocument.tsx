@@ -211,11 +211,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   // Site Overlay Reports (LHS)
   const bushfireReportCost = siteConditions.bushfireReportRequired ? (siteConditions.bushfireReportCost ?? 850) : 0;
   const floodReportCost = siteConditions.floodReportRequired ? (siteConditions.floodReportCost ?? 7600) : 0;
-  const hydraulicReportCost = siteConditions.hydraulicReportRequired ? (siteConditions.hydraulicReportCost ?? 2200) : 0;
-  const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 1850) : 0;
+  const hydraulicReportCost = siteConditions.hydraulicReportRequired ? (siteConditions.hydraulicReportCost ?? 2600) : 0;
+  const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = siteConditions.arboristReportRequired ? (siteConditions.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 850) : 0;
+  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 3300) : 0;
 
   // Site Overlay Allowances (RHS)
   const slabHeight = siteConditions.slabElevationMeters ?? 0.3;
@@ -795,6 +795,23 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
                       +{formatAud(pricing.landscapingCost)}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Exposed Aggregate Concrete Driveway & Path if selected */}
+                {(pricing.exposedDrivewayCost > 0 || design.exposedDrivewaySelected) && (
+                  <tr>
+                    <td className="py-2 px-3 text-slate-700">
+                      <span className="font-semibold text-slate-900">
+                        Exposed Aggregate Concrete Driveway &amp; Porch Path ({design.exposedDrivewayM2 || 55} m²):
+                      </span>
+                      <span className="block text-[10px] text-slate-500">
+                        Exposed aggregate concrete paving from council crossover to double garage and front entry porch ($230/m²)
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
+                      +{formatAud(pricing.exposedDrivewayCost)}
                     </td>
                   </tr>
                 )}

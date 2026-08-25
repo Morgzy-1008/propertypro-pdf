@@ -61,9 +61,11 @@ interface QuoteAdminCatalogueProps {
 const ADMIN_CATEGORIES: { id: CatalogueCategory | "all" | "duplicates"; label: string }[] = [
   { id: "all", label: "All Items" },
   { id: "duplicates", label: "⚠️ Duplicate Pairs" },
-  { id: "structural", label: "Structural" },
+  { id: "floorplan_extensions", label: "Floorplan Extensions" },
+  { id: "ceiling_heights", label: "Ceiling Heights" },
+  { id: "structural", label: "Structural Modifications" },
   { id: "doors_windows", label: "Doors & Windows" },
-  { id: "external", label: "Floorplan & External" },
+  { id: "external", label: "External & Facade Upgrades" },
   { id: "internal_kitchen", label: "Internal - Kitchen" },
   { id: "internal_bathroom", label: "Internal - Bathroom" },
   { id: "internal_bedrooms", label: "Internal - Bedrooms & Storage" },
@@ -565,9 +567,11 @@ export function QuoteAdminCatalogue({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                          <SelectItem value="floorplan_extensions">Floorplan Extensions</SelectItem>
+                          <SelectItem value="ceiling_heights">Ceiling Heights</SelectItem>
                           <SelectItem value="structural">Structural Modifications</SelectItem>
                           <SelectItem value="doors_windows">Doors &amp; Windows</SelectItem>
-                          <SelectItem value="external">Floorplan &amp; External</SelectItem>
+                          <SelectItem value="external">External &amp; Facade Upgrades</SelectItem>
                           <SelectItem value="internal_kitchen">Internal - Kitchen</SelectItem>
                           <SelectItem value="internal_bathroom">Internal - Bathroom</SelectItem>
                           <SelectItem value="internal_bedrooms">Internal - Bedrooms &amp; Storage</SelectItem>
@@ -766,9 +770,11 @@ export function QuoteAdminCatalogue({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                      <SelectItem value="floorplan_extensions">Floorplan Extensions</SelectItem>
+                      <SelectItem value="ceiling_heights">Ceiling Heights</SelectItem>
                       <SelectItem value="structural">Structural Modifications</SelectItem>
                       <SelectItem value="doors_windows">Doors &amp; Windows</SelectItem>
-                      <SelectItem value="external">Floorplan &amp; External</SelectItem>
+                      <SelectItem value="external">External &amp; Facade Upgrades</SelectItem>
                       <SelectItem value="internal_kitchen">Internal - Kitchen</SelectItem>
                       <SelectItem value="internal_bathroom">Internal - Bathroom</SelectItem>
                       <SelectItem value="internal_bedrooms">Internal - Bedrooms &amp; Storage</SelectItem>
