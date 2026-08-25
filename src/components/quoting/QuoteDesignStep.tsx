@@ -8,6 +8,9 @@ import {
   CheckCircle2,
   Tag,
   PenTool,
+  Trees,
+  ExternalLink,
+  Check,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatAud } from "@/lib/pricing";
+import { landscapingPriceFor } from "@/lib/landscaping";
 import {
   DOUBLE_STOREY_PRICES,
   DUAL_OC_PRICES,
@@ -450,6 +454,133 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Inclusion Range Brochure Links */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-slate-400 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/60">
+              <span className="font-semibold text-slate-300">View Inclusions Range Brochures:</span>
+              <div className="flex items-center gap-3">
+                <a
+                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 underline"
+                >
+                  H1 Smart Brochure <ExternalLink className="h-3 w-3" />
+                </a>
+                <a
+                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 underline"
+                >
+                  H2 Design Brochure <ExternalLink className="h-3 w-3" />
+                </a>
+                <a
+                  href="https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-400 hover:text-amber-300 inline-flex items-center gap-1 underline"
+                >
+                  H3 Luxury Brochure <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+
+            {/* Turnkey Landscaping Package Option */}
+            <div
+              className={`p-4 rounded-xl border transition-all ${
+                design.landscapingSelected
+                  ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-md"
+                  : "border-slate-800 bg-slate-950/70 hover:border-slate-700"
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div
+                  onClick={() => {
+                    const next = !design.landscapingSelected;
+                    const size = design.landscapingLandSize || 450;
+                    const price = next ? landscapingPriceFor(size, design.housingType, design.designName) : 0;
+                    onChange({
+                      landscapingSelected: next,
+                      landscapingLandSize: size,
+                      landscapingCost: price,
+                    });
+                  }}
+                  className="flex items-start gap-3 cursor-pointer flex-1"
+                >
+                  <input
+                    type="checkbox"
+                    checked={design.landscapingSelected || false}
+                    onChange={() => {}}
+                    className="h-4 w-4 accent-emerald-500 rounded cursor-pointer mt-0.5"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                        <Trees className="h-3.5 w-3.5 text-emerald-400" />
+                        Complete Turnkey Landscaping Package
+                      </span>
+                      {design.landscapingSelected && (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Includes Turf &amp; Garden Beds, Treated Timber Perimeter Fencing &amp; Return Gate, Exposed Aggregate Concrete Driveway &amp; Path, Fold-down Clothesline, and Rendered Letterbox.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 flex-none self-end sm:self-center">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-400 block">Lot / Land Size:</Label>
+                    <Select
+                      value={String(design.landscapingLandSize || 450)}
+                      onValueChange={(val) => {
+                        const size = Number(val);
+                        const price = landscapingPriceFor(size, design.housingType, design.designName);
+                        onChange({
+                          landscapingSelected: true,
+                          landscapingLandSize: size,
+                          landscapingCost: price,
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-8 text-xs border-slate-800 bg-slate-900 text-slate-200 w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                        <SelectItem value="300">Up to 300 m² Lot</SelectItem>
+                        <SelectItem value="450">Up to 450 m² Lot</SelectItem>
+                        <SelectItem value="600">Up to 600 m² Lot</SelectItem>
+                        <SelectItem value="700">Up to 700 m² Lot</SelectItem>
+                        <SelectItem value="800">Up to 800 m² Lot</SelectItem>
+                        <SelectItem value="900">Up to 900 m² Lot</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="text-right pl-2">
+                    <span className="text-[10px] text-slate-400 block">Package Investment:</span>
+                    <span className="font-extrabold text-emerald-400 font-mono text-sm block">
+                      +{formatAud(landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                <a
+                  href="http://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-Landscape-Brochure-Hudson-Homes-Jan-25.pdf"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-emerald-400 hover:text-emerald-300 inline-flex items-center gap-1 font-semibold underline"
+                >
+                  View the entire Landscaping Package Brochure here <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
             </div>
           </div>
 

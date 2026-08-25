@@ -103,6 +103,9 @@ export function createNewBlankQuote(): FullQuote {
     lengthM: "",
     promotionName: "Hudson Special Builder Promotion",
     promotionsDiscount: 0,
+    landscapingSelected: false,
+    landscapingLandSize: 450,
+    landscapingCost: 0,
     customSpec: {
       groundLivingM2: 0,
       firstLivingM2: 0,
@@ -123,7 +126,7 @@ export function createNewBlankQuote(): FullQuote {
     soilCostSqm: 0,
     soilTotalCost: 0,
     concrete32MpaRequired: false,
-    concrete32MpaCost: 0,
+    concrete32MpaCost: undefined,
     flexibleConnectionsRequired: false,
     flexibleConnectionsCost: 1800,
     fallMeters: 0.5,
@@ -164,7 +167,7 @@ export function createNewBlankQuote(): FullQuote {
 
     screwPieringRequired: false,
     screwPieringCost: 0,
-    rockExcavationAllowance: 2500,
+    rockExcavationAllowance: 0,
     retainingWallAllowance: 0,
   };
 

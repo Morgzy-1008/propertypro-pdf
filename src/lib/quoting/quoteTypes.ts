@@ -189,6 +189,10 @@ export interface QuoteDesignSelection {
   lengthM?: string;
   promotionName?: string;
   promotionsDiscount: number;
+  // Landscaping Package
+  landscapingSelected?: boolean;
+  landscapingLandSize?: number; // e.g. 300, 450, 600, 700, 800, 900
+  landscapingCost?: number;
   customSpec: CustomFloorplanSpec;
 }
 
@@ -204,6 +208,7 @@ export interface QuotePricingSummary {
   facadePrice: number;
   promotionName: string;
   promotionsDiscount: number;
+  landscapingCost: number;
   customFloorplanPrice: number;
   gfaM2: number; // Ground living + Porch + Garage + Alfresco
   siteCostsSubtotal: number;

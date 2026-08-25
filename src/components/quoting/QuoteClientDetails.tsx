@@ -61,14 +61,20 @@ export function QuoteClientDetails({ client, site, onChange, onSiteChange }: Quo
     }
   };
 
+  const isNoAddressActive =
+    client.lotNumber === "TBA" ||
+    client.siteAddress?.includes("To Be Advised") ||
+    client.suburb?.includes("Location TBA");
+
   const handleAddressChange = (patch: Partial<ClientDetails>) => {
     const merged = { ...client, ...patch };
     onChange(patch);
 
     if (onSiteChange) {
       const detected = detectCouncilFromLocation(
-        `${merged.siteAddress || ""} ${merged.suburb || ""} ${merged.estate || ""}`,
-        merged.postcode
+        merged.suburb || "",
+        `${merged.siteAddress || ""} ${merged.estate || ""}`,
+        merged.postcode || ""
       );
       onSiteChange({
         councilRegion: detected.region,
@@ -77,20 +83,38 @@ export function QuoteClientDetails({ client, site, onChange, onSiteChange }: Quo
     }
   };
 
-  const handleNoAddressYet = () => {
-    onChange({
-      lotNumber: "TBA",
-      siteAddress: "Address To Be Advised (Land Not Purchased)",
-      suburb: "Location TBA",
-      estate: "",
-      postcode: "",
-    });
-
-    if (onSiteChange) {
-      onSiteChange({
-        councilRegion: "Council Fee Allowance (No Location Mentioned)",
-        councilFee: 2200,
+  const handleToggleNoAddressYet = () => {
+    if (isNoAddressActive) {
+      // Clear fields so user can type an address
+      onChange({
+        lotNumber: "",
+        siteAddress: "",
+        suburb: "",
+        estate: "",
+        postcode: "",
       });
+
+      if (onSiteChange) {
+        onSiteChange({
+          councilRegion: "Logan City Council",
+          councilFee: 2227,
+        });
+      }
+    } else {
+      onChange({
+        lotNumber: "TBA",
+        siteAddress: "Address To Be Advised (Land Not Purchased)",
+        suburb: "Location TBA",
+        estate: "",
+        postcode: "",
+      });
+
+      if (onSiteChange) {
+        onSiteChange({
+          councilRegion: "Council Fee Allowance (No Location Mentioned)",
+          councilFee: 2200,
+        });
+      }
     }
   };
 
@@ -225,14 +249,20 @@ export function QuoteClientDetails({ client, site, onChange, onSiteChange }: Quo
             Proposed Building Site Location
           </div>
 
-          {/* "No Address Yet" One-Tap Button */}
+          {/* "No Address Yet" Toggle Button */}
           <button
             type="button"
-            onClick={handleNoAddressYet}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25 text-xs font-semibold transition-all"
+            onClick={handleToggleNoAddressYet}
+            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+              isNoAddressActive
+                ? "bg-rose-500/20 border border-rose-500/50 text-rose-300 hover:bg-rose-500/30 shadow-sm"
+                : "bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+            }`}
           >
-            <MapPinOff className="h-3.5 w-3.5 text-amber-400" />
-            No Address Yet / Land Not Purchased (Auto $2,200 Council Allowance)
+            <MapPinOff className={`h-3.5 w-3.5 ${isNoAddressActive ? "text-rose-400" : "text-amber-400"}`} />
+            {isNoAddressActive
+              ? "✕ Clear 'No Address' / Enter Custom Address"
+              : "No Address Yet / Land Not Purchased (Auto $2,200 Council Allowance)"}
           </button>
         </div>
 

@@ -1,4 +1,5 @@
-import { CATEGORY_LABELS } from "./quoteCatalogue";
+import { CATEGORY_LABELS, DEFAULT_CATALOGUE } from "./quoteCatalogue";
+import { landscapingPriceFor } from "@/lib/landscaping";
 import type {
   CategorySubtotal,
   CatalogueCategory,
@@ -300,13 +301,20 @@ export function calculateQuotePricing(
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
   const gfaM2 = calculateDesignGFA(design);
 
+  // Landscaping Package Calculation
+  const landscapingCost = design.landscapingSelected
+    ? (Number(design.landscapingCost) || landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))
+    : 0;
+
   // Dynamic Site & Statutory Calculations
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
   const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplit);
 
   // Dedicated Site & Soil Engineering items
-  const concrete32Cost = site.concrete32MpaRequired ? (Number(site.concrete32MpaCost) || Math.round(gfaM2 * 14)) : 0;
+  const concrete32Cost = site.concrete32MpaRequired
+    ? (Number(site.concrete32MpaCost) > 0 ? Number(site.concrete32MpaCost) : Math.round(gfaM2 * 14))
+    : 0;
   const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (Number(site.flexibleConnectionsCost) || 1800) : 0;
 
   // Site Overlay Reports (LHS)
@@ -422,6 +430,7 @@ export function calculateQuotePricing(
   const totalVariations =
     facadePrice -
     promotionsDiscount +
+    landscapingCost +
     siteCostsSubtotal +
     councilStatutorySubtotal +
     variationsSubtotal;
@@ -438,6 +447,7 @@ export function calculateQuotePricing(
     facadePrice,
     promotionName,
     promotionsDiscount,
+    landscapingCost,
     customFloorplanPrice,
     gfaM2,
     siteCostsSubtotal,
@@ -469,8 +479,9 @@ export interface CouncilInfo {
  * Automatically detects the appropriate QLD council and statutory fee from an address, suburb, or postcode.
  * If no location is provided or land is not purchased yet, defaults to $2,200 Council Fee Allowance (No Location Mentioned).
  */
-export function detectCouncilFromLocation(addressOrSuburb?: string, postcode?: string): CouncilInfo {
-  const text = `${addressOrSuburb || ""} ${postcode || ""}`.toLowerCase().trim();
+export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEstate?: string, postcode?: string): CouncilInfo {
+  const suburbClean = (suburbOrLocation || "").toLowerCase().trim();
+  const text = `${suburbOrLocation || ""} ${addressOrEstate || ""} ${postcode || ""}`.toLowerCase().trim();
   
   if (!text) {
     return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };

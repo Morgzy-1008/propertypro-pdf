@@ -203,7 +203,9 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   // Site items for Page 4 breakdown
   const gfaM2 = pricing.gfaM2 || 192;
   // Dedicated Site & Soil items
-  const concrete32Cost = siteConditions.concrete32MpaRequired ? (siteConditions.concrete32MpaCost ?? Math.round(gfaM2 * 14)) : 0;
+  const concrete32Cost = siteConditions.concrete32MpaRequired
+    ? (Number(siteConditions.concrete32MpaCost) > 0 ? Number(siteConditions.concrete32MpaCost) : Math.round(gfaM2 * 14))
+    : 0;
   const flexibleConnectionsCost = siteConditions.flexibleConnectionsRequired ? (siteConditions.flexibleConnectionsCost ?? 1800) : 0;
 
   // Site Overlay Reports (LHS)
@@ -776,6 +778,23 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800">
                       -{formatAud(pricing.promotionsDiscount)}
+                    </td>
+                  </tr>
+                )}
+
+                {/* Turnkey Landscaping Package if selected */}
+                {(pricing.landscapingCost > 0 || design.landscapingSelected) && (
+                  <tr>
+                    <td className="py-2 px-3 text-slate-700">
+                      <span className="font-semibold text-slate-900">
+                        Turnkey Landscaping Package ({design.landscapingLandSize || 450} m² Lot):
+                      </span>
+                      <span className="block text-[10px] text-slate-500">
+                        Includes exposed aggregate driveway &amp; path, treated timber perimeter fencing &amp; gate, turf &amp; garden beds, clothesline, letterbox
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
+                      +{formatAud(pricing.landscapingCost)}
                     </td>
                   </tr>
                 )}
