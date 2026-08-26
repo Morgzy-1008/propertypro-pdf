@@ -1,5 +1,6 @@
 import * as pdfjs from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { createWorker } from "tesseract.js";
 
 // Configure worker source to match the exact bundled pdfjs version
 if (typeof window !== "undefined") {
@@ -44,6 +45,20 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
   const doc = await loadingTask.promise;
   const pages: string[] = [];
   const textChunks: string[] = [];
+
+  // Check embedded metadata for stored JSON
+  try {
+    const meta = await doc.getMetadata();
+    if (meta && meta.info) {
+      const infoAny = meta.info as any;
+      const possibleJson = infoAny.Subject || infoAny.Keywords || infoAny.Custom || "";
+      if (typeof possibleJson === "string" && possibleJson.includes("pricing") && possibleJson.includes("client")) {
+        textChunks.push(possibleJson);
+      }
+    }
+  } catch {
+    // ignore
+  }
 
   for (let i = 1; i <= Math.min(doc.numPages, maxPages); i += 1) {
     const page = await doc.getPage(i);
@@ -109,9 +124,32 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
     pages.push(canvas.toDataURL("image/png"));
   }
 
+  let extractedRawText = textChunks.join("\n\n").trim();
+
+  // If text is empty/sparse (e.g. rasterized HTML2Canvas PDF), run fast OCR
+  if (extractedRawText.length < 50 && pages.length > 0) {
+    try {
+      const worker = await createWorker("eng");
+      const ocrPages = Math.min(pages.length, 5);
+      const ocrTexts: string[] = [];
+      for (let i = 0; i < ocrPages; i++) {
+        const ret = await worker.recognize(pages[i]);
+        if (ret && ret.data && ret.data.text) {
+          ocrTexts.push(ret.data.text);
+        }
+      }
+      await worker.terminate();
+      if (ocrTexts.length > 0) {
+        extractedRawText = ocrTexts.join("\n\n");
+      }
+    } catch (ocrErr) {
+      console.warn("[pdfPages] OCR fallback error:", ocrErr);
+    }
+  }
+
   return {
     pages,
-    rawText: textChunks.join("\n\n"),
+    rawText: extractedRawText,
     filename: file.name,
   };
 }

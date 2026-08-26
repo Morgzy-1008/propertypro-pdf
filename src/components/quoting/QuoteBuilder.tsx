@@ -34,6 +34,8 @@ import {
   saveQuote,
   deleteQuote,
 } from "@/lib/quoting/quoteStorage";
+import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { QuoteSummarySidebar } from "./QuoteSummarySidebar";
 import { QuoteClientDetails } from "./QuoteClientDetails";
@@ -199,6 +201,35 @@ export function QuoteBuilder() {
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const [importingPdf, setImportingPdf] = useState(false);
+
+  const handleImportPdfFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingPdf(true);
+    const toastId = toast.loading(`Reading & parsing "${file.name}"...`);
+    try {
+      const { rawText } = await pdfDocumentToPagesAndText(file, 10);
+      if (!rawText || rawText.trim().length === 0) {
+        throw new Error("Could not extract readable text from PDF");
+      }
+      const parsedQuote = parseQuoteFromEstimatePdf(rawText, file.name);
+      setQuote(parsedQuote);
+      saveQuote(parsedQuote);
+      setSavedQuotes(loadAllQuotes());
+      toast.success(
+        `Successfully restored estimate #${parsedQuote.quoteNumber || "MH"} for ${parsedQuote.client.clientName || "Client"} from PDF!`,
+        { id: toastId }
+      );
+    } catch (err: any) {
+      console.error("PDF Import error:", err);
+      toast.error("Could not parse estimate from PDF. Please make sure it is a Hudson Homes estimate PDF.", { id: toastId });
+    } finally {
+      setImportingPdf(false);
+      e.target.value = "";
+    }
+  };
+
   const tabs = [
     { id: "client", label: "1. Client & Job", icon: User },
     { id: "design", label: "2. House Design", icon: Home },
@@ -227,6 +258,21 @@ export function QuoteBuilder() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Import PDF Direct Button */}
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleImportPdfFile}
+              disabled={importingPdf}
+              className="hidden"
+            />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
+              <FileText className="h-3.5 w-3.5 text-cyan-400" />
+              {importingPdf ? "Restoring PDF…" : "Import Estimate PDF"}
+            </span>
+          </label>
+
           {/* Saved Estimates Open Button */}
           <Button
             variant="outline"

@@ -27,6 +27,8 @@ import {
 } from "@/components/ui/dialog";
 import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "@/lib/quoting/quoteEngine";
 import { createNewBlankQuote } from "@/lib/quoting/quoteStorage";
+import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -238,6 +240,35 @@ export function QuoteEstimatesDialog({
     e.target.value = "";
   };
 
+  const [importingPdf, setImportingPdf] = useState(false);
+
+  const handleImportPdfFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportingPdf(true);
+    const toastId = toast.loading(`Reading & parsing "${file.name}"...`);
+    try {
+      const { rawText } = await pdfDocumentToPagesAndText(file, 10);
+      if (!rawText || rawText.trim().length === 0) {
+        throw new Error("Could not extract readable text from PDF");
+      }
+      const parsedQuote = parseQuoteFromEstimatePdf(rawText, file.name);
+      onImportQuote(parsedQuote);
+      onLoadQuote(parsedQuote);
+      onOpenChange(false);
+      toast.success(
+        `Successfully restored estimate #${parsedQuote.quoteNumber || "MH"} for ${parsedQuote.client.clientName || "Client"} from PDF!`,
+        { id: toastId }
+      );
+    } catch (err: any) {
+      console.error("PDF Import error:", err);
+      toast.error("Could not parse estimate from PDF. Please make sure it is a Hudson Homes estimate PDF.", { id: toastId });
+    } finally {
+      setImportingPdf(false);
+      e.target.value = "";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col border-slate-800 bg-slate-950/98 text-slate-100 backdrop-blur-2xl shadow-2xl p-6">
@@ -248,7 +279,23 @@ export function QuoteEstimatesDialog({
               Saved Builders Estimates ({savedQuotes.length})
             </DialogTitle>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Import PDF Button */}
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={handleImportPdfFile}
+                  disabled={importingPdf}
+                  className="hidden"
+                />
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
+                  <FileText className="h-3.5 w-3.5 text-cyan-400" />
+                  {importingPdf ? "Parsing PDF…" : "Import Estimate PDF"}
+                </span>
+              </label>
+
+              {/* Import JSON Button */}
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -257,7 +304,7 @@ export function QuoteEstimatesDialog({
                   className="hidden"
                 />
                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-colors">
-                  <Upload className="h-3.5 w-3.5 text-cyan-400" />
+                  <Upload className="h-3.5 w-3.5 text-slate-400" />
                   Import JSON
                 </span>
               </label>
@@ -283,6 +330,34 @@ export function QuoteEstimatesDialog({
             />
           </div>
         </DialogHeader>
+
+        {/* Restore from PDF Banner */}
+        <div className="flex-none my-2 p-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 flex items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex-none">
+              <FileText className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold text-white block">Restore from Previous Estimate PDF</span>
+              <span className="text-[11px] text-slate-400">
+                Upload any Hudson estimate PDF to automatically recover all client details, design selections, modified room sizes, and site items.
+              </span>
+            </div>
+          </div>
+          <label className="cursor-pointer flex-none">
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={handleImportPdfFile}
+              disabled={importingPdf}
+              className="hidden"
+            />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-400/60 bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-xs font-extrabold transition-all shadow-sm">
+              <Upload className="h-3.5 w-3.5" />
+              Upload PDF
+            </span>
+          </label>
+        </div>
 
         {/* Scrollable Estimates List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
