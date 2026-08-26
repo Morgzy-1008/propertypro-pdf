@@ -25,8 +25,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { generateQuoteNumber } from "@/lib/quoting/quoteEngine";
+import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "@/lib/quoting/quoteEngine";
+import { createNewBlankQuote } from "@/lib/quoting/quoteStorage";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -37,6 +37,109 @@ interface QuoteEstimatesDialogProps {
   onDeleteQuote: (id: string) => void;
   onSaveCurrentQuote: () => void;
   onImportQuote: (quote: FullQuote) => void;
+}
+
+function normalizeRawQuote(raw: any): FullQuote | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  // If wrapped in { quote: ... } or { data: ... }
+  if (raw.quote && typeof raw.quote === "object") {
+    return normalizeRawQuote(raw.quote);
+  }
+  if (raw.data && typeof raw.data === "object") {
+    return normalizeRawQuote(raw.data);
+  }
+
+  const defaultBlank = createNewBlankQuote();
+
+  const client = {
+    ...defaultBlank.client,
+    ...(raw.client || {}),
+  };
+
+  const design = {
+    ...defaultBlank.design,
+    ...(raw.design || {}),
+  };
+
+  const siteConditions = {
+    ...defaultBlank.siteConditions,
+    ...(raw.siteConditions || {}),
+  };
+
+  const lineItems = Array.isArray(raw.lineItems)
+    ? raw.lineItems.map((it: any) => ({
+        ...it,
+        category: resolveItemCategory(it),
+      }))
+    : defaultBlank.lineItems;
+
+  const depositAmount = client.depositAmount || 1650;
+  const pricing =
+    raw.pricing && raw.pricing.grossEstimatedInvestment
+      ? raw.pricing
+      : calculateQuotePricing(design, siteConditions, lineItems, depositAmount);
+
+  return {
+    id: raw.id || `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    quoteNumber: raw.quoteNumber || client.estimateNumber || generateQuoteNumber(),
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    status: raw.status || "draft",
+    client,
+    design,
+    siteConditions,
+    lineItems,
+    pricing,
+  };
+}
+
+function extractQuotesFromFile(text: string): FullQuote[] {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch (e) {
+    return [];
+  }
+
+  const results: FullQuote[] = [];
+
+  // 1. Direct array of quotes
+  if (Array.isArray(parsed)) {
+    for (const item of parsed) {
+      const q = normalizeRawQuote(item);
+      if (q) results.push(q);
+    }
+    if (results.length > 0) return results;
+  }
+
+  // 2. Direct single quote object or localStorage dump
+  if (parsed && typeof parsed === "object") {
+    // If it's a localStorage dump
+    for (const [key, val] of Object.entries(parsed)) {
+      if (typeof val === "string" && (key.includes("quote") || key.includes("hudson") || key.includes("draft"))) {
+        try {
+          const inner = JSON.parse(val);
+          const innerQuotes = extractQuotesFromFile(JSON.stringify(inner));
+          if (innerQuotes.length > 0) {
+            results.push(...innerQuotes);
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
+    if (results.length > 0) return results;
+
+    // Direct object
+    const single = normalizeRawQuote(parsed);
+    if (single) {
+      results.push(single);
+      return results;
+    }
+  }
+
+  return results;
 }
 
 export function QuoteEstimatesDialog({
@@ -109,14 +212,26 @@ export function QuoteEstimatesDialog({
     reader.onload = (event) => {
       try {
         const text = event.target?.result as string;
-        const parsed = JSON.parse(text) as FullQuote;
-        if (!parsed.pricing || !parsed.client || !parsed.design) {
-          throw new Error("Invalid quote JSON structure");
+        const quotes = extractQuotesFromFile(text);
+        if (quotes.length === 0) {
+          throw new Error("Could not parse any valid quote data from file");
         }
-        onImportQuote(parsed);
-        toast.success(`Imported estimate #${parsed.quoteNumber || "MH"} for ${parsed.client.clientName || "Client"}`);
-      } catch (err) {
-        toast.error("Invalid estimate JSON file");
+
+        // Import all found quotes
+        for (const q of quotes) {
+          onImportQuote(q);
+        }
+
+        // Automatically load the latest imported quote into the active workspace
+        const mainQuote = quotes[0];
+        onLoadQuote(mainQuote);
+        onOpenChange(false);
+
+        const clientTitle = mainQuote.client.clientName ? ` for ${mainQuote.client.clientName}` : "";
+        toast.success(`Successfully imported & loaded estimate #${mainQuote.quoteNumber || "MH"}${clientTitle}!`);
+      } catch (err: any) {
+        console.error("Import error:", err);
+        toast.error("Could not read estimate JSON file. Please check the file contents.");
       }
     };
     reader.readAsText(file);
