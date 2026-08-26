@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import * as pdfjs from "pdfjs-dist";
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import {
   Upload,
   Crop,
@@ -9,16 +11,24 @@ import {
   FileText,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   Undo2,
   CheckCircle2,
-  MousePointerClick,
+  ChevronLeft,
+  ChevronRight,
   Sparkles,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+
+if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
+  try {
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+  } catch (e) {
+    console.warn("Could not set pdf worker:", e);
+  }
+}
 
 interface ModifiedFloorplanModalProps {
   isOpen: boolean;
@@ -28,7 +38,7 @@ interface ModifiedFloorplanModalProps {
   onSave: (croppedDataUrl: string) => void;
 }
 
-type Point = { x: number; y: number }; // normalized 0..1 coordinates relative to image natural dimensions
+type Point = { x: number; y: number }; // normalized 0..1 coordinates
 
 const CLOSE_THRESHOLD = 18; // pixels snap threshold to first point
 
@@ -40,25 +50,21 @@ export function ModifiedFloorplanModal({
   onSave,
 }: ModifiedFloorplanModalProps) {
   const [fileLoading, setFileLoading] = useState(false);
+  const [docLoaded, setDocLoaded] = useState(false);
   const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
+  const [scale, setScale] = useState(1.5);
 
   // Multi-step double storey workflow
   const [stage, setStage] = useState<"upload" | "crop_gf" | "crop_ff" | "crop_single">("upload");
   const [gfCroppedUrl, setGfCroppedUrl] = useState<string | null>(null);
   const [ffCroppedUrl, setFfCroppedUrl] = useState<string | null>(null);
 
-  // Loaded image metadata
-  const [currentImage, setCurrentImage] = useState<HTMLImageElement | null>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
-
   // Canvas refs
   const baseCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const viewportContainerRef = useRef<HTMLDivElement>(null);
-
-  // Zoom & View scale state
-  const [zoomLevel, setZoomLevel] = useState<number>(1.0); // 0.5 to 2.5
+  const loadedImageRef = useRef<HTMLImageElement | null>(null);
 
   // Polygon cropping state (normalized coordinates 0 to 1)
   const [activePoints, setActivePoints] = useState<Point[]>([]);
@@ -66,69 +72,30 @@ export function ModifiedFloorplanModal({
   const [mousePos, setMousePos] = useState<Point | null>(null);
   const [isNearStart, setIsNearStart] = useState(false);
 
-  // Reset all state when modal opens/closes
+  // Reset state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
+      setDocLoaded(false);
       setPdfPages([]);
       setSelectedPageIndex(0);
+      setScale(1.5);
       setStage("upload");
       setGfCroppedUrl(null);
       setFfCroppedUrl(null);
       setActivePoints([]);
       setIsClosed(false);
-      setCurrentImage(null);
-      setImageLoaded(false);
-      setZoomLevel(1.0);
+      loadedImageRef.current = null;
     }
   }, [isOpen]);
 
-  // Load the active PDF page or image
-  useEffect(() => {
-    if (pdfPages.length === 0) return;
-    const pageUrl = pdfPages[selectedPageIndex] || pdfPages[0];
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      setCurrentImage(img);
-      setImageLoaded(true);
-      setActivePoints([]);
-      setIsClosed(false);
-      setIsNearStart(false);
-      setZoomLevel(1.0);
-    };
-    img.src = pageUrl;
-  }, [pdfPages, selectedPageIndex]);
-
-  // 1. Draw base image canvas
-  useEffect(() => {
-    const canvas = baseCanvasRef.current;
-    if (!canvas || !currentImage || !imageLoaded) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const w = currentImage.naturalWidth || 1200;
-    const h = currentImage.naturalHeight || 900;
-
-    canvas.width = w;
-    canvas.height = h;
-
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(currentImage, 0, 0, w, h);
-  }, [currentImage, imageLoaded]);
-
-  // 2. Draw polygon overlay canvas
+  // Draw overlay polygon (points, guidelines, closed filled area)
   const drawOverlay = useCallback(() => {
     const overlay = overlayCanvasRef.current;
     const base = baseCanvasRef.current;
-    if (!overlay || !base || !currentImage || !imageLoaded) return;
+    if (!overlay || !base) return;
 
-    const w = base.width;
-    const h = base.height;
-
-    overlay.width = w;
-    overlay.height = h;
-
+    const w = overlay.width;
+    const h = overlay.height;
     const ctx = overlay.getContext("2d");
     if (!ctx) return;
 
@@ -136,7 +103,7 @@ export function ModifiedFloorplanModal({
 
     if (activePoints.length === 0) return;
 
-    // Draw completed / closed polygon
+    // 1. Draw completed / closed polygon
     if (isClosed && activePoints.length >= 3) {
       // Darken outside area using evenodd clip
       ctx.save();
@@ -190,7 +157,7 @@ export function ModifiedFloorplanModal({
       return;
     }
 
-    // In-progress drawing
+    // 2. In-progress drawing
     ctx.beginPath();
     ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
     for (let i = 1; i < activePoints.length; i++) {
@@ -248,7 +215,41 @@ export function ModifiedFloorplanModal({
       ctx.textAlign = "center";
       ctx.fillText("Click to Close Polygon", startP.x * w, startP.y * h - 22);
     }
-  }, [activePoints, isClosed, mousePos, isNearStart, currentImage, imageLoaded]);
+  }, [activePoints, isClosed, mousePos, isNearStart]);
+
+  // Re-render when PDF page, image, stage, or scale changes
+  useEffect(() => {
+    if (pdfPages.length === 0 || stage === "upload") return;
+    const pageUrl = pdfPages[selectedPageIndex] || pdfPages[0];
+    if (!pageUrl) return;
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      loadedImageRef.current = img;
+      const baseCanvas = baseCanvasRef.current;
+      const overlayCanvas = overlayCanvasRef.current;
+      if (!baseCanvas || !overlayCanvas) return;
+
+      const w = Math.round(img.naturalWidth * (scale / 1.5));
+      const h = Math.round(img.naturalHeight * (scale / 1.5));
+
+      baseCanvas.width = w;
+      baseCanvas.height = h;
+      overlayCanvas.width = w;
+      overlayCanvas.height = h;
+
+      const ctx = baseCanvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+      }
+      setDocLoaded(true);
+      drawOverlay();
+    };
+    img.src = pageUrl;
+  }, [pdfPages, selectedPageIndex, scale, stage, drawOverlay]);
 
   useEffect(() => {
     drawOverlay();
@@ -257,6 +258,9 @@ export function ModifiedFloorplanModal({
   // Handle file upload (PDF or Image)
   const handleFileUpload = async (file: File) => {
     setFileLoading(true);
+    setDocLoaded(false);
+    setActivePoints([]);
+    setIsClosed(false);
     try {
       const result = await pdfDocumentToPagesAndText(file, 6);
       if (result.pages.length === 0) {
@@ -272,7 +276,7 @@ export function ModifiedFloorplanModal({
         setStage("crop_single");
       }
     } catch (err: any) {
-      console.error("Error processing floorplan file:", err);
+      console.error("Error loading floorplan file:", err);
       toast.error("Failed to load file. Please try another PDF or Image.");
     } finally {
       setFileLoading(false);
@@ -291,7 +295,7 @@ export function ModifiedFloorplanModal({
 
   // Handle canvas click to place polygon points
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (isClosed) return; // already closed
+    if (isClosed) return;
 
     const pt = getNormalizedCoords(e);
     const overlay = overlayCanvasRef.current;
@@ -338,6 +342,17 @@ export function ModifiedFloorplanModal({
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     setIsNearStart(dist < CLOSE_THRESHOLD);
+  };
+
+  const handleRightClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isClosed) {
+      setIsClosed(false);
+      return;
+    }
+    if (activePoints.length > 0) {
+      setActivePoints((prev) => prev.slice(0, -1));
+    }
   };
 
   const handleClosePolygonExplicitly = () => {
@@ -412,7 +427,7 @@ export function ModifiedFloorplanModal({
     ctx.closePath();
     ctx.clip();
 
-    // 3. Draw the source image from baseCanvas inside the masked polygon
+    // 3. Draw the source baseCanvas directly inside the masked polygon
     ctx.drawImage(baseCanvas, -minX + padding, -minY + padding, iw, ih);
     ctx.restore();
 
@@ -520,9 +535,9 @@ export function ModifiedFloorplanModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-5 overflow-hidden">
+      <DialogContent className="max-w-5xl max-h-[94vh] flex flex-col bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-5 overflow-hidden">
         {/* Header */}
-        <DialogHeader className="border-b border-slate-800 pb-3 flex-none">
+        <DialogHeader className="border-b border-slate-800 pb-2.5 flex-none">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
               <Crop className="h-5 w-5 text-emerald-400" />
@@ -537,7 +552,7 @@ export function ModifiedFloorplanModal({
 
         {/* Step Indicator for Double Storey */}
         {isDoubleStorey && stage !== "upload" && (
-          <div className="flex items-center justify-between bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 text-xs flex-none mt-2">
+          <div className="flex items-center justify-between bg-slate-900/90 p-2 rounded-xl border border-slate-800 text-xs flex-none mt-2">
             <div className="flex items-center gap-3">
               <span
                 className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5 ${
@@ -566,14 +581,13 @@ export function ModifiedFloorplanModal({
         )}
 
         {/* Instructions Alert Banner */}
-        <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-cyan-200 flex items-start gap-2.5 flex-none mt-2">
+        <div className="p-2.5 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-cyan-200 flex items-start gap-2.5 flex-none mt-2">
           <Info className="h-4 w-4 text-cyan-400 flex-none mt-0.5" />
           <div className="space-y-0.5">
             <strong className="block text-white font-semibold">Polygon Cropping Instructions:</strong>
             <p className="text-[11px] leading-relaxed text-cyan-200/90">
               1. Click points around the outer walls of the house layout.
-              2. Click back on the <strong>first amber point</strong> (or click &quot;Close Polygon&quot;) to seal the crop boundary.
-              {isDoubleStorey && " 3. Double storey: crop Ground Floor first, then First Floor."}
+              2. Click back on the <strong className="text-amber-400">Amber 1st Point</strong> (or click &quot;Close Polygon&quot;) to seal the boundary. Right-click to undo a vertex.
             </p>
           </div>
         </div>
@@ -588,7 +602,7 @@ export function ModifiedFloorplanModal({
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-white">Upload Modified Architectural Floorplan</h4>
               <p className="text-xs text-slate-400 max-w-md mx-auto">
-                Upload a revised PDF brochure sheet, architectural drawing, or PNG/JPEG image. The entire page will render with full precision for polygon cropping.
+                Upload a revised PDF brochure sheet, architectural drawing, or PNG/JPEG image. The entire sheet renders with full fidelity for polygon cropping.
               </p>
             </div>
 
@@ -620,30 +634,34 @@ export function ModifiedFloorplanModal({
           <div className="flex-1 flex flex-col min-h-0 space-y-2.5 mt-2 overflow-hidden">
             {/* Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/90 p-2 rounded-xl border border-slate-800 text-xs flex-none">
-              {/* PDF Page Selector (if multi-page PDF) */}
+              {/* PDF Page Navigation */}
               {pdfPages.length > 1 && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-slate-400 text-[11px] font-medium">Page:</span>
-                  <div className="flex gap-1">
-                    {pdfPages.map((_, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setSelectedPageIndex(idx)}
-                        className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
-                          selectedPageIndex === idx
-                            ? "bg-emerald-500 text-slate-950"
-                            : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-                        }`}
-                      >
-                        P{idx + 1}
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-slate-300 hover:text-white"
+                    disabled={selectedPageIndex <= 0}
+                    onClick={() => setSelectedPageIndex((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  <span className="text-[11px] font-mono px-1.5 text-slate-300">
+                    Page {selectedPageIndex + 1} of {pdfPages.length}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-1.5 text-slate-300 hover:text-white"
+                    disabled={selectedPageIndex >= pdfPages.length - 1}
+                    onClick={() => setSelectedPageIndex((p) => Math.min(pdfPages.length - 1, p + 1))}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Button>
                 </div>
               )}
 
-              {/* Point Status Badge */}
+              {/* Point Status Badge & Actions */}
               <div className="flex items-center gap-2">
                 <span className="text-[11px] bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
                   Points: <strong>{activePoints.length}</strong> {isClosed ? "(Closed ✓)" : "(In Progress)"}
@@ -689,26 +707,28 @@ export function ModifiedFloorplanModal({
                 <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
                   <button
                     type="button"
-                    onClick={() => setZoomLevel((z) => Math.max(0.6, z - 0.2))}
+                    onClick={() => setScale((s) => Math.max(1.0, +(s - 0.25).toFixed(2)))}
                     className="p-1 text-slate-400 hover:text-white rounded"
                     title="Zoom Out"
+                    disabled={scale <= 1.0}
                   >
                     <ZoomOut className="h-3.5 w-3.5" />
                   </button>
-                  <span className="px-1.5 text-[10px] font-mono text-slate-300 min-w-[42px] text-center">
-                    {Math.round(zoomLevel * 100)}%
+                  <span className="px-1.5 text-[10px] font-mono text-slate-300 min-w-[36px] text-center">
+                    {scale.toFixed(2)}x
                   </span>
                   <button
                     type="button"
-                    onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))}
+                    onClick={() => setScale((s) => Math.min(3.0, +(s + 0.25).toFixed(2)))}
                     className="p-1 text-slate-400 hover:text-white rounded"
                     title="Zoom In"
+                    disabled={scale >= 3.0}
                   >
                     <ZoomIn className="h-3.5 w-3.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => setZoomLevel(1.0)}
+                    onClick={() => setScale(1.5)}
                     className="px-1.5 py-0.5 text-[10px] text-slate-400 hover:text-white border-l border-slate-800"
                     title="Reset Zoom"
                   >
@@ -730,31 +750,20 @@ export function ModifiedFloorplanModal({
             {/* Scrollable Viewport (Top Aligned - Zero Cut-off) */}
             <div
               ref={viewportContainerRef}
-              className="flex-1 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-4 select-none min-h-[380px] max-h-[560px]"
+              className="flex-1 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex items-start justify-center select-none min-h-[420px] max-h-[58vh]"
             >
-              <div
-                className="relative inline-block m-auto transition-transform origin-top-left"
-                style={{
-                  width: currentImage ? `${Math.round(currentImage.naturalWidth * zoomLevel)}px` : "auto",
-                  height: currentImage ? `${Math.round(currentImage.naturalHeight * zoomLevel)}px` : "auto",
-                }}
-              >
+              <div className="relative inline-block shadow-2xl rounded-sm border border-slate-700 bg-white">
                 {/* Base Rendered Image Canvas */}
-                <canvas
-                  ref={baseCanvasRef}
-                  className="block rounded shadow-lg bg-white"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                  }}
-                />
+                <canvas ref={baseCanvasRef} className="block bg-white" />
 
                 {/* Interactive Polygon Click Overlay Canvas */}
                 <canvas
                   ref={overlayCanvasRef}
                   onClick={handleCanvasClick}
                   onMouseMove={handleCanvasMouseMove}
-                  className="absolute inset-0 w-full h-full cursor-crosshair z-10"
+                  onContextMenu={handleRightClick}
+                  className="absolute top-0 left-0 cursor-crosshair z-10"
+                  style={{ width: "100%", height: "100%" }}
                 />
               </div>
             </div>
