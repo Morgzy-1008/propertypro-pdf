@@ -1,8 +1,12 @@
 import React from "react";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
-import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { calculateCustomTotalM2, getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import {
+  calculateCustomTotalM2,
+  calculateModifiedFloorplanPricing,
+  getEffectiveDesignM2,
+  getEffectiveDesignName,
+} from "@/lib/quoting/quoteEngine";
 import {
   CheckCircle2,
   Award,
@@ -1018,7 +1022,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           </div>
 
           {/* Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-2 text-center text-xs flex-none">
+          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-1.5 text-center text-xs flex-none">
             <div>
               <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
               <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
@@ -1036,6 +1040,38 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               <span className="font-bold text-slate-900 text-xs">{pricing.gfaM2} m²</span>
             </div>
           </div>
+
+          {/* Floorplan Room & Zone Sizing Breakdown Bar */}
+          {(() => {
+            const isMod = !!design.isModifiedFloorplan;
+            const modCalc = calculateModifiedFloorplanPricing(design);
+            return (
+              <div
+                className={`border rounded-xl py-1 px-3 mb-2 flex items-center justify-between text-[10px] flex-none ${
+                  isMod
+                    ? "bg-emerald-50/80 border-emerald-300 text-emerald-950"
+                    : "bg-slate-50 border-slate-200 text-slate-700"
+                }`}
+              >
+                <div className="font-bold flex items-center gap-1">
+                  <span className={isMod ? "text-emerald-800 uppercase tracking-wide font-extrabold" : "text-slate-700 uppercase tracking-wide"}>
+                    {isMod ? "Modified Area Schedule:" : "Area Schedule:"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2.5 font-mono text-[9.5px]">
+                  {modCalc.zones.map((z) => (
+                    <span key={z.key}>
+                      <span className="font-sans text-slate-500 text-[8.5px]">{z.label.replace(" Area", "").replace(" (Optional)", "")}: </span>
+                      <span className="font-bold text-slate-900">{z.modifiedM2.toFixed(1)} m²</span>
+                    </span>
+                  ))}
+                  <span className="border-l border-slate-300 pl-2 font-extrabold text-cyan-800">
+                    Total: {modCalc.modifiedTotalM2.toFixed(1)} m²
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* 1. Chosen Facade Render (Towards the top of the page, high quality & enhanced) */}
           <QuoteFacadeViewer design={design} />

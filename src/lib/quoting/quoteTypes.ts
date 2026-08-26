@@ -172,6 +172,17 @@ export type InclusionTier =
   | "Smart Style"
   | "Hudson Base";
 
+export interface FloorplanAreaBreakdown {
+  livingM2?: number; // Single Storey living area
+  groundLivingM2?: number; // Double Storey / Split / Dual living ground floor
+  firstLivingM2?: number; // Double Storey / Split / Dual living first floor
+  garageM2: number;
+  alfrescoM2: number;
+  porchM2: number;
+  balconyM2?: number;
+  totalM2: number;
+}
+
 export interface QuoteDesignSelection {
   mode: "standard" | "custom_floorplan";
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
@@ -188,6 +199,8 @@ export interface QuoteDesignSelection {
   modifiedDesignM2?: number; // Modified floorplan total sqm
   standardDesignM2?: number; // Original standard sqm for reference
   standardBasePrice?: number; // Original standard base price for reference
+  standardAreas?: Partial<FloorplanAreaBreakdown>;
+  modifiedAreas?: Partial<FloorplanAreaBreakdown>;
   beds?: string;
   baths?: string;
   cars?: string;

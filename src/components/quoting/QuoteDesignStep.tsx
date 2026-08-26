@@ -12,6 +12,7 @@ import {
   Car,
   ExternalLink,
   Check,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,8 @@ import { plansForDesign } from "@/components/flyer/floorplans";
 import {
   calculateCustomFloorplanPrice,
   calculateCustomTotalM2,
+  calculateModifiedFloorplanPricing,
+  getStandardAreaBreakdown,
   getAutomatedPromotionDiscount,
 } from "@/lib/quoting/quoteEngine";
 import type { InclusionTier, QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
@@ -260,6 +263,12 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       designName: "",
       designM2: 0,
       basePrice: 0,
+      standardDesignM2: 0,
+      standardBasePrice: 0,
+      modifiedDesignM2: 0,
+      standardAreas: undefined,
+      modifiedAreas: undefined,
+      isModifiedFloorplan: false,
       facadeName: "",
       facadePrice: 0,
       isCustomFacade: false,
@@ -281,13 +290,25 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const floorplanUrl = plans[0]?.url || "";
     const basePrice = getTierPrice(m, design.specTier, design.housingType);
     const defaultFacade = suitableFacades[0] || { name: "Classic", uplift: 0 };
+    const stdAreas = getStandardAreaBreakdown(m.name, design.housingType, m.m2);
 
     let effectiveM2 = m.m2;
     let effectiveBasePrice = basePrice;
-    if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
-      effectiveM2 = Number(design.modifiedDesignM2);
-      const ratePerM2 = m.m2 > 0 ? basePrice / m.m2 : 0;
-      effectiveBasePrice = Math.round(effectiveM2 * ratePerM2);
+    let updatedModifiedAreas = design.isModifiedFloorplan ? { ...stdAreas } : undefined;
+
+    if (design.isModifiedFloorplan) {
+      const tempDesign: QuoteDesignSelection = {
+        ...design,
+        designName: m.name,
+        designM2: m.m2,
+        standardDesignM2: m.m2,
+        standardBasePrice: basePrice,
+        standardAreas: stdAreas,
+        modifiedAreas: updatedModifiedAreas,
+      };
+      const pricing = calculateModifiedFloorplanPricing(tempDesign);
+      effectiveM2 = pricing.modifiedTotalM2;
+      effectiveBasePrice = pricing.modifiedBasePrice;
     }
     const autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
 
@@ -296,6 +317,9 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       designM2: m.m2,
       standardDesignM2: m.m2,
       standardBasePrice: basePrice,
+      standardAreas: stdAreas,
+      modifiedAreas: updatedModifiedAreas,
+      modifiedDesignM2: effectiveM2,
       basePrice: effectiveBasePrice,
       facadeName: design.facadeName || defaultFacade.name,
       facadePrice: design.facadeName ? design.facadePrice : defaultFacade.uplift,
@@ -313,9 +337,13 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const handleTierChange = (tier: InclusionTier) => {
     const stdPrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
     let effectiveBasePrice = stdPrice;
-    if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0 && currentModel) {
-      const ratePerM2 = currentModel.m2 > 0 ? stdPrice / currentModel.m2 : 0;
-      effectiveBasePrice = Math.round(Number(design.modifiedDesignM2) * ratePerM2);
+    if (design.isModifiedFloorplan && currentModel) {
+      const tempDesign: QuoteDesignSelection = {
+        ...design,
+        specTier: tier,
+        standardBasePrice: stdPrice,
+      };
+      effectiveBasePrice = calculateModifiedFloorplanPricing(tempDesign).modifiedBasePrice;
     }
     onChange({ specTier: tier, standardBasePrice: stdPrice, basePrice: effectiveBasePrice });
   };
@@ -328,20 +356,32 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     if (enabled) {
       const stdM2 = design.standardDesignM2 || currentModel.m2;
       const stdPrice = design.standardBasePrice || getTierPrice(currentModel, design.specTier, design.housingType);
-      const modifiedM2 = design.modifiedDesignM2 && Number(design.modifiedDesignM2) > 0 ? Number(design.modifiedDesignM2) : stdM2;
-      const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
-      const modifiedBase = Math.round(modifiedM2 * ratePerM2);
-      const autoDiscount = getAutomatedPromotionDiscount(modifiedM2);
+      const stdAreas = getStandardAreaBreakdown(currentModel.name, design.housingType, stdM2);
+      const initialModifiedAreas = { ...stdAreas, ...(design.modifiedAreas || {}) };
+
+      const tempDesign: QuoteDesignSelection = {
+        ...design,
+        isModifiedFloorplan: true,
+        standardDesignM2: stdM2,
+        standardBasePrice: stdPrice,
+        standardAreas: stdAreas,
+        modifiedAreas: initialModifiedAreas,
+      };
+
+      const pricing = calculateModifiedFloorplanPricing(tempDesign);
+      const autoDiscount = getAutomatedPromotionDiscount(pricing.modifiedTotalM2);
 
       onChange({
         isModifiedFloorplan: true,
-        modifiedDesignM2: modifiedM2,
         standardDesignM2: stdM2,
         standardBasePrice: stdPrice,
-        basePrice: modifiedBase,
+        standardAreas: stdAreas,
+        modifiedAreas: initialModifiedAreas,
+        modifiedDesignM2: pricing.modifiedTotalM2,
+        basePrice: pricing.modifiedBasePrice,
         promotionsDiscount: autoDiscount,
       });
-      toast.success(`Modified floorplan enabled for ${currentModel.name}! You can adjust the total SQM size.`);
+      toast.success(`Modified floorplan enabled for ${currentModel.name}! You can adjust individual room & zone SQMs.`);
     } else {
       const stdM2 = design.standardDesignM2 || currentModel.m2;
       const stdPrice = design.standardBasePrice || getTierPrice(currentModel, design.specTier, design.housingType);
@@ -353,27 +393,61 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
         modifiedDesignM2: 0,
         basePrice: stdPrice,
         promotionsDiscount: autoDiscount,
+        modifiedAreas: undefined,
       });
       toast.info(`Reverted to standard ${currentModel.name} floorplan sizing.`);
     }
   };
 
-  const handleModifiedSqmChange = (val: string) => {
-    const newM2 = parseFloat(val) || 0;
-    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 192;
-    const stdPrice = design.standardBasePrice || (currentModel ? getTierPrice(currentModel, design.specTier, design.housingType) : design.basePrice) || 0;
-    const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
-    const newBase = newM2 > 0 ? Math.round(newM2 * ratePerM2) : stdPrice;
-    const autoDiscount = getAutomatedPromotionDiscount(newM2 > 0 ? newM2 : stdM2);
+  const handleZoneAreaChange = (zoneKey: string, val: string) => {
+    const numVal = parseFloat(val);
+    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
+    const currentStd = getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
+
+    const updatedModifiedAreas = {
+      ...currentStd,
+      ...(design.modifiedAreas || {}),
+      [zoneKey]: isNaN(numVal) ? 0 : Math.max(0, numVal),
+    };
+
+    const tempDesign: QuoteDesignSelection = {
+      ...design,
+      isModifiedFloorplan: true,
+      standardDesignM2: stdM2,
+      standardAreas: currentStd,
+      modifiedAreas: updatedModifiedAreas,
+    };
+
+    const pricing = calculateModifiedFloorplanPricing(tempDesign);
+    const autoDiscount = getAutomatedPromotionDiscount(pricing.modifiedTotalM2);
 
     onChange({
       isModifiedFloorplan: true,
-      modifiedDesignM2: newM2,
       standardDesignM2: stdM2,
-      standardBasePrice: stdPrice,
-      basePrice: newBase,
+      standardAreas: currentStd,
+      modifiedAreas: updatedModifiedAreas,
+      modifiedDesignM2: pricing.modifiedTotalM2,
+      basePrice: pricing.modifiedBasePrice,
       promotionsDiscount: autoDiscount,
     });
+  };
+
+  const handleResetModifiedAreas = () => {
+    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
+    const stdAreas = getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
+    const tempDesign: QuoteDesignSelection = {
+      ...design,
+      isModifiedFloorplan: true,
+      standardAreas: stdAreas,
+      modifiedAreas: { ...stdAreas },
+    };
+    const pricing = calculateModifiedFloorplanPricing(tempDesign);
+    onChange({
+      modifiedAreas: { ...stdAreas },
+      modifiedDesignM2: pricing.modifiedTotalM2,
+      basePrice: pricing.modifiedBasePrice,
+    });
+    toast.info("Room dimensions reset to standard design baseline.");
   };
 
   const handleFacadeSelect = (facadeName: string) => {
@@ -541,7 +615,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-white">
-                        {design.isModifiedFloorplan ? "✓ Modified Floorplan Active" : "Modified Floorplan / Custom SQM Option"}
+                        {design.isModifiedFloorplan ? "✓ Modified Floorplan Active" : "Modified Floorplan / Custom Area Sizing"}
                       </span>
                       <span
                         className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
@@ -550,11 +624,11 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                             : "bg-slate-800 text-slate-400"
                         }`}
                       >
-                        {design.isModifiedFloorplan ? `${design.designName} Modified` : "Optional"}
+                        {design.isModifiedFloorplan ? `${design.designName} Modified` : "Personalized Area Sizing"}
                       </span>
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Enable if this client has modified room dimensions or extended the plan. Automatically scales base pricing and all SQM engineering rates.
+                      Personalize individual room, garage, alfresco, and porch dimensions. Rates automate per Hudson schedule with 80% credit on reductions.
                     </p>
                   </div>
                 </div>
@@ -575,66 +649,225 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                     </>
                   ) : (
                     <>
-                      <PenTool className="h-3.5 w-3.5" /> Modify Design (SQM)
+                      <PenTool className="h-3.5 w-3.5" /> Modify Floorplan Areas
                     </>
                   )}
                 </Button>
               </div>
 
-              {/* Expanded Adjusted Floorplan SQM Inputs */}
-              {design.isModifiedFloorplan && (
-                <div className="mt-4 pt-3.5 border-t border-slate-800/90 grid grid-cols-1 sm:grid-cols-4 gap-3.5 items-end">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400 block font-medium">
-                      Standard {currentModel.name} Size:
-                    </Label>
-                    <div className="h-9 px-3 rounded-lg border border-slate-800 bg-slate-950/80 text-xs font-mono text-slate-300 flex items-center justify-between">
-                      <span>{currentModel.m2} m²</span>
-                      <span className="text-[10px] text-slate-500">
-                        {currentModel.m2 > 0 ? formatAud(Math.round((design.standardBasePrice || getTierPrice(currentModel, design.specTier)) / currentModel.m2)) + "/m²" : ""}
-                      </span>
+              {/* Expanded Adjusted Floorplan Room by Room Breakdown & Visual Graph */}
+              {design.isModifiedFloorplan && (() => {
+                const modCalc = calculateModifiedFloorplanPricing(design);
+                const maxZoneM2 = Math.max(...modCalc.zones.map((z) => Math.max(z.standardM2, z.modifiedM2)), 1);
+
+                return (
+                  <div className="mt-4 pt-4 border-t border-slate-800/90 space-y-4">
+                    {/* Header & Subtitle */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
+                          <Layers className="h-3.5 w-3.5 text-emerald-400" />
+                          Room &amp; Zone Area Sizing Schedule
+                        </h4>
+                        <p className="text-[11px] text-slate-400">
+                          Adjust individual areas below. Base rates calculate per Hudson schedule (reductions credited at 80%).
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleResetModifiedAreas}
+                        className="h-7 text-[10px] border-slate-700 bg-slate-900 text-slate-300 hover:text-white gap-1 self-start sm:self-auto"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Reset to Standard Areas
+                      </Button>
+                    </div>
+
+                    {/* Interactive Table of Room Zones */}
+                    <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-800 bg-slate-900/90 text-[10px] uppercase font-bold text-slate-400">
+                            <th className="py-2.5 px-3">Area / Zone</th>
+                            <th className="py-2.5 px-3 text-center">Standard Size</th>
+                            <th className="py-2.5 px-3 text-center min-w-[130px]">Modified Size (m²)</th>
+                            <th className="py-2.5 px-3 text-center">Variance (Δ)</th>
+                            <th className="py-2.5 px-3 text-right">Schedule Rate</th>
+                            <th className="py-2.5 px-3 text-right">Cost Adjustment</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+                          {modCalc.zones.map((z) => {
+                            return (
+                              <tr key={z.key} className="hover:bg-slate-900/40 transition-colors">
+                                {/* Zone Name & Visual Bar */}
+                                <td className="py-2.5 px-3 font-sans">
+                                  <div className="font-bold text-slate-200 text-xs">{z.label}</div>
+                                  {/* Mini proportional comparison bar */}
+                                  <div className="w-28 bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
+                                    <div
+                                      className="bg-emerald-500/80 h-full transition-all"
+                                      style={{ width: `${Math.min(100, (z.modifiedM2 / maxZoneM2) * 100)}%` }}
+                                      title={`Modified: ${z.modifiedM2} m² (Standard: ${z.standardM2} m²)`}
+                                    />
+                                  </div>
+                                </td>
+
+                                {/* Standard Brochure Size */}
+                                <td className="py-2.5 px-3 text-center text-slate-400">
+                                  <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-[11px]">
+                                    {z.standardM2.toFixed(2)} m²
+                                  </span>
+                                </td>
+
+                                {/* Interactive Modified Size Input */}
+                                <td className="py-2 px-3 text-center">
+                                  <div className="relative inline-flex items-center">
+                                    <Input
+                                      type="number"
+                                      step="0.1"
+                                      min="0"
+                                      max="500"
+                                      value={z.modifiedM2}
+                                      onChange={(e) => handleZoneAreaChange(z.key, e.target.value)}
+                                      className={`h-8 w-28 text-center text-xs font-mono font-bold bg-slate-900 transition-all ${
+                                        z.deltaM2 !== 0
+                                          ? "border-emerald-500/70 text-emerald-300 ring-1 ring-emerald-500/30"
+                                          : "border-slate-700 text-white"
+                                      }`}
+                                    />
+                                    <span className="absolute right-2 text-[10px] text-slate-500 font-sans pointer-events-none">
+                                      m²
+                                    </span>
+                                  </div>
+                                </td>
+
+                                {/* Variance (Δ m²) */}
+                                <td className="py-2.5 px-3 text-center">
+                                  {z.deltaM2 > 0 ? (
+                                    <span className="inline-flex items-center gap-0.5 text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
+                                      +{z.deltaM2.toFixed(2)} m²
+                                    </span>
+                                  ) : z.deltaM2 < 0 ? (
+                                    <span
+                                      className="inline-flex items-center gap-0.5 text-amber-400 font-bold bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded text-[11px]"
+                                      title="Reduction credited at 80%"
+                                    >
+                                      {z.deltaM2.toFixed(2)} m²
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-500 text-[11px]">0.00 m²</span>
+                                  )}
+                                </td>
+
+                                {/* Rate ($/m²) */}
+                                <td className="py-2.5 px-3 text-right text-slate-300 font-sans text-xs">
+                                  <div>{formatAud(z.ratePerM2)}/m²</div>
+                                  {z.deltaM2 < 0 && (
+                                    <span className="text-[9px] text-amber-400/90 block font-mono">
+                                      (80% credit = {formatAud(Math.round(z.ratePerM2 * 0.8))}/m²)
+                                    </span>
+                                  )}
+                                </td>
+
+                                {/* Cost Adjustment */}
+                                <td className="py-2.5 px-3 text-right font-bold">
+                                  {z.costAdjustment > 0 ? (
+                                    <span className="text-emerald-400 font-mono">+{formatAud(z.costAdjustment)}</span>
+                                  ) : z.costAdjustment < 0 ? (
+                                    <span className="text-amber-400 font-mono">-{formatAud(Math.abs(z.costAdjustment))}</span>
+                                  ) : (
+                                    <span className="text-slate-500 font-mono">$0</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+
+                        {/* Table Footer Total Row */}
+                        <tfoot>
+                          <tr className="border-t-2 border-slate-700 bg-slate-900/95 font-bold text-xs">
+                            <td className="py-3 px-3 text-white font-sans flex items-center gap-1.5">
+                              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                              <span>Total Floor Area (All Zones)</span>
+                            </td>
+                            <td className="py-3 px-3 text-center text-slate-400 font-mono">
+                              {modCalc.standardTotalM2.toFixed(2)} m²
+                            </td>
+                            <td className="py-3 px-3 text-center text-emerald-300 font-mono font-extrabold text-sm">
+                              {modCalc.modifiedTotalM2.toFixed(2)} m²
+                              <span className="block text-[10px] text-slate-400 font-sans font-normal">
+                                ({(modCalc.modifiedTotalM2 * 0.107639).toFixed(1)} sq)
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-center font-mono">
+                              {modCalc.netDeltaM2 > 0 ? (
+                                <span className="text-emerald-400 font-extrabold">+{modCalc.netDeltaM2.toFixed(2)} m²</span>
+                              ) : modCalc.netDeltaM2 < 0 ? (
+                                <span className="text-amber-400 font-extrabold">{modCalc.netDeltaM2.toFixed(2)} m²</span>
+                              ) : (
+                                <span className="text-slate-400">0.00 m²</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-3 text-right font-sans text-slate-400 text-[11px]">
+                              Net Adjustment:
+                            </td>
+                            <td className="py-3 px-3 text-right font-mono text-sm font-extrabold">
+                              {modCalc.totalCostAdjustment > 0 ? (
+                                <span className="text-emerald-400">+{formatAud(modCalc.totalCostAdjustment)}</span>
+                              ) : modCalc.totalCostAdjustment < 0 ? (
+                                <span className="text-amber-400">-{formatAud(Math.abs(modCalc.totalCostAdjustment))}</span>
+                              ) : (
+                                <span className="text-slate-400">$0</span>
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                    {/* Summary KPI Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/90">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          Standard House Baseline
+                        </span>
+                        <div className="text-xs font-mono text-slate-300 mt-1 flex items-baseline justify-between">
+                          <span>{currentModel.name} ({modCalc.standardTotalM2} m²)</span>
+                          <span className="font-bold text-white">{formatAud(modCalc.standardBasePrice)}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl border border-emerald-500/50 bg-emerald-950/30">
+                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider flex items-center justify-between">
+                          <span>Automated Modified Base Price</span>
+                          <span className="font-mono text-[9px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300">
+                            {modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}
+                          </span>
+                        </span>
+                        <div className="text-base font-mono font-extrabold text-emerald-300 mt-0.5 flex items-baseline justify-between">
+                          <span>{formatAud(modCalc.modifiedBasePrice)}</span>
+                          <span className="text-[11px] font-sans font-bold text-slate-300">
+                            {modCalc.modifiedTotalM2} m² ({(modCalc.modifiedTotalM2 * 0.107639).toFixed(1)} sq)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/90">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                          Active Estimate Floorplan Name
+                        </span>
+                        <div className="text-sm font-bold text-amber-400 mt-1 flex items-center gap-1.5">
+                          <PenTool className="h-3.5 w-3.5 text-amber-400" />
+                          <span>{design.designName} Modified</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-emerald-300 font-bold block flex items-center gap-1">
-                      <Sparkles className="h-3 w-3 text-amber-400" />
-                      Adjusted Total Floor Area (m²):
-                    </Label>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      min="50"
-                      max="1000"
-                      value={design.modifiedDesignM2 || design.designM2 || currentModel.m2}
-                      onChange={(e) => handleModifiedSqmChange(e.target.value)}
-                      className="h-9 text-xs font-mono font-bold text-white bg-slate-900 border-emerald-500/60 focus-visible:ring-emerald-500"
-                      placeholder="e.g. 210.0"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400 block font-medium">
-                      Automated Base House Price:
-                    </Label>
-                    <div className="h-9 px-3 rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-xs font-mono font-extrabold text-emerald-400 flex items-center justify-between shadow-inner">
-                      <span>{formatAud(design.basePrice)}</span>
-                      <span className="text-[10px] font-sans font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded">
-                        Pro-rata ({((Number(design.modifiedDesignM2 || design.designM2) * 0.107639)).toFixed(1)} sq)
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400 block font-medium">
-                      Active Estimate Floorplan Name:
-                    </Label>
-                    <div className="h-9 px-3 rounded-lg border border-slate-800 bg-slate-950/80 text-xs font-bold text-amber-400 flex items-center">
-                      {design.designName} Modified
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
 
@@ -651,7 +884,18 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   (tier.id === "H1 Smart Inclusions" && design.specTier === "H1 Inclusions (2025)") ||
                   (tier.id === "H2 Design Inclusions" && design.specTier === "H2 Inclusions (2025)") ||
                   (tier.id === "H3 Luxury Inclusions" && design.specTier === "H3 Inclusions (2025)");
-                const tierPrice = getTierPrice(currentModel, tier.id);
+                
+                const tierStdPrice = currentModel ? getTierPrice(currentModel, tier.id, design.housingType) : 0;
+                let tierDisplayPrice = tierStdPrice;
+                if (design.isModifiedFloorplan && currentModel) {
+                  const tempDesign: QuoteDesignSelection = {
+                    ...design,
+                    specTier: tier.id,
+                    standardBasePrice: tierStdPrice,
+                  };
+                  tierDisplayPrice = calculateModifiedFloorplanPricing(tempDesign).modifiedBasePrice;
+                }
+
                 return (
                   <div
                     key={tier.id}
@@ -676,13 +920,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                         {design.isModifiedFloorplan ? "Modified Base Price:" : "Base House Price:"}
                       </span>
                       <span className="font-bold text-emerald-400 font-mono">
-                        {currentModel
-                          ? formatAud(
-                              design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0 && currentModel.m2 > 0
-                                ? Math.round(Number(design.modifiedDesignM2) * (tierPrice / currentModel.m2))
-                                : tierPrice,
-                            )
-                          : "—"}
+                        {currentModel ? formatAud(tierDisplayPrice) : "—"}
                       </span>
                     </div>
                   </div>

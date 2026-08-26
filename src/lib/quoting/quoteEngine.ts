@@ -97,6 +97,337 @@ export function resolveItemCategory(item: { name: string; description?: string; 
 }
 
 /**
+ * Standard SQM Additional Rates as specified:
+ * Single Storey:
+ *  - Living Area: $1,420 / m²
+ *  - Alfresco & Porch: $870 / m²
+ *  - Garage: $1,300 / m²
+ * Double Storey:
+ *  - Ground Floor Living: $1,480 / m²
+ *  - First Floor Living: $1,780 / m²
+ *  - Alfresco and Porch: $870 / m²
+ *  - Balcony (if added): $2,000 / m²
+ *  - Garage: $1,300 / m²
+ * Duplex and Split Level:
+ *  - Lower Ground and Ground Floor Living: $1,480 / m²
+ *  - First Floor or Upper Level Living: $1,780 / m²
+ *  - Alfresco and Porch: $870 / m²
+ *  - Balcony (if added): $2,000 / m²
+ *  - Garage: $1,300 / m²
+ * Reductions are discounted at 80% (i.e. deduction = deltaM2 * rate * 0.8)
+ */
+export const MODIFIED_SQM_RATES = {
+  "Single Storey": {
+    livingM2: 1420,
+    garageM2: 1300,
+    alfrescoM2: 870,
+    porchM2: 870,
+  },
+  "Double Storey": {
+    groundLivingM2: 1480,
+    firstLivingM2: 1780,
+    garageM2: 1300,
+    alfrescoM2: 870,
+    porchM2: 870,
+    balconyM2: 2000,
+  },
+  "Split Level": {
+    groundLivingM2: 1480,
+    firstLivingM2: 1780,
+    garageM2: 1300,
+    alfrescoM2: 870,
+    porchM2: 870,
+    balconyM2: 2000,
+  },
+  "Dual Living": {
+    groundLivingM2: 1480,
+    firstLivingM2: 1780,
+    garageM2: 1300,
+    alfrescoM2: 870,
+    porchM2: 870,
+    balconyM2: 2000,
+  },
+} as const;
+
+/**
+ * Standard Area Breakdown catalog for Hudson Homes designs.
+ */
+export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
+  "Coral 19": { livingM2: 135.25, garageM2: 33.73, alfrescoM2: 9.54, porchM2: 2.50, totalM2: 181.02 },
+  "Coral 21": { livingM2: 148.28, garageM2: 34.73, alfrescoM2: 11.23, porchM2: 2.84, totalM2: 197.08 },
+  "Coral 23": { livingM2: 165.40, garageM2: 34.80, alfrescoM2: 12.10, porchM2: 2.90, totalM2: 215.20 },
+  "Coral 26": { livingM2: 188.50, garageM2: 35.10, alfrescoM2: 14.50, porchM2: 3.46, totalM2: 241.56 },
+  "Azure 19": { livingM2: 132.80, garageM2: 33.50, alfrescoM2: 8.50, porchM2: 2.28, totalM2: 177.08 },
+  "Azure 21": { livingM2: 148.28, garageM2: 34.73, alfrescoM2: 11.23, porchM2: 2.84, totalM2: 197.08 },
+  "Azure 23": { livingM2: 158.40, garageM2: 34.90, alfrescoM2: 12.50, porchM2: 2.91, totalM2: 208.71 },
+  "Azure 25": { livingM2: 178.60, garageM2: 35.20, alfrescoM2: 16.40, porchM2: 3.25, totalM2: 233.45 },
+  "Amber 21": { livingM2: 143.50, garageM2: 34.10, alfrescoM2: 11.80, porchM2: 2.84, totalM2: 192.24 },
+  "Amber 23": { livingM2: 160.20, garageM2: 34.60, alfrescoM2: 12.80, porchM2: 3.03, totalM2: 210.63 },
+  "Amber 26": { livingM2: 188.40, garageM2: 35.20, alfrescoM2: 14.50, porchM2: 3.46, totalM2: 241.56 },
+  "Amber 30": { groundLivingM2: 112.50, firstLivingM2: 118.20, garageM2: 34.80, alfrescoM2: 14.10, porchM2: 3.36, balconyM2: 0, totalM2: 282.96 },
+  "Alabaster 31": { groundLivingM2: 110.80, firstLivingM2: 119.50, garageM2: 35.20, alfrescoM2: 15.80, porchM2: 3.56, balconyM2: 0, totalM2: 284.86 },
+  "Alabaster 36": { groundLivingM2: 130.40, firstLivingM2: 142.60, garageM2: 36.10, alfrescoM2: 17.50, porchM2: 4.06, balconyM2: 0, totalM2: 330.66 },
+  "Alabaster 40": { groundLivingM2: 148.20, firstLivingM2: 161.50, garageM2: 36.80, alfrescoM2: 21.80, porchM2: 4.72, balconyM2: 0, totalM2: 373.02 },
+  "Charcoal 24": { livingM2: 169.50, garageM2: 35.10, alfrescoM2: 14.80, porchM2: 3.16, totalM2: 222.56 },
+  "Maroon 26": { groundLivingM2: 98.40, firstLivingM2: 96.50, garageM2: 34.80, alfrescoM2: 11.80, porchM2: 2.92, balconyM2: 0, totalM2: 244.42 },
+  "Blanc 27": { groundLivingM2: 102.50, firstLivingM2: 93.80, garageM2: 34.60, alfrescoM2: 12.80, porchM2: 3.06, balconyM2: 0, totalM2: 246.76 },
+  "Cinnamon 23": { livingM2: 164.20, garageM2: 34.50, alfrescoM2: 11.20, porchM2: 2.80, totalM2: 212.70 },
+  "Cinnamon 26": { livingM2: 187.80, garageM2: 35.20, alfrescoM2: 15.10, porchM2: 3.46, totalM2: 241.56 },
+  "Cinnamon 30": { groundLivingM2: 118.20, firstLivingM2: 112.40, garageM2: 35.00, alfrescoM2: 13.80, porchM2: 3.56, balconyM2: 0, totalM2: 282.96 },
+  "Cinnamon 36": { groundLivingM2: 145.20, firstLivingM2: 138.60, garageM2: 36.00, alfrescoM2: 18.20, porchM2: 4.20, balconyM2: 0, totalM2: 342.20 },
+  "Cobalt 22": { livingM2: 155.40, garageM2: 34.20, alfrescoM2: 11.50, porchM2: 2.80, totalM2: 203.90 },
+  "Cobalt 26": { livingM2: 186.20, garageM2: 35.10, alfrescoM2: 14.80, porchM2: 3.46, totalM2: 239.56 },
+  "Cobalt 30": { groundLivingM2: 116.40, firstLivingM2: 114.20, garageM2: 34.80, alfrescoM2: 14.20, porchM2: 3.36, balconyM2: 0, totalM2: 282.96 },
+  "Cobalt 36": { groundLivingM2: 142.80, firstLivingM2: 140.20, garageM2: 36.20, alfrescoM2: 18.50, porchM2: 4.10, balconyM2: 0, totalM2: 341.80 },
+  "Carmine 17": { livingM2: 118.20, garageM2: 33.20, alfrescoM2: 8.40, porchM2: 2.20, totalM2: 162.00 },
+  "Carmine 19": { livingM2: 134.50, garageM2: 33.60, alfrescoM2: 9.50, porchM2: 2.40, totalM2: 180.00 },
+  "Carmine 21 MKII": { livingM2: 150.20, garageM2: 34.50, alfrescoM2: 11.80, porchM2: 2.80, totalM2: 199.30 },
+  "Carmine 23 MKII": { livingM2: 166.40, garageM2: 34.80, alfrescoM2: 12.60, porchM2: 3.10, totalM2: 216.90 },
+  "Carolina 22": { livingM2: 158.20, garageM2: 34.50, alfrescoM2: 11.40, porchM2: 2.80, totalM2: 206.90 },
+  "Carolina 24": { livingM2: 172.50, garageM2: 35.00, alfrescoM2: 13.20, porchM2: 3.20, totalM2: 223.90 },
+  "Carolina 26": { livingM2: 188.40, garageM2: 35.20, alfrescoM2: 14.50, porchM2: 3.46, totalM2: 241.56 },
+  "Carolina 29": { groundLivingM2: 114.50, firstLivingM2: 110.20, garageM2: 34.80, alfrescoM2: 13.60, porchM2: 3.40, balconyM2: 0, totalM2: 276.50 },
+  "Cayenne 42": { groundLivingM2: 172.40, firstLivingM2: 180.20, garageM2: 37.00, alfrescoM2: 24.50, porchM2: 5.20, balconyM2: 0, totalM2: 419.30 },
+  "Cayenne 45": { groundLivingM2: 185.00, firstLivingM2: 192.50, garageM2: 37.50, alfrescoM2: 26.00, porchM2: 5.50, balconyM2: 0, totalM2: 446.50 },
+  "Cayenne 47": { groundLivingM2: 196.20, firstLivingM2: 204.80, garageM2: 38.00, alfrescoM2: 28.00, porchM2: 5.80, balconyM2: 0, totalM2: 472.80 },
+  "Cayenne 56": { groundLivingM2: 235.00, firstLivingM2: 245.00, garageM2: 39.00, alfrescoM2: 32.00, porchM2: 6.50, balconyM2: 0, totalM2: 557.50 },
+};
+
+/**
+ * Returns standard baseline area breakdown for any design.
+ */
+export function getStandardAreaBreakdown(
+  designName?: string,
+  housingType: string = "Single Storey",
+  totalM2: number = 198.08,
+): FloorplanAreaBreakdown {
+  if (designName && HUDSON_STANDARD_AREAS[designName]) {
+    return { ...HUDSON_STANDARD_AREAS[designName] };
+  }
+
+  const isDoubleOrSplit =
+    housingType === "Double Storey" ||
+    housingType === "Split Level" ||
+    housingType === "Dual Living";
+
+  const tot = totalM2 > 0 ? totalM2 : 200;
+
+  if (isDoubleOrSplit) {
+    const garage = Math.min(36, +(tot * 0.15).toFixed(2));
+    const alfresco = +(tot * 0.055).toFixed(2);
+    const porch = +(tot * 0.025).toFixed(2);
+    const balcony = 0;
+    const remainingLiving = +(tot - garage - alfresco - porch - balcony).toFixed(2);
+    const groundLiving = +(remainingLiving * 0.49).toFixed(2);
+    const firstLiving = +(remainingLiving - groundLiving).toFixed(2);
+
+    return {
+      groundLivingM2: groundLiving,
+      firstLivingM2: firstLiving,
+      garageM2: garage,
+      alfrescoM2: alfresco,
+      porchM2: porch,
+      balconyM2: balcony,
+      totalM2: Number((groundLiving + firstLiving + garage + alfresco + porch + balcony).toFixed(2)),
+    };
+  } else {
+    const garage = Math.min(35, +(tot * 0.175).toFixed(2));
+    const alfresco = +(tot * 0.06).toFixed(2);
+    const porch = +(tot * 0.025).toFixed(2);
+    const living = +(tot - garage - alfresco - porch).toFixed(2);
+
+    return {
+      livingM2: living,
+      garageM2: garage,
+      alfrescoM2: alfresco,
+      porchM2: porch,
+      totalM2: Number((living + garage + alfresco + porch).toFixed(2)),
+    };
+  }
+}
+
+export interface ZoneVarianceResult {
+  key: string;
+  label: string;
+  standardM2: number;
+  modifiedM2: number;
+  deltaM2: number;
+  ratePerM2: number;
+  isReduced: boolean;
+  costAdjustment: number;
+}
+
+export interface ModifiedBreakdownCalculation {
+  standardTotalM2: number;
+  modifiedTotalM2: number;
+  netDeltaM2: number;
+  totalCostAdjustment: number;
+  standardBasePrice: number;
+  modifiedBasePrice: number;
+  zones: ZoneVarianceResult[];
+}
+
+export function calculateModifiedFloorplanPricing(
+  design?: QuoteDesignSelection,
+): ModifiedBreakdownCalculation {
+  const stdTotal = Number(design?.standardDesignM2) || Number(design?.designM2) || 198.08;
+  const housingType = design?.housingType || "Single Storey";
+  const stdAreas =
+    design?.standardAreas && Object.keys(design.standardAreas).length > 0
+      ? (design.standardAreas as FloorplanAreaBreakdown)
+      : getStandardAreaBreakdown(design?.designName, housingType, stdTotal);
+
+  const modAreas = design?.modifiedAreas || {};
+  const isDoubleOrSplit =
+    housingType === "Double Storey" ||
+    housingType === "Split Level" ||
+    housingType === "Dual Living";
+
+  const rateConfig = (MODIFIED_SQM_RATES[housingType as keyof typeof MODIFIED_SQM_RATES] ||
+    MODIFIED_SQM_RATES["Single Storey"]) as Record<string, number>;
+
+  const zones: ZoneVarianceResult[] = [];
+
+  if (isDoubleOrSplit) {
+    const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [
+      {
+        key: "groundLivingM2",
+        label: housingType === "Split Level" ? "Lower/Ground Living" : "Ground Floor Living",
+        std: stdAreas.groundLivingM2 ?? 0,
+        mod: modAreas.groundLivingM2 !== undefined ? Number(modAreas.groundLivingM2) : (stdAreas.groundLivingM2 ?? 0),
+        rate: rateConfig.groundLivingM2 || 1480,
+      },
+      {
+        key: "firstLivingM2",
+        label: housingType === "Split Level" ? "Upper Level Living" : "First Floor Living",
+        std: stdAreas.firstLivingM2 ?? 0,
+        mod: modAreas.firstLivingM2 !== undefined ? Number(modAreas.firstLivingM2) : (stdAreas.firstLivingM2 ?? 0),
+        rate: rateConfig.firstLivingM2 || 1780,
+      },
+      {
+        key: "garageM2",
+        label: "Garage Area",
+        std: stdAreas.garageM2 ?? 0,
+        mod: modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : (stdAreas.garageM2 ?? 0),
+        rate: rateConfig.garageM2 || 1300,
+      },
+      {
+        key: "alfrescoM2",
+        label: "Alfresco Area",
+        std: stdAreas.alfrescoM2 ?? 0,
+        mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
+        rate: rateConfig.alfrescoM2 || 870,
+      },
+      {
+        key: "porchM2",
+        label: "Porch Area",
+        std: stdAreas.porchM2 ?? 0,
+        mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
+        rate: rateConfig.porchM2 || 870,
+      },
+      {
+        key: "balconyM2",
+        label: "Balcony",
+        std: stdAreas.balconyM2 ?? 0,
+        mod: modAreas.balconyM2 !== undefined ? Number(modAreas.balconyM2) : (stdAreas.balconyM2 ?? 0),
+        rate: rateConfig.balconyM2 || 2000,
+      },
+    ];
+
+    for (const def of zoneDefs) {
+      const delta = Number((def.mod - def.std).toFixed(2));
+      let cost = 0;
+      if (delta > 0) {
+        cost = Math.round(delta * def.rate);
+      } else if (delta < 0) {
+        // 80% discount on reduction
+        cost = Math.round(delta * def.rate * 0.8);
+      }
+      zones.push({
+        key: def.key,
+        label: def.label,
+        standardM2: def.std,
+        modifiedM2: def.mod,
+        deltaM2: delta,
+        ratePerM2: def.rate,
+        isReduced: delta < 0,
+        costAdjustment: cost,
+      });
+    }
+  } else {
+    const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [
+      {
+        key: "livingM2",
+        label: "Living Area",
+        std: stdAreas.livingM2 ?? 0,
+        mod: modAreas.livingM2 !== undefined ? Number(modAreas.livingM2) : (stdAreas.livingM2 ?? 0),
+        rate: rateConfig.livingM2 || 1420,
+      },
+      {
+        key: "garageM2",
+        label: "Garage Area",
+        std: stdAreas.garageM2 ?? 0,
+        mod: modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : (stdAreas.garageM2 ?? 0),
+        rate: rateConfig.garageM2 || 1300,
+      },
+      {
+        key: "alfrescoM2",
+        label: "Alfresco Area",
+        std: stdAreas.alfrescoM2 ?? 0,
+        mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
+        rate: rateConfig.alfrescoM2 || 870,
+      },
+      {
+        key: "porchM2",
+        label: "Porch Area",
+        std: stdAreas.porchM2 ?? 0,
+        mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
+        rate: rateConfig.porchM2 || 870,
+      },
+    ];
+
+    for (const def of zoneDefs) {
+      const delta = Number((def.mod - def.std).toFixed(2));
+      let cost = 0;
+      if (delta > 0) {
+        cost = Math.round(delta * def.rate);
+      } else if (delta < 0) {
+        // 80% discount on reduction
+        cost = Math.round(delta * def.rate * 0.8);
+      }
+      zones.push({
+        key: def.key,
+        label: def.label,
+        standardM2: def.std,
+        modifiedM2: def.mod,
+        deltaM2: delta,
+        ratePerM2: def.rate,
+        isReduced: delta < 0,
+        costAdjustment: cost,
+      });
+    }
+  }
+
+  const standardTotalM2 = Number(zones.reduce((sum, z) => sum + z.standardM2, 0).toFixed(2));
+  const modifiedTotalM2 = Number(zones.reduce((sum, z) => sum + z.modifiedM2, 0).toFixed(2));
+  const netDeltaM2 = Number((modifiedTotalM2 - standardTotalM2).toFixed(2));
+  const totalCostAdjustment = zones.reduce((sum, z) => sum + z.costAdjustment, 0);
+
+  const standardBasePrice = Number(design?.standardBasePrice) || Number(design?.basePrice) || 0;
+  const modifiedBasePrice = Math.max(0, standardBasePrice + totalCostAdjustment);
+
+  return {
+    standardTotalM2,
+    modifiedTotalM2,
+    netDeltaM2,
+    totalCostAdjustment,
+    standardBasePrice,
+    modifiedBasePrice,
+    zones,
+  };
+}
+
+/**
  * Returns the customer/consultant facing floorplan design name.
  * If modified floorplan is enabled, appends "Modified" (e.g. "Coral 21 Modified").
  */
@@ -123,8 +454,13 @@ export function getEffectiveDesignM2(design?: QuoteDesignSelection): number {
   if (design.mode === "custom_floorplan") {
     return calculateCustomTotalM2(design.customSpec);
   }
-  if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
-    return Number(design.modifiedDesignM2);
+  if (design.isModifiedFloorplan) {
+    if (design.modifiedAreas && Object.keys(design.modifiedAreas).length > 0) {
+      return calculateModifiedFloorplanPricing(design).modifiedTotalM2;
+    }
+    if (Number(design.modifiedDesignM2) > 0) {
+      return Number(design.modifiedDesignM2);
+    }
   }
   return Number(design.designM2) || 0;
 }
@@ -165,7 +501,22 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
       ).toFixed(2),
     );
   }
-  const totalM2 = getEffectiveDesignM2(design);
+  if (design.isModifiedFloorplan) {
+    const calc = calculateModifiedFloorplanPricing(design);
+    const isDoubleOrSplit =
+      design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      design.housingType === "Dual Living";
+    if (isDoubleOrSplit) {
+      const gLiving = calc.zones.find((z) => z.key === "groundLivingM2")?.modifiedM2 || 0;
+      const garage = calc.zones.find((z) => z.key === "garageM2")?.modifiedM2 || 0;
+      const alfresco = calc.zones.find((z) => z.key === "alfrescoM2")?.modifiedM2 || 0;
+      const porch = calc.zones.find((z) => z.key === "porchM2")?.modifiedM2 || 0;
+      return Number((gLiving + garage + alfresco + porch).toFixed(2));
+    }
+    return Number(calc.modifiedTotalM2.toFixed(2));
+  }
+  const totalM2 = Number(design.designM2) || 192;
   if (design.housingType === "Double Storey") {
     return Number(((totalM2 || 200) * 0.62).toFixed(2));
   }
@@ -320,11 +671,9 @@ export function calculateQuotePricing(
   if (design.mode === "custom_floorplan") {
     customFloorplanPrice = calculateCustomFloorplanPrice(design.customSpec);
     baseHousePrice = customFloorplanPrice;
-  } else if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
-    const stdM2 = Number(design.standardDesignM2) || Number(design.designM2) || 192;
-    const stdPrice = Number(design.standardBasePrice) || Number(design.basePrice) || 0;
-    const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
-    baseHousePrice = Math.round(Number(design.modifiedDesignM2) * ratePerM2);
+  } else if (design.isModifiedFloorplan) {
+    const modCalc = calculateModifiedFloorplanPricing(design);
+    baseHousePrice = modCalc.modifiedBasePrice;
   } else {
     baseHousePrice = Number(design.basePrice) || 0;
   }
