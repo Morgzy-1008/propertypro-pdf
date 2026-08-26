@@ -12,22 +12,21 @@ import {
   User,
   MapPin,
   Home,
-  Briefcase,
   PenTool,
-  CheckSquare,
   Sparkles,
   Layers,
-  Building2,
   ShieldCheck,
   RotateCcw,
   Copy,
-  ExternalLink,
-  ChevronRight,
   Folder,
   File,
   Check,
   ArrowRight,
-  Eye,
+  Share2,
+  ExternalLink,
+  MessageSquare,
+  Mail,
+  QrCode,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
@@ -49,6 +48,14 @@ import {
 } from "@/components/ui/dialog";
 import { loadAllQuotesAsync } from "@/lib/quoting/quoteStorage";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
+import {
+  SINGLE_STOREY_PRICES,
+  DOUBLE_STOREY_PRICES,
+  SPLIT_LEVEL_PRICES,
+  DUAL_OC_PRICES,
+} from "@/lib/pricelist.data";
+import { HOUSING_FACADES, INCLUSION_TIERS } from "@/components/quoting/QuoteDesignStep";
+import { plansForDesign } from "@/components/flyer/floorplans";
 import type {
   TenderSubmission,
   TenderDocumentSlot,
@@ -57,6 +64,7 @@ import type {
   PurchaserType,
   LandStatus,
   TenderInclusionType,
+  TenderFloorplanPin,
 } from "@/lib/tender/tenderTypes";
 import {
   createBlankTenderSubmission,
@@ -64,13 +72,14 @@ import {
   exportTenderZipPackage,
   loadAllTendersFromIdb,
   saveTenderToIdb,
+  findFloorplanUrl,
   STANDARD_DOCUMENT_SLOTS,
 } from "@/lib/tender/tenderStorage";
-import { AuthorityToProceedPdf } from "./AuthorityToProceedPdf";
-import { TenderRequestFormPdf } from "./TenderRequestFormPdf";
+import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
+import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
 
-type SectionTab = "client_job" | "land_siting" | "home_spec" | "solicitor_finance" | "atp_sign" | "job_folder" | "pdf_preview";
+type SectionTab = "client_job" | "land_siting" | "home_spec" | "atp_sign" | "job_folder" | "pdf_preview";
 
 export function TenderRequestPortal() {
   const [tender, setTender] = useState<TenderSubmission>(() => createBlankTenderSubmission());
@@ -78,6 +87,7 @@ export function TenderRequestPortal() {
   const [savedTenders, setSavedTenders] = useState<TenderSubmission[]>([]);
   const [isImportQuoteOpen, setIsImportQuoteOpen] = useState(false);
   const [isSavedTendersOpen, setIsSavedTendersOpen] = useState(false);
+  const [isShareRemoteOpen, setIsShareRemoteOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<SectionTab>("client_job");
   const [saving, setSaving] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
@@ -136,7 +146,200 @@ export function TenderRequestPortal() {
     setTender(populated);
     saveTenderToIdb(populated).catch(() => {});
     setIsImportQuoteOpen(false);
-    toast.success(`Imported all client, land, design & variation details from Quote #${quote.quoteNumber}!`);
+    toast.success(`Auto-filled all client, land, design, floorplan & variation details from Quote #${quote.quoteNumber}!`);
+  };
+
+  const handleDesignChange = (designName: string) => {
+    const planUrl = findFloorplanUrl(designName);
+
+    // Find base price
+    let basePrice = tender.homeSpec.baseDesignCost;
+    const allRows = [
+      ...SINGLE_STOREY_PRICES,
+      ...DOUBLE_STOREY_PRICES,
+      ...SPLIT_LEVEL_PRICES,
+      ...DUAL_OC_PRICES,
+    ];
+    const match = allRows.find((r) => r.name.toLowerCase() === designName.toLowerCase());
+    if (match) {
+      basePrice = match.h2 || match.h1 || match.hbs || basePrice;
+    }
+
+    updateTender({
+      homeSpec: {
+        ...tender.homeSpec,
+        homeDesign: designName,
+        floorplanUrl: planUrl,
+        baseDesignCost: basePrice,
+        totalBudgetEstimate:
+          basePrice +
+          tender.homeSpec.facadeCost +
+          tender.homeSpec.structuralVariationsCost +
+          tender.homeSpec.internalUpgradesCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleFacadeChange = (facadeName: string) => {
+    const facadesList = HOUSING_FACADES[tender.homeSpec.housingType] || HOUSING_FACADES["Single Storey"];
+    const match = facadesList.find((f) => f.name === facadeName);
+    const facadeUplift = match?.uplift || 0;
+
+    updateTender({
+      homeSpec: {
+        ...tender.homeSpec,
+        facade: facadeName,
+        facadeCost: facadeUplift,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          facadeUplift +
+          tender.homeSpec.structuralVariationsCost +
+          tender.homeSpec.internalUpgradesCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleAddStructuralVariation = (pin: TenderFloorplanPin) => {
+    const newVar: TenderNumberedVariation = {
+      id: pin.id,
+      itemNumber: pin.number,
+      description: pin.title,
+      cost: 0,
+      category: "structural",
+      isStructural: true,
+    };
+    const updated = [...tender.variations, newVar];
+    const structCost = updated.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
+    updateTender({
+      variations: updated,
+      homeSpec: {
+        ...tender.homeSpec,
+        structuralVariationsCost: structCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          structCost +
+          tender.homeSpec.internalUpgradesCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleRemoveStructuralVariation = (pinId: string) => {
+    const filtered = tender.variations.filter((v) => v.id !== pinId);
+    // Renumber structural variations sequentially 1..N
+    let structIdx = 0;
+    const renumbered = filtered.map((v) => {
+      if (v.isStructural) {
+        structIdx++;
+        return { ...v, itemNumber: structIdx };
+      }
+      return v;
+    });
+
+    const structCost = renumbered.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
+    updateTender({
+      variations: renumbered,
+      homeSpec: {
+        ...tender.homeSpec,
+        structuralVariationsCost: structCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          structCost +
+          tender.homeSpec.internalUpgradesCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleAddInternalUpgrade = () => {
+    const newVar: TenderNumberedVariation = {
+      id: `internal_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      description: "Custom Luxury Inclusions Selection",
+      cost: 0,
+      category: "internal",
+      isStructural: false,
+    };
+    const updated = [...tender.variations, newVar];
+    const internalCost = updated.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
+    updateTender({
+      variations: updated,
+      homeSpec: {
+        ...tender.homeSpec,
+        internalUpgradesCost: internalCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          tender.homeSpec.structuralVariationsCost +
+          internalCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleUpdateVariation = (id: string, patch: Partial<TenderNumberedVariation>) => {
+    const updated = tender.variations.map((v) => (v.id === id ? { ...v, ...patch } : v));
+    const structCost = updated.filter((v) => v.isStructural).reduce((s, v) => s + (Number(v.cost) || 0), 0);
+    const internalCost = updated.filter((v) => !v.isStructural).reduce((s, v) => s + (Number(v.cost) || 0), 0);
+    updateTender({
+      variations: updated,
+      homeSpec: {
+        ...tender.homeSpec,
+        structuralVariationsCost: structCost,
+        internalUpgradesCost: internalCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          structCost +
+          internalCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+  };
+
+  const handleDeleteVariation = (id: string) => {
+    const filtered = tender.variations.filter((v) => v.id !== id);
+    let structIdx = 0;
+    const renumbered = filtered.map((v) => {
+      if (v.isStructural) {
+        structIdx++;
+        return { ...v, itemNumber: structIdx };
+      }
+      return v;
+    });
+
+    const structCost = renumbered.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
+    const internalCost = renumbered.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
+    
+    // Also remove matching floorplan pin
+    const updatedPins = tender.homeSpec.floorplanPins.filter((p) => p.id !== id);
+    const renumberedPins = updatedPins.map((p, idx) => ({ ...p, number: idx + 1 }));
+
+    updateTender({
+      variations: renumbered,
+      homeSpec: {
+        ...tender.homeSpec,
+        floorplanPins: renumberedPins,
+        structuralVariationsCost: structCost,
+        internalUpgradesCost: internalCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          structCost +
+          internalCost +
+          tender.homeSpec.additionalSiteCost -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
   };
 
   const handleFileUpload = (slotId: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -238,69 +441,6 @@ export function TenderRequestPortal() {
     }
   };
 
-  const handleAddVariation = () => {
-    const nextNo = tender.variations.length + 1;
-    const newVar: TenderNumberedVariation = {
-      id: `var_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      itemNumber: nextNo,
-      description: "Custom Client Variation / Addition",
-      cost: 0,
-      category: "custom",
-    };
-    const updatedVars = [...tender.variations, newVar];
-    const totalAdditions = updatedVars.reduce((s, v) => s + (Number(v.cost) || 0), 0);
-    updateTender({
-      variations: updatedVars,
-      homeSpec: {
-        ...tender.homeSpec,
-        additionsCost: totalAdditions,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          totalAdditions +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
-  };
-
-  const handleUpdateVariation = (id: string, patch: Partial<TenderNumberedVariation>) => {
-    const updatedVars = tender.variations.map((v) => (v.id === id ? { ...v, ...patch } : v));
-    const totalAdditions = updatedVars.reduce((s, v) => s + (Number(v.cost) || 0), 0);
-    updateTender({
-      variations: updatedVars,
-      homeSpec: {
-        ...tender.homeSpec,
-        additionsCost: totalAdditions,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          totalAdditions +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
-  };
-
-  const handleDeleteVariation = (id: string) => {
-    const filtered = tender.variations.filter((v) => v.id !== id);
-    const renumbered = filtered.map((v, i) => ({ ...v, itemNumber: i + 1 }));
-    const totalAdditions = renumbered.reduce((s, v) => s + (Number(v.cost) || 0), 0);
-    updateTender({
-      variations: renumbered,
-      homeSpec: {
-        ...tender.homeSpec,
-        additionsCost: totalAdditions,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          totalAdditions +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
-  };
-
   const handleExportZip = async () => {
     setExportingZip(true);
     const toastId = toast.loading("Packaging complete Job Folder ZIP archive...");
@@ -324,6 +464,13 @@ export function TenderRequestPortal() {
     }
   };
 
+  const remoteSigningUrl = typeof window !== "undefined" ? `${window.location.origin}/tender-sign/${tender.id}` : "";
+
+  const handleCopyRemoteLink = () => {
+    navigator.clipboard.writeText(remoteSigningUrl);
+    toast.success("Remote Client Signing Link copied to clipboard!");
+  };
+
   const handleCopyOnsiteSummary = () => {
     const summary = `HUDSON HOMES ONSITE JOB CREATION
 Submission Ref: ${tender.submissionNumber}
@@ -341,18 +488,32 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
   const attachedDocsCount = Object.values(tender.documents).filter((d) => !!d.fileDataUrl).length;
   const totalSlotsCount = Object.keys(tender.documents).length;
 
+  const requiredSlots = STANDARD_DOCUMENT_SLOTS.filter((s) => s.required);
+  const optionalSlots = STANDARD_DOCUMENT_SLOTS.filter((s) => !s.required);
+
   const tabs = [
     { id: "client_job", label: "1. Client Profile", icon: User },
     { id: "land_siting", label: "2. Land & Siting", icon: MapPin },
-    { id: "home_spec", label: "3. Home Spec & Variations", icon: Home },
-    { id: "solicitor_finance", label: "4. Solicitor & Finance", icon: Briefcase },
-    { id: "atp_sign", label: "5. Authority to Proceed (ATP)", icon: PenTool },
-    { id: "job_folder", label: `6. Job Folder (${attachedDocsCount}/${totalSlotsCount})`, icon: Folder },
-    { id: "pdf_preview", label: "7. Forms & Bernie Handoff", icon: Send },
+    { id: "home_spec", label: "3. Home Spec & Floorplan Markups", icon: Home },
+    { id: "atp_sign", label: "4. Authority to Proceed (ATP) & E-Sign", icon: PenTool },
+    { id: "job_folder", label: `5. Job Folder (${attachedDocsCount}/${totalSlotsCount})`, icon: Folder },
+    { id: "pdf_preview", label: "6. Master PDF & Bernie Handoff", icon: Send },
   ];
 
+  // Available designs list based on selected housing type
+  const availableDesigns =
+    tender.homeSpec.housingType === "Double Storey"
+      ? DOUBLE_STOREY_PRICES
+      : tender.homeSpec.housingType === "Split Level"
+      ? SPLIT_LEVEL_PRICES
+      : tender.homeSpec.housingType === "Dual Living"
+      ? DUAL_OC_PRICES
+      : SINGLE_STOREY_PRICES;
+
+  const availableFacades = HOUSING_FACADES[tender.homeSpec.housingType] || HOUSING_FACADES["Single Storey"];
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans">
       {/* Top Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
@@ -368,7 +529,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Automated Tender Request Form generation, digital Authority to Proceed (ATP) e-signing, and standardized Job Folder packaging for Bernie &amp; OnSite.
+            Automated 4-Page Master PDF generation, digital Authority to Proceed (ATP) e-signing, and standardized Job Folder packaging for Bernie &amp; OnSite.
           </p>
         </div>
 
@@ -381,7 +542,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
             className="border-cyan-500/50 bg-cyan-950/40 text-cyan-200 hover:bg-cyan-900/60 hover:text-white text-xs font-bold gap-1.5 shadow-xs"
           >
             <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-            Import from Quote ({savedQuotes.length})
+            Auto-Fill from Quote ({savedQuotes.length})
           </Button>
 
           <Button
@@ -417,7 +578,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         </div>
       </div>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs (6 Steps) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-800/80 scrollbar-thin">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -440,13 +601,38 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         })}
       </div>
 
-      {/* Main Tab Content */}
+      {/* Main Tab Content Container */}
       <div className="rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-6 shadow-2xl">
         {/* ========================================================================= */}
-        {/* TAB 1: CLIENT PROFILE & CURRENT ADDRESS                                   */}
+        {/* TAB 1: CLIENT PROFILE & AUTO FILL                                         */}
         {/* ========================================================================= */}
         {activeTab === "client_job" && (
           <div className="space-y-6">
+            {/* Auto Fill Banner on Page 1 */}
+            <div className="p-4 rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-950/60 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 flex-none">
+                  <Sparkles className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Auto-Fill from Existing Estimate
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Instantly load client details, address, chosen design, facade, and itemized variations from your Quoting Tool.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                onClick={() => setIsImportQuoteOpen(true)}
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-1.5 flex-none shadow-md shadow-cyan-500/20"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Auto-Fill from Quote ({savedQuotes.length})
+              </Button>
+            </div>
+
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
@@ -531,7 +717,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] text-slate-300">Work / Home Phone</Label>
+                    <Label className="text-[11px] text-slate-300">Home / Work Phone</Label>
                     <Input
                       value={tender.customer1.workPh || ""}
                       onChange={(e) =>
@@ -635,7 +821,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   </>
                 ) : (
                   <div className="py-12 text-center text-slate-500 text-xs">
-                    Single purchaser job. Enable &ldquo;Two Purchasers?&rdquo; above if joint application.
+                    Single purchaser application. Enable &ldquo;Two Purchasers?&rdquo; above if joint contract.
                   </div>
                 )}
               </div>
@@ -644,7 +830,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
             {/* Current Residential Address */}
             <div className="space-y-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
               <span className="text-xs font-bold uppercase text-amber-400 block border-b border-slate-800 pb-1.5">
-                Current Residential Address (For Mailing / Contract)
+                Current Residential Address (For Contract &amp; Mailing)
               </span>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
@@ -689,7 +875,6 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Next Button */}
             <div className="flex justify-end pt-2">
               <Button
                 type="button"
@@ -712,7 +897,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 <MapPin className="h-4 w-4 text-cyan-400" /> Proposed Land, Estate &amp; Site Conditions
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Configure lot specifications, council jurisdiction, registration status, and site access.
+                Configure lot specifications, council jurisdiction, registration status, and site conditions.
               </p>
             </div>
 
@@ -845,31 +1030,31 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 onClick={() => setActiveTab("client_job")}
                 className="text-xs text-slate-400"
               >
-                Back to Client Details
+                Back to Client Profile
               </Button>
               <Button
                 type="button"
                 onClick={() => setActiveTab("home_spec")}
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5"
               >
-                Proceed to Home Spec &amp; Variations <ArrowRight className="h-3.5 w-3.5" />
+                Proceed to Home Spec &amp; Floorplan <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: HOME SPEC & NUMBERED VARIATIONS                                    */}
+        {/* TAB 3: HOME SPEC, DESIGNS DROPDOWN & NUMBERED FLOORPLAN MARKUP             */}
         {/* ========================================================================= */}
         {activeTab === "home_spec" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                  <Home className="h-4 w-4 text-emerald-400" /> New Home Configuration &amp; Numbered Variations
+                  <Home className="h-4 w-4 text-amber-400" /> New Home Configuration &amp; Interactive Floorplan Markups
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Numbered variations match the annotation callouts on the marked-up architectural floorplan.
+                  Select your home design, facade, and inclusions. Click on the floorplan to place numbered badges for structural modifications.
                 </p>
               </div>
               <div className="text-right">
@@ -880,130 +1065,224 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Design & Inclusions Card */}
+            {/* Design & Facade Dropdowns matching Quoting Tool */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
               <div>
-                <Label className="text-[11px] text-slate-300">Home Design</Label>
-                <Input
+                <Label className="text-[11px] text-slate-300">Storeys / Category</Label>
+                <Select
+                  value={tender.homeSpec.housingType}
+                  onValueChange={(v: any) =>
+                    updateTender({ homeSpec: { ...tender.homeSpec, housingType: v } })
+                  }
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-slate-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                    <SelectItem value="Single Storey">Single Storey</SelectItem>
+                    <SelectItem value="Double Storey">Double Storey</SelectItem>
+                    <SelectItem value="Split Level">Split Level</SelectItem>
+                    <SelectItem value="Dual Living">Dual Living</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-slate-300">Select Home Design</Label>
+                <Select
                   value={tender.homeSpec.homeDesign}
-                  onChange={(e) =>
-                    updateTender({ homeSpec: { ...tender.homeSpec, homeDesign: e.target.value } })
-                  }
-                  className="border-slate-800 bg-slate-900 text-xs font-bold text-slate-100"
-                />
+                  onValueChange={handleDesignChange}
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-amber-400">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                    {availableDesigns.map((d) => (
+                      <SelectItem key={d.name} value={d.name}>
+                        {d.name} ({d.m2} m²)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
               <div>
-                <Label className="text-[11px] text-slate-300">Facade</Label>
-                <Input
+                <Label className="text-[11px] text-slate-300">Architectural Facade</Label>
+                <Select
                   value={tender.homeSpec.facade}
-                  onChange={(e) =>
-                    updateTender({ homeSpec: { ...tender.homeSpec, facade: e.target.value } })
-                  }
-                  className="border-slate-800 bg-slate-900 text-xs font-bold text-slate-100"
-                />
+                  onValueChange={handleFacadeChange}
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-slate-100">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                    {availableFacades.map((f) => (
+                      <SelectItem key={f.name} value={f.name}>
+                        {f.name} {f.uplift > 0 ? `(+${formatAud(f.uplift)})` : "(Standard)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
               <div>
-                <Label className="text-[11px] text-slate-300">Inclusion Tier</Label>
+                <Label className="text-[11px] text-slate-300">Inclusions Tier</Label>
                 <Select
                   value={tender.homeSpec.inclusionsType}
                   onValueChange={(v: TenderInclusionType) =>
                     updateTender({ homeSpec: { ...tender.homeSpec, inclusionsType: v } })
                   }
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs">
+                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-emerald-400">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                    <SelectItem value="Standard">Standard Inclusions</SelectItem>
                     <SelectItem value="H1 Smart">H1 Smart Inclusions</SelectItem>
                     <SelectItem value="H2 Designer">H2 Designer Inclusions</SelectItem>
                     <SelectItem value="H3 Luxury">H3 Luxury Inclusions</SelectItem>
-                    <SelectItem value="LP Landscape">LP Landscape Package</SelectItem>
-                    <SelectItem value="IP Investment">IP Investment Package</SelectItem>
-                    <SelectItem value="FHB First Home Buyer">First Home Buyer Spec</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-[11px] text-slate-300">Garage Location</Label>
-                <Select
-                  value={tender.homeSpec.garageLocation}
-                  onValueChange={(v: any) =>
-                    updateTender({ homeSpec: { ...tender.homeSpec, garageLocation: v } })
-                  }
-                >
-                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                    <SelectItem value="RHS">Right Hand Side (RHS)</SelectItem>
-                    <SelectItem value="LHS">Left Hand Side (LHS)</SelectItem>
-                    <SelectItem value="Detached">Detached Garage</SelectItem>
-                    <SelectItem value="Zero Lot">Zero Lot Boundary</SelectItem>
+                    <SelectItem value="Standard">Standard Inclusions</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            {/* Numbered Variations Table */}
-            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase text-emerald-400">
-                  Itemized Numbered Variations ({tender.variations.length})
-                </span>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={handleAddVariation}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Variation Row
-                </Button>
+            {/* Interactive Floorplan Canvas */}
+            <FloorplanMarkupViewer
+              floorplanUrl={tender.homeSpec.floorplanUrl}
+              designName={tender.homeSpec.homeDesign}
+              pins={tender.homeSpec.floorplanPins}
+              variations={tender.variations}
+              onUpdatePins={(pins) =>
+                updateTender({ homeSpec: { ...tender.homeSpec, floorplanPins: pins } })
+              }
+              onUploadCustomPlan={(dataUrl) =>
+                updateTender({
+                  homeSpec: {
+                    ...tender.homeSpec,
+                    floorplanUrl: dataUrl,
+                    isModifiedFloorplan: true,
+                  },
+                })
+              }
+              onAddStructuralVariation={handleAddStructuralVariation}
+              onRemoveStructuralVariation={handleRemoveStructuralVariation}
+            />
+
+            {/* Variations Split: Section A Structural vs Section B Internal */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Section A: Structural Variations (Numbered 1..N) */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-amber-500/30">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
+                    <Layers className="h-3.5 w-3.5" />
+                    A. Structural Variations ({tender.variations.filter((v) => v.isStructural).length})
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Numbered on plan &bull; {formatAud(tender.homeSpec.structuralVariationsCost)}
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {tender.variations.filter((v) => v.isStructural).length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 text-xs">
+                      No structural modifications placed. Click on the floorplan above to drop numbered badges.
+                    </div>
+                  ) : (
+                    tender.variations
+                      .filter((v) => v.isStructural)
+                      .map((v) => (
+                        <div
+                          key={v.id}
+                          className="p-2 rounded-lg border border-slate-800 bg-slate-900 flex items-center gap-2"
+                        >
+                          <span className="h-6 w-6 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs flex items-center justify-center flex-none">
+                            #{v.itemNumber}
+                          </span>
+                          <Input
+                            value={v.description}
+                            onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
+                            placeholder="Structural modification title"
+                            className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100 flex-1"
+                          />
+                          <div className="w-24 relative flex-none">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
+                            <Input
+                              type="number"
+                              value={v.cost || ""}
+                              onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
+                              className="h-8 pl-5 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-right"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVariation(v.id)}
+                            className="p-1 text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </div>
               </div>
 
-              {tender.variations.length === 0 ? (
-                <div className="text-center py-6 text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
-                  No variations added yet. Click &ldquo;Add Variation Row&rdquo; or import from a saved estimate.
+              {/* Section B: Internal Inclusions & Upgrades (Unnumbered Titles) */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-cyan-500/30">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <span className="text-xs font-bold uppercase text-cyan-400 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    B. Internal Inclusions &amp; Upgrades ({tender.variations.filter((v) => !v.isStructural).length})
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddInternalUpgrade}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold h-7 gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Upgrade
+                  </Button>
                 </div>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-                  {tender.variations.map((v) => (
-                    <div
-                      key={v.id}
-                      className="p-2.5 rounded-lg border border-slate-800 bg-slate-900/90 flex items-center gap-3"
-                    >
-                      <div className="h-6 w-6 rounded-full bg-emerald-950 border border-emerald-500/50 text-emerald-400 font-mono font-bold text-xs flex items-center justify-center flex-none">
-                        #{v.itemNumber}
-                      </div>
-                      <div className="flex-1">
-                        <Input
-                          value={v.description}
-                          onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
-                          placeholder="e.g. Upgrade to 40mm Smartstone Benchtop in lieu of 20mm"
-                          className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100"
-                        />
-                      </div>
-                      <div className="w-32 flex-none relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={v.cost || ""}
-                          onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
-                          placeholder="0"
-                          className="h-8 pl-6 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-slate-100 text-right"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteVariation(v.id)}
-                        className="p-1.5 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors flex-none"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {tender.variations.filter((v) => !v.isStructural).length === 0 ? (
+                    <div className="text-center py-6 text-slate-500 text-xs">
+                      No internal upgrades added. Click &ldquo;Add Upgrade&rdquo; or auto-fill from a saved estimate.
                     </div>
-                  ))}
+                  ) : (
+                    tender.variations
+                      .filter((v) => !v.isStructural)
+                      .map((v) => (
+                        <div
+                          key={v.id}
+                          className="p-2 rounded-lg border border-slate-800 bg-slate-900 flex items-center gap-2"
+                        >
+                          <Input
+                            value={v.description}
+                            onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
+                            placeholder="Inclusion upgrade title (e.g. 40mm Smartstone Benchtop)"
+                            className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100 flex-1"
+                          />
+                          <div className="w-24 relative flex-none">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
+                            <Input
+                              type="number"
+                              value={v.cost || ""}
+                              onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
+                              className="h-8 pl-5 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-right"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVariation(v.id)}
+                            className="p-1 text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="flex justify-between pt-2">
@@ -1017,148 +1296,6 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </Button>
               <Button
                 type="button"
-                onClick={() => setActiveTab("solicitor_finance")}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5"
-              >
-                Proceed to Solicitor &amp; Finance <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* TAB 4: SOLICITOR & FINANCIER DETAILS                                      */}
-        {/* ========================================================================= */}
-        {activeTab === "solicitor_finance" && (
-          <div className="space-y-6">
-            <div className="border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-purple-400" /> Purchaser&apos;s Solicitor &amp; Lending Financier
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Contact details for the conveyance solicitor and mortgage broker required for OnSite file setup.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Solicitor */}
-              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-                <span className="text-xs font-bold uppercase text-purple-400 block border-b border-slate-800 pb-1.5">
-                  Conveyance Solicitor / Legal Firm
-                </span>
-                <div>
-                  <Label className="text-[11px] text-slate-300">Firm Name</Label>
-                  <Input
-                    value={tender.solicitor.firmOrCompany}
-                    onChange={(e) =>
-                      updateTender({ solicitor: { ...tender.solicitor, firmOrCompany: e.target.value } })
-                    }
-                    placeholder="e.g. Apex Conveyancing QLD"
-                    className="border-slate-800 bg-slate-900 text-xs"
-                  />
-                </div>
-                <div>
-                  <Label className="text-[11px] text-slate-300">Contact Person / Solicitor Name</Label>
-                  <Input
-                    value={tender.solicitor.contactPerson}
-                    onChange={(e) =>
-                      updateTender({ solicitor: { ...tender.solicitor, contactPerson: e.target.value } })
-                    }
-                    placeholder="e.g. Sarah Jenkins"
-                    className="border-slate-800 bg-slate-900 text-xs"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[11px] text-slate-300">Phone</Label>
-                    <Input
-                      value={tender.solicitor.telephone}
-                      onChange={(e) =>
-                        updateTender({ solicitor: { ...tender.solicitor, telephone: e.target.value } })
-                      }
-                      placeholder="e.g. 07 3300 1234"
-                      className="border-slate-800 bg-slate-900 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-slate-300">Email</Label>
-                    <Input
-                      value={tender.solicitor.email}
-                      onChange={(e) =>
-                        updateTender({ solicitor: { ...tender.solicitor, email: e.target.value } })
-                      }
-                      placeholder="e.g. s.jenkins@apexlegal.com.au"
-                      className="border-slate-800 bg-slate-900 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Financier */}
-              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-                <span className="text-xs font-bold uppercase text-purple-400 block border-b border-slate-800 pb-1.5">
-                  Financier / Mortgage Broker
-                </span>
-                <div>
-                  <Label className="text-[11px] text-slate-300">Lending Institution / Brokerage</Label>
-                  <Input
-                    value={tender.financier.firmOrCompany}
-                    onChange={(e) =>
-                      updateTender({ financier: { ...tender.financier, firmOrCompany: e.target.value } })
-                    }
-                    placeholder="e.g. Aussie Home Loans / NAB"
-                    className="border-slate-800 bg-slate-900 text-xs"
-                  />
-                </div>
-                <div>
-                  <Label className="text-[11px] text-slate-300">Mortgage Broker Contact Person</Label>
-                  <Input
-                    value={tender.financier.contactPerson}
-                    onChange={(e) =>
-                      updateTender({ financier: { ...tender.financier, contactPerson: e.target.value } })
-                    }
-                    placeholder="e.g. David Ross"
-                    className="border-slate-800 bg-slate-900 text-xs"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[11px] text-slate-300">Phone</Label>
-                    <Input
-                      value={tender.financier.telephone}
-                      onChange={(e) =>
-                        updateTender({ financier: { ...tender.financier, telephone: e.target.value } })
-                      }
-                      placeholder="e.g. 0419 888 777"
-                      className="border-slate-800 bg-slate-900 text-xs"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-slate-300">Email</Label>
-                    <Input
-                      value={tender.financier.email}
-                      onChange={(e) =>
-                        updateTender({ financier: { ...tender.financier, email: e.target.value } })
-                      }
-                      placeholder="e.g. david.ross@aussie.com.au"
-                      className="border-slate-800 bg-slate-900 text-xs"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => setActiveTab("home_spec")}
-                className="text-xs text-slate-400"
-              >
-                Back to Home Spec
-              </Button>
-              <Button
-                type="button"
                 onClick={() => setActiveTab("atp_sign")}
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5"
               >
@@ -1169,17 +1306,17 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 5: AUTHORITY TO PROCEED (ATP) & E-SIGNATURES                          */}
+        {/* TAB 4: AUTHORITY TO PROCEED (ATP) & REMOTE SIGNING                        */}
         {/* ========================================================================= */}
         {activeTab === "atp_sign" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                  <PenTool className="h-4 w-4 text-emerald-400" /> Digital Authority to Proceed (ATP) E-Sign
+                  <PenTool className="h-4 w-4 text-emerald-400" /> Digital Authority to Proceed (ATP) &amp; Remote Signing
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Sign electronically on-screen or attach pre-signed signatures. Replaces DocuSign!
+                  Sign in-person using the signature pad below, or send the remote signing link to your client via WhatsApp or Email!
                 </p>
               </div>
               <div className="text-right font-mono">
@@ -1187,6 +1324,43 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 <strong className="text-base font-extrabold text-emerald-400">
                   {formatAud(tender.atp.feeAmount)}
                 </strong>
+              </div>
+            </div>
+
+            {/* Remote Signing Banner */}
+            <div className="p-4 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/60 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 flex-none">
+                  <Share2 className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                    Remote Client Signing Link (Replaces DocuSign!)
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Send this interactive signing page directly to your client so they can sign from their phone or laptop.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 flex-none">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCopyRemoteLink}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-sm"
+                >
+                  <Copy className="h-3.5 w-3.5" /> Copy Remote Link
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsShareRemoteOpen(true)}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs gap-1.5 border border-slate-700"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" /> Share Options
+                </Button>
               </div>
             </div>
 
@@ -1250,7 +1424,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Interactive Signature Cards */}
+            {/* In-Person Interactive Signature Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Client 1 Sign */}
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/70 space-y-2.5">
@@ -1259,12 +1433,12 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     Primary Applicant (Client 1): {tender.customer1.firstName} {tender.customer1.surname}
                   </span>
                   {tender.atp.client1Signed ? (
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Signed &bull; {tender.atp.client1SignatureDate}
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Signed &bull; {tender.atp.client1SignatureDate}
                     </span>
                   ) : (
                     <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-800">
-                      Signature Required
+                      Signature Pending
                     </span>
                   )}
                 </div>
@@ -1297,8 +1471,8 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     Secondary Applicant (Client 2): {tender.hasCustomer2 ? `${tender.customer2.firstName} ${tender.customer2.surname}` : "N/A"}
                   </span>
                   {tender.atp.client2Signed ? (
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                      Signed &bull; {tender.atp.client2SignatureDate}
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Signed &bull; {tender.atp.client2SignatureDate}
                     </span>
                   ) : (
                     <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
@@ -1336,10 +1510,10 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => setActiveTab("solicitor_finance")}
+                onClick={() => setActiveTab("home_spec")}
                 className="text-xs text-slate-400"
               >
-                Back to Solicitor &amp; Finance
+                Back to Home Spec &amp; Floorplan
               </Button>
               <Button
                 type="button"
@@ -1353,17 +1527,17 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 6: JOB FOLDER DOCUMENT REPOSITORY                                     */}
+        {/* TAB 5: JOB FOLDER DOCUMENT REPOSITORY (REQUIRED ON TOP)                   */}
         {/* ========================================================================= */}
         {activeTab === "job_folder" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                  <Folder className="h-4 w-4 text-amber-400" /> Standard Job Folder Document Repository
+                  <Folder className="h-4 w-4 text-amber-400" /> Standard Job Folder Document Vault
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Attach all client IDs, land plans, marked-up floorplans, and survey reports into their standardized slots.
+                  Attach all client IDs, land plans, and deposit receipts into their standardized slots.
                 </p>
               </div>
               <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-mono text-amber-400">
@@ -1371,85 +1545,165 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Document Upload Slots Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {STANDARD_DOCUMENT_SLOTS.map((slot) => {
-                const doc = tender.documents[slot.id];
-                const isAttached = !!doc?.fileDataUrl;
-                const surname = tender.customer1.surname || "Client";
+            {/* SECTION 1: REQUIRED DOCUMENTS (TOP OF PAGE) */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
+                  Primary Required Job Documents (Mandatory for Bernie):
+                </span>
+              </div>
 
-                return (
-                  <div
-                    key={slot.id}
-                    className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
-                      isAttached
-                        ? "border-emerald-500/60 bg-emerald-950/20 ring-1 ring-emerald-500/20 shadow-md"
-                        : slot.required
-                        ? "border-slate-800 bg-slate-950/80 hover:border-slate-700"
-                        : "border-slate-800/60 bg-slate-950/40 opacity-85 hover:opacity-100"
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-1.5">
-                        <span className="font-bold text-xs text-slate-100 truncate flex items-center gap-1.5">
-                          {isAttached ? (
-                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-none" />
-                          ) : (
-                            <File className="h-3.5 w-3.5 text-slate-500 flex-none" />
-                          )}
-                          {slot.label}
-                        </span>
-                        {slot.required && !isAttached && (
-                          <span className="text-[9px] font-bold text-amber-400 bg-amber-950/60 px-1.5 py-0.2 rounded border border-amber-800/40">
-                            Required
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {requiredSlots.map((slot) => {
+                  const doc = tender.documents[slot.id];
+                  const isAttached = !!doc?.fileDataUrl;
+                  const surname = tender.customer1.surname || "Client";
+
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between ${
+                        isAttached
+                          ? "border-emerald-500/70 bg-emerald-950/25 ring-1 ring-emerald-500/30 shadow-md"
+                          : "border-amber-500/40 bg-slate-950/90 shadow-sm"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="font-bold text-xs text-slate-100 truncate flex items-center gap-1.5">
+                            {isAttached ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none" />
+                            ) : (
+                              <File className="h-4 w-4 text-amber-400 flex-none" />
+                            )}
+                            {slot.label}
                           </span>
-                        )}
-                      </div>
-
-                      {isAttached ? (
-                        <div className="text-[11px] text-slate-300 font-mono truncate mb-2">
-                          {doc.fileName || `${surname} - ${slot.label}`}
-                          {doc.fileSize && (
-                            <span className="text-[10px] text-slate-500 ml-1">
-                              ({(doc.fileSize / 1024).toFixed(0)} KB)
+                          {!isAttached && (
+                            <span className="text-[9px] font-black text-amber-400 bg-amber-950/90 px-2 py-0.5 rounded border border-amber-500/60 uppercase">
+                              Required
                             </span>
                           )}
                         </div>
-                      ) : (
-                        <p className="text-[10px] text-slate-500 mb-2">Click upload to attach PDF / image</p>
-                      )}
-                    </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
-                      <label className="cursor-pointer flex-1">
-                        <input
-                          type="file"
-                          accept=".pdf,.png,.jpg,.jpeg,.xlsx,.doc,.docx"
-                          onChange={(e) => handleFileUpload(slot.id, e)}
-                          className="hidden"
-                        />
-                        <span className="w-full inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] font-semibold text-slate-200 transition-colors">
-                          <Upload className="h-3 w-3 text-slate-400" />
-                          {isAttached ? "Replace File" : "Upload File"}
-                        </span>
-                      </label>
+                        {isAttached ? (
+                          <div className="text-[11px] text-slate-200 font-mono truncate mb-2">
+                            {doc.fileName || `${surname} - ${slot.label}`}
+                            {doc.fileSize && (
+                              <span className="text-[10px] text-slate-400 ml-1">
+                                ({(doc.fileSize / 1024).toFixed(0)} KB)
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-400 mb-2">Click upload to attach file</p>
+                        )}
+                      </div>
 
-                      {isAttached && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveFile(slot.id)}
-                          className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80">
+                        <label className="cursor-pointer flex-1">
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.xlsx,.doc,.docx"
+                            onChange={(e) => handleFileUpload(slot.id, e)}
+                            className="hidden"
+                          />
+                          <span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] font-bold text-slate-200 transition-colors">
+                            <Upload className="h-3.5 w-3.5 text-slate-400" />
+                            {isAttached ? "Replace File" : "Upload File"}
+                          </span>
+                        </label>
+
+                        {isAttached && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(slot.id)}
+                            className="p-1.5 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Live Windows Folder Tree Structure View */}
+            {/* SECTION 2: OPTIONAL SITE & ENGINEERING REPORTS */}
+            <div className="space-y-3 pt-4 border-t border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Site, Engineering &amp; Overlay Reports (Optional / When Available):
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                {optionalSlots.map((slot) => {
+                  const doc = tender.documents[slot.id];
+                  const isAttached = !!doc?.fileDataUrl;
+                  const surname = tender.customer1.surname || "Client";
+
+                  return (
+                    <div
+                      key={slot.id}
+                      className={`p-3 rounded-xl border transition-all flex flex-col justify-between ${
+                        isAttached
+                          ? "border-emerald-500/60 bg-emerald-950/20 shadow-md"
+                          : "border-slate-800/60 bg-slate-950/40 opacity-80 hover:opacity-100"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="font-semibold text-xs text-slate-200 truncate flex items-center gap-1.5">
+                            {isAttached ? (
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-none" />
+                            ) : (
+                              <File className="h-3.5 w-3.5 text-slate-500 flex-none" />
+                            )}
+                            {slot.label}
+                          </span>
+                        </div>
+
+                        {isAttached ? (
+                          <div className="text-[11px] text-slate-300 font-mono truncate mb-2">
+                            {doc.fileName || `${surname} - ${slot.label}`}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-slate-500 mb-2">Optional report attachment</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                        <label className="cursor-pointer flex-1">
+                          <input
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.xlsx,.doc,.docx"
+                            onChange={(e) => handleFileUpload(slot.id, e)}
+                            className="hidden"
+                          />
+                          <span className="w-full inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] font-semibold text-slate-300 transition-colors">
+                            <Upload className="h-3 w-3 text-slate-400" />
+                            {isAttached ? "Replace" : "Attach"}
+                          </span>
+                        </label>
+
+                        {isAttached && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(slot.id)}
+                            className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Live Windows Folder Tree Preview */}
             <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/80 space-y-2">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                 <Folder className="h-4 w-4 text-amber-400" /> Windows Job Folder Structure Preview:
@@ -1459,8 +1713,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   <Folder className="h-3.5 w-3.5" /> 📁 {(tender.customer1.surname || "Client")} - Job Folder ({tender.submissionNumber})
                 </div>
                 <div className="pl-4 space-y-0.5">
-                  <div>📄 {tender.customer1.surname || "Client"} - Authority to Proceed Signed.pdf</div>
-                  <div>📄 {tender.customer1.surname || "Client"} - TR Form.pdf (4 Pages)</div>
+                  <div>📄 {tender.customer1.surname || "Client"} - Tender Request &amp; Authority to Proceed.pdf</div>
                   <div>📄 {tender.customer1.surname || "Client"} - Building Quote.pdf</div>
                   {Object.values(tender.documents)
                     .filter((d) => !!d.fileDataUrl)
@@ -1481,31 +1734,31 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 onClick={() => setActiveTab("atp_sign")}
                 className="text-xs text-slate-400"
               >
-                Back to ATP &amp; Signatures
+                Back to Authority to Proceed
               </Button>
               <Button
                 type="button"
                 onClick={() => setActiveTab("pdf_preview")}
                 className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5"
               >
-                Proceed to Forms &amp; Bernie Handoff <ArrowRight className="h-3.5 w-3.5" />
+                Proceed to Master PDF &amp; Bernie Handoff <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
           </div>
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 7: FORMS REVIEW & BERNIE WORKFLOW MANAGER HANDOFF                     */}
+        {/* TAB 6: MASTER PDF REVIEW & BERNIE WORKFLOW MANAGER HANDOFF                 */}
         {/* ========================================================================= */}
         {activeTab === "pdf_preview" && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                  <Send className="h-4 w-4 text-emerald-400" /> Forms Review &amp; Workflow Manager Handoff
+                  <Send className="h-4 w-4 text-emerald-400" /> Master PDF Review &amp; Workflow Manager Handoff
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Package all documents and send to Bernie (Workflow Manager) for OnSite account creation.
+                  This unified 4-page PDF replaces the separate TR Form and Variation Form into one seamless document for Bernie.
                 </p>
               </div>
 
@@ -1547,62 +1800,44 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   Please find attached the complete Tender Request Job Folder for <strong>{tender.customer1.firstName} {tender.customer1.surname}</strong>.<br />
                   &bull; <strong>Job Address:</strong> Lot {tender.land.lotNo}, {tender.land.streetName || ""} {tender.land.suburb} ({tender.land.council})<br />
                   &bull; <strong>Home Design:</strong> {tender.homeSpec.homeDesign} with {tender.homeSpec.facade} facade ({tender.homeSpec.inclusionsType})<br />
-                  &bull; <strong>Build Investment:</strong> {formatAud(tender.homeSpec.totalBudgetEstimate)} (Inc. {tender.variations.length} numbered variations)<br />
+                  &bull; <strong>Build Investment:</strong> {formatAud(tender.homeSpec.totalBudgetEstimate)} (Inc. {tender.variations.filter((v) => v.isStructural).length} structural marked variations &amp; {tender.variations.filter((v) => !v.isStructural).length} internal additions)<br />
                   &bull; <strong>Authority to Proceed:</strong> {tender.atp.client1Signed ? "Signed Digitally by Client" : "Pending Signature"} &bull; Fee {formatAud(tender.atp.feeAmount)} paid via {tender.atp.paymentMethod.toUpperCase()}<br /><br />
-                  All required documents (Photo IDs, Land Contract, Disclosure Plan, Siting, Marked-up Floorplan, and Reports) are packaged in the attached ZIP file for OnSite file setup.<br /><br />
+                  All required documents (Photo IDs, Land Contract, Disclosure Plan, Siting Plan, and Marked-up Floorplan) are packaged in the attached ZIP file for OnSite file setup.<br /><br />
                   Thank you,<br />
                   {tender.newHomeConsultant} &bull; {tender.displayOffice}
                 </div>
               </div>
             </div>
 
-            {/* Generated Forms Tabs */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                  Generated Documents Preview:
-                </span>
+            {/* Generated Master PDF Preview */}
+            <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 p-4">
+              <div className="text-xs font-bold text-slate-300 mb-3 flex items-center justify-between">
+                <span>Unified 4-Page Tender Request &amp; Authority to Proceed PDF</span>
+                <span className="text-[10px] text-cyan-400 font-mono">4 Pages &bull; Ready for Export</span>
               </div>
-
-              {/* Authority to Proceed Preview */}
-              <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 p-4">
-                <div className="text-xs font-bold text-slate-300 mb-3 flex items-center justify-between">
-                  <span>1. Signed Authority to Proceed Form</span>
-                  <span className="text-[10px] text-emerald-400 font-mono">1 Page &bull; Ready</span>
-                </div>
-                <AuthorityToProceedPdf tender={tender} />
-              </div>
-
-              {/* 4-Page Tender Request Form Preview */}
-              <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 p-4">
-                <div className="text-xs font-bold text-slate-300 mb-3 flex items-center justify-between">
-                  <span>2. Official 4-Page Tender Request (TR) Form</span>
-                  <span className="text-[10px] text-cyan-400 font-mono">4 Pages &bull; Formatted</span>
-                </div>
-                <TenderRequestFormPdf tender={tender} />
-              </div>
+              <TenderMasterPdfDocument tender={tender} />
             </div>
           </div>
         )}
       </div>
 
-      {/* Import from Saved Estimate Dialog */}
+      {/* Auto-Fill from Saved Estimate Dialog */}
       <Dialog open={isImportQuoteOpen} onOpenChange={setIsImportQuoteOpen}>
         <DialogContent className="max-w-2xl border-slate-800 bg-slate-950/98 text-slate-100 p-6 rounded-2xl shadow-2xl">
           <DialogHeader className="pb-3 border-b border-slate-800">
             <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-cyan-400" />
-              Import Details from Saved Quote ({savedQuotes.length})
+              Auto-Fill from Saved Estimate ({savedQuotes.length})
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-slate-400">
-            Select an estimate from the Quoting System to auto-populate all client names, phone, email, site address, selected home design, facade, inclusions, and numbered variations.
+            Select an estimate from your Quoting Tool. This will auto-fill all client names, contact details, site address, chosen design, facade, floorplan, and itemized variations.
           </p>
 
           <div className="max-h-80 overflow-y-auto space-y-2 py-2">
             {savedQuotes.length === 0 ? (
               <div className="p-8 text-center text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
-                No saved quotes found in your local repository.
+                No saved estimates found in your local repository.
               </div>
             ) : (
               savedQuotes.map((q) => (
@@ -1623,7 +1858,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     </span>
                   </div>
                   <Button size="sm" className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-1">
-                    Select &amp; Import <ArrowRight className="h-3 w-3" />
+                    Select &amp; Auto-Fill <ArrowRight className="h-3 w-3" />
                   </Button>
                 </div>
               ))
@@ -1681,7 +1916,63 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         </DialogContent>
       </Dialog>
 
-      {/* Digital Signature Modal */}
+      {/* Share Remote Signing Link Dialog */}
+      <Dialog open={isShareRemoteOpen} onOpenChange={setIsShareRemoteOpen}>
+        <DialogContent className="max-w-md border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl">
+          <DialogHeader className="pb-2 border-b border-slate-800">
+            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-emerald-400" />
+              Remote Client Signing Link
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            Your client can open this link on their mobile or desktop browser to review their Authority to Proceed terms and sign with their finger or mouse.
+          </p>
+
+          <div className="space-y-3 pt-2">
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={remoteSigningUrl}
+                className="text-xs border-slate-800 bg-slate-900 text-slate-200"
+              />
+              <Button
+                size="sm"
+                onClick={handleCopyRemoteLink}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1 flex-none"
+              >
+                <Copy className="h-3 w-3" /> Copy
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(
+                  `Hi ${tender.customer1.firstName}, here is your Hudson Homes Authority to Proceed signing link for Lot ${tender.land.lotNo}, ${tender.land.suburb}: ${remoteSigningUrl}`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" /> WhatsApp Invite
+              </a>
+
+              <a
+                href={`mailto:${tender.customer1.email || ""}?subject=${encodeURIComponent(
+                  `Hudson Homes — Authority to Proceed for Lot ${tender.land.lotNo}`
+                )}&body=${encodeURIComponent(
+                  `Hi ${tender.customer1.firstName},\n\nPlease review and electronically sign your Authority to Proceed here:\n${remoteSigningUrl}\n\nThank you,\n${tender.newHomeConsultant}`
+                )}`}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-colors border border-slate-700"
+              >
+                <Mail className="h-3.5 w-3.5" /> Email Client
+              </a>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* In-Person Digital Signature Modal */}
       <DigitalSignatureModal
         open={sigModal.open}
         onOpenChange={(open) => setSigModal((prev) => ({ ...prev, open }))}

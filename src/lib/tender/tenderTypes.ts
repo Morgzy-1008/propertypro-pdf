@@ -5,12 +5,22 @@ export type KdrOccupancy = "Owner Occupied" | "Vacant" | "Tenanted";
 export type GarageLocation = "LHS" | "RHS" | "Detached" | "Zero Lot";
 export type TenderInclusionType = "Standard" | "H1 Smart" | "H2 Designer" | "H3 Luxury" | "LP Landscape" | "IP Investment" | "FHB First Home Buyer";
 
+export interface TenderFloorplanPin {
+  id: string;
+  number: number;
+  x: number; // 0 to 100 percentage
+  y: number; // 0 to 100 percentage
+  title: string;
+  variationId?: string;
+}
+
 export interface TenderNumberedVariation {
   id: string;
-  itemNumber: number;
+  itemNumber?: number; // assigned only for structural changes (1, 2, 3...)
   description: string;
   cost: number;
   category?: string;
+  isStructural: boolean; // True = shown on floorplan with #, False = internal / site item (unnumbered)
 }
 
 export interface TenderCustomer {
@@ -21,15 +31,6 @@ export interface TenderCustomer {
   workPh?: string;
   mobile: string;
   email: string;
-}
-
-export interface TenderSolicitorFinancier {
-  firmOrCompany: string;
-  address: string;
-  telephone: string;
-  facsimile?: string;
-  email: string;
-  contactPerson: string;
 }
 
 export interface TenderDocumentSlot {
@@ -73,6 +74,11 @@ export interface AuthorityToProceedData {
   consultantName: string;
   consultantSignatureDate: string;
   consultantSignatureDataUrl?: string;
+
+  // Remote Signing
+  isRemoteSigned?: boolean;
+  remoteSignToken?: string;
+  remoteSignedAt?: string;
 
   // Payment
   paymentMethod: "eft" | "credit_card" | "cheque" | "cash";
@@ -154,13 +160,18 @@ export interface TenderSubmission {
     comments: string;
   };
 
-  // New Home Details
+  // New Home Details & Floorplan
   homeSpec: {
+    housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
     homeDesign: string;
     facade: string;
     inclusionsType: TenderInclusionType;
     isDoubleStorey: boolean;
     garageLocation: GarageLocation;
+    floorplanUrl?: string;
+    isModifiedFloorplan?: boolean;
+    designM2?: number;
+    floorplanPins: TenderFloorplanPin[];
     setbacks: {
       frontBoundary: string;
       rearBoundary: string;
@@ -173,19 +184,15 @@ export interface TenderSubmission {
     // Cost Breakdown
     baseDesignCost: number;
     facadeCost: number;
-    additionsCost: number;
+    structuralVariationsCost: number;
+    internalUpgradesCost: number;
     additionalSiteCost: number;
     promotionDiscountCost: number;
     totalBudgetEstimate: number;
   };
 
-  // Numbered Variations Table (matching plan markup numbers 1, 2, 3...)
+  // Variations List (Structural with #, and non-structural without #)
   variations: TenderNumberedVariation[];
-
-  // Solicitor & Financier
-  solicitor: TenderSolicitorFinancier;
-  financier: TenderSolicitorFinancier;
-  consultantNotes: string;
 
   // Authority to Proceed (ATP)
   atp: AuthorityToProceedData;

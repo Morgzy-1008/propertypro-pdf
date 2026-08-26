@@ -1,6 +1,8 @@
 import JSZip from "jszip";
 import type { FullQuote } from "../quoting/quoteTypes";
 import { formatAud } from "../pricing";
+import { plansForDesign } from "@/components/flyer/floorplans";
+import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import type {
   TenderSubmission,
   TenderDocumentSlot,
@@ -8,46 +10,52 @@ import type {
   TenderNumberedVariation,
   BuildType,
   TenderInclusionType,
+  TenderFloorplanPin,
 } from "./tenderTypes";
+
+export function findFloorplanUrl(designName: string): string {
+  if (!designName) return "";
+  const direct = plansForDesign(designName);
+  if (direct.length > 0 && direct[0].url) return direct[0].url;
+
+  // Clean design name e.g. "Amber 21 (192.24 m²)" -> "amber 21"
+  const clean = designName.replace(/\(.*?\)/g, "").trim().toLowerCase();
+  const tokens = clean.split(/\s+/).filter(Boolean);
+
+  const found = HUDSON_FLOORPLANS.find((p) => {
+    const label = p.label.toLowerCase();
+    const design = p.design.toLowerCase();
+    return tokens.every((t) => label.includes(t) || design.includes(t));
+  });
+
+  if (found?.url) return found.url;
+  return HUDSON_FLOORPLANS[0]?.url || "";
+}
 
 const STORAGE_KEY_TENDERS = "hudson_tender_submissions_v1";
 const IDB_TENDER_DB = "PropertyProTendersDB";
 const IDB_TENDER_STORE = "tenders";
 
 export const STANDARD_DOCUMENT_SLOTS: Omit<TenderDocumentSlot, "fileDataUrl" | "fileName" | "fileSize" | "fileType">[] = [
-  // 1. Identity
+  // 1. PRIMARY REQUIRED DOCUMENTS (Pinned to Top)
   { id: "license_c1_front", label: "Driver's Licence (Client 1 - Front)", category: "identity", required: true },
-  { id: "license_c1_back", label: "Driver's Licence (Client 1 - Back)", category: "identity", required: false },
+  { id: "license_c1_back", label: "Driver's Licence (Client 1 - Back)", category: "identity", required: true },
+  { id: "proof_of_ownership", label: "Proof of Ownership / Land Contract", category: "contract_quote", required: true },
+  { id: "disclosure_plan", label: "Disclosure Plan", category: "land_siting", required: true },
+  { id: "siting_plan", label: "1:200 Scale Siting / House Position Plan", category: "land_siting", required: true },
+  { id: "deposit_receipt", label: "Tender Fee Transfer / Deposit Receipt", category: "payment", required: true },
   { id: "license_c2_front", label: "Driver's Licence (Client 2 - Front)", category: "identity", required: false },
   { id: "license_c2_back", label: "Driver's Licence (Client 2 - Back)", category: "identity", required: false },
-  
-  // 2. Contract & Quote
-  { id: "proof_of_ownership", label: "Proof of Ownership / Land Contract Front Page", category: "contract_quote", required: true },
-  { id: "building_quote_pdf", label: "Hudson Building Estimate / Quote PDF", category: "contract_quote", required: true },
-  { id: "atp_signed_pdf", label: "Authority to Proceed Form (Signed)", category: "contract_quote", required: true },
-  { id: "tr_form_pdf", label: "Tender Request (TR) Form (4 Pages)", category: "contract_quote", required: true },
-  { id: "discount_approval_pdf", label: "Discount Approval Form (If Applicable)", category: "contract_quote", required: false },
 
-  // 3. Land & Siting
-  { id: "disclosure_plan", label: "Disclosure Plan", category: "land_siting", required: true },
+  // 2. SITE & ENGINEERING REPORTS (Optional / When Available)
   { id: "contour_survey", label: "Contour Survey / Site Level Plan", category: "land_siting", required: false },
-  { id: "siting_plan", label: "1:200 Scale Siting / House Position Plan", category: "land_siting", required: false },
   { id: "plan_of_subdivision", label: "Plan of Subdivision (POD) / Street Plan", category: "land_siting", required: false },
   { id: "covenant_guidelines", label: "Estate Covenant Guidelines", category: "land_siting", required: false },
-
-  // 4. Plans & Variations
-  { id: "marked_up_floorplan", label: "Architectural Floorplan (Marked-up with Variation #s)", category: "plans_variations", required: true },
-  { id: "custom_facade_reference", label: "Custom Facade Reference / Render", category: "plans_variations", required: false },
-  { id: "variation_request_form", label: "Variation Request Schedule (Itemized)", category: "plans_variations", required: false },
-
-  // 5. Engineering & Overlays
   { id: "bushfire_report", label: "Bushfire Hazard Assessment Report (BAL)", category: "engineering_reports", required: false },
   { id: "compaction_report", label: "Compaction / Fill Certificate", category: "engineering_reports", required: false },
   { id: "soil_wind_rating", label: "Soil Test & Wind Rating Report", category: "engineering_reports", required: false },
   { id: "sewer_drainage_plan", label: "Sewer & Drainage Diagram", category: "engineering_reports", required: false },
-
-  // 6. Payment
-  { id: "deposit_receipt", label: "Tender Fee Transfer / Deposit Receipt", category: "payment", required: true },
+  { id: "discount_approval_pdf", label: "Discount Approval Form (If Applicable)", category: "contract_quote", required: false },
 ];
 
 export const DEFAULT_CHECKLIST_ITEMS: TenderChecklistItem[] = [
@@ -117,6 +125,21 @@ export async function loadAllTendersFromIdb(): Promise<TenderSubmission[]> {
     });
   } catch {
     return [];
+  }
+}
+
+export async function getTenderByIdAsync(id: string): Promise<TenderSubmission | null> {
+  try {
+    const db = await openTenderDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_TENDER_STORE, "readonly");
+      const store = tx.objectStore(IDB_TENDER_STORE);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
   }
 }
 
@@ -213,11 +236,16 @@ export function createBlankTenderSubmission(): TenderSubmission {
     },
 
     homeSpec: {
-      homeDesign: "Standard Design",
+      housingType: "Single Storey",
+      homeDesign: "Amber 21",
       facade: "Classic",
       inclusionsType: "H2 Designer",
       isDoubleStorey: false,
       garageLocation: "RHS",
+      floorplanUrl: findFloorplanUrl("Amber 21"),
+      isModifiedFloorplan: false,
+      designM2: 195.4,
+      floorplanPins: [],
       setbacks: {
         frontBoundary: "6.0m",
         rearBoundary: "1.5m",
@@ -228,29 +256,14 @@ export function createBlankTenderSubmission(): TenderSubmission {
       customerBudget: "",
       baseDesignCost: 0,
       facadeCost: 0,
-      additionsCost: 0,
+      structuralVariationsCost: 0,
+      internalUpgradesCost: 0,
       additionalSiteCost: 0,
       promotionDiscountCost: 0,
       totalBudgetEstimate: 0,
     },
 
     variations: [],
-
-    solicitor: {
-      firmOrCompany: "",
-      address: "",
-      telephone: "",
-      email: "",
-      contactPerson: "",
-    },
-    financier: {
-      firmOrCompany: "",
-      address: "",
-      telephone: "",
-      email: "",
-      contactPerson: "",
-    },
-    consultantNotes: "",
 
     atp: {
       feeType: "greenfield_1650",
@@ -343,18 +356,73 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   else if (d.specTier.includes("H3")) incType = "H3 Luxury";
   else if (d.specTier.includes("Standard")) incType = "Standard";
 
-  // Numbered Variations from Line Items
-  const numberedVariations: TenderNumberedVariation[] = (quote.lineItems || [])
-    .filter((it) => it.isIncluded && it.subtotal > 0)
-    .map((it, idx) => ({
-      id: it.id,
-      itemNumber: idx + 1,
-      description: `${it.name}${it.quantity > 1 ? ` (${it.quantity} ${it.unitType.replace("per_", "")})` : ""}`,
-      cost: it.subtotal,
-      category: it.category,
-    }));
+  // Retrieve Floorplan drawing URL
+  let planUrl = d.floorplanUrl || "";
+  if (!planUrl && d.designName) {
+    const found = plansForDesign(d.designName);
+    if (found.length > 0) planUrl = found[0].url;
+  }
 
-  const totalVariationsCost = numberedVariations.reduce((sum, v) => sum + v.cost, 0);
+  // Separate line items: Structural variations vs Internal upgrades
+  const allIncluded = (quote.lineItems || []).filter((it) => it.isIncluded && it.subtotal > 0);
+  
+  let structuralCount = 0;
+  const processedVariations: TenderNumberedVariation[] = [];
+  const initialPins: TenderFloorplanPin[] = [];
+
+  for (const it of allIncluded) {
+    const nameLower = (it.name || "").toLowerCase();
+    const isStruct =
+      it.category === "structural" ||
+      nameLower.includes("alfresco") ||
+      nameLower.includes("garage") ||
+      nameLower.includes("room") ||
+      nameLower.includes("extension") ||
+      nameLower.includes("ceiling height") ||
+      nameLower.includes("wall") ||
+      nameLower.includes("ensuite") ||
+      nameLower.includes("sliding door") ||
+      nameLower.includes("stacker");
+
+    if (isStruct) {
+      structuralCount++;
+      const vId = it.id;
+      processedVariations.push({
+        id: vId,
+        itemNumber: structuralCount,
+        description: it.name, // Clean title only
+        cost: it.subtotal,
+        category: it.category,
+        isStructural: true,
+      });
+
+      // Place default spread pin coordinates
+      const angle = (structuralCount * 65) % 360;
+      const rad = (angle * Math.PI) / 180;
+      const x = Math.min(85, Math.max(15, Math.round(50 + 30 * Math.cos(rad))));
+      const y = Math.min(85, Math.max(15, Math.round(50 + 30 * Math.sin(rad))));
+
+      initialPins.push({
+        id: `pin_${structuralCount}`,
+        number: structuralCount,
+        x,
+        y,
+        title: it.name,
+        variationId: vId,
+      });
+    } else {
+      processedVariations.push({
+        id: it.id,
+        description: it.name, // Clean title only
+        cost: it.subtotal,
+        category: it.category,
+        isStructural: false,
+      });
+    }
+  }
+
+  const structCost = processedVariations.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
+  const internalCost = processedVariations.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
 
   // Pre-fill documents
   const docs = { ...base.documents };
@@ -397,11 +465,16 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       landStatus: c.depositType === "brownfield" ? "Settled" : "Exchanged",
     },
     homeSpec: {
-      homeDesign: d.designName || "Hudson Custom Home",
+      housingType: (d.housingType as any) || "Single Storey",
+      homeDesign: d.designName || "Amber 21",
       facade: d.facadeName || "Classic",
       inclusionsType: incType,
       isDoubleStorey: d.housingType === "Double Storey" || (d.mode === "custom_floorplan" && d.customSpec.storeys === "double"),
       garageLocation: "RHS",
+      floorplanUrl: planUrl,
+      isModifiedFloorplan: !!d.isModifiedFloorplan,
+      designM2: d.designM2 || 195.4,
+      floorplanPins: initialPins,
       setbacks: {
         frontBoundary: "6.0m",
         rearBoundary: "1.5m",
@@ -412,12 +485,13 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       customerBudget: p.grossEstimatedInvestment || "",
       baseDesignCost: p.baseHousePrice || 0,
       facadeCost: p.facadePrice || 0,
-      additionsCost: totalVariationsCost,
+      structuralVariationsCost: structCost,
+      internalUpgradesCost: internalCost,
       additionalSiteCost: p.totalSiteAndStatutory || 0,
       promotionDiscountCost: p.promotionalDiscount || 0,
       totalBudgetEstimate: p.grossEstimatedInvestment || 0,
     },
-    variations: numberedVariations,
+    variations: processedVariations,
     atp: {
       ...base.atp,
       feeType,
@@ -445,13 +519,13 @@ export async function exportTenderZipPackage(
   const folderName = `${surname} - Job Folder`;
   const folder = zip.folder(folderName) || zip;
 
-  // 1. Add Generated PDFs if available
-  if (generatedPdfs?.atpPdfBlob) {
+  // 1. Add Unified Tender Request & ATP Master PDF
+  if (generatedPdfs?.trFormPdfBlob) {
+    folder.file(`${surname} - Tender Request & Authority to Proceed.pdf`, generatedPdfs.trFormPdfBlob);
+  } else if (generatedPdfs?.atpPdfBlob) {
     folder.file(`${surname} - Authority to Proceed Signed.pdf`, generatedPdfs.atpPdfBlob);
   }
-  if (generatedPdfs?.trFormPdfBlob) {
-    folder.file(`${surname} - TR Form.pdf`, generatedPdfs.trFormPdfBlob);
-  }
+
   if (generatedPdfs?.quotePdfBlob) {
     folder.file(`${surname} - Building Quote.pdf`, generatedPdfs.quotePdfBlob);
   }
@@ -466,10 +540,14 @@ export async function exportTenderZipPackage(
           const ext = doc.fileName ? doc.fileName.split(".").pop() : "pdf";
           
           let standardizedFileName = `${surname} - ${doc.label}.${ext}`;
-          if (slotId.startsWith("license_c1")) {
-            standardizedFileName = `Drivers License - ${submission.customer1.firstName || "Client1"}${slotId.includes("back") ? " - Back" : " - Front"}.${ext}`;
-          } else if (slotId.startsWith("license_c2")) {
-            standardizedFileName = `Drivers License - ${submission.customer2.firstName || "Client2"}${slotId.includes("back") ? " - Back" : " - Front"}.${ext}`;
+          if (slotId === "license_c1_front") {
+            standardizedFileName = `Drivers License - ${submission.customer1.firstName || "Client1"} - Front.${ext}`;
+          } else if (slotId === "license_c1_back") {
+            standardizedFileName = `Drivers License - ${submission.customer1.firstName || "Client1"} - Back.${ext}`;
+          } else if (slotId === "license_c2_front") {
+            standardizedFileName = `Drivers License - ${submission.customer2.firstName || "Client2"} - Front.${ext}`;
+          } else if (slotId === "license_c2_back") {
+            standardizedFileName = `Drivers License - ${submission.customer2.firstName || "Client2"} - Back.${ext}`;
           } else if (slotId === "proof_of_ownership") {
             standardizedFileName = `${surname} - proof of ownership - land contract.${ext}`;
           } else if (slotId === "disclosure_plan") {
@@ -482,8 +560,6 @@ export async function exportTenderZipPackage(
             standardizedFileName = `${surname} - POD.${ext}`;
           } else if (slotId === "covenant_guidelines") {
             standardizedFileName = `${surname} - Covenant Guidelines.${ext}`;
-          } else if (slotId === "marked_up_floorplan") {
-            standardizedFileName = `${surname} - Floorplan Marked Up.${ext}`;
           } else if (slotId === "deposit_receipt") {
             standardizedFileName = `Transfer of $${submission.atp.feeAmount}.${ext}`;
           }
@@ -530,23 +606,18 @@ Garage: ${submission.homeSpec.garageLocation}
 ESTIMATED PRICING BREAKDOWN:
 Base House Price: ${formatAud(submission.homeSpec.baseDesignCost)}
 Facade Uplift: ${formatAud(submission.homeSpec.facadeCost)}
+Structural Variations: ${formatAud(submission.homeSpec.structuralVariationsCost)}
+Internal Selections: ${formatAud(submission.homeSpec.internalUpgradesCost)}
 Site & Statutory Costs: ${formatAud(submission.homeSpec.additionalSiteCost)}
-Numbered Variations Total: ${formatAud(submission.homeSpec.additionsCost)}
 Builder Promotion Discount: -${formatAud(submission.homeSpec.promotionDiscountCost)}
 -----------------------------------------------------
 TOTAL ESTIMATED BUILD INVESTMENT: ${formatAud(submission.homeSpec.totalBudgetEstimate)}
 
 AUTHORITY TO PROCEED & TENDER FEE:
-Tender Fee Paid: ${formatAud(submission.atp.feeAmount)} via ${submission.atp.paymentMethod.toUpperCase()}
+Tender Fee: ${formatAud(submission.atp.feeAmount)} via ${submission.atp.paymentMethod.toUpperCase()}
 Reference: ${submission.atp.eftReference}
 Client 1 Signed: ${submission.atp.client1Signed ? `YES (${submission.atp.client1SignatureDate})` : "Pending"}
 Client 2 Signed: ${submission.atp.client2Signed ? `YES (${submission.atp.client2SignatureDate})` : "N/A"}
-
-SOLICITOR:
-${submission.solicitor.firmOrCompany ? `${submission.solicitor.firmOrCompany} · Contact: ${submission.solicitor.contactPerson} · ${submission.solicitor.telephone} · ${submission.solicitor.email}` : "To Be Advised"}
-
-FINANCIER:
-${submission.financier.firmOrCompany ? `${submission.financier.firmOrCompany} · Contact: ${submission.financier.contactPerson} · ${submission.financier.telephone} · ${submission.financier.email}` : "To Be Advised"}
 =====================================================`;
 
   folder.file(`${surname} - OnSite Summary.txt`, onsiteSummary);
