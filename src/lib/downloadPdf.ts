@@ -79,6 +79,9 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
     host.style.overflow = "hidden";
     host.style.background = "#ffffff";
     host.style.boxSizing = "border-box";
+    host.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    (host.style as any).webkitFontSmoothing = "antialiased";
+    (host.style as any).mozOsxFontSmoothing = "grayscale";
 
     const clone = originalSheet.cloneNode(true) as HTMLElement;
     clone.style.transform = "none";
@@ -90,6 +93,9 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
     clone.style.height = "1123px";
     clone.style.minHeight = "1123px";
     clone.style.maxHeight = "1123px";
+    clone.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    (clone.style as any).webkitFontSmoothing = "antialiased";
+    (clone.style as any).mozOsxFontSmoothing = "grayscale";
 
     // Ensure all images inside clone retain 100% opacity and high-contrast rendering
     const cloneImages = Array.from(clone.querySelectorAll("img"));

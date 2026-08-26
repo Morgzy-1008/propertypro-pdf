@@ -11,6 +11,7 @@ import {
   Copy,
   Check,
   RotateCcw,
+  FolderOpen,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,10 @@ import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quo
 import {
   createNewBlankQuote,
   loadAllQuotes,
+  loadAllQuotesFromIdb,
+  loadActiveDraftQuote,
   saveQuote,
+  deleteQuote,
 } from "@/lib/quoting/quoteStorage";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { QuoteSummarySidebar } from "./QuoteSummarySidebar";
@@ -38,18 +42,33 @@ import { QuoteSiteCostsStep } from "./QuoteSiteCostsStep";
 import { QuoteInclusionsStep } from "./QuoteInclusionsStep";
 import { QuoteAdminCatalogue } from "./QuoteAdminCatalogue";
 import { QuotePdfDocument } from "./QuotePdfDocument";
+import { QuoteEstimatesDialog } from "./QuoteEstimatesDialog";
 
 type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 
 export function QuoteBuilder() {
-  const [quote, setQuote] = useState<FullQuote>(() => createNewBlankQuote());
+  const [quote, setQuote] = useState<FullQuote>(() => {
+    const draft = loadActiveDraftQuote();
+    return draft || createNewBlankQuote();
+  });
 
+  const [savedQuotes, setSavedQuotes] = useState<FullQuote[]>(() => loadAllQuotes());
+  const [isEstimatesDialogOpen, setIsEstimatesDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>("client");
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+
+  // Load from IndexedDB on mount to ensure all historical quotes are populated
+  useEffect(() => {
+    loadAllQuotesFromIdb().then((idbQuotes) => {
+      if (idbQuotes && idbQuotes.length > 0) {
+        setSavedQuotes(idbQuotes);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Auto-assign consultant if signed-in user matches one of the 3 consultants
   useEffect(() => {
@@ -121,7 +140,9 @@ export function QuoteBuilder() {
     setSaving(true);
     try {
       saveQuote(quote);
-      toast.success("Builders Estimate saved successfully");
+      setSavedQuotes(loadAllQuotes());
+      const clientLabel = quote.client.clientName?.trim() ? ` for ${quote.client.clientName}` : "";
+      toast.success(`Builders Estimate #${quote.quoteNumber || "MH"}${clientLabel} saved permanently!`);
     } catch {
       toast.error("Could not save estimate");
     } finally {
@@ -130,9 +151,11 @@ export function QuoteBuilder() {
   };
 
   const handleNewQuote = () => {
-    if (confirm("Start a new blank Builders Estimate?")) {
+    if (confirm("Start a new blank Builders Estimate? Your current saved estimates will remain safe.")) {
       const blank = createNewBlankQuote();
       setQuote(blank);
+      saveQuote(blank);
+      setSavedQuotes(loadAllQuotes());
       toast.success("New Builders Estimate created");
     }
   };
@@ -169,6 +192,7 @@ export function QuoteBuilder() {
 
   const handleCopyShareLink = () => {
     saveQuote(quote);
+    setSavedQuotes(loadAllQuotes());
     navigator.clipboard.writeText(clientShareUrl);
     setCopied(true);
     toast.success("Client collaboration link copied to clipboard");
@@ -181,12 +205,12 @@ export function QuoteBuilder() {
     { id: "site", label: "3. Site & Earthworks", icon: Compass },
     { id: "inclusions", label: "4. Variations & Upgrades", icon: PackageCheck },
     { id: "pdf_preview", label: "5. Builders Estimate PDF", icon: FileText },
-  ] as const;
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Top Action & Navigation Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+    <div className="space-y-6 max-w-7xl mx-auto pb-20">
+      {/* Top Header Bar with Live Estimate ID, Status & Primary Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
@@ -203,6 +227,23 @@ export function QuoteBuilder() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {/* Saved Estimates Open Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setSavedQuotes(loadAllQuotes());
+              setIsEstimatesDialogOpen(true);
+            }}
+            className="border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-bold"
+          >
+            <FolderOpen className="h-3.5 w-3.5 text-amber-400" />
+            Saved Estimates
+            <span className="bg-amber-500/20 text-amber-400 border border-amber-500/40 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+              {savedQuotes.length}
+            </span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -279,7 +320,11 @@ export function QuoteBuilder() {
                 site={quote.siteConditions}
                 onChange={handleClientChange}
                 onSiteChange={handleSiteChange}
-                onLoadEntireQuote={(loaded) => setQuote(loaded)}
+                onLoadEntireQuote={(loaded) => {
+                  setQuote(loaded);
+                  saveQuote(loaded);
+                  setSavedQuotes(loadAllQuotes());
+                }}
               />
             )}
 
@@ -335,11 +380,39 @@ export function QuoteBuilder() {
             onDownloadPdf={handleDownloadPdf}
             onOpenClientShare={() => setIsShareOpen(true)}
             onOpenAdminCatalogue={() => setIsAdminOpen(true)}
+            onOpenSavedEstimates={() => {
+              setSavedQuotes(loadAllQuotes());
+              setIsEstimatesDialogOpen(true);
+            }}
+            savedQuotesCount={savedQuotes.length}
             saving={saving}
             downloading={downloading}
           />
         </div>
       </div>
+
+      {/* Saved Estimates Manager Modal */}
+      <QuoteEstimatesDialog
+        open={isEstimatesDialogOpen}
+        onOpenChange={setIsEstimatesDialogOpen}
+        savedQuotes={savedQuotes}
+        activeQuoteId={quote.id}
+        onLoadQuote={(loaded) => {
+          setQuote(loaded);
+          saveQuote(loaded);
+          setSavedQuotes(loadAllQuotes());
+        }}
+        onDeleteQuote={(id) => {
+          deleteQuote(id);
+          setSavedQuotes(loadAllQuotes());
+        }}
+        onSaveCurrentQuote={handleSaveQuote}
+        onImportQuote={(imported) => {
+          setQuote(imported);
+          saveQuote(imported);
+          setSavedQuotes(loadAllQuotes());
+        }}
+      />
 
       {/* Admin Catalogue & Rate Engine Modal */}
       <QuoteAdminCatalogue

@@ -11,8 +11,91 @@ import type {
 } from "./quoteTypes";
 
 const STORAGE_KEY_QUOTES = "hudson_builders_estimate_quotes_v9";
+const STORAGE_KEY_ACTIVE_DRAFT = "hudson_active_draft_quote_v9";
 const STORAGE_KEY_CATALOGUE = "hudson_builders_estimate_catalogue_v11";
 const STORAGE_KEY_CUSTOM_RATES = "hudson_builders_estimate_custom_rates_v8";
+
+const IDB_DB_NAME = "PropertyProQuotesDB";
+const IDB_DB_VERSION = 1;
+const IDB_STORE_NAME = "quotes";
+
+function openQuoteDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.indexedDB) {
+      reject(new Error("IndexedDB not available"));
+      return;
+    }
+    const request = window.indexedDB.open(IDB_DB_NAME, IDB_DB_VERSION);
+
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
+        db.createObjectStore(IDB_STORE_NAME, { keyPath: "id" });
+      }
+    };
+  });
+}
+
+/**
+ * Asynchronously saves full quote to IndexedDB (no 5MB limit).
+ */
+export async function saveQuoteToIdb(quote: FullQuote): Promise<void> {
+  try {
+    const db = await openQuoteDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const request = store.put(quote);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.warn("IndexedDB save fallback:", e);
+  }
+}
+
+/**
+ * Asynchronously loads all quotes from IndexedDB.
+ */
+export async function loadAllQuotesFromIdb(): Promise<FullQuote[]> {
+  try {
+    const db = await openQuoteDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readonly");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const request = store.getAll();
+      request.onsuccess = () => {
+        const results = (request.result as FullQuote[]) || [];
+        results.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+        resolve(results);
+      };
+      request.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Asynchronously deletes a quote from IndexedDB.
+ */
+export async function deleteQuoteFromIdb(id: string): Promise<void> {
+  try {
+    const db = await openQuoteDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
+}
 
 export function loadCatalogue(): CatalogueItem[] {
   if (typeof window === "undefined") {
@@ -72,7 +155,7 @@ export function convertCatalogueToLineItems(catalogue: CatalogueItem[]): QuoteSe
       unitRate: cat.unitRate,
       quantity: cat.defaultQty ?? 1,
       subtotal: (cat.defaultQty ?? 1) * cat.unitRate,
-      isIncluded: false, // Fresh clean canvas: zero pre-selected variations
+      isIncluded: false, // Fresh clean canvas
       isClientSelectable: !!cat.isClientSelectable,
       clientSelected: false,
     };
@@ -150,30 +233,30 @@ export function createNewBlankQuote(): FullQuote {
     cctvSewerReportRequired: false,
     cctvSewerReportCost: 3300,
 
-    bushfireBal: "None",
-    bushfireCost: 0,
     floodOverlayRequired: false,
-    slabElevationMeters: 0.3,
     floodOverlayCost: undefined,
-    acousticTier: "None",
-    acousticCost: 0,
+    slabElevationMeters: 0.3,
+    bushfireBalRating: "BAL-LOW",
+    bushfireBalCost: 0,
+    acousticGlazingRequired: false,
+    acousticGlazingCost: 4500,
 
     councilRegion: "Logan City Council",
-    councilFee: 2227,
+    councilFee: 2227.1,
+    councilLodgementFee: 2227.1,
     councilDaRequired: false,
     councilDaCost: 8000,
     trafficControlRequired: false,
     trafficControlCost: 10000,
     dualLivingInfrastructureRequired: false,
     dualLivingInfrastructureCost: 23000,
-    sedimentAssetProtectionCost: 0,
 
     screwPieringRequired: false,
-    screwPieringCost: 0,
+    screwPieringCost: undefined,
     rockExcavationAllowance: 0,
     retainingWallAllowance: 0,
-    materialHandlingRequired: false,
     materialHandlingAllowance: 0,
+    sedimentAssetProtectionCost: 0,
   };
 
   const defaultDeposit = 1650;
@@ -223,7 +306,6 @@ export function loadAllQuotes(): FullQuote[] {
   try {
     let raw = localStorage.getItem(STORAGE_KEY_QUOTES);
     if (!raw) {
-      // Fallback check for v8 quotes
       raw = localStorage.getItem("hudson_builders_estimate_quotes_v8");
     }
     if (!raw) return [];
@@ -236,7 +318,6 @@ export function loadAllQuotes(): FullQuote[] {
         category: resolveItemCategory(it),
       }));
 
-      // If depositType is brownfield, ensure screw piering is active
       const isBrownfield = q.client?.depositType === "brownfield";
       const updatedSite = {
         ...q.siteConditions,
@@ -259,25 +340,93 @@ export function getQuoteById(id: string): FullQuote | null {
   return all.find((q) => q.id === id || q.quoteNumber === id) ?? null;
 }
 
+/**
+ * Save quote to localStorage + IndexedDB + working draft
+ */
 export function saveQuote(quote: FullQuote): void {
   if (typeof window === "undefined") return;
-  const all = loadAllQuotes();
-  const index = all.findIndex((q) => q.id === quote.id);
   const updated: FullQuote = {
     ...quote,
     updatedAt: new Date().toISOString(),
   };
 
-  if (index >= 0) {
-    all[index] = updated;
-  } else {
-    all.unshift(updated);
+  // 1. Save to IndexedDB asynchronously (handles large floorplan base64 images without size limit)
+  saveQuoteToIdb(updated).catch(() => {});
+
+  // 2. Save active working draft
+  try {
+    localStorage.setItem(STORAGE_KEY_ACTIVE_DRAFT, JSON.stringify(updated));
+  } catch {
+    // If draft has large base64 image, strip floorplanUrl for localStorage draft
+    try {
+      const safeDraft = { ...updated, design: { ...updated.design, floorplanUrl: "" } };
+      localStorage.setItem(STORAGE_KEY_ACTIVE_DRAFT, JSON.stringify(safeDraft));
+    } catch {
+      /* ignore */
+    }
   }
-  localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
+
+  // 3. Save to localStorage quotes list
+  try {
+    const all = loadAllQuotes();
+    const index = all.findIndex((q) => q.id === quote.id);
+
+    if (index >= 0) {
+      all[index] = updated;
+    } else {
+      all.unshift(updated);
+    }
+    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
+  } catch (quotaErr) {
+    console.warn("LocalStorage full, trimming large images in index:", quotaErr);
+    try {
+      // Safe fallback: strip huge base64 images in localStorage while IndexedDB maintains full copy
+      const all = loadAllQuotes();
+      const safeQuote: FullQuote = {
+        ...updated,
+        design: {
+          ...updated.design,
+          floorplanUrl: updated.design.floorplanUrl?.startsWith("data:") ? "" : updated.design.floorplanUrl,
+        },
+      };
+      const index = all.findIndex((q) => q.id === quote.id);
+      if (index >= 0) {
+        all[index] = safeQuote;
+      } else {
+        all.unshift(safeQuote);
+      }
+      localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all.slice(0, 50)));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/**
+ * Load the active working draft from localStorage if available
+ */
+export function loadActiveDraftQuote(): FullQuote | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_ACTIVE_DRAFT);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as FullQuote;
+    if (parsed && parsed.pricing && parsed.design && parsed.client) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 export function deleteQuote(id: string): void {
   if (typeof window === "undefined") return;
+  deleteQuoteFromIdb(id).catch(() => {});
   const all = loadAllQuotes().filter((q) => q.id !== id);
-  localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
+  try {
+    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
+  } catch {
+    /* ignore */
+  }
 }

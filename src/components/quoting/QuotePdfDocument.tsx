@@ -27,8 +27,41 @@ import {
   Volume2,
   Truck,
   CheckSquare,
+  FileText,
+  PackageCheck,
+  MapPin,
+  Maximize2,
 } from "lucide-react";
 import { PaymentQrCode } from "./PaymentQrCode";
+
+function getCategoryIcon(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes("earthwork") || l.includes("soil") || l.includes("foundation")) {
+    return <Layers className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("report") || l.includes("overlay")) {
+    return <FileText className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("council") || l.includes("statutory") || l.includes("approval")) {
+    return <Building2 className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("geotechnical") || l.includes("allowance")) {
+    return <Mountain className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("kitchen")) {
+    return <Sparkles className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("bathroom") || l.includes("ensuite")) {
+    return <Waves className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("floorplan") || l.includes("extension")) {
+    return <Maximize2 className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  if (l.includes("door") || l.includes("window") || l.includes("ceiling")) {
+    return <Home className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+  }
+  return <PackageCheck className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
+}
 
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { prepareFloorplan } from "@/components/flyer/floorplanEngine";
@@ -477,10 +510,10 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const councilStatutoryItems = [
     {
       id: "council_statutory",
-      name: `Council Statutory Plumbing & Lodgement Fees (${siteConditions.councilRegion})`,
-      description: `${siteConditions.councilRegion} statutory plumbing, sewer connection & archiving fees.`,
+      name: `Council Statutory Plumbing & Lodgement Fees (${siteConditions.councilRegion || "Council"})`,
+      description: `${siteConditions.councilRegion || "Council"} statutory plumbing, sewer connection & archiving fees.`,
       qtyLabel: "1 Lodgement",
-      amount: siteConditions.councilFee,
+      amount: Number(siteConditions.councilFee ?? (siteConditions as any).councilLodgementFee ?? 2227.1),
     },
     ...(siteConditions.councilDaRequired
       ? [
@@ -1161,31 +1194,49 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 {pageGroups.map((group) => (
                   <div
                     key={group.label}
-                    className="border border-slate-200 rounded-xl overflow-hidden shadow-xs"
+                    className="border border-slate-200/90 rounded-xl overflow-hidden shadow-xs bg-white"
                   >
-                    <div className="bg-slate-100 px-3 py-1.5 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
-                      <span className="uppercase tracking-wider text-[10.5px]">{group.label}</span>
-                      <span className="font-mono text-cyan-800 text-[11px]">
-                        {group.total === 0 ? "Included ($0)" : `+${formatAud(group.total)}`}
+                    <div className="bg-gradient-to-r from-slate-100 via-slate-50 to-white px-3.5 py-2 border-b border-slate-200 flex justify-between items-center text-xs font-bold text-slate-800">
+                      <div className="flex items-center gap-2">
+                        {getCategoryIcon(group.label)}
+                        <span className="uppercase tracking-wider text-[11px] font-extrabold text-slate-900">
+                          {group.label}
+                        </span>
+                      </div>
+                      <span className="font-mono text-cyan-900 font-extrabold text-xs bg-white px-2.5 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">
+                        {group.total === 0 ? "INCLUDED ($0)" : `+${formatAud(group.total)}`}
                       </span>
                     </div>
-                    <table className="w-full text-[10.5px] border-collapse">
+                    <table className="w-full text-[11px] border-collapse">
                       <tbody className="divide-y divide-slate-100">
                         {group.items.map((it) => (
                           <tr key={it.id} className="hover:bg-slate-50/50">
-                            <td className="py-1.5 px-3">
-                              <div className="font-semibold text-slate-900">{it.name}</div>
+                            <td className="py-2 px-3.5">
+                              <div className="font-bold text-slate-900 text-[11.5px] leading-snug flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-cyan-600 flex-none" />
+                                {it.name}
+                              </div>
                               {it.description && (
-                                <div className="text-[9.5px] text-slate-500 mt-0.5 leading-snug">
+                                <div className="text-[10px] text-slate-500 mt-0.5 leading-snug pl-3">
                                   {it.description}
                                 </div>
                               )}
                             </td>
-                            <td className="py-1.5 px-3 text-center text-slate-600 w-24 font-mono text-[10px]">
-                              {it.qtyLabel}
+                            <td className="py-2 px-3 text-center w-28 flex-none">
+                              <span className="inline-block bg-slate-100 text-slate-700 font-mono text-[9.5px] px-2 py-0.5 rounded border border-slate-200">
+                                {it.qtyLabel}
+                              </span>
                             </td>
-                            <td className="py-1.5 px-3 text-right font-mono font-semibold text-slate-900 w-28 text-[10.5px]">
-                              {it.amount === 0 ? "Included" : `+${formatAud(it.amount)}`}
+                            <td className="py-2 px-3.5 text-right font-mono font-bold w-28 text-xs flex-none">
+                              {it.amount === 0 ? (
+                                <span className="inline-block bg-emerald-50 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded font-bold text-[9px]">
+                                  INCLUDED
+                                </span>
+                              ) : (
+                                <span className="text-cyan-900 font-extrabold">
+                                  +{formatAud(it.amount)}
+                                </span>
+                              )}
                             </td>
                           </tr>
                         ))}

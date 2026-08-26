@@ -8,6 +8,7 @@ import {
   Layers,
   Sparkles,
   Tag,
+  FolderOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatAud } from "@/lib/pricing";
@@ -20,6 +21,8 @@ interface QuoteSummarySidebarProps {
   onDownloadPdf: () => void;
   onOpenClientShare: () => void;
   onOpenAdminCatalogue: () => void;
+  onOpenSavedEstimates?: () => void;
+  savedQuotesCount?: number;
   saving?: boolean;
   downloading?: boolean;
 }
@@ -30,6 +33,8 @@ export function QuoteSummarySidebar({
   onDownloadPdf,
   onOpenClientShare,
   onOpenAdminCatalogue,
+  onOpenSavedEstimates,
+  savedQuotesCount = 0,
   saving,
   downloading,
 }: QuoteSummarySidebarProps) {
@@ -176,6 +181,18 @@ export function QuoteSummarySidebar({
               <Share2 className="h-3.5 w-3.5 text-cyan-400" /> Client Link
             </Button>
           </div>
+
+          {onOpenSavedEstimates && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenSavedEstimates}
+              className="w-full border-slate-800 bg-slate-950/70 text-slate-300 hover:bg-slate-900 hover:text-white text-xs gap-1.5"
+            >
+              <FolderOpen className="h-3.5 w-3.5 text-cyan-400" />
+              Saved Estimates ({savedQuotesCount})
+            </Button>
+          )}
 
           <Button
             variant="ghost"
