@@ -196,6 +196,49 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
         src={src}
         alt="Selected Floorplan Drawing"
         className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+      />
+    </div>
+  );
+}
+
+function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: SecondDwellingSelection }) {
+  const [src, setSrc] = React.useState(secondDwelling?.floorplanUrl || "");
+
+  React.useEffect(() => {
+    if (secondDwelling?.floorplanUrl && secondDwelling.floorplanUrl.startsWith("data:")) {
+      setSrc(secondDwelling.floorplanUrl);
+      return;
+    }
+    if (secondDwelling?.designName) {
+      const plans = plansForDesign(secondDwelling.designName);
+      if (plans[0]) {
+        if (plans[0].url && !plans[0].url.startsWith("data:")) {
+          setSrc(plans[0].url);
+        }
+        prepareFloorplan(plans[0])
+          .then((enhanced) => {
+            if (enhanced) setSrc(enhanced);
+          })
+          .catch(() => {});
+      }
+    }
+  }, [secondDwelling?.designName, secondDwelling?.floorplanUrl]);
+
+  if (!src) {
+    return (
+      <div className="text-center text-slate-400 text-xs py-20">
+        <Building2 className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+        Secondary Dwelling Architectural Floorplan Layout
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full flex items-center justify-center p-2 bg-white">
+      <img
+        src={src}
+        alt="Secondary Dwelling Floorplan Drawing"
+        className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "auto" }}
       />
     </div>
@@ -526,6 +569,17 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           },
         ]
       : []),
+    ...(siteConditions.councilSetbackRelaxationRequired
+      ? [
+          {
+            id: "council_setback",
+            name: "Council Setback Relaxation Application",
+            description: "Town planning setback variation application and relaxation lodgement.",
+            qtyLabel: "1 Application",
+            amount: Number(siteConditions.councilSetbackRelaxationCost ?? 2000),
+          },
+        ]
+      : []),
     ...(siteConditions.trafficControlRequired
       ? [
           {
@@ -562,6 +616,17 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   ];
 
   const geotechnicalSiteItems = [
+    ...(siteConditions.demolitionAsbestosRequired
+      ? [
+          {
+            id: "demolition_asbestos",
+            name: "House Demolition & Asbestos Removal Allowance",
+            description: "Complete existing home demolition, licensed asbestos removal & site clearing. (Note: Demolition to be organised by owner).",
+            qtyLabel: "1 Allowance",
+            amount: Number(siteConditions.demolitionAsbestosCost ?? (isDoubleStorey ? 40000 : 30000)),
+          },
+        ]
+      : []),
     ...(siteConditions.screwPieringRequired
       ? [
           {
@@ -659,8 +724,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
     ...variationGroups,
   ];
 
+  const hasSecondDwelling = !!(design.hasSecondDwelling && design.secondDwelling?.enabled);
+  const secondDwelling = design.secondDwelling;
+
   const specPages = paginateSpecGroups(allSpecGroups);
-  const totalPages = 3 + specPages.length + 2;
+  const totalPages = (hasSecondDwelling ? 4 : 3) + specPages.length + 2;
 
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
@@ -920,6 +988,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   </tr>
                 )}
 
+                {/* 2nd Dwelling / Auxiliary Unit if selected */}
+                {design.hasSecondDwelling && design.secondDwelling?.enabled && (
+                  <tr className="bg-cyan-50/70 border-l-4 border-l-cyan-600">
+                    <td className="py-2.5 px-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-cyan-950">
+                          2nd Dwelling / Auxiliary Home ({design.secondDwelling.designName})
+                        </span>
+                        <span className="text-[9px] font-bold uppercase bg-cyan-200 text-cyan-900 px-2 py-0.5 rounded font-mono">
+                          {design.secondDwelling.designM2} m²
+                        </span>
+                      </div>
+                      <span className="block text-[10px] text-cyan-800">
+                        {design.secondDwelling.specTier} • {design.secondDwelling.facadeName} Facade • Architectural layout on Page 4
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-mono font-bold text-cyan-950">
+                      +{formatAud((Number(design.secondDwelling.basePrice) || 0) + (Number(design.secondDwelling.facadePrice) || 0))}
+                    </td>
+                  </tr>
+                )}
+
                 {/* Turnkey Landscaping Package if selected */}
                 {(pricing.landscapingCost > 0 || design.landscapingSelected) && (
                   <tr>
@@ -960,7 +1050,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     <td className="py-2 px-3 text-slate-700">
                       <span className="font-semibold text-slate-900">Site Specific Earthworks, Engineering &amp; Statutory Requirements:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Detailed in Advanced Estimate Specification on Page 4 ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
+                        Detailed in Advanced Estimate Specification schedule ({siteConditions.soilClass}, {siteConditions.fallMeters}m Fall, {siteConditions.councilRegion})
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
@@ -975,7 +1065,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                     <td className="py-2 px-3 text-slate-700">
                       <span className="font-semibold text-slate-900">Estimate Variations &amp; Custom Upgrades:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Detailed in Advanced Estimate Specification schedule starting on Page 4
+                        Detailed in Advanced Estimate Specification schedule
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
@@ -1130,10 +1220,97 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       </div>
 
       {/* ========================================================================= */}
+      {/* PAGE 4 (OPTIONAL): 2ND DWELLING / GRANNY FLAT ARCHITECTURAL FLOORPLAN      */}
+      {/* ========================================================================= */}
+      {hasSecondDwelling && secondDwelling && (
+        <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
+                  2ND DWELLING / AUXILIARY RESIDENCE ARCHITECTURAL SPECIFICATION
+                </div>
+                <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
+                  {secondDwelling.designName} — {secondDwelling.specTier}
+                </h2>
+                <div className="text-[11px] text-slate-600 mt-0.5">
+                  Selected Facade: <span className="font-semibold text-slate-900">{secondDwelling.facadeName || "Classic"}</span>
+                  {secondDwelling.widthM && secondDwelling.lengthM && (
+                    <span> · Dimensions: {secondDwelling.widthM} wide × {secondDwelling.lengthM} deep</span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right flex-none">
+                <span className="text-[9px] text-slate-500 block uppercase tracking-wider font-semibold">2nd Dwelling Area</span>
+                <span className="text-sm font-extrabold text-cyan-700 font-mono">
+                  {secondDwelling.designM2} m² ({(secondDwelling.designM2 * 0.107639).toFixed(1)} sq)
+                </span>
+              </div>
+            </div>
+
+            {/* Area & Configuration Pill Bar */}
+            <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-1.5 text-center text-xs flex-none">
+              <div>
+                <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
+                <span className="font-bold text-slate-900 text-xs">{secondDwelling.beds || 2} Beds</span>
+              </div>
+              <div>
+                <span className="text-slate-500 text-[9px] block">Bathrooms:</span>
+                <span className="font-bold text-slate-900 text-xs">{secondDwelling.baths || 1} Bath</span>
+              </div>
+              <div>
+                <span className="text-slate-500 text-[9px] block">Parking / Garage:</span>
+                <span className="font-bold text-slate-900 text-xs">{secondDwelling.cars || 0} Cars</span>
+              </div>
+              <div>
+                <span className="text-slate-500 text-[9px] block">Dwelling Type:</span>
+                <span className="font-bold text-slate-900 text-xs">{secondDwelling.housingType}</span>
+              </div>
+            </div>
+
+            {/* Sizing Schedule */}
+            <div className="border rounded-xl py-1 px-3 mb-2 flex items-center justify-between text-[10px] flex-none bg-cyan-50/70 border-cyan-200 text-cyan-950">
+              <div className="font-bold flex items-center gap-1">
+                <span className="text-cyan-900 uppercase tracking-wide font-extrabold">
+                  Secondary Residence Floor Schedule:
+                </span>
+              </div>
+              <div className="flex items-center gap-2.5 font-mono text-[9.5px]">
+                <span>Living: <strong className="text-slate-900">{(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m²</strong></span>
+                <span>Porch/Outdoor: <strong className="text-slate-900">{(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m²</strong></span>
+                <span className="border-l border-cyan-300 pl-2 font-extrabold text-cyan-800">
+                  Total GFA: {secondDwelling.designM2.toFixed(1)} m²
+                </span>
+              </div>
+            </div>
+
+            {/* Floorplan Layout Drawing */}
+            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-2 bg-white flex items-center justify-center min-h-[500px] max-h-[550px] overflow-hidden shadow-inner">
+              <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
+            </div>
+          </div>
+
+          {/* Page 4 Footer */}
+          <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
+            <div>
+              Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
+                CUSTOMER INITIAL
+              </div>
+              <div className="font-mono">Page 4 of {totalPages}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* ADVANCED ESTIMATE SPECIFICATION (COMBINED SITE, STATUTORY & VARIATIONS)   */}
       {/* ========================================================================= */}
       {specPages.map((pageGroups, pageIdx) => {
-        const pageNumber = 4 + pageIdx;
+        const pageNumber = (hasSecondDwelling ? 5 : 4) + pageIdx;
         const isFirstSpecPage = pageIdx === 0;
 
         return (
@@ -1448,7 +1625,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page {3 + specPages.length + 1} of {totalPages}</div>
+            <div className="font-mono">Page {(hasSecondDwelling ? 4 : 3) + specPages.length + 1} of {totalPages}</div>
           </div>
         </div>
       </div>

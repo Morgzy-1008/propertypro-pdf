@@ -13,6 +13,8 @@ import {
   ExternalLink,
   Check,
   RotateCcw,
+  Building2,
+  PlusCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,7 +45,7 @@ import {
   getStandardAreaBreakdown,
   getAutomatedPromotionDiscount,
 } from "@/lib/quoting/quoteEngine";
-import type { InclusionTier, QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
+import type { InclusionTier, QuoteDesignSelection, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
 
 interface QuoteDesignStepProps {
   design: QuoteDesignSelection;
@@ -55,6 +57,13 @@ const HOUSING_TYPE_PRICES: Record<string, PriceRow[]> = {
   "Double Storey": DOUBLE_STOREY_PRICES,
   "Split Level": SPLIT_LEVEL_PRICES,
   "Dual Living": DUAL_OC_PRICES,
+  "Granny Flat": [
+    { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
+    { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
+    { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
+    { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
+    ...DUAL_OC_PRICES,
+  ],
 };
 
 // Clean titles for Inclusions without paragraph descriptions to save space
@@ -200,6 +209,7 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
 
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const models = HOUSING_TYPE_PRICES[design.housingType] || SINGLE_STOREY_PRICES;
   const currentModel = models.find((m) => m.name === design.designName);
@@ -228,6 +238,147 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
   const suitableFacades = HOUSING_FACADES[design.housingType] || HOUSING_FACADES["Single Storey"];
+
+  // 2nd Dwelling or Granny Flat Helpers
+  const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
+    enabled: false,
+    housingType: "Granny Flat",
+    designName: "Acacia 60",
+    designM2: 60,
+    facadeName: "Classic",
+    facadePrice: 0,
+    specTier: "H1 Smart Inclusions",
+    basePrice: 154000,
+    beds: "2",
+    baths: "1",
+    cars: "0",
+    widthM: "8.5m",
+    lengthM: "8.5m",
+    standardAreas: { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 },
+    modifiedAreas: { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 },
+  };
+
+  const secondModels = HOUSING_TYPE_PRICES[secondDwelling.housingType] || HOUSING_TYPE_PRICES["Granny Flat"] || SINGLE_STOREY_PRICES;
+  const currentSecondModel = secondModels.find((m) => m.name === secondDwelling.designName) || secondModels[0];
+  const secondSuitableFacades = HOUSING_FACADES[secondDwelling.housingType] || HOUSING_FACADES["Single Storey"];
+  const secondStandardPlans = secondDwelling.designName ? plansForDesign(secondDwelling.designName) : [];
+  const secondStandardFloorplanUrl = secondStandardPlans[0]?.url || "";
+  const activeSecondFloorplanUrl = secondDwelling.floorplanUrl || secondStandardFloorplanUrl;
+
+  const handleToggleSecondDwelling = (enabled: boolean) => {
+    if (enabled && (!design.secondDwelling || !design.secondDwelling.designName)) {
+      const defaultModel = HOUSING_TYPE_PRICES["Granny Flat"][0] || { name: "Acacia 60", m2: 60, h1: 154000 };
+      const defaultTier: InclusionTier = "H1 Smart Inclusions";
+      const defaultPrice = defaultModel.h1 || 154000;
+      const defaultStdAreas = { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 };
+      onChange({
+        hasSecondDwelling: true,
+        secondDwelling: {
+          enabled: true,
+          housingType: "Granny Flat",
+          designName: defaultModel.name,
+          designM2: defaultModel.m2,
+          standardDesignM2: defaultModel.m2,
+          standardBasePrice: defaultPrice,
+          basePrice: defaultPrice,
+          facadeName: "Classic",
+          facadePrice: 0,
+          specTier: defaultTier,
+          standardAreas: defaultStdAreas,
+          modifiedAreas: defaultStdAreas,
+          isModifiedFloorplan: false,
+          beds: "2",
+          baths: "1",
+          cars: "0",
+          widthM: "8.5m",
+          lengthM: "8.5m",
+        },
+      });
+    } else {
+      onChange({
+        hasSecondDwelling: enabled,
+        secondDwelling: {
+          ...secondDwelling,
+          enabled,
+        },
+      });
+    }
+  };
+
+  const handleSecondDwellingHousingTypeChange = (type: SecondDwellingSelection["housingType"]) => {
+    const typeModels = HOUSING_TYPE_PRICES[type] || HOUSING_TYPE_PRICES["Granny Flat"];
+    const firstModel = typeModels[0];
+    const stdPrice = firstModel.h1 || firstModel.hbs || 154000;
+    const stdAreas = getStandardAreaBreakdown(firstModel.name, type === "Double Storey" ? "Double Storey" : "Single Storey", firstModel.m2);
+    const plans = plansForDesign(firstModel.name);
+
+    onChange({
+      secondDwelling: {
+        ...secondDwelling,
+        housingType: type,
+        designName: firstModel.name,
+        designM2: firstModel.m2,
+        standardDesignM2: firstModel.m2,
+        standardBasePrice: stdPrice,
+        basePrice: stdPrice,
+        standardAreas: stdAreas,
+        modifiedAreas: stdAreas,
+        isModifiedFloorplan: false,
+        floorplanUrl: plans[0]?.url || "",
+        beds: plans[0]?.beds || "2",
+        baths: plans[0]?.baths || "1",
+        cars: plans[0]?.cars || "0",
+        widthM: plans[0]?.width || "8.5m",
+        lengthM: plans[0]?.depth || "8.5m",
+      },
+    });
+  };
+
+  const handleSecondDwellingModelChange = (modelName: string) => {
+    const m = secondModels.find((x) => x.name === modelName);
+    if (!m) return;
+
+    const plans = plansForDesign(m.name);
+    const floorplanUrl = plans[0]?.url || "";
+    let basePrice = m.h1 || m.hbs || 154000;
+    if (secondDwelling.specTier === "H2 Design Inclusions") basePrice = m.h2 || basePrice;
+    if (secondDwelling.specTier === "H3 Luxury Inclusions") basePrice = m.h3 || basePrice;
+    const stdAreas = getStandardAreaBreakdown(m.name, secondDwelling.housingType === "Double Storey" ? "Double Storey" : "Single Storey", m.m2);
+
+    onChange({
+      secondDwelling: {
+        ...secondDwelling,
+        designName: m.name,
+        designM2: m.m2,
+        standardDesignM2: m.m2,
+        standardBasePrice: basePrice,
+        basePrice,
+        standardAreas: stdAreas,
+        modifiedAreas: stdAreas,
+        isModifiedFloorplan: false,
+        floorplanUrl,
+        beds: plans[0]?.beds || "2",
+        baths: plans[0]?.baths || "1",
+        cars: plans[0]?.cars || "0",
+        widthM: plans[0]?.width || "8.5m",
+        lengthM: plans[0]?.depth || "8.5m",
+      },
+    });
+  };
+
+  const handleSecondDwellingTierChange = (tier: InclusionTier) => {
+    let basePrice = currentSecondModel?.h1 || currentSecondModel?.hbs || 154000;
+    if (tier === "H2 Design Inclusions") basePrice = currentSecondModel?.h2 || basePrice;
+    if (tier === "H3 Luxury Inclusions") basePrice = currentSecondModel?.h3 || basePrice;
+    onChange({
+      secondDwelling: {
+        ...secondDwelling,
+        specTier: tier,
+        standardBasePrice: basePrice,
+        basePrice,
+      },
+    });
+  };
 
   const getTierPrice = (
     model: PriceRow | undefined,
@@ -928,6 +1079,262 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               })}
             </div>
 
+            {/* 2nd Dwelling or Granny Flat Option Toggle & Specification */}
+            <div
+              className={`rounded-2xl border p-4 transition-all ${
+                design.hasSecondDwelling && secondDwelling.enabled
+                  ? "border-cyan-500/80 bg-gradient-to-r from-cyan-950/40 via-slate-900/90 to-slate-950 ring-1 ring-cyan-500/40 shadow-xl"
+                  : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div
+                    onClick={() => handleToggleSecondDwelling(!design.hasSecondDwelling || !secondDwelling.enabled)}
+                    className={`cursor-pointer p-2.5 rounded-xl border transition-all mt-0.5 ${
+                      design.hasSecondDwelling && secondDwelling.enabled
+                        ? "bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-lg shadow-cyan-500/20"
+                        : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white">
+                        {design.hasSecondDwelling && secondDwelling.enabled
+                          ? "✓ 2nd Dwelling / Granny Flat Included"
+                          : "2nd Dwelling or Grannyflat Option"}
+                      </span>
+                      <span
+                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                          design.hasSecondDwelling && secondDwelling.enabled
+                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono"
+                            : "bg-slate-800 text-slate-400"
+                        }`}
+                      >
+                        {design.hasSecondDwelling && secondDwelling.enabled ? `${secondDwelling.designName} (${secondDwelling.designM2} m²)` : "Secondary Residence"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Add a secondary auxiliary dwelling, granny flat, or duplex second home. Configure separate design, inclusions, facade, and architectural floorplan.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleToggleSecondDwelling(!design.hasSecondDwelling || !secondDwelling.enabled)}
+                  className={`text-xs font-bold gap-1.5 shrink-0 ${
+                    design.hasSecondDwelling && secondDwelling.enabled
+                      ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  }`}
+                >
+                  {design.hasSecondDwelling && secondDwelling.enabled ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" /> 2nd Dwelling Active
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircle className="h-3.5 w-3.5" /> Add 2nd Dwelling / Grannyflat
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* 2nd Dwelling Expanded Configuration Box */}
+              {design.hasSecondDwelling && secondDwelling.enabled && (
+                <div className="mt-4 pt-4 border-t border-slate-800 space-y-5">
+                  {/* Row 1: Housing Type, Design Model & Inclusion Tier */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">2nd Dwelling Type</Label>
+                      <Select
+                        value={secondDwelling.housingType}
+                        onValueChange={(v: any) => handleSecondDwellingHousingTypeChange(v)}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                          <SelectItem value="Granny Flat">Granny Flat / Auxiliary Unit</SelectItem>
+                          <SelectItem value="Single Storey">Single Storey Home</SelectItem>
+                          <SelectItem value="Dual Living">Dual Living / Duplex Design</SelectItem>
+                          <SelectItem value="Double Storey">Double Storey Secondary</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">2nd Dwelling Model</Label>
+                      <Select
+                        value={secondDwelling.designName || secondModels[0]?.name}
+                        onValueChange={(v) => handleSecondDwellingModelChange(v)}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-60">
+                          {secondModels.map((m) => (
+                            <SelectItem key={m.name} value={m.name}>
+                              {m.name} — {m.m2} m² ({formatAud(m.h1 || m.hbs || 154000)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">2nd Dwelling Inclusions</Label>
+                      <Select
+                        value={secondDwelling.specTier}
+                        onValueChange={(v: any) => handleSecondDwellingTierChange(v)}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                          <SelectItem value="H1 Smart Inclusions">H1 Smart Inclusions (Standard)</SelectItem>
+                          <SelectItem value="H2 Design Inclusions">H2 Design Inclusions (Premium)</SelectItem>
+                          <SelectItem value="H3 Luxury Inclusions">H3 Luxury Inclusions (Ultimate)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Row 2: Facade, Facade Price & Base Price Summary */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">2nd Dwelling Facade</Label>
+                      <Select
+                        value={secondDwelling.facadeName || "Classic"}
+                        onValueChange={(val) => {
+                          const f = secondSuitableFacades.find((x) => x.name === val) || { name: val, uplift: 0 };
+                          onChange({
+                            secondDwelling: {
+                              ...secondDwelling,
+                              facadeName: f.name,
+                              facadePrice: f.uplift,
+                            },
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-60">
+                          {secondSuitableFacades.map((f) => (
+                            <SelectItem key={f.name} value={f.name}>
+                              {f.name} {f.uplift === 0 ? "(Standard $0)" : `(+${formatAud(f.uplift)})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">Facade Uplift ($)</Label>
+                      <Input
+                        type="number"
+                        value={secondDwelling.facadePrice || 0}
+                        onChange={(e) => {
+                          onChange({
+                            secondDwelling: {
+                              ...secondDwelling,
+                              facadePrice: Number(e.target.value) || 0,
+                            },
+                          });
+                        }}
+                        className="h-9 text-xs border-slate-800 bg-slate-950 text-cyan-300 font-mono font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-slate-300 font-semibold">2nd Dwelling Investment Subtotal</Label>
+                      <div className="h-9 px-3 rounded-md border border-cyan-500/40 bg-cyan-950/40 flex items-center justify-between font-mono">
+                        <span className="text-[11px] text-cyan-200 font-sans">{secondDwelling.designM2} m² Total:</span>
+                        <span className="text-sm font-extrabold text-cyan-300">
+                          {formatAud((Number(secondDwelling.basePrice) || 0) + (Number(secondDwelling.facadePrice) || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2nd Architectural Floorplan Drawing Canvas & Cropper Box */}
+                  <div className="space-y-3 bg-slate-950/90 p-4 rounded-xl border border-cyan-900/50">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <ImageIcon className="h-4 w-4 text-cyan-400" />
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">
+                            2nd Dwelling Architectural Floorplan Specification
+                          </h4>
+                          {secondDwelling.isModifiedFloorplan && (
+                            <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold">
+                              Custom Plan Attached
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Attached floorplan for the 2nd dwelling will be generated as a dedicated architectural page in the Builders Estimate PDF.
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {secondDwelling.isModifiedFloorplan && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              onChange({
+                                secondDwelling: {
+                                  ...secondDwelling,
+                                  floorplanUrl: secondStandardFloorplanUrl,
+                                  isModifiedFloorplan: false,
+                                },
+                              });
+                              toast.info("Reverted 2nd dwelling to standard floorplan.");
+                            }}
+                            className="h-8 text-xs border-slate-800 bg-slate-900 text-slate-300 hover:text-white"
+                          >
+                            Revert to Standard
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          onClick={() => setIsSecondCropperOpen(true)}
+                          className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-1.5 h-8 shadow-md"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                          {secondDwelling.isModifiedFloorplan ? "Re-crop / Update 2nd Plan" : "Upload / Crop 2nd Floorplan"}
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Floorplan Preview Canvas for 2nd Dwelling */}
+                    <div className="w-full bg-white rounded-xl p-3 border border-slate-800 min-h-[200px] max-h-[320px] flex items-center justify-center overflow-hidden relative shadow-inner">
+                      {activeSecondFloorplanUrl ? (
+                        <img
+                          src={activeSecondFloorplanUrl}
+                          alt="2nd Dwelling Floorplan"
+                          className="max-h-[280px] w-auto max-w-full object-contain mx-auto"
+                        />
+                      ) : (
+                        <div className="text-center text-slate-400 py-8 space-y-1">
+                          <Building2 className="h-8 w-8 mx-auto text-slate-300 opacity-60" />
+                          <p className="text-xs text-slate-500">
+                            Click &quot;Upload / Crop 2nd Floorplan&quot; to attach the architectural layout drawing for this secondary dwelling.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* External Site Packages: Turnkey Landscaping & Exposed Agg Driveway (Mutually Exclusive) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Option 1: Complete Turnkey Landscaping Package */}
@@ -1408,6 +1815,23 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
           onChange({
             floorplanUrl: croppedDataUrl,
             isModifiedFloorplan: true,
+          });
+        }}
+      />
+
+      {/* 2nd Dwelling Floorplan Cropper Dialog */}
+      <ModifiedFloorplanModal
+        isOpen={isSecondCropperOpen}
+        onClose={() => setIsSecondCropperOpen(false)}
+        isDoubleStorey={secondDwelling.housingType === "Double Storey"}
+        designName={secondDwelling.designName || "2nd Dwelling Floorplan"}
+        onSave={(croppedDataUrl) => {
+          onChange({
+            secondDwelling: {
+              ...secondDwelling,
+              floorplanUrl: croppedDataUrl,
+              isModifiedFloorplan: true,
+            },
           });
         }}
       />

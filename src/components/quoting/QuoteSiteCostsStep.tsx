@@ -230,6 +230,25 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
     onSiteChange({ trafficControlCost: next, trafficControlRequired: true });
   };
 
+  const handleSetbackRelaxationStep = (delta: number) => {
+    const current = site.councilSetbackRelaxationCost ?? 2000;
+    const next = Math.max(500, current + delta);
+    onSiteChange({
+      councilSetbackRelaxationCost: next,
+      councilSetbackRelaxationRequired: true,
+    });
+  };
+
+  const handleDemolitionStep = (delta: number) => {
+    const defaultCost = isDouble ? 40000 : 30000;
+    const current = site.demolitionAsbestosCost ?? defaultCost;
+    const next = Math.max(0, current + delta);
+    onSiteChange({
+      demolitionAsbestosCost: next,
+      demolitionAsbestosRequired: true,
+    });
+  };
+
   const handleRockStep = (delta: number) => {
     const current = Number(site.rockExcavationAllowance) || 0;
     const next = Math.max(0, current + delta);
@@ -821,7 +840,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </span>
           </div>
 
-          {/* Council DA Application ($8,000) */}
+          {/* Council DA Application ($11,000) */}
           <div
             onClick={() => onSiteChange({ councilDaRequired: !site.councilDaRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
@@ -840,8 +859,61 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </p>
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
-              +{formatAud(site.councilDaCost ?? 8000)}
+              +{formatAud(site.councilDaCost ?? 11000)}
             </span>
+          </div>
+
+          {/* Council Setback Relaxation ($2,000 starting with $500 increments) */}
+          <div
+            onClick={() => onSiteChange({ councilSetbackRelaxationRequired: !site.councilSetbackRelaxationRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              site.councilSetbackRelaxationRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white">Council Setback Relaxation</span>
+                {site.councilSetbackRelaxationRequired ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Town planning setback variation application ($2,000 base with $500 increments).
+              </p>
+            </div>
+
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleSetbackRelaxationStep(-500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Decrease $500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className={`font-bold text-xs font-mono ${site.councilSetbackRelaxationRequired ? "text-emerald-400" : "text-slate-400"}`}>
+                {formatAud(site.councilSetbackRelaxationCost ?? 2000)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSetbackRelaxationStep(500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Increase $500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
           </div>
 
           {/* Traffic Control ($10,000 with increments of $2,500) */}
@@ -922,14 +994,71 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
         </div>
       </div>
 
-      {/* Section 5: Geotechnical & Site Allowances (Prefilled with $0, step $2,500) */}
+      {/* Section 5: Geotechnical & Site Allowances */}
       <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
         <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
           <Mountain className="h-3.5 w-3.5 text-amber-400" />
           Geotechnical &amp; Site Allowances
         </Label>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* House Demolition Allowance & Asbestos Removal (SS $30,000 / DS $40,000) */}
+          <div
+            onClick={() => onSiteChange({ demolitionAsbestosRequired: !site.demolitionAsbestosRequired })}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              site.demolitionAsbestosRequired
+                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-xs text-white">
+                  House Demolition &amp; Asbestos Removal
+                </span>
+                {site.demolitionAsbestosRequired ? (
+                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                    <Check className="h-3 w-3" /> Selected
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    Optional
+                  </span>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">
+                Complete existing home demolition, licensed asbestos removal &amp; site clearing.
+              </p>
+              <div className="mt-1 text-[9.5px] text-amber-400 font-semibold bg-amber-950/40 p-1.5 rounded border border-amber-800/40">
+                Note: Demolition to be organised by owner
+              </div>
+            </div>
+
+            <div
+              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleDemolitionStep(-2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Decrease $2,500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className={`font-bold text-xs font-mono ${site.demolitionAsbestosRequired ? "text-emerald-400" : "text-slate-400"}`}>
+                {formatAud(site.demolitionAsbestosCost ?? (isDouble ? 40000 : 30000))}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleDemolitionStep(2500)}
+                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
           {/* Screw Piering Allowance ($90/m2) */}
           <div
             onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}

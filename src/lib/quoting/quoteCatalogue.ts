@@ -14,8 +14,7 @@ export const DEFAULT_CUSTOM_RATES = {
 
 export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   floorplan_extensions: "Floorplan Extensions",
-  ceiling_heights: "Ceiling Heights",
-  structural: "Structural Modifications",
+  structural: "Structural & Ceiling Upgrades",
   doors_windows: "Doors and Windows",
   external: "External & Facade Upgrades",
   internal_kitchen: "Internal - Kitchen",
@@ -290,11 +289,11 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
 
   // ==========================================
-  // 2. CEILING HEIGHTS & DETAILS
+  // 2. STRUCTURAL & CEILING HEIGHT UPGRADES
   // ==========================================
   {
     id: "str_raked_ceiling",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Raked Ceiling with Engineered Trusses",
     description: "Architectural pitched raked ceiling structure with engineered scissor trusses to selected living areas in lieu of standard flat ceiling.",
     unitType: "per_m2",
@@ -303,7 +302,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_2590_from_2440",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
     description: "Height increase to 2,590mm wall framing throughout ($45/m² ceiling framing + $3/m² for 2,340mm internal door heights).",
     unitType: "per_m2",
@@ -312,7 +311,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_2740_from_2590",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
     description: "Height increase to 2,740mm framing including 2,400mm header heights to external doors and windows.",
     unitType: "per_m2",
@@ -321,7 +320,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_2740_from_2440",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
     description: "Full height increase from standard 2,440mm to 2,740mm framing including 2,400mm door/window header heights.",
     unitType: "per_m2",
@@ -330,7 +329,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_3000_from_2740",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,740mm)",
     description: "Luxury 3,000mm ceiling framing upgrade from 2,740mm height throughout living areas.",
     unitType: "per_m2",
@@ -339,7 +338,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_3000_from_2590",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
     description: "Luxury 3,000mm ceiling framing upgrade from 2,590mm including 2,340mm internal doors.",
     unitType: "per_m2",
@@ -348,7 +347,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_ceiling_3000_from_2440",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Upgrade to 3,000mm (10'0\") Ceiling Height (ilo 2,440mm)",
     description: "Full luxury 3,000mm ceiling framing upgrade from standard 2,440mm including 2,340mm internal doors.",
     unitType: "per_m2",
@@ -357,7 +356,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
   },
   {
     id: "str_square_set_ceilings",
-    category: "ceiling_heights",
+    category: "structural",
     name: "Square Set Cornice Finish Throughout",
     description: "Modern architectural square-set plaster joint between walls and ceiling in lieu of standard cove cornice.",
     unitType: "per_m2",

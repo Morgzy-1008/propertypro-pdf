@@ -61,10 +61,12 @@ export function resolveItemCategory(item: { name: string; description?: string; 
     text.includes("ceiling") ||
     text.includes("ceilings") ||
     text.includes("raked") ||
+    text.includes("cathedral") ||
     text.includes("square set") ||
-    text.includes("cornice")
+    text.includes("cornice") ||
+    (item.category as any) === "ceiling_heights"
   ) {
-    return "ceiling_heights";
+    return "structural";
   }
 
   if (
@@ -657,14 +659,17 @@ export function computeLineItemSubtotal(item: QuoteSelectedLineItem): number {
 }
 
 /**
- * Calculates comprehensive estimated pricing breakdown for Builders Estimate.
+ * Calculates complete pricing summary for the quote.
  */
 export function calculateQuotePricing(
   design: QuoteDesignSelection,
   site: SiteConditions,
   lineItems: QuoteSelectedLineItem[],
-  initialDepositAmount: number,
+  initialDepositAmount?: number,
 ): QuotePricingSummary {
+  const isDouble = design.housingType === "Double Storey" || design.customSpec.storeys === "double";
+  const isSplit = design.housingType === "Split Level" || design.customSpec.storeys === "split";
+
   let baseHousePrice = 0;
   let customFloorplanPrice = 0;
 
@@ -673,29 +678,43 @@ export function calculateQuotePricing(
     baseHousePrice = customFloorplanPrice;
   } else if (design.isModifiedFloorplan) {
     const modCalc = calculateModifiedFloorplanPricing(design);
-    baseHousePrice = modCalc.modifiedBasePrice;
+    baseHousePrice = modCalc.totalBasePrice;
   } else {
     baseHousePrice = Number(design.basePrice) || 0;
   }
 
-  const isDouble =
-    design.mode === "custom_floorplan"
-      ? design.customSpec.storeys === "double"
-      : design.housingType === "Double Storey";
-
-  const isSplit =
-    design.mode === "custom_floorplan"
-      ? design.customSpec.storeys === "split"
-      : design.housingType === "Split Level";
-
   const facadePrice = Number(design.facadePrice) || 0;
-  const promotionName = design.promotionName || "Builder Promotion / Special Savings";
+  const promotionName = design.promotionName || "Hudson Special Promotion";
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
+
+  // 2nd Dwelling or Granny Flat Calculation
+  let secondDwellingPrice = 0;
+  if (design.hasSecondDwelling && design.secondDwelling && design.secondDwelling.enabled) {
+    const sd = design.secondDwelling;
+    let sdBase = Number(sd.basePrice) || 0;
+    if (sd.isModifiedFloorplan && sd.modifiedAreas && sd.standardAreas) {
+      const livingDelta = (Number(sd.modifiedAreas.livingM2) || 0) - (Number(sd.standardAreas.livingM2) || 0);
+      const garageDelta = (Number(sd.modifiedAreas.garageM2) || 0) - (Number(sd.standardAreas.garageM2) || 0);
+      const alfrescoDelta = (Number(sd.modifiedAreas.alfrescoM2) || 0) - (Number(sd.standardAreas.alfrescoM2) || 0);
+      const porchDelta = (Number(sd.modifiedAreas.porchM2) || 0) - (Number(sd.standardAreas.porchM2) || 0);
+
+      const livingCost = livingDelta >= 0 ? livingDelta * 1420 : livingDelta * 1420 * 0.8;
+      const garageCost = garageDelta >= 0 ? garageDelta * 1300 : garageDelta * 1300 * 0.8;
+      const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * 870 : alfrescoDelta * 870 * 0.8;
+      const porchCost = porchDelta >= 0 ? porchDelta * 870 : porchDelta * 870 * 0.8;
+
+      sdBase += Math.round(livingCost + garageCost + alfrescoCost + porchCost);
+    }
+    const sdFacade = Number(sd.facadePrice) || 0;
+    secondDwellingPrice = Math.max(0, sdBase + sdFacade);
+  }
+
+  // Calculate GFA (m2) of building footprint on slab
   const gfaM2 = calculateDesignGFA(design);
 
-  // Landscaping & Driveway Calculations
+  // Landscaping and Driveway Packages
   const landscapingCost = design.landscapingSelected
-    ? (Number(design.landscapingCost) || landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))
+    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450))
     : 0;
 
   const exposedDrivewayCost = design.exposedDrivewaySelected
@@ -732,13 +751,21 @@ export function calculateQuotePricing(
   const acousticCost = getAcousticCost(site.acousticTier, isDouble);
 
   // Council & Statutory
-  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 8000) : 0;
+  const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 11000) : 0;
+  const councilSetbackRelaxationCost = site.councilSetbackRelaxationRequired
+    ? (Number(site.councilSetbackRelaxationCost) || 2000)
+    : 0;
   const trafficCost = site.trafficControlRequired ? (Number(site.trafficControlCost) || 10000) : 0;
   const dualLivingCost = site.dualLivingInfrastructureRequired ? (Number(site.dualLivingInfrastructureCost) || 23000) : 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances
   const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 90)) : 0;
+  const demolitionAsbestosCost = site.demolitionAsbestosRequired
+    ? (Number(site.demolitionAsbestosCost) !== undefined && !isNaN(Number(site.demolitionAsbestosCost))
+        ? Number(site.demolitionAsbestosCost)
+        : (isDouble ? 40000 : 30000))
+    : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const materialHandlingCost = Number(site.materialHandlingAllowance) || 0;
@@ -760,17 +787,21 @@ export function calculateQuotePricing(
     cctvSewerReportCost +
     trafficCost +
     screwPieringCost +
+    demolitionAsbestosCost +
     rockCost +
     retainingCost +
     materialHandlingCost +
     sedimentCost;
 
-  const councilStatutorySubtotal = (Number(site.councilFee) || 0) + councilDaCost + dualLivingCost;
+  const councilStatutorySubtotal =
+    (Number(site.councilFee) || 0) +
+    councilDaCost +
+    councilSetbackRelaxationCost +
+    dualLivingCost;
 
   // Group line items by category
   const categoryGroups: Record<CatalogueCategory, QuoteSelectedLineItem[]> = {
     floorplan_extensions: [],
-    ceiling_heights: [],
     structural: [],
     doors_windows: [],
     external: [],
@@ -798,7 +829,6 @@ export function calculateQuotePricing(
 
   const categoryOrder: CatalogueCategory[] = [
     "floorplan_extensions",
-    "ceiling_heights",
     "structural",
     "doors_windows",
     "external",
@@ -826,7 +856,8 @@ export function calculateQuotePricing(
   }
 
   const totalVariations =
-    facadePrice -
+    facadePrice +
+    secondDwellingPrice -
     promotionsDiscount +
     landscapingCost +
     exposedDrivewayCost +
@@ -844,6 +875,7 @@ export function calculateQuotePricing(
   return {
     baseHousePrice,
     facadePrice,
+    secondDwellingPrice,
     promotionName,
     promotionsDiscount,
     landscapingCost,

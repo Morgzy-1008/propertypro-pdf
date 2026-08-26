@@ -4,7 +4,6 @@ export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_li
 
 export type CatalogueCategory =
   | "floorplan_extensions"
-  | "ceiling_heights"
   | "structural"
   | "doors_windows"
   | "external"
@@ -113,7 +112,9 @@ export interface SiteConditions {
   councilRegion: string;
   councilFee: number;
   councilDaRequired?: boolean;
-  councilDaCost?: number; // default $8,000
+  councilDaCost?: number; // default $11,000
+  councilSetbackRelaxationRequired?: boolean;
+  councilSetbackRelaxationCost?: number; // default $2,000, steps of $500
   trafficControlRequired?: boolean;
   trafficControlCost?: number; // default $10,000 (steps of $2,500)
   dualLivingInfrastructureRequired?: boolean;
@@ -123,6 +124,9 @@ export interface SiteConditions {
   // Geotechnical & Site Allowances
   screwPieringRequired?: boolean;
   screwPieringCost?: number; // auto-calculated at $90 × GFA m²
+  demolitionAsbestosRequired?: boolean;
+  demolitionAsbestosType?: "single" | "double" | "custom";
+  demolitionAsbestosCost?: number; // SS default $30,000, DS default $40,000 (editable)
   rockExcavationAllowance?: number; // default $2,500 (increments of $2,500)
   retainingWallAllowance?: number; // increments of $2,500
   materialHandlingRequired?: boolean;
@@ -184,6 +188,29 @@ export interface FloorplanAreaBreakdown {
   totalM2: number;
 }
 
+export interface SecondDwellingSelection {
+  enabled: boolean;
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
+  designName: string;
+  designM2: number;
+  facadeName: string;
+  facadePrice: number;
+  specTier: InclusionTier;
+  basePrice: number;
+  floorplanUrl?: string;
+  isModifiedFloorplan?: boolean;
+  modifiedDesignM2?: number;
+  standardDesignM2?: number;
+  standardBasePrice?: number;
+  standardAreas?: Partial<FloorplanAreaBreakdown>;
+  modifiedAreas?: Partial<FloorplanAreaBreakdown>;
+  beds?: string;
+  baths?: string;
+  cars?: string;
+  widthM?: string;
+  lengthM?: string;
+}
+
 export interface QuoteDesignSelection {
   mode: "standard" | "custom_floorplan";
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
@@ -209,6 +236,9 @@ export interface QuoteDesignSelection {
   lengthM?: string;
   promotionName?: string;
   promotionsDiscount: number;
+  // 2nd Dwelling or Granny Flat Option
+  hasSecondDwelling?: boolean;
+  secondDwelling?: SecondDwellingSelection;
   // Landscaping & Driveway Packages
   landscapingSelected?: boolean;
   landscapingLandSize?: number; // e.g. 300, 450, 600, 700, 800, 900
@@ -229,6 +259,7 @@ export interface CategorySubtotal {
 export interface QuotePricingSummary {
   baseHousePrice: number;
   facadePrice: number;
+  secondDwellingPrice: number;
   promotionName: string;
   promotionsDiscount: number;
   landscapingCost: number;
@@ -256,6 +287,7 @@ export interface FullQuote {
   design: QuoteDesignSelection;
   siteConditions: SiteConditions;
   lineItems: QuoteSelectedLineItem[];
+  secondDwellingLineItems?: QuoteSelectedLineItem[];
   pricing: QuotePricingSummary;
   clientNotes?: string;
 }

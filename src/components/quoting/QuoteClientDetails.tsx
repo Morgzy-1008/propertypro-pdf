@@ -276,40 +276,6 @@ export function QuoteClientDetails({
         </div>
       </div>
 
-      {/* Restore from PDF Quick Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 p-4 rounded-xl border border-cyan-500/30 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex-none">
-            <FileText className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-              Import Existing Sales Estimate PDF
-              <span className="text-[10px] font-mono font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded">
-                Auto-Restore
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Upload any downloaded Builders Estimate PDF to instantly load all client details, design selections, modified floorplan sizes, and variations.
-            </p>
-          </div>
-        </div>
-
-        <label className="cursor-pointer flex-none">
-          <input
-            type="file"
-            accept=".pdf,application/pdf"
-            onChange={handleImportPdfFile}
-            disabled={importingPdf}
-            className="hidden"
-          />
-          <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-cyan-400/60 bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-xs font-extrabold transition-all shadow-md">
-            <Upload className="h-4 w-4" />
-            {importingPdf ? "Parsing PDF…" : "Import Estimate PDF"}
-          </span>
-        </label>
-      </div>
-
       {/* Primary Client (Client 1) Contact Info */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
