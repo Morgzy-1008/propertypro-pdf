@@ -72,6 +72,8 @@ export function ModifiedFloorplanModal({
   const [mousePos, setMousePos] = useState<Point | null>(null);
   const [isNearStart, setIsNearStart] = useState(false);
 
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
@@ -84,6 +86,7 @@ export function ModifiedFloorplanModal({
       setFfCroppedUrl(null);
       setActivePoints([]);
       setIsClosed(false);
+      setCanvasSize({ w: 0, h: 0 });
       loadedImageRef.current = null;
     }
   }, [isOpen]);
@@ -93,6 +96,11 @@ export function ModifiedFloorplanModal({
     const overlay = overlayCanvasRef.current;
     const base = baseCanvasRef.current;
     if (!overlay || !base) return;
+
+    if (base.width > 0 && base.height > 0) {
+      if (overlay.width !== base.width) overlay.width = base.width;
+      if (overlay.height !== base.height) overlay.height = base.height;
+    }
 
     const w = overlay.width;
     const h = overlay.height;
@@ -238,6 +246,7 @@ export function ModifiedFloorplanModal({
       baseCanvas.height = h;
       overlayCanvas.width = w;
       overlayCanvas.height = h;
+      setCanvasSize({ w, h });
 
       const ctx = baseCanvas.getContext("2d");
       if (ctx) {
@@ -535,7 +544,11 @@ export function ModifiedFloorplanModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[94vh] flex flex-col bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-5 overflow-hidden">
+      <DialogContent
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="max-w-6xl max-h-[95vh] h-[92vh] flex flex-col bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-5 overflow-hidden"
+      >
         {/* Header */}
         <DialogHeader className="border-b border-slate-800 pb-2.5 flex-none">
           <div className="flex items-center justify-between">
@@ -747,14 +760,30 @@ export function ModifiedFloorplanModal({
               </div>
             </div>
 
-            {/* Scrollable Viewport (Top Aligned - Zero Cut-off) */}
+            {/* Scrollable Viewport (Top Aligned - Zero Cut-off, Full Sheet Visibility) */}
             <div
               ref={viewportContainerRef}
-              className="flex-1 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-900/50 p-6 flex items-start justify-center select-none min-h-[420px] max-h-[58vh]"
+              className="flex-1 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-900/50 p-4 flex items-center justify-center select-none min-h-[420px] max-h-[64vh]"
             >
-              <div className="relative inline-block shadow-2xl rounded-sm border border-slate-700 bg-white">
+              <div
+                className="relative inline-block shadow-2xl rounded-sm border border-slate-700 bg-white"
+                style={{
+                  maxHeight: "58vh",
+                  maxWidth: "100%",
+                }}
+              >
                 {/* Base Rendered Image Canvas */}
-                <canvas ref={baseCanvasRef} className="block bg-white" />
+                <canvas
+                  ref={baseCanvasRef}
+                  className="block bg-white"
+                  style={{
+                    maxHeight: "58vh",
+                    maxWidth: "100%",
+                    width: "auto",
+                    height: "auto",
+                    display: "block",
+                  }}
+                />
 
                 {/* Interactive Polygon Click Overlay Canvas */}
                 <canvas
@@ -763,7 +792,10 @@ export function ModifiedFloorplanModal({
                   onMouseMove={handleCanvasMouseMove}
                   onContextMenu={handleRightClick}
                   className="absolute top-0 left-0 cursor-crosshair z-10"
-                  style={{ width: "100%", height: "100%" }}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
                 />
               </div>
             </div>
