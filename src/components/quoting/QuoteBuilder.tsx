@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
-import { calculateQuotePricing } from "@/lib/quoting/quoteEngine";
+import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 import {
   createNewBlankQuote,
   loadAllQuotes,
@@ -197,7 +197,7 @@ export function QuoteBuilder() {
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-white mt-1">
             {quote.client.clientName
-              ? `${quote.client.clientName} — ${quote.design.designName || "Custom Design"}`
+              ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
               : "Technical Builders Estimate & Quoting"}
           </h1>
         </div>

@@ -185,6 +185,9 @@ export interface QuoteDesignSelection {
   basePrice: number;
   floorplanUrl?: string;
   isModifiedFloorplan?: boolean;
+  modifiedDesignM2?: number; // Modified floorplan total sqm
+  standardDesignM2?: number; // Original standard sqm for reference
+  standardBasePrice?: number; // Original standard base price for reference
   beds?: string;
   baths?: string;
   cars?: string;

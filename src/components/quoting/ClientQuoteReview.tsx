@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
-import { calculateQuotePricing } from "@/lib/quoting/quoteEngine";
+import { calculateQuotePricing, getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
 import type { FullQuote, InclusionTier } from "@/lib/quoting/quoteTypes";
 import {
@@ -446,13 +446,13 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             <div>
               <span className="text-slate-500 block text-[11px]">Selected Model:</span>
               <span className="font-bold text-white text-sm">
-                {quote.design.mode === "standard" ? quote.design.designName : "Custom Plan"}
+                {getEffectiveDesignName(quote.design)}
               </span>
             </div>
             <div>
               <span className="text-slate-500 block text-[11px]">Floor Area:</span>
               <span className="font-bold text-white text-sm font-mono">
-                {quote.design.designM2} m² ({(quote.design.designM2 * 0.107639).toFixed(1)} sq)
+                {getEffectiveDesignM2(quote.design)} m² ({(getEffectiveDesignM2(quote.design) * 0.107639).toFixed(1)} sq)
               </span>
             </div>
             <div>
@@ -1092,7 +1092,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               {/* Base House Price */}
               <div className="flex items-center justify-between text-slate-300">
                 <span>
-                  Base House Price ({quote.design.designName} with {quote.design.specTier})
+                  Base House Price ({getEffectiveDesignName(quote.design)} with {quote.design.specTier})
                 </span>
                 <span className="font-mono font-bold text-white">
                   {formatAud(quote.pricing.baseHousePrice)}

@@ -281,12 +281,22 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const floorplanUrl = plans[0]?.url || "";
     const basePrice = getTierPrice(m, design.specTier, design.housingType);
     const defaultFacade = suitableFacades[0] || { name: "Classic", uplift: 0 };
-    const autoDiscount = getAutomatedPromotionDiscount(m.m2);
+
+    let effectiveM2 = m.m2;
+    let effectiveBasePrice = basePrice;
+    if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
+      effectiveM2 = Number(design.modifiedDesignM2);
+      const ratePerM2 = m.m2 > 0 ? basePrice / m.m2 : 0;
+      effectiveBasePrice = Math.round(effectiveM2 * ratePerM2);
+    }
+    const autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
 
     onChange({
       designName: m.name,
       designM2: m.m2,
-      basePrice,
+      standardDesignM2: m.m2,
+      standardBasePrice: basePrice,
+      basePrice: effectiveBasePrice,
       facadeName: design.facadeName || defaultFacade.name,
       facadePrice: design.facadeName ? design.facadePrice : defaultFacade.uplift,
       promotionsDiscount: autoDiscount,
@@ -301,8 +311,69 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleTierChange = (tier: InclusionTier) => {
-    const basePrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
-    onChange({ specTier: tier, basePrice });
+    const stdPrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
+    let effectiveBasePrice = stdPrice;
+    if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0 && currentModel) {
+      const ratePerM2 = currentModel.m2 > 0 ? stdPrice / currentModel.m2 : 0;
+      effectiveBasePrice = Math.round(Number(design.modifiedDesignM2) * ratePerM2);
+    }
+    onChange({ specTier: tier, standardBasePrice: stdPrice, basePrice: effectiveBasePrice });
+  };
+
+  const handleToggleModifiedFloorplan = (enabled: boolean) => {
+    if (!currentModel) {
+      toast.error("Please select a home design model first.");
+      return;
+    }
+    if (enabled) {
+      const stdM2 = design.standardDesignM2 || currentModel.m2;
+      const stdPrice = design.standardBasePrice || getTierPrice(currentModel, design.specTier, design.housingType);
+      const modifiedM2 = design.modifiedDesignM2 && Number(design.modifiedDesignM2) > 0 ? Number(design.modifiedDesignM2) : stdM2;
+      const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
+      const modifiedBase = Math.round(modifiedM2 * ratePerM2);
+      const autoDiscount = getAutomatedPromotionDiscount(modifiedM2);
+
+      onChange({
+        isModifiedFloorplan: true,
+        modifiedDesignM2: modifiedM2,
+        standardDesignM2: stdM2,
+        standardBasePrice: stdPrice,
+        basePrice: modifiedBase,
+        promotionsDiscount: autoDiscount,
+      });
+      toast.success(`Modified floorplan enabled for ${currentModel.name}! You can adjust the total SQM size.`);
+    } else {
+      const stdM2 = design.standardDesignM2 || currentModel.m2;
+      const stdPrice = design.standardBasePrice || getTierPrice(currentModel, design.specTier, design.housingType);
+      const autoDiscount = getAutomatedPromotionDiscount(stdM2);
+
+      onChange({
+        isModifiedFloorplan: false,
+        designM2: stdM2,
+        modifiedDesignM2: 0,
+        basePrice: stdPrice,
+        promotionsDiscount: autoDiscount,
+      });
+      toast.info(`Reverted to standard ${currentModel.name} floorplan sizing.`);
+    }
+  };
+
+  const handleModifiedSqmChange = (val: string) => {
+    const newM2 = parseFloat(val) || 0;
+    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 192;
+    const stdPrice = design.standardBasePrice || (currentModel ? getTierPrice(currentModel, design.specTier, design.housingType) : design.basePrice) || 0;
+    const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
+    const newBase = newM2 > 0 ? Math.round(newM2 * ratePerM2) : stdPrice;
+    const autoDiscount = getAutomatedPromotionDiscount(newM2 > 0 ? newM2 : stdM2);
+
+    onChange({
+      isModifiedFloorplan: true,
+      modifiedDesignM2: newM2,
+      standardDesignM2: stdM2,
+      standardBasePrice: stdPrice,
+      basePrice: newBase,
+      promotionsDiscount: autoDiscount,
+    });
   };
 
   const handleFacadeSelect = (facadeName: string) => {
@@ -427,18 +498,145 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Total Floor Area</Label>
+              <Label className="text-xs text-slate-300">
+                {design.isModifiedFloorplan ? "Total Floor Area (Modified)" : "Total Floor Area"}
+              </Label>
               <Input
                 readOnly
                 value={
-                  design.designM2 > 0
-                    ? `${design.designM2} m² (${(design.designM2 * 0.107639).toFixed(1)} sq)`
+                  (design.isModifiedFloorplan && design.modifiedDesignM2 ? design.modifiedDesignM2 : design.designM2) > 0
+                    ? `${design.isModifiedFloorplan && design.modifiedDesignM2 ? design.modifiedDesignM2 : design.designM2} m² (${(((design.isModifiedFloorplan && design.modifiedDesignM2 ? design.modifiedDesignM2 : design.designM2)) * 0.107639).toFixed(1)} sq)`
                     : "— Select design model —"
                 }
-                className="border-slate-800 bg-slate-950/50 text-xs text-slate-400 cursor-not-allowed font-medium"
+                className={`border-slate-800 text-xs font-medium cursor-not-allowed ${
+                  design.isModifiedFloorplan
+                    ? "bg-emerald-950/30 text-emerald-300 border-emerald-500/40 font-bold"
+                    : "bg-slate-950/50 text-slate-400"
+                }`}
               />
             </div>
           </div>
+
+          {/* Modified Design / Floorplan SQM Adjustment Control */}
+          {design.designName && currentModel && (
+            <div
+              className={`rounded-2xl border p-4 transition-all ${
+                design.isModifiedFloorplan
+                  ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-slate-950 ring-1 ring-emerald-500/40 shadow-xl"
+                  : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+              }`}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <div
+                    onClick={() => handleToggleModifiedFloorplan(!design.isModifiedFloorplan)}
+                    className={`cursor-pointer p-2.5 rounded-xl border transition-all mt-0.5 ${
+                      design.isModifiedFloorplan
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-lg shadow-emerald-500/20"
+                        : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <PenTool className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white">
+                        {design.isModifiedFloorplan ? "✓ Modified Floorplan Active" : "Modified Floorplan / Custom SQM Option"}
+                      </span>
+                      <span
+                        className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                          design.isModifiedFloorplan
+                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono"
+                            : "bg-slate-800 text-slate-400"
+                        }`}
+                      >
+                        {design.isModifiedFloorplan ? `${design.designName} Modified` : "Optional"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Enable if this client has modified room dimensions or extended the plan. Automatically scales base pricing and all SQM engineering rates.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => handleToggleModifiedFloorplan(!design.isModifiedFloorplan)}
+                  className={`text-xs font-bold gap-1.5 shrink-0 ${
+                    design.isModifiedFloorplan
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                  }`}
+                >
+                  {design.isModifiedFloorplan ? (
+                    <>
+                      <Check className="h-3.5 w-3.5" /> Modified Active
+                    </>
+                  ) : (
+                    <>
+                      <PenTool className="h-3.5 w-3.5" /> Modify Design (SQM)
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Expanded Adjusted Floorplan SQM Inputs */}
+              {design.isModifiedFloorplan && (
+                <div className="mt-4 pt-3.5 border-t border-slate-800/90 grid grid-cols-1 sm:grid-cols-4 gap-3.5 items-end">
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-slate-400 block font-medium">
+                      Standard {currentModel.name} Size:
+                    </Label>
+                    <div className="h-9 px-3 rounded-lg border border-slate-800 bg-slate-950/80 text-xs font-mono text-slate-300 flex items-center justify-between">
+                      <span>{currentModel.m2} m²</span>
+                      <span className="text-[10px] text-slate-500">
+                        {currentModel.m2 > 0 ? formatAud(Math.round((design.standardBasePrice || getTierPrice(currentModel, design.specTier)) / currentModel.m2)) + "/m²" : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-emerald-300 font-bold block flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-amber-400" />
+                      Adjusted Total Floor Area (m²):
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="50"
+                      max="1000"
+                      value={design.modifiedDesignM2 || design.designM2 || currentModel.m2}
+                      onChange={(e) => handleModifiedSqmChange(e.target.value)}
+                      className="h-9 text-xs font-mono font-bold text-white bg-slate-900 border-emerald-500/60 focus-visible:ring-emerald-500"
+                      placeholder="e.g. 210.0"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-slate-400 block font-medium">
+                      Automated Base House Price:
+                    </Label>
+                    <div className="h-9 px-3 rounded-lg border border-emerald-500/30 bg-emerald-950/30 text-xs font-mono font-extrabold text-emerald-400 flex items-center justify-between shadow-inner">
+                      <span>{formatAud(design.basePrice)}</span>
+                      <span className="text-[10px] font-sans font-bold text-emerald-300 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                        Pro-rata ({((Number(design.modifiedDesignM2 || design.designM2) * 0.107639)).toFixed(1)} sq)
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[11px] text-slate-400 block font-medium">
+                      Active Estimate Floorplan Name:
+                    </Label>
+                    <div className="h-9 px-3 rounded-lg border border-slate-800 bg-slate-950/80 text-xs font-bold text-amber-400 flex items-center">
+                      {design.designName} Modified
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Inclusion Tier Range: Simplified Clean Titles */}
           <div className="space-y-2">
@@ -474,9 +672,17 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                       {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
                     </div>
                     <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400">Base House Price:</span>
+                      <span className="text-[10px] text-slate-400">
+                        {design.isModifiedFloorplan ? "Modified Base Price:" : "Base House Price:"}
+                      </span>
                       <span className="font-bold text-emerald-400 font-mono">
-                        {currentModel ? formatAud(tierPrice) : "—"}
+                        {currentModel
+                          ? formatAud(
+                              design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0 && currentModel.m2 > 0
+                                ? Math.round(Number(design.modifiedDesignM2) * (tierPrice / currentModel.m2))
+                                : tierPrice,
+                            )
+                          : "—"}
                       </span>
                     </div>
                   </div>

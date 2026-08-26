@@ -2,7 +2,7 @@ import React from "react";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { calculateCustomTotalM2 } from "@/lib/quoting/quoteEngine";
+import { calculateCustomTotalM2, getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 import {
   CheckCircle2,
   Award,
@@ -253,10 +253,8 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
     year: "numeric",
   });
 
-  const totalAreaM2 =
-    design.mode === "custom_floorplan"
-      ? calculateCustomTotalM2(design.customSpec)
-      : design.designM2;
+  const totalAreaM2 = getEffectiveDesignM2(design);
+  const effectiveDesignName = getEffectiveDesignName(design);
 
   const siteAddressFull =
     [client.lotNumber, client.siteAddress, client.suburb, `QLD ${client.postcode || ""}`]
@@ -731,7 +729,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 SELECTED DESIGN:
               </span>
               <span className="font-bold text-slate-900 text-sm">
-                {design.mode === "standard" ? design.designName : "Custom Design"}
+                {effectiveDesignName}
               </span>
             </div>
             <div>
@@ -837,7 +835,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   <td className="py-2.5 px-3">
                     <div className="text-slate-900 font-bold">
                       {design.mode === "standard"
-                        ? `${design.designName || "Selected Design"} with ${formatInclusionTierTitle(design.specTier)}`
+                        ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
                         : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
                     </div>
                     <div className="text-[10px] text-slate-500 font-normal">
@@ -1001,7 +999,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
               <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
                 {design.mode === "standard"
-                  ? `${design.designName} — ${design.specTier}`
+                  ? `${effectiveDesignName} — ${design.specTier}`
                   : "Custom Architectural Floorplan"}
               </h2>
               <div className="text-[11px] text-slate-600 mt-0.5">

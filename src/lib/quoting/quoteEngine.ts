@@ -97,6 +97,39 @@ export function resolveItemCategory(item: { name: string; description?: string; 
 }
 
 /**
+ * Returns the customer/consultant facing floorplan design name.
+ * If modified floorplan is enabled, appends "Modified" (e.g. "Coral 21 Modified").
+ */
+export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
+  if (!design) return "Home Design";
+  if (design.mode === "custom_floorplan") {
+    return `Custom Architectural Plan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`;
+  }
+  const raw = design.designName || "Standard Design";
+  if (design.isModifiedFloorplan) {
+    if (!raw.toLowerCase().includes("modified")) {
+      return `${raw} Modified`;
+    }
+  }
+  return raw;
+}
+
+/**
+ * Returns the effective total m² area for the selected design.
+ * If modified floorplan is enabled with a custom sqm, returns that modified sqm.
+ */
+export function getEffectiveDesignM2(design?: QuoteDesignSelection): number {
+  if (!design) return 0;
+  if (design.mode === "custom_floorplan") {
+    return calculateCustomTotalM2(design.customSpec);
+  }
+  if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
+    return Number(design.modifiedDesignM2);
+  }
+  return Number(design.designM2) || 0;
+}
+
+/**
  * Calculates automated builder promotion discount based on house size in Squares (sq):
  * - <= 42 sq (<= 42.99 sq): $25,000
  * - 43 sq to 52 sq (<= 52.99 sq): $30,000
@@ -132,10 +165,11 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
       ).toFixed(2),
     );
   }
+  const totalM2 = getEffectiveDesignM2(design);
   if (design.housingType === "Double Storey") {
-    return Number(((design.designM2 || 200) * 0.62).toFixed(2));
+    return Number(((totalM2 || 200) * 0.62).toFixed(2));
   }
-  return Number((design.designM2 || 192).toFixed(2));
+  return Number((totalM2 || 192).toFixed(2));
 }
 
 /**
@@ -286,6 +320,11 @@ export function calculateQuotePricing(
   if (design.mode === "custom_floorplan") {
     customFloorplanPrice = calculateCustomFloorplanPrice(design.customSpec);
     baseHousePrice = customFloorplanPrice;
+  } else if (design.isModifiedFloorplan && Number(design.modifiedDesignM2) > 0) {
+    const stdM2 = Number(design.standardDesignM2) || Number(design.designM2) || 192;
+    const stdPrice = Number(design.standardBasePrice) || Number(design.basePrice) || 0;
+    const ratePerM2 = stdM2 > 0 ? stdPrice / stdM2 : 0;
+    baseHousePrice = Math.round(Number(design.modifiedDesignM2) * ratePerM2);
   } else {
     baseHousePrice = Number(design.basePrice) || 0;
   }

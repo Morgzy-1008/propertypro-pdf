@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatAud } from "@/lib/pricing";
+import { getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 
 interface QuoteSummarySidebarProps {
@@ -33,6 +34,8 @@ export function QuoteSummarySidebar({
   downloading,
 }: QuoteSummarySidebarProps) {
   const { pricing, design, client } = quote;
+  const effectiveDesignName = getEffectiveDesignName(design);
+  const effectiveM2 = getEffectiveDesignM2(design);
 
   return (
     <div className="space-y-4">
@@ -55,9 +58,7 @@ export function QuoteSummarySidebar({
         <div className="bg-slate-950/80 rounded-xl p-3 border border-slate-800 space-y-1">
           <div className="flex items-center justify-between">
             <span className="font-bold text-xs text-white">
-              {design.mode === "standard"
-                ? design.designName || "Select Home Design"
-                : `Custom Plan (${design.customSpec.storeys === "double" ? "Double" : "Single"})`}
+              {effectiveDesignName}
             </span>
             <span className="text-xs font-bold text-amber-400 font-mono">
               {design.designName || design.mode === "custom_floorplan"
@@ -67,7 +68,7 @@ export function QuoteSummarySidebar({
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>{design.specTier}</span>
-            <span>{design.designM2 > 0 ? `${design.designM2} m²` : "0 m²"}</span>
+            <span>{effectiveM2 > 0 ? `${effectiveM2} m² (${(effectiveM2 * 0.107639).toFixed(1)} sq)` : "0 m²"}</span>
           </div>
         </div>
 
