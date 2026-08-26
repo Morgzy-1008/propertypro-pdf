@@ -26,9 +26,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "@/lib/quoting/quoteEngine";
-import { createNewBlankQuote } from "@/lib/quoting/quoteStorage";
+import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
+import type { FullQuote } from "@/lib/quoting/quoteTypes";
+import { RefreshCw, Sparkles } from "lucide-react";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -269,6 +271,35 @@ export function QuoteEstimatesDialog({
     }
   };
 
+  const [recovering, setRecovering] = useState(false);
+
+  const handleDeepRecover = async () => {
+    setRecovering(true);
+    const toastId = toast.loading("Scanning IndexedDB and browser storage for unsaved estimates...");
+    try {
+      const recovered = await recoverAllHistoricalQuotes();
+      if (recovered.length === 0) {
+        toast.info("No unsaved estimate drafts found in browser storage.", { id: toastId });
+      } else {
+        for (const r of recovered) {
+          onImportQuote(r);
+        }
+        const freshest = recovered[0];
+        if (freshest) {
+          onLoadQuote(freshest);
+        }
+        toast.success(
+          `Recovered ${recovered.length} estimate(s)! Restored #${freshest?.quoteNumber || "MH"} for ${freshest?.client.clientName || "Client"}.`,
+          { id: toastId }
+        );
+      }
+    } catch (e) {
+      toast.error("Recovery scan failed", { id: toastId });
+    } finally {
+      setRecovering(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col border-slate-800 bg-slate-950/98 text-slate-100 backdrop-blur-2xl shadow-2xl p-6">
@@ -280,6 +311,18 @@ export function QuoteEstimatesDialog({
             </DialogTitle>
 
             <div className="flex flex-wrap items-center gap-2">
+              {/* Auto Recover Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeepRecover}
+                disabled={recovering}
+                className="border-emerald-500/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 text-xs font-bold gap-1.5 shadow-xs"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                {recovering ? "Scanning…" : "Scan & Auto-Recover"}
+              </Button>
+
               {/* Import PDF Button */}
               <label className="cursor-pointer">
                 <input

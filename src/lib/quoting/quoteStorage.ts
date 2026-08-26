@@ -309,11 +309,16 @@ export function loadAllQuotes(): FullQuote[] {
     if (!raw) {
       raw = localStorage.getItem("hudson_builders_estimate_quotes_v8");
     }
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    const parsed = raw ? JSON.parse(raw) : [];
+    const list: FullQuote[] = Array.isArray(parsed) ? parsed : [];
 
-    return parsed.map((q: FullQuote) => {
+    // Also include active draft if not present
+    const draft = loadActiveDraftQuote();
+    if (draft && draft.id && !list.some((q) => q.id === draft.id)) {
+      list.unshift(draft);
+    }
+
+    return list.map((q: FullQuote) => {
       const normalizedLineItems = (q.lineItems || []).map((it) => ({
         ...it,
         category: resolveItemCategory(it),
@@ -336,9 +341,50 @@ export function loadAllQuotes(): FullQuote[] {
   }
 }
 
+/**
+ * Loads all quotes with complete fidelity merging IndexedDB + localStorage + active draft.
+ */
+export async function loadAllQuotesAsync(): Promise<FullQuote[]> {
+  const [idbQuotes, syncQuotes] = await Promise.all([
+    loadAllQuotesFromIdb(),
+    Promise.resolve(loadAllQuotes()),
+  ]);
+
+  const map = new Map<string, FullQuote>();
+
+  for (const q of syncQuotes) {
+    if (q && q.id) map.set(q.id, q);
+  }
+
+  // Overwrite with IndexedDB quotes (contains full unstripped images and freshest data)
+  for (const q of idbQuotes) {
+    if (q && q.id) map.set(q.id, q);
+  }
+
+  const draft = loadActiveDraftQuote();
+  if (draft && draft.id && !map.has(draft.id)) {
+    map.set(draft.id, draft);
+  }
+
+  const results = Array.from(map.values());
+  results.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+  return results;
+}
+
 export function getQuoteById(id: string): FullQuote | null {
   const all = loadAllQuotes();
   return all.find((q) => q.id === id || q.quoteNumber === id) ?? null;
+}
+
+function sanitizeQuoteForLocalStorage(quote: FullQuote): FullQuote {
+  const hasHeavyFloorplan = quote.design.floorplanUrl && quote.design.floorplanUrl.length > 500;
+  return {
+    ...quote,
+    design: {
+      ...quote.design,
+      floorplanUrl: hasHeavyFloorplan ? "" : quote.design.floorplanUrl,
+    },
+  };
 }
 
 /**
@@ -351,56 +397,122 @@ export function saveQuote(quote: FullQuote): void {
     updatedAt: new Date().toISOString(),
   };
 
-  // 1. Save to IndexedDB asynchronously (handles large floorplan base64 images without size limit)
+  // 1. Save complete 100% fidelity quote to IndexedDB
   saveQuoteToIdb(updated).catch(() => {});
 
-  // 2. Save active working draft
+  // 2. Save active working draft to localStorage
   try {
-    localStorage.setItem(STORAGE_KEY_ACTIVE_DRAFT, JSON.stringify(updated));
-  } catch {
-    // If draft has large base64 image, strip floorplanUrl for localStorage draft
-    try {
-      const safeDraft = { ...updated, design: { ...updated.design, floorplanUrl: "" } };
-      localStorage.setItem(STORAGE_KEY_ACTIVE_DRAFT, JSON.stringify(safeDraft));
-    } catch {
-      /* ignore */
-    }
+    const safeDraft = sanitizeQuoteForLocalStorage(updated);
+    localStorage.setItem(STORAGE_KEY_ACTIVE_DRAFT, JSON.stringify(safeDraft));
+  } catch (draftErr) {
+    console.warn("Draft save fallback:", draftErr);
   }
 
-  // 3. Save to localStorage quotes list
+  // 3. Save sanitized quote array to localStorage
   try {
-    const all = loadAllQuotes();
-    const index = all.findIndex((q) => q.id === quote.id);
+    const currentList = loadAllQuotes();
+    const safeUpdated = sanitizeQuoteForLocalStorage(updated);
+    const existingIndex = currentList.findIndex((q) => q.id === quote.id || q.quoteNumber === quote.quoteNumber);
 
-    if (index >= 0) {
-      all[index] = updated;
+    let updatedList: FullQuote[];
+    if (existingIndex >= 0) {
+      updatedList = [...currentList];
+      updatedList[existingIndex] = safeUpdated;
     } else {
-      all.unshift(updated);
+      updatedList = [safeUpdated, ...currentList];
     }
-    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
-  } catch (quotaErr) {
-    console.warn("LocalStorage full, trimming large images in index:", quotaErr);
-    try {
-      // Safe fallback: strip huge base64 images in localStorage while IndexedDB maintains full copy
-      const all = loadAllQuotes();
-      const safeQuote: FullQuote = {
-        ...updated,
-        design: {
-          ...updated.design,
-          floorplanUrl: updated.design.floorplanUrl?.startsWith("data:") ? "" : updated.design.floorplanUrl,
-        },
-      };
-      const index = all.findIndex((q) => q.id === quote.id);
-      if (index >= 0) {
-        all[index] = safeQuote;
-      } else {
-        all.unshift(safeQuote);
-      }
-      localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all.slice(0, 50)));
-    } catch {
-      /* ignore */
+
+    const sanitizedArray = updatedList.map(sanitizeQuoteForLocalStorage).slice(0, 50);
+    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(sanitizedArray));
+  } catch (storageErr) {
+    console.warn("LocalStorage save fallback:", storageErr);
+  }
+}
+
+/**
+ * Asynchronously saves quote to both IndexedDB and localStorage ensuring persistence.
+ */
+export async function saveQuoteAsync(quote: FullQuote): Promise<void> {
+  const updated: FullQuote = {
+    ...quote,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveQuoteToIdb(updated);
+  saveQuote(updated);
+}
+
+/**
+ * Deep historical recovery utility: Scans all IndexedDB entries and all localStorage keys to recover any lost estimate.
+ */
+export async function recoverAllHistoricalQuotes(): Promise<FullQuote[]> {
+  const found: FullQuote[] = [];
+  const seenIds = new Set<string>();
+
+  // 1. IndexedDB
+  const idbQuotes = await loadAllQuotesFromIdb();
+  for (const q of idbQuotes) {
+    if (q && q.id && !seenIds.has(q.id)) {
+      seenIds.add(q.id);
+      found.push(q);
     }
   }
+
+  // 2. Scan every single key in localStorage
+  if (typeof window !== "undefined") {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (
+        key.startsWith("hudson_") ||
+        key.startsWith("quote_") ||
+        key.startsWith("draft_") ||
+        key.includes("estimate") ||
+        key.includes("quote")
+      ) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          const parsed = JSON.parse(raw);
+          const candidates = Array.isArray(parsed) ? parsed : [parsed];
+          for (const item of candidates) {
+            if (item && typeof item === "object" && (item.pricing || item.client || item.design)) {
+              const id = item.id || item.quoteNumber || `recovered_${Math.random().toString(36).slice(2, 7)}`;
+              if (!seenIds.has(id)) {
+                seenIds.add(id);
+                const defBlank = createNewBlankQuote();
+                const reconstructed: FullQuote = {
+                  id,
+                  quoteNumber: item.quoteNumber || item.client?.estimateNumber || defBlank.quoteNumber,
+                  createdAt: item.createdAt || new Date().toISOString(),
+                  updatedAt: item.updatedAt || new Date().toISOString(),
+                  status: item.status || "draft",
+                  client: { ...defBlank.client, ...(item.client || {}) },
+                  design: { ...defBlank.design, ...(item.design || {}) },
+                  siteConditions: { ...defBlank.siteConditions, ...(item.siteConditions || {}) },
+                  lineItems: Array.isArray(item.lineItems) ? item.lineItems : defBlank.lineItems,
+                  pricing:
+                    item.pricing ||
+                    calculateQuotePricing(
+                      item.design || defBlank.design,
+                      item.siteConditions || defBlank.siteConditions,
+                      item.lineItems || defBlank.lineItems,
+                      item.client?.depositAmount || 1650
+                    ),
+                };
+                found.push(reconstructed);
+                saveQuoteToIdb(reconstructed).catch(() => {});
+              }
+            }
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
+  found.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+  return found;
 }
 
 /**

@@ -138,13 +138,13 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
       // Render canvas at 2.5x scale (approx 250-300 DPI studio print resolution)
       const canvas = await html2canvas(clone, {
         backgroundColor: "#ffffff",
-        scale: 2.5,
+        scale: 2.2,
         useCORS: true,
         logging: false,
         windowWidth: 794,
         windowHeight: 1123,
-        imageTimeout: 15000,
-        allowTaint: true,
+        imageTimeout: 12000,
+        allowTaint: false,
       });
 
       // Enforce strict ISO A4 page dimensions (210mm x 297mm)
@@ -152,9 +152,17 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
         pdf.addPage([210, 297], "portrait");
       }
 
-      // Use high-quality JPEG for fast generation and compact, crystal-clear output
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      // Use high-quality JPEG with fallback for crystal-clear output
+      try {
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        pdf.addImage(imgData, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      } catch (dataUrlErr) {
+        console.warn("Retrying canvas dataURL with PNG format...", dataUrlErr);
+        const imgDataPng = canvas.toDataURL("image/png");
+        pdf.addImage(imgDataPng, "PNG", 0, 0, 210, 297, undefined, "FAST");
+      }
+    } catch (pageErr) {
+      console.error(`Error rendering PDF page ${index + 1}:`, pageErr);
     } finally {
       host.remove();
     }

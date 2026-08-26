@@ -29,10 +29,12 @@ import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quo
 import {
   createNewBlankQuote,
   loadAllQuotes,
-  loadAllQuotesFromIdb,
+  loadAllQuotesAsync,
   loadActiveDraftQuote,
   saveQuote,
+  saveQuoteAsync,
   deleteQuote,
+  recoverAllHistoricalQuotes,
 } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
@@ -63,11 +65,11 @@ export function QuoteBuilder() {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // Load from IndexedDB on mount to ensure all historical quotes are populated
+  // Sync with IndexedDB & localStorage on mount
   useEffect(() => {
-    loadAllQuotesFromIdb().then((idbQuotes) => {
-      if (idbQuotes && idbQuotes.length > 0) {
-        setSavedQuotes(idbQuotes);
+    loadAllQuotesAsync().then((quotes) => {
+      if (quotes && quotes.length > 0) {
+        setSavedQuotes(quotes);
       }
     }).catch(() => {});
   }, []);
@@ -94,6 +96,11 @@ export function QuoteBuilder() {
     });
   }, []);
 
+  const refreshSavedQuotes = async () => {
+    const list = await loadAllQuotesAsync();
+    setSavedQuotes(list);
+  };
+
   const updateQuote = (patch: Partial<FullQuote>) => {
     setQuote((prev) => {
       const merged: FullQuote = { ...prev, ...patch };
@@ -103,7 +110,10 @@ export function QuoteBuilder() {
         merged.lineItems,
         merged.client.depositAmount,
       );
-      return { ...merged, pricing: updatedPricing };
+      const result = { ...merged, pricing: updatedPricing };
+      // Keep background draft synced
+      saveQuote(result);
+      return result;
     });
   };
 
@@ -116,11 +126,13 @@ export function QuoteBuilder() {
         prev.lineItems,
         updatedClient.depositAmount,
       );
-      return {
+      const result = {
         ...prev,
         client: updatedClient,
         pricing: updatedPricing,
       };
+      saveQuote(result);
+      return result;
     });
   };
 
@@ -138,26 +150,28 @@ export function QuoteBuilder() {
     updateQuote({ lineItems: items });
   };
 
-  const handleSaveQuote = () => {
+  const handleSaveQuote = async () => {
     setSaving(true);
     try {
-      saveQuote(quote);
-      setSavedQuotes(loadAllQuotes());
+      await saveQuoteAsync(quote);
+      await refreshSavedQuotes();
       const clientLabel = quote.client.clientName?.trim() ? ` for ${quote.client.clientName}` : "";
       toast.success(`Builders Estimate #${quote.quoteNumber || "MH"}${clientLabel} saved permanently!`);
-    } catch {
+    } catch (err) {
+      console.error("Save quote error:", err);
       toast.error("Could not save estimate");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleNewQuote = () => {
-    if (confirm("Start a new blank Builders Estimate? Your current saved estimates will remain safe.")) {
+  const handleNewQuote = async () => {
+    if (confirm("Start a new blank Builders Estimate? Your current work will be preserved in Saved Estimates.")) {
+      await saveQuoteAsync(quote);
       const blank = createNewBlankQuote();
       setQuote(blank);
-      saveQuote(blank);
-      setSavedQuotes(loadAllQuotes());
+      await saveQuoteAsync(blank);
+      await refreshSavedQuotes();
       toast.success("New Builders Estimate created");
     }
   };
@@ -277,8 +291,8 @@ export function QuoteBuilder() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setSavedQuotes(loadAllQuotes());
+            onClick={async () => {
+              await refreshSavedQuotes();
               setIsEstimatesDialogOpen(true);
             }}
             className="border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-bold"
@@ -426,8 +440,8 @@ export function QuoteBuilder() {
             onDownloadPdf={handleDownloadPdf}
             onOpenClientShare={() => setIsShareOpen(true)}
             onOpenAdminCatalogue={() => setIsAdminOpen(true)}
-            onOpenSavedEstimates={() => {
-              setSavedQuotes(loadAllQuotes());
+            onOpenSavedEstimates={async () => {
+              await refreshSavedQuotes();
               setIsEstimatesDialogOpen(true);
             }}
             savedQuotesCount={savedQuotes.length}
@@ -443,20 +457,20 @@ export function QuoteBuilder() {
         onOpenChange={setIsEstimatesDialogOpen}
         savedQuotes={savedQuotes}
         activeQuoteId={quote.id}
-        onLoadQuote={(loaded) => {
+        onLoadQuote={async (loaded) => {
           setQuote(loaded);
-          saveQuote(loaded);
-          setSavedQuotes(loadAllQuotes());
+          await saveQuoteAsync(loaded);
+          await refreshSavedQuotes();
         }}
-        onDeleteQuote={(id) => {
+        onDeleteQuote={async (id) => {
           deleteQuote(id);
-          setSavedQuotes(loadAllQuotes());
+          await refreshSavedQuotes();
         }}
         onSaveCurrentQuote={handleSaveQuote}
-        onImportQuote={(imported) => {
+        onImportQuote={async (imported) => {
           setQuote(imported);
-          saveQuote(imported);
-          setSavedQuotes(loadAllQuotes());
+          await saveQuoteAsync(imported);
+          await refreshSavedQuotes();
         }}
       />
 
