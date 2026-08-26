@@ -153,6 +153,7 @@ export interface ClientDetails {
   // Initial Deposit Options
   depositType: DepositType;
   depositAmount: number; // Greenfield ($1,650), Brownfield ($3,300), or custom
+  custom3dTourSelected?: boolean; // Custom $800 fee for 3D Virtual Tour before contract (part of upfront deposit)
   quoteValidityDays: number; // 14 days
   consultantId: string;
   consultantName: string;

@@ -286,6 +286,7 @@ export function createNewBlankQuote(): FullQuote {
       estimateVersion: 1,
       depositType: "greenfield",
       depositAmount: defaultDeposit,
+      custom3dTourSelected: false,
       quoteValidityDays: 14,
       consultantId: "morgan-hales",
       consultantName: "Morgan Hales",

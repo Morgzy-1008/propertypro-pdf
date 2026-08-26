@@ -133,6 +133,21 @@ export function QuoteSummarySidebar({
             <span className="font-mono text-slate-300">{formatAud(pricing.gstAmount)}</span>
           </div>
 
+          {/* Initial Deposit Required to Proceed */}
+          <div className="pt-2.5 flex justify-between text-slate-400 text-[11px] items-center">
+            <span className="flex items-center gap-1.5">
+              <span>Initial Deposit:</span>
+              {client.custom3dTourSelected && (
+                <span className="text-[9.5px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 px-1.5 py-0.2 rounded font-bold">
+                  + 3D Tour
+                </span>
+              )}
+            </span>
+            <span className="font-mono font-bold text-emerald-400">
+              {formatAud(pricing.initialDepositAmount || (client.custom3dTourSelected ? (client.depositType === "brownfield" ? 4100 : 2450) : (client.depositType === "brownfield" ? 3300 : 1650)))}
+            </span>
+          </div>
+
           {/* Total Investment */}
           <div className="pt-3 border-t-2 border-slate-700">
             <div className="flex justify-between items-baseline">

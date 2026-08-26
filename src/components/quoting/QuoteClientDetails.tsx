@@ -140,11 +140,22 @@ export function QuoteClientDetails({
     });
   };
 
+  const handleToggleCustom3dTour = (selected: boolean) => {
+    let baseAmount = client.depositType === "brownfield" ? 3300 : 1650;
+    if (client.depositType === "custom") baseAmount = client.depositAmount || 1650;
+    const finalAmount = selected ? baseAmount + 800 : baseAmount;
+    onChange({
+      custom3dTourSelected: selected,
+      depositAmount: finalAmount,
+    });
+  };
+
   const handleDepositTypeChange = (type: DepositType) => {
-    let amount = 1650;
-    if (type === "brownfield") amount = 3300;
-    if (type === "custom") amount = client.depositAmount || 1650;
-    onChange({ depositType: type, depositAmount: amount });
+    let baseAmount = 1650;
+    if (type === "brownfield") baseAmount = 3300;
+    if (type === "custom") baseAmount = client.depositAmount || 1650;
+    const finalAmount = client.custom3dTourSelected ? baseAmount + 800 : baseAmount;
+    onChange({ depositType: type, depositAmount: finalAmount });
 
     if (type === "brownfield" && onSiteChange) {
       onSiteChange({ screwPieringRequired: true });
@@ -587,7 +598,9 @@ export function QuoteClientDetails({
                 }`}
               >
                 <div className="text-xs font-bold text-slate-100">Greenfield</div>
-                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">$1,650 Deposit</div>
+                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">
+                  {client.custom3dTourSelected ? "$2,450 Deposit" : "$1,650 Deposit"}
+                </div>
               </button>
 
               <button
@@ -600,8 +613,43 @@ export function QuoteClientDetails({
                 }`}
               >
                 <div className="text-xs font-bold text-slate-100">Brownfield</div>
-                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">$3,300 Deposit</div>
+                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">
+                  {client.custom3dTourSelected ? "$4,100 Deposit" : "$3,300 Deposit"}
+                </div>
               </button>
+            </div>
+          </div>
+
+          {/* Custom $800 Fee (3D Virtual Tour Prior to Contract) */}
+          <div
+            onClick={() => handleToggleCustom3dTour(!client.custom3dTourSelected)}
+            className={`p-3 rounded-lg border transition-all cursor-pointer flex items-start gap-2.5 ${
+              client.custom3dTourSelected
+                ? "border-cyan-500/80 bg-cyan-950/40 text-cyan-200 ring-1 ring-cyan-500/40"
+                : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={!!client.custom3dTourSelected}
+              onChange={(e) => handleToggleCustom3dTour(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-700 text-cyan-500 focus:ring-cyan-500/30"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="flex-1 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-100 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                  Include Custom 3D Virtual Tour
+                </span>
+                <span className="font-mono font-extrabold text-cyan-300 text-xs">+$800 Upfront Deposit</span>
+              </div>
+              <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
+                Features a 3D interactive virtual tour of your modified/customized design before contract signing.
+              </p>
+              <div className="text-[10px] text-cyan-400/90 font-medium mt-1">
+                *Not an additional fee on the home—part of your total contract price credited upfront to proceed.
+              </div>
             </div>
           </div>
 
@@ -616,6 +664,11 @@ export function QuoteClientDetails({
               <div>✓ Registered Contour Survey</div>
               <div>✓ Covenant Compliance Check</div>
               <div>✓ In-House Architectural Drafting</div>
+              {client.custom3dTourSelected && (
+                <div className="text-cyan-300 font-bold col-span-2">
+                  ✓ 3D Virtual Tour Prior to Contract (Custom $800 Upgrade)
+                </div>
+              )}
             </div>
           </div>
         </div>

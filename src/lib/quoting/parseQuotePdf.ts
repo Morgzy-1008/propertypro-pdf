@@ -254,9 +254,17 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
   // 6. Deposit
   let depositType: DepositType = "greenfield";
   let depositAmount = 1650;
-  if (text.includes("Brownfield") || text.includes("$3,300")) {
+  let custom3dTourSelected = false;
+
+  if (text.includes("3D Virtual Tour") || text.includes("3D Interactive Virtual Tour") || text.includes("$2,450") || text.includes("$4,100")) {
+    custom3dTourSelected = true;
+  }
+
+  if (text.includes("Brownfield") || text.includes("$3,300") || text.includes("$4,100")) {
     depositType = "brownfield";
-    depositAmount = 3300;
+    depositAmount = custom3dTourSelected ? 4100 : 3300;
+  } else {
+    depositAmount = custom3dTourSelected ? 2450 : 1650;
   }
 
   // Construct Design Object
@@ -342,6 +350,7 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
       estimateVersion: 1,
       depositType,
       depositAmount,
+      custom3dTourSelected,
       quoteValidityDays: 14,
       consultantId: "morgan-hales",
       consultantName: "Morgan Hales",

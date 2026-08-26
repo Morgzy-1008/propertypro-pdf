@@ -1485,8 +1485,13 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
                   INITIAL DEPOSIT TO PROCEED
                 </span>
-                <span className="text-base font-extrabold text-slate-900">
+                <span className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                   {client.depositType === "brownfield" ? "Brownfield Site Allocation" : "Greenfield Site Allocation"}
+                  {client.custom3dTourSelected && (
+                    <span className="text-xs font-bold text-cyan-800 bg-cyan-100 border border-cyan-300 px-2 py-0.5 rounded-full font-mono">
+                      + Custom 3D Virtual Tour
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="text-right">
@@ -1494,7 +1499,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                   Deposit Amount
                 </span>
                 <span className="text-2xl font-black text-emerald-700 font-mono">
-                  {formatAud(pricing.initialDepositAmount || 1650)}
+                  {formatAud(pricing.initialDepositAmount || (client.custom3dTourSelected ? (client.depositType === "brownfield" ? 4100 : 2450) : (client.depositType === "brownfield" ? 3300 : 1650)))}
                 </span>
               </div>
             </div>
@@ -1511,8 +1516,18 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 <div>• Registered Contour Survey</div>
                 <div>• Developer Covenant Compliance Check</div>
                 <div>• Drafted Plans &amp; Elevations by in-house draftsmen</div>
+                {client.custom3dTourSelected && (
+                  <div className="col-span-2 text-cyan-900 font-bold bg-cyan-50 border border-cyan-200 px-2 py-1 rounded mt-0.5">
+                    • 3D Interactive Virtual Tour of Customized Design prior to Building Contract (Custom $800 Fee Included)
+                  </div>
+                )}
                 <div className="col-span-2">• Completed Formal Tender Pricing by in-house estimator</div>
               </div>
+              {client.custom3dTourSelected && (
+                <div className="text-[10px] text-slate-500 pt-1 italic">
+                  *Note: The $800 Custom 3D Virtual Tour fee forms part of your initial deposit and is credited in full toward your total contract investment.
+                </div>
+              )}
             </div>
           </div>
 
