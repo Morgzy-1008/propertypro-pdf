@@ -43,6 +43,8 @@ export interface QuoteSelectedLineItem {
   isClientSelectable: boolean;
   clientSelected?: boolean;
   notes?: string;
+  dwellingId?: "dwelling1" | "dwelling2";
+  dwellingName?: string;
 }
 
 export interface CustomFloorplanSpec {
@@ -209,6 +211,7 @@ export interface SecondDwellingSelection {
   cars?: string;
   widthM?: string;
   lengthM?: string;
+  facadeImageUrl?: string;
 }
 
 export interface QuoteDesignSelection {

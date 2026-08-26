@@ -29,12 +29,135 @@ if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
   }
 }
 
+export interface ExtractedAreaSchedule {
+  livingM2?: number;
+  groundLivingM2?: number;
+  firstLivingM2?: number;
+  garageM2?: number;
+  alfrescoM2?: number;
+  porchM2?: number;
+  balconyM2?: number;
+  totalM2?: number;
+  matchedLines?: string[];
+}
+
+export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
+  if (!text) return null;
+
+  const lines = text.split(/\r?\n/);
+  const result: ExtractedAreaSchedule = { matchedLines: [] };
+
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    if (!cleanLine) continue;
+
+    const lower = cleanLine.toLowerCase();
+
+    // Look for numbers like 146.40, 36.7, 11.9 in line
+    const extractNum = (str: string): number | null => {
+      const allNums = str.match(/\b\d+(?:\.\d{1,3})?\b/g);
+      if (!allNums || allNums.length === 0) return null;
+      const valid = allNums
+        .map(Number)
+        .filter((n) => n > 0.5 && n < 800 && n !== 2024 && n !== 2025 && n !== 2026 && n !== 2440 && n !== 2590 && n !== 2740);
+      return valid.length > 0 ? valid[valid.length - 1] : null;
+    };
+
+    const val = extractNum(cleanLine);
+    if (val === null) continue;
+
+    if (
+      lower.includes("ground living") ||
+      lower.includes("ground floor living") ||
+      lower.includes("lower living") ||
+      lower.includes("ground floor area")
+    ) {
+      result.groundLivingM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
+      lower.includes("first living") ||
+      lower.includes("first floor living") ||
+      lower.includes("upper living") ||
+      lower.includes("first floor area")
+    ) {
+      result.firstLivingM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
+      lower.includes("living area") ||
+      lower.includes("living") ||
+      lower.includes("meals") ||
+      lower.includes("family") ||
+      lower.includes("internal living")
+    ) {
+      if (!lower.includes("outdoor") && !lower.includes("alfresco") && !lower.includes("porch")) {
+        result.livingM2 = val;
+        result.matchedLines?.push(cleanLine);
+      }
+    } else if (
+      lower.includes("garage") ||
+      lower.includes("workshop") ||
+      lower.includes("carport") ||
+      lower.includes("garage/workshop") ||
+      lower.includes("garage / workshop")
+    ) {
+      result.garageM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
+      lower.includes("alfresco") ||
+      lower.includes("patio") ||
+      lower.includes("outdoor living") ||
+      lower.includes("outdoor") ||
+      lower.includes("deck") ||
+      lower.includes("verandah")
+    ) {
+      result.alfrescoM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
+      lower.includes("porch") ||
+      lower.includes("portico") ||
+      lower.includes("entry porch") ||
+      lower.includes("front porch")
+    ) {
+      result.porchM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (lower.includes("balcony") || lower.includes("upper balcony")) {
+      result.balconyM2 = val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
+      lower.includes("total") ||
+      lower.includes("gfa") ||
+      lower.includes("gross area") ||
+      lower.includes("total area")
+    ) {
+      result.totalM2 = val;
+      result.matchedLines?.push(cleanLine);
+    }
+  }
+
+  const compSum =
+    (result.livingM2 || (result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) +
+    (result.garageM2 || 0) +
+    (result.alfrescoM2 || 0) +
+    (result.porchM2 || 0) +
+    (result.balconyM2 || 0);
+
+  if (compSum > 0 || (result.totalM2 && result.totalM2 > 0)) {
+    if (!result.totalM2 || Math.abs(result.totalM2 - compSum) > 5) {
+      result.totalM2 = Number(compSum.toFixed(2));
+    }
+    return result;
+  }
+
+  return null;
+}
+
 interface ModifiedFloorplanModalProps {
   isOpen: boolean;
   onClose: () => void;
   isDoubleStorey: boolean;
   designName?: string;
   onSave: (croppedDataUrl: string) => void;
+  onExtractedAreas?: (areas: ExtractedAreaSchedule) => void;
 }
 
 type Point = { x: number; y: number }; // normalized 0..1 coordinates
@@ -47,12 +170,14 @@ export function ModifiedFloorplanModal({
   isDoubleStorey,
   designName,
   onSave,
+  onExtractedAreas,
 }: ModifiedFloorplanModalProps) {
   const [fileLoading, setFileLoading] = useState(false);
   const [docLoaded, setDocLoaded] = useState(false);
   const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
   const [zoom, setZoom] = useState(1.0);
+  const [detectedAreas, setDetectedAreas] = useState<ExtractedAreaSchedule | null>(null);
 
   // Multi-step double storey workflow
   const [stage, setStage] = useState<"upload" | "crop_gf" | "crop_ff" | "crop_single">("upload");
@@ -82,6 +207,7 @@ export function ModifiedFloorplanModal({
       setPdfPages([]);
       setSelectedPageIndex(0);
       setZoom(1.0);
+      setDetectedAreas(null);
       setStage("upload");
       setGfCroppedUrl(null);
       setFfCroppedUrl(null);
@@ -93,22 +219,54 @@ export function ModifiedFloorplanModal({
     }
   }, [isOpen]);
 
-  // Non-passive wheel event listener on container for smooth mouse-wheel zooming
+  // Current rendered dimensions
+  const currentRenderW = baseDisplaySize.w > 0 ? Math.round(baseDisplaySize.w * zoom) : imageSize.w;
+  const currentRenderH = baseDisplaySize.h > 0 ? Math.round(baseDisplaySize.h * zoom) : imageSize.h;
+
+  // Advance scroll wheel zoom towards where the cursor is currently positioned
   useEffect(() => {
     const container = viewportContainerRef.current;
     if (!container) return;
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.15 : -0.15;
-      setZoom((z) => Math.max(0.5, Math.min(4.0, +(z + delta).toFixed(2))));
+      const containerRect = container.getBoundingClientRect();
+      const cursorX = e.clientX - containerRect.left;
+      const cursorY = e.clientY - containerRect.top;
+
+      // Current content point under cursor
+      const contentScrollX = container.scrollLeft + cursorX;
+      const contentScrollY = container.scrollTop + cursorY;
+
+      const currentW = currentRenderW || 1;
+      const currentH = currentRenderH || 1;
+
+      // Fraction on image (0..1)
+      const normX = contentScrollX / currentW;
+      const normY = contentScrollY / currentH;
+
+      const zoomFactor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      const nextZoom = Math.max(0.4, Math.min(5.5, +(zoom * zoomFactor).toFixed(2)));
+      if (nextZoom === zoom) return;
+
+      const newW = baseDisplaySize.w > 0 ? Math.round(baseDisplaySize.w * nextZoom) : imageSize.w * nextZoom;
+      const newH = baseDisplaySize.h > 0 ? Math.round(baseDisplaySize.h * nextZoom) : imageSize.h * nextZoom;
+
+      setZoom(nextZoom);
+
+      // Keep the point under cursor at the exact same viewport position
+      requestAnimationFrame(() => {
+        if (!container) return;
+        container.scrollLeft = normX * newW - cursorX;
+        container.scrollTop = normY * newH - cursorY;
+      });
     };
 
     container.addEventListener("wheel", onWheel, { passive: false });
     return () => {
       container.removeEventListener("wheel", onWheel);
     };
-  }, [stage]);
+  }, [zoom, currentRenderW, currentRenderH, baseDisplaySize, imageSize]);
 
   // Draw overlay polygon (points, guidelines, closed filled area)
   const drawOverlay = useCallback(() => {
@@ -306,6 +464,23 @@ export function ModifiedFloorplanModal({
       }
       setPdfPages(result.pages);
       setSelectedPageIndex(0);
+
+      // Auto-scan PDF text for Area Schedule Table
+      const extracted = parseAreaScheduleFromText(result.rawText);
+      if (extracted) {
+        setDetectedAreas(extracted);
+        onExtractedAreas?.(extracted);
+        const livingPart =
+          extracted.livingM2 ||
+          ((extracted.groundLivingM2 || 0) + (extracted.firstLivingM2 || 0));
+        toast.success(
+          `Area Schedule detected & imported: Living ${livingPart ? livingPart + "m²" : ""}${
+            extracted.garageM2 ? ", Garage " + extracted.garageM2 + "m²" : ""
+          }${extracted.alfrescoM2 ? ", Alfresco " + extracted.alfrescoM2 + "m²" : ""}${
+            extracted.porchM2 ? ", Porch " + extracted.porchM2 + "m²" : ""
+          } (Total: ${extracted.totalM2}m²)`
+        );
+      }
 
       if (isDoubleStorey) {
         setStage("crop_gf");
@@ -543,10 +718,6 @@ export function ModifiedFloorplanModal({
     }
   };
 
-  // Rendered canvas dimensions scaled with zoom
-  const currentRenderW = baseDisplaySize.w > 0 ? Math.round(baseDisplaySize.w * zoom) : imageSize.w;
-  const currentRenderH = baseDisplaySize.h > 0 ? Math.round(baseDisplaySize.h * zoom) : imageSize.h;
-
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
@@ -594,6 +765,47 @@ export function ModifiedFloorplanModal({
             </div>
             <span className="text-[11px] text-amber-400 font-semibold">
               {stage === "crop_gf" ? "Click boundary points around Ground Floor" : "Click boundary points around First Floor"}
+            </span>
+          </div>
+        )}
+
+        {/* Detected Area Schedule Banner */}
+        {detectedAreas && (
+          <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-xs text-emerald-200 flex items-center justify-between gap-2.5 flex-none mt-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Sparkles className="h-4 w-4 text-emerald-400 flex-none" />
+              <span className="font-bold text-white text-[11px]">Area Table Detected &amp; Extracted:</span>
+              <div className="flex items-center gap-2 font-mono text-[10.5px]">
+                {detectedAreas.livingM2 ? (
+                  <span>Living: <strong className="text-emerald-300">{detectedAreas.livingM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.groundLivingM2 ? (
+                  <span>GF: <strong className="text-emerald-300">{detectedAreas.groundLivingM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.firstLivingM2 ? (
+                  <span>FF: <strong className="text-emerald-300">{detectedAreas.firstLivingM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.garageM2 ? (
+                  <span>Garage: <strong className="text-emerald-300">{detectedAreas.garageM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.alfrescoM2 ? (
+                  <span>Alfresco: <strong className="text-emerald-300">{detectedAreas.alfrescoM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.porchM2 ? (
+                  <span>Porch: <strong className="text-emerald-300">{detectedAreas.porchM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.balconyM2 ? (
+                  <span>Balcony: <strong className="text-emerald-300">{detectedAreas.balconyM2} m²</strong></span>
+                ) : null}
+                {detectedAreas.totalM2 ? (
+                  <span className="bg-emerald-900/80 text-white font-bold px-2 py-0.5 rounded border border-emerald-400/40">
+                    Total: {detectedAreas.totalM2} m²
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700">
+              Auto-Calculated
             </span>
           </div>
         )}

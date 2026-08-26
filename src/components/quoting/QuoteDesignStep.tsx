@@ -1817,6 +1817,32 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             isModifiedFloorplan: true,
           });
         }}
+        onExtractedAreas={(extracted) => {
+          const currentAreas = design.modifiedAreas || (design.standardAreas as any) || {};
+          const mergedAreas = {
+            ...currentAreas,
+            ...(extracted.livingM2 ? { livingM2: extracted.livingM2 } : {}),
+            ...(extracted.groundLivingM2 ? { groundLivingM2: extracted.groundLivingM2 } : {}),
+            ...(extracted.firstLivingM2 ? { firstLivingM2: extracted.firstLivingM2 } : {}),
+            ...(extracted.garageM2 ? { garageM2: extracted.garageM2 } : {}),
+            ...(extracted.alfrescoM2 ? { alfrescoM2: extracted.alfrescoM2 } : {}),
+            ...(extracted.porchM2 ? { porchM2: extracted.porchM2 } : {}),
+            ...(extracted.balconyM2 ? { balconyM2: extracted.balconyM2 } : {}),
+            ...(extracted.totalM2 ? { totalM2: extracted.totalM2 } : {}),
+          };
+          const draftDesign: QuoteDesignSelection = {
+            ...design,
+            isModifiedFloorplan: true,
+            modifiedAreas: mergedAreas,
+          };
+          const pricing = calculateModifiedFloorplanPricing(draftDesign);
+          onChange({
+            isModifiedFloorplan: true,
+            modifiedAreas: mergedAreas,
+            modifiedDesignM2: pricing.modifiedTotalM2,
+            basePrice: pricing.modifiedBasePrice,
+          });
+        }}
       />
 
       {/* 2nd Dwelling Floorplan Cropper Dialog */}
@@ -1831,6 +1857,39 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               ...secondDwelling,
               floorplanUrl: croppedDataUrl,
               isModifiedFloorplan: true,
+            },
+          });
+        }}
+        onExtractedAreas={(extracted) => {
+          const currentAreas = secondDwelling.modifiedAreas || secondDwelling.standardAreas || {};
+          const mergedAreas = {
+            ...currentAreas,
+            ...(extracted.livingM2 ? { livingM2: extracted.livingM2 } : {}),
+            ...(extracted.groundLivingM2 ? { groundLivingM2: extracted.groundLivingM2 } : {}),
+            ...(extracted.firstLivingM2 ? { firstLivingM2: extracted.firstLivingM2 } : {}),
+            ...(extracted.garageM2 ? { garageM2: extracted.garageM2 } : {}),
+            ...(extracted.alfrescoM2 ? { alfrescoM2: extracted.alfrescoM2 } : {}),
+            ...(extracted.porchM2 ? { porchM2: extracted.porchM2 } : {}),
+            ...(extracted.balconyM2 ? { balconyM2: extracted.balconyM2 } : {}),
+            ...(extracted.totalM2 ? { totalM2: extracted.totalM2 } : {}),
+          };
+          const draftDesign: QuoteDesignSelection = {
+            ...design,
+            designName: secondDwelling.designName,
+            designM2: secondDwelling.designM2,
+            basePrice: secondDwelling.standardBasePrice || secondDwelling.basePrice,
+            isModifiedFloorplan: true,
+            standardAreas: secondDwelling.standardAreas as any,
+            modifiedAreas: mergedAreas,
+          };
+          const pricing = calculateModifiedFloorplanPricing(draftDesign);
+          onChange({
+            secondDwelling: {
+              ...secondDwelling,
+              isModifiedFloorplan: true,
+              modifiedAreas: mergedAreas,
+              designM2: pricing.modifiedTotalM2,
+              basePrice: pricing.modifiedBasePrice,
             },
           });
         }}

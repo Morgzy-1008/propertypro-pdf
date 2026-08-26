@@ -21,6 +21,7 @@ import {
   Minus,
   Check,
   Truck,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -307,6 +308,28 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           </div>
         </div>
       </div>
+
+      {/* 2nd Dwelling Selection Switcher Banner on Step 3 */}
+      {quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled && (
+        <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="h-4 w-4 text-cyan-400 flex-none" />
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block">
+                Multi-Dwelling Earthworks &amp; Statutory Scoping
+              </span>
+              <p className="text-xs font-semibold text-slate-200">
+                Site allowances configured below cover the combined build pad for {quote.design.designName || "Main Dwelling"} and {quote.design.secondDwelling?.designName || "2nd Dwelling"}.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-lg border border-slate-800 text-xs font-mono text-cyan-300">
+            <span>🏠 Dwelling 1 ({quote.design.designName || "Main"} &bull; {gfaM2} m²)</span>
+            <span>+</span>
+            <span>🏡 Dwelling 2 ({quote.design.secondDwelling?.designName || "Granny Flat"} &bull; {quote.design.secondDwelling?.designM2 || 60} m²)</span>
+          </div>
+        </div>
+      )}
 
       {/* Section 1: Soil Classification & Foundation Earthworks */}
       <div className="space-y-4 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">

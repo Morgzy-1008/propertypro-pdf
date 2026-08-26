@@ -201,6 +201,82 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
   );
 }
 
+function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDwellingSelection }) {
+  const [src, setSrc] = React.useState<string | null>(secondDwelling?.facadeImageUrl || null);
+
+  React.useEffect(() => {
+    if (!secondDwelling) return;
+    if (secondDwelling.facadeImageUrl) {
+      setSrc(secondDwelling.facadeImageUrl);
+      return;
+    }
+
+    const facadeName = secondDwelling.facadeName || "Classic";
+    const housingType = secondDwelling.housingType || "Single Storey";
+    const isDouble = housingType === "Double Storey" || housingType === "double";
+    const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
+
+    const matches = HUDSON_FACADES.filter((f) => {
+      const fNorm = f.name.toLowerCase().replace(/[\s\-_]/g, "");
+      const fIdNorm = f.id.toLowerCase().replace(/[\s\-_]/g, "");
+      return fNorm === normName || fIdNorm === normName;
+    });
+
+    let matched = isDouble
+      ? matches.find((f) => f.range.toLowerCase().includes("double")) || matches[0]
+      : matches.find((f) => !f.range.toLowerCase().includes("double")) || matches[0];
+
+    if (!matched) {
+      matched = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(normName)) || HUDSON_FACADES[0];
+    }
+
+    if (matched) {
+      if (PRE_RENDERED_FACADES[matched.id]) {
+        setSrc(PRE_RENDERED_FACADES[matched.id]);
+        return;
+      }
+
+      getIdbEnhanced(matched.id)
+        .then((cached) => {
+          if (cached) {
+            const clean = cached.replace("::AI_OUTPAINT_V7_FRESH::", "");
+            if (clean.startsWith("data:image/")) {
+              setSrc(clean);
+              return;
+            }
+          }
+          prepareFacade(matched.url, matched.originalUrl, matched.id, housingType)
+            .then((res) => {
+              if (res) setSrc(res);
+            })
+            .catch(() => {
+              setSrc(matched.url);
+            });
+        })
+        .catch(() => {
+          setSrc(matched.url);
+        });
+    }
+  }, [secondDwelling?.facadeName, secondDwelling?.housingType, secondDwelling?.facadeImageUrl]);
+
+  if (!src) return null;
+
+  return (
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[180px] max-h-[180px] mb-2 flex-none">
+      <img
+        src={src}
+        alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
+        className="w-full h-full object-cover object-center"
+        style={{ imageRendering: "auto" }}
+      />
+      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+        <Sparkles className="h-3 w-3 text-amber-400" />
+        <span>Selected Facade: {secondDwelling?.facadeName || "Classic"}</span>
+      </div>
+    </div>
+  );
+}
+
 function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: SecondDwellingSelection }) {
   const [src, setSrc] = React.useState(secondDwelling?.floorplanUrl || "");
 
@@ -265,46 +341,48 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   let currentUnits = 0;
   let isFirstPage = true;
 
+  // Max capacity units per page (first page has summary header, continuation pages have more space)
+  const getMaxUnits = (first: boolean) => (first ? 25 : 32);
+
   for (const group of groups) {
     if (!group.items || group.items.length === 0) continue;
-    const maxUnits = isFirstPage ? 16 : 22;
-    const groupUnits = 1.2 + group.items.length * 1.4;
 
-    if (currentUnits + groupUnits <= maxUnits || currentPage.length === 0) {
-      currentPage.push(group);
-      currentUnits += groupUnits;
-    } else {
-      const remainingUnits = maxUnits - currentUnits;
-      if (remainingUnits >= 4.0 && group.items.length >= 4) {
-        const canFitCount = Math.floor((remainingUnits - 1.2) / 1.4);
-        if (canFitCount >= 2 && group.items.length - canFitCount >= 1) {
-          const part1 = group.items.slice(0, canFitCount);
-          const part2 = group.items.slice(canFitCount);
+    let remainingItems = [...group.items];
+    let isContinued = false;
 
-          currentPage.push({
-            label: group.label,
-            total: part1.reduce((s, it) => s + it.amount, 0),
-            items: part1,
-          });
+    while (remainingItems.length > 0) {
+      const maxUnits = getMaxUnits(isFirstPage);
+      const spaceLeft = maxUnits - currentUnits;
+      const headerCost = isContinued ? 1.0 : 1.2;
+
+      if (spaceLeft >= headerCost + 1.0 || currentPage.length === 0) {
+        const availableForItemRows = Math.max(1, Math.floor(spaceLeft - headerCost));
+        const itemsToTake = Math.min(remainingItems.length, availableForItemRows);
+
+        const chunk = remainingItems.slice(0, itemsToTake);
+        remainingItems = remainingItems.slice(itemsToTake);
+
+        currentPage.push({
+          label: isContinued ? `${group.label} (Continued)` : group.label,
+          total: chunk.reduce((s, it) => s + it.amount, 0),
+          items: chunk,
+        });
+
+        currentUnits += headerCost + chunk.length * 1.0;
+        isContinued = true;
+
+        if (remainingItems.length > 0) {
           pages.push(currentPage);
-
+          currentPage = [];
+          currentUnits = 0;
           isFirstPage = false;
-          currentPage = [
-            {
-              label: `${group.label} (Continued)`,
-              total: part2.reduce((s, it) => s + it.amount, 0),
-              items: part2,
-            },
-          ];
-          currentUnits = 1.2 + part2.length * 1.4;
-          continue;
         }
+      } else {
+        pages.push(currentPage);
+        currentPage = [];
+        currentUnits = 0;
+        isFirstPage = false;
       }
-
-      pages.push(currentPage);
-      isFirstPage = false;
-      currentPage = [group];
-      currentUnits = groupUnits;
     }
   }
 
@@ -1285,8 +1363,11 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
             </div>
 
-            {/* Floorplan Layout Drawing */}
-            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-2 bg-white flex items-center justify-center min-h-[500px] max-h-[550px] overflow-hidden shadow-inner">
+            {/* 1. Chosen Facade Render for Secondary Dwelling */}
+            <QuoteSecondFacadeViewer secondDwelling={secondDwelling} />
+
+            {/* 2. Floorplan Layout Drawing */}
+            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1.5 bg-white flex items-center justify-center min-h-[400px] max-h-[480px] overflow-hidden shadow-inner">
               <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
             </div>
           </div>
