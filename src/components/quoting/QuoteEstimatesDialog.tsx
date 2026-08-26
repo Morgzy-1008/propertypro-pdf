@@ -526,9 +526,9 @@ export function QuoteEstimatesDialog({
 
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={async () => {
                             if (confirm(`Delete estimate #${q.quoteNumber} for ${q.client?.clientName || "Client"}?`)) {
-                              onDeleteQuote(q.id);
+                              await onDeleteQuote(q.id);
                               toast.success("Estimate deleted");
                             }
                           }}

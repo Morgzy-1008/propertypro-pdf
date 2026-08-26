@@ -19,6 +19,7 @@ import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
+import { Route as AuthenticatedTenderRequestRouteImport } from './routes/_authenticated/tender-request'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
 import { Route as CIdRouteImport } from './routes/c/$id'
@@ -75,6 +76,12 @@ const AuthenticatedQuoteBuilderRoute =
     path: '/quote-builder',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedTenderRequestRoute =
+  AuthenticatedTenderRequestRouteImport.update({
+    id: '/tender-request',
+    path: '/tender-request',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const BrowseLandRoute = BrowseLandRouteImport.update({
   id: '/browse/land',
   path: '/browse/land',
@@ -111,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/c/$id': typeof CIdRoute
@@ -127,6 +135,7 @@ export interface FileRoutesByTo {
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/c/$id': typeof CIdRoute
@@ -145,6 +154,7 @@ export interface FileRoutesById {
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/_authenticated/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
   '/c/$id': typeof CIdRoute
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/flyer'
     | '/hub'
     | '/quote-builder'
+    | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
     | '/c/$id'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/flyer'
     | '/hub'
     | '/quote-builder'
+    | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
     | '/c/$id'
@@ -196,6 +208,7 @@ export interface FileRouteTypes {
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
     | '/_authenticated/quote-builder'
+    | '/_authenticated/tender-request'
     | '/browse/land'
     | '/browse/packages'
     | '/c/$id'
@@ -289,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedQuoteBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tender-request': {
+      id: '/_authenticated/tender-request'
+      path: '/tender-request'
+      fullPath: '/tender-request'
+      preLoaderRoute: typeof AuthenticatedTenderRequestRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/browse/land': {
       id: '/browse/land'
       path: '/browse/land'
@@ -332,6 +352,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
   AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
+  AuthenticatedTenderRequestRoute: typeof AuthenticatedTenderRequestRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -339,6 +360,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
   AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
+  AuthenticatedTenderRequestRoute: AuthenticatedTenderRequestRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

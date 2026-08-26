@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Clock,
+  Send,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -120,12 +121,12 @@ function WelcomeHubPage() {
           </p>
         </div>
 
-        {/* Primary Module Action Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
+        {/* Primary Module Action Cards - 4 Columns */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto w-full">
           {/* Card 1: Flyer Builder */}
           <Link
             to="/flyer"
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-brand-gold/60 hover:shadow-2xl hover:shadow-brand-gold/10 hover:-translate-y-1 flex flex-col justify-between"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-6 transition-all duration-300 hover:border-brand-gold/60 hover:shadow-2xl hover:shadow-brand-gold/10 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div className="absolute top-0 right-0 h-32 w-32 bg-brand-gold/5 rounded-full blur-3xl group-hover:bg-brand-gold/15 transition-all duration-500" />
             
@@ -161,7 +162,7 @@ function WelcomeHubPage() {
           {/* Card 2: House & Land Database */}
           <Link
             to="/database"
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-cyan-500/60 hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-1 flex flex-col justify-between"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-6 transition-all duration-300 hover:border-cyan-500/60 hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div className="absolute top-0 right-0 h-32 w-32 bg-cyan-500/5 rounded-full blur-3xl group-hover:bg-cyan-500/15 transition-all duration-500" />
             
@@ -197,7 +198,7 @@ function WelcomeHubPage() {
           {/* Card 3: Hudson Quoting System with "Coming Soon, Currently Under Development" Sign */}
           <Link
             to="/quote-builder"
-            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-7 transition-all duration-300 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1 flex flex-col justify-between"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-6 transition-all duration-300 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1 flex flex-col justify-between"
           >
             <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
             
@@ -232,6 +233,47 @@ function WelcomeHubPage() {
               </div>
               <span className="inline-flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
                 Preview System <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </span>
+            </div>
+          </Link>
+
+          {/* Card 4: Submit Your Tender Request */}
+          <Link
+            to="/tender-request"
+            className="group relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 p-6 transition-all duration-300 hover:border-amber-500/60 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1 flex flex-col justify-between"
+          >
+            <div className="absolute top-0 right-0 h-32 w-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/15 transition-all duration-500" />
+            
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <Send className="h-6 w-6" />
+                </div>
+                <span className="text-[11px] font-semibold tracking-wider uppercase text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                  Tender Portal
+                </span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold uppercase tracking-wider mb-2.5 shadow-sm">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                Auto-Fill &amp; E-Sign
+              </div>
+
+              <h2 className="text-xl font-bold text-white group-hover:text-amber-200 transition-colors">
+                Submit Your Tender Request
+              </h2>
+              <p className="mt-2 text-xs text-slate-400 leading-relaxed min-h-[48px]">
+                Auto-generate the 4-page Tender Request (TR) form from your quote, digitally sign Authority to Proceed (ATP), manage job documents, and export a ready-to-unzip Job Folder for Bernie.
+              </p>
+            </div>
+
+            <div className="mt-6 pt-5 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+                <span>DocuSign Free &bull; ZIP Export</span>
+              </div>
+              <span className="inline-flex items-center text-xs font-semibold text-amber-400 group-hover:translate-x-1 transition-transform">
+                Start Tender <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </span>
             </div>
           </Link>

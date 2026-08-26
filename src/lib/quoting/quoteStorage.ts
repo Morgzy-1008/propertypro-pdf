@@ -537,12 +537,70 @@ export function loadActiveDraftQuote(): FullQuote | null {
   }
 }
 
+export async function deleteQuoteAsync(id: string): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  // 1. Delete from IndexedDB and wait for transaction to finish
+  await deleteQuoteFromIdb(id);
+
+  // 2. Clear from active working draft if it matches
+  try {
+    const rawDraft = localStorage.getItem(STORAGE_KEY_ACTIVE_DRAFT);
+    if (rawDraft) {
+      const parsedDraft = JSON.parse(rawDraft);
+      if (parsedDraft?.id === id || parsedDraft?.quoteNumber === id) {
+        localStorage.removeItem(STORAGE_KEY_ACTIVE_DRAFT);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  // 3. Purge from current and legacy storage lists
+  try {
+    const rawQuotes = localStorage.getItem(STORAGE_KEY_QUOTES);
+    if (rawQuotes) {
+      const parsed = JSON.parse(rawQuotes);
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((q: any) => q.id !== id && q.quoteNumber !== id);
+        localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(filtered));
+      }
+    }
+
+    const rawV8 = localStorage.getItem("hudson_builders_estimate_quotes_v8");
+    if (rawV8) {
+      const parsedV8 = JSON.parse(rawV8);
+      if (Array.isArray(parsedV8)) {
+        const filteredV8 = parsedV8.filter((q: any) => q.id !== id && q.quoteNumber !== id);
+        localStorage.setItem("hudson_builders_estimate_quotes_v8", JSON.stringify(filteredV8));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function deleteQuote(id: string): void {
   if (typeof window === "undefined") return;
   deleteQuoteFromIdb(id).catch(() => {});
-  const all = loadAllQuotes().filter((q) => q.id !== id);
+  
   try {
-    localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(all));
+    const rawDraft = localStorage.getItem(STORAGE_KEY_ACTIVE_DRAFT);
+    if (rawDraft) {
+      const parsedDraft = JSON.parse(rawDraft);
+      if (parsedDraft?.id === id || parsedDraft?.quoteNumber === id) {
+        localStorage.removeItem(STORAGE_KEY_ACTIVE_DRAFT);
+      }
+    }
+
+    const rawQuotes = localStorage.getItem(STORAGE_KEY_QUOTES);
+    if (rawQuotes) {
+      const parsed = JSON.parse(rawQuotes);
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((q: any) => q.id !== id && q.quoteNumber !== id);
+        localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(filtered));
+      }
+    }
   } catch {
     /* ignore */
   }

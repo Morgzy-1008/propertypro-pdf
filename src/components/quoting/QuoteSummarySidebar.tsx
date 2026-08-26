@@ -9,7 +9,9 @@ import {
   Sparkles,
   Tag,
   FolderOpen,
+  Send,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { formatAud } from "@/lib/pricing";
 import { getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
@@ -196,6 +198,15 @@ export function QuoteSummarySidebar({
               <Share2 className="h-3.5 w-3.5 text-cyan-400" /> Client Link
             </Button>
           </div>
+
+          <Link to="/tender-request">
+            <Button
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-bold hover:from-amber-400 text-xs gap-1.5 shadow-md shadow-amber-500/20"
+            >
+              <Send className="h-3.5 w-3.5" />
+              Submit Tender Request (ATP)
+            </Button>
+          </Link>
 
           {onOpenSavedEstimates && (
             <Button
