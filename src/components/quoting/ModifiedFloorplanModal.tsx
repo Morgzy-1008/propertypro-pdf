@@ -7,6 +7,13 @@ import {
   ArrowRight,
   Info,
   FileText,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Undo2,
+  CheckCircle2,
+  MousePointerClick,
+  Sparkles,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -21,12 +28,9 @@ interface ModifiedFloorplanModalProps {
   onSave: (croppedDataUrl: string) => void;
 }
 
-interface CropBox {
-  x: number; // 0..1 normalized
-  y: number;
-  w: number;
-  h: number;
-}
+type Point = { x: number; y: number }; // normalized 0..1 coordinates relative to image natural dimensions
+
+const CLOSE_THRESHOLD = 18; // pixels snap threshold to first point
 
 export function ModifiedFloorplanModal({
   isOpen,
@@ -39,23 +43,30 @@ export function ModifiedFloorplanModal({
   const [pdfPages, setPdfPages] = useState<string[]>([]);
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
 
-  // Multi-step double storey state
+  // Multi-step double storey workflow
   const [stage, setStage] = useState<"upload" | "crop_gf" | "crop_ff" | "crop_single">("upload");
   const [gfCroppedUrl, setGfCroppedUrl] = useState<string | null>(null);
   const [ffCroppedUrl, setFfCroppedUrl] = useState<string | null>(null);
 
-  // Canvas and interaction refs
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  // Loaded image metadata
   const [currentImage, setCurrentImage] = useState<HTMLImageElement | null>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
 
-  // Crop drag state (normalized coordinates 0 to 1)
-  const [cropBox, setCropBox] = useState<CropBox | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  // Canvas refs
+  const baseCanvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
+  const viewportContainerRef = useRef<HTMLDivElement>(null);
 
-  // Reset when dialog opens/closes
+  // Zoom & View scale state
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0); // 0.5 to 2.5
+
+  // Polygon cropping state (normalized coordinates 0 to 1)
+  const [activePoints, setActivePoints] = useState<Point[]>([]);
+  const [isClosed, setIsClosed] = useState(false);
+  const [mousePos, setMousePos] = useState<Point | null>(null);
+  const [isNearStart, setIsNearStart] = useState(false);
+
+  // Reset all state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setPdfPages([]);
@@ -63,13 +74,15 @@ export function ModifiedFloorplanModal({
       setStage("upload");
       setGfCroppedUrl(null);
       setFfCroppedUrl(null);
-      setCropBox(null);
+      setActivePoints([]);
+      setIsClosed(false);
       setCurrentImage(null);
       setImageLoaded(false);
+      setZoomLevel(1.0);
     }
   }, [isOpen]);
 
-  // Load image when page changes or image is set
+  // Load the active PDF page or image
   useEffect(() => {
     if (pdfPages.length === 0) return;
     const pageUrl = pdfPages[selectedPageIndex] || pdfPages[0];
@@ -78,67 +91,168 @@ export function ModifiedFloorplanModal({
     img.onload = () => {
       setCurrentImage(img);
       setImageLoaded(true);
-      // Default initial crop box covering center 80%
-      setCropBox({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
+      setActivePoints([]);
+      setIsClosed(false);
+      setIsNearStart(false);
+      setZoomLevel(1.0);
     };
     img.src = pageUrl;
   }, [pdfPages, selectedPageIndex]);
 
-  // Redraw canvas with crop overlay
-  const renderCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
+  // 1. Draw base image canvas
+  useEffect(() => {
+    const canvas = baseCanvasRef.current;
     if (!canvas || !currentImage || !imageLoaded) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const w = currentImage.naturalWidth || 800;
-    const h = currentImage.naturalHeight || 600;
+    const w = currentImage.naturalWidth || 1200;
+    const h = currentImage.naturalHeight || 900;
 
     canvas.width = w;
     canvas.height = h;
 
-    // 1. Draw source image
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(currentImage, 0, 0, w, h);
+  }, [currentImage, imageLoaded]);
 
-    // 2. Dim background outside crop box
-    if (cropBox) {
-      const bx = cropBox.x * w;
-      const by = cropBox.y * h;
-      const bw = cropBox.w * w;
-      const bh = cropBox.h * h;
+  // 2. Draw polygon overlay canvas
+  const drawOverlay = useCallback(() => {
+    const overlay = overlayCanvasRef.current;
+    const base = baseCanvasRef.current;
+    if (!overlay || !base || !currentImage || !imageLoaded) return;
 
-      ctx.fillStyle = "rgba(15, 23, 42, 0.45)"; // slate dark scrim
-      // Top
-      ctx.fillRect(0, 0, w, by);
-      // Bottom
-      ctx.fillRect(0, by + bh, w, h - (by + bh));
-      // Left
-      ctx.fillRect(0, by, bx, bh);
-      // Right
-      ctx.fillRect(bx + bw, by, w - (bx + bw), bh);
+    const w = base.width;
+    const h = base.height;
 
-      // 3. Highlight border
-      ctx.strokeStyle = "#10b981"; // Emerald-500
-      ctx.lineWidth = Math.max(3, Math.round(w / 400));
-      ctx.setLineDash([8, 6]);
-      ctx.strokeRect(bx, by, bw, bh);
-      ctx.setLineDash([]);
+    overlay.width = w;
+    overlay.height = h;
 
-      // Corner handles
-      const handleSize = Math.max(12, Math.round(w / 80));
-      ctx.fillStyle = "#10b981";
-      ctx.fillRect(bx - handleSize / 2, by - handleSize / 2, handleSize, handleSize);
-      ctx.fillRect(bx + bw - handleSize / 2, by - handleSize / 2, handleSize, handleSize);
-      ctx.fillRect(bx - handleSize / 2, by + bh - handleSize / 2, handleSize, handleSize);
-      ctx.fillRect(bx + bw - handleSize / 2, by + bh - handleSize / 2, handleSize, handleSize);
+    const ctx = overlay.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, w, h);
+
+    if (activePoints.length === 0) return;
+
+    // Draw completed / closed polygon
+    if (isClosed && activePoints.length >= 3) {
+      // Darken outside area using evenodd clip
+      ctx.save();
+      ctx.fillStyle = "rgba(15, 23, 42, 0.4)";
+      ctx.fillRect(0, 0, w, h);
+
+      // Cut out the selected polygon
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
+      for (let i = 1; i < activePoints.length; i++) {
+        ctx.lineTo(activePoints[i].x * w, activePoints[i].y * h);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      // Highlight boundary
+      ctx.beginPath();
+      ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
+      for (let i = 1; i < activePoints.length; i++) {
+        ctx.lineTo(activePoints[i].x * w, activePoints[i].y * h);
+      }
+      ctx.closePath();
+      ctx.fillStyle = "rgba(16, 185, 129, 0.18)"; // Emerald tint
+      ctx.fill();
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = Math.max(3, Math.round(w / 350));
+      ctx.stroke();
+
+      // Draw vertex nodes
+      for (let i = 0; i < activePoints.length; i++) {
+        const p = activePoints[i];
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, Math.max(5, Math.round(w / 200)), 0, Math.PI * 2);
+        ctx.fillStyle = "#10b981";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // Center confirmation badge
+      const cx = (activePoints.reduce((s, p) => s + p.x, 0) / activePoints.length) * w;
+      const cy = (activePoints.reduce((s, p) => s + p.y, 0) / activePoints.length) * h;
+      ctx.font = `bold ${Math.max(16, Math.round(w / 60))}px sans-serif`;
+      ctx.fillStyle = "#065f46";
+      ctx.textAlign = "center";
+      ctx.fillText("✓ Crop Boundary Selected", cx, cy);
+
+      return;
     }
-  }, [currentImage, imageLoaded, cropBox]);
+
+    // In-progress drawing
+    ctx.beginPath();
+    ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
+    for (let i = 1; i < activePoints.length; i++) {
+      ctx.lineTo(activePoints[i].x * w, activePoints[i].y * h);
+    }
+
+    // Rubber-band line to current mouse position
+    if (mousePos && !isClosed) {
+      ctx.lineTo(mousePos.x * w, mousePos.y * h);
+    }
+
+    ctx.strokeStyle = "#06b6d4"; // Cyan-500
+    ctx.lineWidth = Math.max(2.5, Math.round(w / 400));
+    ctx.setLineDash([8, 6]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Semi-transparent polygon preview
+    if (activePoints.length >= 2 && mousePos && !isClosed) {
+      ctx.beginPath();
+      ctx.moveTo(activePoints[0].x * w, activePoints[0].y * h);
+      for (let i = 1; i < activePoints.length; i++) {
+        ctx.lineTo(activePoints[i].x * w, activePoints[i].y * h);
+      }
+      ctx.lineTo(mousePos.x * w, mousePos.y * h);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(6, 182, 212, 0.12)";
+      ctx.fill();
+    }
+
+    // Draw vertex dots
+    for (let i = 0; i < activePoints.length; i++) {
+      const p = activePoints[i];
+      const isStart = i === 0;
+      ctx.beginPath();
+      ctx.arc(p.x * w, p.y * h, isStart ? Math.max(8, Math.round(w / 140)) : Math.max(5, Math.round(w / 200)), 0, Math.PI * 2);
+      ctx.fillStyle = isStart ? "#f59e0b" : "#06b6d4"; // Start is amber
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Highlight start point when hovering near to snap/close
+    if (activePoints.length >= 3 && isNearStart && !isClosed) {
+      const startP = activePoints[0];
+      ctx.beginPath();
+      ctx.arc(startP.x * w, startP.y * h, Math.max(16, Math.round(w / 70)), 0, Math.PI * 2);
+      ctx.strokeStyle = "#10b981"; // Emerald green snap ring
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      ctx.font = `bold ${Math.max(13, Math.round(w / 75))}px sans-serif`;
+      ctx.fillStyle = "#10b981";
+      ctx.textAlign = "center";
+      ctx.fillText("Click to Close Polygon", startP.x * w, startP.y * h - 22);
+    }
+  }, [activePoints, isClosed, mousePos, isNearStart, currentImage, imageLoaded]);
 
   useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas]);
+    drawOverlay();
+  }, [drawOverlay]);
 
   // Handle file upload (PDF or Image)
   const handleFileUpload = async (file: File) => {
@@ -165,8 +279,8 @@ export function ModifiedFloorplanModal({
     }
   };
 
-  // Mouse drag handlers on overlay
-  const getCanvasCoords = (e: React.MouseEvent<HTMLDivElement>) => {
+  // Convert mouse click to normalized coordinates [0..1]
+  const getNormalizedCoords = (e: React.MouseEvent<HTMLCanvasElement>): Point => {
     const rect = e.currentTarget.getBoundingClientRect();
     const clientX = e.clientX - rect.left;
     const clientY = e.clientY - rect.top;
@@ -175,66 +289,148 @@ export function ModifiedFloorplanModal({
     return { x, y };
   };
 
-  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    const pt = getCanvasCoords(e);
-    setIsDragging(true);
-    setDragStart(pt);
-    setCropBox({ x: pt.x, y: pt.y, w: 0.01, h: 0.01 });
+  // Handle canvas click to place polygon points
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isClosed) return; // already closed
+
+    const pt = getNormalizedCoords(e);
+    const overlay = overlayCanvasRef.current;
+    if (!overlay) return;
+
+    const rect = overlay.getBoundingClientRect();
+
+    // Check if clicking near start point to close polygon (when >= 3 points)
+    if (activePoints.length >= 3) {
+      const w = rect.width;
+      const h = rect.height;
+      const dx = (pt.x - activePoints[0].x) * w;
+      const dy = (pt.y - activePoints[0].y) * h;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist < CLOSE_THRESHOLD) {
+        setIsClosed(true);
+        setIsNearStart(false);
+        toast.success("Floorplan polygon closed! Ready to apply.");
+        return;
+      }
+    }
+
+    // Add new point
+    setActivePoints((prev) => [...prev, pt]);
   };
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !dragStart) return;
-    const pt = getCanvasCoords(e);
-    const minX = Math.min(dragStart.x, pt.x);
-    const minY = Math.min(dragStart.y, pt.y);
-    const w = Math.abs(pt.x - dragStart.x);
-    const h = Math.abs(pt.y - dragStart.y);
-    setCropBox({ x: minX, y: minY, w: Math.max(0.02, w), h: Math.max(0.02, h) });
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isClosed) return;
+    const pt = getNormalizedCoords(e);
+    setMousePos(pt);
+
+    const overlay = overlayCanvasRef.current;
+    if (!overlay || activePoints.length < 3) {
+      setIsNearStart(false);
+      return;
+    }
+
+    const rect = overlay.getBoundingClientRect();
+    const w = rect.width;
+    const h = rect.height;
+    const dx = (pt.x - activePoints[0].x) * w;
+    const dy = (pt.y - activePoints[0].y) * h;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    setIsNearStart(dist < CLOSE_THRESHOLD);
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setDragStart(null);
+  const handleClosePolygonExplicitly = () => {
+    if (activePoints.length >= 3) {
+      setIsClosed(true);
+      setIsNearStart(false);
+      toast.success("Floorplan polygon closed! Ready to apply.");
+    } else {
+      toast.error("Please place at least 3 points around the floorplan before closing.");
+    }
   };
 
-  // Crop the selected region to a high-res white canvas data URL
-  const cropCurrentRegion = (): string | null => {
-    if (!currentImage || !cropBox) return null;
-    const iw = currentImage.naturalWidth || 800;
-    const ih = currentImage.naturalHeight || 600;
+  const handleUndoPoint = () => {
+    if (isClosed) {
+      setIsClosed(false);
+      return;
+    }
+    if (activePoints.length > 0) {
+      setActivePoints((prev) => prev.slice(0, -1));
+    }
+  };
 
-    const sx = Math.round(cropBox.x * iw);
-    const sy = Math.round(cropBox.y * ih);
-    const sw = Math.round(cropBox.w * iw);
-    const sh = Math.round(cropBox.h * ih);
+  const handleResetPoints = () => {
+    setActivePoints([]);
+    setIsClosed(false);
+    setIsNearStart(false);
+  };
 
-    if (sw <= 10 || sh <= 10) return null;
+  // Crop the polygon region to a clean masked white canvas data URL
+  const cropPolygonRegion = (): string | null => {
+    const baseCanvas = baseCanvasRef.current;
+    if (!baseCanvas || activePoints.length < 3 || !isClosed) return null;
+
+    const iw = baseCanvas.width;
+    const ih = baseCanvas.height;
+
+    // Calculate bounding box in pixel coordinates
+    const pixelPoints = activePoints.map((p) => ({
+      x: p.x * iw,
+      y: p.y * ih,
+    }));
+
+    const minX = Math.max(0, Math.min(...pixelPoints.map((p) => p.x)));
+    const maxX = Math.min(iw, Math.max(...pixelPoints.map((p) => p.x)));
+    const minY = Math.max(0, Math.min(...pixelPoints.map((p) => p.y)));
+    const maxY = Math.min(ih, Math.max(...pixelPoints.map((p) => p.y)));
+
+    const padding = 20; // 20px clean border padding
+    const boundW = Math.max(50, Math.round(maxX - minX));
+    const boundH = Math.max(50, Math.round(maxY - minY));
+
+    const finalW = boundW + padding * 2;
+    const finalH = boundH + padding * 2;
 
     const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = sw;
-    cropCanvas.height = sh;
+    cropCanvas.width = finalW;
+    cropCanvas.height = finalH;
     const ctx = cropCanvas.getContext("2d");
     if (!ctx) return null;
 
+    // 1. Fill solid crisp white background
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, sw, sh);
-    ctx.drawImage(currentImage, sx, sy, sw, sh, 0, 0, sw, sh);
+    ctx.fillRect(0, 0, finalW, finalH);
+
+    // 2. Set clipping path to the exact polygon boundary
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(pixelPoints[0].x - minX + padding, pixelPoints[0].y - minY + padding);
+    for (let i = 1; i < pixelPoints.length; i++) {
+      ctx.lineTo(pixelPoints[i].x - minX + padding, pixelPoints[i].y - minY + padding);
+    }
+    ctx.closePath();
+    ctx.clip();
+
+    // 3. Draw the source image from baseCanvas inside the masked polygon
+    ctx.drawImage(baseCanvas, -minX + padding, -minY + padding, iw, ih);
+    ctx.restore();
 
     return cropCanvas.toDataURL("image/png", 0.95);
   };
 
-  // Combine GF and FF into a clean composite canvas
-  const combineDoubleStoreyPlans = (gfUrl: string, ffUrl: string): Promise<string> => {
+  // Combine GF and FF into a single high-resolution side-by-side composite
+  const combineDoubleStoreyPlans = async (gfUrl: string, ffUrl: string): Promise<string> => {
     return new Promise((resolve) => {
       const imgGF = new Image();
       const imgFF = new Image();
-      let loaded = 0;
+      let loadedCount = 0;
 
       const checkBoth = () => {
-        loaded++;
-        if (loaded < 2) return;
+        loadedCount += 1;
+        if (loadedCount < 2) return;
 
-        const maxH = Math.max(imgGF.naturalHeight, imgFF.naturalHeight);
+        const maxH = 1200;
         const scaleGF = maxH / imgGF.naturalHeight;
         const scaleFF = maxH / imgFF.naturalHeight;
 
@@ -286,32 +482,37 @@ export function ModifiedFloorplanModal({
   };
 
   const handleNextOrFinish = async () => {
-    const cropped = cropCurrentRegion();
+    if (!isClosed || activePoints.length < 3) {
+      toast.error("Please click around the floorplan perimeter and click the start point to close the polygon.");
+      return;
+    }
+
+    const cropped = cropPolygonRegion();
     if (!cropped) {
-      toast.error("Please drag a box around the floorplan area to crop.");
+      toast.error("Could not generate cropped floorplan. Please try redrawing the boundary.");
       return;
     }
 
     if (stage === "crop_single") {
       onSave(cropped);
-      toast.success("Modified floorplan applied to estimate!");
+      toast.success("Modified architectural floorplan applied to estimate!");
       onClose();
     } else if (stage === "crop_gf") {
       setGfCroppedUrl(cropped);
       setStage("crop_ff");
-      // Reset crop box for next floor
-      setCropBox({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
-      toast.info("Ground Floor saved. Now drag to crop the First Floor (FF).");
+      setActivePoints([]);
+      setIsClosed(false);
+      toast.info("Ground Floor saved! Now click around the First Floor (FF) and close the polygon.");
     } else if (stage === "crop_ff") {
       setFfCroppedUrl(cropped);
       if (gfCroppedUrl) {
         const combined = await combineDoubleStoreyPlans(gfCroppedUrl, cropped);
         onSave(combined);
-        toast.success("Two-storey modified floorplan combined and applied to estimate!");
+        toast.success("Two-storey modified floorplan combined and attached to estimate!");
         onClose();
       } else {
         onSave(cropped);
-        toast.success("Modified floorplan applied to estimate!");
+        toast.success("Modified architectural floorplan applied to estimate!");
         onClose();
       }
     }
@@ -319,12 +520,13 @@ export function ModifiedFloorplanModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-6">
-        <DialogHeader className="border-b border-slate-800 pb-3">
+      <DialogContent className="max-w-5xl max-h-[92vh] flex flex-col bg-slate-950 text-slate-100 border border-slate-800 shadow-2xl p-5 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="border-b border-slate-800 pb-3 flex-none">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
               <Crop className="h-5 w-5 text-emerald-400" />
-              Update with Modified Design &mdash; Precision Floorplan Cropper
+              Update with Modified Design &mdash; Precision Polygon Cropper
             </DialogTitle>
           </div>
           <p className="text-xs text-slate-400 mt-1">
@@ -335,16 +537,16 @@ export function ModifiedFloorplanModal({
 
         {/* Step Indicator for Double Storey */}
         {isDoubleStorey && stage !== "upload" && (
-          <div className="flex items-center justify-between bg-slate-900/90 p-3 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center justify-between bg-slate-900/90 p-2.5 rounded-xl border border-slate-800 text-xs flex-none mt-2">
             <div className="flex items-center gap-3">
               <span
-                className={`px-2.5 py-1 rounded-md font-bold ${
+                className={`px-2.5 py-1 rounded-md font-bold flex items-center gap-1.5 ${
                   stage === "crop_gf"
                     ? "bg-emerald-500 text-slate-950"
                     : "bg-emerald-950 text-emerald-300 border border-emerald-700"
                 }`}
               >
-                1. Ground Floor (GF)
+                {stage === "crop_ff" && <Check className="h-3.5 w-3.5" />} 1. Ground Floor (GF)
               </span>
               <ArrowRight className="h-4 w-4 text-slate-500" />
               <span
@@ -357,35 +559,36 @@ export function ModifiedFloorplanModal({
                 2. First Floor (FF)
               </span>
             </div>
-            <span className="text-[11px] text-amber-400 font-medium">
-              {stage === "crop_gf" ? "Crop Ground Floor Only" : "Crop First Floor Only"}
+            <span className="text-[11px] text-amber-400 font-semibold">
+              {stage === "crop_gf" ? "Click boundary points around Ground Floor" : "Click boundary points around First Floor"}
             </span>
           </div>
         )}
 
-        {/* Instruction Alert */}
-        <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-cyan-200 flex items-start gap-2.5">
+        {/* Instructions Alert Banner */}
+        <div className="p-3 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-cyan-200 flex items-start gap-2.5 flex-none mt-2">
           <Info className="h-4 w-4 text-cyan-400 flex-none mt-0.5" />
-          <div className="space-y-1">
-            <strong className="block text-white font-semibold">Consultant Cropping Instructions:</strong>
-            <p className="leading-relaxed">
-              Drag your mouse across the preview below to box around the floorplan drawing.
-              Exclude all title blocks, site notes, and outer borders.
-              {isDoubleStorey && " For double storey plans, crop 1 level at a time (GF first, then FF)."}
+          <div className="space-y-0.5">
+            <strong className="block text-white font-semibold">Polygon Cropping Instructions:</strong>
+            <p className="text-[11px] leading-relaxed text-cyan-200/90">
+              1. Click points around the outer walls of the house layout.
+              2. Click back on the <strong>first amber point</strong> (or click &quot;Close Polygon&quot;) to seal the crop boundary.
+              {isDoubleStorey && " 3. Double storey: crop Ground Floor first, then First Floor."}
             </p>
           </div>
         </div>
 
-        {/* Upload State */}
+        {/* Modal Body */}
         {stage === "upload" ? (
-          <div className="py-10 px-6 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl bg-slate-900/40 text-center space-y-4 transition-all">
+          /* Upload State */
+          <div className="my-auto py-12 px-6 border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl bg-slate-900/40 text-center space-y-4 transition-all">
             <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-inner">
               <Upload className="h-7 w-7" />
             </div>
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-white">Upload Modified Architectural Floorplan</h4>
-              <p className="text-xs text-slate-400">
-                Supports PDF brochures, architectural sheets, PNG, or JPG images.
+              <p className="text-xs text-slate-400 max-w-md mx-auto">
+                Upload a revised PDF brochure sheet, architectural drawing, or PNG/JPEG image. The entire page will render with full precision for polygon cropping.
               </p>
             </div>
 
@@ -407,79 +610,157 @@ export function ModifiedFloorplanModal({
               >
                 <span>
                   <FileText className="h-4 w-4" />
-                  {fileLoading ? "Processing Plan..." : "Browse & Upload Plan"}
+                  {fileLoading ? "Rendering Full PDF Sheet..." : "Browse & Upload Plan File"}
                 </span>
               </Button>
             </label>
           </div>
         ) : (
-          /* Interactive Cropping Workspace */
-          <div className="space-y-4">
+          /* Interactive Polygon Workspace */
+          <div className="flex-1 flex flex-col min-h-0 space-y-2.5 mt-2 overflow-hidden">
             {/* Toolbar */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-900/90 p-2 rounded-xl border border-slate-800 text-xs flex-none">
               {/* PDF Page Selector (if multi-page PDF) */}
               {pdfPages.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 text-[11px]">PDF Page:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400 text-[11px] font-medium">Page:</span>
                   <div className="flex gap-1">
                     {pdfPages.map((_, idx) => (
                       <button
                         key={idx}
                         type="button"
-                        onClick={() => {
-                          setSelectedPageIndex(idx);
-                          setCropBox({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
-                        }}
-                        className={`px-2.5 py-1 rounded text-xs font-mono font-bold ${
+                        onClick={() => setSelectedPageIndex(idx)}
+                        className={`px-2.5 py-0.5 rounded text-xs font-mono font-bold ${
                           selectedPageIndex === idx
                             ? "bg-emerald-500 text-slate-950"
                             : "bg-slate-800 text-slate-300 hover:bg-slate-700"
                         }`}
                       >
-                        Page {idx + 1}
+                        P{idx + 1}
                       </button>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex items-center gap-2 ml-auto">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setCropBox({ x: 0.05, y: 0.05, w: 0.9, h: 0.9 })}
-                  className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-200 gap-1.5"
-                >
-                  <RotateCcw className="h-3 w-3" /> Reset Crop Box
-                </Button>
+              {/* Point Status Badge */}
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
+                  Points: <strong>{activePoints.length}</strong> {isClosed ? "(Closed ✓)" : "(In Progress)"}
+                </span>
+
+                {activePoints.length >= 3 && !isClosed && (
+                  <Button
+                    size="sm"
+                    onClick={handleClosePolygonExplicitly}
+                    className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1 shadow-sm"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" /> Close Polygon
+                  </Button>
+                )}
+
+                {activePoints.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleUndoPoint}
+                    className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-300 hover:text-white gap-1"
+                    title="Undo last point"
+                  >
+                    <Undo2 className="h-3 w-3" /> Undo
+                  </Button>
+                )}
+
+                {activePoints.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleResetPoints}
+                    className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-300 hover:text-white gap-1"
+                    title="Reset all points"
+                  >
+                    <RotateCcw className="h-3 w-3" /> Reset
+                  </Button>
+                )}
+              </div>
+
+              {/* Zoom Controls & Upload Different */}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <div className="flex items-center bg-slate-950 border border-slate-800 rounded-lg p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((z) => Math.max(0.6, z - 0.2))}
+                    className="p-1 text-slate-400 hover:text-white rounded"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="px-1.5 text-[10px] font-mono text-slate-300 min-w-[42px] text-center">
+                    {Math.round(zoomLevel * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel((z) => Math.min(2.5, z + 0.2))}
+                    className="p-1 text-slate-400 hover:text-white rounded"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setZoomLevel(1.0)}
+                    className="px-1.5 py-0.5 text-[10px] text-slate-400 hover:text-white border-l border-slate-800"
+                    title="Reset Zoom"
+                  >
+                    Fit
+                  </button>
+                </div>
+
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => setStage("upload")}
-                  className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-200 gap-1.5"
+                  className="h-7 text-xs border-slate-700 bg-slate-800 text-slate-300 hover:text-white gap-1"
                 >
-                  <Upload className="h-3 w-3" /> Upload Different File
+                  <Upload className="h-3 w-3" /> New File
                 </Button>
               </div>
             </div>
 
-            {/* Interactive Canvas Viewport */}
+            {/* Scrollable Viewport (Top Aligned - Zero Cut-off) */}
             <div
-              ref={containerRef}
-              className="relative w-full max-h-[500px] overflow-auto rounded-xl border border-slate-800 bg-slate-950 flex items-center justify-center p-3 cursor-crosshair select-none"
+              ref={viewportContainerRef}
+              className="flex-1 w-full overflow-auto rounded-xl border border-slate-800 bg-slate-950 p-4 select-none min-h-[380px] max-h-[560px]"
             >
               <div
-                className="relative inline-block"
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
+                className="relative inline-block m-auto transition-transform origin-top-left"
+                style={{
+                  width: currentImage ? `${Math.round(currentImage.naturalWidth * zoomLevel)}px` : "auto",
+                  height: currentImage ? `${Math.round(currentImage.naturalHeight * zoomLevel)}px` : "auto",
+                }}
               >
-                <canvas ref={canvasRef} className="max-w-full h-auto block rounded shadow-md" />
+                {/* Base Rendered Image Canvas */}
+                <canvas
+                  ref={baseCanvasRef}
+                  className="block rounded shadow-lg bg-white"
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
+                />
+
+                {/* Interactive Polygon Click Overlay Canvas */}
+                <canvas
+                  ref={overlayCanvasRef}
+                  onClick={handleCanvasClick}
+                  onMouseMove={handleCanvasMouseMove}
+                  className="absolute inset-0 w-full h-full cursor-crosshair z-10"
+                />
               </div>
             </div>
 
-            {/* Action Bar */}
-            <div className="flex items-center justify-between border-t border-slate-800 pt-3">
+            {/* Bottom Action Footer */}
+            <div className="flex items-center justify-between border-t border-slate-800 pt-3 flex-none">
               <Button
                 variant="ghost"
                 onClick={onClose}
@@ -488,15 +769,27 @@ export function ModifiedFloorplanModal({
                 Cancel
               </Button>
 
-              <Button
-                onClick={handleNextOrFinish}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-2 px-5 py-2.5 shadow-lg shadow-emerald-500/20"
-              >
-                <Check className="h-4 w-4" />
-                {stage === "crop_gf"
-                  ? "Next: Crop First Floor (FF)"
-                  : "Save & Apply to Estimate"}
-              </Button>
+              <div className="flex items-center gap-2">
+                {isClosed && (
+                  <span className="text-xs text-emerald-400 font-semibold flex items-center gap-1">
+                    <Sparkles className="h-3.5 w-3.5" /> Polygon Closed &amp; Ready
+                  </span>
+                )}
+                <Button
+                  onClick={handleNextOrFinish}
+                  disabled={!isClosed}
+                  className={`font-bold text-xs gap-2 px-6 py-2.5 shadow-lg transition-all ${
+                    isClosed
+                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/20"
+                      : "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700"
+                  }`}
+                >
+                  <Check className="h-4 w-4" />
+                  {stage === "crop_gf"
+                    ? "Proceed to Step 2: Crop First Floor (FF) →"
+                    : "Save & Apply Modified Floorplan to Estimate"}
+                </Button>
+              </div>
             </div>
           </div>
         )}
