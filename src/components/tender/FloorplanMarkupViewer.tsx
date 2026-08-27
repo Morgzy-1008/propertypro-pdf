@@ -15,6 +15,7 @@ import {
   MousePointerClick,
   FileText,
   Crop,
+  Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,10 +70,15 @@ export function FloorplanMarkupViewer({
   // Pin assignment modal state
   const [pendingCoord, setPendingCoord] = useState<{ x: number; y: number } | null>(null);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assignTab, setAssignTab] = useState<"column_b" | "custom">("column_b");
+  const [searchQuery, setSearchQuery] = useState("");
   const [customTitle, setCustomTitle] = useState("");
   const [customCost, setCustomCost] = useState<number | "">("");
 
   const unassignedColumnBItems = variations.filter((v) => !v.isStructural);
+  const filteredColumnBItems = unassignedColumnBItems.filter((item) =>
+    item.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // Click on floorplan canvas to place a new pin
   const handlePlanClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -89,6 +95,8 @@ export function FloorplanMarkupViewer({
     setPendingCoord({ x: percentX, y: percentY });
     setCustomTitle(`Structural Modification #${nextNumber}`);
     setCustomCost("");
+    setAssignTab(unassignedColumnBItems.length > 0 ? "column_b" : "custom");
+    setSearchQuery("");
     setIsAssignModalOpen(true);
   };
 
@@ -364,96 +372,177 @@ export function FloorplanMarkupViewer({
 
       {/* Interactive Pin Assignment Dialog */}
       <Dialog open={isAssignModalOpen} onOpenChange={setIsAssignModalOpen}>
-        <DialogContent className="max-w-lg border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl space-y-4">
-          <DialogHeader className="border-b border-slate-800 pb-3">
-            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
-              <span className="h-5 w-5 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-[11px] flex items-center justify-center">
+        <DialogContent className="max-w-xl sm:max-w-2xl w-full border border-slate-800 bg-slate-950 text-slate-100 p-0 rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          {/* Dialog Header */}
+          <div className="px-6 pt-5 pb-4 border-b border-slate-800 bg-slate-900/70 flex-none">
+            <DialogTitle className="text-base font-bold text-white flex items-center gap-2.5">
+              <span className="h-6 w-6 rounded-full bg-amber-400 text-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-xs">
                 #{pins.length + 1}
               </span>
-              Assign Structural Pin #{pins.length + 1}
+              <span>Assign Structural Pin #{pins.length + 1}</span>
             </DialogTitle>
-          </DialogHeader>
+            <p className="text-xs text-slate-400 mt-1">
+              Select an existing inclusion/upgrade from Column B or type a new custom structural change to link to this pin.
+            </p>
 
-          {/* Option A: Move from Column B */}
-          {unassignedColumnBItems.length > 0 && (
-            <div className="space-y-2">
-              <span className="text-xs font-bold uppercase text-cyan-400 flex items-center gap-1.5">
-                <Layers className="h-3.5 w-3.5" /> Option 1: Pick an Existing Variation from Column B
-              </span>
-              <div className="max-h-48 overflow-y-auto space-y-1.5 p-1">
-                {unassignedColumnBItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="p-2.5 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-850 hover:border-amber-500/50 flex items-center justify-between gap-2 text-xs transition-colors"
-                  >
-                    <div className="flex-1 truncate">
-                      <span className="font-medium text-slate-200 block truncate">{item.description}</span>
-                      <span className="text-[10px] font-mono text-slate-400">{formatAud(item.cost)}</span>
+            {/* Segmented Mode Switcher */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950 rounded-xl border border-slate-800 mt-3">
+              <button
+                type="button"
+                onClick={() => setAssignTab("column_b")}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                  assignTab === "column_b"
+                    ? "bg-cyan-500 text-slate-950 shadow-md"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>Pick from Column B ({unassignedColumnBItems.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setAssignTab("custom")}
+                className={`flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                  assignTab === "custom"
+                    ? "bg-amber-400 text-slate-950 shadow-md"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Create New Variation</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Dialog Body */}
+          <div className="p-6 space-y-4 flex-1 overflow-y-auto min-h-0">
+            {assignTab === "column_b" && (
+              <div className="space-y-3">
+                {unassignedColumnBItems.length > 3 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
+                    <Input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search variations / allowances..."
+                      className="pl-8 h-8 text-xs border-slate-800 bg-slate-900 text-slate-200"
+                    />
+                  </div>
+                )}
+
+                {unassignedColumnBItems.length === 0 ? (
+                  <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-800 bg-slate-900/40 space-y-3">
+                    <Layers className="h-8 w-8 text-slate-600 mx-auto" />
+                    <div>
+                      <p className="text-xs text-slate-300 font-medium">No unassigned items in Column B</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        All variations in Column B are already assigned as numbered pins, or none have been added yet.
+                      </p>
                     </div>
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => handlePickColumnBItem(item)}
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] h-7 px-2.5 gap-1 flex-none"
+                      onClick={() => setAssignTab("custom")}
+                      className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs gap-1.5"
                     >
-                      Assign as Pin #{pins.length + 1}
+                      <Plus className="h-3.5 w-3.5" /> Type New Structural Variation
                     </Button>
                   </div>
-                ))}
+                ) : filteredColumnBItems.length === 0 ? (
+                  <div className="text-center py-8 text-slate-400 text-xs italic">
+                    No variations match &ldquo;{searchQuery}&rdquo;.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                    {filteredColumnBItems.map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-900 hover:border-amber-500/50 flex items-center justify-between gap-3 text-xs transition-all shadow-xs"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <span className="font-semibold text-slate-100 block leading-snug break-words">
+                            {item.description}
+                          </span>
+                          <span className="text-[11px] font-mono text-cyan-400 font-bold mt-0.5 block">
+                            {formatAud(item.cost)}
+                          </span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => handlePickColumnBItem(item)}
+                          className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs h-8 px-3 gap-1 flex-none shadow-sm"
+                        >
+                          <Check className="h-3.5 w-3.5" /> Assign as Pin #{pins.length + 1}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Option B: Enter New Title & Cost */}
-          <div className="space-y-3 pt-2 border-t border-slate-800">
-            <span className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
-              <Plus className="h-3.5 w-3.5" /> {unassignedColumnBItems.length > 0 ? "Option 2: Or Type New Structural Variation" : "Type Structural Variation Details"}
-            </span>
+            {assignTab === "custom" && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
+                    Structural Modification Description *
+                  </label>
+                  <Textarea
+                    rows={3}
+                    value={customTitle}
+                    onChange={(e) => setCustomTitle(e.target.value)}
+                    placeholder="e.g. Extend Alfresco by 1200mm with concrete slab and structural steel beam"
+                    className="border-slate-800 bg-slate-900 text-xs text-white resize-none leading-relaxed"
+                  />
+                </div>
 
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Structural Change Description *</label>
-              <Textarea
-                rows={2}
-                value={customTitle}
-                onChange={(e) => setCustomTitle(e.target.value)}
-                placeholder="e.g. Extend Alfresco by 1200mm with concrete slab"
-                className="border-slate-800 bg-slate-900 text-xs text-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-[11px] text-slate-400 block mb-1">Cost Allowance ($)</label>
-              <div className="relative">
-                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
-                <Input
-                  type="number"
-                  value={customCost}
-                  onChange={(e) => setCustomCost(e.target.value ? Number(e.target.value) : "")}
-                  placeholder="0"
-                  className="pl-6 border-slate-800 bg-slate-900 text-xs font-mono font-bold text-white"
-                />
+                <div>
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-slate-300 block mb-1.5">
+                    Cost Allowance ($ Inc. GST)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono font-bold">$</span>
+                    <Input
+                      type="number"
+                      value={customCost}
+                      onChange={(e) => setCustomCost(e.target.value ? Number(e.target.value) : "")}
+                      placeholder="0"
+                      className="pl-7 border-slate-800 bg-slate-900 text-xs font-mono font-bold text-white"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+          </div>
 
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsAssignModalOpen(false)}
-                className="text-xs text-slate-400"
-              >
-                Cancel
-              </Button>
+          {/* Dialog Footer */}
+          <div className="px-6 py-3.5 border-t border-slate-800 bg-slate-900/70 flex items-center justify-between flex-none">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsAssignModalOpen(false)}
+              className="text-xs text-slate-400 hover:text-white"
+            >
+              Cancel
+            </Button>
+
+            {assignTab === "custom" ? (
               <Button
                 type="button"
                 size="sm"
                 onClick={handleConfirmNewVariation}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1"
+                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs gap-1.5 px-4 shadow-sm"
               >
                 <Check className="h-3.5 w-3.5" /> Create &amp; Place Pin #{pins.length + 1}
               </Button>
-            </div>
+            ) : (
+              <span className="text-[11px] text-slate-400 italic">
+                Click &ldquo;Assign as Pin #{pins.length + 1}&rdquo; to place on plan
+              </span>
+            )}
           </div>
         </DialogContent>
       </Dialog>
