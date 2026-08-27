@@ -298,6 +298,71 @@ export function createBlankTenderSubmission(): TenderSubmission {
   };
 }
 
+export function parseClientNames(c1Raw: string, c2Raw?: string) {
+  let c1First = "";
+  let c1Last = "";
+  let c2First = "";
+  let c2Last = "";
+  let has2 = false;
+
+  const raw1 = (c1Raw || "").trim();
+  const raw2 = (c2Raw || "").trim();
+
+  if (raw1.includes("&") || raw1.toLowerCase().includes(" and ")) {
+    const splitRegex = /\s+(?:&|and)\s+/i;
+    const parts = raw1.split(splitRegex);
+    const part1 = parts[0]?.trim() || "";
+    const part2 = parts[1]?.trim() || "";
+
+    const p1Tokens = part1.split(/\s+/).filter(Boolean);
+    const p2Tokens = part2.split(/\s+/).filter(Boolean);
+
+    if (p2Tokens.length >= 2) {
+      c2Last = p2Tokens[p2Tokens.length - 1];
+      c2First = p2Tokens.slice(0, -1).join(" ");
+    } else if (p2Tokens.length === 1) {
+      c2First = p2Tokens[0];
+    }
+
+    if (p1Tokens.length >= 2) {
+      c1Last = p1Tokens[p1Tokens.length - 1];
+      c1First = p1Tokens.slice(0, -1).join(" ");
+    } else if (p1Tokens.length === 1) {
+      c1First = p1Tokens[0];
+      if (!c1Last && c2Last) c1Last = c2Last;
+    }
+
+    if (!c2Last && c1Last) {
+      c2Last = c1Last;
+    }
+
+    has2 = !!c2First;
+  } else {
+    const tokens1 = raw1.split(/\s+/).filter(Boolean);
+    if (tokens1.length >= 2) {
+      c1Last = tokens1[tokens1.length - 1];
+      c1First = tokens1.slice(0, -1).join(" ");
+    } else {
+      c1First = raw1;
+      c1Last = "";
+    }
+
+    if (raw2) {
+      const tokens2 = raw2.split(/\s+/).filter(Boolean);
+      if (tokens2.length >= 2) {
+        c2Last = tokens2[tokens2.length - 1];
+        c2First = tokens2.slice(0, -1).join(" ");
+      } else {
+        c2First = raw2;
+        c2Last = c1Last;
+      }
+      has2 = true;
+    }
+  }
+
+  return { c1First, c1Last, c2First, c2Last, has2: has2 || !!raw2 };
+}
+
 /**
  * Automatically converts a saved Quote into a pre-filled Tender Submission
  */
@@ -308,28 +373,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   const s = quote.siteConditions;
   const p = quote.pricing;
 
-  // Split client name if combined
-  let c1First = c.clientName || "";
-  let c1Last = "";
-  if (c1First.includes("&")) {
-    const parts = c1First.split("&");
-    c1First = parts[0].trim();
-    c1Last = parts[1].trim();
-  } else if (c1First.includes(" ")) {
-    const parts = c1First.split(" ");
-    c1Last = parts.pop() || "";
-    c1First = parts.join(" ");
-  }
-
-  let c2First = c.client2Name || "";
-  let c2Last = "";
-  if (c2First.includes(" ")) {
-    const parts = c2First.split(" ");
-    c2Last = parts.pop() || "";
-    c2First = parts.join(" ");
-  } else if (!c2First && c1Last) {
-    c2Last = c1Last;
-  }
+  const { c1First, c1Last, c2First, c2Last, has2 } = parseClientNames(c.clientName || "", c.client2Name || "");
 
   // Determine Build Type & Deposit
   let buildType: BuildType = "Vacant Land";
@@ -356,73 +400,62 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   else if (d.specTier.includes("H3")) incType = "H3 Luxury";
   else if (d.specTier.includes("Standard")) incType = "Standard";
 
-  // Retrieve Floorplan drawing URL
-  let planUrl = d.floorplanUrl || "";
-  if (!planUrl && d.designName) {
-    const found = plansForDesign(d.designName);
-    if (found.length > 0) planUrl = found[0].url;
-  }
+  // Floorplans: Original & Current/Modified
+  const originalUrl = findFloorplanUrl(d.designName || "");
+  const currentPlanUrl = d.floorplanUrl || originalUrl;
+  const isMod = !!d.isModifiedFloorplan || (!!d.floorplanUrl && d.floorplanUrl !== originalUrl);
 
-  // Separate line items: Structural variations vs Internal upgrades
+  // Line items categorization without auto-placed pins
   const allIncluded = (quote.lineItems || []).filter((it) => it.isIncluded && it.subtotal > 0);
-  
-  let structuralCount = 0;
   const processedVariations: TenderNumberedVariation[] = [];
-  const initialPins: TenderFloorplanPin[] = [];
 
   for (const it of allIncluded) {
     const nameLower = (it.name || "").toLowerCase();
-    const isStruct =
-      it.category === "structural" ||
+    const catLower = (it.category || "").toLowerCase();
+
+    let category: string = "inclusions";
+    if (
+      catLower === "site_statutory" ||
+      catLower === "site" ||
+      catLower === "statutory" ||
+      nameLower.includes("earthwork") ||
+      nameLower.includes("piering") ||
+      nameLower.includes("council") ||
+      nameLower.includes("certifier") ||
+      nameLower.includes("statutory") ||
+      nameLower.includes("soil test") ||
+      nameLower.includes("wind rating") ||
+      nameLower.includes("contour survey") ||
+      nameLower.includes("drop edge") ||
+      nameLower.includes("slab pump")
+    ) {
+      category = "site_council";
+    } else if (
+      catLower === "structural" ||
       nameLower.includes("alfresco") ||
-      nameLower.includes("garage") ||
-      nameLower.includes("room") ||
-      nameLower.includes("extension") ||
+      nameLower.includes("garage extension") ||
+      nameLower.includes("room extension") ||
       nameLower.includes("ceiling height") ||
       nameLower.includes("wall") ||
       nameLower.includes("ensuite") ||
-      nameLower.includes("sliding door") ||
-      nameLower.includes("stacker");
-
-    if (isStruct) {
-      structuralCount++;
-      const vId = it.id;
-      processedVariations.push({
-        id: vId,
-        itemNumber: structuralCount,
-        description: it.name, // Clean title only
-        cost: it.subtotal,
-        category: it.category,
-        isStructural: true,
-      });
-
-      // Place default spread pin coordinates
-      const angle = (structuralCount * 65) % 360;
-      const rad = (angle * Math.PI) / 180;
-      const x = Math.min(85, Math.max(15, Math.round(50 + 30 * Math.cos(rad))));
-      const y = Math.min(85, Math.max(15, Math.round(50 + 30 * Math.sin(rad))));
-
-      initialPins.push({
-        id: `pin_${structuralCount}`,
-        number: structuralCount,
-        x,
-        y,
-        title: it.name,
-        variationId: vId,
-      });
-    } else {
-      processedVariations.push({
-        id: it.id,
-        description: it.name, // Clean title only
-        cost: it.subtotal,
-        category: it.category,
-        isStructural: false,
-      });
+      nameLower.includes("stacker door")
+    ) {
+      category = "structural";
     }
+
+    processedVariations.push({
+      id: it.id,
+      description: it.name, // Clean title only
+      cost: it.subtotal,
+      category,
+      isStructural: false, // Default unnumbered until explicitly placed or moved to structural
+      itemNumber: undefined,
+    });
   }
 
-  const structCost = processedVariations.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
-  const internalCost = processedVariations.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
+  const structCost = processedVariations.filter((v) => v.isStructural).reduce((sum, v) => sum + v.cost, 0);
+  const internalCost = processedVariations.filter((v) => !v.isStructural && v.category !== "site_council").reduce((sum, v) => sum + v.cost, 0);
+  const siteCost = processedVariations.filter((v) => v.category === "site_council").reduce((sum, v) => sum + v.cost, 0) + (p.totalSiteAndStatutory || 0);
 
   // Pre-fill documents
   const docs = { ...base.documents };
@@ -435,15 +468,15 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
     customer1: {
       title: "Mr",
       firstName: c1First,
-      surname: c1Last || c.clientName,
+      surname: c1Last,
       mobile: c.clientPhone || "",
       email: c.clientEmail || "",
     },
-    hasCustomer2: !!c.hasClient2 || !!c.client2Name,
+    hasCustomer2: has2 || !!c.hasClient2 || !!c.client2Name,
     customer2: {
       title: "Mrs",
       firstName: c2First,
-      surname: c2Last || c1Last || "",
+      surname: c2Last || c1Last,
       mobile: c.client2Phone || "",
       email: c.client2Email || "",
     },
@@ -471,10 +504,11 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       inclusionsType: incType,
       isDoubleStorey: d.housingType === "Double Storey" || (d.mode === "custom_floorplan" && d.customSpec.storeys === "double"),
       garageLocation: "RHS",
-      floorplanUrl: planUrl,
-      isModifiedFloorplan: !!d.isModifiedFloorplan,
+      floorplanUrl: currentPlanUrl,
+      originalFloorplanUrl: originalUrl,
+      isModifiedFloorplan: isMod,
       designM2: d.designM2 || 195.4,
-      floorplanPins: initialPins,
+      floorplanPins: [], // No auto-pins on quote import!
       setbacks: {
         frontBoundary: "6.0m",
         rearBoundary: "1.5m",
@@ -487,7 +521,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       facadeCost: p.facadePrice || 0,
       structuralVariationsCost: structCost,
       internalUpgradesCost: internalCost,
-      additionalSiteCost: p.totalSiteAndStatutory || 0,
+      additionalSiteCost: siteCost,
       promotionDiscountCost: p.promotionalDiscount || 0,
       totalBudgetEstimate: p.grossEstimatedInvestment || 0,
     },
@@ -498,10 +532,10 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       feeAmount: c.depositAmount || feeAmount,
       isCustomDesignAddon: isCustom || !!c.custom3dTourSelected,
       tenderAcceptanceFee: acceptanceFee,
-      client1Name: c.clientName || "",
-      client2Name: c.client2Name || "",
+      client1Name: `${c1First} ${c1Last}`.trim() || c.clientName || "",
+      client2Name: has2 ? `${c2First} ${c2Last}`.trim() || c.client2Name || "" : "",
       consultantName: c.consultantName || "Morgan Hales",
-      eftReference: `${(c1Last || c.clientName || "Client").replace(/\s+/g, "").toUpperCase()}-${quote.quoteNumber || "MH"}`,
+      eftReference: `${(c1Last || "Client").replace(/\s+/g, "").toUpperCase()}-${quote.quoteNumber || "MH"}`,
     },
     documents: docs,
   };

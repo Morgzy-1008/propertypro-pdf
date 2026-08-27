@@ -26,7 +26,8 @@ import {
   ExternalLink,
   MessageSquare,
   Mail,
-  QrCode,
+  HardHat,
+  MoveRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
@@ -55,7 +56,6 @@ import {
   DUAL_OC_PRICES,
 } from "@/lib/pricelist.data";
 import { HOUSING_FACADES, INCLUSION_TIERS } from "@/components/quoting/QuoteDesignStep";
-import { plansForDesign } from "@/components/flyer/floorplans";
 import type {
   TenderSubmission,
   TenderDocumentSlot,
@@ -146,11 +146,12 @@ export function TenderRequestPortal() {
     setTender(populated);
     saveTenderToIdb(populated).catch(() => {});
     setIsImportQuoteOpen(false);
-    toast.success(`Auto-filled all client, land, design, floorplan & variation details from Quote #${quote.quoteNumber}!`);
+    toast.success(`Auto-filled all details from Quote #${quote.quoteNumber}!`);
   };
 
   const handleDesignChange = (designName: string) => {
-    const planUrl = findFloorplanUrl(designName);
+    const originalUrl = findFloorplanUrl(designName);
+    const planUrl = tender.homeSpec.isModifiedFloorplan ? tender.homeSpec.floorplanUrl || originalUrl : originalUrl;
 
     // Find base price
     let basePrice = tender.homeSpec.baseDesignCost;
@@ -170,6 +171,7 @@ export function TenderRequestPortal() {
         ...tender.homeSpec,
         homeDesign: designName,
         floorplanUrl: planUrl,
+        originalFloorplanUrl: originalUrl,
         baseDesignCost: basePrice,
         totalBudgetEstimate:
           basePrice +
@@ -213,26 +215,11 @@ export function TenderRequestPortal() {
       isStructural: true,
     };
     const updated = [...tender.variations, newVar];
-    const structCost = updated.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
-    updateTender({
-      variations: updated,
-      homeSpec: {
-        ...tender.homeSpec,
-        structuralVariationsCost: structCost,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          structCost +
-          tender.homeSpec.internalUpgradesCost +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
+    recalculateTenderPricing(updated, tender.homeSpec.floorplanPins);
   };
 
   const handleRemoveStructuralVariation = (pinId: string) => {
     const filtered = tender.variations.filter((v) => v.id !== pinId);
-    // Renumber structural variations sequentially 1..N
     let structIdx = 0;
     const renumbered = filtered.map((v) => {
       if (v.isStructural) {
@@ -242,68 +229,106 @@ export function TenderRequestPortal() {
       return v;
     });
 
-    const structCost = renumbered.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
-    updateTender({
-      variations: renumbered,
-      homeSpec: {
-        ...tender.homeSpec,
-        structuralVariationsCost: structCost,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          structCost +
-          tender.homeSpec.internalUpgradesCost +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
+    const updatedPins = tender.homeSpec.floorplanPins.filter((p) => p.id !== pinId);
+    const renumberedPins = updatedPins.map((p, idx) => ({ ...p, number: idx + 1 }));
+
+    recalculateTenderPricing(renumbered, renumberedPins);
   };
 
-  const handleAddInternalUpgrade = () => {
-    const newVar: TenderNumberedVariation = {
-      id: `internal_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      description: "Custom Luxury Inclusions Selection",
-      cost: 0,
-      category: "internal",
-      isStructural: false,
-    };
-    const updated = [...tender.variations, newVar];
-    const internalCost = updated.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
-    updateTender({
-      variations: updated,
-      homeSpec: {
-        ...tender.homeSpec,
-        internalUpgradesCost: internalCost,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          tender.homeSpec.structuralVariationsCost +
-          internalCost +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
+  const handleMoveVariationCategory = (
+    varId: string,
+    targetCategory: "structural" | "inclusions" | "site_council"
+  ) => {
+    let updatedPins = [...tender.homeSpec.floorplanPins];
+    let nextStructNumber = tender.variations.filter((v) => v.isStructural).length + 1;
+
+    const updated = tender.variations.map((v) => {
+      if (v.id === varId) {
+        if (targetCategory === "structural") {
+          // If moving to structural, assign next number and create pin if not exists
+          if (!updatedPins.some((p) => p.id === varId)) {
+            updatedPins.push({
+              id: varId,
+              number: nextStructNumber,
+              x: 50,
+              y: 50,
+              title: v.description,
+              variationId: varId,
+            });
+          }
+          return {
+            ...v,
+            category: "structural",
+            isStructural: true,
+            itemNumber: nextStructNumber,
+          };
+        } else {
+          // Moving away from structural: remove pin
+          updatedPins = updatedPins.filter((p) => p.id !== varId);
+          return {
+            ...v,
+            category: targetCategory,
+            isStructural: false,
+            itemNumber: undefined,
+          };
+        }
+      }
+      return v;
     });
+
+    // Renumber all structural variations & pins sequentially 1..N
+    let sIdx = 0;
+    const renumberedVariations = updated.map((v) => {
+      if (v.isStructural) {
+        sIdx++;
+        return { ...v, itemNumber: sIdx };
+      }
+      return v;
+    });
+    const renumberedPins = updatedPins.map((p, idx) => ({ ...p, number: idx + 1 }));
+
+    recalculateTenderPricing(renumberedVariations, renumberedPins);
+    toast.success(`Moved item to ${targetCategory === "structural" ? "Structural Variations (Badge on plan)" : targetCategory === "site_council" ? "Site & Council Costs" : "Inclusions & Upgrades"}`);
+  };
+
+  const handleAddNewItem = (category: "structural" | "inclusions" | "site_council") => {
+    const id = `item_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    let structNum: number | undefined = undefined;
+    let updatedPins = [...tender.homeSpec.floorplanPins];
+
+    if (category === "structural") {
+      structNum = tender.variations.filter((v) => v.isStructural).length + 1;
+      updatedPins.push({
+        id,
+        number: structNum,
+        x: 50,
+        y: 50,
+        title: `Structural Modification #${structNum}`,
+        variationId: id,
+      });
+    }
+
+    const newItem: TenderNumberedVariation = {
+      id,
+      description:
+        category === "structural"
+          ? `Structural Modification #${structNum}`
+          : category === "site_council"
+          ? "Site & Statutory Allowance"
+          : "Inclusion Selection Upgrade",
+      cost: 0,
+      category,
+      isStructural: category === "structural",
+      itemNumber: structNum,
+    };
+
+    const updated = [...tender.variations, newItem];
+    recalculateTenderPricing(updated, updatedPins);
   };
 
   const handleUpdateVariation = (id: string, patch: Partial<TenderNumberedVariation>) => {
     const updated = tender.variations.map((v) => (v.id === id ? { ...v, ...patch } : v));
-    const structCost = updated.filter((v) => v.isStructural).reduce((s, v) => s + (Number(v.cost) || 0), 0);
-    const internalCost = updated.filter((v) => !v.isStructural).reduce((s, v) => s + (Number(v.cost) || 0), 0);
-    updateTender({
-      variations: updated,
-      homeSpec: {
-        ...tender.homeSpec,
-        structuralVariationsCost: structCost,
-        internalUpgradesCost: internalCost,
-        totalBudgetEstimate:
-          tender.homeSpec.baseDesignCost +
-          tender.homeSpec.facadeCost +
-          structCost +
-          internalCost +
-          tender.homeSpec.additionalSiteCost -
-          tender.homeSpec.promotionDiscountCost,
-      },
-    });
+    recalculateTenderPricing(updated, tender.homeSpec.floorplanPins);
   };
 
   const handleDeleteVariation = (id: string) => {
@@ -317,26 +342,42 @@ export function TenderRequestPortal() {
       return v;
     });
 
-    const structCost = renumbered.filter((v) => v.isStructural).reduce((s, v) => s + v.cost, 0);
-    const internalCost = renumbered.filter((v) => !v.isStructural).reduce((s, v) => s + v.cost, 0);
-    
-    // Also remove matching floorplan pin
     const updatedPins = tender.homeSpec.floorplanPins.filter((p) => p.id !== id);
     const renumberedPins = updatedPins.map((p, idx) => ({ ...p, number: idx + 1 }));
 
+    recalculateTenderPricing(renumbered, renumberedPins);
+  };
+
+  const recalculateTenderPricing = (
+    variationsList: TenderNumberedVariation[],
+    pinsList: TenderFloorplanPin[]
+  ) => {
+    const structCost = variationsList
+      .filter((v) => v.isStructural)
+      .reduce((s, v) => s + (Number(v.cost) || 0), 0);
+
+    const internalCost = variationsList
+      .filter((v) => !v.isStructural && v.category !== "site_council")
+      .reduce((s, v) => s + (Number(v.cost) || 0), 0);
+
+    const siteCost = variationsList
+      .filter((v) => v.category === "site_council")
+      .reduce((s, v) => s + (Number(v.cost) || 0), 0);
+
     updateTender({
-      variations: renumbered,
+      variations: variationsList,
       homeSpec: {
         ...tender.homeSpec,
-        floorplanPins: renumberedPins,
+        floorplanPins: pinsList,
         structuralVariationsCost: structCost,
         internalUpgradesCost: internalCost,
+        additionalSiteCost: siteCost,
         totalBudgetEstimate:
           tender.homeSpec.baseDesignCost +
           tender.homeSpec.facadeCost +
           structCost +
           internalCost +
-          tender.homeSpec.additionalSiteCost -
+          siteCost -
           tender.homeSpec.promotionDiscountCost,
       },
     });
@@ -475,7 +516,7 @@ export function TenderRequestPortal() {
     const summary = `HUDSON HOMES ONSITE JOB CREATION
 Submission Ref: ${tender.submissionNumber}
 Client 1: ${tender.customer1.firstName} ${tender.customer1.surname} (${tender.customer1.mobile}, ${tender.customer1.email})
-${tender.hasCustomer2 ? `Client 2: ${tender.customer2.firstName} ${tender.customer2.surname} (${tender.customer2.mobile})` : ""}
+${tender.hasCustomer2 ? `Client 2: ${tender.customer2.firstName} ${tender.customer2.surname} (${tender.customer2.mobile}, ${tender.customer2.email})` : ""}
 Site Address: Lot ${tender.land.lotNo}, ${tender.land.streetName || ""} ${tender.land.suburb} (${tender.land.council})
 Design: ${tender.homeSpec.homeDesign} (${tender.homeSpec.facade} Facade · ${tender.homeSpec.inclusionsType})
 Total Build Investment: ${formatAud(tender.homeSpec.totalBudgetEstimate)}
@@ -483,6 +524,11 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
     navigator.clipboard.writeText(summary);
     toast.success("OnSite summary copied to clipboard for Bernie!");
   };
+
+  // Grouped variations
+  const structuralItems = tender.variations.filter((v) => v.isStructural);
+  const inclusionsItems = tender.variations.filter((v) => !v.isStructural && v.category !== "site_council");
+  const siteCouncilItems = tender.variations.filter((v) => v.category === "site_council");
 
   // Document attachments counter
   const attachedDocsCount = Object.values(tender.documents).filter((d) => !!d.fileDataUrl).length;
@@ -500,7 +546,6 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
     { id: "pdf_preview", label: "6. Master PDF & Bernie Handoff", icon: Send },
   ];
 
-  // Available designs list based on selected housing type
   const availableDesigns =
     tender.homeSpec.housingType === "Double Storey"
       ? DOUBLE_STOREY_PRICES
@@ -688,7 +733,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         updateTender({ customer1: { ...tender.customer1, firstName: e.target.value } })
                       }
                       placeholder="e.g. Jordan"
-                      className="border-slate-800 bg-slate-900 text-xs"
+                      className="border-slate-800 bg-slate-900 text-xs font-semibold text-white"
                     />
                   </div>
                   <div>
@@ -699,7 +744,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         updateTender({ customer1: { ...tender.customer1, surname: e.target.value } })
                       }
                       placeholder="e.g. Mitchell"
-                      className="border-slate-800 bg-slate-900 text-xs"
+                      className="border-slate-800 bg-slate-900 text-xs font-semibold text-white"
                     />
                   </div>
                 </div>
@@ -778,7 +823,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                             updateTender({ customer2: { ...tender.customer2, firstName: e.target.value } })
                           }
                           placeholder="e.g. Sarah"
-                          className="border-slate-800 bg-slate-900 text-xs"
+                          className="border-slate-800 bg-slate-900 text-xs font-semibold text-white"
                         />
                       </div>
                       <div>
@@ -789,7 +834,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                             updateTender({ customer2: { ...tender.customer2, surname: e.target.value } })
                           }
                           placeholder="e.g. Mitchell"
-                          className="border-slate-800 bg-slate-900 text-xs"
+                          className="border-slate-800 bg-slate-900 text-xs font-semibold text-white"
                         />
                       </div>
                     </div>
@@ -1044,7 +1089,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: HOME SPEC, DESIGNS DROPDOWN & NUMBERED FLOORPLAN MARKUP             */}
+        {/* TAB 3: HOME SPEC & 3 CATEGORIZED COLUMNS (NO SCROLLBARS)                  */}
         {/* ========================================================================= */}
         {activeTab === "home_spec" && (
           <div className="space-y-6">
@@ -1054,7 +1099,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   <Home className="h-4 w-4 text-amber-400" /> New Home Configuration &amp; Interactive Floorplan Markups
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Select your home design, facade, and inclusions. Click on the floorplan to place numbered badges for structural modifications.
+                  Organize estimate variations into Structural, Inclusions, and Site &amp; Council Costs. Drag pins on the floorplan to place them at exact locations.
                 </p>
               </div>
               <div className="text-right">
@@ -1065,7 +1110,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Design & Facade Dropdowns matching Quoting Tool */}
+            {/* Design & Facade Dropdowns */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
               <div>
                 <Label className="text-[11px] text-slate-300">Storeys / Category</Label>
@@ -1146,9 +1191,11 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* Interactive Floorplan Canvas */}
+            {/* Interactive Floorplan Canvas (Side-by-Side if modified) */}
             <FloorplanMarkupViewer
               floorplanUrl={tender.homeSpec.floorplanUrl}
+              originalFloorplanUrl={tender.homeSpec.originalFloorplanUrl}
+              isModifiedPlan={tender.homeSpec.isModifiedFloorplan}
               designName={tender.homeSpec.homeDesign}
               pins={tender.homeSpec.floorplanPins}
               variations={tender.variations}
@@ -1168,41 +1215,49 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               onRemoveStructuralVariation={handleRemoveStructuralVariation}
             />
 
-            {/* Variations Split: Section A Structural vs Section B Internal */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Section A: Structural Variations (Numbered 1..N) */}
-              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-amber-500/30">
+            {/* 3 Full-Width Categorized Columns (NO SCROLLBARS - Flows Down Page) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* SECTION A: NUMBERED STRUCTURAL VARIATIONS */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-amber-500/40">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
-                    <Layers className="h-3.5 w-3.5" />
-                    A. Structural Variations ({tender.variations.filter((v) => v.isStructural).length})
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    Numbered on plan &bull; {formatAud(tender.homeSpec.structuralVariationsCost)}
-                  </span>
+                  <div>
+                    <span className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
+                      <Layers className="h-4 w-4" /> A. Numbered Structural Variations ({structuralItems.length})
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Assigned # &bull; Badge placed on floorplan
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleAddNewItem("structural")}
+                    className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10.5px] font-bold h-7 gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Structural
+                  </Button>
                 </div>
 
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {tender.variations.filter((v) => v.isStructural).length === 0 ? (
-                    <div className="text-center py-6 text-slate-500 text-xs">
-                      No structural modifications placed. Click on the floorplan above to drop numbered badges.
+                <div className="space-y-2.5">
+                  {structuralItems.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
+                      No structural modifications. Click &ldquo;Add Structural&rdquo; or switch an inclusion to Structural.
                     </div>
                   ) : (
-                    tender.variations
-                      .filter((v) => v.isStructural)
-                      .map((v) => (
-                        <div
-                          key={v.id}
-                          className="p-2 rounded-lg border border-slate-800 bg-slate-900 flex items-center gap-2"
-                        >
-                          <span className="h-6 w-6 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-xs flex items-center justify-center flex-none">
+                    structuralItems.map((v) => (
+                      <div
+                        key={v.id}
+                        className="p-2.5 rounded-lg border border-slate-800 bg-slate-900 space-y-2 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="h-6 w-6 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-xs flex items-center justify-center flex-none">
                             #{v.itemNumber}
                           </span>
                           <Input
                             value={v.description}
                             onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
                             placeholder="Structural modification title"
-                            className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100 flex-1"
+                            className="h-8 border-slate-800 bg-slate-950 text-xs font-medium text-slate-100 flex-1"
                           />
                           <div className="w-24 relative flex-none">
                             <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
@@ -1221,45 +1276,68 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                      ))
+
+                        {/* Category Mover Badges */}
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60 text-[10px] text-slate-400">
+                          <span className="text-[9px] uppercase font-bold text-slate-500">Move to:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "inclusions")}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-cyan-950 hover:text-cyan-300 text-slate-300 border border-slate-700"
+                          >
+                            Inclusions &amp; Upgrades
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "site_council")}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-amber-950 hover:text-amber-300 text-slate-300 border border-slate-700"
+                          >
+                            Site &amp; Council
+                          </button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
 
-              {/* Section B: Internal Inclusions & Upgrades (Unnumbered Titles) */}
-              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-cyan-500/30">
+              {/* SECTION B: INCLUSIONS & UPGRADES */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-cyan-500/40">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-xs font-bold uppercase text-cyan-400 flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5" />
-                    B. Internal Inclusions &amp; Upgrades ({tender.variations.filter((v) => !v.isStructural).length})
-                  </span>
+                  <div>
+                    <span className="text-xs font-bold uppercase text-cyan-400 flex items-center gap-1.5">
+                      <Sparkles className="h-4 w-4" /> B. Inclusions &amp; Upgrades ({inclusionsItems.length})
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Titles only &bull; Internal finishes, fixtures &amp; joinery
+                    </span>
+                  </div>
                   <Button
                     type="button"
                     size="sm"
-                    onClick={handleAddInternalUpgrade}
-                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-bold h-7 gap-1"
+                    onClick={() => handleAddNewItem("inclusions")}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-[10.5px] font-bold h-7 gap-1"
                   >
-                    <Plus className="h-3 w-3" /> Add Upgrade
+                    <Plus className="h-3 w-3" /> Add Inclusion
                   </Button>
                 </div>
 
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {tender.variations.filter((v) => !v.isStructural).length === 0 ? (
-                    <div className="text-center py-6 text-slate-500 text-xs">
-                      No internal upgrades added. Click &ldquo;Add Upgrade&rdquo; or auto-fill from a saved estimate.
+                <div className="space-y-2.5">
+                  {inclusionsItems.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
+                      No internal inclusions selected.
                     </div>
                   ) : (
-                    tender.variations
-                      .filter((v) => !v.isStructural)
-                      .map((v) => (
-                        <div
-                          key={v.id}
-                          className="p-2 rounded-lg border border-slate-800 bg-slate-900 flex items-center gap-2"
-                        >
+                    inclusionsItems.map((v) => (
+                      <div
+                        key={v.id}
+                        className="p-2.5 rounded-lg border border-slate-800 bg-slate-900 space-y-2 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2">
                           <Input
                             value={v.description}
                             onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
-                            placeholder="Inclusion upgrade title (e.g. 40mm Smartstone Benchtop)"
+                            placeholder="Inclusion upgrade title (e.g. 40mm Smartstone Benchtops)"
                             className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100 flex-1"
                           />
                           <div className="w-24 relative flex-none">
@@ -1279,7 +1357,108 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                      ))
+
+                        {/* Category Mover Badges */}
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60 text-[10px] text-slate-400">
+                          <span className="text-[9px] uppercase font-bold text-slate-500">Move to:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "structural")}
+                            className="px-2 py-0.5 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-800/60 font-medium"
+                          >
+                            Structural (Assign #)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "site_council")}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-amber-950 hover:text-amber-300 text-slate-300 border border-slate-700"
+                          >
+                            Site &amp; Council
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* SECTION C: SITE & COUNCIL COSTS */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-emerald-500/40">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                  <div>
+                    <span className="text-xs font-bold uppercase text-emerald-400 flex items-center gap-1.5">
+                      <HardHat className="h-4 w-4" /> C. Site &amp; Council Costs ({siteCouncilItems.length})
+                    </span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">
+                      Earthworks, piering, council &amp; statutory allowances
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleAddNewItem("site_council")}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10.5px] font-bold h-7 gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Site Cost
+                  </Button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {siteCouncilItems.length === 0 ? (
+                    <div className="text-center py-8 text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
+                      No additional site/council items added.
+                    </div>
+                  ) : (
+                    siteCouncilItems.map((v) => (
+                      <div
+                        key={v.id}
+                        className="p-2.5 rounded-lg border border-slate-800 bg-slate-900 space-y-2 shadow-xs"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={v.description}
+                            onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
+                            placeholder="Site / Statutory Allowance title"
+                            className="h-8 border-slate-800 bg-slate-950 text-xs text-slate-100 flex-1"
+                          />
+                          <div className="w-24 relative flex-none">
+                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
+                            <Input
+                              type="number"
+                              value={v.cost || ""}
+                              onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
+                              className="h-8 pl-5 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-right"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVariation(v.id)}
+                            className="p-1 text-slate-500 hover:text-rose-400"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        {/* Category Mover Badges */}
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800/60 text-[10px] text-slate-400">
+                          <span className="text-[9px] uppercase font-bold text-slate-500">Move to:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "structural")}
+                            className="px-2 py-0.5 rounded bg-amber-950/80 hover:bg-amber-900 text-amber-300 border border-amber-800/60 font-medium"
+                          >
+                            Structural (Assign #)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveVariationCategory(v.id, "inclusions")}
+                            className="px-2 py-0.5 rounded bg-slate-800 hover:bg-cyan-950 hover:text-cyan-300 text-slate-300 border border-slate-700"
+                          >
+                            Inclusions &amp; Upgrades
+                          </button>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
               </div>
@@ -1800,7 +1979,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   Please find attached the complete Tender Request Job Folder for <strong>{tender.customer1.firstName} {tender.customer1.surname}</strong>.<br />
                   &bull; <strong>Job Address:</strong> Lot {tender.land.lotNo}, {tender.land.streetName || ""} {tender.land.suburb} ({tender.land.council})<br />
                   &bull; <strong>Home Design:</strong> {tender.homeSpec.homeDesign} with {tender.homeSpec.facade} facade ({tender.homeSpec.inclusionsType})<br />
-                  &bull; <strong>Build Investment:</strong> {formatAud(tender.homeSpec.totalBudgetEstimate)} (Inc. {tender.variations.filter((v) => v.isStructural).length} structural marked variations &amp; {tender.variations.filter((v) => !v.isStructural).length} internal additions)<br />
+                  &bull; <strong>Build Investment:</strong> {formatAud(tender.homeSpec.totalBudgetEstimate)} (Inc. {structuralItems.length} structural marked variations, {inclusionsItems.length} inclusion additions, &amp; {siteCouncilItems.length} site/council costs)<br />
                   &bull; <strong>Authority to Proceed:</strong> {tender.atp.client1Signed ? "Signed Digitally by Client" : "Pending Signature"} &bull; Fee {formatAud(tender.atp.feeAmount)} paid via {tender.atp.paymentMethod.toUpperCase()}<br /><br />
                   All required documents (Photo IDs, Land Contract, Disclosure Plan, Siting Plan, and Marked-up Floorplan) are packaged in the attached ZIP file for OnSite file setup.<br /><br />
                   Thank you,<br />
@@ -1831,7 +2010,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
             </DialogTitle>
           </DialogHeader>
           <p className="text-xs text-slate-400">
-            Select an estimate from your Quoting Tool. This will auto-fill all client names, contact details, site address, chosen design, facade, floorplan, and itemized variations.
+            Select an estimate from your Quoting Tool. This will auto-fill all client names, contact details, site address, chosen design, facade, floorplan, and itemized variations without auto-placing pins on the plan.
           </p>
 
           <div className="max-h-80 overflow-y-auto space-y-2 py-2">

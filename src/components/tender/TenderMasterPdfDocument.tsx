@@ -2,22 +2,28 @@ import React from "react";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
 import type { TenderSubmission } from "@/lib/tender/tenderTypes";
-import { Check, CheckCircle2, ShieldCheck, Home, MapPin, User, FileText, Layers } from "lucide-react";
+import { Check, CheckCircle2, ShieldCheck, Home, MapPin, User, FileText, Layers, Sparkles, HardHat } from "lucide-react";
 
 interface TenderMasterPdfDocumentProps {
   tender: TenderSubmission;
 }
 
 export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps) {
-  const { customer1, customer2, hasCustomer2, land, homeSpec, variations, atp, checklist } = tender;
+  const { customer1, customer2, hasCustomer2, land, homeSpec, variations, atp } = tender;
 
   const structuralVariations = variations.filter((v) => v.isStructural);
-  const internalVariations = variations.filter((v) => !v.isStructural);
+  const inclusionsVariations = variations.filter((v) => !v.isStructural && v.category !== "site_council");
+  const siteCouncilVariations = variations.filter((v) => v.category === "site_council");
 
   const isGreenfield = atp.feeType === "greenfield_1650";
   const isKdr = atp.feeType === "kdr_duplex_3300";
   const isPackage = atp.feeType === "package_3000";
   const isCustom = atp.isCustomDesignAddon || atp.feeType === "custom_design_800";
+
+  const showSideBySide =
+    homeSpec.isModifiedFloorplan &&
+    homeSpec.originalFloorplanUrl &&
+    homeSpec.originalFloorplanUrl !== homeSpec.floorplanUrl;
 
   return (
     <div className="space-y-8 bg-slate-900/50 p-4 rounded-2xl">
@@ -202,11 +208,11 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   <td className="py-2 px-3 text-right font-mono font-bold text-amber-800">{formatAud(homeSpec.structuralVariationsCost)}</td>
                 </tr>
                 <tr>
-                  <td className="py-2 px-3">Internal Luxury Selections &amp; Inclusions Upgrades ({internalVariations.length} items)</td>
+                  <td className="py-2 px-3">Internal Luxury Inclusions &amp; Fixtures Upgrades ({inclusionsVariations.length} items)</td>
                   <td className="py-2 px-3 text-right font-mono font-bold text-cyan-800">{formatAud(homeSpec.internalUpgradesCost)}</td>
                 </tr>
                 <tr className="bg-slate-50">
-                  <td className="py-2 px-3">Site Earthworks, Foundation Engineering &amp; Statutory Costs</td>
+                  <td className="py-2 px-3">Site Earthworks, Foundation Engineering &amp; Council Allowances ({siteCouncilVariations.length} items)</td>
                   <td className="py-2 px-3 text-right font-mono">{formatAud(homeSpec.additionalSiteCost)}</td>
                 </tr>
                 {homeSpec.promotionDiscountCost > 0 && (
@@ -248,7 +254,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 ARCHITECTURAL FLOORPLAN DRAWING
               </h2>
               <span className="text-xs font-semibold text-cyan-800 uppercase tracking-widest block mt-0.5">
-                Structural Modifications &amp; Numbered Markup Overlay
+                {showSideBySide ? "Original Catalog Layout vs. Modified Floorplan with Structural Badges" : "Structural Modifications & Numbered Markup Overlay"}
               </span>
             </div>
             <div className="text-right text-xs">
@@ -257,30 +263,71 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
           </div>
 
-          {/* Floorplan Box with Numbered Badges */}
-          <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 relative min-h-[500px] flex items-center justify-center mb-4">
-            {homeSpec.floorplanUrl ? (
-              <div className="relative w-full max-w-xl mx-auto">
-                <img
-                  src={homeSpec.floorplanUrl}
-                  alt={homeSpec.homeDesign}
-                  className="w-full h-auto max-h-[480px] object-contain mx-auto block"
-                />
-
-                {/* Overlaid Numbered Pins */}
-                {homeSpec.floorplanPins.map((pin) => (
-                  <div
-                    key={pin.id}
-                    style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-amber-500 text-slate-950 border-2 border-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-lg"
-                  >
-                    {pin.number}
+          {/* Floorplan Container (Side-by-side if modified) */}
+          <div className="mb-4">
+            {showSideBySide ? (
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left: Original */}
+                <div className="border border-slate-300 rounded-2xl p-3 bg-slate-50">
+                  <span className="text-[10px] uppercase font-black text-slate-700 block border-b border-slate-200 pb-1 mb-2">
+                    ORIGINAL {homeSpec.homeDesign} FLOORPLAN (Standard)
+                  </span>
+                  <div className="h-[430px] flex items-center justify-center">
+                    <img
+                      src={homeSpec.originalFloorplanUrl}
+                      alt={`Original ${homeSpec.homeDesign}`}
+                      className="max-h-full max-w-full object-contain"
+                    />
                   </div>
-                ))}
+                </div>
+
+                {/* Right: Modified */}
+                <div className="border-2 border-amber-500/60 rounded-2xl p-3 bg-slate-50 relative">
+                  <span className="text-[10px] uppercase font-black text-amber-800 block border-b border-slate-200 pb-1 mb-2">
+                    MODIFIED FLOORPLAN (With Numbered Structural Badges)
+                  </span>
+                  <div className="h-[430px] relative flex items-center justify-center">
+                    <img
+                      src={homeSpec.floorplanUrl}
+                      alt={`Modified ${homeSpec.homeDesign}`}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                    {homeSpec.floorplanPins.map((pin) => (
+                      <div
+                        key={pin.id}
+                        style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-amber-500 text-slate-950 border-2 border-slate-950 font-mono font-black text-[10px] flex items-center justify-center shadow-lg"
+                      >
+                        {pin.number}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-20 text-slate-400 text-xs italic">
-                Standard {homeSpec.homeDesign} floorplan layout selected (No custom drawing override)
+              <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 relative min-h-[480px] flex items-center justify-center">
+                {homeSpec.floorplanUrl ? (
+                  <div className="relative w-full max-w-xl mx-auto">
+                    <img
+                      src={homeSpec.floorplanUrl}
+                      alt={homeSpec.homeDesign}
+                      className="w-full h-auto max-h-[460px] object-contain mx-auto block"
+                    />
+                    {homeSpec.floorplanPins.map((pin) => (
+                      <div
+                        key={pin.id}
+                        style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-amber-500 text-slate-950 border-2 border-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-lg"
+                      >
+                        {pin.number}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-20 text-slate-400 text-xs italic">
+                    Standard {homeSpec.homeDesign} floorplan layout selected
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -319,7 +366,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 3: ITEMIZED VARIATION SCHEDULE (TITLES ONLY)                          */}
+      {/* PAGE 3: ITEMIZED VARIATION SCHEDULE (TITLES ONLY - 3 SECTIONS)             */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
@@ -376,14 +423,14 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             )}
           </div>
 
-          {/* Section B: Internal Inclusions & Non-Structural Upgrades */}
+          {/* Section B: Internal Inclusions & Specification Upgrades */}
           <div className="mb-4">
             <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1.5 flex items-center justify-between border-b border-cyan-500/40 pb-1">
-              <span>B. INTERNAL INCLUSIONS &amp; SPECIFICATION UPGRADES</span>
+              <span>B. INCLUSIONS &amp; SPECIFICATION UPGRADES</span>
               <span className="font-mono text-slate-900">{formatAud(homeSpec.internalUpgradesCost)}</span>
             </div>
 
-            {internalVariations.length === 0 ? (
+            {inclusionsVariations.length === 0 ? (
               <div className="py-2 text-slate-400 text-xs italic">Standard {homeSpec.inclusionsType} inclusion specification.</div>
             ) : (
               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
@@ -394,7 +441,40 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-sans">
-                  {internalVariations.map((v) => (
+                  {inclusionsVariations.map((v) => (
+                    <tr key={v.id} className="bg-white">
+                      <td className="py-1 px-3 text-slate-800 text-[11px]">
+                        {v.description}
+                      </td>
+                      <td className="py-1 px-3 text-right font-mono text-slate-900 text-[11px]">
+                        {formatAud(v.cost)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Section C: Site & Council Costs */}
+          <div className="mb-4">
+            <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-1.5 flex items-center justify-between border-b border-emerald-500/40 pb-1">
+              <span>C. SITE &amp; COUNCIL COSTS</span>
+              <span className="font-mono text-slate-900">{formatAud(homeSpec.additionalSiteCost)}</span>
+            </div>
+
+            {siteCouncilVariations.length === 0 ? (
+              <div className="py-2 text-slate-400 text-xs italic">Standard statutory allowances and site earthworks.</div>
+            ) : (
+              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+                <thead className="bg-slate-100 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                  <tr>
+                    <th className="py-1.5 px-3 text-left">Site &amp; Council Allowance Title</th>
+                    <th className="py-1.5 px-3 text-right w-28">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {siteCouncilVariations.map((v) => (
                     <tr key={v.id} className="bg-white">
                       <td className="py-1 px-3 text-slate-800 text-[11px]">
                         {v.description}

@@ -169,6 +169,7 @@ export interface TenderSubmission {
     isDoubleStorey: boolean;
     garageLocation: GarageLocation;
     floorplanUrl?: string;
+    originalFloorplanUrl?: string;
     isModifiedFloorplan?: boolean;
     designM2?: number;
     floorplanPins: TenderFloorplanPin[];
