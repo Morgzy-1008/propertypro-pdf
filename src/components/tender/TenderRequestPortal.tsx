@@ -281,7 +281,7 @@ export function TenderRequestPortal() {
   };
 
   const handleToggleLandscape = (checked: boolean) => {
-    const cost = calculateLandscapePackageCost(tender.land.lotSizeM2);
+    const cost = calculateLandscapePackageCost(tender.land.lotSizeM2, tender.homeSpec.housingType, tender.homeSpec.homeDesign);
     updateTender({
       homeSpec: {
         ...tender.homeSpec,
@@ -1264,7 +1264,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   value={tender.land.lotSizeM2}
                   onChange={(e) => {
                     const m2 = Number(e.target.value) || "";
-                    const landscapeCost = calculateLandscapePackageCost(m2);
+                    const landscapeCost = calculateLandscapePackageCost(m2, tender.homeSpec.housingType, tender.homeSpec.homeDesign);
                     updateTender({
                       land: { ...tender.land, lotSizeM2: m2 },
                       homeSpec: {
@@ -1479,7 +1479,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         Turnkey Landscape Package
                       </span>
                       <span className="font-mono font-bold text-xs text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                        {formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2))}
+                        {formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2, tender.homeSpec.housingType, tender.homeSpec.homeDesign))}
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-300 mt-0.5">

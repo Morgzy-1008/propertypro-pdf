@@ -56,10 +56,11 @@ export function findFacadeRenderUrl(facadeName: string, housingType?: string): s
   return fallback?.url || HUDSON_FACADES[0]?.url || "";
 }
 
-export function calculateLandscapePackageCost(lotSizeM2: number | ""): number {
-  const m2 = typeof lotSizeM2 === "number" && lotSizeM2 > 0 ? lotSizeM2 : 400;
-  if (m2 <= 350) return 11990;
-  return 11990 + Math.round((m2 - 350) * 25);
+import { landscapingPriceFor } from "../landscaping";
+
+export function calculateLandscapePackageCost(lotSizeM2: number | "", housingType?: string, designName?: string): number {
+  const m2 = typeof lotSizeM2 === "number" && lotSizeM2 > 0 ? lotSizeM2 : 450;
+  return landscapingPriceFor(m2, housingType || "single-storey", designName || "");
 }
 
 const STORAGE_KEY_TENDERS = "hudson_tender_submissions_v1";
@@ -68,14 +69,14 @@ const IDB_TENDER_STORE = "tenders";
 
 export const STANDARD_DOCUMENT_SLOTS: Omit<TenderDocumentSlot, "fileDataUrl" | "fileName" | "fileSize" | "fileType">[] = [
   // 1. PRIMARY REQUIRED DOCUMENTS (Pinned to Top)
-  { id: "license_c1_front", label: "Driver's Licence (Client 1 - Front)", category: "identity", required: true },
-  { id: "license_c1_back", label: "Driver's Licence (Client 1 - Back)", category: "identity", required: true },
+  { id: "license_c1_front", label: "Driver Licence — Client 1 (Front)", category: "identity", required: true },
+  { id: "license_c1_back", label: "Driver Licence — Client 1 (Back)", category: "identity", required: true },
+  { id: "license_c2_front", label: "Driver Licence — Client 2 (Front)", category: "identity", required: false },
+  { id: "license_c2_back", label: "Driver Licence — Client 2 (Back)", category: "identity", required: false },
   { id: "proof_of_ownership", label: "Proof of Ownership / Land Contract", category: "contract_quote", required: true },
   { id: "disclosure_plan", label: "Disclosure Plan", category: "land_siting", required: true },
   { id: "siting_plan", label: "1:200 Scale Siting / House Position Plan", category: "land_siting", required: true },
   { id: "deposit_receipt", label: "Tender Fee Transfer / Deposit Receipt", category: "payment", required: true },
-  { id: "license_c2_front", label: "Driver's Licence (Client 2 - Front)", category: "identity", required: false },
-  { id: "license_c2_back", label: "Driver's Licence (Client 2 - Back)", category: "identity", required: false },
 
   // 2. SITE & ENGINEERING REPORTS (Optional / When Available)
   { id: "contour_survey", label: "Contour Survey / Site Level Plan", category: "land_siting", required: false },

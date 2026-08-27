@@ -14,6 +14,7 @@ import {
   Info,
   MousePointerClick,
   FileText,
+  Crop,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { formatAud } from "@/lib/pricing";
 import type { TenderFloorplanPin, TenderNumberedVariation } from "@/lib/tender/tenderTypes";
+import { FloorplanCropModal } from "./FloorplanCropModal";
 
 interface FloorplanMarkupViewerProps {
   floorplanUrl?: string;
@@ -59,6 +61,10 @@ export function FloorplanMarkupViewer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [draggingPinId, setDraggingPinId] = useState<string | null>(null);
+
+  // Crop modal state
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [rawForCrop, setRawForCrop] = useState<string | null>(null);
 
   // Pin assignment modal state
   const [pendingCoord, setPendingCoord] = useState<{ x: number; y: number } | null>(null);
@@ -155,16 +161,18 @@ export function FloorplanMarkupViewer({
         const toastId = toast.loading(`Converting architectural PDF floorplan "${file.name}"...`);
         const extracted = await pdfDocumentToPagesAndText(file, 1);
         if (extracted.pages && extracted.pages.length > 0) {
-          onUploadCustomPlan(extracted.pages[0]);
-          toast.success(`Imported modified floorplan from "${file.name}"!`, { id: toastId });
+          setRawForCrop(extracted.pages[0]);
+          setIsCropModalOpen(true);
+          toast.success(`Loaded "${file.name}". Adjust the crop box to isolate the floorplan.`, { id: toastId });
         } else {
           toast.error("Could not render page from PDF", { id: toastId });
         }
       } else {
         const reader = new FileReader();
         reader.onload = () => {
-          onUploadCustomPlan(reader.result as string);
-          toast.success(`Imported modified floorplan "${file.name}"!`);
+          setRawForCrop(reader.result as string);
+          setIsCropModalOpen(true);
+          toast.success(`Loaded "${file.name}". Adjust the crop box to isolate the floorplan.`);
         };
         reader.readAsDataURL(file);
       }
@@ -207,6 +215,21 @@ export function FloorplanMarkupViewer({
         </div>
 
         <div className="flex items-center gap-2">
+          {floorplanUrl && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setRawForCrop(floorplanUrl);
+                setIsCropModalOpen(true);
+              }}
+              className="border-slate-700 bg-slate-900 text-xs font-bold text-slate-200 hover:bg-slate-800 gap-1.5"
+            >
+              <Crop className="h-3.5 w-3.5 text-amber-400" /> Crop / Trim Floorplan
+            </Button>
+          )}
+
           <label className="cursor-pointer">
             <input
               type="file"
@@ -216,7 +239,7 @@ export function FloorplanMarkupViewer({
             />
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/50 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
               <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              Upload / Replace Modified Floorplan (PDF or Image)
+              Upload Modified Floorplan (PDF or Image)
             </span>
           </label>
         </div>
@@ -277,7 +300,7 @@ export function FloorplanMarkupViewer({
                   className="w-full h-auto max-h-[520px] object-contain mx-auto block rounded-lg"
                 />
 
-                {/* Overlaid Draggable Numbered Structural Pins */}
+                {/* Overlaid Compact Draggable Numbered Structural Pins (Slightly Smaller) */}
                 {pins.map((pin) => {
                   const isSelected = pin.id === selectedPinId;
                   const isDragging = pin.id === draggingPinId;
@@ -292,29 +315,29 @@ export function FloorplanMarkupViewer({
                         setSelectedPinId(pin.id);
                       }}
                       className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform z-30 group/pin ${
-                        isDragging ? "scale-125 z-40" : "hover:scale-125"
+                        isDragging ? "scale-125 z-40" : "hover:scale-115"
                       }`}
                     >
                       <div
-                        className={`h-8 w-8 rounded-full flex items-center justify-center font-mono font-black text-sm shadow-2xl border-2 transition-all ${
+                        className={`h-6 w-6 rounded-full flex items-center justify-center font-mono font-black text-xs shadow-xl border-2 transition-all ${
                           isSelected || isDragging
-                            ? "bg-amber-400 text-slate-950 border-white ring-4 ring-amber-400/80"
-                            : "bg-amber-500 text-slate-950 border-slate-950 shadow-lg hover:bg-amber-300 ring-2 ring-amber-400/50"
+                            ? "bg-amber-400 text-slate-950 border-white ring-3 ring-amber-400/80"
+                            : "bg-amber-500 text-slate-950 border-slate-950 shadow-md hover:bg-amber-300 ring-2 ring-amber-400/50"
                         }`}
                       >
                         {pin.number}
                       </div>
 
                       {/* Tooltip */}
-                      <div className="hidden group-hover/pin:flex absolute top-9 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[11px] font-sans px-2.5 py-1 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
+                      <div className="hidden group-hover/pin:flex absolute top-7 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10.5px] font-sans px-2 py-0.5 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
                         <span className="font-bold text-amber-400">#{pin.number}</span>
-                        <span className="truncate max-w-[200px]">{pin.title}</span>
+                        <span className="truncate max-w-[180px]">{pin.title}</span>
                         <button
                           type="button"
                           onClick={(e) => handleRemovePin(pin.id, e)}
                           className="text-slate-400 hover:text-rose-400 ml-1 p-0.5"
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-2.5 w-2.5" />
                         </button>
                       </div>
                     </div>
@@ -323,8 +346,8 @@ export function FloorplanMarkupViewer({
               </div>
 
               {/* Click instruction helper badge */}
-              <div className="absolute top-2 right-2 bg-slate-950/90 text-white text-[10.5px] font-semibold px-3 py-1.5 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1.5 shadow-md z-20">
-                <MousePointerClick className="h-3.5 w-3.5 text-amber-400" /> Click plan to assign pin &bull; Drag to position
+              <div className="absolute top-2 right-2 bg-slate-950/90 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1 shadow-md z-20">
+                <MousePointerClick className="h-3 w-3 text-amber-400" /> Click plan to assign pin &bull; Drag to position
               </div>
             </div>
           ) : (
@@ -332,7 +355,7 @@ export function FloorplanMarkupViewer({
               <Home className="h-10 w-10 text-slate-300 mx-auto mb-2" />
               <span className="text-xs font-bold text-slate-600 block">No floorplan drawing loaded</span>
               <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
-                Select a home design above, or click &ldquo;Upload / Replace Modified Floorplan&rdquo; to attach the client&apos;s architectural drawing.
+                Select a home design above, or click &ldquo;Upload Modified Floorplan&rdquo; to crop and attach the client&apos;s architectural drawing.
               </p>
             </div>
           )}
@@ -344,7 +367,7 @@ export function FloorplanMarkupViewer({
         <DialogContent className="max-w-lg border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl space-y-4">
           <DialogHeader className="border-b border-slate-800 pb-3">
             <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
-              <span className="h-6 w-6 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-xs flex items-center justify-center">
+              <span className="h-5 w-5 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-[11px] flex items-center justify-center">
                 #{pins.length + 1}
               </span>
               Assign Structural Pin #{pins.length + 1}
@@ -434,6 +457,19 @@ export function FloorplanMarkupViewer({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Floorplan Cropper Modal */}
+      {rawForCrop && (
+        <FloorplanCropModal
+          open={isCropModalOpen}
+          onOpenChange={setIsCropModalOpen}
+          rawImageSrc={rawForCrop}
+          onApplyCroppedImage={(cropped) => {
+            onUploadCustomPlan(cropped);
+            setRawForCrop(null);
+          }}
+        />
+      )}
     </div>
   );
 }
