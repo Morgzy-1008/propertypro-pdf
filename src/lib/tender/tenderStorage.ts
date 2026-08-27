@@ -13,6 +13,8 @@ import type {
   TenderFloorplanPin,
 } from "./tenderTypes";
 
+import { HUDSON_FACADES } from "@/components/flyer/facades.data";
+
 export function findFloorplanUrl(designName: string): string {
   if (!designName) return "";
   const direct = plansForDesign(designName);
@@ -30,6 +32,34 @@ export function findFloorplanUrl(designName: string): string {
 
   if (found?.url) return found.url;
   return HUDSON_FLOORPLANS[0]?.url || "";
+}
+
+export function findFacadeRenderUrl(facadeName: string, housingType?: string): string {
+  if (!facadeName) return HUDSON_FACADES[0]?.url || "";
+  const clean = facadeName.replace(/\(.*?\)/g, "").trim().toLowerCase();
+
+  const isDouble = (housingType || "").toLowerCase().includes("double");
+  const match = HUDSON_FACADES.find((f) => {
+    const fName = f.name.toLowerCase();
+    const matchesName = fName.includes(clean) || clean.includes(fName);
+    if (!matchesName) return false;
+    if (isDouble) {
+      return f.range.toLowerCase().includes("double") || f.tags.includes("double");
+    }
+    return true;
+  });
+
+  if (match?.url) return match.url;
+
+  // fallback by name
+  const fallback = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(clean) || clean.includes(f.name.toLowerCase()));
+  return fallback?.url || HUDSON_FACADES[0]?.url || "";
+}
+
+export function calculateLandscapePackageCost(lotSizeM2: number | ""): number {
+  const m2 = typeof lotSizeM2 === "number" && lotSizeM2 > 0 ? lotSizeM2 : 400;
+  if (m2 <= 350) return 11990;
+  return 11990 + Math.round((m2 - 350) * 25);
 }
 
 const STORAGE_KEY_TENDERS = "hudson_tender_submissions_v1";
@@ -191,7 +221,7 @@ export function createBlankTenderSubmission(): TenderSubmission {
     iquoteId: subNo.replace("TR-", "MH-"),
     source: "Referred by friend",
 
-    buildType: "Vacant Land",
+    buildType: "Greenfield Site",
     purchaserType: "Owner Occupier",
 
     customer1: {
@@ -222,8 +252,8 @@ export function createBlankTenderSubmission(): TenderSubmission {
       estate: "",
       stage: "",
       lotNo: "",
-      lotSizeM2: "",
-      frontageM: "",
+      lotSizeM2: 450,
+      frontageM: 15,
       streetNumber: "",
       streetName: "",
       suburb: "",
@@ -232,6 +262,7 @@ export function createBlankTenderSubmission(): TenderSubmission {
       isRegistered: true,
       registeredDate: "",
       landStatus: "Exchanged",
+      ifKdrOccupancy: "Owner Occupied",
       comments: "",
     },
 
@@ -243,9 +274,14 @@ export function createBlankTenderSubmission(): TenderSubmission {
       isDoubleStorey: false,
       garageLocation: "RHS",
       floorplanUrl: findFloorplanUrl("Amber 21"),
+      originalFloorplanUrl: findFloorplanUrl("Amber 21"),
+      facadeRenderUrl: findFacadeRenderUrl("Classic", "Single Storey"),
+      sitingPlanDataUrl: "",
       isModifiedFloorplan: false,
       designM2: 195.4,
       floorplanPins: [],
+      includeLandscapePackage: false,
+      landscapePackageCost: calculateLandscapePackageCost(450),
       setbacks: {
         frontBoundary: "6.0m",
         rearBoundary: "1.5m",
@@ -376,17 +412,18 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   const { c1First, c1Last, c2First, c2Last, has2 } = parseClientNames(c.clientName || "", c.client2Name || "");
 
   // Determine Build Type & Deposit
-  let buildType: BuildType = "Vacant Land";
+  let buildType: BuildType = "Greenfield Site";
   let feeType: "greenfield_1650" | "kdr_duplex_3300" | "package_3000" | "custom_design_800" = "greenfield_1650";
   let feeAmount = 1650;
   let acceptanceFee: 4400 | 6600 = 4400;
 
   if (c.depositType === "brownfield" || s.demolitionAsbestosRequired) {
-    buildType = "Knock-Down, Rebuild";
+    buildType = "Knock-Down, Rebuild (KDRB)";
     feeType = "kdr_duplex_3300";
     feeAmount = 3300;
     acceptanceFee = 6600;
   } else if (d.hasSecondDwelling && d.secondDwelling?.enabled) {
+    buildType = "Knock-Down, Rebuild (KDRB)";
     feeType = "kdr_duplex_3300";
     feeAmount = 3300;
     acceptanceFee = 4400;
@@ -400,62 +437,29 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   else if (d.specTier.includes("H3")) incType = "H3 Luxury";
   else if (d.specTier.includes("Standard")) incType = "Standard";
 
-  // Floorplans: Original & Current/Modified
+  // Floorplans & Facades
   const originalUrl = findFloorplanUrl(d.designName || "");
   const currentPlanUrl = d.floorplanUrl || originalUrl;
   const isMod = !!d.isModifiedFloorplan || (!!d.floorplanUrl && d.floorplanUrl !== originalUrl);
+  const facadeRender = findFacadeRenderUrl(d.facadeName, d.housingType);
 
-  // Line items categorization without auto-placed pins
+  // Line items categorization into 2 groups: Structural vs All Other Variations
   const allIncluded = (quote.lineItems || []).filter((it) => it.isIncluded && it.subtotal > 0);
   const processedVariations: TenderNumberedVariation[] = [];
 
   for (const it of allIncluded) {
-    const nameLower = (it.name || "").toLowerCase();
-    const catLower = (it.category || "").toLowerCase();
-
-    let category: string = "inclusions";
-    if (
-      catLower === "site_statutory" ||
-      catLower === "site" ||
-      catLower === "statutory" ||
-      nameLower.includes("earthwork") ||
-      nameLower.includes("piering") ||
-      nameLower.includes("council") ||
-      nameLower.includes("certifier") ||
-      nameLower.includes("statutory") ||
-      nameLower.includes("soil test") ||
-      nameLower.includes("wind rating") ||
-      nameLower.includes("contour survey") ||
-      nameLower.includes("drop edge") ||
-      nameLower.includes("slab pump")
-    ) {
-      category = "site_council";
-    } else if (
-      catLower === "structural" ||
-      nameLower.includes("alfresco") ||
-      nameLower.includes("garage extension") ||
-      nameLower.includes("room extension") ||
-      nameLower.includes("ceiling height") ||
-      nameLower.includes("wall") ||
-      nameLower.includes("ensuite") ||
-      nameLower.includes("stacker door")
-    ) {
-      category = "structural";
-    }
-
     processedVariations.push({
       id: it.id,
-      description: it.name, // Clean title only
+      description: it.name, // Full title only
       cost: it.subtotal,
-      category,
-      isStructural: false, // Default unnumbered until explicitly placed or moved to structural
+      category: "all_variations", // All start in Group B unnumbered until marked structural
+      isStructural: false,
       itemNumber: undefined,
     });
   }
 
-  const structCost = processedVariations.filter((v) => v.isStructural).reduce((sum, v) => sum + v.cost, 0);
-  const internalCost = processedVariations.filter((v) => !v.isStructural && v.category !== "site_council").reduce((sum, v) => sum + v.cost, 0);
-  const siteCost = processedVariations.filter((v) => v.category === "site_council").reduce((sum, v) => sum + v.cost, 0) + (p.totalSiteAndStatutory || 0);
+  const structCost = 0;
+  const allVarCost = processedVariations.reduce((sum, v) => sum + v.cost, 0);
 
   // Pre-fill documents
   const docs = { ...base.documents };
@@ -506,9 +510,13 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       garageLocation: "RHS",
       floorplanUrl: currentPlanUrl,
       originalFloorplanUrl: originalUrl,
+      facadeRenderUrl: facadeRender,
+      sitingPlanDataUrl: "",
       isModifiedFloorplan: isMod,
       designM2: d.designM2 || 195.4,
       floorplanPins: [], // No auto-pins on quote import!
+      includeLandscapePackage: false,
+      landscapePackageCost: calculateLandscapePackageCost(450),
       setbacks: {
         frontBoundary: "6.0m",
         rearBoundary: "1.5m",
@@ -520,8 +528,8 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       baseDesignCost: p.baseHousePrice || 0,
       facadeCost: p.facadePrice || 0,
       structuralVariationsCost: structCost,
-      internalUpgradesCost: internalCost,
-      additionalSiteCost: siteCost,
+      internalUpgradesCost: allVarCost,
+      additionalSiteCost: p.totalSiteAndStatutory || 0,
       promotionDiscountCost: p.promotionalDiscount || 0,
       totalBudgetEstimate: p.grossEstimatedInvestment || 0,
     },

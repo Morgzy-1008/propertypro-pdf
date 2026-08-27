@@ -17,6 +17,8 @@ import {
   Calendar,
   AlertCircle,
   FileCheck,
+  Type,
+  UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,29 +37,64 @@ export const Route = createFileRoute("/tender-sign/$id")({
   component: RemoteTenderSignPage,
 });
 
+function generateCursiveSignatureDataUrl(name: string): string {
+  const canvas = document.createElement("canvas");
+  canvas.width = 600;
+  canvas.height = 180;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+
+  ctx.fillStyle = "transparent";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = "#0369a1"; // deep elegant blue ink
+  ctx.font = "italic 46px 'Brush Script MT', 'Dancing Script', 'Caveat', cursive, serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(name.trim(), 300, 90);
+
+  return canvas.toDataURL("image/png");
+}
+
 function RemoteTenderSignPage() {
   const { id } = Route.useParams();
   const [tender, setTender] = useState<TenderSubmission | null>(null);
   const [loading, setLoading] = useState(true);
-  const [client1Name, setClient1Name] = useState("");
-  const [client2Name, setClient2Name] = useState("");
-  const [client1Signed, setClient1Signed] = useState(false);
-  const [client2Signed, setClient2Signed] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
 
+  // Client 1 States
+  const [client1Name, setClient1Name] = useState("");
+  const [client1Signed, setClient1Signed] = useState(false);
+  const [client1Mode, setClient1Mode] = useState<"cursive" | "draw">("cursive");
+  const [client1SigDataUrl, setClient1SigDataUrl] = useState<string>("");
   const canvas1Ref = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing1, setIsDrawing1] = useState(false);
   const [hasDrawn1, setHasDrawn1] = useState(false);
+
+  // Client 2 States
+  const [client2Name, setClient2Name] = useState("");
+  const [client2Signed, setClient2Signed] = useState(false);
+  const [client2Mode, setClient2Mode] = useState<"cursive" | "draw">("cursive");
+  const [client2SigDataUrl, setClient2SigDataUrl] = useState<string>("");
+  const canvas2Ref = useRef<HTMLCanvasElement | null>(null);
+  const [isDrawing2, setIsDrawing2] = useState(false);
+  const [hasDrawn2, setHasDrawn2] = useState(false);
+
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     getTenderByIdAsync(id).then((found) => {
       if (found) {
         setTender(found);
-        setClient1Name(found.atp.client1Name || `${found.customer1.firstName} ${found.customer1.surname}`.trim());
-        setClient2Name(found.atp.client2Name || `${found.customer2.firstName} ${found.customer2.surname}`.trim());
+        const c1N = found.atp.client1Name || `${found.customer1.firstName} ${found.customer1.surname}`.trim();
+        const c2N = found.atp.client2Name || `${found.customer2.firstName} ${found.customer2.surname}`.trim();
+        setClient1Name(c1N);
+        setClient2Name(c2N);
         setClient1Signed(found.atp.client1Signed);
         setClient2Signed(found.atp.client2Signed);
-        if (found.status === "client_signed" || found.atp.client1Signed) {
+        if (found.atp.client1SignatureDataUrl) setClient1SigDataUrl(found.atp.client1SignatureDataUrl);
+        if (found.atp.client2SignatureDataUrl) setClient2SigDataUrl(found.atp.client2SignatureDataUrl);
+
+        if (found.status === "client_signed" || (found.atp.client1Signed && (!found.hasCustomer2 || found.atp.client2Signed))) {
           setSubmitted(true);
         }
       }
@@ -65,6 +102,7 @@ function RemoteTenderSignPage() {
     });
   }, [id]);
 
+  // Drawing Canvas 1
   const clearCanvas1 = () => {
     const canvas = canvas1Ref.current;
     if (!canvas) return;
@@ -72,6 +110,7 @@ function RemoteTenderSignPage() {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setHasDrawn1(false);
+    setClient1SigDataUrl("");
   };
 
   const startDrawing1 = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -82,7 +121,7 @@ function RemoteTenderSignPage() {
     if (!ctx) return;
 
     ctx.strokeStyle = "#0284c7";
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.lineCap = "round";
 
     const rect = canvas.getBoundingClientRect();
@@ -115,63 +154,153 @@ function RemoteTenderSignPage() {
     ctx.stroke();
   };
 
-  const stopDrawing1 = () => {
-    setIsDrawing1(false);
+  // Drawing Canvas 2
+  const clearCanvas2 = () => {
+    const canvas = canvas2Ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawn2(false);
+    setClient2SigDataUrl("");
   };
 
-  const handleSubmitSignature = async () => {
-    if (!tender) return;
+  const startDrawing2 = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    setIsDrawing2(true);
+    const canvas = canvas2Ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.strokeStyle = "#0284c7";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    ctx.beginPath();
+    ctx.moveTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+    setHasDrawn2(true);
+  };
+
+  const draw2 = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing2) return;
+    const canvas = canvas2Ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    ctx.lineTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+    ctx.stroke();
+  };
+
+  const handleSignClient1 = async () => {
     if (!client1Name.trim()) {
-      toast.error("Please enter your printed legal name");
+      toast.error("Please enter Client 1 legal printed name");
       return;
     }
 
-    let sigDataUrl = tender.atp.client1SignatureDataUrl || "";
-    if (hasDrawn1 && canvas1Ref.current) {
-      sigDataUrl = canvas1Ref.current.toDataURL("image/png");
-    } else if (!sigDataUrl) {
-      // Create typed cursive signature
-      const offCanvas = document.createElement("canvas");
-      offCanvas.width = 500;
-      offCanvas.height = 160;
-      const ctx = offCanvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#0284c7";
-        ctx.font = "italic 36px 'Brush Script MT', cursive, serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(client1Name, 250, 80);
-      }
-      sigDataUrl = offCanvas.toDataURL("image/png");
+    let finalSig = client1SigDataUrl;
+    if (client1Mode === "cursive") {
+      finalSig = generateCursiveSignatureDataUrl(client1Name);
+    } else if (client1Mode === "draw" && canvas1Ref.current && hasDrawn1) {
+      finalSig = canvas1Ref.current.toDataURL("image/png");
+    }
+
+    if (!finalSig) {
+      finalSig = generateCursiveSignatureDataUrl(client1Name);
+    }
+
+    setClient1SigDataUrl(finalSig);
+    setClient1Signed(true);
+    toast.success(`Primary Purchaser (${client1Name}) signature accepted!`);
+  };
+
+  const handleSignClient2 = async () => {
+    if (!client2Name.trim()) {
+      toast.error("Please enter Client 2 legal printed name");
+      return;
+    }
+
+    let finalSig = client2SigDataUrl;
+    if (client2Mode === "cursive") {
+      finalSig = generateCursiveSignatureDataUrl(client2Name);
+    } else if (client2Mode === "draw" && canvas2Ref.current && hasDrawn2) {
+      finalSig = canvas2Ref.current.toDataURL("image/png");
+    }
+
+    if (!finalSig) {
+      finalSig = generateCursiveSignatureDataUrl(client2Name);
+    }
+
+    setClient2SigDataUrl(finalSig);
+    setClient2Signed(true);
+    toast.success(`Secondary Purchaser (${client2Name}) signature accepted!`);
+  };
+
+  const handleFinalSubmit = async () => {
+    if (!tender) return;
+    if (!client1Signed) {
+      toast.error("Primary Purchaser signature is required before submitting");
+      return;
+    }
+    if (tender.hasCustomer2 && !client2Signed) {
+      toast.error("Secondary Purchaser signature is required before submitting");
+      return;
     }
 
     const today = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "numeric", year: "numeric" });
     const updated: TenderSubmission = {
       ...tender,
       status: "client_signed",
+      updatedAt: new Date().toISOString(),
       atp: {
         ...tender.atp,
         client1Signed: true,
         client1Name,
         client1SignatureDate: today,
-        client1SignatureDataUrl: sigDataUrl,
+        client1SignatureDataUrl: client1SigDataUrl || generateCursiveSignatureDataUrl(client1Name),
+        client1SignatureStyle: client1Mode,
+
+        client2Signed: tender.hasCustomer2 ? true : tender.atp.client2Signed,
+        client2Name: tender.hasCustomer2 ? client2Name : "",
+        client2SignatureDate: tender.hasCustomer2 ? today : "",
+        client2SignatureDataUrl: tender.hasCustomer2 ? client2SigDataUrl || generateCursiveSignatureDataUrl(client2Name) : undefined,
+        client2SignatureStyle: client2Mode,
+
         isRemoteSigned: true,
         remoteSignedAt: new Date().toISOString(),
       },
     };
 
     await saveTenderToIdb(updated);
+    try {
+      localStorage.setItem(`tender_remote_signed_${tender.id}`, JSON.stringify(updated));
+    } catch {}
+
     setTender(updated);
     setSubmitted(true);
-    toast.success("Authority to Proceed signed successfully! Thank you.");
+    toast.success("Authority to Proceed signed successfully! Your consultant has been notified.");
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
         <div className="text-center space-y-3">
-          <Logo light size={12} />
-          <div className="text-sm font-semibold text-slate-400">Loading your Authority to Proceed document…</div>
+          <div className="animate-spin h-8 w-8 border-2 border-cyan-400 border-t-transparent rounded-full mx-auto" />
+          <p className="text-sm text-slate-400">Loading Authority to Proceed document…</p>
         </div>
       </div>
     );
@@ -179,13 +308,12 @@ function RemoteTenderSignPage() {
 
   if (!tender) {
     return (
-      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6 font-sans">
-        <div className="max-w-md text-center space-y-4 bg-slate-900 p-8 rounded-2xl border border-slate-800">
-          <Logo light size={12} />
-          <AlertCircle className="h-10 w-10 text-amber-400 mx-auto" />
-          <h2 className="text-lg font-bold">Document Link Not Found</h2>
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
+        <div className="max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-2xl">
+          <AlertCircle className="h-12 w-12 text-amber-400 mx-auto" />
+          <h2 className="text-lg font-bold text-white">Tender Request Not Found</h2>
           <p className="text-xs text-slate-400">
-            This Authority to Proceed link may have expired or was opened in a different browser session. Please contact your New Home Consultant Morgan Hales.
+            This tender signing link may have expired or is invalid. Please contact your New Home Consultant for an updated link.
           </p>
         </div>
       </div>
@@ -193,179 +321,339 @@ function RemoteTenderSignPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans p-4 sm:p-6 lg:p-8 flex flex-col justify-between max-w-4xl mx-auto selection:bg-cyan-500/30">
-      {/* Top Header */}
-      <header className="border-b border-slate-800 pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Logo light size={11} />
-          <div className="border-l border-slate-800 pl-3">
-            <span className="text-xs font-bold tracking-widest text-white uppercase block">
-              Authority to Proceed
-            </span>
-            <span className="text-[10px] text-cyan-400 font-mono">
-              Ref: {tender.submissionNumber}
+    <div className="min-h-screen bg-slate-950 text-slate-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header Branding */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900/90 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+          <div className="flex items-center gap-4">
+            <div className="bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
+              <Logo size={8} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-cyan-950 text-cyan-400 border border-cyan-800 px-2 py-0.5 rounded">
+                  Electronic Signing Portal
+                </span>
+                <span className="text-xs font-mono text-slate-400">Ref: {tender.submissionNumber}</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                Authority to Proceed (ATP)
+              </h1>
+            </div>
+          </div>
+
+          <div className="text-left sm:text-right bg-slate-950/80 p-3 rounded-2xl border border-slate-800/80 sm:border-0 sm:bg-transparent">
+            <span className="text-[10px] text-slate-400 uppercase block">Preliminary Tender Fee:</span>
+            <span className="text-2xl font-black font-mono text-emerald-400">
+              {formatAud(tender.atp.feeAmount)}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800">
-          <ShieldCheck className="h-4 w-4 text-emerald-400" />
-          <span>Secure Digital E-Sign Portal</span>
+        {/* Project Summary Card */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-950/60 text-cyan-400 border border-cyan-800">
+              <Home className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase block">Selected Design</span>
+              <strong className="text-xs text-white">
+                {tender.homeSpec.homeDesign} ({tender.homeSpec.facade} Facade)
+              </strong>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-950/60 text-amber-400 border border-amber-800">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase block">Site Location</span>
+              <strong className="text-xs text-white truncate block">
+                Lot {tender.land.lotNo}, {tender.land.streetName || ""} {tender.land.suburb}
+              </strong>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-950/60 text-emerald-400 border border-emerald-800">
+              <UserCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="text-[10px] text-slate-400 uppercase block">New Home Consultant</span>
+              <strong className="text-xs text-white truncate block">
+                {tender.newHomeConsultant} ({tender.displayOffice})
+              </strong>
+            </div>
+          </div>
         </div>
-      </header>
 
-      {/* Main Signing Card */}
-      <main className="my-6 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-6">
-        {submitted ? (
-          <div className="text-center py-10 space-y-4">
-            <div className="h-16 w-16 rounded-full bg-emerald-500/20 border-2 border-emerald-500 flex items-center justify-center text-emerald-400 mx-auto">
-              <Check className="h-8 w-8" />
-            </div>
-            <h2 className="text-2xl font-black text-white">Authority to Proceed Signed!</h2>
-            <p className="text-xs text-slate-300 max-w-md mx-auto leading-relaxed">
-              Thank you, <strong>{client1Name}</strong>. Your electronic signature has been authenticated and delivered directly to your New Home Consultant <strong>{tender.newHomeConsultant}</strong>.
+        {/* Comprehensive ATP Legal Terms Box */}
+        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+          <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 border-b border-slate-800 pb-3">
+            <FileCheck className="h-4 w-4 text-cyan-400" /> Terms of Authority &amp; Deposit Crediting Clause
+          </h3>
+
+          <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
+            <p>
+              1. <strong>Site Investigation Authority:</strong> I/We hereby request that a formal Tender document be produced for the construction of my/our new Hudson Home. I/we authorize Hudson Homes to conduct all necessary site inspections, contour surveys, soil test boreholes, and council planning assessments.
             </p>
-
-            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950/80 max-w-md mx-auto text-xs text-left space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Tender Reference:</span>
-                <strong className="font-mono text-cyan-400">{tender.submissionNumber}</strong>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Signed Date:</span>
-                <span className="font-mono">{tender.atp.client1SignatureDate}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">EFT Remittance Reference:</span>
-                <strong className="font-mono text-amber-400">{tender.atp.eftReference}</strong>
-              </div>
+            <p>
+              2. <strong>270-Day Fixed Price Guarantee:</strong> The tender price provided by Hudson Homes will remain fixed for a period of <strong>270 days (9 months)</strong> from the date of tender issuance.
+            </p>
+            <p>
+              3. <strong>Tender Acceptance Fee:</strong> Upon presentation of the completed Tender document, an Acceptance Fee of <strong>$4,400</strong> (or <strong>$6,600</strong> for Knock-Down Rebuild / Dual Occupancy) is payable within 10 days to proceed with architectural working drawings and engineering.
+            </p>
+            <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200">
+              <strong>4. 5% Building Contract Deposit Crediting:</strong> Upon tender acceptance, the formal Master Builders / HIA Building Contract will be prepared. Upon contract signing, the standard <strong>5% contract deposit is required, minus both the Preliminary Fee (Deposit 1) and the Tender Acceptance Fee (Deposit 2) already paid</strong>.
             </div>
+          </div>
+        </div>
+
+        {/* Client Signatures Section */}
+        {submitted ? (
+          <div className="bg-emerald-950/40 border border-emerald-500/60 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+            <div className="h-16 w-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 flex items-center justify-center mx-auto">
+              <CheckCircle2 className="h-10 w-10" />
+            </div>
+            <h3 className="text-xl font-bold text-white">Authority to Proceed Successfully Signed!</h3>
+            <p className="text-xs text-slate-300 max-w-md mx-auto">
+              Thank you for completing your digital signature. Your New Home Consultant (<strong>{tender.newHomeConsultant}</strong>) has received your signed authorization and will proceed with ordering your site investigation.
+            </p>
           </div>
         ) : (
-          <>
-            <div>
-              <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider block mb-1">
-                Client Review &amp; Electronic Signature
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Authority to Proceed — {tender.customer1.surname} Residence
-              </h2>
-            </div>
+          <div className="space-y-6">
+            {/* SIGNATURE BOX 1: PRIMARY PURCHASER */}
+            <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-400 block">
+                    1. Primary Purchaser Signature (Client 1)
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Legal Name: <strong>{tender.customer1.firstName} {tender.customer1.surname}</strong>
+                  </span>
+                </div>
 
-            {/* Summary Highlights Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                {/* Mode Selector: Cursive Template vs Draw */}
+                <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setClient1Mode("cursive")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      client1Mode === "cursive"
+                        ? "bg-cyan-500 text-slate-950 font-bold shadow-xs"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Type className="h-3 w-3" /> Cursive Font Template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClient1Mode("draw")}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                      client1Mode === "draw"
+                        ? "bg-cyan-500 text-slate-950 font-bold shadow-xs"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <PenTool className="h-3 w-3" /> Draw Signature
+                  </button>
+                </div>
+              </div>
+
+              {/* Name Input */}
               <div>
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Home Design:</span>
-                <strong className="text-slate-100 text-sm">{tender.homeSpec.homeDesign}</strong>
-                <span className="text-[11px] text-slate-400 block">{tender.homeSpec.facade} Facade &bull; {tender.homeSpec.inclusionsType}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Proposed Site:</span>
-                <strong className="text-slate-100">Lot {tender.land.lotNo}, {tender.land.streetName || tender.land.estate}</strong>
-                <span className="text-[11px] text-slate-400 block">{tender.land.suburb} ({tender.land.council})</span>
-              </div>
-              <div className="text-right sm:border-l border-slate-800 sm:pl-3">
-                <span className="text-[10px] text-slate-500 uppercase block font-semibold">Tender Fee Payable:</span>
-                <strong className="text-base font-extrabold font-mono text-emerald-400">
-                  {formatAud(tender.atp.feeAmount)}
-                </strong>
-                <span className="text-[10px] text-slate-400 block">Credited to Building Deposit</span>
-              </div>
-            </div>
-
-            {/* Legal Terms Acknowledgement */}
-            <div className="space-y-2 text-xs text-slate-300 bg-slate-950/60 p-4 rounded-2xl border border-slate-800 leading-relaxed">
-              <p>
-                1. I/We hereby request a Tender document be produced outlining the cost of constructing our new Hudson Home with all selected variations and site assessments.
-              </p>
-              <p>
-                2. I/We provide authority for Hudson Homes to conduct a site assessment, obtain a contour survey, and conduct a soil test.
-              </p>
-              <p>
-                3. The Tender remains valid for <strong>270 days (9 months) Fixed Price Guarantee</strong> and covers up to three (3) revisions.
-              </p>
-            </div>
-
-            {/* Electronic Signature Pad */}
-            <div className="space-y-4 bg-slate-950 p-5 rounded-2xl border border-slate-800">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                  <PenTool className="h-4 w-4 text-cyan-400" /> Draw Your Signature on Screen *
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearCanvas1}
-                  className="text-xs text-slate-400 hover:text-rose-400 gap-1 h-7"
-                >
-                  <RotateCcw className="h-3 w-3" /> Clear
-                </Button>
-              </div>
-
-              <div className="border-2 border-dashed border-slate-700 hover:border-cyan-500/60 rounded-xl bg-white p-1 relative overflow-hidden transition-colors shadow-inner">
-                <canvas
-                  ref={canvas1Ref}
-                  width={600}
-                  height={180}
-                  onMouseDown={startDrawing1}
-                  onMouseMove={draw1}
-                  onMouseUp={stopDrawing1}
-                  onMouseLeave={stopDrawing1}
-                  onTouchStart={startDrawing1}
-                  onTouchMove={draw1}
-                  onTouchEnd={stopDrawing1}
-                  className="w-full h-36 cursor-crosshair touch-none block"
-                />
-                {!hasDrawn1 && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400 text-xs italic">
-                    Sign with your finger, stylus, or mouse here
-                  </div>
-                )}
-                <div className="absolute bottom-2 left-4 right-4 border-b border-slate-200 pointer-events-none" />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-300">Printed Full Legal Name *</label>
+                <label className="text-[11px] text-slate-400 block mb-1">Printed Legal Name *</label>
                 <Input
                   value={client1Name}
                   onChange={(e) => setClient1Name(e.target.value)}
-                  placeholder="e.g. Jordan Samuel Mitchell"
-                  className="border-slate-800 bg-slate-900 text-xs text-white"
+                  placeholder="e.g. Jordan Mitchell"
+                  className="border-slate-800 bg-slate-950 text-sm font-semibold text-white"
                 />
               </div>
-            </div>
 
-            {/* EFT Bank Remittance Info */}
-            <div className="p-4 rounded-xl border border-slate-800 bg-slate-950 text-xs space-y-1.5">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">EFT Payment Details:</span>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-300 font-mono">
-                <div>Bank: <strong>NAB</strong></div>
-                <div>BSB: <strong>082-778</strong></div>
-                <div>Account: <strong>74-586-5607</strong></div>
-                <div>Ref: <strong className="text-amber-400">{tender.atp.eftReference}</strong></div>
+              {/* Mode 1: Cursive Template Preview */}
+              {client1Mode === "cursive" ? (
+                <div className="space-y-3">
+                  <span className="text-[11px] text-slate-400 block">Live Cursive Signature Preview:</span>
+                  <div className="h-28 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-center p-4">
+                    <span className="text-3xl sm:text-4xl text-cyan-400 font-serif italic tracking-wide select-none drop-shadow">
+                      {client1Name.trim() || "Your Name in Cursive"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                /* Mode 2: Draw Signature Canvas */
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">Draw with your finger or mouse below:</span>
+                    <button
+                      type="button"
+                      onClick={clearCanvas1}
+                      className="text-[10.5px] text-slate-400 hover:text-rose-400 flex items-center gap-1"
+                    >
+                      <RotateCcw className="h-3 w-3" /> Clear Pad
+                    </button>
+                  </div>
+
+                  <div className="border border-dashed border-slate-700 rounded-2xl bg-slate-950 overflow-hidden touch-none flex items-center justify-center">
+                    <canvas
+                      ref={canvas1Ref}
+                      width={600}
+                      height={160}
+                      onMouseDown={startDrawing1}
+                      onMouseMove={draw1}
+                      onMouseUp={() => setIsDrawing1(false)}
+                      onTouchStart={startDrawing1}
+                      onTouchMove={draw1}
+                      onTouchEnd={() => setIsDrawing1(false)}
+                      className="w-full h-36 cursor-crosshair block"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  type="button"
+                  onClick={handleSignClient1}
+                  className={`text-xs font-bold gap-1.5 ${
+                    client1Signed
+                      ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                      : "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                  }`}
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  {client1Signed ? "Client 1 Signed (Click to Re-sign)" : "Apply Client 1 Signature"}
+                </Button>
               </div>
             </div>
 
-            {/* Submit Button */}
-            <div className="pt-2">
+            {/* SIGNATURE BOX 2: SECONDARY PURCHASER (IF TWO PURCHASERS) */}
+            {tender.hasCustomer2 && (
+              <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                  <div>
+                    <span className="text-xs font-black uppercase tracking-wider text-amber-400 block">
+                      2. Secondary Purchaser Signature (Client 2)
+                    </span>
+                    <span className="text-[11px] text-slate-400">
+                      Legal Name: <strong>{tender.customer2.firstName} {tender.customer2.surname}</strong>
+                    </span>
+                  </div>
+
+                  {/* Mode Selector: Cursive Template vs Draw */}
+                  <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setClient2Mode("cursive")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        client2Mode === "cursive"
+                          ? "bg-cyan-500 text-slate-950 font-bold shadow-xs"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <Type className="h-3 w-3" /> Cursive Font Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClient2Mode("draw")}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                        client2Mode === "draw"
+                          ? "bg-cyan-500 text-slate-950 font-bold shadow-xs"
+                          : "text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      <PenTool className="h-3 w-3" /> Draw Signature
+                    </button>
+                  </div>
+                </div>
+
+                {/* Name Input */}
+                <div>
+                  <label className="text-[11px] text-slate-400 block mb-1">Printed Legal Name *</label>
+                  <Input
+                    value={client2Name}
+                    onChange={(e) => setClient2Name(e.target.value)}
+                    placeholder="e.g. Sarah Mitchell"
+                    className="border-slate-800 bg-slate-950 text-sm font-semibold text-white"
+                  />
+                </div>
+
+                {/* Mode 1: Cursive Template Preview */}
+                {client2Mode === "cursive" ? (
+                  <div className="space-y-3">
+                    <span className="text-[11px] text-slate-400 block">Live Cursive Signature Preview:</span>
+                    <div className="h-28 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-center p-4">
+                      <span className="text-3xl sm:text-4xl text-cyan-400 font-serif italic tracking-wide select-none drop-shadow">
+                        {client2Name.trim() || "Your Name in Cursive"}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  /* Mode 2: Draw Signature Canvas */
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">Draw with your finger or mouse below:</span>
+                      <button
+                        type="button"
+                        onClick={clearCanvas2}
+                        className="text-[10.5px] text-slate-400 hover:text-rose-400 flex items-center gap-1"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Clear Pad
+                      </button>
+                    </div>
+
+                    <div className="border border-dashed border-slate-700 rounded-2xl bg-slate-950 overflow-hidden touch-none flex items-center justify-center">
+                      <canvas
+                        ref={canvas2Ref}
+                        width={600}
+                        height={160}
+                        onMouseDown={startDrawing2}
+                        onMouseMove={draw2}
+                        onMouseUp={() => setIsDrawing2(false)}
+                        onTouchStart={startDrawing2}
+                        onTouchMove={draw2}
+                        onTouchEnd={() => setIsDrawing2(false)}
+                        className="w-full h-36 cursor-crosshair block"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="button"
+                    onClick={handleSignClient2}
+                    className={`text-xs font-bold gap-1.5 ${
+                      client2Signed
+                        ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                        : "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+                    }`}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    {client2Signed ? "Client 2 Signed (Click to Re-sign)" : "Apply Client 2 Signature"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Final Submission Button */}
+            <div className="pt-4">
               <Button
                 type="button"
-                size="lg"
-                onClick={handleSubmitSignature}
-                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 text-slate-950 font-black text-sm shadow-xl shadow-cyan-500/20 py-6"
+                onClick={handleFinalSubmit}
+                className="w-full py-6 text-base font-black uppercase tracking-wider bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 text-slate-950 rounded-2xl shadow-xl shadow-emerald-500/20"
               >
-                <CheckCircle2 className="h-5 w-5 mr-2" /> Sign &amp; Submit Authority to Proceed
+                <ShieldCheck className="h-5 w-5 mr-2" />
+                Authorize &amp; Submit Signed Authority to Proceed
               </Button>
             </div>
-          </>
+          </div>
         )}
-      </main>
-
-      {/* Footer */}
-      <footer className="text-center text-[11px] text-slate-500 border-t border-slate-900 pt-4">
-        Hudson Homes Pty Ltd &bull; ABN 49 163 189 071 &bull; Builder&apos;s Licence: 259372C &bull; Queensland Division
-      </footer>
+      </div>
     </div>
   );
 }

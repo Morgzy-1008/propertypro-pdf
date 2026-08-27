@@ -1,4 +1,9 @@
-export type BuildType = "Vacant Land" | "Knock-Down, Rebuild" | "Home & Land Package" | "Custom";
+export type BuildType =
+  | "Greenfield Site"
+  | "Exclusive Lot"
+  | "Knock-Down, Rebuild (KDRB)"
+  | "House & Land Package"
+  | "Custom";
 export type PurchaserType = "Owner Occupier" | "Property Investor" | "First-Home Buyer" | "Repeat Purchaser";
 export type LandStatus = "Exclusive" | "Expression of Interest" | "Deposited" | "Exchanged" | "Settled";
 export type KdrOccupancy = "Owner Occupied" | "Vacant" | "Tenanted";
@@ -19,8 +24,8 @@ export interface TenderNumberedVariation {
   itemNumber?: number; // assigned only for structural changes (1, 2, 3...)
   description: string;
   cost: number;
-  category?: string;
-  isStructural: boolean; // True = shown on floorplan with #, False = internal / site item (unnumbered)
+  category?: "structural" | "all_variations" | string;
+  isStructural: boolean; // True = shown on floorplan with #, False = unnumbered general variation
 }
 
 export interface TenderCustomer {
@@ -64,11 +69,13 @@ export interface AuthorityToProceedData {
   client1Name: string;
   client1SignatureDate: string;
   client1SignatureDataUrl?: string;
+  client1SignatureStyle?: "draw" | "cursive";
 
   client2Signed: boolean;
   client2Name: string;
   client2SignatureDate: string;
   client2SignatureDataUrl?: string;
+  client2SignatureStyle?: "draw" | "cursive";
 
   consultantSigned: boolean;
   consultantName: string;
@@ -99,27 +106,23 @@ export interface TenderSubmission {
   sourceQuoteId?: string;
   createdAt: string;
   updatedAt: string;
-  status: "draft" | "ready_for_signing" | "client_signed" | "ready_for_onsite" | "submitted_to_onsite";
-  
-  // Header Meta
+  status: "draft" | "submitted" | "approved" | "client_signed" | "rejected";
+  iquoteId: string;
   tenderRequestDate: string;
-  priceListDate: string;
-  displayOffice: string;
+  tenderTargetDate: string;
+
+  // Sales Consultant Profile
   newHomeConsultant: string;
   consultantPhone: string;
   consultantEmail: string;
-  iquoteDate: string;
-  iquoteId: string;
-  source: string;
-
-  // Build & Purchaser Type
+  displayOffice: string;
+  
+  // Project Type & Client
   buildType: BuildType;
   purchaserType: PurchaserType;
-
-  // Customers
   customer1: TenderCustomer;
-  hasCustomer2: boolean;
   customer2: TenderCustomer;
+  hasCustomer2: boolean;
 
   // Current Residence
   currentHomeAddress: {
@@ -150,6 +153,12 @@ export interface TenderSubmission {
     ifKdrOccupancy?: KdrOccupancy;
     kdrAccessName?: string;
     kdrAccessPhone?: string;
+    kdrTenantDetails?: {
+      name: string;
+      phone: string;
+      email: string;
+      accessNotes: string;
+    };
     accessRestrictions?: {
       securityFence: boolean;
       dogs: boolean;
@@ -170,9 +179,13 @@ export interface TenderSubmission {
     garageLocation: GarageLocation;
     floorplanUrl?: string;
     originalFloorplanUrl?: string;
+    facadeRenderUrl?: string;
+    sitingPlanDataUrl?: string;
     isModifiedFloorplan?: boolean;
     designM2?: number;
     floorplanPins: TenderFloorplanPin[];
+    includeLandscapePackage?: boolean;
+    landscapePackageCost?: number;
     setbacks: {
       frontBoundary: string;
       rearBoundary: string;

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState } from "react";
 import {
   Upload,
   Plus,
@@ -11,6 +11,7 @@ import {
   RotateCcw,
   ArrowRight,
   Eye,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -53,8 +54,8 @@ export function FloorplanMarkupViewer({
     const clickX = e.clientX - rect.left;
     const clickY = e.clientY - rect.top;
 
-    const percentX = Math.max(2, Math.min(98, Math.round((clickX / rect.width) * 100)));
-    const percentY = Math.max(2, Math.min(98, Math.round((clickY / rect.height) * 100)));
+    const percentX = Math.max(3, Math.min(97, Math.round((clickX / rect.width) * 100)));
+    const percentY = Math.max(3, Math.min(97, Math.round((clickY / rect.height) * 100)));
 
     const nextNumber = pins.length + 1;
     const newPin: TenderFloorplanPin = {
@@ -69,7 +70,7 @@ export function FloorplanMarkupViewer({
     onUpdatePins(updated);
     onAddStructuralVariation(newPin);
     setSelectedPinId(newPin.id);
-    toast.success(`Placed Badge #${nextNumber} on floorplan! Drag to reposition.`);
+    toast.success(`Placed Structural Pin #${nextNumber} on floorplan! Drag to reposition.`);
   };
 
   // Dragging pin handler
@@ -86,8 +87,8 @@ export function FloorplanMarkupViewer({
     const curX = e.clientX - rect.left;
     const curY = e.clientY - rect.top;
 
-    const percentX = Math.max(2, Math.min(98, Math.round((curX / rect.width) * 100)));
-    const percentY = Math.max(2, Math.min(98, Math.round((curY / rect.height) * 100)));
+    const percentX = Math.max(3, Math.min(97, Math.round((curX / rect.width) * 100)));
+    const percentY = Math.max(3, Math.min(97, Math.round((curY / rect.height) * 100)));
 
     const updated = pins.map((p) => (p.id === draggingPinId ? { ...p, x: percentX, y: percentY } : p));
     onUpdatePins(updated);
@@ -134,7 +135,7 @@ export function FloorplanMarkupViewer({
             {designName} Floorplan Drawing
           </span>
           <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-950/80 text-amber-400 border border-amber-800/60">
-            {pins.length} Structural Badges Placed
+            {pins.length} Structural Pins Active
           </span>
           {showSideBySide && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1">
@@ -191,7 +192,7 @@ export function FloorplanMarkupViewer({
           {showSideBySide && (
             <div className="flex items-center justify-between border-b border-slate-200 pb-2 mb-3">
               <span className="text-xs font-black uppercase tracking-wider text-amber-600 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Modified Floorplan (With Structural Badges)
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" /> Modified Floorplan (With Numbered Structural Pins)
               </span>
               <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
                 Active Client Layout
@@ -200,66 +201,68 @@ export function FloorplanMarkupViewer({
           )}
 
           {floorplanUrl ? (
-            <div
-              ref={containerRef}
-              onClick={handlePlanClick}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              className="relative w-full max-w-2xl mx-auto cursor-crosshair group flex-1 flex items-center justify-center select-none"
-            >
-              <img
-                src={floorplanUrl}
-                alt={designName}
-                className="w-full h-auto max-h-[500px] object-contain mx-auto block pointer-events-none"
-              />
+            <div className="relative w-full flex items-center justify-center py-2">
+              <div
+                ref={containerRef}
+                onClick={handlePlanClick}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                className="relative inline-block max-w-full cursor-crosshair select-none"
+              >
+                <img
+                  src={floorplanUrl}
+                  alt={designName}
+                  className="w-full h-auto max-h-[520px] object-contain mx-auto block pointer-events-none rounded-lg"
+                />
 
-              {/* Overlaid Draggable Numbered Structural Pins */}
-              {pins.map((pin) => {
-                const isSelected = pin.id === selectedPinId;
-                const isDragging = pin.id === draggingPinId;
+                {/* Overlaid Draggable Numbered Structural Pins */}
+                {pins.map((pin) => {
+                  const isSelected = pin.id === selectedPinId;
+                  const isDragging = pin.id === draggingPinId;
 
-                return (
-                  <div
-                    key={pin.id}
-                    style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                    onPointerDown={(e) => handlePinPointerDown(pin.id, e)}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPinId(pin.id);
-                    }}
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform z-20 group/pin ${
-                      isDragging ? "scale-125 z-30" : "hover:scale-125"
-                    }`}
-                  >
+                  return (
                     <div
-                      className={`h-7 w-7 rounded-full flex items-center justify-center font-mono font-black text-xs shadow-xl border-2 transition-all ${
-                        isSelected || isDragging
-                          ? "bg-amber-400 text-slate-950 border-white ring-4 ring-amber-400/50"
-                          : "bg-amber-500 text-slate-950 border-slate-950 hover:bg-amber-300"
+                      key={pin.id}
+                      style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
+                      onPointerDown={(e) => handlePinPointerDown(pin.id, e)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedPinId(pin.id);
+                      }}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform z-30 group/pin ${
+                        isDragging ? "scale-125 z-40" : "hover:scale-125"
                       }`}
                     >
-                      {pin.number}
-                    </div>
-
-                    {/* Tooltip */}
-                    <div className="hidden group-hover/pin:flex absolute top-8 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10px] font-sans px-2.5 py-1 rounded-md border border-slate-700 shadow-xl whitespace-nowrap items-center gap-1.5 z-30">
-                      <span className="font-bold text-amber-400">#{pin.number}</span>
-                      <span className="truncate max-w-[160px]">{pin.title}</span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleRemovePin(pin.id, e)}
-                        className="text-slate-400 hover:text-rose-400 ml-1"
+                      <div
+                        className={`h-7 w-7 rounded-full flex items-center justify-center font-mono font-black text-xs shadow-2xl border-2 transition-all ${
+                          isSelected || isDragging
+                            ? "bg-amber-400 text-slate-950 border-white ring-4 ring-amber-400/60"
+                            : "bg-amber-500 text-slate-950 border-slate-950 shadow-md hover:bg-amber-300 ring-2 ring-amber-400/40"
+                        }`}
                       >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
+                        {pin.number}
+                      </div>
+
+                      {/* Tooltip */}
+                      <div className="hidden group-hover/pin:flex absolute top-8 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10px] font-sans px-2.5 py-1 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
+                        <span className="font-bold text-amber-400">#{pin.number}</span>
+                        <span className="truncate max-w-[200px]">{pin.title}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemovePin(pin.id, e)}
+                          className="text-slate-400 hover:text-rose-400 ml-1"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
 
               {/* Drag instruction helper banner */}
-              <div className="absolute top-2 right-2 bg-slate-950/85 text-white text-[10px] font-medium px-3 py-1 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1.5 shadow-md">
-                <Move className="h-3 w-3 text-amber-400" /> Click to place &bull; Drag pins to reposition
+              <div className="absolute top-2 right-2 bg-slate-950/85 text-white text-[10px] font-medium px-3 py-1 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1.5 shadow-md z-20">
+                <Move className="h-3 w-3 text-amber-400" /> Click to place &bull; Drag pins to position
               </div>
             </div>
           ) : (
