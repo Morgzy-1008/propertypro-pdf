@@ -13,9 +13,12 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CropperRouteImport } from './routes/cropper'
+import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as PayRouteImport } from './routes/pay'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
+import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_authenticated/floorplan-editor'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
@@ -46,6 +49,11 @@ const CropperRoute = CropperRouteImport.update({
   path: '/cropper',
   getParentRoute: () => rootRouteImport,
 } as any)
+const KioskRoute = KioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PayRoute = PayRouteImport.update({
   id: '/pay',
   path: '/pay',
@@ -56,11 +64,22 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDatabaseRoute = AuthenticatedDatabaseRouteImport.update({
   id: '/database',
   path: '/database',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedFloorplanEditorRoute =
+  AuthenticatedFloorplanEditorRouteImport.update({
+    id: '/floorplan-editor',
+    path: '/floorplan-editor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedFlyerRoute = AuthenticatedFlyerRouteImport.update({
   id: '/flyer',
   path: '/flyer',
@@ -118,9 +137,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
+  '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
@@ -136,9 +158,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
+  '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
@@ -156,9 +181,12 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/cropper': typeof CropperRoute
+  '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
+  '/_authenticated/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
@@ -176,9 +204,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/cropper'
+    | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/crm'
     | '/database'
+    | '/floorplan-editor'
     | '/flyer'
     | '/hub'
     | '/quote-builder'
@@ -194,9 +225,12 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/cropper'
+    | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/crm'
     | '/database'
+    | '/floorplan-editor'
     | '/flyer'
     | '/hub'
     | '/quote-builder'
@@ -213,9 +247,12 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/cropper'
+    | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/_authenticated/crm'
     | '/_authenticated/database'
+    | '/_authenticated/floorplan-editor'
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
     | '/_authenticated/quote-builder'
@@ -233,6 +270,7 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   CropperRoute: typeof CropperRoute
+  KioskRoute: typeof KioskRoute
   PayRoute: typeof PayRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   BrowseLandRoute: typeof BrowseLandRoute
@@ -273,6 +311,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CropperRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/kiosk': {
+      id: '/kiosk'
+      path: '/kiosk'
+      fullPath: '/kiosk'
+      preLoaderRoute: typeof KioskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pay': {
       id: '/pay'
       path: '/pay'
@@ -287,11 +332,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/database': {
       id: '/_authenticated/database'
       path: '/database'
       fullPath: '/database'
       preLoaderRoute: typeof AuthenticatedDatabaseRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/floorplan-editor': {
+      id: '/_authenticated/floorplan-editor'
+      path: '/floorplan-editor'
+      fullPath: '/floorplan-editor'
+      preLoaderRoute: typeof AuthenticatedFloorplanEditorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/flyer': {
@@ -368,7 +427,9 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
+  AuthenticatedFloorplanEditorRoute: typeof AuthenticatedFloorplanEditorRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
   AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
@@ -376,7 +437,9 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
+  AuthenticatedFloorplanEditorRoute: AuthenticatedFloorplanEditorRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
   AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
@@ -391,6 +454,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   CropperRoute: CropperRoute,
+  KioskRoute: KioskRoute,
   PayRoute: PayRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   BrowseLandRoute: BrowseLandRoute,
