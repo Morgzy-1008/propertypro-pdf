@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import type { TenderFloorplanPin, TenderNumberedVariation } from "@/lib/tender/tenderTypes";
 
 interface FloorplanMarkupViewerProps {
@@ -70,7 +71,7 @@ export function FloorplanMarkupViewer({
     onUpdatePins(updated);
     onAddStructuralVariation(newPin);
     setSelectedPinId(newPin.id);
-    toast.success(`Placed Structural Pin #${nextNumber} on floorplan! Drag to reposition.`);
+    toast.success(`Placed Structural Pin #${nextNumber} on floorplan! Drag to position.`);
   };
 
   // Dragging pin handler
@@ -101,15 +102,33 @@ export function FloorplanMarkupViewer({
     }
   };
 
-  const handleCustomPlanFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCustomPlanFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      onUploadCustomPlan(reader.result as string);
-      toast.success(`Imported modified floorplan "${file.name}"!`);
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        const toastId = toast.loading(`Converting architectural PDF floorplan "${file.name}"...`);
+        const extracted = await pdfDocumentToPagesAndText(file, 1);
+        if (extracted.pages && extracted.pages.length > 0) {
+          onUploadCustomPlan(extracted.pages[0]);
+          toast.success(`Imported modified floorplan from "${file.name}"!`, { id: toastId });
+        } else {
+          toast.error("Could not render page from PDF", { id: toastId });
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          onUploadCustomPlan(reader.result as string);
+          toast.success(`Imported modified floorplan "${file.name}"!`);
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not load floorplan file");
+    }
     e.target.value = "";
   };
 
@@ -148,13 +167,13 @@ export function FloorplanMarkupViewer({
           <label className="cursor-pointer">
             <input
               type="file"
-              accept=".png,.jpg,.jpeg,.pdf"
+              accept=".png,.jpg,.jpeg,.pdf,.webp"
               onChange={handleCustomPlanFile}
               className="hidden"
             />
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/50 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
               <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              Upload / Replace Modified Floorplan
+              Upload / Replace Modified Floorplan (PDF or Image)
             </span>
           </label>
         </div>

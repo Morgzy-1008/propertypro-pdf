@@ -80,6 +80,7 @@ import {
   calculateLandscapePackageCost,
   STANDARD_DOCUMENT_SLOTS,
 } from "@/lib/tender/tenderStorage";
+import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
 import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
@@ -419,37 +420,54 @@ export function TenderRequestPortal() {
     });
   };
 
-  const handleFileUpload = (slotId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (slotId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      const updatedDocs = {
-        ...tender.documents,
-        [slotId]: {
-          ...(tender.documents[slotId] || { id: slotId, label: slotId, category: "land_siting" }),
-          fileName: file.name,
-          fileDataUrl: dataUrl,
-          fileType: file.type,
-          fileSize: file.size,
-        },
+    try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const updatedDocs = {
+          ...tender.documents,
+          [slotId]: {
+            ...(tender.documents[slotId] || { id: slotId, label: slotId, category: "land_siting" }),
+            fileName: file.name,
+            fileDataUrl: dataUrl,
+            fileType: file.type,
+            fileSize: file.size,
+          },
+        };
+
+        // If it's the siting plan, convert PDF page to image dataUrl so Master PDF renders it cleanly
+        if (slotId === "siting_plan") {
+          let renderedImg = dataUrl;
+          if (isPdf) {
+            try {
+              const extracted = await pdfDocumentToPagesAndText(file, 1);
+              if (extracted.pages && extracted.pages.length > 0) {
+                renderedImg = extracted.pages[0];
+              }
+            } catch (err) {
+              console.warn("Could not extract PDF page for siting plan preview:", err);
+            }
+          }
+          updateTender({
+            documents: updatedDocs,
+            homeSpec: { ...tender.homeSpec, sitingPlanDataUrl: renderedImg },
+          });
+        } else {
+          updateTender({ documents: updatedDocs });
+        }
+
+        toast.success(`Attached "${file.name}" to ${tender.documents[slotId]?.label || "job folder"}`);
       };
-
-      // Also update sitingPlanDataUrl on homeSpec if it's the siting plan
-      if (slotId === "siting_plan") {
-        updateTender({
-          documents: updatedDocs,
-          homeSpec: { ...tender.homeSpec, sitingPlanDataUrl: dataUrl },
-        });
-      } else {
-        updateTender({ documents: updatedDocs });
-      }
-
-      toast.success(`Attached "${file.name}" to ${tender.documents[slotId]?.label || "job folder"}`);
-    };
-    reader.readAsDataURL(file);
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to process file attachment");
+    }
     e.target.value = "";
   };
 
@@ -1280,14 +1298,14 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 3: HOME SPEC, SITING PLAN, LANDSCAPE & 2 VARIATION COLUMNS            */}
+        {/* TAB 3: HOME SPEC, LANDSCAPE AT TOP, & 2 VARIATION COLUMNS                 */}
         {/* ========================================================================= */}
         {activeTab === "home_spec" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100 flex items-center gap-2">
-                  <Home className="h-4 w-4 text-amber-400" /> New Home Configuration, Siting &amp; 2-Column Variations
+                  <Home className="h-4 w-4 text-amber-400" /> New Home Configuration &amp; 2-Column Variations
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Manage structural modifications with floorplan pins in Column A, and all other inclusions and site allowances in Column B.
@@ -1406,85 +1424,33 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               onRemoveStructuralVariation={handleRemoveStructuralVariation}
             />
 
-            {/* Siting Plan Upload & Turnkey Landscape Package Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* House Siting Plan Upload Slot */}
-              <div className="p-4 rounded-xl border border-cyan-500/40 bg-slate-950/80 flex flex-col justify-between space-y-3 shadow-md">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase text-cyan-400 flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4" /> 1:200 Scale House Siting Plan Drawing
-                    </span>
-                    {tender.homeSpec.sitingPlanDataUrl ? (
-                      <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800 flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" /> Attached
-                      </span>
-                    ) : (
-                      <span className="text-[9px] uppercase font-black text-amber-400 bg-amber-950 px-2 py-0.5 rounded border border-amber-800">
-                        Prompt: Upload Siting Plan
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Upload the house siting plan on the lot. This will automatically be rendered as a full dedicated page in the Master PDF.
-                  </p>
+            {/* Turnkey Landscape Package (Moved directly below Floorplan at top of variations) */}
+            <div className="p-4 rounded-xl border border-emerald-500/40 bg-slate-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-md">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase text-emerald-400 flex items-center gap-1.5">
+                    <Trees className="h-4 w-4" /> Turnkey Landscape Package (Auto-Calculated)
+                  </span>
+                  <span className="font-mono font-bold text-xs text-emerald-300 bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60">
+                    {formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2))}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                  <label className="cursor-pointer flex-1">
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={(e) => handleFileUpload("siting_plan", e)}
-                      className="hidden"
-                    />
-                    <span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/50 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors">
-                      <Upload className="h-3.5 w-3.5 text-cyan-400" />
-                      {tender.homeSpec.sitingPlanDataUrl ? "Replace Siting Plan Drawing" : "Upload House Siting Plan"}
-                    </span>
-                  </label>
-                  {tender.homeSpec.sitingPlanDataUrl && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile("siting_plan")}
-                      className="p-2 text-slate-400 hover:text-rose-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
+                <p className="text-[11px] text-slate-400">
+                  Complete landscaping (turf, driveway, garden beds, perimeter fencing, clothesline, letterbox) automated from your <strong>{tender.land.lotSizeM2 || 450} m²</strong> lot area.
+                </p>
               </div>
 
-              {/* Turnkey Landscape Package Calculator */}
-              <div className="p-4 rounded-xl border border-emerald-500/40 bg-slate-950/80 flex flex-col justify-between space-y-3 shadow-md">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold uppercase text-emerald-400 flex items-center gap-1.5">
-                      <Trees className="h-4 w-4" /> Turnkey Landscape Package (Auto-Calculated)
-                    </span>
-                    <span className="font-mono font-bold text-sm text-emerald-400">
-                      {formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2))}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Complete landscaping (turf, driveway, garden beds, perimeter fencing, clothesline, letterbox) automated from your <strong>{tender.land.lotSizeM2 || 450} m²</strong> lot area.
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="landscape_check"
-                      checked={!!tender.homeSpec.includeLandscapePackage}
-                      onChange={(e) => handleToggleLandscape(e.target.checked)}
-                      className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                    />
-                    <Label htmlFor="landscape_check" className="text-xs font-bold text-slate-200 cursor-pointer">
-                      Include Full Turnkey Landscape Package in Build Investment
-                    </Label>
-                  </div>
-                </div>
+              <div className="flex items-center gap-2 flex-none">
+                <input
+                  type="checkbox"
+                  id="landscape_check"
+                  checked={!!tender.homeSpec.includeLandscapePackage}
+                  onChange={(e) => handleToggleLandscape(e.target.checked)}
+                  className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
+                />
+                <Label htmlFor="landscape_check" className="text-xs font-bold text-slate-200 cursor-pointer">
+                  Include Landscape Package in Build Investment
+                </Label>
               </div>
             </div>
 
@@ -1838,7 +1804,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   <Folder className="h-4 w-4 text-amber-400" /> Standard Job Folder Document Vault
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Attach all client IDs, land plans, and deposit receipts into their standardized slots.
+                  Attach all client IDs, 1:200 Siting Plan PDF, land disclosure plans, and deposit receipts into their standardized slots.
                 </p>
               </div>
               <div className="bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-xs font-mono text-amber-400">
@@ -1896,7 +1862,9 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                             )}
                           </div>
                         ) : (
-                          <p className="text-[10px] text-slate-400 mb-2">Click upload to attach file</p>
+                          <p className="text-[10px] text-slate-400 mb-2">
+                            {slot.id === "siting_plan" ? "Upload 1:200 Siting Plan PDF" : "Click upload to attach file"}
+                          </p>
                         )}
                       </div>
 
@@ -1910,7 +1878,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                           />
                           <span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-[11px] font-bold text-slate-200 transition-colors">
                             <Upload className="h-3.5 w-3.5 text-slate-400" />
-                            {isAttached ? "Replace File" : "Upload File"}
+                            {isAttached ? "Replace File" : slot.id === "siting_plan" ? "Upload Siting Plan (PDF)" : "Upload File"}
                           </span>
                         </label>
 
