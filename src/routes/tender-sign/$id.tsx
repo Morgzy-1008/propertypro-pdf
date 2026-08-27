@@ -82,7 +82,23 @@ function RemoteTenderSignPage() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    getTenderByIdAsync(id).then((found) => {
+    async function loadData() {
+      let found = await getTenderByIdAsync(id);
+
+      if (!found) {
+        try {
+          const direct = localStorage.getItem(`hudson_tender_${id}`);
+          if (direct) found = JSON.parse(direct);
+        } catch {}
+      }
+
+      if (!found) {
+        try {
+          const fallbackDraft = localStorage.getItem("hudson_current_tender_draft");
+          if (fallbackDraft) found = JSON.parse(fallbackDraft);
+        } catch {}
+      }
+
       if (found) {
         setTender(found);
         const c1N = found.atp.client1Name || `${found.customer1.firstName} ${found.customer1.surname}`.trim();
@@ -99,7 +115,9 @@ function RemoteTenderSignPage() {
         }
       }
       setLoading(false);
-    });
+    }
+
+    loadData();
   }, [id]);
 
   // Drawing Canvas 1
@@ -206,7 +224,7 @@ function RemoteTenderSignPage() {
     ctx.stroke();
   };
 
-  const handleSignClient1 = async () => {
+  const handleSignClient1 = () => {
     if (!client1Name.trim()) {
       toast.error("Please enter Client 1 legal printed name");
       return;
@@ -228,7 +246,7 @@ function RemoteTenderSignPage() {
     toast.success(`Primary Purchaser (${client1Name}) signature accepted!`);
   };
 
-  const handleSignClient2 = async () => {
+  const handleSignClient2 = () => {
     if (!client2Name.trim()) {
       toast.error("Please enter Client 2 legal printed name");
       return;
@@ -262,6 +280,9 @@ function RemoteTenderSignPage() {
     }
 
     const today = new Date().toLocaleDateString("en-AU", { day: "numeric", month: "numeric", year: "numeric" });
+    const finalC1Sig = client1SigDataUrl || generateCursiveSignatureDataUrl(client1Name);
+    const finalC2Sig = tender.hasCustomer2 ? client2SigDataUrl || generateCursiveSignatureDataUrl(client2Name) : undefined;
+
     const updated: TenderSubmission = {
       ...tender,
       status: "client_signed",
@@ -271,13 +292,13 @@ function RemoteTenderSignPage() {
         client1Signed: true,
         client1Name,
         client1SignatureDate: today,
-        client1SignatureDataUrl: client1SigDataUrl || generateCursiveSignatureDataUrl(client1Name),
+        client1SignatureDataUrl: finalC1Sig,
         client1SignatureStyle: client1Mode,
 
         client2Signed: tender.hasCustomer2 ? true : tender.atp.client2Signed,
         client2Name: tender.hasCustomer2 ? client2Name : "",
         client2SignatureDate: tender.hasCustomer2 ? today : "",
-        client2SignatureDataUrl: tender.hasCustomer2 ? client2SigDataUrl || generateCursiveSignatureDataUrl(client2Name) : undefined,
+        client2SignatureDataUrl: finalC2Sig,
         client2SignatureStyle: client2Mode,
 
         isRemoteSigned: true,
@@ -286,13 +307,30 @@ function RemoteTenderSignPage() {
     };
 
     await saveTenderToIdb(updated);
+
     try {
-      localStorage.setItem(`tender_remote_signed_${tender.id}`, JSON.stringify(updated));
+      localStorage.setItem(`hudson_tender_${tender.id}`, JSON.stringify(updated));
+      localStorage.setItem("hudson_current_tender_draft", JSON.stringify(updated));
+      localStorage.setItem(
+        "hudson_latest_remote_signature",
+        JSON.stringify({
+          id: tender.id,
+          submissionNumber: tender.submissionNumber,
+          atp: updated.atp,
+          timestamp: Date.now(),
+        })
+      );
+    } catch {}
+
+    try {
+      const bc = new BroadcastChannel("hudson_tender_sync");
+      bc.postMessage({ type: "ATP_SIGNED", tender: updated });
+      bc.close();
     } catch {}
 
     setTender(updated);
     setSubmitted(true);
-    toast.success("Authority to Proceed signed successfully! Your consultant has been notified.");
+    toast.success("Authority to Proceed signed successfully! Your consultant's portal is updated live.");
   };
 
   if (loading) {
@@ -311,9 +349,9 @@ function RemoteTenderSignPage() {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-4">
         <div className="max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center space-y-4 shadow-2xl">
           <AlertCircle className="h-12 w-12 text-amber-400 mx-auto" />
-          <h2 className="text-lg font-bold text-white">Tender Request Not Found</h2>
+          <h2 className="text-lg font-bold text-white">Tender Request Portal</h2>
           <p className="text-xs text-slate-400">
-            This tender signing link may have expired or is invalid. Please contact your New Home Consultant for an updated link.
+            Please ask your New Home Consultant to click &ldquo;Save Tender to Website&rdquo; to sync the active draft.
           </p>
         </div>
       </div>
@@ -359,7 +397,7 @@ function RemoteTenderSignPage() {
             <div>
               <span className="text-[10px] text-slate-400 uppercase block">Selected Design</span>
               <strong className="text-xs text-white">
-                {tender.homeSpec.homeDesign} ({tender.homeSpec.facade} Facade)
+                {tender.homeSpec.homeDesign || "Home Design"} {tender.homeSpec.facade ? `(${tender.homeSpec.facade} Facade)` : ""}
               </strong>
             </div>
           </div>
@@ -371,7 +409,7 @@ function RemoteTenderSignPage() {
             <div>
               <span className="text-[10px] text-slate-400 uppercase block">Site Location</span>
               <strong className="text-xs text-white truncate block">
-                Lot {tender.land.lotNo}, {tender.land.streetName || ""} {tender.land.suburb}
+                Lot {tender.land.lotNo || "TBA"}, {tender.land.streetName || ""} {tender.land.suburb || ""}
               </strong>
             </div>
           </div>
@@ -383,7 +421,7 @@ function RemoteTenderSignPage() {
             <div>
               <span className="text-[10px] text-slate-400 uppercase block">New Home Consultant</span>
               <strong className="text-xs text-white truncate block">
-                {tender.newHomeConsultant} ({tender.displayOffice})
+                {tender.newHomeConsultant || "Hudson Homes"} {tender.displayOffice ? `(${tender.displayOffice})` : ""}
               </strong>
             </div>
           </div>
@@ -419,7 +457,7 @@ function RemoteTenderSignPage() {
             </div>
             <h3 className="text-xl font-bold text-white">Authority to Proceed Successfully Signed!</h3>
             <p className="text-xs text-slate-300 max-w-md mx-auto">
-              Thank you for completing your digital signature. Your New Home Consultant (<strong>{tender.newHomeConsultant}</strong>) has received your signed authorization and will proceed with ordering your site investigation.
+              Thank you for completing your digital signature. Your New Home Consultant has received your signed authorization live and will proceed with ordering your site investigation.
             </p>
           </div>
         ) : (
@@ -432,7 +470,7 @@ function RemoteTenderSignPage() {
                     1. Primary Purchaser Signature (Client 1)
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    Legal Name: <strong>{tender.customer1.firstName} {tender.customer1.surname}</strong>
+                    Legal Name: <strong>{tender.customer1.firstName || ""} {tender.customer1.surname || ""}</strong>
                   </span>
                 </div>
 
@@ -540,7 +578,7 @@ function RemoteTenderSignPage() {
                       2. Secondary Purchaser Signature (Client 2)
                     </span>
                     <span className="text-[11px] text-slate-400">
-                      Legal Name: <strong>{tender.customer2.firstName} {tender.customer2.surname}</strong>
+                      Legal Name: <strong>{tender.customer2.firstName || ""} {tender.customer2.surname || ""}</strong>
                     </span>
                   </div>
 

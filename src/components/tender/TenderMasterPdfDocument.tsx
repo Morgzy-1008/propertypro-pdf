@@ -31,8 +31,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
   const isPackage = atp.feeType === "package_3000";
   const isCustom = atp.isCustomDesignAddon || atp.feeType === "custom_design_800";
 
-  // Total pages count calculation
-  const totalPages = 7;
+  const totalPages = 6;
 
   return (
     <div className="space-y-8 bg-slate-900/50 p-4 rounded-2xl">
@@ -66,11 +65,11 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">New Home Consultant:</span>
-              <strong className="text-slate-900">{tender.newHomeConsultant}</strong>
+              <strong className="text-slate-900">{tender.newHomeConsultant || "—"}</strong>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Display Centre:</span>
-              <strong className="text-slate-900 truncate block">{tender.displayOffice}</strong>
+              <strong className="text-slate-900 truncate block">{tender.displayOffice || "—"}</strong>
             </div>
           </div>
 
@@ -85,7 +84,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   Primary Purchaser (Customer 1):
                 </span>
                 <div className="text-sm font-bold text-slate-900">
-                  {customer1.title || "Mr"} {customer1.firstName} {customer1.surname}
+                  {customer1.title || "Mr"} {customer1.firstName || "—"} {customer1.surname || ""}
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
                   <div>
@@ -106,7 +105,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 {hasCustomer2 ? (
                   <>
                     <div className="text-sm font-bold text-slate-900">
-                      {customer2.title || "Mrs"} {customer2.firstName} {customer2.surname}
+                      {customer2.title || "Mrs"} {customer2.firstName || "—"} {customer2.surname || ""}
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
                       <div>
@@ -150,7 +149,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 <div>
                   <span className="text-[9px] text-slate-500 block">Lot Area &amp; Frontage:</span>
                   <strong className="font-mono text-slate-900">
-                    {land.lotSizeM2 ? `${land.lotSizeM2} m²` : "—"} · {land.frontageM ? `${land.frontageM}m` : ""}
+                    {land.lotSizeM2 ? `${land.lotSizeM2} m²` : "—"} {land.frontageM ? `· ${land.frontageM}m` : ""}
                   </strong>
                 </div>
               </div>
@@ -159,7 +158,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 <div className="col-span-2">
                   <span className="text-[9px] text-slate-500 block">Site Street Address:</span>
                   <strong className="text-slate-900">
-                    {[land.streetNumber, land.streetName, land.suburb].filter(Boolean).join(" ") || "Address TBA"} ({land.council})
+                    {[land.streetNumber, land.streetName, land.suburb].filter(Boolean).join(" ") || "Address TBA"} {land.council ? `(${land.council})` : ""}
                   </strong>
                 </div>
                 <div>
@@ -197,11 +196,11 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50 grid grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-[9px] uppercase text-slate-500 block">Home Design:</span>
-                <strong className="text-slate-900 text-sm">{homeSpec.homeDesign}</strong>
+                <strong className="text-slate-900 text-sm">{homeSpec.homeDesign || "—"}</strong>
               </div>
               <div>
                 <span className="text-[9px] uppercase text-slate-500 block">Architectural Facade:</span>
-                <strong className="text-slate-900 text-sm">{homeSpec.facade}</strong>
+                <strong className="text-slate-900 text-sm">{homeSpec.facade || "—"}</strong>
               </div>
               <div>
                 <span className="text-[9px] uppercase text-slate-500 block">Inclusions Range:</span>
@@ -222,11 +221,11 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
               <tbody className="divide-y divide-slate-200">
                 <tr className="bg-slate-50">
-                  <td className="py-2 px-3 font-semibold">Base House Price ({homeSpec.homeDesign})</td>
+                  <td className="py-2 px-3 font-semibold">Base House Price ({homeSpec.homeDesign || "Selected Design"})</td>
                   <td className="py-2 px-3 text-right font-mono font-bold">{formatAud(homeSpec.baseDesignCost)}</td>
                 </tr>
                 <tr>
-                  <td className="py-2 px-3">Architectural Facade Uplift ({homeSpec.facade})</td>
+                  <td className="py-2 px-3">Architectural Facade Uplift ({homeSpec.facade || "Facade"})</td>
                   <td className="py-2 px-3 text-right font-mono">{formatAud(homeSpec.facadeCost)}</td>
                 </tr>
                 <tr className="bg-slate-50">
@@ -284,12 +283,12 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 ARCHITECTURAL FACADE RENDER
               </h2>
               <span className="text-xs font-semibold text-cyan-800 uppercase tracking-widest block mt-0.5">
-                Exterior Perspective · {homeSpec.homeDesign} with {homeSpec.facade} Facade
+                Exterior Perspective · {homeSpec.homeDesign || "Home Design"} with {homeSpec.facade || "Facade"}
               </span>
             </div>
             <div className="text-right text-xs">
               <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
-              <div className="text-slate-500">{customer1.surname} Residence</div>
+              <div className="text-slate-500">{customer1.surname || "Client"} Residence</div>
             </div>
           </div>
 
@@ -305,7 +304,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
               ) : (
                 <div className="text-center text-slate-400 text-sm">
                   <Home className="h-16 w-16 mx-auto mb-2 text-slate-600" />
-                  <span>{homeSpec.facade} Architectural Elevation Render</span>
+                  <span>{homeSpec.facade || "Architectural"} Elevation Render</span>
                 </div>
               )}
             </div>
@@ -315,14 +314,14 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 grid grid-cols-3 gap-4 text-xs">
             <div>
               <span className="text-[9px] uppercase text-slate-500 block font-bold">Selected Facade:</span>
-              <strong className="text-slate-900 text-sm">{homeSpec.facade}</strong>
+              <strong className="text-slate-900 text-sm">{homeSpec.facade || "Standard Facade"}</strong>
               <span className="text-[11px] text-slate-500 block mt-0.5">
                 {homeSpec.facadeCost > 0 ? `+${formatAud(homeSpec.facadeCost)} upgrade` : "Standard Included"}
               </span>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block font-bold">Home Design:</span>
-              <strong className="text-slate-900 text-sm">{homeSpec.homeDesign}</strong>
+              <strong className="text-slate-900 text-sm">{homeSpec.homeDesign || "Standard Design"}</strong>
               <span className="text-[11px] text-slate-500 block mt-0.5">{homeSpec.designM2 || 195.4} m² Total Area</span>
             </div>
             <div>
@@ -357,12 +356,12 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 ORIGINAL ARCHITECTURAL FLOORPLAN
               </h2>
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest block mt-0.5">
-                Standard Catalog Drawing · {homeSpec.homeDesign}
+                Standard Catalog Drawing · {homeSpec.homeDesign || "Catalog Layout"}
               </span>
             </div>
             <div className="text-right text-xs">
               <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
-              <div className="text-slate-500">{customer1.surname} Residence</div>
+              <div className="text-slate-500">{customer1.surname || "Client"} Residence</div>
             </div>
           </div>
 
@@ -395,80 +394,136 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 4: MODIFIED FLOORPLAN WITH NUMBERED STRUCTURAL BADGES               */}
+      {/* PAGE 4: MODIFIED FLOORPLAN, STRUCTURAL CALLOUTS & VARIATION SCHEDULE      */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-3">
             <div>
               <h2 className="text-xl font-black uppercase tracking-tight text-amber-800">
-                MODIFIED FLOORPLAN WITH STRUCTURAL CALLOUTS
+                MODIFIED FLOORPLAN &amp; COMPLETE VARIATION SCHEDULE
               </h2>
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest block mt-0.5">
-                Active Client Layout · Numbered Badges Correlating to Variation Schedule
+                Active Client Layout · Numbered Badges &amp; All Selections Together for Drafting
               </span>
             </div>
             <div className="text-right text-xs">
               <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
-              <div className="text-slate-500">{customer1.surname} Residence</div>
+              <div className="text-slate-500">{customer1.surname || "Client"} Residence</div>
             </div>
           </div>
 
-          {/* Full Page Modified Floorplan Drawing with Overlaid Draggable Pins */}
-          <div className="border-2 border-amber-500/60 rounded-3xl p-6 bg-white shadow-xl relative min-h-[540px] flex items-center justify-center mb-4">
+          {/* Floorplan Drawing with Overlaid Draggable Pins */}
+          <div className="border-2 border-amber-500/60 rounded-2xl p-4 bg-white shadow-md relative min-h-[380px] flex items-center justify-center mb-4">
             {homeSpec.floorplanUrl ? (
               <div className="relative inline-block max-w-full mx-auto">
                 <img
                   src={homeSpec.floorplanUrl}
                   alt={`Modified ${homeSpec.homeDesign}`}
-                  className="w-full h-auto max-h-[520px] object-contain mx-auto block"
+                  className="w-full h-auto max-h-[360px] object-contain mx-auto block"
                 />
                 {homeSpec.floorplanPins.map((pin) => (
                   <div
                     key={pin.id}
                     style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-amber-500 text-slate-950 border-2 border-slate-950 font-mono font-black text-xs flex items-center justify-center shadow-2xl z-30"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-amber-500 text-slate-950 border-2 border-slate-950 font-mono font-black text-[11px] flex items-center justify-center shadow-xl z-30"
                   >
                     {pin.number}
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-20 text-slate-400 text-xs italic">
-                No floorplan drawing available
+              <div className="text-center py-16 text-slate-400 text-xs italic">
+                No floorplan drawing loaded
               </div>
             )}
           </div>
 
-          {/* Structural Callout Key below Plan */}
-          {structuralVariations.length > 0 ? (
-            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50">
-              <span className="text-[10px] uppercase font-bold text-slate-700 block mb-1.5">
-                Numbered Structural Changes Referenced on Plan Above:
-              </span>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                {structuralVariations.map((v) => (
-                  <div key={v.id} className="flex items-start gap-2">
-                    <span className="h-4 w-4 rounded-full bg-amber-500 text-slate-950 font-mono font-bold text-[9px] flex items-center justify-center flex-none mt-0.5">
-                      {v.itemNumber}
-                    </span>
-                    <span className="text-slate-800 text-[11px] font-medium leading-tight">{v.description}</span>
-                    <span className="font-mono text-[10.5px] text-slate-600 ml-auto flex-none">{formatAud(v.cost)}</span>
-                  </div>
-                ))}
-              </div>
+          {/* Section A: Numbered Structural Variations */}
+          <div className="mb-3">
+            <div className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1 flex items-center justify-between border-b-2 border-amber-500 pb-1">
+              <span>A. NUMBERED STRUCTURAL VARIATIONS (Correlating to Floorplan Badges Above)</span>
+              <span className="font-mono text-slate-900">{formatAud(homeSpec.structuralVariationsCost)}</span>
             </div>
-          ) : (
-            <div className="border border-slate-200 rounded-xl p-3 text-center text-xs text-slate-500 bg-slate-50">
-              Standard architectural layout with no structural deviations.
+
+            {structuralVariations.length === 0 ? (
+              <div className="py-1 text-slate-400 text-xs italic">Standard architectural layout with no structural deviations.</div>
+            ) : (
+              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+                <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                  <tr>
+                    <th className="py-1 px-2 text-center w-10">#</th>
+                    <th className="py-1 px-2.5 text-left">Structural Modification Description</th>
+                    <th className="py-1 px-2.5 text-right w-24">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {structuralVariations.map((v) => (
+                    <tr key={v.id} className="bg-white">
+                      <td className="py-1.5 px-2 text-center font-mono font-bold text-amber-800 text-[10.5px] align-top">
+                        #{v.itemNumber}
+                      </td>
+                      <td className="py-1.5 px-2.5 text-slate-800 font-medium text-[10.5px] leading-snug">
+                        {v.description}
+                      </td>
+                      <td className="py-1.5 px-2.5 text-right font-mono text-slate-900 text-[10.5px] font-bold align-top">
+                        {formatAud(v.cost)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Section B: All Other Variations & Allowances */}
+          <div className="mb-3">
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1 flex items-center justify-between border-b-2 border-cyan-500 pb-1">
+              <span>B. ALL OTHER VARIATIONS &amp; ALLOWANCES (Inclusions, Site, Statutory &amp; Landscape)</span>
+              <span className="font-mono text-slate-900">{formatAud(homeSpec.internalUpgradesCost)}</span>
             </div>
-          )}
+
+            {allOtherVariations.length === 0 ? (
+              <div className="py-1 text-slate-400 text-xs italic">Standard {homeSpec.inclusionsType} inclusion specification.</div>
+            ) : (
+              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
+                <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                  <tr>
+                    <th className="py-1 px-2.5 text-left">Full Variation / Selection Description</th>
+                    <th className="py-1 px-2.5 text-right w-24">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {allOtherVariations.map((v) => (
+                    <tr key={v.id} className="bg-white">
+                      <td className="py-1.5 px-2.5 text-slate-800 text-[10.5px] leading-snug">
+                        {v.description}
+                      </td>
+                      <td className="py-1.5 px-2.5 text-right font-mono text-slate-900 text-[10.5px] align-top">
+                        {formatAud(v.cost)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Total Investment Summary */}
+          <div className="border border-slate-900 rounded-xl p-3 bg-slate-50 flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-800">
+              TOTAL ESTIMATED BUILD INVESTMENT (INC. GST):
+            </span>
+            <span className="text-xl font-black font-mono text-slate-950">
+              {formatAud(homeSpec.totalBudgetEstimate)}
+            </span>
+          </div>
         </div>
 
         {/* Footer */}
         <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-          <div>Hudson Homes Pty Ltd · Floorplan Drawing with Structural Callouts</div>
+          <div>Hudson Homes Pty Ltd · Floorplan Drawing, Structural Callouts &amp; Variation Schedule</div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
@@ -495,7 +550,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
             <div className="text-right text-xs">
               <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
-              <div className="text-slate-500">Lot {land.lotNo}, {land.streetName || ""} {land.suburb}</div>
+              <div className="text-slate-500">Lot {land.lotNo || "TBA"}, {land.streetName || ""} {land.suburb || ""}</div>
             </div>
           </div>
 
@@ -510,9 +565,9 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             ) : (
               <div className="text-center py-24 text-slate-400 text-xs">
                 <MapPin className="h-12 w-12 mx-auto mb-2 text-slate-300" />
-                <span className="font-bold text-slate-600 block">Siting Plan Attachment</span>
+                <span className="font-bold text-slate-600 block">1:200 Scale House Siting Plan</span>
                 <p className="text-slate-400 mt-1 max-w-sm mx-auto">
-                  1:200 scale siting plan showing proposed boundary setbacks and driveway crossover location.
+                  Upload the 1:200 Siting Plan PDF in Page 5 (Job Folder) to attach the boundary setback drawing here.
                 </p>
               </div>
             )}
@@ -522,19 +577,19 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 grid grid-cols-4 gap-2 text-xs">
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Front Boundary:</span>
-              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.frontBoundary}</strong>
+              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.frontBoundary || "—"}</strong>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Rear Boundary:</span>
-              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.rearBoundary}</strong>
+              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.rearBoundary || "—"}</strong>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Left Boundary:</span>
-              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.leftBoundary}</strong>
+              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.leftBoundary || "—"}</strong>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Right Boundary:</span>
-              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.rightBoundary}</strong>
+              <strong className="text-slate-900 font-mono">{homeSpec.setbacks.rightBoundary || "—"}</strong>
             </div>
           </div>
         </div>
@@ -552,128 +607,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
       </div>
 
       {/* ========================================================================= */}
-      {/* PAGE 6: 2-SECTION ITEMIZED VARIATION SCHEDULE (FULL MULTI-LINE TITLES)    */}
-      {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-        <div>
-          {/* Header */}
-          <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
-            <div>
-              <h2 className="text-xl font-black uppercase tracking-tight text-slate-950">
-                ITEMIZED VARIATION SCHEDULE
-              </h2>
-              <span className="text-xs font-semibold text-cyan-800 uppercase tracking-widest block mt-0.5">
-                Head Office Scope of Works · Full Item Descriptions &amp; Cost Allowances
-              </span>
-            </div>
-            <div className="text-right text-xs">
-              <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
-              <div className="text-slate-500">{customer1.surname} Residence</div>
-            </div>
-          </div>
-
-          {/* Section A: Numbered Structural Variations */}
-          <div className="mb-5">
-            <div className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1.5 flex items-center justify-between border-b-2 border-amber-500 pb-1">
-              <span>A. NUMBERED STRUCTURAL VARIATIONS (Correlating to Markups on Plan)</span>
-              <span className="font-mono text-slate-900">{formatAud(homeSpec.structuralVariationsCost)}</span>
-            </div>
-
-            {structuralVariations.length === 0 ? (
-              <div className="py-2 text-slate-400 text-xs italic">Standard architectural layout with no structural deviations.</div>
-            ) : (
-              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
-                <thead className="bg-slate-100 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
-                  <tr>
-                    <th className="py-1.5 px-2 text-center w-12">#</th>
-                    <th className="py-1.5 px-3 text-left">Full Structural Modification Description</th>
-                    <th className="py-1.5 px-3 text-right w-28">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-sans">
-                  {structuralVariations.map((v) => (
-                    <tr key={v.id} className="bg-white">
-                      <td className="py-2 px-2 text-center font-mono font-bold text-amber-800 text-[11px] align-top">
-                        #{v.itemNumber}
-                      </td>
-                      <td className="py-2 px-3 text-slate-800 font-medium text-[11px] leading-relaxed">
-                        {v.description}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono text-slate-900 text-[11px] font-bold align-top">
-                        {formatAud(v.cost)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Section B: All Other Variations & Allowances */}
-          <div className="mb-5">
-            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1.5 flex items-center justify-between border-b-2 border-cyan-500 pb-1">
-              <span>B. ALL OTHER VARIATIONS &amp; ALLOWANCES (Inclusions, Site, Statutory &amp; Landscape)</span>
-              <span className="font-mono text-slate-900">{formatAud(homeSpec.internalUpgradesCost)}</span>
-            </div>
-
-            {allOtherVariations.length === 0 ? (
-              <div className="py-2 text-slate-400 text-xs italic">Standard {homeSpec.inclusionsType} inclusion specification.</div>
-            ) : (
-              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
-                <thead className="bg-slate-100 text-[10px] font-bold uppercase text-slate-600 border-b border-slate-200">
-                  <tr>
-                    <th className="py-1.5 px-3 text-left">Full Variation / Selection Description</th>
-                    <th className="py-1.5 px-3 text-right w-28">Amount</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-sans">
-                  {allOtherVariations.map((v) => (
-                    <tr key={v.id} className="bg-white">
-                      <td className="py-2 px-3 text-slate-800 text-[11px] leading-relaxed">
-                        {v.description}
-                      </td>
-                      <td className="py-2 px-3 text-right font-mono text-slate-900 text-[11px] align-top">
-                        {formatAud(v.cost)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          {/* Total Budget Summary Box */}
-          <div className="border-2 border-slate-900 rounded-2xl p-4 bg-slate-50 flex items-center justify-between mt-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 block">
-                TOTAL ESTIMATED BUILD INVESTMENT (INC. GST):
-              </span>
-              <span className="text-[10px] text-slate-500">
-                Subject to contour survey, soil classification boreholes, and local council assessment.
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-2xl font-black font-mono text-slate-950">
-                {formatAud(homeSpec.totalBudgetEstimate)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-          <div>Hudson Homes Pty Ltd · Itemized Variation Schedule</div>
-          <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
-            </div>
-            <div className="font-mono">Page 6 of {totalPages}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* PAGE 7: AUTHORITY TO PROCEED (ATP) & AUTHENTICATED SIGNATURES              */}
+      {/* PAGE 6: AUTHORITY TO PROCEED (ATP) & AUTHENTICATED SIGNATURES              */}
       {/* ========================================================================= */}
       <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
@@ -770,7 +704,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   )}
                 </div>
                 <div className="flex justify-between text-[10.5px] pt-0.5">
-                  <span>Print: <strong>{atp.client1Name || `${customer1.firstName} ${customer1.surname}`}</strong></span>
+                  <span>Print: <strong>{atp.client1Name || `${customer1.firstName} ${customer1.surname}`.trim() || "Client 1"}</strong></span>
                   <span>Date: <strong>{atp.client1SignatureDate}</strong></span>
                 </div>
               </div>
@@ -790,7 +724,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   )}
                 </div>
                 <div className="flex justify-between text-[10.5px] pt-0.5">
-                  <span>Print: <strong>{hasCustomer2 ? atp.client2Name || `${customer2.firstName} ${customer2.surname}` : "N/A"}</strong></span>
+                  <span>Print: <strong>{hasCustomer2 ? atp.client2Name || `${customer2.firstName} ${customer2.surname}`.trim() || "Client 2" : "N/A"}</strong></span>
                   <span>Date: <strong>{hasCustomer2 ? atp.client2SignatureDate : "—"}</strong></span>
                 </div>
               </div>
@@ -800,8 +734,8 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
               <div>
                 <span className="text-[9px] text-slate-500 uppercase block font-bold">New Home Consultant:</span>
-                <strong className="text-slate-900">{tender.newHomeConsultant}</strong>
-                <span className="text-[10px] text-slate-500 block">{tender.displayOffice} · {tender.consultantPhone}</span>
+                <strong className="text-slate-900">{tender.newHomeConsultant || "Hudson Homes"}</strong>
+                <span className="text-[10px] text-slate-500 block">{tender.displayOffice || "Display Office"} {tender.consultantPhone ? `· ${tender.consultantPhone}` : ""}</span>
               </div>
               <div className="text-right">
                 <span className="text-[9px] text-slate-500 uppercase block font-bold">Verified Date:</span>
@@ -833,7 +767,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page 7 of {totalPages}</div>
+            <div className="font-mono">Page 6 of {totalPages}</div>
           </div>
         </div>
       </div>
