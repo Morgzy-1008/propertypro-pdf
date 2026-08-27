@@ -186,7 +186,20 @@ export interface TenderSubmission {
     sitingPlanDataUrl?: string;
     isModifiedFloorplan?: boolean;
     designM2?: number;
+    standardDesignM2?: number;
     modifiedDesignM2?: number;
+    standardBasePrice?: number;
+    sqmRate?: number;
+    standardAreas?: Record<string, number>;
+    modifiedAreas?: Record<string, number>;
+    areaAdjustmentsBreakdown?: Array<{
+      label: string;
+      standardM2: number;
+      modifiedM2: number;
+      diffM2: number;
+      ratePerM2?: number;
+      cost: number;
+    }>;
     floorplanPins: TenderFloorplanPin[];
     includeLandscapePackage?: boolean;
     landscapePackageCost?: number;

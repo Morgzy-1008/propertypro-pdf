@@ -232,19 +232,60 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 <tr className="bg-slate-50">
                   <td className="py-1.5 px-3 font-semibold text-slate-900">
                     Base House Design — {homeSpec.homeDesign || "Standard Design"} ({homeSpec.inclusionsType})
-                    {homeSpec.modifiedDesignM2 && homeSpec.modifiedDesignM2 !== homeSpec.designM2 ? (
-                      <span className="block text-[10px] text-amber-700 font-normal">
-                        Modified layout total: {homeSpec.modifiedDesignM2} m² (Standard: {homeSpec.designM2 || 195.4} m², Difference: {homeSpec.modifiedDesignM2 > (homeSpec.designM2 || 195.4) ? `+${(homeSpec.modifiedDesignM2 - (homeSpec.designM2 || 195.4)).toFixed(2)} m² extension` : `${(homeSpec.modifiedDesignM2 - (homeSpec.designM2 || 195.4)).toFixed(2)} m²`})
+                    {homeSpec.standardDesignM2 && homeSpec.modifiedDesignM2 && homeSpec.standardDesignM2 !== homeSpec.modifiedDesignM2 ? (
+                      <span className="block text-[10px] text-slate-600 font-normal">
+                        Standard Catalog Plan: {homeSpec.standardDesignM2.toFixed(2)} m² &rarr; Modified Construction Plan: {homeSpec.modifiedDesignM2.toFixed(2)} m²
                       </span>
                     ) : null}
                   </td>
                   <td className="py-1.5 px-2.5 text-center text-[10.5px] text-slate-600 font-mono">
-                    {homeSpec.designM2 || 195.4} m²
+                    {(homeSpec.standardDesignM2 || homeSpec.designM2 || 195.4).toFixed(1)} m²
                   </td>
                   <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-950">
-                    {formatAud(homeSpec.baseDesignCost)}
+                    {formatAud(homeSpec.standardBasePrice || homeSpec.baseDesignCost)}
                   </td>
                 </tr>
+
+                {/* 1b. Floorplan SQM Area Adjustments & Extensions */}
+                {homeSpec.areaAdjustmentsBreakdown && homeSpec.areaAdjustmentsBreakdown.length > 0 ? (
+                  homeSpec.areaAdjustmentsBreakdown.map((adj, idx) => (
+                    <tr key={`area_adj_${idx}`} className="bg-blue-50/40">
+                      <td className="py-1.5 px-3 text-blue-950 font-medium">
+                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
+                        Floorplan SQM Adjustment &mdash; {adj.label} ({adj.standardM2.toFixed(2)} m² &rarr; {adj.modifiedM2.toFixed(2)} m²)
+                        {adj.ratePerM2 ? (
+                          <span className="text-[10px] text-blue-700 ml-1">
+                            (@ {formatAud(adj.ratePerM2)}/m²)
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-1.5 px-2.5 text-center text-[10px] font-mono font-semibold text-blue-800">
+                        {adj.diffM2 > 0 ? `+${adj.diffM2.toFixed(2)}` : adj.diffM2.toFixed(2)} m²
+                      </td>
+                      <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-950">
+                        {adj.cost >= 0 ? `+${formatAud(adj.cost)}` : formatAud(adj.cost)}
+                      </td>
+                    </tr>
+                  ))
+                ) : homeSpec.modifiedDesignM2 && homeSpec.designM2 && Math.abs(homeSpec.modifiedDesignM2 - homeSpec.designM2) > 0.05 ? (
+                  <tr className="bg-blue-50/40">
+                    <td className="py-1.5 px-3 text-blue-950 font-medium">
+                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
+                      Floorplan SQM Adjustment &mdash; Modified Custom Layout ({homeSpec.designM2.toFixed(2)} m² &rarr; {homeSpec.modifiedDesignM2.toFixed(2)} m²)
+                      {homeSpec.sqmRate ? (
+                        <span className="text-[10px] text-blue-700 ml-1">
+                          (@ {formatAud(homeSpec.sqmRate)}/m²)
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="py-1.5 px-2.5 text-center text-[10px] font-mono font-semibold text-blue-800">
+                      {homeSpec.modifiedDesignM2 > homeSpec.designM2 ? `+${(homeSpec.modifiedDesignM2 - homeSpec.designM2).toFixed(2)}` : (homeSpec.modifiedDesignM2 - homeSpec.designM2).toFixed(2)} m²
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-950">
+                      {formatAud(Math.round((homeSpec.modifiedDesignM2 - homeSpec.designM2) * (homeSpec.sqmRate || 1847)))}
+                    </td>
+                  </tr>
+                ) : null}
 
                 {/* 2. Facade Uplift */}
                 <tr>

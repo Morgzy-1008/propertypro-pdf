@@ -81,6 +81,8 @@ import {
   STANDARD_DOCUMENT_SLOTS,
   encodeTenderForRemoteLink,
   renderHdFinalFloorplanDataUrl,
+  renderDraftsmenVariationsDataUrl,
+  getStandardizedDocumentFileName,
 } from "@/lib/tender/tenderStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
@@ -91,7 +93,16 @@ import { DigitalSignatureModal } from "./DigitalSignatureModal";
 type SectionTab = "client_job" | "land_siting" | "home_spec" | "atp_sign" | "job_folder" | "pdf_preview";
 
 export function TenderRequestPortal() {
-  const [tender, setTender] = useState<TenderSubmission>(() => createBlankTenderSubmission());
+  const [tender, setTender] = useState<TenderSubmission>(() => {
+    try {
+      const draft = localStorage.getItem("hudson_current_tender_draft");
+      if (draft) {
+        const parsed = JSON.parse(draft);
+        if (parsed && parsed.submissionNumber) return parsed;
+      }
+    } catch {}
+    return createBlankTenderSubmission();
+  });
   const [savedQuotes, setSavedQuotes] = useState<FullQuote[]>([]);
   const [savedTenders, setSavedTenders] = useState<TenderSubmission[]>([]);
   const [isImportQuoteOpen, setIsImportQuoteOpen] = useState(false);
@@ -249,12 +260,53 @@ export function TenderRequestPortal() {
     }
   };
 
-  const handleImportQuote = (quote: FullQuote) => {
+  const handleImportQuote = async (quote: FullQuote) => {
     const populated = createTenderFromQuote(quote);
     setTender(populated);
     saveTenderToIdb(populated).catch(() => {});
     setIsImportQuoteOpen(false);
     toast.success(`Auto-filled all details from Quote #${quote.quoteNumber}!`);
+
+    try {
+      const [hdFloorplanDataUrl, draftsmenVariationsDataUrl] = await Promise.all([
+        renderHdFinalFloorplanDataUrl(
+          populated.homeSpec.floorplanUrl || "",
+          populated.homeSpec.floorplanPins,
+          populated.homeSpec.homeDesign,
+          populated.submissionNumber
+        ),
+        renderDraftsmenVariationsDataUrl(populated),
+      ]);
+
+      const newDocs = { ...populated.documents };
+      const surname = populated.customer1.surname || "Client";
+      if (hdFloorplanDataUrl) {
+        newDocs.final_floorplan = {
+          id: "final_floorplan",
+          label: "Final Floorplan — HD Architectural Markup with Numbered Pins",
+          fileName: getStandardizedDocumentFileName(surname, "final_floorplan", "Final_Floorplan.png", populated.atp.feeAmount),
+          fileDataUrl: hdFloorplanDataUrl,
+          fileType: "image/png",
+          category: "land_siting",
+          required: false,
+        };
+      }
+      if (draftsmenVariationsDataUrl) {
+        newDocs.draftsmen_variations = {
+          id: "draftsmen_variations",
+          label: "Draftsmen Variations — Floorplan, Facade & Working Drawings Checklist",
+          fileName: getStandardizedDocumentFileName(surname, "draftsmen_variations", "Draftsmen_Variations.png", populated.atp.feeAmount),
+          fileDataUrl: draftsmenVariationsDataUrl,
+          fileType: "image/png",
+          category: "land_siting",
+          required: false,
+        };
+      }
+      setTender((prev) => ({ ...prev, documents: newDocs }));
+      saveTenderToIdb({ ...populated, documents: newDocs }).catch(() => {});
+    } catch (e) {
+      console.warn("Auto-generating documents on import:", e);
+    }
   };
 
   const handleDesignChange = (designName: string) => {
@@ -350,31 +402,54 @@ export function TenderRequestPortal() {
     if (!urlToRender) return;
 
     try {
-      const hdDataUrl = await renderHdFinalFloorplanDataUrl(
-        urlToRender,
-        pins,
-        designName || tender.homeSpec.homeDesign || "Home Design",
-        tender.submissionNumber
-      );
-
-      if (hdDataUrl) {
-        updateTender({
-          documents: {
-            ...tender.documents,
-            final_floorplan: {
-              id: "final_floorplan",
-              label: "Final Floorplan — HD Architectural Markup with Numbered Pins",
-              fileName: "Final_Floorplan.png",
-              fileDataUrl: hdDataUrl,
-              fileType: "image/png",
-              category: "land_siting",
-              required: false,
-            },
+      const [hdFloorplanDataUrl, draftsmenVariationsDataUrl] = await Promise.all([
+        renderHdFinalFloorplanDataUrl(
+          urlToRender,
+          pins,
+          designName || tender.homeSpec.homeDesign || "Home Design",
+          tender.submissionNumber
+        ),
+        renderDraftsmenVariationsDataUrl({
+          ...tender,
+          homeSpec: {
+            ...tender.homeSpec,
+            floorplanPins: pins,
+            floorplanUrl: urlToRender,
+            homeDesign: designName || tender.homeSpec.homeDesign || "Home Design",
           },
-        });
+        }),
+      ]);
+
+      const newDocs = { ...tender.documents };
+      const surname = tender.customer1.surname || "Client";
+
+      if (hdFloorplanDataUrl) {
+        newDocs.final_floorplan = {
+          id: "final_floorplan",
+          label: "Final Floorplan — HD Architectural Markup with Numbered Pins",
+          fileName: getStandardizedDocumentFileName(surname, "final_floorplan", "Final_Floorplan.png", tender.atp.feeAmount),
+          fileDataUrl: hdFloorplanDataUrl,
+          fileType: "image/png",
+          category: "land_siting",
+          required: false,
+        };
       }
+
+      if (draftsmenVariationsDataUrl) {
+        newDocs.draftsmen_variations = {
+          id: "draftsmen_variations",
+          label: "Draftsmen Variations — Floorplan, Facade & Working Drawings Checklist",
+          fileName: getStandardizedDocumentFileName(surname, "draftsmen_variations", "Draftsmen_Variations.png", tender.atp.feeAmount),
+          fileDataUrl: draftsmenVariationsDataUrl,
+          fileType: "image/png",
+          category: "land_siting",
+          required: false,
+        };
+      }
+
+      updateTender({ documents: newDocs });
     } catch (e) {
-      console.warn("Auto-generating HD Final Floorplan:", e);
+      console.warn("Auto-generating HD Documents:", e);
     }
   };
 
@@ -643,11 +718,17 @@ export function TenderRequestPortal() {
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result as string;
+        const standardizedFileName = getStandardizedDocumentFileName(
+          tender.customer1.surname,
+          slotId,
+          file.name,
+          tender.atp.feeAmount
+        );
         const updatedDocs = {
           ...tender.documents,
           [slotId]: {
             ...(tender.documents[slotId] || { id: slotId, label: slotId, category: "land_siting" }),
-            fileName: file.name,
+            fileName: standardizedFileName,
             fileDataUrl: dataUrl,
             fileType: file.type,
             fileSize: file.size,
