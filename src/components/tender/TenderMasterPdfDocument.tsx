@@ -427,7 +427,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   <div
                     key={pin.id}
                     style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
-                    className="absolute -translate-x-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-amber-500 text-slate-950 border border-slate-950 font-mono font-black text-[10px] flex items-center justify-center shadow-md z-30"
+                    className="absolute -translate-x-1/2 -translate-y-1/2 h-[16px] w-[16px] rounded-full bg-amber-400/80 text-slate-950 border border-slate-950/80 font-mono font-black text-[8.5px] flex items-center justify-center shadow-xs z-30"
                   >
                     {pin.number}
                   </div>

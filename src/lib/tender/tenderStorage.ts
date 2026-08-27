@@ -125,10 +125,70 @@ function openTenderDB(): Promise<IDBDatabase> {
   });
 }
 
+import { supabase } from "@/integrations/supabase/client";
+
+export async function syncTenderToSupabase(submission: TenderSubmission): Promise<void> {
+  try {
+    const payload = {
+      name: `Tender Request: ${submission.submissionNumber} - ${submission.customer1.surname || "Client"}`,
+      housing_type: submission.homeSpec.housingType || "Single Storey",
+      design: submission.homeSpec.homeDesign || "Design",
+      range_id: "designer",
+      facade_uplift: submission.homeSpec.facadeCost || 0,
+      notes: submission.submissionNumber,
+      flyer_data: {
+        type: "tender_submission",
+        tender: submission,
+      } as any,
+    };
+
+    const { data: existing } = await supabase
+      .from("packages")
+      .select("id")
+      .eq("notes", submission.submissionNumber)
+      .maybeSingle();
+
+    if (existing?.id) {
+      await supabase.from("packages").update(payload).eq("id", existing.id);
+    } else {
+      await supabase.from("packages").insert(payload);
+    }
+  } catch (err) {
+    console.warn("Supabase tender sync fallback:", err);
+  }
+}
+
+export async function getTenderFromSupabase(idOrSubNo: string): Promise<TenderSubmission | null> {
+  try {
+    const { data: byNotes } = await supabase
+      .from("packages")
+      .select("flyer_data")
+      .eq("notes", idOrSubNo)
+      .maybeSingle();
+
+    if (byNotes?.flyer_data && (byNotes.flyer_data as any).tender) {
+      return (byNotes.flyer_data as any).tender as TenderSubmission;
+    }
+
+    const { data: byId } = await supabase
+      .from("packages")
+      .select("flyer_data")
+      .eq("id", idOrSubNo)
+      .maybeSingle();
+
+    if (byId?.flyer_data && (byId.flyer_data as any).tender) {
+      return (byId.flyer_data as any).tender as TenderSubmission;
+    }
+  } catch (err) {
+    console.warn("Supabase tender lookup fallback:", err);
+  }
+  return null;
+}
+
 export async function saveTenderToIdb(submission: TenderSubmission): Promise<void> {
   try {
     const db = await openTenderDB();
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(IDB_TENDER_STORE, "readwrite");
       const store = tx.objectStore(IDB_TENDER_STORE);
       const req = store.put(submission);
@@ -138,6 +198,9 @@ export async function saveTenderToIdb(submission: TenderSubmission): Promise<voi
   } catch (e) {
     console.warn("Tender IDB save fallback:", e);
   }
+
+  // Also silently sync to Supabase in the background
+  syncTenderToSupabase(submission).catch(() => {});
 }
 
 export async function loadAllTendersFromIdb(): Promise<TenderSubmission[]> {
@@ -162,13 +225,29 @@ export async function loadAllTendersFromIdb(): Promise<TenderSubmission[]> {
 export async function getTenderByIdAsync(id: string): Promise<TenderSubmission | null> {
   try {
     const db = await openTenderDB();
-    return new Promise((resolve) => {
+    const directResult = await new Promise<TenderSubmission | null>((resolve) => {
       const tx = db.transaction(IDB_TENDER_STORE, "readonly");
       const store = tx.objectStore(IDB_TENDER_STORE);
       const req = store.get(id);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     });
+
+    if (directResult) return directResult;
+
+    // Search IDB by submissionNumber
+    const all = await loadAllTendersFromIdb();
+    const match = all.find((t) => t.id === id || t.submissionNumber === id);
+    if (match) return match;
+
+    // Fallback to Supabase database
+    const fromSupabase = await getTenderFromSupabase(id);
+    if (fromSupabase) {
+      await saveTenderToIdb(fromSupabase);
+      return fromSupabase;
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -668,24 +747,62 @@ Client 2 Signed: ${submission.atp.client2Signed ? `YES (${submission.atp.client2
   return await zip.generateAsync({ type: "blob" });
 }
 
+export interface CompactTenderPayload {
+  i: string;
+  s: string;
+  c1f: string;
+  c1l: string;
+  c1m?: string;
+  c1e?: string;
+  c2?: boolean;
+  c2f?: string;
+  c2l?: string;
+  lot?: string;
+  st?: string;
+  sub?: string;
+  coun?: string;
+  dsn?: string;
+  fac?: string;
+  inc?: string;
+  fee?: number;
+  atpFee?: number;
+  tot?: number;
+  con?: string;
+  ref?: string;
+}
+
 export function encodeTenderForRemoteLink(tender: TenderSubmission): string {
   try {
-    // Strip heavy base64 strings to keep URL fragment compact and lightning-fast
-    const lightweight: TenderSubmission = {
-      ...tender,
-      homeSpec: {
-        ...tender.homeSpec,
-        sitingPlanDataUrl: undefined,
-      },
-      documents: {},
+    const compact: CompactTenderPayload = {
+      i: tender.id,
+      s: tender.submissionNumber,
+      c1f: tender.customer1.firstName || "",
+      c1l: tender.customer1.surname || "",
+      c1m: tender.customer1.mobile || undefined,
+      c1e: tender.customer1.email || undefined,
+      c2: tender.hasCustomer2 || undefined,
+      c2f: tender.hasCustomer2 ? tender.customer2.firstName : undefined,
+      c2l: tender.hasCustomer2 ? tender.customer2.surname : undefined,
+      lot: tender.land.lotNo || undefined,
+      st: tender.land.streetName || undefined,
+      sub: tender.land.suburb || undefined,
+      coun: tender.land.council || undefined,
+      dsn: tender.homeSpec.homeDesign || undefined,
+      fac: tender.homeSpec.facade || undefined,
+      inc: tender.homeSpec.inclusionsType || undefined,
+      fee: tender.atp.feeAmount || undefined,
+      atpFee: tender.atp.tenderAcceptanceFee || undefined,
+      tot: tender.homeSpec.totalBudgetEstimate || undefined,
+      con: tender.newHomeConsultant || undefined,
+      ref: tender.atp.eftReference || undefined,
     };
-    const jsonStr = JSON.stringify(lightweight);
-    const utf8Bytes = new TextEncoder().encode(jsonStr);
+    const json = JSON.stringify(compact);
+    const utf8Bytes = new TextEncoder().encode(json);
     let binary = "";
     for (let i = 0; i < utf8Bytes.length; i++) {
       binary += String.fromCharCode(utf8Bytes[i]);
     }
-    return btoa(binary);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   } catch (e) {
     console.error("Failed to encode tender for remote link:", e);
     return "";
@@ -695,13 +812,55 @@ export function encodeTenderForRemoteLink(tender: TenderSubmission): string {
 export function decodeTenderFromRemoteLink(encoded: string): TenderSubmission | null {
   try {
     if (!encoded) return null;
-    const binary = atob(encoded);
+    let b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    while (b64.length % 4) b64 += "=";
+    const binary = atob(b64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
     const jsonStr = new TextDecoder().decode(bytes);
-    return JSON.parse(jsonStr) as TenderSubmission;
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed && (parsed.s || parsed.c1f !== undefined)) {
+      const base = createBlankTenderSubmission();
+      if (parsed.i) base.id = parsed.i;
+      if (parsed.s) base.submissionNumber = parsed.s;
+      if (parsed.c1f) base.customer1.firstName = parsed.c1f;
+      if (parsed.c1l) base.customer1.surname = parsed.c1l;
+      if (parsed.c1m) base.customer1.mobile = parsed.c1m;
+      if (parsed.c1e) base.customer1.email = parsed.c1e;
+      base.hasCustomer2 = !!parsed.c2;
+      if (parsed.c2f) base.customer2.firstName = parsed.c2f;
+      if (parsed.c2l) base.customer2.surname = parsed.c2l;
+      if (parsed.lot) base.land.lotNo = parsed.lot;
+      if (parsed.st) base.land.streetName = parsed.st;
+      if (parsed.sub) base.land.suburb = parsed.sub;
+      if (parsed.coun) base.land.council = parsed.coun;
+      if (parsed.dsn) {
+        base.homeSpec.homeDesign = parsed.dsn;
+        const fp = findFloorplanUrl(parsed.dsn);
+        if (fp) {
+          base.homeSpec.floorplanUrl = fp;
+          base.homeSpec.originalFloorplanUrl = fp;
+        }
+      }
+      if (parsed.fac) base.homeSpec.facade = parsed.fac;
+      if (parsed.inc) base.homeSpec.inclusionsType = parsed.inc;
+      if (parsed.fee) base.atp.feeAmount = parsed.fee;
+      if (parsed.atpFee) base.atp.tenderAcceptanceFee = parsed.atpFee;
+      if (parsed.tot) base.homeSpec.totalBudgetEstimate = parsed.tot;
+      if (parsed.con) base.newHomeConsultant = parsed.con;
+      if (parsed.ref) base.atp.eftReference = parsed.ref;
+
+      base.atp.client1Name = `${base.customer1.firstName} ${base.customer1.surname}`.trim();
+      if (base.hasCustomer2) {
+        base.atp.client2Name = `${base.customer2.firstName} ${base.customer2.surname}`.trim();
+      }
+      return base;
+    }
+
+    return parsed as TenderSubmission;
   } catch (e) {
     console.error("Failed to decode tender from remote link:", e);
     return null;

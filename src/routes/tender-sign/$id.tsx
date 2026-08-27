@@ -85,12 +85,34 @@ function RemoteTenderSignPage() {
     async function loadData() {
       let found: TenderSubmission | null = null;
 
-      // 1. Check URL hash for embedded tender payload (works on remote phones/devices seamlessly)
-      if (typeof window !== "undefined" && window.location.hash) {
+      // 1. Check URL query string for compact payload (short URL support ?d=...)
+      if (typeof window !== "undefined" && window.location.search) {
+        try {
+          const searchParams = new URLSearchParams(window.location.search);
+          const dParam = searchParams.get("d") || searchParams.get("data");
+          if (dParam) {
+            const decoded = decodeTenderFromRemoteLink(dParam);
+            if (decoded) {
+              found = decoded;
+              await saveTenderToIdb(decoded).catch(() => {});
+              try {
+                localStorage.setItem(`hudson_tender_${decoded.id}`, JSON.stringify(decoded));
+                localStorage.setItem(`hudson_tender_${decoded.submissionNumber}`, JSON.stringify(decoded));
+                localStorage.setItem("hudson_current_tender_draft", JSON.stringify(decoded));
+              } catch {}
+            }
+          }
+        } catch (err) {
+          console.warn("Could not decode query payload:", err);
+        }
+      }
+
+      // 2. Check URL hash for embedded payload (#d=... or #data=...)
+      if (!found && typeof window !== "undefined" && window.location.hash) {
         try {
           const hash = window.location.hash.replace(/^#/, "");
           const params = new URLSearchParams(hash);
-          const dataParam = params.get("data") || (hash.startsWith("data=") ? hash.replace("data=", "") : "");
+          const dataParam = params.get("d") || params.get("data") || (hash.startsWith("data=") ? hash.replace("data=", "") : "");
           if (dataParam) {
             const decoded = decodeTenderFromRemoteLink(dataParam);
             if (decoded) {
@@ -98,6 +120,7 @@ function RemoteTenderSignPage() {
               await saveTenderToIdb(decoded).catch(() => {});
               try {
                 localStorage.setItem(`hudson_tender_${decoded.id}`, JSON.stringify(decoded));
+                localStorage.setItem(`hudson_tender_${decoded.submissionNumber}`, JSON.stringify(decoded));
                 localStorage.setItem("hudson_current_tender_draft", JSON.stringify(decoded));
               } catch {}
             }
@@ -107,22 +130,7 @@ function RemoteTenderSignPage() {
         }
       }
 
-      // 2. Check query string
-      if (!found && typeof window !== "undefined" && window.location.search) {
-        try {
-          const searchParams = new URLSearchParams(window.location.search);
-          const dataParam = searchParams.get("data");
-          if (dataParam) {
-            const decoded = decodeTenderFromRemoteLink(dataParam);
-            if (decoded) {
-              found = decoded;
-              await saveTenderToIdb(decoded).catch(() => {});
-            }
-          }
-        } catch {}
-      }
-
-      // 3. Check IndexedDB
+      // 3. Check IndexedDB & Supabase by ID or submissionNumber
       if (!found) {
         found = await getTenderByIdAsync(id);
       }

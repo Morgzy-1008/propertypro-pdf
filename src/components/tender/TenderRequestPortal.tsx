@@ -664,9 +664,9 @@ export function TenderRequestPortal() {
     } catch {}
   }, [activeTab]);
 
-  const remotePayload = encodeTenderForRemoteLink(tender);
+  const compactCode = encodeTenderForRemoteLink(tender);
   const remoteSigningUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/tender-sign/${tender.id}#data=${remotePayload}`
+    ? `${window.location.origin}/tender-sign/${tender.submissionNumber || tender.id}${compactCode ? `?d=${compactCode}` : ""}`
     : "";
 
   const handleCopyRemoteLink = () => {

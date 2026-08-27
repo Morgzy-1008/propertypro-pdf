@@ -300,7 +300,7 @@ export function FloorplanMarkupViewer({
                   className="w-full h-auto max-h-[520px] object-contain mx-auto block rounded-lg"
                 />
 
-                {/* Overlaid Compact Draggable Numbered Structural Pins (Slightly Smaller) */}
+                {/* Overlaid Semi-Transparent Hallway-Sized Draggable Numbered Pins (~500mm Scale) */}
                 {pins.map((pin) => {
                   const isSelected = pin.id === selectedPinId;
                   const isDragging = pin.id === draggingPinId;
@@ -315,21 +315,21 @@ export function FloorplanMarkupViewer({
                         setSelectedPinId(pin.id);
                       }}
                       className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform z-30 group/pin ${
-                        isDragging ? "scale-125 z-40" : "hover:scale-115"
+                        isDragging ? "scale-125 z-40" : "hover:scale-125"
                       }`}
                     >
                       <div
-                        className={`h-6 w-6 rounded-full flex items-center justify-center font-mono font-black text-xs shadow-xl border-2 transition-all ${
+                        className={`h-[18px] w-[18px] rounded-full flex items-center justify-center font-mono font-black text-[9.5px] shadow-sm border transition-all ${
                           isSelected || isDragging
-                            ? "bg-amber-400 text-slate-950 border-white ring-3 ring-amber-400/80"
-                            : "bg-amber-500 text-slate-950 border-slate-950 shadow-md hover:bg-amber-300 ring-2 ring-amber-400/50"
+                            ? "bg-amber-400/90 text-slate-950 border-slate-950 ring-2 ring-amber-400"
+                            : "bg-amber-400/75 hover:bg-amber-400 text-slate-950 border-slate-950/80 ring-1 ring-amber-300/50 backdrop-blur-[0.5px]"
                         }`}
                       >
                         {pin.number}
                       </div>
 
                       {/* Tooltip */}
-                      <div className="hidden group-hover/pin:flex absolute top-7 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10.5px] font-sans px-2 py-0.5 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
+                      <div className="hidden group-hover/pin:flex absolute top-6 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10.5px] font-sans px-2 py-0.5 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
                         <span className="font-bold text-amber-400">#{pin.number}</span>
                         <span className="truncate max-w-[180px]">{pin.title}</span>
                         <button
