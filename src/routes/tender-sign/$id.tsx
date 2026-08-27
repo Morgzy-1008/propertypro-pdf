@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
-import { getTenderByIdAsync, saveTenderToIdb } from "@/lib/tender/tenderStorage";
+import { getTenderByIdAsync, saveTenderToIdb, decodeTenderFromRemoteLink } from "@/lib/tender/tenderStorage";
 import type { TenderSubmission } from "@/lib/tender/tenderTypes";
 import {
   ShieldCheck,
@@ -83,8 +83,51 @@ function RemoteTenderSignPage() {
 
   useEffect(() => {
     async function loadData() {
-      let found = await getTenderByIdAsync(id);
+      let found: TenderSubmission | null = null;
 
+      // 1. Check URL hash for embedded tender payload (works on remote phones/devices seamlessly)
+      if (typeof window !== "undefined" && window.location.hash) {
+        try {
+          const hash = window.location.hash.replace(/^#/, "");
+          const params = new URLSearchParams(hash);
+          const dataParam = params.get("data") || (hash.startsWith("data=") ? hash.replace("data=", "") : "");
+          if (dataParam) {
+            const decoded = decodeTenderFromRemoteLink(dataParam);
+            if (decoded) {
+              found = decoded;
+              await saveTenderToIdb(decoded).catch(() => {});
+              try {
+                localStorage.setItem(`hudson_tender_${decoded.id}`, JSON.stringify(decoded));
+                localStorage.setItem("hudson_current_tender_draft", JSON.stringify(decoded));
+              } catch {}
+            }
+          }
+        } catch (err) {
+          console.warn("Could not decode URL fragment payload:", err);
+        }
+      }
+
+      // 2. Check query string
+      if (!found && typeof window !== "undefined" && window.location.search) {
+        try {
+          const searchParams = new URLSearchParams(window.location.search);
+          const dataParam = searchParams.get("data");
+          if (dataParam) {
+            const decoded = decodeTenderFromRemoteLink(dataParam);
+            if (decoded) {
+              found = decoded;
+              await saveTenderToIdb(decoded).catch(() => {});
+            }
+          }
+        } catch {}
+      }
+
+      // 3. Check IndexedDB
+      if (!found) {
+        found = await getTenderByIdAsync(id);
+      }
+
+      // 4. Check LocalStorage by ID
       if (!found) {
         try {
           const direct = localStorage.getItem(`hudson_tender_${id}`);
@@ -92,6 +135,7 @@ function RemoteTenderSignPage() {
         } catch {}
       }
 
+      // 5. Fallback Draft in LocalStorage
       if (!found) {
         try {
           const fallbackDraft = localStorage.getItem("hudson_current_tender_draft");

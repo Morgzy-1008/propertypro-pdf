@@ -79,6 +79,7 @@ import {
   findFacadeRenderUrl,
   calculateLandscapePackageCost,
   STANDARD_DOCUMENT_SLOTS,
+  encodeTenderForRemoteLink,
 } from "@/lib/tender/tenderStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
@@ -654,7 +655,19 @@ export function TenderRequestPortal() {
     }
   };
 
-  const remoteSigningUrl = typeof window !== "undefined" ? `${window.location.origin}/tender-sign/${tender.id}` : "";
+  // Auto-save tender whenever clicking onto Page 4 (ATP sign) or any tab
+  useEffect(() => {
+    saveTenderToIdb(tender).catch(() => {});
+    try {
+      localStorage.setItem(`hudson_tender_${tender.id}`, JSON.stringify(tender));
+      localStorage.setItem("hudson_current_tender_draft", JSON.stringify(tender));
+    } catch {}
+  }, [activeTab]);
+
+  const remotePayload = encodeTenderForRemoteLink(tender);
+  const remoteSigningUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/tender-sign/${tender.id}#data=${remotePayload}`
+    : "";
 
   const handleCopyRemoteLink = () => {
     navigator.clipboard.writeText(remoteSigningUrl);

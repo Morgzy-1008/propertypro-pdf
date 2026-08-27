@@ -667,3 +667,44 @@ Client 2 Signed: ${submission.atp.client2Signed ? `YES (${submission.atp.client2
 
   return await zip.generateAsync({ type: "blob" });
 }
+
+export function encodeTenderForRemoteLink(tender: TenderSubmission): string {
+  try {
+    // Strip heavy base64 strings to keep URL fragment compact and lightning-fast
+    const lightweight: TenderSubmission = {
+      ...tender,
+      homeSpec: {
+        ...tender.homeSpec,
+        sitingPlanDataUrl: undefined,
+      },
+      documents: {},
+    };
+    const jsonStr = JSON.stringify(lightweight);
+    const utf8Bytes = new TextEncoder().encode(jsonStr);
+    let binary = "";
+    for (let i = 0; i < utf8Bytes.length; i++) {
+      binary += String.fromCharCode(utf8Bytes[i]);
+    }
+    return btoa(binary);
+  } catch (e) {
+    console.error("Failed to encode tender for remote link:", e);
+    return "";
+  }
+}
+
+export function decodeTenderFromRemoteLink(encoded: string): TenderSubmission | null {
+  try {
+    if (!encoded) return null;
+    const binary = atob(encoded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const jsonStr = new TextDecoder().decode(bytes);
+    return JSON.parse(jsonStr) as TenderSubmission;
+  } catch (e) {
+    console.error("Failed to decode tender from remote link:", e);
+    return null;
+  }
+}
+
