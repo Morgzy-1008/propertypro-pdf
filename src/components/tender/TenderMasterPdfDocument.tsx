@@ -213,46 +213,115 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
           </div>
 
-          {/* Estimated Build Investment Summary Table */}
+          {/* Full Itemised Estimate Breakdown Table */}
           <div className="mb-2">
-            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1.5">
-              4. ESTIMATED BUILD INVESTMENT BREAKDOWN
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1.5 flex items-center justify-between">
+              <span>4. FULL ITEMISED ESTIMATE BREAKDOWN &amp; INVESTMENT SCHEDULE</span>
+              <span className="text-[10px] font-normal text-slate-500">All Variations, Upgrades &amp; Allowances Included</span>
             </div>
             <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
-              <tbody className="divide-y divide-slate-200">
-                <tr className="bg-slate-50">
-                  <td className="py-2 px-3 font-semibold">Base House Price ({homeSpec.homeDesign || "Selected Design"})</td>
-                  <td className="py-2 px-3 text-right font-mono font-bold">{formatAud(homeSpec.baseDesignCost)}</td>
-                </tr>
+              <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
                 <tr>
-                  <td className="py-2 px-3">Architectural Facade Uplift ({homeSpec.facade || "Facade"})</td>
-                  <td className="py-2 px-3 text-right font-mono">{formatAud(homeSpec.facadeCost)}</td>
+                  <th className="py-1 px-3 text-left">Item Specification / Selection Description</th>
+                  <th className="py-1 px-2.5 text-center w-28">Area / Category</th>
+                  <th className="py-1 px-3 text-right w-24">Amount</th>
                 </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                {/* 1. Base Price Breakdown */}
                 <tr className="bg-slate-50">
-                  <td className="py-2 px-3">Numbered Structural Variations ({structuralVariations.length} items pinned on plan)</td>
-                  <td className="py-2 px-3 text-right font-mono font-bold text-amber-800">{formatAud(homeSpec.structuralVariationsCost)}</td>
+                  <td className="py-1.5 px-3 font-semibold text-slate-900">
+                    Base House Design — {homeSpec.homeDesign || "Standard Design"} ({homeSpec.inclusionsType})
+                    {homeSpec.modifiedDesignM2 && homeSpec.modifiedDesignM2 !== homeSpec.designM2 ? (
+                      <span className="block text-[10px] text-amber-700 font-normal">
+                        Modified layout total: {homeSpec.modifiedDesignM2} m² (Standard: {homeSpec.designM2 || 195.4} m², Difference: {homeSpec.modifiedDesignM2 > (homeSpec.designM2 || 195.4) ? `+${(homeSpec.modifiedDesignM2 - (homeSpec.designM2 || 195.4)).toFixed(2)} m² extension` : `${(homeSpec.modifiedDesignM2 - (homeSpec.designM2 || 195.4)).toFixed(2)} m²`})
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-1.5 px-2.5 text-center text-[10.5px] text-slate-600 font-mono">
+                    {homeSpec.designM2 || 195.4} m²
+                  </td>
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-950">
+                    {formatAud(homeSpec.baseDesignCost)}
+                  </td>
                 </tr>
+
+                {/* 2. Facade Uplift */}
                 <tr>
-                  <td className="py-2 px-3">All Other Selections, Upgrades &amp; Allowances ({allOtherVariations.length} items)</td>
-                  <td className="py-2 px-3 text-right font-mono font-bold text-cyan-800">{formatAud(homeSpec.internalUpgradesCost)}</td>
+                  <td className="py-1.5 px-3 text-slate-800 font-medium">
+                    Architectural Facade — {homeSpec.facade || "Standard Facade"} {homeSpec.isCustomFacade ? "(Custom Render / Inspo)" : ""}
+                  </td>
+                  <td className="py-1.5 px-2.5 text-center text-[10px] text-slate-500 uppercase">
+                    Facade
+                  </td>
+                  <td className="py-1.5 px-3 text-right font-mono text-slate-900 font-medium">
+                    {homeSpec.facadeCost > 0 ? formatAud(homeSpec.facadeCost) : "Included"}
+                  </td>
                 </tr>
+
+                {/* 3. Numbered Structural Variations (Individual Line Items with Prices) */}
+                {structuralVariations.map((v) => (
+                  <tr key={v.id} className="bg-amber-50/40">
+                    <td className="py-1.5 px-3 text-slate-900 font-medium">
+                      <span className="font-mono font-bold text-amber-800 mr-1.5">#{v.itemNumber}</span>
+                      {v.description}
+                    </td>
+                    <td className="py-1.5 px-2.5 text-center text-[10px] text-amber-800 font-bold uppercase">
+                      Structural #{v.itemNumber}
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                      {formatAud(v.cost)}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* 4. All Other Selections & Inclusions (Individual Line Items with Prices) */}
+                {allOtherVariations.map((v) => (
+                  <tr key={v.id}>
+                    <td className="py-1.5 px-3 text-slate-800 font-medium">
+                      {v.description}
+                    </td>
+                    <td className="py-1.5 px-2.5 text-center text-[10px] text-cyan-800 uppercase">
+                      Inclusion / Site
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono text-slate-900 font-medium">
+                      {formatAud(v.cost)}
+                    </td>
+                  </tr>
+                ))}
+
+                {/* 5. Landscape Package */}
                 {homeSpec.includeLandscapePackage && (
                   <tr className="bg-emerald-50/50">
-                    <td className="py-2 px-3 font-semibold text-emerald-900 flex items-center gap-1.5">
-                      <Trees className="h-3.5 w-3.5 text-emerald-600" /> Turnkey Complete Landscape Package ({land.lotSizeM2 || 450} m² Lot)
+                    <td className="py-1.5 px-3 font-semibold text-emerald-950 flex items-center gap-1.5">
+                      <Trees className="h-3.5 w-3.5 text-emerald-600" /> Turnkey Complete Landscape Package
                     </td>
-                    <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800">{formatAud(homeSpec.landscapePackageCost || 0)}</td>
+                    <td className="py-1.5 px-2.5 text-center text-[10px] text-emerald-800 uppercase font-bold">
+                      {land.lotSizeM2 || 450} m² Lot
+                    </td>
+                    <td className="py-1.5 px-3 text-right font-mono font-bold text-emerald-800">
+                      {formatAud(homeSpec.landscapePackageCost || 0)}
+                    </td>
                   </tr>
                 )}
+
+                {/* 6. Promotion / Discount */}
                 {homeSpec.promotionDiscountCost > 0 && (
                   <tr className="bg-emerald-50/70 text-emerald-900 font-semibold">
-                    <td className="py-2 px-3">Special Builder Promotion Discount</td>
-                    <td className="py-2 px-3 text-right font-mono">-{formatAud(homeSpec.promotionDiscountCost)}</td>
+                    <td className="py-1.5 px-3">Special Builder Promotion Discount</td>
+                    <td className="py-1.5 px-2.5 text-center text-[10px] text-emerald-800 uppercase font-bold">Discount</td>
+                    <td className="py-1.5 px-3 text-right font-mono text-emerald-700">-{formatAud(homeSpec.promotionDiscountCost)}</td>
                   </tr>
                 )}
+
+                {/* Total Row */}
                 <tr className="bg-slate-900 text-white font-bold text-sm">
-                  <td className="py-2.5 px-3">TOTAL ESTIMATED BUILD INVESTMENT (INC. GST)</td>
-                  <td className="py-2.5 px-3 text-right font-mono font-black text-amber-300">{formatAud(homeSpec.totalBudgetEstimate)}</td>
+                  <td colSpan={2} className="py-2.5 px-3 uppercase tracking-wider">
+                    TOTAL ESTIMATED BUILD INVESTMENT (INC. GST)
+                  </td>
+                  <td className="py-2.5 px-3 text-right font-mono font-black text-amber-300">
+                    {formatAud(homeSpec.totalBudgetEstimate)}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -413,22 +482,21 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             )}
           </div>
 
-          {/* Section A: Numbered Structural Variations */}
+          {/* Section A: Numbered Structural Variations (Pure Drafting Specification - No Pricing) */}
           <div className="mb-3">
             <div className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-1 flex items-center justify-between border-b-2 border-amber-500 pb-1">
               <span>A. NUMBERED STRUCTURAL VARIATIONS (Correlating to Floorplan Badges Above)</span>
-              <span className="font-mono text-slate-900">{formatAud(homeSpec.structuralVariationsCost)}</span>
+              <span className="text-[10px] font-normal text-slate-500">Drafting Specification · {structuralVariations.length} Items Pinned</span>
             </div>
 
             {structuralVariations.length === 0 ? (
-              <div className="py-1 text-slate-400 text-xs italic">Standard architectural layout with no structural deviations.</div>
+              <div className="py-1 text-slate-400 text-xs italic">Standard architectural layout with no structural modifications.</div>
             ) : (
               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
                   <tr>
                     <th className="py-1 px-2 text-center w-10">#</th>
-                    <th className="py-1 px-2.5 text-left">Structural Modification Description</th>
-                    <th className="py-1 px-2.5 text-right w-24">Amount</th>
+                    <th className="py-1 px-2.5 text-left">Structural Modification Description (Drafting Specification)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-sans">
@@ -440,9 +508,6 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                       <td className="py-1.5 px-2.5 text-slate-800 font-medium text-[10.5px] leading-snug">
                         {v.description}
                       </td>
-                      <td className="py-1.5 px-2.5 text-right font-mono text-slate-900 text-[10.5px] font-bold align-top">
-                        {formatAud(v.cost)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -450,33 +515,27 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             )}
           </div>
 
-          {/* Section B: All Other Variations & Allowances */}
+          {/* Section B: All Other Variations & Inclusions (Pure Drafting Specification - No Pricing) */}
           <div className="mb-3">
             <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1 flex items-center justify-between border-b-2 border-cyan-500 pb-1">
-              <span>B. ALL OTHER VARIATIONS, INCLUSIONS &amp; SITE ALLOWANCES</span>
-              <span className="font-mono text-slate-900">
-                {formatAud(homeSpec.internalUpgradesCost + homeSpec.additionalSiteCost + (homeSpec.includeLandscapePackage ? homeSpec.landscapePackageCost || 0 : 0))}
-              </span>
+              <span>B. ALL OTHER VARIATIONS, INCLUSIONS &amp; SITE SPECIFICATIONS</span>
+              <span className="text-[10px] font-normal text-slate-500">Tender Specifications for Drafting</span>
             </div>
 
             {allOtherVariations.length === 0 && !homeSpec.includeLandscapePackage ? (
-              <div className="py-1 text-slate-400 text-xs italic">No additional inclusions or site upgrades.</div>
+              <div className="py-1 text-slate-400 text-xs italic">Standard inclusion specification.</div>
             ) : (
               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                 <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
                   <tr>
-                    <th className="py-1 px-2.5 text-left">Inclusion / Allowance Item</th>
-                    <th className="py-1 px-2.5 text-right w-24">Amount</th>
+                    <th className="py-1 px-2.5 text-left">Inclusion / Selection Specification for Drafting</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-sans">
                   {homeSpec.includeLandscapePackage && (
                     <tr className="bg-emerald-50/50">
                       <td className="py-1.5 px-2.5 text-emerald-950 font-bold text-[10.5px]">
-                        Turnkey Landscape Package (Full Turf, Driveway, Gardens, Fencing &amp; Clothesline based on {land.lotSizeM2 || 450} m² lot)
-                      </td>
-                      <td className="py-1.5 px-2.5 text-right font-mono text-emerald-800 text-[10.5px] font-bold">
-                        {formatAud(homeSpec.landscapePackageCost || 0)}
+                        Turnkey Landscape Package (Full Turf, Concrete Driveway, Garden Beds, Fencing, Clothesline &amp; Letterbox based on {land.lotSizeM2 || 450} m² lot)
                       </td>
                     </tr>
                   )}
@@ -485,29 +544,11 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                       <td className="py-1.5 px-2.5 text-slate-800 font-medium text-[10.5px] leading-snug">
                         {v.description}
                       </td>
-                      <td className="py-1.5 px-2.5 text-right font-mono text-slate-900 text-[10.5px] font-bold align-top">
-                        {formatAud(v.cost)}
-                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-          </div>
-
-          {/* Investment Summary */}
-          <div className="p-3 bg-slate-900 text-white rounded-xl flex items-center justify-between shadow-md">
-            <div>
-              <span className="text-[9.5px] uppercase tracking-wider text-slate-400 block font-bold">
-                Total Estimated Build Investment (Inc. GST)
-              </span>
-              <span className="text-[11px] text-amber-300 font-semibold">
-                Base ({formatAud(homeSpec.baseDesignCost)}) + Facade ({formatAud(homeSpec.facadeCost)}) + Structural ({formatAud(homeSpec.structuralVariationsCost)}) + Selections ({formatAud(homeSpec.internalUpgradesCost + homeSpec.additionalSiteCost + (homeSpec.includeLandscapePackage ? homeSpec.landscapePackageCost || 0 : 0))})
-              </span>
-            </div>
-            <div className="font-mono text-xl font-black text-cyan-400">
-              {formatAud(homeSpec.totalBudgetEstimate)}
-            </div>
           </div>
         </div>
 

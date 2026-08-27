@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PenTool, RotateCcw, Check, Type, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { generateCursiveSignatureDataUrl } from "@/lib/tender/tenderStorage";
 
 interface DigitalSignatureModalProps {
   open: boolean;
@@ -27,7 +28,8 @@ export function DigitalSignatureModal({
   onSaveSignature,
 }: DigitalSignatureModalProps) {
   const [signerName, setSignerName] = useState(initialSignerName || "");
-  const [mode, setMode] = useState<"draw" | "type">("draw");
+  const [mode, setMode] = useState<"fancy_styles" | "draw">("fancy_styles");
+  const [selectedStyle, setSelectedStyle] = useState<1 | 2 | 3 | 4>(1);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasDrawn, setHasDrawn] = useState(false);
@@ -100,6 +102,11 @@ export function DigitalSignatureModal({
     setIsDrawing(false);
   };
 
+  const nameParts = (signerName.trim() || "Hudson Client").split(/\s+/);
+  const firstName = nameParts[0] || "";
+  const lastName = nameParts.slice(1).join(" ") || "";
+  const initialForm = nameParts.length > 1 ? `${firstName[0]}. ${lastName}` : firstName;
+
   const handleSave = () => {
     if (!signerName.trim()) {
       toast.error("Please enter the printed name of the signer");
@@ -115,21 +122,7 @@ export function DigitalSignatureModal({
       const dataUrl = canvas.toDataURL("image/png");
       onSaveSignature(dataUrl, signerName);
     } else {
-      // Create typed cursive signature canvas
-      const offCanvas = document.createElement("canvas");
-      offCanvas.width = 500;
-      offCanvas.height = 160;
-      const ctx = offCanvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "transparent";
-        ctx.fillRect(0, 0, 500, 160);
-        ctx.fillStyle = "#0284c7";
-        ctx.font = "italic 38px 'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(signerName, 250, 80);
-      }
-      const dataUrl = offCanvas.toDataURL("image/png");
+      const dataUrl = generateCursiveSignatureDataUrl(signerName, selectedStyle);
       onSaveSignature(dataUrl, signerName);
     }
 
@@ -139,7 +132,7 @@ export function DigitalSignatureModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl">
+      <DialogContent className="max-w-2xl border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl">
         <DialogHeader className="pb-2 border-b border-slate-800">
           <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
             <PenTool className="h-4 w-4 text-cyan-400" />
@@ -163,21 +156,21 @@ export function DigitalSignatureModal({
             <div className="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-xs">
               <button
                 type="button"
+                onClick={() => setMode("fancy_styles")}
+                className={`px-3 py-1 rounded-md font-semibold flex items-center gap-1.5 transition-all ${
+                  mode === "fancy_styles" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-3 w-3" /> 4 Fancy Cursive Options
+              </button>
+              <button
+                type="button"
                 onClick={() => setMode("draw")}
                 className={`px-3 py-1 rounded-md font-semibold flex items-center gap-1.5 transition-all ${
                   mode === "draw" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"
                 }`}
               >
                 <PenTool className="h-3 w-3" /> Draw Signature
-              </button>
-              <button
-                type="button"
-                onClick={() => setMode("type")}
-                className={`px-3 py-1 rounded-md font-semibold flex items-center gap-1.5 transition-all ${
-                  mode === "type" ? "bg-cyan-500 text-slate-950 font-bold" : "text-slate-400 hover:text-white"
-                }`}
-              >
-                <Type className="h-3 w-3" /> Type Name
               </button>
             </div>
           </div>
@@ -218,10 +211,116 @@ export function DigitalSignatureModal({
               </div>
             </div>
           ) : (
-            <div className="border-2 border-slate-800 rounded-xl bg-slate-900 p-6 text-center space-y-2">
-              <span className="text-[11px] text-slate-400 block">Preview Styled Legal E-Signature:</span>
-              <div className="text-3xl font-serif italic text-cyan-400 min-h-12 flex items-center justify-center">
-                {signerName || "Your Signature"}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-slate-400">Choose one of the 4 signature styles below:</span>
+                <span className="text-[10px] text-cyan-400 font-mono">Option #{selectedStyle} Selected</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Style 1: Full Name - Elegant Script */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStyle(1)}
+                  className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                    selectedStyle === 1
+                      ? "bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Option 1 · Full Name Formal
+                    </span>
+                    {selectedStyle === 1 && (
+                      <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none font-normal" style={{ fontFamily: "'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif" }}>
+                    {signerName || "Jordan Mitchell"}
+                  </div>
+                  <span className="text-[9px] text-slate-500">Classic calligraphy script</span>
+                </button>
+
+                {/* Style 2: Full Name - Flourish Script */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStyle(2)}
+                  className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                    selectedStyle === 2
+                      ? "bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                      Option 2 · Full Name Flourish
+                    </span>
+                    {selectedStyle === 2 && (
+                      <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none font-normal" style={{ fontFamily: "'Segoe Script', 'Parisienne', 'Alex Brush', cursive, sans-serif" }}>
+                    {signerName || "Jordan Mitchell"}
+                  </div>
+                  <span className="text-[9px] text-slate-500">Flowing signature flourish</span>
+                </button>
+
+                {/* Style 3: Initial + Last Name - Executive Script */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStyle(3)}
+                  className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                    selectedStyle === 3
+                      ? "bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                      Option 3 · Initial &amp; Last Name
+                    </span>
+                    {selectedStyle === 3 && (
+                      <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-2xl font-serif italic text-amber-300 py-1 select-none font-bold" style={{ fontFamily: "'Snell Roundhand', 'Brush Script MT', 'Dancing Script', cursive, serif" }}>
+                    {initialForm || "J. Mitchell"}
+                  </div>
+                  <span className="text-[9px] text-slate-500">Executive initial calligraphy</span>
+                </button>
+
+                {/* Style 4: Initial + Last Name - Fluid Pen */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedStyle(4)}
+                  className={`p-3.5 rounded-xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                    selectedStyle === 4
+                      ? "bg-slate-900 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                      : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                      Option 4 · Initial &amp; Last Name Fluid
+                    </span>
+                    {selectedStyle === 4 && (
+                      <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-2xl font-serif italic text-amber-300 py-1 select-none font-normal" style={{ fontFamily: "'Lucida Handwriting', 'Segoe Script', 'Great Vibes', cursive, sans-serif" }}>
+                    {initialForm || "J. Mitchell"}
+                  </div>
+                  <span className="text-[9px] text-slate-500">Modern quick-pen script</span>
+                </button>
               </div>
             </div>
           )}

@@ -69,6 +69,7 @@ const IDB_TENDER_STORE = "tenders";
 
 export const STANDARD_DOCUMENT_SLOTS: Omit<TenderDocumentSlot, "fileDataUrl" | "fileName" | "fileSize" | "fileType">[] = [
   // 1. PRIMARY REQUIRED DOCUMENTS (Pinned to Top)
+  { id: "final_floorplan", label: "Final Floorplan — HD Architectural Markup with Numbered Pins", category: "land_siting", required: false },
   { id: "license_c1_front", label: "Driver Licence — Client 1 (Front)", category: "identity", required: true },
   { id: "license_c1_back", label: "Driver Licence — Client 1 (Back)", category: "identity", required: true },
   { id: "license_c2_front", label: "Driver Licence — Client 2 (Front)", category: "identity", required: false },
@@ -865,5 +866,165 @@ export function decodeTenderFromRemoteLink(encoded: string): TenderSubmission | 
     console.error("Failed to decode tender from remote link:", e);
     return null;
   }
+}
+
+/**
+ * 4 Fancy Cursive Signature Styles:
+ * 1. Style 1: Full Name — Elegant Formal Script
+ * 2. Style 2: Full Name — Modern Flourish Script
+ * 3. Style 3: Initial + Surname — Executive Formal (e.g. J. Mitchell)
+ * 4. Style 4: Initial + Surname — Modern Fluid Pen (e.g. J. Mitchell)
+ */
+export function generateCursiveSignatureDataUrl(
+  fullName: string,
+  styleIndex: 1 | 2 | 3 | 4 = 1,
+  color: string = "#0284c7"
+): string {
+  if (typeof document === "undefined") return "";
+  const offCanvas = document.createElement("canvas");
+  offCanvas.width = 540;
+  offCanvas.height = 180;
+  const ctx = offCanvas.getContext("2d");
+  if (!ctx) return "";
+
+  const trimmed = fullName.trim() || "Hudson Client";
+  const parts = trimmed.split(/\s+/);
+  const first = parts[0] || "";
+  const last = parts.slice(1).join(" ") || "";
+  const initialName = parts.length > 1 ? `${first[0]}. ${last}` : first;
+
+  let text = trimmed;
+  let font = "italic 38px 'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif";
+
+  switch (styleIndex) {
+    case 1:
+      text = trimmed;
+      font = "italic 38px 'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif";
+      break;
+    case 2:
+      text = trimmed;
+      font = "italic 34px 'Segoe Script', 'Parisienne', 'Alex Brush', cursive, sans-serif";
+      break;
+    case 3:
+      text = initialName;
+      font = "italic 40px 'Snell Roundhand', 'Brush Script MT', 'Dancing Script', cursive, serif";
+      break;
+    case 4:
+      text = initialName;
+      font = "italic 36px 'Lucida Handwriting', 'Segoe Script', 'Great Vibes', cursive, sans-serif";
+      break;
+  }
+
+  ctx.clearRect(0, 0, offCanvas.width, offCanvas.height);
+  ctx.fillStyle = color;
+  ctx.font = font;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, offCanvas.width / 2, offCanvas.height / 2);
+
+  return offCanvas.toDataURL("image/png");
+}
+
+/**
+ * Renders an HD standalone full-page Floorplan with numbered pins for "Final Floorplan.pdf"
+ */
+export async function renderHdFinalFloorplanDataUrl(
+  floorplanUrl: string,
+  pins: TenderFloorplanPin[],
+  designName: string,
+  submissionNumber: string
+): Promise<string> {
+  if (typeof document === "undefined" || !floorplanUrl) return "";
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const width = Math.max(1600, img.naturalWidth || 1600);
+      const height = Math.max(2200, (img.naturalHeight || 1200) + 260);
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve("");
+        return;
+      }
+
+      // Background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+
+      // Header Banner
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(0, 0, width, 130);
+
+      ctx.fillStyle = "#ffffff";
+      ctx.font = "bold 32px sans-serif";
+      ctx.fillText("HUDSON HOMES — FINAL ARCHITECTURAL MARKUP FLOORPLAN", 50, 58);
+
+      ctx.fillStyle = "#38bdf8";
+      ctx.font = "bold 20px sans-serif";
+      ctx.fillText(`${designName} · Ref: ${submissionNumber} · Active Structural Pin Schedule (${pins.length} Pins)`, 50, 96);
+
+      // Floorplan Image
+      const topOffset = 160;
+      const availableHeight = height - topOffset - 70;
+      const imgRatio = img.naturalWidth / img.naturalHeight;
+      let drawW = width - 120;
+      let drawH = drawW / imgRatio;
+
+      if (drawH > availableHeight) {
+        drawH = availableHeight;
+        drawW = drawH * imgRatio;
+      }
+
+      const drawX = (width - drawW) / 2;
+      const drawY = topOffset + (availableHeight - drawH) / 2;
+
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+      // Numbered Pins
+      pins.forEach((pin) => {
+        const pinX = drawX + (pin.x / 100) * drawW;
+        const pinY = drawY + (pin.y / 100) * drawH;
+        const radius = 24;
+
+        // Dark outer halo
+        ctx.beginPath();
+        ctx.arc(pinX, pinY, radius + 3, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.fill();
+
+        // Pin body
+        ctx.beginPath();
+        ctx.arc(pinX, pinY, radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#f59e0b";
+        ctx.fill();
+
+        // Pin number
+        ctx.fillStyle = "#020617";
+        ctx.font = "bold 22px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(pin.number), pinX, pinY + 1);
+      });
+
+      // Footer
+      ctx.fillStyle = "#64748b";
+      ctx.font = "16px sans-serif";
+      ctx.textAlign = "left";
+      ctx.fillText(
+        `Hudson Homes Pty Ltd · Final Tender Plan for Drafting & OnSite Submission · Generated ${new Date().toLocaleDateString("en-AU")}`,
+        50,
+        height - 25
+      );
+
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => resolve("");
+    img.src = floorplanUrl;
+  });
 }
 

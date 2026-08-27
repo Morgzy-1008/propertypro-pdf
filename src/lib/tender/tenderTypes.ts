@@ -180,9 +180,13 @@ export interface TenderSubmission {
     floorplanUrl?: string;
     originalFloorplanUrl?: string;
     facadeRenderUrl?: string;
+    isCustomFacade?: boolean;
+    customFacadeName?: string;
+    customFacadeRenderUrl?: string;
     sitingPlanDataUrl?: string;
     isModifiedFloorplan?: boolean;
     designM2?: number;
+    modifiedDesignM2?: number;
     floorplanPins: TenderFloorplanPin[];
     includeLandscapePackage?: boolean;
     landscapePackageCost?: number;

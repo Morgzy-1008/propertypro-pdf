@@ -2,7 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
-import { getTenderByIdAsync, saveTenderToIdb, decodeTenderFromRemoteLink } from "@/lib/tender/tenderStorage";
+import {
+  getTenderByIdAsync,
+  saveTenderToIdb,
+  decodeTenderFromRemoteLink,
+  generateCursiveSignatureDataUrl,
+} from "@/lib/tender/tenderStorage";
 import { supabase } from "@/integrations/supabase/client";
 import type { TenderSubmission } from "@/lib/tender/tenderTypes";
 import {
@@ -38,25 +43,6 @@ export const Route = createFileRoute("/tender-sign/$id")({
   component: RemoteTenderSignPage,
 });
 
-function generateCursiveSignatureDataUrl(name: string): string {
-  const canvas = document.createElement("canvas");
-  canvas.width = 600;
-  canvas.height = 180;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
-
-  ctx.fillStyle = "transparent";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = "#0369a1"; // deep elegant blue ink
-  ctx.font = "italic 46px 'Brush Script MT', 'Dancing Script', 'Caveat', cursive, serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(name.trim(), 300, 90);
-
-  return canvas.toDataURL("image/png");
-}
-
 function RemoteTenderSignPage() {
   const { id } = Route.useParams();
   const [tender, setTender] = useState<TenderSubmission | null>(null);
@@ -66,6 +52,7 @@ function RemoteTenderSignPage() {
   const [client1Name, setClient1Name] = useState("");
   const [client1Signed, setClient1Signed] = useState(false);
   const [client1Mode, setClient1Mode] = useState<"cursive" | "draw">("cursive");
+  const [client1Style, setClient1Style] = useState<1 | 2 | 3 | 4>(1);
   const [client1SigDataUrl, setClient1SigDataUrl] = useState<string>("");
   const canvas1Ref = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing1, setIsDrawing1] = useState(false);
@@ -75,6 +62,7 @@ function RemoteTenderSignPage() {
   const [client2Name, setClient2Name] = useState("");
   const [client2Signed, setClient2Signed] = useState(false);
   const [client2Mode, setClient2Mode] = useState<"cursive" | "draw">("cursive");
+  const [client2Style, setClient2Style] = useState<1 | 2 | 3 | 4>(1);
   const [client2SigDataUrl, setClient2SigDataUrl] = useState<string>("");
   const canvas2Ref = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing2, setIsDrawing2] = useState(false);
@@ -285,13 +273,13 @@ function RemoteTenderSignPage() {
 
     let finalSig = client1SigDataUrl;
     if (client1Mode === "cursive") {
-      finalSig = generateCursiveSignatureDataUrl(client1Name);
+      finalSig = generateCursiveSignatureDataUrl(client1Name, client1Style);
     } else if (client1Mode === "draw" && canvas1Ref.current && hasDrawn1) {
       finalSig = canvas1Ref.current.toDataURL("image/png");
     }
 
     if (!finalSig) {
-      finalSig = generateCursiveSignatureDataUrl(client1Name);
+      finalSig = generateCursiveSignatureDataUrl(client1Name, client1Style);
     }
 
     setClient1SigDataUrl(finalSig);
@@ -307,13 +295,13 @@ function RemoteTenderSignPage() {
 
     let finalSig = client2SigDataUrl;
     if (client2Mode === "cursive") {
-      finalSig = generateCursiveSignatureDataUrl(client2Name);
+      finalSig = generateCursiveSignatureDataUrl(client2Name, client2Style);
     } else if (client2Mode === "draw" && canvas2Ref.current && hasDrawn2) {
       finalSig = canvas2Ref.current.toDataURL("image/png");
     }
 
     if (!finalSig) {
-      finalSig = generateCursiveSignatureDataUrl(client2Name);
+      finalSig = generateCursiveSignatureDataUrl(client2Name, client2Style);
     }
 
     setClient2SigDataUrl(finalSig);
@@ -586,15 +574,128 @@ function RemoteTenderSignPage() {
                 />
               </div>
 
-              {/* Mode 1: Cursive Template Preview */}
+              {/* Mode 1: 4 Fancy Cursive Options */}
               {client1Mode === "cursive" ? (
                 <div className="space-y-3">
-                  <span className="text-[11px] text-slate-400 block">Live Cursive Signature Preview:</span>
-                  <div className="h-28 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-center p-4">
-                    <span className="text-3xl sm:text-4xl text-cyan-400 font-serif italic tracking-wide select-none drop-shadow">
-                      {client1Name.trim() || "Your Name in Cursive"}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-slate-400">Select your preferred legal cursive signature:</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">Style #{client1Style} Selected</span>
                   </div>
+
+                  {(() => {
+                    const c1Parts = (client1Name.trim() || "Hudson Client").split(/\s+/);
+                    const c1First = c1Parts[0] || "";
+                    const c1Last = c1Parts.slice(1).join(" ") || "";
+                    const c1Initial = c1Parts.length > 1 ? `${c1First[0]}. ${c1Last}` : c1First;
+
+                    return (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Style 1: Full Name - Elegant Script */}
+                        <button
+                          type="button"
+                          onClick={() => setClient1Style(1)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                            client1Style === 1
+                              ? "bg-slate-950 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                              : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                              1. Full Name Formal
+                            </span>
+                            {client1Style === 1 && (
+                              <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none" style={{ fontFamily: "'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif" }}>
+                            {client1Name || "Jordan Mitchell"}
+                          </div>
+                          <span className="text-[9px] text-slate-500">Classic calligraphy script</span>
+                        </button>
+
+                        {/* Style 2: Full Name - Flourish Script */}
+                        <button
+                          type="button"
+                          onClick={() => setClient1Style(2)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                            client1Style === 2
+                              ? "bg-slate-950 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                              : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                              2. Full Name Flourish
+                            </span>
+                            {client1Style === 2 && (
+                              <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none" style={{ fontFamily: "'Segoe Script', 'Parisienne', 'Alex Brush', cursive, sans-serif" }}>
+                            {client1Name || "Jordan Mitchell"}
+                          </div>
+                          <span className="text-[9px] text-slate-500">Flowing signature flourish</span>
+                        </button>
+
+                        {/* Style 3: Initial + Last Name - Executive Script */}
+                        <button
+                          type="button"
+                          onClick={() => setClient1Style(3)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                            client1Style === 3
+                              ? "bg-slate-950 border-amber-400 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400"
+                              : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                              3. Initial &amp; Last Name
+                            </span>
+                            {client1Style === 3 && (
+                              <span className="h-4 w-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-serif italic text-amber-300 py-1 select-none font-bold" style={{ fontFamily: "'Snell Roundhand', 'Brush Script MT', 'Dancing Script', cursive, serif" }}>
+                            {c1Initial || "J. Mitchell"}
+                          </div>
+                          <span className="text-[9px] text-slate-500">Executive initial calligraphy</span>
+                        </button>
+
+                        {/* Style 4: Initial + Last Name - Fluid Pen */}
+                        <button
+                          type="button"
+                          onClick={() => setClient1Style(4)}
+                          className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                            client1Style === 4
+                              ? "bg-slate-950 border-amber-400 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400"
+                              : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full">
+                            <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                              4. Initial &amp; Last Name Fluid
+                            </span>
+                            {client1Style === 4 && (
+                              <span className="h-4 w-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                ✓
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-2xl font-serif italic text-amber-300 py-1 select-none" style={{ fontFamily: "'Lucida Handwriting', 'Segoe Script', 'Great Vibes', cursive, sans-serif" }}>
+                            {c1Initial || "J. Mitchell"}
+                          </div>
+                          <span className="text-[9px] text-slate-500">Modern quick-pen script</span>
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : (
                 /* Mode 2: Draw Signature Canvas */
@@ -667,7 +768,7 @@ function RemoteTenderSignPage() {
                           : "text-slate-400 hover:text-white"
                       }`}
                     >
-                      <Type className="h-3 w-3" /> Cursive Font Template
+                      <Type className="h-3 w-3" /> 4 Fancy Cursive Options
                     </button>
                     <button
                       type="button"
@@ -694,15 +795,128 @@ function RemoteTenderSignPage() {
                   />
                 </div>
 
-                {/* Mode 1: Cursive Template Preview */}
+                {/* Mode 1: 4 Fancy Cursive Options */}
                 {client2Mode === "cursive" ? (
                   <div className="space-y-3">
-                    <span className="text-[11px] text-slate-400 block">Live Cursive Signature Preview:</span>
-                    <div className="h-28 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-center p-4">
-                      <span className="text-3xl sm:text-4xl text-cyan-400 font-serif italic tracking-wide select-none drop-shadow">
-                        {client2Name.trim() || "Your Name in Cursive"}
-                      </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">Select your preferred legal cursive signature:</span>
+                      <span className="text-[10px] text-cyan-400 font-mono">Style #{client2Style} Selected</span>
                     </div>
+
+                    {(() => {
+                      const c2Parts = (client2Name.trim() || "Hudson Client").split(/\s+/);
+                      const c2First = c2Parts[0] || "";
+                      const c2Last = c2Parts.slice(1).join(" ") || "";
+                      const c2Initial = c2Parts.length > 1 ? `${c2First[0]}. ${c2Last}` : c2First;
+
+                      return (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Style 1: Full Name - Elegant Script */}
+                          <button
+                            type="button"
+                            onClick={() => setClient2Style(1)}
+                            className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                              client2Style === 1
+                                ? "bg-slate-950 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                                : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                1. Full Name Formal
+                              </span>
+                              {client2Style === 1 && (
+                                <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none" style={{ fontFamily: "'Brush Script MT', 'Dancing Script', 'Great Vibes', cursive, serif" }}>
+                              {client2Name || "Sarah Mitchell"}
+                            </div>
+                            <span className="text-[9px] text-slate-500">Classic calligraphy script</span>
+                          </button>
+
+                          {/* Style 2: Full Name - Flourish Script */}
+                          <button
+                            type="button"
+                            onClick={() => setClient2Style(2)}
+                            className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                              client2Style === 2
+                                ? "bg-slate-950 border-cyan-400 shadow-lg shadow-cyan-500/10 ring-1 ring-cyan-400"
+                                : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                                2. Full Name Flourish
+                              </span>
+                              {client2Style === 2 && (
+                                <span className="h-4 w-4 rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-2xl font-serif italic text-cyan-300 py-1 select-none" style={{ fontFamily: "'Segoe Script', 'Parisienne', 'Alex Brush', cursive, sans-serif" }}>
+                              {client2Name || "Sarah Mitchell"}
+                            </div>
+                            <span className="text-[9px] text-slate-500">Flowing signature flourish</span>
+                          </button>
+
+                          {/* Style 3: Initial + Last Name - Executive Script */}
+                          <button
+                            type="button"
+                            onClick={() => setClient2Style(3)}
+                            className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                              client2Style === 3
+                                ? "bg-slate-950 border-amber-400 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400"
+                                : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                                3. Initial &amp; Last Name
+                              </span>
+                              {client2Style === 3 && (
+                                <span className="h-4 w-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-2xl font-serif italic text-amber-300 py-1 select-none font-bold" style={{ fontFamily: "'Snell Roundhand', 'Brush Script MT', 'Dancing Script', cursive, serif" }}>
+                              {c2Initial || "S. Mitchell"}
+                            </div>
+                            <span className="text-[9px] text-slate-500">Executive initial calligraphy</span>
+                          </button>
+
+                          {/* Style 4: Initial + Last Name - Fluid Pen */}
+                          <button
+                            type="button"
+                            onClick={() => setClient2Style(4)}
+                            className={`p-3.5 rounded-2xl border text-left transition-all relative overflow-hidden flex flex-col justify-between h-28 ${
+                              client2Style === 4
+                                ? "bg-slate-950 border-amber-400 shadow-lg shadow-amber-500/10 ring-1 ring-amber-400"
+                                : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="text-[10px] uppercase font-bold text-amber-400 tracking-wider">
+                                4. Initial &amp; Last Name Fluid
+                              </span>
+                              {client2Style === 4 && (
+                                <span className="h-4 w-4 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-[10px] font-black">
+                                  ✓
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-2xl font-serif italic text-amber-300 py-1 select-none" style={{ fontFamily: "'Lucida Handwriting', 'Segoe Script', 'Great Vibes', cursive, sans-serif" }}>
+                              {c2Initial || "S. Mitchell"}
+                            </div>
+                            <span className="text-[9px] text-slate-500">Modern quick-pen script</span>
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ) : (
                   /* Mode 2: Draw Signature Canvas */

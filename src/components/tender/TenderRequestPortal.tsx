@@ -80,6 +80,7 @@ import {
   calculateLandscapePackageCost,
   STANDARD_DOCUMENT_SLOTS,
   encodeTenderForRemoteLink,
+  renderHdFinalFloorplanDataUrl,
 } from "@/lib/tender/tenderStorage";
 import { supabase } from "@/integrations/supabase/client";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
@@ -96,6 +97,10 @@ export function TenderRequestPortal() {
   const [isImportQuoteOpen, setIsImportQuoteOpen] = useState(false);
   const [isSavedTendersOpen, setIsSavedTendersOpen] = useState(false);
   const [isShareRemoteOpen, setIsShareRemoteOpen] = useState(false);
+  const [isCustomFacadeOpen, setIsCustomFacadeOpen] = useState(false);
+  const [customFacadeNameInput, setCustomFacadeNameInput] = useState("");
+  const [customFacadePriceInput, setCustomFacadePriceInput] = useState<number | "">("");
+  const [customFacadePreviewUrl, setCustomFacadePreviewUrl] = useState<string>("");
   const [activeTab, setActiveTab] = useState<SectionTab>("client_job");
   const [saving, setSaving] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
@@ -336,6 +341,102 @@ export function TenderRequestPortal() {
     }
   };
 
+  const autoGenerateFinalFloorplan = async (
+    floorplanUrl?: string,
+    pins: TenderFloorplanPin[] = [],
+    designName?: string
+  ) => {
+    const urlToRender = floorplanUrl || tender.homeSpec.floorplanUrl;
+    if (!urlToRender) return;
+
+    try {
+      const hdDataUrl = await renderHdFinalFloorplanDataUrl(
+        urlToRender,
+        pins,
+        designName || tender.homeSpec.homeDesign || "Home Design",
+        tender.submissionNumber
+      );
+
+      if (hdDataUrl) {
+        updateTender({
+          documents: {
+            ...tender.documents,
+            final_floorplan: {
+              id: "final_floorplan",
+              label: "Final Floorplan — HD Architectural Markup with Numbered Pins",
+              fileName: "Final_Floorplan.png",
+              fileDataUrl: hdDataUrl,
+              fileType: "image/png",
+              category: "land_siting",
+              required: false,
+            },
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("Auto-generating HD Final Floorplan:", e);
+    }
+  };
+
+  const handleCustomFacadeFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        const extracted = await pdfDocumentToPagesAndText(file, 1);
+        if (extracted.pages && extracted.pages[0]) {
+          setCustomFacadePreviewUrl(extracted.pages[0]);
+          toast.success("Extracted custom facade drawing from PDF!");
+          return;
+        }
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setCustomFacadePreviewUrl(reader.result as string);
+        toast.success("Loaded custom facade render!");
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load custom facade render");
+    }
+    e.target.value = "";
+  };
+
+  const handleCustomFacadeSave = () => {
+    if (!customFacadeNameInput.trim()) {
+      toast.error("Please enter a custom facade name / title");
+      return;
+    }
+    const cost = typeof customFacadePriceInput === "number" ? customFacadePriceInput : 0;
+    const renderUrl = customFacadePreviewUrl || tender.homeSpec.facadeRenderUrl;
+
+    updateTender({
+      homeSpec: {
+        ...tender.homeSpec,
+        facade: customFacadeNameInput.trim(),
+        facadeCost: cost,
+        facadeRenderUrl: renderUrl,
+        isCustomFacade: true,
+        customFacadeName: customFacadeNameInput.trim(),
+        customFacadeRenderUrl: renderUrl,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          cost +
+          tender.homeSpec.structuralVariationsCost +
+          tender.homeSpec.internalUpgradesCost +
+          tender.homeSpec.additionalSiteCost +
+          (tender.homeSpec.includeLandscapePackage ? tender.homeSpec.landscapePackageCost || 0 : 0) -
+          tender.homeSpec.promotionDiscountCost,
+      },
+    });
+
+    setIsCustomFacadeOpen(false);
+    toast.success(`Applied Custom Architectural Facade: "${customFacadeNameInput.trim()}"!`);
+  };
+
   const handleAddStructuralVariation = (pin: TenderFloorplanPin, customTitle?: string, customCost?: number) => {
     const newVar: TenderNumberedVariation = {
       id: pin.id,
@@ -346,7 +447,9 @@ export function TenderRequestPortal() {
       isStructural: true,
     };
     const updated = [...tender.variations, newVar];
-    recalculateTenderPricing(updated, [...tender.homeSpec.floorplanPins, pin]);
+    const newPins = [...tender.homeSpec.floorplanPins, pin];
+    recalculateTenderPricing(updated, newPins);
+    autoGenerateFinalFloorplan(tender.homeSpec.floorplanUrl, newPins, tender.homeSpec.homeDesign);
   };
 
   const handleAssignExistingVariationToPin = (varId: string, pinCoord: { x: number; y: number }) => {
@@ -1501,15 +1604,40 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </div>
 
                 <div>
-                  <Label className="text-[11px] text-slate-300">Architectural Facade</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] text-slate-300">Architectural Facade</Label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomFacadeNameInput(tender.homeSpec.customFacadeName || tender.homeSpec.facade || "");
+                        setCustomFacadePriceInput(tender.homeSpec.facadeCost || "");
+                        setCustomFacadePreviewUrl(tender.homeSpec.facadeRenderUrl || "");
+                        setIsCustomFacadeOpen(true);
+                      }}
+                      className="text-[10px] text-amber-400 hover:text-amber-300 font-bold underline flex items-center gap-0.5"
+                    >
+                      <Upload className="h-2.5 w-2.5" /> Upload Custom / Inspo
+                    </button>
+                  </div>
                   <Select
-                    value={tender.homeSpec.facade}
-                    onValueChange={handleFacadeChange}
+                    value={tender.homeSpec.isCustomFacade ? "custom_facade_active" : tender.homeSpec.facade}
+                    onValueChange={(val) => {
+                      if (val === "custom_facade_active") {
+                        setIsCustomFacadeOpen(true);
+                      } else {
+                        handleFacadeChange(val);
+                      }
+                    }}
                   >
                     <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-slate-100">
                       <SelectValue placeholder="Choose Facade" />
                     </SelectTrigger>
                     <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                      {tender.homeSpec.isCustomFacade && (
+                        <SelectItem value="custom_facade_active" className="text-amber-300 font-bold">
+                          ★ {tender.homeSpec.facade} (Custom Inspo Upload)
+                        </SelectItem>
+                      )}
                       {availableFacades.map((f) => (
                         <SelectItem key={f.name} value={f.name}>
                           {f.name} {f.uplift > 0 ? `(+${formatAud(f.uplift)})` : "(Standard)"}
@@ -1584,24 +1712,26 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               designName={tender.homeSpec.homeDesign}
               pins={tender.homeSpec.floorplanPins}
               variations={tender.variations}
-              onUpdatePins={(pins) =>
-                updateTender({ homeSpec: { ...tender.homeSpec, floorplanPins: pins } })
-              }
-              onUploadCustomPlan={(dataUrl) =>
+              onUpdatePins={(pins) => {
+                updateTender({ homeSpec: { ...tender.homeSpec, floorplanPins: pins } });
+                autoGenerateFinalFloorplan(tender.homeSpec.floorplanUrl, pins, tender.homeSpec.homeDesign);
+              }}
+              onUploadCustomPlan={(dataUrl) => {
                 updateTender({
                   homeSpec: {
                     ...tender.homeSpec,
                     floorplanUrl: dataUrl,
                     isModifiedFloorplan: true,
                   },
-                })
-              }
+                });
+                autoGenerateFinalFloorplan(dataUrl, tender.homeSpec.floorplanPins, tender.homeSpec.homeDesign);
+              }}
               onAddStructuralVariation={handleAddStructuralVariation}
               onAssignExistingVariationToPin={handleAssignExistingVariationToPin}
               onRemoveStructuralVariation={handleRemoveStructuralVariation}
             />
 
-            {/* 2 VARIATION COLUMNS (NO SCROLLBARS - FULL PAGE FLOW) */}
+            {/* 2 VARIATION COLUMNS (DRAFTING SPECIFICATIONS - NO PRICE CLUTTER) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* COLUMN A: NUMBERED STRUCTURAL VARIATIONS */}
               <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-amber-500/40">
@@ -1611,7 +1741,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                       <Layers className="h-4 w-4" /> A. Numbered Structural Variations ({structuralItems.length})
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      Assigned # &bull; Pinned onto the architectural floorplan above
+                      Assigned # &bull; Pinned onto the architectural floorplan above (Drafting Instructions)
                     </span>
                   </div>
                   <Button
@@ -1633,7 +1763,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     structuralItems.map((v) => (
                       <div
                         key={v.id}
-                        className="p-3 rounded-lg border border-slate-800 bg-slate-900 space-y-2.5 shadow-sm"
+                        className="p-3 rounded-lg border border-slate-800 bg-slate-900 space-y-2 shadow-sm"
                       >
                         <div className="flex items-start gap-2.5">
                           <span className="h-7 w-7 rounded-full bg-amber-500 text-slate-950 font-mono font-black text-xs flex items-center justify-center flex-none mt-0.5">
@@ -1644,17 +1774,8 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                               rows={2}
                               value={v.description}
                               onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
-                              placeholder="Full structural variation title (e.g. Extend Alfresco by 1200mm with concrete slab)"
+                              placeholder="Full structural modification instructions for drafting team (e.g. Extend Outdoor Living Alfresco by 1200mm with concrete slab)"
                               className="w-full border-slate-800 bg-slate-950 text-xs font-medium text-slate-100 resize-y min-h-[44px]"
-                            />
-                          </div>
-                          <div className="w-28 relative flex-none">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
-                            <Input
-                              type="number"
-                              value={v.cost || ""}
-                              onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
-                              className="h-10 pl-6 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-right"
                             />
                           </div>
                           <button
@@ -1667,7 +1788,10 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         </div>
 
                         {/* Mover Badge to Column B */}
-                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-800/60 text-[10.5px]">
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/60 text-[10.5px]">
+                          <span className="text-[10px] text-amber-400/80 font-mono">
+                            Drafting Pin #{v.itemNumber} Active
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleMoveVariationCategory(v.id, false)}
@@ -1690,7 +1814,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                       <Sparkles className="h-4 w-4" /> B. All Other Variations &amp; Allowances ({allOtherItems.length})
                     </span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      Unnumbered &bull; Full titles &bull; Inclusions, upgrades, site &amp; statutory allowances
+                      Unnumbered &bull; Inclusions, upgrades, site &amp; statutory specifications for drafting
                     </span>
                   </div>
                   <Button
@@ -1706,13 +1830,13 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 <div className="space-y-3">
                   {allOtherItems.length === 0 ? (
                     <div className="text-center py-10 text-slate-500 text-xs border border-dashed border-slate-800 rounded-lg">
-                      No general variations selected. Click &ldquo;Add Variation&rdquo; or auto-fill from an estimate.
+                      No general variations. Click &ldquo;Add Variation&rdquo; to add specification notes for draftsmen.
                     </div>
                   ) : (
                     allOtherItems.map((v) => (
                       <div
                         key={v.id}
-                        className="p-3 rounded-lg border border-slate-800 bg-slate-900 space-y-2.5 shadow-sm"
+                        className="p-3 rounded-lg border border-slate-800 bg-slate-900 space-y-2 shadow-sm"
                       >
                         <div className="flex items-start gap-2.5">
                           <div className="flex-1 space-y-1">
@@ -1720,17 +1844,8 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                               rows={2}
                               value={v.description}
                               onChange={(e) => handleUpdateVariation(v.id, { description: e.target.value })}
-                              placeholder="Full variation / inclusion title (e.g. 40mm Smartstone Kitchen Island with waterfall ends)"
+                              placeholder="Full variation specification for drafting (e.g. Provide 20mm Smartstone vanity to Ensuite)"
                               className="w-full border-slate-800 bg-slate-950 text-xs text-slate-100 resize-y min-h-[44px]"
-                            />
-                          </div>
-                          <div className="w-28 relative flex-none">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
-                            <Input
-                              type="number"
-                              value={v.cost || ""}
-                              onChange={(e) => handleUpdateVariation(v.id, { cost: Number(e.target.value) || 0 })}
-                              className="h-10 pl-6 border-slate-800 bg-slate-950 text-xs font-mono font-bold text-right"
                             />
                           </div>
                           <button
@@ -2392,6 +2507,110 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 <Mail className="h-3.5 w-3.5" /> Email Client
               </a>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Custom Facade Render / Inspo Upload Dialog */}
+      <Dialog open={isCustomFacadeOpen} onOpenChange={setIsCustomFacadeOpen}>
+        <DialogContent className="max-w-lg border-slate-800 bg-slate-950 text-slate-100 p-6 rounded-2xl shadow-2xl space-y-4">
+          <DialogHeader className="pb-2 border-b border-slate-800">
+            <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
+              <Upload className="h-4 w-4 text-amber-400" />
+              Upload Custom Architectural Facade / Inspo
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-xs text-slate-400">
+            Upload custom client facade render, elevation drawing or architectural inspiration image with custom pricing.
+          </p>
+
+          <div className="space-y-4 pt-1">
+            {/* File Upload input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Custom Facade Render / Drawing (Image or PDF) *</Label>
+              <div className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 rounded-xl p-4 bg-slate-900/60 text-center space-y-2">
+                {customFacadePreviewUrl ? (
+                  <div className="space-y-2">
+                    <img
+                      src={customFacadePreviewUrl}
+                      alt="Custom Facade Preview"
+                      className="max-h-40 mx-auto rounded-lg border border-slate-800 object-contain"
+                    />
+                    <label className="inline-block px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg cursor-pointer font-semibold">
+                      Change File
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={handleCustomFacadeFileUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="block cursor-pointer py-4 space-y-2">
+                    <Upload className="h-8 w-8 text-amber-400 mx-auto" />
+                    <span className="text-xs text-slate-300 block font-medium">Click to upload Render Image (PNG/JPG) or PDF Elevation</span>
+                    <span className="text-[10.5px] text-slate-500 block">Renders directly on Master PDF Page 2</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      onChange={handleCustomFacadeFileUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+
+            {/* Facade Title Input */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Custom Facade Title *</Label>
+              <Input
+                value={customFacadeNameInput}
+                onChange={(e) => setCustomFacadeNameInput(e.target.value)}
+                placeholder="e.g. Modern Hampton Coastal Custom Facade"
+                className="border-slate-800 bg-slate-900 text-xs text-slate-100 font-semibold"
+              />
+            </div>
+
+            {/* Custom Facade Uplift / Price */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-slate-300">Custom Facade Uplift / Price ($ Inc. GST)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">$</span>
+                <Input
+                  type="number"
+                  value={customFacadePriceInput}
+                  onChange={(e) => setCustomFacadePriceInput(Number(e.target.value) || "")}
+                  placeholder="0 (or as specified in estimate)"
+                  className="pl-7 border-slate-800 bg-slate-900 text-xs font-mono font-bold text-amber-400"
+                />
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Pre-filled from estimate if uploaded, or enter custom builder pricing.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-slate-800 flex items-center justify-between">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCustomFacadeOpen(false)}
+              className="text-xs text-slate-400"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleCustomFacadeSave}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs gap-1.5 shadow-md shadow-amber-500/20"
+            >
+              <Check className="h-3.5 w-3.5" /> Apply Custom Facade
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
