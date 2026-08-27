@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
 import { getTenderByIdAsync, saveTenderToIdb, decodeTenderFromRemoteLink } from "@/lib/tender/tenderStorage";
+import { supabase } from "@/integrations/supabase/client";
 import type { TenderSubmission } from "@/lib/tender/tenderTypes";
 import {
   ShieldCheck,
@@ -379,6 +380,27 @@ function RemoteTenderSignPage() {
       bc.postMessage({ type: "ATP_SIGNED", tender: updated });
       bc.close();
     } catch {}
+
+    // Global cross-device real-time sync via Supabase Realtime Broadcast
+    try {
+      const liveChannel = supabase.channel(`tender_sync_${tender.submissionNumber}`);
+      liveChannel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          liveChannel.send({
+            type: "broadcast",
+            event: "atp_signed",
+            payload: {
+              submissionNumber: tender.submissionNumber,
+              tenderId: tender.id,
+              atp: updated.atp,
+              status: "client_signed",
+            },
+          });
+        }
+      });
+    } catch (e) {
+      console.warn("Supabase broadcast error:", e);
+    }
 
     setTender(updated);
     setSubmitted(true);

@@ -81,6 +81,7 @@ import {
   STANDARD_DOCUMENT_SLOTS,
   encodeTenderForRemoteLink,
 } from "@/lib/tender/tenderStorage";
+import { supabase } from "@/integrations/supabase/client";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
 import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
@@ -129,7 +130,36 @@ export function TenderRequestPortal() {
       if (tenders && tenders.length > 0) setSavedTenders(tenders);
     });
 
-    // 1. BroadcastChannel for instant cross-tab live sync
+    // 1. Supabase Realtime channel for global multi-device cross-network live sync
+    const liveChannel = supabase.channel(`tender_sync_${tender.submissionNumber}`);
+    liveChannel
+      .on("broadcast", { event: "atp_signed" }, (msg) => {
+        if (msg.payload && msg.payload.atp) {
+          setTender((prev) => {
+            const updated: TenderSubmission = {
+              ...prev,
+              status: "client_signed",
+              atp: {
+                ...prev.atp,
+                ...msg.payload.atp,
+              },
+            };
+            saveTenderToIdb(updated).catch(() => {});
+            try {
+              localStorage.setItem(`hudson_tender_${updated.id}`, JSON.stringify(updated));
+              localStorage.setItem(`hudson_tender_${updated.submissionNumber}`, JSON.stringify(updated));
+              localStorage.setItem("hudson_current_tender_draft", JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+          toast.success(
+            `Client ${msg.payload.atp.client1Name || "Purchaser"} signed Authority to Proceed! Signatures synced live into portal & Master PDF.`
+          );
+        }
+      })
+      .subscribe();
+
+    // 2. BroadcastChannel for instant cross-tab live sync
     let bc: BroadcastChannel | null = null;
     try {
       bc = new BroadcastChannel("hudson_tender_sync");
@@ -142,7 +172,7 @@ export function TenderRequestPortal() {
       };
     } catch {}
 
-    // 2. Storage event listener for cross-window sync
+    // 3. Storage event listener for cross-window sync
     const handleStorage = (e: StorageEvent) => {
       if (e.key === "hudson_latest_remote_signature" && e.newValue) {
         try {
@@ -158,7 +188,7 @@ export function TenderRequestPortal() {
     };
     window.addEventListener("storage", handleStorage);
 
-    // 3. Fast polling backup
+    // 4. Fast polling backup
     const interval = setInterval(() => {
       try {
         const rawSig = localStorage.getItem("hudson_latest_remote_signature");
@@ -177,6 +207,7 @@ export function TenderRequestPortal() {
     }, 1200);
 
     return () => {
+      liveChannel.unsubscribe();
       if (bc) bc.close();
       window.removeEventListener("storage", handleStorage);
       clearInterval(interval);
@@ -674,6 +705,22 @@ export function TenderRequestPortal() {
     toast.success("Remote Client Signing Link copied to clipboard!");
   };
 
+  const handleCopyAtpSms = () => {
+    const clientNames = tender.hasCustomer2 && tender.customer2.firstName
+      ? `${tender.customer1.firstName} & ${tender.customer2.firstName}`
+      : (tender.customer1.firstName || "there");
+
+    const atpSmsText = `Hey ${clientNames}
+
+Please see below link to sign our Authority to Proceed form:
+${remoteSigningUrl}
+
+Let me know if you have issues`;
+
+    navigator.clipboard.writeText(atpSmsText);
+    toast.success("Copied ATP SMS text to clipboard! Feel free to customise this message as you see fit.");
+  };
+
   const handleCopyOnsiteSummary = () => {
     const summary = `HUDSON HOMES ONSITE JOB CREATION
 Submission Ref: ${tender.submissionNumber}
@@ -1155,7 +1202,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 <span className="text-xs font-bold uppercase text-amber-400 block border-b border-amber-800/60 pb-1.5">
                   Knock-Down Rebuild (KDRB) Occupancy &amp; Site Access
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-[11px] text-slate-300">Property Occupancy Status *</Label>
                     <Select
@@ -1173,6 +1220,19 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         <SelectItem value="Tenanted">Tenanted Property</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div>
+                    <Label className="text-[11px] text-slate-300 flex items-center justify-between">
+                      <span>Site Access / Demolition Issues *</span>
+                      <span className="text-[10px] text-amber-400">Power poles, slope, overhead wires, fences</span>
+                    </Label>
+                    <Input
+                      value={tender.land.comments || ""}
+                      onChange={(e) => updateTender({ land: { ...tender.land, comments: e.target.value } })}
+                      placeholder="e.g. Narrow side access, power pole near driveway, overhead wires, steep slope, demolition by client"
+                      className="border-slate-800 bg-slate-900 text-xs font-medium text-amber-300"
+                    />
                   </div>
                 </div>
 
@@ -1757,7 +1817,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 flex-none">
+              <div className="flex flex-wrap items-center gap-2 flex-none">
                 <Button
                   type="button"
                   size="sm"
@@ -1765,6 +1825,15 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-sm"
                 >
                   <Copy className="h-3.5 w-3.5" /> Copy Remote Link
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleCopyAtpSms}
+                  className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs gap-1.5 shadow-sm"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" /> Copy ATP SMS to Client
                 </Button>
 
                 <Button
@@ -2278,7 +2347,29 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 pt-2">
+            {/* Automated SMS Section */}
+            <div className="p-3 rounded-xl bg-slate-900 border border-sky-500/40 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase text-sky-400 flex items-center gap-1.5">
+                  <MessageSquare className="h-3.5 w-3.5" /> Automated Client SMS
+                </span>
+                <Button
+                  size="sm"
+                  onClick={handleCopyAtpSms}
+                  className="bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs h-7 px-2.5 gap-1"
+                >
+                  <Copy className="h-3 w-3" /> Copy SMS Text
+                </Button>
+              </div>
+              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-slate-300 font-sans text-xs whitespace-pre-line leading-relaxed">
+                {`Hey ${tender.hasCustomer2 && tender.customer2.firstName ? `${tender.customer1.firstName} & ${tender.customer2.firstName}` : (tender.customer1.firstName || "there")}\n\nPlease see below link to sign our Authority to Proceed form:\n${remoteSigningUrl}\n\nLet me know if you have issues`}
+              </div>
+              <p className="text-[10.5px] text-slate-400 italic">
+                Feel free to customise this message as you see fit.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 pt-1">
               <a
                 href={`https://wa.me/?text=${encodeURIComponent(
                   `Hi ${tender.customer1.firstName || "there"}, here is your Hudson Homes Authority to Proceed signing link for Lot ${tender.land.lotNo || "TBA"}, ${tender.land.suburb || ""}: ${remoteSigningUrl}`
