@@ -881,16 +881,23 @@ export function ModifiedFloorplanModal({
         )}
 
         {/* Instructions & Mouse Controls Bar */}
-        <div className="p-2 rounded-xl bg-cyan-950/30 border border-cyan-800/40 text-xs text-cyan-200 flex items-center justify-between gap-2.5 flex-none mt-2">
+        <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-200 flex flex-wrap items-center justify-between gap-2.5 flex-none mt-2">
           <div className="flex items-center gap-2">
-            <Info className="h-4 w-4 text-cyan-400 flex-none" />
-            <span className="text-[11px] text-cyan-200">
-              Click perimeter points around the floorplan. Click the <strong className="text-amber-400">Amber 1st Point</strong> to seal. Right-click to undo a vertex.
+            <Button
+              size="sm"
+              type="button"
+              onClick={handleAutoCrop}
+              className="h-7 text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold gap-1 shadow-sm"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> ⚡ Auto Crop
+            </Button>
+            <span className="text-[11px] text-slate-300">
+              Press <strong>Auto Crop</strong> to snap to floorplan bounds, or click boundary points manually.
             </span>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-400 bg-slate-900/90 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
+          <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 font-mono">
             <MousePointer className="h-3 w-3 text-cyan-400" />
-            <span>Scroll Mouse Wheel to Zoom &bull; Scroll to Pan</span>
+            <span>Wheel to Zoom &bull; Drag / Scroll to Pan</span>
           </div>
         </div>
 
@@ -965,6 +972,16 @@ export function ModifiedFloorplanModal({
 
               {/* Point Status Badge & Actions */}
               <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  type="button"
+                  onClick={handleAutoCrop}
+                  className="h-7 text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold gap-1 shadow-md shadow-amber-500/20"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>⚡ Auto Crop Floorplan</span>
+                </Button>
+
                 <span className="text-[11px] bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-md text-slate-300 font-mono">
                   Points: <strong>{activePoints.length}</strong> {isClosed ? "(Closed ✓)" : "(In Progress)"}
                 </span>

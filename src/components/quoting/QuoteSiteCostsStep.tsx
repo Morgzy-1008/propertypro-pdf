@@ -390,9 +390,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 <span className="font-bold text-xs text-white">32 MPa Concrete Slab Upgrade</span>
                 {site.concrete32MpaRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
               </div>
-              <p className="text-[11px] text-slate-400">
-                High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground ($14/m² × {gfaM2} m²).
-              </p>
+              
             </div>
             <div className="text-right flex-none">
               <span className="font-bold text-xs text-emerald-400 font-mono block">
@@ -415,9 +413,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 <span className="font-bold text-xs text-white">Flexible Service Connections</span>
                 {site.flexibleConnectionsRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
               </div>
-              <p className="text-[11px] text-slate-400">
-                Heavy-duty flexible articulation joints for plumbing and drainage to accommodate movement in reactive soils.
-              </p>
+              
             </div>
             <div className="text-right flex-none">
               <span className="font-bold text-xs text-emerald-400 font-mono block">
@@ -542,9 +538,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 <span className="font-bold text-xs text-white">Bushfire Hazard Assessment Report</span>
                 {site.bushfireReportRequired && <Check className="h-3.5 w-3.5 text-amber-400" />}
               </div>
-              <p className="text-[10px] text-slate-400">
-                Certified site BAL assessment report, property vegetation categorization, and bushfire management statement.
-              </p>
+              
             </div>
             <span className="font-bold text-xs text-amber-400 font-mono text-right pt-2 block">
               +{formatAud(site.bushfireReportCost ?? 850)}
@@ -563,9 +557,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                   {currentBalCost === 0 ? "($0)" : `+${formatAud(currentBalCost)}`}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">
-                Aluminium ember mesh, toughened glazing, and fire-rated perimeter seals.
-              </p>
+              
             </div>
             <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
               <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8.5">

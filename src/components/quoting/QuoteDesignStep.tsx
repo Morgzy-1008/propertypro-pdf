@@ -778,9 +778,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                         {design.isModifiedFloorplan ? `${design.designName} Modified` : "Personalized Area Sizing"}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Personalize individual room, garage, alfresco, and porch dimensions. Rates automate per Hudson schedule with 80% credit on reductions.
-                    </p>
+                    
                   </div>
                 </div>
 
@@ -1289,9 +1287,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Attached floorplan for the 2nd dwelling will be generated as a dedicated architectural page in the Builders Estimate PDF.
-                        </p>
+                        
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -1373,7 +1369,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-white flex items-center gap-1.5">
                       <Trees className="h-4 w-4 text-emerald-400" />
-                      Complete Turnkey Landscaping Package
+                      Landscaping Package
                     </span>
                     {design.landscapingSelected ? (
                       <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
@@ -1385,9 +1381,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Includes Turf &amp; Garden Beds, Treated Timber Perimeter Fencing &amp; Return Gate, Exposed Aggregate Concrete Driveway &amp; Path, Clothesline, and Rendered Letterbox.
-                  </p>
+                  
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
@@ -1469,9 +1463,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400">
-                    Exposed aggregate concrete paving from road crossover to double garage and front entry porch ($230/m² × {design.exposedDrivewayM2 || 55} m²).
-                  </p>
+                  
                 </div>
 
                 <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-3">
@@ -1761,11 +1753,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 </span>
               )}
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              {design.isModifiedFloorplan
-                ? "A custom/modified floorplan has been uploaded and cropped for this estimate. It will only be saved with this client's quote."
-                : "Standard Hudson architectural floorplan layout. If you have made custom revisions, click 'Update with Modified Design' to crop and attach."}
-            </p>
+            
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1823,6 +1811,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
         onClose={() => setIsCropperOpen(false)}
         isDoubleStorey={isDouble}
         designName={design.designName || (design.mode === "custom_floorplan" ? "Custom Floorplan" : undefined)}
+        initialImageUrl={activeFloorplanUrl || undefined}
         onSave={(croppedDataUrl) => {
           onChange({
             floorplanUrl: croppedDataUrl,
