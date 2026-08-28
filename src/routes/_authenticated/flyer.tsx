@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, FileText, BookOpen, Database, Save, Home } from "lucide-react";
+import { Download, FileText, BookOpen, Database, Save, Home, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useTheme } from "@/lib/theme";
 import { supabase } from "@/integrations/supabase/client";
 const logoUrl = "/hudson-homes-logo.png";
 import { FlyerForm } from "@/components/flyer/FlyerForm";
@@ -13,6 +15,7 @@ import {
   ShowcaseDetails,
   HudsonMark,
 } from "@/components/flyer/FlyerTemplates";
+import { SitingPlanPage } from "@/components/flyer/SitingPlanPage";
 import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flyer/types";
 import { useFitScale } from "@/components/flyer/useFitScale";
 import { parseAud } from "@/lib/pricing";
@@ -47,6 +50,7 @@ function Index() {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const { ref, scale } = useFitScale(A4_WIDTH_PX);
+  const { mode } = useTheme();
   const navigate = useNavigate();
 
   const set = useCallback(
@@ -169,6 +173,11 @@ function Index() {
       <ExpressFlyer d={data} />
     ) : template === "house-only" ? (
       <HouseOnlyFlyer d={data} />
+    ) : template === "siting" ? (
+      <>
+        <ExpressFlyer d={data} />
+        <SitingPlanPage d={data} set={set} />
+      </>
     ) : (
       <>
         <ShowcaseCover d={data} />
@@ -208,7 +217,7 @@ function Index() {
 
   return (
     <>
-      <div className="min-h-screen bg-slate-950 text-slate-100 print:hidden relative overflow-hidden flex flex-col font-sans selection:bg-brand-gold/30">
+      <div className={`min-h-screen ${mode === "normal" ? "bg-slate-100 text-slate-900" : "bg-slate-950 text-slate-100"} print:hidden relative overflow-hidden flex flex-col font-sans selection:bg-brand-gold/30`}>
         {/* Ambient Gradient Lights */}
         <div className="ambient-glow-gold h-96 w-96 -top-20 right-10" />
         <div className="ambient-glow-cyan h-96 w-96 top-96 -left-20" />
@@ -216,7 +225,7 @@ function Index() {
         <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 px-6 py-2.5">
             <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
-              <HudsonMark light className="h-8 w-auto text-brand-gold" />
+              <HudsonMark className="h-8 w-auto text-brand-gold" />
               <div className="leading-tight border-l border-slate-800 pl-3">
                 <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
                   Package Studio
@@ -247,6 +256,17 @@ function Index() {
                   1-Page Express
                 </button>
                 <button
+                  onClick={() => setTemplate("siting")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                    template === "siting"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  2-Page + Siting
+                </button>
+                <button
                   onClick={() => setTemplate("showcase")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "showcase"
@@ -269,6 +289,8 @@ function Index() {
                   House Only
                 </button>
               </div>
+
+              <ThemeToggle />
 
               <Link to="/database">
                 <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
@@ -302,7 +324,7 @@ function Index() {
 
         <main className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-[380px_1fr] relative z-10 flex-1">
           <aside className="h-fit rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-5 shadow-2xl lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto text-slate-200">
-            <FlyerForm data={data} set={set} />
+            <FlyerForm data={data} set={set} template={template} />
           </aside>
 
           <section ref={ref} className="min-w-0 flex justify-center lg:justify-start">
@@ -311,7 +333,7 @@ function Index() {
               style={{
                 transform: `scale(${scale})`,
                 transformOrigin: "top left",
-                height: (template === "showcase" ? 1123 * 2 + 24 : 1123) * scale,
+                height: (template === "showcase" || template === "siting" ? 1123 * 2 + 24 : 1123) * scale,
               }}
             >
               <div className="flyer-preview-container flex flex-col gap-6 [&>.flyer-page]:shadow-[0_24px_60px_-18px_rgba(0,0,0,0.6)] [&>.flyer-page]:rounded-sm">

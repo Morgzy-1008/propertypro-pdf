@@ -187,13 +187,13 @@ export async function preframeFacadeImage(
       housingType === "Double";
 
     // Calibrated safe headroom & ground geometry:
-    // Ensure roof apex is strictly 8mm (91px) to 10mm (114px) below top canvas edge
-    const targetRoofApexY = Math.round((isDouble ? 8.0 : 7.0) * pxPerMm);
-    const targetHouseBaseY = outH - Math.round((isDouble ? 8.0 : 6.0) * pxPerMm);
+    // Maximize house scale: 2.5mm top margin and 3.0mm bottom margin
+    const targetRoofApexY = Math.round(2.5 * pxPerMm);
+    const targetHouseBaseY = outH - Math.round(3.0 * pxPerMm);
     const targetHouseH = targetHouseBaseY - targetRoofApexY;
 
     let scale = targetHouseH / houseH;
-    const maxAllowedW = isDouble ? 2100 : 2200;
+    const maxAllowedW = 2320;
     if (houseW * scale > maxAllowedW) {
       scale = maxAllowedW / houseW;
     }
@@ -202,8 +202,8 @@ export async function preframeFacadeImage(
     const drawH = Math.round(srcH * scale);
     let drawY = Math.round(targetRoofApexY - (roofY * scale));
 
-    // Hard guarantee: roof apex never crosses minimum 6mm top margin
-    const minTopMargin = Math.round(6.0 * pxPerMm);
+    // Hard guarantee: roof apex never crosses minimum 2.0mm top margin
+    const minTopMargin = Math.round(2.0 * pxPerMm);
     if (drawY + (roofY * scale) < minTopMargin) {
       drawY = minTopMargin - Math.round(roofY * scale);
     }
@@ -220,35 +220,8 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // 1. Draw smooth natural sky and lawn backdrop gradient (NO BLURRED GHOST HOUSE)
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, outH);
-    skyGrad.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
-    skyGrad.addColorStop(0.55, `rgb(${Math.min(255, skyR + 15)}, ${Math.min(255, skyG + 15)}, ${Math.min(255, skyB + 15)})`);
-    skyGrad.addColorStop(0.72, `rgb(${Math.round((skyR + gndR) / 2)}, ${Math.round((skyG + gndG) / 2)}, ${Math.round((skyB + gndB) / 2)})`);
-    skyGrad.addColorStop(0.85, `rgb(${gndR}, ${gndG}, ${gndB})`);
-    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 20)}, ${Math.max(0, gndG - 15)}, ${Math.max(0, gndB - 20)})`);
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, outW, outH);
-
-    // 2. Draw the centered sharp house image
+    // Draw the sharp house image centered with full clarity and zero blurry overlays
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
-
-    // 3. Smoothly feather the left and right boundary edges with subtle gradient masks to eliminate any hard seams
-    const featherWidth = Math.min(80, Math.max(30, Math.round(srcW * 0.04 * scale)));
-    if (drawX > 0) {
-      const leftFade = ctx.createLinearGradient(drawX - 2, 0, drawX + featherWidth, 0);
-      leftFade.addColorStop(0, `rgba(${skyR}, ${skyG}, ${skyB}, 1)`);
-      leftFade.addColorStop(1, `rgba(${skyR}, ${skyG}, ${skyB}, 0)`);
-      ctx.fillStyle = leftFade;
-      ctx.fillRect(drawX - 2, 0, featherWidth + 2, outH * 0.75);
-    }
-    if (drawX + drawW < outW) {
-      const rightFade = ctx.createLinearGradient(drawX + drawW - featherWidth, 0, drawX + drawW + 2, 0);
-      rightFade.addColorStop(0, `rgba(${skyR}, ${skyG}, ${skyB}, 0)`);
-      rightFade.addColorStop(1, `rgba(${skyR}, ${skyG}, ${skyB}, 1)`);
-      ctx.fillStyle = rightFade;
-      ctx.fillRect(drawX + drawW - featherWidth, 0, featherWidth + 2, outH * 0.75);
-    }
 
     return canvas.toDataURL("image/jpeg", 0.95);
   } catch (e) {
@@ -389,40 +362,35 @@ export async function callGeminiOutpaint(
     housingType === "Double";
 
   const prompt = isDouble
-    ? `Task: High-end architectural rendering outpaint, upscale, and hero framing for a DOUBLE STOREY house.
+    ? `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a DOUBLE STOREY house.
 
 Canvas & Framing Specifications:
 - Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Position: The double-storey house must be LARGE, PROMINENT, and HEROIC, occupying ~85% of the total canvas height.
-- Roofline Clearance: Ensure the highest roof ridge/apex, gutters, and upper eaves are 100% visible inside the frame with a clean 4mm to 5mm margin between the roof and the top canvas edge.
-- Grounding: Ground the base of the garage and front porch in the lower third with 5mm to 6mm of clean driveway visible at the bottom.
-- Center the house horizontally.
+- House Scale & Prominence: Make the double-storey house LARGE, HEROIC, and MAXIMIZED within the canvas, occupying ~88% to 92% of the total canvas height.
+- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean, narrow 2.5mm (~28px) margin from the top canvas border (do not crop or clip roof).
+- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 3mm (~34px) of driveway visible at the bottom edge.
+- Center the house horizontally, spanning across the central 75% to 85% of the frame.
 
-STRICT ARCHITECTURAL INTEGRITY (DO NOT MODIFY ROOF OR BUILDING STRUCTURE):
-- Preserve the exact architectural geometry, facade materials, roof shape, roof pitch, parapets, and structural design of the original house 100% faithfully.
-- DO NOT alter the roof structure, roof pitch, flat roof parapets, or roof ridges.
-- Do NOT modify brick mortar, timber battens, window frames, balcony glass, or garage doors.
+Strict Architectural Integrity:
+- Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
 
-Seamless Ultra-Realistic Outpainting:
-- Outpaint the entire background to create ONE SEAMLESS, ULTRA-REALISTIC architectural photograph across the full 2400px widescreen canvas.
-- Extend the left and right wings with authentic Australian residential surroundings: lush manicured turf, flowering native garden beds, gum trees, and matching Colorbond boundary fencing.
-- Seamlessly extend the clear blue sky overhead.
-- ZERO blur, ZERO blurred edges, ZERO visual artifacts, ZERO seams. Render every detail with razor-sharp 8K UHD architectural photography clarity.`
-    : `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions.
+Seamless Outpainting:
+- Fill the left and right wings seamlessly with matching Australian turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
+- Zero blur, zero black boxes, razor-sharp 8K architectural photography clarity.`
+    : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
 
-Exact Dimensions & Aspect Ratio:
-- Canvas Aspect Ratio: Strictly 210:82 (210mm x 82mm widescreen flyer banner frame, exactly 2400 x 937 px).
-- Center the house horizontally within the 210:82 frame.
-- Top Margin: Leave a narrow margin (~3mm) between the highest roof ridge and the top canvas edge.
-- Bottom Placement: Ground the garage base in the lower third with clean driveway space below.
+Canvas & Framing Specifications:
+- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
+- House Scale & Prominence: Make the single-storey house LARGE, PROMINENT, and HEROIC, filling the vertical frame and occupying ~85% to 90% of the total canvas height.
+- Roofline Clearance: Keep a tight, clean 2.5mm (~28px) margin between the highest roof ridge/apex and the top canvas edge so the entire roof is 100% visible and maximized in size without clipping.
+- Grounding: Ground the garage slab and front porch near the bottom with a clean 3mm (~34px) of driveway space below.
+- Center the house horizontally, filling the central 75% to 85% width of the frame.
 
-Architectural Integrity:
-- Preserve the exact architectural details, materials, roof tiles/Colorbond profile, brick mortar, timber stains, window frames, and geometry of the original house. Do not modify or hallucinate changes to the building.
+Strict Architectural Integrity:
+- Preserve the exact architectural details, materials, roof pitch, brick mortar, and window frames 100% faithfully.
 
-Environment & Seamless Outpainting (FULL WIDESCREEN EDGE-TO-EDGE):
-- Outpaint and seamlessly extend the left and right wings to fill the full 2400px width with matching residential surroundings: lush green manicured turf, garden beds with native shrubs/plants, gum trees, and authentic Colorbond boundary fences.
-- Extend the clear blue sky overhead with minimal soft wispy clouds.
-- ZERO black bars, ZERO black boxes, ZERO empty borders, ZERO blur. High-resolution 8K UHD architectural photography style.`;
+Seamless Outpainting:
+- Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`;
 
   const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 

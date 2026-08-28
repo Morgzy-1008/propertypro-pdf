@@ -784,26 +784,38 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleToggleModifiedFloorplan(!design.isModifiedFloorplan)}
-                  className={`text-xs font-bold gap-1.5 shrink-0 ${
-                    design.isModifiedFloorplan
-                      ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                      : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
-                  }`}
-                >
-                  {design.isModifiedFloorplan ? (
-                    <>
-                      <Check className="h-3.5 w-3.5" /> Modified Active
-                    </>
-                  ) : (
-                    <>
-                      <PenTool className="h-3.5 w-3.5" /> Modify Floorplan Areas
-                    </>
-                  )}
-                </Button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleToggleModifiedFloorplan(!design.isModifiedFloorplan)}
+                    className={`text-xs font-bold gap-1.5 ${
+                      design.isModifiedFloorplan
+                        ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
+                        : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                    }`}
+                  >
+                    {design.isModifiedFloorplan ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" /> Modified Active
+                      </>
+                    ) : (
+                      <>
+                        <PenTool className="h-3.5 w-3.5" /> Modify Floorplan Areas
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setIsCropperOpen(true)}
+                    className="text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                  >
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Import Modified Floorplan</span>
+                  </Button>
+                </div>
               </div>
 
               {/* Expanded Adjusted Floorplan Room by Room Breakdown & Visual Graph */}

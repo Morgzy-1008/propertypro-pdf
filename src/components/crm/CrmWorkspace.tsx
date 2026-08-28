@@ -4,45 +4,57 @@ import {
   CrmStageId,
   CRM_PIPELINE_STAGES,
   HUDSON_CONSULTANTS,
+  CrmMessage,
 } from "@/lib/crm/crmTypes";
 import {
   loadAllCrmLeads,
   saveCrmLead,
   updateCrmLeadStage,
+  loadAllCrmMessages,
+  saveCrmMessage,
+  getOutlookSyncStatus,
+  triggerOutlookSync,
 } from "@/lib/crm/crmStorage";
 import { CrmKanbanBoard } from "./CrmKanbanBoard";
 import { CrmCommissionDashboard } from "./CrmCommissionDashboard";
-import { CrmLeadDetailsModal } from "./CrmLeadDetailsModal";
-import { SitingPlanCanvas } from "@/components/siting/SitingPlanCanvas";
+import { CrmClientDetailPage } from "./CrmClientDetailPage";
+import { CrmConversationsView } from "./CrmConversationsView";
 import {
   Users,
   Award,
   Plus,
-  Compass,
   Monitor,
   Search,
-  Filter,
-  Layers,
+  MessageSquare,
+  RefreshCw,
   Sparkles,
-  ExternalLink,
+  TrendingUp,
+  DollarSign,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
+import { formatAud } from "@/lib/pricing";
+import { useTheme } from "@/lib/theme";
 
 export function CrmWorkspace() {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
+
   const [leads, setLeads] = useState<CrmLead[]>([]);
-  const [activeTab, setActiveTab] = useState<"kanban" | "commissions" | "siting">("kanban");
+  const [messages, setMessages] = useState<CrmMessage[]>([]);
+  const [activeTab, setActiveTab] = useState<"kanban" | "conversations" | "commissions">("kanban");
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>("morgan_hales");
   const [activeLead, setActiveLead] = useState<CrmLead | null>(null);
-  const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
+  const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [outlookSyncState, setOutlookSyncState] = useState(getOutlookSyncStatus());
 
   useEffect(() => {
-    loadAllCrmLeads().then((data) => {
-      setLeads(data);
-    });
+    loadAllCrmLeads().then(setLeads);
+    loadAllCrmMessages().then(setMessages);
   }, []);
 
   const handleUpdateStage = async (leadId: string, newStage: CrmStageId) => {
@@ -53,7 +65,7 @@ export function CrmWorkspace() {
 
   const handleOpenLead = (lead: CrmLead) => {
     setActiveLead(lead);
-    setIsLeadModalOpen(true);
+    setIsClientDetailOpen(true);
   };
 
   const handleSaveLead = async (updatedLead: CrmLead) => {
@@ -61,12 +73,23 @@ export function CrmWorkspace() {
     setLeads(list);
   };
 
+  const handleSendMessage = async (msg: CrmMessage) => {
+    const list = await saveCrmMessage(msg);
+    setMessages(list);
+  };
+
+  const handleTriggerSync = () => {
+    const next = triggerOutlookSync();
+    setOutlookSyncState(next);
+    toast.success(`Outlook 365 synchronized! ${next.count} emails captured across all clients.`);
+  };
+
   const handleCreateNewLead = async () => {
     const newLead: CrmLead = {
       id: `lead_${Date.now()}`,
       clientName: "New Prospect",
-      email: "client@example.com",
-      mobile: "0400 000 000",
+      email: "prospect@example.com",
+      mobile: "0400 123 456",
       targetEstate: "Providence Estate",
       suburb: "South Ripley",
       lotNumber: "TBA",
@@ -92,7 +115,7 @@ export function CrmWorkspace() {
     const updated = await saveCrmLead(newLead);
     setLeads(updated);
     setActiveLead(newLead);
-    setIsLeadModalOpen(true);
+    setIsClientDetailOpen(true);
     toast.success("New lead created in CRM!");
   };
 
@@ -102,33 +125,44 @@ export function CrmWorkspace() {
     const matchesSearch =
       l.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       l.mobile.includes(searchTerm) ||
-      l.targetEstate.toLowerCase().includes(searchTerm.toLowerCase());
+      l.targetEstate.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.preferredDesign.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesConsultant && matchesSearch;
   });
 
+  const totalPipelineVal = leads.reduce((acc, l) => acc + (l.totalEstimatedDealValue || 0), 0);
+  const totalUnderConstruction = leads.filter(l => l.stage === "under_construction" || l.stage === "contract_signed").length;
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans">
+    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 font-sans`}>
       {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-xs px-2.5 py-1 rounded-md tracking-wider uppercase">
-              Builder CRM
+            <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs px-2.5 py-1 rounded-md tracking-wider uppercase">
+              Hudson Horizon CRM
             </span>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Hudson Horizon CRM &amp; Pipeline
+              Sales Pipeline &amp; Client Hub
             </h1>
-            <span className="font-mono text-xs font-bold text-cyan-400 bg-cyan-950/60 px-2.5 py-1 rounded-lg border border-cyan-800/60">
-              {leads.length} Total Deals
-            </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Purpose-built Australian residential home builder CRM replacing Honey with native Quoting, Floorplans, Tenders, and Commission tracking.
+            Complete residential builder CRM with 12 pipeline milestones, omnichannel conversations, Outlook email capture, and synchronized Quoting &amp; Tenders.
           </p>
         </div>
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleTriggerSync}
+            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-semibold"
+          >
+            <RefreshCw className="h-3.5 w-3.5 text-cyan-400" />
+            Sync Outlook Emails
+          </Button>
+
           <Link to="/kiosk" target="_blank">
             <Button
               variant="outline"
@@ -136,7 +170,7 @@ export function CrmWorkspace() {
               className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
             >
               <Monitor className="h-3.5 w-3.5 text-cyan-400" />
-              Launch iPad Kiosk
+              iPad Kiosk
             </Button>
           </Link>
 
@@ -151,21 +185,56 @@ export function CrmWorkspace() {
         </div>
       </div>
 
-      {/* Tabs & Search Navigation Bar */}
+      {/* KPI Performance Bar */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Active Pipeline</span>
+          <span className="text-lg font-black text-amber-400">{formatAud(totalPipelineVal)}</span>
+        </div>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Active Deals in Pipeline</span>
+          <span className="text-lg font-black text-cyan-400">{leads.length} Clients</span>
+        </div>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Contracts &amp; Onsite</span>
+          <span className="text-lg font-black text-emerald-400">{totalUnderConstruction} Jobs</span>
+        </div>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Outlook 365 Sync</span>
+          <span className="text-lg font-black text-purple-400">{outlookSyncState.count} Emails Captured</span>
+        </div>
+      </div>
+
+      {/* Navigation Tabs Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
-        {/* Navigation Tabs */}
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
           <button
             type="button"
             onClick={() => setActiveTab("kanban")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "kanban"
-                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60 border border-transparent"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
             }`}
           >
-            <Users className="h-3.5 w-3.5" />
-            Sales Pipeline Kanban ({filteredLeads.length})
+            <Briefcase className="h-3.5 w-3.5" />
+            Sales Pipeline (12 Buckets)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("conversations")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "conversations"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
+            }`}
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Conversations &amp; Outlook
+            <span className="bg-amber-950/60 text-amber-300 text-[9px] px-1.5 rounded-full font-mono">
+              {messages.length}
+            </span>
           </button>
 
           <button
@@ -173,66 +242,81 @@ export function CrmWorkspace() {
             onClick={() => setActiveTab("commissions")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "commissions"
-                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60 border border-transparent"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
             }`}
           >
-            <Award className="h-3.5 w-3.5 text-amber-400" />
-            Commission &amp; Salary Forecaster
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("siting")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "siting"
-                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/60 border border-transparent"
-            }`}
-          >
-            <Compass className="h-3.5 w-3.5 text-emerald-400" />
-            1:200 Lot Siting &amp; POD Studio
+            <Award className="h-3.5 w-3.5" />
+            Commissions ($75k + 2.25%)
           </button>
         </div>
 
-        {/* Search Box */}
-        <div className="relative min-w-[240px]">
-          <Search className="h-3.5 w-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <Input
-            placeholder="Search client, phone, estate…"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-8 text-xs border-slate-800 bg-slate-900/90 text-slate-200"
-          />
+        {/* Search & Consultant Filter */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-500" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search leads, lot, estate..."
+              className="h-8 pl-8 text-xs bg-slate-900 border-slate-700 w-48 sm:w-60"
+            />
+          </div>
+
+          <select
+            value={selectedConsultantId}
+            onChange={(e) => setSelectedConsultantId(e.target.value)}
+            className="h-8 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 px-2.5 font-medium"
+          >
+            <option value="all">All Consultants</option>
+            {HUDSON_CONSULTANTS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.displayOffice})
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Main Tab Views */}
+      {/* Main Tab Content */}
       {activeTab === "kanban" && (
         <CrmKanbanBoard
           leads={filteredLeads}
-          onUpdateStage={handleUpdateStage}
           onOpenLead={handleOpenLead}
+          onUpdateStage={handleUpdateStage}
+        />
+      )}
+
+      {activeTab === "conversations" && (
+        <CrmConversationsView
+          leads={filteredLeads}
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          onOpenClientProfile={handleOpenLead}
+          onTriggerOutlookSync={handleTriggerSync}
+          outlookSyncState={outlookSyncState}
         />
       )}
 
       {activeTab === "commissions" && (
         <CrmCommissionDashboard
           leads={leads}
+          consultants={HUDSON_CONSULTANTS}
           selectedConsultantId={selectedConsultantId}
-          onSelectConsultant={setSelectedConsultantId}
         />
       )}
 
-      {activeTab === "siting" && <SitingPlanCanvas standalone={false} />}
-
-      {/* Lead Details 360 Modal */}
-      <CrmLeadDetailsModal
-        lead={activeLead}
-        open={isLeadModalOpen}
-        onClose={() => setIsLeadModalOpen(false)}
-        onSaveLead={handleSaveLead}
-      />
+      {/* 360° Client Detail Profile Modal */}
+      {activeLead && (
+        <CrmClientDetailPage
+          lead={activeLead}
+          isOpen={isClientDetailOpen}
+          onClose={() => setIsClientDetailOpen(false)}
+          onSave={handleSaveLead}
+          onSendMessage={handleSendMessage}
+          clientMessages={messages}
+        />
+      )}
     </div>
   );
 }

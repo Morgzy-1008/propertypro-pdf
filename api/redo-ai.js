@@ -40,7 +40,13 @@ export default async function handler(req, res) {
       cleanB64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
       if (imageBase64.startsWith("data:image/png")) mimeType = "image/png";
     } else if (imageUrl) {
-      const imgRes = await fetch(decodeURIComponent(imageUrl));
+      const imgRes = await fetch(decodeURIComponent(imageUrl), {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+        },
+        signal: AbortSignal.timeout(10000),
+      });
       if (!imgRes.ok) {
         return res.status(400).json({ error: `Failed to fetch image: ${imgRes.statusText}` });
       }
@@ -59,20 +65,35 @@ export default async function handler(req, res) {
       housingType === "Double";
 
     const prompt = customPrompt || (isDouble
-      ? `Task: High-end architectural rendering outpaint, upscale, and hero framing for a DOUBLE STOREY house.
-Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-House Scale & Position: Large, prominent, occupying ~85% of total height.
-Roofline Clearance: 4mm to 5mm margin between roof apex and top edge.
-Grounding: Ground the base in the lower third with clean driveway space below.
-Architectural Integrity: Preserve exact materials, roof pitch, parapets, brick, and windows 100% faithfully.
-Outpaint: Fill left and right wings with matching Australian turf, native gardens, gum trees, and Colorbond fences. High resolution 8K UHD architectural photography.`
-      : `Task: High-end architectural rendering outpaint, resize and upscale to exact frame dimensions for a SINGLE STOREY house.
-Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-Center the house horizontally within the 210:82 frame.
-Top Margin: Narrow margin (~3mm) between highest roof ridge and top edge.
-Bottom Placement: Ground the garage base and front porch in lower third with clean driveway below.
-Architectural Integrity: Preserve exact architectural details, materials, roof pitch, brick mortar, and window frames faithfully.
-Outpaint: Extend left and right wings seamlessly to 2400px width with lush Australian turf, native gardens, trees, and boundary fences. Zero black bars, zero empty boxes.`);
+      ? `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a DOUBLE STOREY house.
+
+Canvas & Framing Specifications:
+- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
+- House Scale & Prominence: Make the double-storey house LARGE, HEROIC, and MAXIMIZED within the canvas, occupying ~88% to 92% of the total canvas height.
+- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean, narrow 2.5mm (~28px) margin from the top canvas border (do not crop or clip roof).
+- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 3mm (~34px) of driveway visible at the bottom edge.
+- Center the house horizontally, spanning across the central 75% to 85% of the frame.
+
+Strict Architectural Integrity:
+- Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
+
+Seamless Outpainting:
+- Fill the left and right wings seamlessly with matching Australian turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
+- Zero blur, zero black boxes, razor-sharp 8K architectural photography clarity.`
+      : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
+
+Canvas & Framing Specifications:
+- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
+- House Scale & Prominence: Make the single-storey house LARGE, PROMINENT, and HEROIC, filling the vertical frame and occupying ~85% to 90% of the total canvas height.
+- Roofline Clearance: Keep a tight, clean 2.5mm (~28px) margin between the highest roof ridge/apex and the top canvas edge so the entire roof is 100% visible and maximized in size without clipping.
+- Grounding: Ground the garage slab and front porch near the bottom with a clean 3mm (~34px) of driveway space below.
+- Center the house horizontally, filling the central 75% to 85% width of the frame.
+
+Strict Architectural Integrity:
+- Preserve the exact architectural details, materials, roof pitch, brick mortar, and window frames 100% faithfully.
+
+Seamless Outpainting:
+- Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`);
 
     const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 

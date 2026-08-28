@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { X, Loader2, Plus, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { HUDSON_FACADES } from "./facades.data";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 import { INCLUSION_RANGES, PALETTES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
+import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
 import { landscapingPriceFor } from "@/lib/landscaping";
 
 import { plansForDesign, otherSizesForDesign } from "./floorplans";
@@ -53,6 +55,7 @@ function Field({
   onChange: (v: string) => void;
   placeholder?: string;
 }) {
+
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium tracking-wide text-slate-300">{label}</Label>
@@ -79,6 +82,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
   const [draft, setDraft] = useState("");
+  const [autoFilterLand, setAutoFilterLand] = useState(true);
   const items = baseRangeItems(data);
 
   const update = (next: string[]) => set("inclusions", { ...data.inclusions, [data.range]: next });
@@ -190,8 +194,25 @@ function storeyFor(type: string): FacadeStorey | null {
   return "single";
 }
 
-export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
+export function FlyerForm({ data, set, template }: { data: FlyerData; set: Setter; template?: TemplateId }) {
   const designs = designsFor(data.housingType as HousingType);
+  const [autoFilterLand, setAutoFilterLand] = useState(true);
+
+  const filteredDesigns = useMemo(() => {
+    if (!autoFilterLand) return designs;
+    const frontageNum = Number(data.landFrontage);
+    const sizeNum = Number(data.landSize);
+    const sideSetbackNum = Number(data.sideSetback) || 1.0;
+    const frontSetbackNum = Number(data.frontSetback) || 3.8;
+
+    return designs.filter((d) => {
+      const reqFrontage = Number(d.frontage || 0);
+      if (frontageNum > 0 && reqFrontage > 0) {
+        if (reqFrontage + (data.isBtb ? 0.2 : sideSetbackNum * 2) > frontageNum + 0.05) return false;
+      }
+      return true;
+    });
+  }, [designs, autoFilterLand, data.landFrontage, data.landSize, data.sideSetback, data.frontSetback, data.isBtb]);
   const [facadeBusy, setFacadeBusy] = useState(false);
   const [reRenderAttempts, setReRenderAttempts] = useState<Record<string, number>>({});
   const MAX_RERENDERS = 2;
@@ -300,23 +321,8 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       : data.costs;
     applyPricing(name, data.range, data.landPrice, amount, costs);
 
-    // Auto-select the first compatible facade for the selected design so the flyer always shows a crisp facade
-    const isDualOc = data.housingType === "dual-oc";
-    const isAcreage = data.housingType === "acreage";
-    const isDouble = data.housingType === "double-storey";
-    
-    const eligibleList = isDualOc
-      ? duplexFacadesForDesign(name)
-      : isAcreage
-        ? MULBERRY_FACADES
-        : BUILT_IN_FACADES.filter((f) => {
-            const cat = facadeCategory(f);
-            return isDouble ? cat === "double" : cat === "single";
-          });
-
-    if (eligibleList && eligibleList.length > 0) {
-      void selectFacade(eligibleList[0]);
-    } else {
+    // If a facade is already selected, re-price it; otherwise keep it unselected so the flyer prompts the user to pick a facade
+    if (!data.facadeId) {
       set("facadeId", "");
       set("facadeName", "");
       set("facadeUrl", "");
@@ -429,9 +435,11 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
         forceRefresh,
       });
 
-      if (aiUrl && aiUrl.startsWith("data:image/")) {
+      if (aiUrl) {
         set("facadeUrl", aiUrl);
-        await saveEnhanced(item.id, aiUrl, item.name);
+        if (aiUrl.startsWith("data:image/")) {
+          await saveEnhanced(item.id, aiUrl, item.name);
+        }
       } else {
         set("facadeUrl", rawUrlToUse);
       }
@@ -445,17 +453,21 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
   };
 
   const handleReDoAiEnhancement = async () => {
-    console.log("[handleReDoAiEnhancement] Clicked! facadeBusy:", facadeBusy, "facadeId:", data.facadeId, "facadeName:", data.facadeName);
     if (facadeBusy) return;
     const facadeId = data.facadeId || "custom";
-    const attempts = reRenderAttempts[facadeId] ?? 0;
 
     // Find original raw facade item details from catalog
     const matched =
       HUDSON_FACADES.find((f) => f.id === facadeId) ||
       BUILT_IN_FACADES.find((f) => f.id === facadeId);
-    const rawOriginalUrl = matched?.url || data.rawFacadeUrl || data.facadeUrl;
-    console.log("[handleReDoAiEnhancement] Found matched facade:", matched?.name, "rawOriginalUrl:", rawOriginalUrl);
+    const rawOriginalUrl = matched?.originalUrl || matched?.url || data.rawFacadeUrl || data.facadeUrl;
+
+    if (!rawOriginalUrl) {
+      toast.info("Please select a facade from the library first.");
+      return;
+    }
+
+    toast.loading("Generating fresh AI facade render with Gemini...", { id: "ai-enhance" });
 
     const facadeItem: FacadeItem = {
       id: facadeId,
@@ -466,7 +478,13 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
       originalUrl: rawOriginalUrl,
     };
 
-    await selectFacade(facadeItem, true);
+    try {
+      await selectFacade(facadeItem, true);
+      toast.success("AI Facade render generated successfully!", { id: "ai-enhance" });
+    } catch (e) {
+      console.error("[handleReDoAiEnhancement error]", e);
+      toast.error("Failed to generate AI render. Keeping current facade.", { id: "ai-enhance" });
+    }
   };
 
   const handleRevertAi = async () => {
@@ -489,12 +507,26 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
     (window as any).widenFacadeClientSide = widenFacadeClientSide;
   }, []);
 
+  const onLocationChange = (field: "suburb" | "estate", val: string) => {
+    set(field, val);
+    const otherVal = field === "suburb" ? data.estate : data.suburb;
+    const estateQuery = field === "estate" ? val : otherVal;
+    const suburbQuery = field === "suburb" ? val : otherVal;
+    const matched = matchEstatePreset(estateQuery, suburbQuery);
+    if (matched && matched.id !== "standard") {
+      set("estatePreset", matched.id);
+      set("frontSetback", matched.frontSetback);
+      set("garageSetback", matched.garageSetback);
+      set("sideSetback", matched.sideSetback);
+    }
+  };
+
   return (
     <div className="space-y-7">
       <Section title="Location">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Suburb" value={data.suburb} onChange={(v) => set("suburb", v)} />
-          <Field label="Estate" value={data.estate} onChange={(v) => set("estate", v)} />
+          <Field label="Suburb" value={data.suburb} onChange={(v) => onLocationChange("suburb", v)} />
+          <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
         </div>
         <Field label="Address" value={data.address} onChange={(v) => set("address", v)} />
         <div className="grid grid-cols-2 gap-3">
@@ -505,6 +537,95 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
             onChange={(v) => set("landFrontage", v)}
           />
         </div>
+
+        {/* Setback controls directly under Location when 2-Page Siting template is active */}
+        {template === "siting" && (
+          <div className="mt-3 space-y-3 rounded-xl border border-amber-500/30 bg-amber-950/15 p-3 shadow-inner">
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
+              <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
+                Siting Setback Controls
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {ESTATE_PRESETS.find((p) => p.id === data.estatePreset)?.name || "Standard QLD"}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-300">Estate Preset</Label>
+              <Select
+                value={data.estatePreset || "standard"}
+                onValueChange={(v) => {
+                  set("estatePreset", v);
+                  const preset = ESTATE_PRESETS.find((p) => p.id === v);
+                  if (preset && v !== "custom") {
+                    set("frontSetback", preset.frontSetback);
+                    set("garageSetback", preset.garageSetback);
+                    set("sideSetback", preset.sideSetback);
+                  }
+                }}
+              >
+                <SelectTrigger className="h-8 text-xs bg-slate-900/90 border-slate-800">
+                  <SelectValue placeholder="Select Estate / Code" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ESTATE_PRESETS.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Front Room / Porch (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
+                  value={data.frontSetback !== undefined ? String(data.frontSetback) : "3.8"}
+                  onChange={(e) => set("frontSetback", e.target.value)}
+                  placeholder="3.8"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Garage Door Line (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
+                  value={data.garageSetback !== undefined ? String(data.garageSetback) : "5.0"}
+                  onChange={(e) => set("garageSetback", e.target.value)}
+                  placeholder="5.0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
+                  value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
+                  onChange={(e) => set("sideSetback", e.target.value)}
+                  placeholder="1.0"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
+                <Select
+                  value={data.garageSide || "right"}
+                  onValueChange={(v: "left" | "right") => set("garageSide", v)}
+                >
+                  <SelectTrigger className="h-7.5 text-xs bg-slate-900/90 border-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
+                    <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        )}
       </Section>
 
 
@@ -642,9 +763,9 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={facadeBusy || !data.facadeName}
+                    disabled={facadeBusy || (!data.facadeUrl && !data.facadeName && !data.facadeId)}
                     onClick={handleReDoAiEnhancement}
-                    className="flex-none gap-1.5 border-slate-800 bg-slate-900/80 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10 text-xs font-medium"
+                    className="flex-none gap-1.5 border-slate-800 bg-slate-900/80 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10 text-xs font-medium cursor-pointer"
                     title="Re-generate AI facade outpainting variation"
                   >
                     {facadeBusy ? (
@@ -758,6 +879,110 @@ export function FlyerForm({ data, set }: { data: FlyerData; set: Setter }) {
           >
             Reset to the standard amounts for this housing type
           </button>
+        </div>
+      </Section>
+
+      <Section title="Siting & setbacks (2-Page + Siting Plan)">
+        <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
+          <div className="space-y-1.5">
+            <Label className="text-xs tracking-wide text-muted-foreground">Estate Setback Preset (POD)</Label>
+            <Select
+              value={data.estatePreset || "standard"}
+              onValueChange={(v) => {
+                set("estatePreset", v);
+                const preset = ESTATE_PRESETS.find((p) => p.id === v);
+                if (preset && v !== "custom") {
+                  set("frontSetback", preset.frontSetback);
+                  set("garageSetback", preset.garageSetback);
+                  set("sideSetback", preset.sideSetback);
+                }
+              }}
+            >
+              <SelectTrigger className="h-8.5 text-xs bg-slate-900/80 border-slate-800">
+                <SelectValue placeholder="Select Estate / Code" />
+              </SelectTrigger>
+              <SelectContent>
+                {ESTATE_PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs">
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Front Setback (m)</Label>
+              <Input
+                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                value={data.frontSetback !== undefined ? String(data.frontSetback) : "4.5"}
+                onChange={(e) => set("frontSetback", e.target.value)}
+                placeholder="4.5"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Garage Setback (m)</Label>
+              <Input
+                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                value={data.garageSetback !== undefined ? String(data.garageSetback) : "5.5"}
+                onChange={(e) => set("garageSetback", e.target.value)}
+                placeholder="5.5"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
+              <Input
+                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
+                onChange={(e) => set("sideSetback", e.target.value)}
+                placeholder="1.0"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
+              <Select
+                value={data.garageSide || "right"}
+                onValueChange={(v: "left" | "right") => set("garageSide", v)}
+              >
+                <SelectTrigger className="h-7.5 text-xs bg-slate-900/80 border-slate-800">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
+                  <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-3.5 w-3.5 accent-amber-400 rounded"
+              checked={!!data.isBtb}
+              onChange={(e) => set("isBtb", e.target.checked)}
+            />
+            <div>
+              <span className="text-[11px] font-medium leading-snug text-slate-200 block">
+                Built-To-Boundary (BTB) Wall
+              </span>
+              <span className="text-[10px] text-slate-400 block leading-tight">
+                Places garage wall on side boundary (0.2m setback) to maximize yard space.
+              </span>
+            </div>
+          </label>
+
+          <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60">
+            <span className="text-amber-300 font-semibold">Calculated Lot Depth: </span>
+            {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
+              ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m`
+              : "32.14m"}
+            <span className="text-slate-500 ml-2">({data.landSize || 450}m² / {data.landFrontage || 14}m)</span>
+          </div>
         </div>
       </Section>
 

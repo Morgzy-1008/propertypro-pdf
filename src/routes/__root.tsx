@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -74,15 +75,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Hudson Homes | House & Land Package Flyer Builder" },
-      { name: "description", content: "Create print-ready A4 House & Land package flyers for Hudson Homes in seconds — live preview, brand templates and one-click PDF export." },
+      { title: "Hudson Homes | Enterprise Digital Platform" },
+      { name: "description", content: "Hudson Homes unified enterprise platform — Package Studio, Siting Engine, CRM, Quoting, Estimating & Portals." },
       { name: "author", content: "Hudson Homes" },
-      { property: "og:title", content: "Hudson Homes | House & Land Package Flyer Builder" },
-      { property: "og:description", content: "Create print-ready A4 House & Land package flyers for Hudson Homes in seconds — live preview, brand templates and one-click PDF export." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Hudson Homes | House & Land Package Flyer Builder" },
-      { name: "twitter:description", content: "Create print-ready A4 House & Land package flyers for Hudson Homes in seconds — live preview, brand templates and one-click PDF export." },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -113,9 +108,11 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
-      <Toaster />
+      <ThemeProvider>
+        {/* Required: nested routes render here */}
+        <Outlet />
+        <Toaster />
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -13,11 +13,15 @@ export interface FacadeItem {
 }
 
 /** The full Hudson Homes facade catalogue, using pre-rendered static assets where available. */
-export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES.map((f) => ({
-  ...f,
-  originalUrl: f.url,
-  url: f.url,
-}));
+export const BUILT_IN_FACADES: FacadeItem[] = HUDSON_FACADES.map((f) => {
+  const normId = f.id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const pre = PRE_RENDERED_FACADES[f.id] || PRE_RENDERED_FACADES[normId];
+  return {
+    ...f,
+    originalUrl: f.url,
+    url: pre || f.url,
+  };
+});
 
 const STORAGE_KEY = "hudson-facade-library";
 const UPLIFT_KEY = "hudson-facade-uplifts";

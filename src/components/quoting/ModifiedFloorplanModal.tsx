@@ -156,6 +156,7 @@ interface ModifiedFloorplanModalProps {
   onClose: () => void;
   isDoubleStorey: boolean;
   designName?: string;
+  initialImageUrl?: string;
   onSave: (croppedDataUrl: string) => void;
   onExtractedAreas?: (areas: ExtractedAreaSchedule) => void;
 }
@@ -169,6 +170,7 @@ export function ModifiedFloorplanModal({
   onClose,
   isDoubleStorey,
   designName,
+  initialImageUrl,
   onSave,
   onExtractedAreas,
 }: ModifiedFloorplanModalProps) {
@@ -218,6 +220,19 @@ export function ModifiedFloorplanModal({
       loadedImageRef.current = null;
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen && initialImageUrl && !docLoaded && pdfPages.length === 0) {
+      setPdfPages([initialImageUrl]);
+      setSelectedPageIndex(0);
+      setDocLoaded(true);
+      if (isDoubleStorey) {
+        setStage("crop_gf");
+      } else {
+        setStage("crop_single");
+      }
+    }
+  }, [isOpen, initialImageUrl, docLoaded, pdfPages.length, isDoubleStorey]);
 
   // Current rendered dimensions
   const currentRenderW = baseDisplaySize.w > 0 ? Math.round(baseDisplaySize.w * zoom) : imageSize.w;
@@ -586,10 +601,65 @@ export function ModifiedFloorplanModal({
     }
   };
 
+
+    const handleAutoCrop = () => {
+    const baseCanvas = baseCanvasRef.current;
+    if (!baseCanvas) return;
+
+    const w = baseCanvas.width;
+    const h = baseCanvas.height;
+    const ctx = baseCanvas.getContext("2d");
+    if (!ctx) return;
+
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    let minX = w, maxX = 0, minY = h, maxY = 0;
+    const threshold = 230;
+
+    for (let y = 0; y < h; y += 2) {
+      for (let x = 0; x < w; x += 2) {
+        const idx = (y * w + x) * 4;
+        const alpha = data[idx + 3];
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        if (alpha > 50 && (r < threshold || g < threshold || b < threshold)) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (minX >= maxX || minY >= maxY) {
+      toast.error("Could not auto-detect floorplan boundaries. Please click manually on the page.");
+      return;
+    }
+
+    const pMinX = Math.max(0, (minX - 6) / w);
+    const pMaxX = Math.min(1, (maxX + 6) / w);
+    const pMinY = Math.max(0, (minY - 6) / h);
+    const pMaxY = Math.min(1, (maxY + 6) / h);
+
+    const autoPoints: Point[] = [
+      { x: pMinX, y: pMinY },
+      { x: pMaxX, y: pMinY },
+      { x: pMaxX, y: pMaxY },
+      { x: pMinX, y: pMaxY },
+    ];
+
+    setActivePoints(autoPoints);
+    setIsClosed(true);
+    toast.success("✨ Floorplan auto-cropped! Click 'Apply Cropped Floorplan' or adjust points.");
+  };
+
   const handleResetPoints = () => {
     setActivePoints([]);
     setIsClosed(false);
     setIsNearStart(false);
+    toast.info("Reverted to full image. Click anywhere to draw custom crop.");
   };
 
   const cropPolygonRegion = (): string | null => {

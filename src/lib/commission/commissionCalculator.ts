@@ -60,12 +60,7 @@ export function calculateDealCommission(lead: CrmLead): SingleDealCommission {
   const isTranche1Eligible =
     lead.isAtpSigned ||
     lead.atpFeePaid ||
-    [
-      "atp_signed_paid",
-      "drafting_working_drawings",
-      "contract_signed",
-      "under_construction",
-    ].includes(lead.stage);
+    ["tender_accepted", "contract_signed", "under_construction"].includes(lead.stage);
 
   // Tranche 2 eligible when stage reaches Contract Signed or later
   const isTranche2Eligible =
@@ -111,7 +106,7 @@ export function calculateConsultantEarnings(
     HUDSON_CONSULTANTS[0];
 
   const consultantLeads = leads.filter(
-    (l) => l.assignedConsultantId === consultantId && l.stage !== "lost"
+    (l) => l.assignedConsultantId === consultantId && l.stage !== "sale_not_proceeding" && l.stage !== "no_contact"
   );
 
   const deals = consultantLeads.map(calculateDealCommission);

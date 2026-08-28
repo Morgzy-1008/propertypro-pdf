@@ -678,7 +678,7 @@ export function calculateQuotePricing(
     baseHousePrice = customFloorplanPrice;
   } else if (design.isModifiedFloorplan) {
     const modCalc = calculateModifiedFloorplanPricing(design);
-    baseHousePrice = modCalc.totalBasePrice;
+    baseHousePrice = Number(modCalc.modifiedBasePrice) || Number(design.basePrice) || 0;
   } else {
     baseHousePrice = Number(design.basePrice) || 0;
   }

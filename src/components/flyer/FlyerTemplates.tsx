@@ -60,7 +60,7 @@ export function Logo({
   );
 }
 
-/** Facade framing: widescreen display with 100% roof protection */
+/** Facade framing: widescreen display with 100% roof protection, zero blur and zero black boxes */
 function Facade({
   url,
   busy,
@@ -78,7 +78,7 @@ function Facade({
 
   if (busy && !url) {
     return (
-      <div className={`relative flex h-full w-full flex-col items-center justify-center bg-slate-950 gap-3 p-4 text-white ${className ?? ""}`}>
+      <div className={`relative flex h-full w-full flex-col items-center justify-center bg-brand-navy-deep gap-3 p-4 text-white ${className ?? ""}`}>
         <Loader2 className="h-8 w-8 animate-spin text-brand-gold" />
         <span className="text-[3mm] font-semibold tracking-[0.18em] text-white uppercase drop-shadow">
           GENERATING AI FACADE RENDER…
@@ -92,16 +92,19 @@ function Facade({
 
   if (!url) {
     return (
-      <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-900/40 border border-brand-sand/60 gap-2 p-4 ${className ?? ""}`}>
-        <span className="text-[3mm] tracking-[0.2em] text-brand-ink/40 font-medium uppercase">
-          SELECT A FACADE FROM THE LIBRARY
+      <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50/80 border border-dashed border-slate-300 rounded-[1.5mm] gap-1.5 p-4 ${className ?? ""}`}>
+        <span className="text-[2.8mm] tracking-[0.2em] text-brand-navy/60 font-semibold uppercase">
+          SELECT A FACADE TO VIEW RENDER
+        </span>
+        <span className="text-[2.1mm] text-brand-ink/40 font-normal">
+          Choose a facade from the library on the left
         </span>
       </div>
     );
   }
 
   return (
-    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-950 ${className ?? ""}`}>
+    <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-transparent ${className ?? ""}`}>
       <img
         src={imgSrc}
         alt="Facade render"
@@ -115,11 +118,11 @@ function Facade({
             setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`);
           }
         }}
-        className={`h-full w-full object-contain object-center ${busy ? "opacity-75" : ""}`}
+        className={`h-full w-full object-cover object-center ${busy ? "opacity-75" : ""}`}
         style={{ imageRendering: "auto" }}
       />
       {busy && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/60 backdrop-blur-xs">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs">
           <Loader2 className="h-8 w-8 animate-spin text-brand-gold shadow-sm mb-2" />
           <span className="text-[2.5mm] font-bold tracking-[0.2em] text-white uppercase drop-shadow-md">
             PREPARING RENDER…
@@ -150,7 +153,7 @@ function Spec({
   );
 }
 
-function ContactStrip({ d }: { d: FlyerData }) {
+export function ContactStrip({ d }: { d: FlyerData }) {
   const name = d.contactName || "Morgan Hales";
   const phone = d.contactPhone || "0417 571 864";
   const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
@@ -255,8 +258,8 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 
       <div className="gold-bar h-[1.2mm] w-full rounded-full" />
 
-      {/* Facade Hero: Proportional 74mm widescreen perspective with 100% roof protection */}
-      <div className="h-[74mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm] bg-slate-950">
+      {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
+      <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
@@ -385,9 +388,9 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
       <div className="gold-bar h-[1.2mm] w-full" />
 
       {/* Majestic Facade Cover Image with Safe Roof Clearance */}
-      <div className="relative h-[78mm] w-full rounded-[1.5mm] overflow-hidden bg-slate-950 my-[1.5mm]">
+      <div className="relative h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.5mm]">
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
-        <div className="absolute inset-x-0 bottom-0 h-[20mm] bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+        <div className="absolute inset-x-0 bottom-0 h-[15mm] bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
       </div>
 
       {/* Property Title & Location */}
@@ -561,8 +564,8 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
       <div className="gold-bar h-[1.2mm] w-full rounded-full" />
 
-      {/* Facade Hero */}
-      <div className="h-[74mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm] bg-slate-950">
+      {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
+      <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 

@@ -361,3 +361,190 @@
   }
 }
 
+
+
+
+/* =========================================================================
+   NORMAL MODE (LIGHT PALETTE) & NIGHT MODE (DARK PALETTE) THEME SYSTEM
+   ========================================================================= */
+
+html.normal-mode,
+.normal-mode {
+  --bg-page: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-panel: rgba(255, 255, 255, 0.95);
+  --bg-panel-secondary: #f1f5f9;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-heading: #0f172a;
+  --text-body: #334155;
+  --text-muted: #64748b;
+  --bg-input: #ffffff;
+  --border-input: #cbd5e1;
+}
+
+/* Base Light Mode Container */
+.normal-mode {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+
+/* Header */
+.normal-mode header {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+}
+
+.normal-mode header h1 {
+  color: #0f172a !important;
+}
+
+.normal-mode header div.leading-tight p {
+  color: #b45309 !important;
+}
+
+.normal-mode header a,
+.normal-mode header button {
+  color: #334155 !important;
+}
+
+/* Template Switcher in Header */
+.normal-mode header div.flex.rounded-lg {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode header div.flex.rounded-lg button {
+  color: #475569 !important;
+}
+
+.normal-mode header div.flex.rounded-lg button.bg-gradient-to-r,
+.normal-mode header div.flex.rounded-lg button[class*="from-amber-500"] {
+  background: #ffffff !important;
+  color: #92400e !important;
+  border-color: #fcd34d !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Sidebar & Form Cards */
+.normal-mode aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.normal-mode aside label {
+  color: #334155 !important;
+  font-weight: 600 !important;
+}
+
+.normal-mode aside span {
+  color: #475569 !important;
+}
+
+.normal-mode aside h3 {
+  color: #b45309 !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #b45309 !important;
+  font-weight: 700 !important;
+}
+
+/* Inputs & Form Controls */
+.normal-mode input,
+.normal-mode select,
+.normal-mode textarea,
+.normal-mode [role="combobox"],
+.normal-mode [data-radix-select-trigger] {
+  background-color: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.normal-mode input:focus,
+.normal-mode [role="combobox"]:focus,
+.normal-mode [data-radix-select-trigger]:focus {
+  background-color: #ffffff !important;
+  border-color: #b45309 !important;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.15) !important;
+}
+
+.normal-mode input::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Inclusions & Secondary Panels in Sidebar */
+.normal-mode aside div.rounded-xl.border,
+.normal-mode aside div.rounded-lg.border {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode aside div.rounded-xl.border span.text-amber-300 {
+  color: #92400e !important;
+}
+
+/* Inclusions Pills */
+.normal-mode aside div.flex.items-center.gap-1.5 input {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Ambient Lights in Normal Mode */
+.normal-mode .ambient-glow-gold {
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.06) 0%, rgba(217, 119, 6, 0) 70%) !important;
+}
+
+.normal-mode .ambient-glow-cyan {
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.06) 0%, rgba(14, 165, 233, 0) 70%) !important;
+}
+
+/* Flyer Preview Shadow in Normal Mode */
+.normal-mode .flyer-preview-container > .flyer-page {
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Hub Greeting & Text in Normal Mode */
+.normal-mode h1.text-4xl,
+.normal-mode h1.text-5xl,
+.normal-mode .hub-heading {
+  color: #0f172a !important;
+}
+
+.normal-mode .text-slate-300,
+.normal-mode .text-slate-400 {
+  color: #475569 !important;
+}
+
+/* Hub Portal Cards in Normal Mode */
+.normal-mode div.grid.grid-cols-1 > a > div,
+.normal-mode div.grid.grid-cols-1 > div > div {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.normal-mode div.grid.grid-cols-1 > a > div:hover,
+.normal-mode div.grid.grid-cols-1 > div > div:hover {
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.09) !important;
+  transform: translateY(-2px);
+}
+
+.normal-mode div.grid.grid-cols-1 h2,
+.normal-mode div.grid.grid-cols-1 h3 {
+  color: #0f172a !important;
+}
+
+.normal-mode div.grid.grid-cols-1 p {
+  color: #475569 !important;
+}
+
+.normal-mode div.grid.grid-cols-1 span {
+  color: #334155 !important;
+}

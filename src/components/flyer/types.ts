@@ -1,7 +1,7 @@
 import { defaultCosts, type AdditionalCosts } from "@/lib/additionalCosts";
 import { LANDSCAPE_INCLUSIONS } from "@/lib/landscaping";
 
-export type TemplateId = "express" | "showcase" | "house-only";
+export type TemplateId = "express" | "showcase" | "house-only" | "siting";
 
 export type RangeId = "value" | "designer" | "luxury";
 
@@ -132,6 +132,18 @@ export interface FlyerData {
   facadeBusy?: boolean;
   palette: PaletteId;
   consultantId: string;
+  houseWidthM?: number;
+  houseLengthM?: number;
+  estatePreset?: string;
+  frontSetback?: string | number;
+  garageSetback?: string | number;
+  sideSetback?: string | number;
+  isBtb?: boolean;
+  garageSide?: "left" | "right";
+  houseRotation?: number;
+  leftSetback?: string | number;
+  rightSetback?: string | number;
+  rearSetback?: string | number;
 }
 
 export type PaletteId = "heritage" | "coastal" | "forest" | "slate";
