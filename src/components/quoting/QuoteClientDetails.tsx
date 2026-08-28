@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   User,
   MapPin,
@@ -35,6 +35,8 @@ import { CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { formatAud } from "@/lib/pricing";
 import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
 import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
+import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
+import type { CrmLead } from "@/lib/crm/crmTypes";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { ClientDetails, DepositType, FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
@@ -55,6 +57,36 @@ export function QuoteClientDetails({
   onLoadEntireQuote,
 }: QuoteClientDetailsProps) {
   const [importingPdf, setImportingPdf] = useState(false);
+  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
+  useEffect(() => {
+    loadAllCrmLeads().then(setCrmLeads).catch(() => {});
+  }, []);
+
+  const handleSelectCrmLead = (leadId: string) => {
+    const found = crmLeads.find((l) => l.id === leadId);
+    if (!found) return;
+
+    onChange({
+      clientName: found.clientName,
+      clientPhone: found.mobile,
+      clientEmail: found.email,
+      hasClient2: !!found.secondaryCustomerName,
+      client2Name: found.secondaryCustomerName || "",
+      client2Phone: found.secondaryCustomerMobile || "",
+      client2Email: found.secondaryCustomerEmail || "",
+      estate: found.targetEstate !== "Unspecified Estate" ? found.targetEstate : "",
+      suburb: found.suburb !== "Queensland" ? found.suburb : "",
+      lotNumber: found.lotNumber !== "TBA" ? found.lotNumber : "",
+      siteAddress: found.targetEstate && found.targetEstate !== "Unspecified Estate" ? `${found.lotNumber && found.lotNumber !== "TBA" ? `Lot ${found.lotNumber}, ` : ""}${found.targetEstate}, ${found.suburb}` : "",
+      notes: found.notes || "",
+    });
+
+    if (found.assignedConsultantId) {
+      handleConsultantChange(found.assignedConsultantId);
+    }
+
+    toast.success(`Imported client details for ${found.clientName} from CRM! ✓`);
+  };
   // Consultant-scoped saved clients
   const savedQuotes = useMemo(() => loadAllQuotes(), []);
 
@@ -235,34 +267,55 @@ export function QuoteClientDetails({
         </p>
       </div>
 
-      {/* Select Existing Client Banner (Scoped to current consultant) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-950/90 p-4 rounded-xl border border-slate-800 ring-1 ring-emerald-500/20 shadow-lg">
+      {/* Select Existing Client & CRM Import Banner */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-950/90 p-4 rounded-xl border border-slate-800 ring-1 ring-emerald-500/20 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex-none">
             <Users className="h-5 w-5" />
           </div>
           <div>
             <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-              Select Existing Client
-              <span className="text-[10px] font-mono font-normal bg-slate-800 text-slate-400 px-2 py-0.5 rounded">
-                {consultantQuotes.length} saved for {client.consultantName?.split(" ")[0] || "Consultant"}
+              Import Client from CRM or Saved Estimates
+              <span className="text-[10px] font-mono font-normal bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
+                {crmLeads.length} CRM Contacts &bull; {consultantQuotes.length} Saved Quotes
               </span>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Instantly load contact &amp; site data from your previously saved client estimates.
+              Select an existing client from Hudson CRM or restore a previously saved estimate.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-none">
+        <div className="flex flex-wrap items-center gap-2 flex-none">
+          {/* CRM Leads Dropdown */}
+          <Select value="" onValueChange={handleSelectCrmLead}>
+            <SelectTrigger className="h-9 text-xs border-amber-500/40 bg-slate-900 text-amber-300 font-semibold w-56">
+              <SelectValue placeholder="🏢 Import from CRM Lead…" />
+            </SelectTrigger>
+            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+              {crmLeads.length === 0 ? (
+                <div className="p-3 text-center text-xs text-slate-500">
+                  No contacts found in CRM yet.
+                </div>
+              ) : (
+                crmLeads.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.clientName} ({l.targetEstate || "TBA"} &bull; {l.stage.replace(/_/g, " ")})
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+
+          {/* Saved Estimates Dropdown */}
           <Select value="" onValueChange={handleSelectExistingClient}>
-            <SelectTrigger className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-200 w-72">
-              <SelectValue placeholder="Choose an existing client…" />
+            <SelectTrigger className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-200 w-56">
+              <SelectValue placeholder="📄 Load Saved Estimate…" />
             </SelectTrigger>
             <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
               {consultantQuotes.length === 0 ? (
                 <div className="p-3 text-center text-xs text-slate-500">
-                  No saved client estimates found for your account yet.
+                  No saved client estimates found yet.
                 </div>
               ) : (
                 consultantQuotes.map((q) => (

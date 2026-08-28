@@ -15,6 +15,8 @@ import {
   ExternalLink,
   User,
   Sparkles,
+  MessageSquare,
+  ArrowRight,
 } from "lucide-react";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
@@ -23,12 +25,14 @@ interface CrmKanbanBoardProps {
   leads: CrmLead[];
   onOpenLead: (lead: CrmLead) => void;
   onUpdateStage: (leadId: string, newStage: CrmStageId) => void;
+  onQuickAction?: (lead: CrmLead, action: "call" | "sms" | "email") => void;
 }
 
 export function CrmKanbanBoard({
   leads,
   onOpenLead,
   onUpdateStage,
+  onQuickAction,
 }: CrmKanbanBoardProps) {
   const { mode } = useTheme();
   const isLight = mode === "normal";
@@ -40,7 +44,7 @@ export function CrmKanbanBoard({
         <span className="font-semibold text-amber-500">
           ⚡ 12-Stage Sales Pipeline (Scroll right for later milestones)
         </span>
-        <span>Click any card to open 360° Client Profile</span>
+        <span>Use quick Call / SMS / Email icons or click card for 360° Profile</span>
       </div>
 
       {/* 12-Column Kanban Columns Container */}
@@ -97,10 +101,17 @@ export function CrmKanbanBoard({
                     >
                       {/* Client Name & Budget */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <span className="text-xs font-bold tracking-tight hover:text-amber-400 truncate">
-                          {lead.clientName}
-                        </span>
-                        <span className="text-xs font-mono font-bold text-emerald-400">
+                        <div>
+                          <span className="text-xs font-bold tracking-tight hover:text-amber-400 block truncate">
+                            {lead.clientName}
+                          </span>
+                          {lead.secondaryCustomerName && (
+                            <span className="text-[10px] text-slate-400 block truncate">
+                              &amp; {lead.secondaryCustomerName}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs font-mono font-bold text-emerald-400 shrink-0">
                           {formatAud(lead.totalEstimatedDealValue)}
                         </span>
                       </div>
@@ -119,14 +130,48 @@ export function CrmKanbanBoard({
                         </div>
                       </div>
 
-                      {/* Card Footer: Milestone Badges & Quick Move */}
+                      {/* Card Footer: Quick Action Buttons (Call, SMS, Email, 360 Profile) */}
                       <div className="pt-2 border-t border-slate-800/60 flex items-center justify-between text-[10px]">
-                        <span className="text-slate-500 font-medium">
-                          {lead.landStatus.includes("Registered") ? "✓ Land Ready" : "Searching Land"}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            title="Quick Call Client"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onQuickAction ? onQuickAction(lead, "call") : onOpenLead(lead);
+                            }}
+                            className="p-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-colors"
+                          >
+                            <Phone className="h-3 w-3" />
+                          </button>
+
+                          <button
+                            type="button"
+                            title="Send Instant SMS"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onQuickAction ? onQuickAction(lead, "sms") : onOpenLead(lead);
+                            }}
+                            className="p-1.5 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 transition-colors"
+                          >
+                            <MessageSquare className="h-3 w-3" />
+                          </button>
+
+                          <button
+                            type="button"
+                            title="Send Outlook Email"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onQuickAction ? onQuickAction(lead, "email") : onOpenLead(lead);
+                            }}
+                            className="p-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 transition-colors"
+                          >
+                            <Mail className="h-3 w-3" />
+                          </button>
+                        </div>
 
                         <div className="flex items-center gap-1 text-amber-400 font-bold hover:underline">
-                          <span>360° Profile →</span>
+                          <span>Profile →</span>
                         </div>
                       </div>
                     </div>

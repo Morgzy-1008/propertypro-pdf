@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   CrmLead,
   CrmStageId,
@@ -19,6 +19,10 @@ import { CrmKanbanBoard } from "./CrmKanbanBoard";
 import { CrmCommissionDashboard } from "./CrmCommissionDashboard";
 import { CrmClientDetailPage } from "./CrmClientDetailPage";
 import { CrmConversationsView } from "./CrmConversationsView";
+import { CrmTasksView } from "./CrmTasksView";
+import { CrmNewClientModal } from "./CrmNewClientModal";
+import { CrmHoneyImportModal } from "./CrmHoneyImportModal";
+import { CrmQuickCommunicationModal } from "./CrmQuickCommunicationModal";
 import {
   Users,
   Award,
@@ -31,6 +35,9 @@ import {
   TrendingUp,
   DollarSign,
   Briefcase,
+  CheckSquare,
+  FileSpreadsheet,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,16 +52,33 @@ export function CrmWorkspace() {
 
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [messages, setMessages] = useState<CrmMessage[]>([]);
-  const [activeTab, setActiveTab] = useState<"kanban" | "conversations" | "commissions">("kanban");
+  const [activeTab, setActiveTab] = useState<"kanban" | "tasks" | "conversations" | "commissions">("kanban");
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>("morgan_hales");
+  const [userRole, setUserRole] = useState<"nhc" | "viewer">("nhc");
+
+  // Modals state
   const [activeLead, setActiveLead] = useState<CrmLead | null>(null);
   const [isClientDetailOpen, setIsClientDetailOpen] = useState(false);
+  const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [isHoneyImportModalOpen, setIsHoneyImportModalOpen] = useState(false);
+
+  // Quick Communication Modal state
+  const [quickCommLead, setQuickCommLead] = useState<CrmLead | null>(null);
+  const [quickCommChannel, setQuickCommChannel] = useState<"call" | "sms" | "email">("call");
+  const [isQuickCommOpen, setIsQuickCommOpen] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [outlookSyncState, setOutlookSyncState] = useState(getOutlookSyncStatus());
 
+  const refreshData = async () => {
+    const loadedLeads = await loadAllCrmLeads();
+    const loadedMessages = await loadAllCrmMessages();
+    setLeads(loadedLeads);
+    setMessages(loadedMessages);
+  };
+
   useEffect(() => {
-    loadAllCrmLeads().then(setLeads);
-    loadAllCrmMessages().then(setMessages);
+    refreshData();
   }, []);
 
   const handleUpdateStage = async (leadId: string, newStage: CrmStageId) => {
@@ -84,40 +108,24 @@ export function CrmWorkspace() {
     toast.success(`Outlook 365 synchronized! ${next.count} emails captured across all clients.`);
   };
 
-  const handleCreateNewLead = async () => {
-    const newLead: CrmLead = {
-      id: `lead_${Date.now()}`,
-      clientName: "New Prospect",
-      email: "prospect@example.com",
-      mobile: "0400 123 456",
-      targetEstate: "Providence Estate",
-      suburb: "South Ripley",
-      lotNumber: "TBA",
-      landStatus: "Looking for Land",
-      landBudget: 320000,
-      preferredDesign: "Amber 21",
-      facadeName: "Hampton Executive",
-      housingType: "Single Storey",
-      totalEstimatedDealValue: 465000,
-      stage: "new_lead",
-      assignedConsultantId: selectedConsultantId,
-      leadSource: "Website Inquiry",
-      notes: "Newly created prospect in Hudson Horizon CRM.",
-      isAtpSigned: false,
-      atpFeePaid: false,
-      isContractSigned: false,
-      contractDepositPaid: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      lastContactedAt: new Date().toISOString(),
-    };
-
-    const updated = await saveCrmLead(newLead);
-    setLeads(updated);
-    setActiveLead(newLead);
-    setIsClientDetailOpen(true);
-    toast.success("New lead created in CRM!");
+  const handleQuickAction = (lead: CrmLead, action: "call" | "sms" | "email") => {
+    setQuickCommLead(lead);
+    setQuickCommChannel(action);
+    setIsQuickCommOpen(true);
   };
+
+  // Count active pending tasks
+  const openTasksCount = useMemo(() => {
+    return leads.reduce((acc, lead) => {
+      if (
+        selectedConsultantId !== "all" &&
+        lead.assignedConsultantId !== selectedConsultantId
+      ) {
+        return acc;
+      }
+      return acc + (lead.tasks ? lead.tasks.filter((t) => !t.completed).length : 0);
+    }, 0);
+  }, [leads, selectedConsultantId]);
 
   const filteredLeads = leads.filter((l) => {
     const matchesConsultant =
@@ -147,7 +155,7 @@ export function CrmWorkspace() {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Complete residential builder CRM with 12 pipeline milestones, omnichannel conversations, Outlook email capture, and synchronized Quoting &amp; Tenders.
+            Complete residential builder CRM with 12 pipeline milestones, tasks reminder engine, omnichannel conversations, and Outlook integration.
           </p>
         </div>
 
@@ -156,11 +164,21 @@ export function CrmWorkspace() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setIsHoneyImportModalOpen(true)}
+            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-semibold"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5 text-amber-400" />
+            Import from Honey
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleTriggerSync}
             className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-semibold"
           >
             <RefreshCw className="h-3.5 w-3.5 text-cyan-400" />
-            Sync Outlook Emails
+            Sync Outlook
           </Button>
 
           <Link to="/kiosk" target="_blank">
@@ -176,7 +194,7 @@ export function CrmWorkspace() {
 
           <Button
             size="sm"
-            onClick={handleCreateNewLead}
+            onClick={() => setIsNewClientModalOpen(true)}
             className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs gap-1.5 shadow-md shadow-amber-500/20"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -196,8 +214,8 @@ export function CrmWorkspace() {
           <span className="text-lg font-black text-cyan-400">{leads.length} Clients</span>
         </div>
         <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Contracts &amp; Onsite</span>
-          <span className="text-lg font-black text-emerald-400">{totalUnderConstruction} Jobs</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Open Follow-up Tasks</span>
+          <span className="text-lg font-black text-emerald-400">{openTasksCount} Tasks</span>
         </div>
         <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Outlook 365 Sync</span>
@@ -223,6 +241,24 @@ export function CrmWorkspace() {
 
           <button
             type="button"
+            onClick={() => setActiveTab("tasks")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === "tasks"
+                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
+            }`}
+          >
+            <CheckSquare className="h-3.5 w-3.5" />
+            Tasks &amp; Reminders
+            {openTasksCount > 0 && (
+              <span className="bg-amber-950/80 text-amber-300 text-[10px] px-1.5 py-0.2 rounded-full font-mono border border-amber-800/80 font-bold">
+                {openTasksCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setActiveTab("conversations")}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "conversations"
@@ -237,18 +273,20 @@ export function CrmWorkspace() {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab("commissions")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === "commissions"
-                ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
-                : "text-slate-400 hover:text-white hover:bg-slate-900/80"
-            }`}
-          >
-            <Award className="h-3.5 w-3.5" />
-            Commissions ($75k + 2.25%)
-          </button>
+          {userRole === "nhc" && (
+            <button
+              type="button"
+              onClick={() => setActiveTab("commissions")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                activeTab === "commissions"
+                  ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-900/80"
+              }`}
+            >
+              <Award className="h-3.5 w-3.5" />
+              Commissions &amp; Salary
+            </button>
+          )}
         </div>
 
         {/* Search & Consultant Filter */}
@@ -284,6 +322,16 @@ export function CrmWorkspace() {
           leads={filteredLeads}
           onOpenLead={handleOpenLead}
           onUpdateStage={handleUpdateStage}
+          onQuickAction={handleQuickAction}
+        />
+      )}
+
+      {activeTab === "tasks" && (
+        <CrmTasksView
+          leads={leads}
+          selectedConsultantId={selectedConsultantId}
+          onOpenLead={handleOpenLead}
+          onTasksUpdated={refreshData}
         />
       )}
 
@@ -298,11 +346,12 @@ export function CrmWorkspace() {
         />
       )}
 
-      {activeTab === "commissions" && (
+      {activeTab === "commissions" && userRole === "nhc" && (
         <CrmCommissionDashboard
           leads={leads}
-          consultants={HUDSON_CONSULTANTS}
           selectedConsultantId={selectedConsultantId}
+          onSelectConsultant={setSelectedConsultantId}
+          userRole={userRole}
         />
       )}
 
@@ -311,12 +360,48 @@ export function CrmWorkspace() {
         <CrmClientDetailPage
           lead={activeLead}
           isOpen={isClientDetailOpen}
-          onClose={() => setIsClientDetailOpen(false)}
-          onSave={handleSaveLead}
+          onClose={() => {
+            setIsClientDetailOpen(false);
+            refreshData();
+          }}
+          onSave={async (updated) => {
+            await handleSaveLead(updated);
+            setActiveLead(updated);
+          }}
           onSendMessage={handleSendMessage}
           clientMessages={messages}
         />
       )}
+
+      {/* Add New Client Modal */}
+      <CrmNewClientModal
+        isOpen={isNewClientModalOpen}
+        onClose={() => setIsNewClientModalOpen(false)}
+        defaultConsultantId={selectedConsultantId !== "all" ? selectedConsultantId : "morgan_hales"}
+        onCreated={(newLead) => {
+          refreshData();
+          setActiveLead(newLead);
+          setIsClientDetailOpen(true);
+        }}
+      />
+
+      {/* Honey CRM Importer Modal */}
+      <CrmHoneyImportModal
+        isOpen={isHoneyImportModalOpen}
+        onClose={() => setIsHoneyImportModalOpen(false)}
+        onImportComplete={(allLeads) => {
+          setLeads(allLeads);
+        }}
+      />
+
+      {/* Quick Action Modal (Call, SMS, Email) */}
+      <CrmQuickCommunicationModal
+        isOpen={isQuickCommOpen}
+        onClose={() => setIsQuickCommOpen(false)}
+        lead={quickCommLead}
+        initialChannel={quickCommChannel}
+        onUpdated={refreshData}
+      />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import { upsertLeadFromQuote } from "@/lib/crm/crmStorage";
 import {
   createNewBlankQuote,
   loadAllQuotes,
@@ -156,8 +157,10 @@ export function QuoteBuilder() {
     try {
       await saveQuoteAsync(quote);
       await refreshSavedQuotes();
+      // Auto-sync client to CRM
+      await upsertLeadFromQuote(quote).catch(() => {});
       const clientLabel = quote.client.clientName?.trim() ? ` for ${quote.client.clientName}` : "";
-      toast.success(`Builders Estimate #${quote.quoteNumber || "MH"}${clientLabel} saved permanently!`);
+      toast.success(`Builders Estimate #${quote.quoteNumber || "MH"}${clientLabel} saved & synced to CRM!`);
     } catch (err) {
       console.error("Save quote error:", err);
       toast.error("Could not save estimate");

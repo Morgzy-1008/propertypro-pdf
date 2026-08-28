@@ -223,6 +223,7 @@ export interface CrmLead {
   mobile: string;
   secondaryCustomerName?: string;
   secondaryCustomerMobile?: string;
+  secondaryCustomerEmail?: string;
   
   // Land & Site Details
   targetEstate: string;
@@ -236,6 +237,7 @@ export interface CrmLead {
   facadeName: string;
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   totalEstimatedDealValue: number;
+  tenderPrice?: number; // Official head office tender price once Tender Received stage is reached
 
   // Workflow State
   stage: CrmStageId;

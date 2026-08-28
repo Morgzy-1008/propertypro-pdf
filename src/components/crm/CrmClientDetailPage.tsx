@@ -287,34 +287,46 @@ export function CrmClientDetailPage({
           {/* Left Column: Client Details, Notes & Tasks (7 Cols) */}
           <div className="lg:col-span-7 space-y-6">
             {/* Build & Property Specifications */}
-            <div className={`rounded-xl border p-4 ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-500 mb-3 flex items-center gap-1.5">
-                <Home className="h-4 w-4" /> House &amp; Land Package Specification
-              </h3>
+            <div className={`rounded-xl border p-4 ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"} space-y-3`}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-500 flex items-center gap-1.5">
+                  <Home className="h-4 w-4" /> House &amp; Land Package Specification
+                </h3>
+                {currentLead.secondaryCustomerName && (
+                  <span className="text-[10px] bg-cyan-950/60 text-cyan-300 border border-cyan-800/60 px-2 py-0.5 rounded-full font-semibold">
+                    Co-Buyer: {currentLead.secondaryCustomerName} ({currentLead.secondaryCustomerMobile || "No Phone"})
+                  </span>
+                )}
+              </div>
+
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                 <div>
                   <span className="text-slate-400 block">Preferred Design</span>
-                  <span className="font-bold">{currentLead.preferredDesign}</span>
+                  <span className="font-bold text-white">{currentLead.preferredDesign}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Facade</span>
-                  <span className="font-bold">{currentLead.facadeName}</span>
+                  <span className="font-bold text-white">{currentLead.facadeName}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Housing Type</span>
-                  <span className="font-bold">{currentLead.housingType}</span>
+                  <span className="font-bold text-white">{currentLead.housingType}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Land Status</span>
                   <span className="font-bold text-cyan-400">{currentLead.landStatus}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Land Budget</span>
-                  <span className="font-bold">{formatAud(currentLead.landBudget)}</span>
+                  <span className="text-slate-400 block">Estimated Deal Value</span>
+                  <span className="font-bold text-emerald-400 font-mono">{formatAud(currentLead.totalEstimatedDealValue)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block">Total Deal Value</span>
-                  <span className="font-bold text-emerald-400">{formatAud(currentLead.totalEstimatedDealValue)}</span>
+                  <span className="text-slate-400 block">Official Tender Price</span>
+                  {currentLead.tenderPrice ? (
+                    <span className="font-bold text-amber-400 font-mono">{formatAud(currentLead.tenderPrice)}</span>
+                  ) : (
+                    <span className="text-slate-500 italic text-[11px]">Pending Tender Received</span>
+                  )}
                 </div>
               </div>
             </div>
