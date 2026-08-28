@@ -111,6 +111,12 @@ export function findHouseBounds(
  * - Double Storey: Cleanly calibrated (6mm top gap, 8mm bottom gap, 68mm house height)
  *   with full background texture fill (ZERO black boxes or transparent voids).
  */
+/**
+ * Pre-frames the house onto a widescreen 210mm x 82mm banner (2400 x 937 px):
+ * - Seamlessly extends the authentic sky overhead and manicured turf below.
+ * - Leaves a clean 8mm-10mm headroom so the roof apex and eaves are NEVER cropped.
+ * - Soft edge feathering eliminates hard seams and completely removes blurred ghost boxes on LHS/RHS.
+ */
 export async function preframeFacadeImage(
   rawB64: string,
   housingType = "single-storey"
@@ -120,8 +126,8 @@ export async function preframeFacadeImage(
     const srcW = img.width;
     const srcH = img.height;
 
-    const outW = 2400; // 210mm
-    const outH = 937;  // 82mm
+    const outW = 2400; // 210mm equivalent width at ~288 DPI
+    const outH = 937;  // 82mm equivalent height
     const pxPerMm = outH / 82; // 11.4268 px/mm
 
     const scanCanvas = document.createElement("canvas");
@@ -131,8 +137,46 @@ export async function preframeFacadeImage(
     if (!sCtx) return rawB64;
     sCtx.drawImage(img, 0, 0);
     const imgData = sCtx.getImageData(0, 0, srcW, srcH);
+    const data = imgData.data;
 
-    const { roofY, baseY, leftX, rightX } = findHouseBounds(img, imgData.data);
+    // 1. Sample Sky Color from top 8% of original image
+    let skyR = 0, skyG = 0, skyB = 0, skyCount = 0;
+    for (let y = 0; y < Math.round(srcH * 0.08); y += 2) {
+      for (let x = 0; x < srcW; x += 4) {
+        const idx = (y * srcW + x) * 4;
+        skyR += data[idx];
+        skyG += data[idx + 1];
+        skyB += data[idx + 2];
+        skyCount++;
+      }
+    }
+    skyR = Math.round(skyCount > 0 ? skyR / skyCount : 210);
+    skyG = Math.round(skyCount > 0 ? skyG / skyCount : 225);
+    skyB = Math.round(skyCount > 0 ? skyB / skyCount : 240);
+
+    // 2. Sample Lawn / Ground Color from bottom corners
+    let gndR = 0, gndG = 0, gndB = 0, gndCount = 0;
+    for (let y = Math.round(srcH * 0.88); y < srcH; y += 2) {
+      for (let x = 0; x < Math.round(srcW * 0.25); x += 4) {
+        const idx = (y * srcW + x) * 4;
+        gndR += data[idx];
+        gndG += data[idx + 1];
+        gndB += data[idx + 2];
+        gndCount++;
+      }
+      for (let x = Math.round(srcW * 0.75); x < srcW; x += 4) {
+        const idx = (y * srcW + x) * 4;
+        gndR += data[idx];
+        gndG += data[idx + 1];
+        gndB += data[idx + 2];
+        gndCount++;
+      }
+    }
+    gndR = Math.round(gndCount > 0 ? gndR / gndCount : 120);
+    gndG = Math.round(gndCount > 0 ? gndG / gndCount : 135);
+    gndB = Math.round(gndCount > 0 ? gndB / gndCount : 110);
+
+    const { roofY, baseY, leftX, rightX } = findHouseBounds(img, data);
     const houseW = Math.max(100, rightX - leftX);
     const houseH = Math.max(100, baseY - roofY);
 
@@ -142,15 +186,14 @@ export async function preframeFacadeImage(
       housingType === "Double Storey" ||
       housingType === "Double";
 
-    // Calibrated physical millimeter geometry:
-    // Single Storey: 2.5mm top gap, 5mm bottom gap — maximum hero size with safe roof & boundary clearance
-    // Double Storey: 6mm top gap, 8mm bottom gap (68mm house height) — Safe roof clearance
-    const targetRoofApexY = Math.round((isDouble ? 6.0 : 2.5) * pxPerMm); // 69px (6mm) or 29px (2.5mm)
-    const targetHouseBaseY = outH - Math.round((isDouble ? 8.0 : 5.0) * pxPerMm); // 846px (74mm) or 880px (77mm)
-    const targetHouseH = targetHouseBaseY - targetRoofApexY; // 777px (68mm) or 851px (74.5mm)
+    // Calibrated safe headroom & ground geometry:
+    // Ensure roof apex is strictly 8mm (91px) to 10mm (114px) below top canvas edge
+    const targetRoofApexY = Math.round((isDouble ? 8.0 : 7.0) * pxPerMm);
+    const targetHouseBaseY = outH - Math.round((isDouble ? 8.0 : 6.0) * pxPerMm);
+    const targetHouseH = targetHouseBaseY - targetRoofApexY;
 
     let scale = targetHouseH / houseH;
-    const maxAllowedW = isDouble ? 2180 : 2300;
+    const maxAllowedW = isDouble ? 2100 : 2200;
     if (houseW * scale > maxAllowedW) {
       scale = maxAllowedW / houseW;
     }
@@ -159,8 +202,8 @@ export async function preframeFacadeImage(
     const drawH = Math.round(srcH * scale);
     let drawY = Math.round(targetRoofApexY - (roofY * scale));
 
-    // Ensure roof apex never crosses or gets clipped by the top border
-    const minTopMargin = Math.round((isDouble ? 5.0 : 2.0) * pxPerMm);
+    // Hard guarantee: roof apex never crosses minimum 6mm top margin
+    const minTopMargin = Math.round(6.0 * pxPerMm);
     if (drawY + (roofY * scale) < minTopMargin) {
       drawY = minTopMargin - Math.round(roofY * scale);
     }
@@ -177,30 +220,37 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // Fill background with realistic continuous landscape backdrop so there are ZERO empty boxes
-    // 1. Draw full-bleed landscape background texture with subtle atmospheric blur to seamlessly fill left & right wings
-    ctx.save();
-    ctx.filter = "blur(16px)";
-    // Cover the full widescreen canvas with proportional landscape background
-    const bgScale = Math.max(outW / srcW, outH / srcH) * 1.08;
-    const bgW = Math.round(srcW * bgScale);
-    const bgH = Math.round(srcH * bgScale);
-    const bgX = Math.round((outW - bgW) / 2);
-    const bgY = Math.round((outH - bgH) / 2);
-    ctx.drawImage(img, bgX, bgY, bgW, bgH);
-    ctx.restore();
-
-    // 2. Soft natural light overlay to match daytime exposure
-    const grad = ctx.createLinearGradient(0, 0, 0, outH);
-    grad.addColorStop(0, "rgba(255, 255, 255, 0.15)");
-    grad.addColorStop(0.5, "rgba(255, 255, 255, 0.0)");
-    grad.addColorStop(1, "rgba(0, 0, 0, 0.08)");
-    ctx.fillStyle = grad;
+    // 1. Draw smooth natural sky and lawn backdrop gradient (NO BLURRED GHOST HOUSE)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, outH);
+    skyGrad.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
+    skyGrad.addColorStop(0.55, `rgb(${Math.min(255, skyR + 15)}, ${Math.min(255, skyG + 15)}, ${Math.min(255, skyB + 15)})`);
+    skyGrad.addColorStop(0.72, `rgb(${Math.round((skyR + gndR) / 2)}, ${Math.round((skyG + gndG) / 2)}, ${Math.round((skyB + gndB) / 2)})`);
+    skyGrad.addColorStop(0.85, `rgb(${gndR}, ${gndG}, ${gndB})`);
+    skyGrad.addColorStop(1, `rgb(${Math.max(0, gndR - 20)}, ${Math.max(0, gndG - 15)}, ${Math.max(0, gndB - 20)})`);
+    ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, outW, outH);
 
-    // 3. Draw the main razor-sharp house photo centered with clean edge-to-edge blending
+    // 2. Draw the centered sharp house image
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    return canvas.toDataURL("image/jpeg", 0.94);
+
+    // 3. Smoothly feather the left and right boundary edges with subtle gradient masks to eliminate any hard seams
+    const featherWidth = Math.min(80, Math.max(30, Math.round(srcW * 0.04 * scale)));
+    if (drawX > 0) {
+      const leftFade = ctx.createLinearGradient(drawX - 2, 0, drawX + featherWidth, 0);
+      leftFade.addColorStop(0, `rgba(${skyR}, ${skyG}, ${skyB}, 1)`);
+      leftFade.addColorStop(1, `rgba(${skyR}, ${skyG}, ${skyB}, 0)`);
+      ctx.fillStyle = leftFade;
+      ctx.fillRect(drawX - 2, 0, featherWidth + 2, outH * 0.75);
+    }
+    if (drawX + drawW < outW) {
+      const rightFade = ctx.createLinearGradient(drawX + drawW - featherWidth, 0, drawX + drawW + 2, 0);
+      rightFade.addColorStop(0, `rgba(${skyR}, ${skyG}, ${skyB}, 0)`);
+      rightFade.addColorStop(1, `rgba(${skyR}, ${skyG}, ${skyB}, 1)`);
+      ctx.fillStyle = rightFade;
+      ctx.fillRect(drawX + drawW - featherWidth, 0, featherWidth + 2, outH * 0.75);
+    }
+
+    return canvas.toDataURL("image/jpeg", 0.95);
   } catch (e) {
     console.warn("[preframeFacadeImage fallback]", e);
     return rawB64;

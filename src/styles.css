@@ -179,10 +179,19 @@
 @utility flyer-page {
   width: 210mm;
   height: 297mm;
+  min-width: 210mm;
+  max-width: 210mm;
+  min-height: 297mm;
+  max-height: 297mm;
   background: var(--brand-cream);
   color: var(--brand-ink);
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
+  padding: 5mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   flex: none;
 }
 
