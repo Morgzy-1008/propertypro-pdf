@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { jsPDF } from "jspdf";
 import type { FullQuote } from "../quoting/quoteTypes";
 import { formatAud } from "../pricing";
 import { plansForDesign } from "@/components/flyer/floorplans";
@@ -1139,7 +1140,7 @@ export function generateCursiveSignatureDataUrl(
 }
 
 /**
- * Renders an HD standalone full-page Floorplan with numbered pins for "Final Floorplan.pdf"
+ * Renders an HD standalone full-page Floorplan with numbered pins as a genuine PDF data URL ("Final Floorplan.pdf")
  */
 export async function renderHdFinalFloorplanDataUrl(
   floorplanUrl: string,
@@ -1154,8 +1155,8 @@ export async function renderHdFinalFloorplanDataUrl(
     img.crossOrigin = "anonymous";
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      const width = Math.max(1600, img.naturalWidth || 1600);
-      const height = Math.max(2200, (img.naturalHeight || 1200) + 260);
+      const width = Math.max(1800, img.naturalWidth || 1800);
+      const height = Math.max(2400, (img.naturalHeight || 1300) + 300);
       canvas.width = width;
       canvas.height = height;
 
@@ -1171,21 +1172,21 @@ export async function renderHdFinalFloorplanDataUrl(
 
       // Header Banner
       ctx.fillStyle = "#0f172a";
-      ctx.fillRect(0, 0, width, 130);
+      ctx.fillRect(0, 0, width, 140);
 
       ctx.fillStyle = "#ffffff";
-      ctx.font = "bold 32px sans-serif";
-      ctx.fillText("HUDSON HOMES — FINAL ARCHITECTURAL MARKUP FLOORPLAN", 50, 58);
+      ctx.font = "bold 34px sans-serif";
+      ctx.fillText("HUDSON HOMES — FINAL ARCHITECTURAL MARKUP FLOORPLAN", 60, 60);
 
       ctx.fillStyle = "#38bdf8";
       ctx.font = "bold 20px sans-serif";
-      ctx.fillText(`${designName} · Ref: ${submissionNumber} · Active Structural Pin Schedule (${pins.length} Pins)`, 50, 96);
+      ctx.fillText(`${designName} · Ref: ${submissionNumber} · Active Structural Pin Schedule (${pins.length} Pins)`, 60, 102);
 
       // Floorplan Image
-      const topOffset = 160;
-      const availableHeight = height - topOffset - 70;
+      const topOffset = 170;
+      const availableHeight = height - topOffset - 80;
       const imgRatio = img.naturalWidth / img.naturalHeight;
-      let drawW = width - 120;
+      let drawW = width - 140;
       let drawH = drawW / imgRatio;
 
       if (drawH > availableHeight) {
@@ -1202,12 +1203,12 @@ export async function renderHdFinalFloorplanDataUrl(
       pins.forEach((pin) => {
         const pinX = drawX + (pin.x / 100) * drawW;
         const pinY = drawY + (pin.y / 100) * drawH;
-        const radius = 24;
+        const radius = 26;
 
         // Dark outer halo
         ctx.beginPath();
-        ctx.arc(pinX, pinY, radius + 3, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
+        ctx.arc(pinX, pinY, radius + 4, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
         ctx.fill();
 
         // Pin body
@@ -1218,7 +1219,7 @@ export async function renderHdFinalFloorplanDataUrl(
 
         // Pin number
         ctx.fillStyle = "#020617";
-        ctx.font = "bold 22px monospace";
+        ctx.font = "bold 24px monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(String(pin.number), pinX, pinY + 1);
@@ -1230,11 +1231,23 @@ export async function renderHdFinalFloorplanDataUrl(
       ctx.textAlign = "left";
       ctx.fillText(
         `Hudson Homes Pty Ltd · Final Tender Plan for Drafting & OnSite Submission · Generated ${new Date().toLocaleDateString("en-AU")}`,
-        50,
-        height - 25
+        60,
+        height - 30
       );
 
-      resolve(canvas.toDataURL("image/png"));
+      try {
+        const imgData = canvas.toDataURL("image/jpeg", 0.95);
+        const pdf = new jsPDF({
+          orientation: width > height ? "landscape" : "portrait",
+          unit: "pt",
+          format: [width * 0.75, height * 0.75],
+        });
+        pdf.addImage(imgData, "JPEG", 0, 0, width * 0.75, height * 0.75);
+        resolve(pdf.output("datauristring"));
+      } catch (err) {
+        console.warn("Falling back to image data url for final floorplan:", err);
+        resolve(canvas.toDataURL("image/png"));
+      }
     };
     img.onerror = () => resolve("");
     img.src = floorplanUrl;
@@ -1243,7 +1256,8 @@ export async function renderHdFinalFloorplanDataUrl(
 
 /**
  * Renders an HD standalone working drawings specification directive for Bernie and the OnSite drafting team.
- * Includes side-by-side floorplan & facade renders, complete variation schedule, interactive/printable review checklists and notes.
+ * Formatted with side-by-side variations table on one side and an editable drafting notes & checklist page on the other,
+ * exported as a clean genuine PDF.
  */
 export async function renderDraftsmenVariationsDataUrl(
   submission: TenderSubmission
@@ -1254,11 +1268,11 @@ export async function renderDraftsmenVariationsDataUrl(
   const otherItems = (submission.variations || []).filter((v) => !v.isStructural);
   const totalItemsCount = structuralItems.length + otherItems.length;
 
-  const width = 1800;
-  // Dynamic canvas height to ensure everything fits comfortably
-  const baseHeight = 1450;
+  const width = 2400;
+  const baseHeight = 1600;
   const itemRowHeight = 90;
-  const height = Math.max(2600, baseHeight + totalItemsCount * itemRowHeight + 250);
+  const maxRows = Math.max(totalItemsCount, 10);
+  const height = Math.max(2000, baseHeight + (maxRows - 8) * (itemRowHeight / 2));
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
@@ -1272,186 +1286,88 @@ export async function renderDraftsmenVariationsDataUrl(
 
   // 2. Dark Navy Top Header Banner
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(0, 0, width, 160);
+  ctx.fillRect(0, 0, width, 150);
 
   // Logo / Title
   ctx.fillStyle = "#ffffff";
-  ctx.font = "900 34px sans-serif";
-  ctx.fillText("HUDSON HOMES — DRAFTSMEN VARIATION DIRECTIVE & WORKING DRAWINGS CHECKLIST", 50, 65);
+  ctx.font = "900 36px sans-serif";
+  ctx.fillText("HUDSON HOMES — DRAFTSMEN VARIATION DIRECTIVE & WORKING DRAWINGS", 60, 62);
 
   ctx.fillStyle = "#38bdf8";
   ctx.font = "bold 20px sans-serif";
   ctx.fillText(
     `Prepared for Bernie & OnSite Drafting Team · Job Ref: ${submission.submissionNumber} · Created ${submission.tenderRequestDate || new Date().toLocaleDateString("en-AU")}`,
-    50,
-    110
+    60,
+    108
   );
 
   ctx.fillStyle = "#f59e0b";
-  ctx.font = "bold 16px monospace";
+  ctx.font = "bold 18px monospace";
   ctx.textAlign = "right";
-  ctx.fillText(`TOTAL VARIATIONS: ${totalItemsCount} ITEMS`, width - 50, 110);
+  ctx.fillText(`TOTAL VARIATIONS: ${totalItemsCount} ITEMS`, width - 60, 108);
   ctx.textAlign = "left";
 
   // 3. Project Information Metadata Card
   ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(50, 180, width - 100, 120);
+  ctx.fillRect(60, 170, width - 120, 110);
   ctx.strokeStyle = "#cbd5e1";
   ctx.lineWidth = 1.5;
-  ctx.strokeRect(50, 180, width - 100, 120);
+  ctx.strokeRect(60, 170, width - 120, 110);
 
-  const colW = (width - 100) / 4;
+  const colW = (width - 120) / 4;
 
   // Meta Col 1: Customer
   ctx.fillStyle = "#475569";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("CLIENT / PURCHASER", 70, 210);
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("CLIENT / PURCHASER", 80, 200);
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.customer1.firstName} ${submission.customer1.surname}`, 70, 240);
+  ctx.fillText(`${submission.customer1.firstName} ${submission.customer1.surname}`, 80, 230);
   ctx.font = "14px monospace";
   ctx.fillStyle = "#64748b";
-  ctx.fillText(`Ph: ${submission.customer1.mobile || "N/A"}`, 70, 268);
+  ctx.fillText(`Ph: ${submission.customer1.mobile || "N/A"}`, 80, 258);
 
   // Meta Col 2: Site Location
   ctx.fillStyle = "#475569";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("BUILDING SITE LOCATION", 70 + colW, 210);
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("BUILDING SITE LOCATION", 80 + colW, 200);
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`Lot ${submission.land.lotNo || "TBA"}, ${submission.land.suburb || "QLD"}`, 70 + colW, 240);
+  ctx.fillText(`Lot ${submission.land.lotNo || "TBA"}, ${submission.land.suburb || "QLD"}`, 80 + colW, 230);
   ctx.font = "14px sans-serif";
   ctx.fillStyle = "#64748b";
-  ctx.fillText(`${submission.land.streetName || "Street TBA"} · ${submission.land.council || ""}`, 70 + colW, 268);
+  ctx.fillText(`${submission.land.streetName || "Street TBA"} · ${submission.land.council || ""}`, 80 + colW, 258);
 
   // Meta Col 3: Design & Inclusions
   ctx.fillStyle = "#475569";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("HOME DESIGN & FACADE", 70 + colW * 2, 210);
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("HOME DESIGN & FACADE", 80 + colW * 2, 200);
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`, 70 + colW * 2, 240);
+  ctx.fillText(`${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`, 80 + colW * 2, 230);
   ctx.font = "14px sans-serif";
   ctx.fillStyle = "#0369a1";
-  ctx.fillText(`Tier: ${submission.homeSpec.inclusionsType} · Garage: ${submission.homeSpec.garageLocation}`, 70 + colW * 2, 268);
+  ctx.fillText(`Tier: ${submission.homeSpec.inclusionsType} · Garage: ${submission.homeSpec.garageLocation}`, 80 + colW * 2, 258);
 
   // Meta Col 4: Consultant & Workflow
   ctx.fillStyle = "#475569";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("CONSULTANT & TARGET", 70 + colW * 3, 210);
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillText("CONSULTANT & TARGET", 80 + colW * 3, 200);
   ctx.fillStyle = "#0f172a";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.newHomeConsultant || "Morgan Hales"}`, 70 + colW * 3, 240);
+  ctx.fillText(`${submission.newHomeConsultant || "Morgan Hales"}`, 80 + colW * 3, 230);
   ctx.font = "14px sans-serif";
   ctx.fillStyle = "#059669";
-  ctx.fillText(`Target: Bernie & OnSite Drafting`, 70 + colW * 3, 268);
+  ctx.fillText(`Target: Bernie & OnSite Drafting`, 80 + colW * 3, 258);
 
-  // 4. Load Visual Reference Images (Floorplan & Facade)
-  const floorplanUrl = submission.homeSpec.originalFloorplanUrl || submission.homeSpec.floorplanUrl;
-  const facadeUrl = submission.homeSpec.facadeRenderUrl;
-
-  const loadImg = (url?: string): Promise<HTMLImageElement | null> => {
-    if (!url) return Promise.resolve(null);
-    return new Promise((res) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => res(img);
-      img.onerror = () => res(null);
-      img.src = url;
-    });
-  };
-
-  const [floorplanImg, facadeImg] = await Promise.all([loadImg(floorplanUrl), loadImg(facadeUrl)]);
-
-  // Visual Reference Box (Y: 320 to 820)
-  const visBoxY = 320;
-  const visBoxH = 480;
-  const visHalfW = (width - 120) / 2;
-
-  // Left Visual Box: Floorplan
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(50, visBoxY, visHalfW, visBoxH);
-  ctx.strokeStyle = "#e2e8f0";
-  ctx.strokeRect(50, visBoxY, visHalfW, visBoxH);
-
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillText("1. STANDARD / ACTIVE ARCHITECTURAL FLOORPLAN DRAWING", 65, visBoxY + 30);
-
-  if (floorplanImg) {
-    const availW = visHalfW - 30;
-    const availH = visBoxH - 60;
-    const r = floorplanImg.naturalWidth / floorplanImg.naturalHeight;
-    let dW = availW;
-    let dH = dW / r;
-    if (dH > availH) {
-      dH = availH;
-      dW = dH * r;
-    }
-    const dX = 50 + (visHalfW - dW) / 2;
-    const dY = visBoxY + 45 + (availH - dH) / 2;
-    ctx.drawImage(floorplanImg, dX, dY, dW, dH);
-  } else {
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "15px sans-serif";
-    ctx.fillText("Catalog floorplan drawing on file", 80, visBoxY + 120);
-  }
-
-  // Right Visual Box: Facade
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(50 + visHalfW + 20, visBoxY, visHalfW, visBoxH);
-  ctx.strokeStyle = "#e2e8f0";
-  ctx.strokeRect(50 + visHalfW + 20, visBoxY, visHalfW, visBoxH);
-
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillText(`2. CHOSEN ARCHITECTURAL FACADE PERSPECTIVE (${submission.homeSpec.facade || "Standard"})`, 65 + visHalfW + 20, visBoxY + 30);
-
-  if (facadeImg) {
-    const availW = visHalfW - 30;
-    const availH = visBoxH - 60;
-    const r = facadeImg.naturalWidth / facadeImg.naturalHeight;
-    let dW = availW;
-    let dH = dW / r;
-    if (dH > availH) {
-      dH = availH;
-      dW = dH * r;
-    }
-    const dX = 50 + visHalfW + 20 + (visHalfW - dW) / 2;
-    const dY = visBoxY + 45 + (availH - dH) / 2;
-    ctx.drawImage(facadeImg, dX, dY, dW, dH);
-  } else {
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "15px sans-serif";
-    ctx.fillText("Architectural facade perspective render on file", 80 + visHalfW + 20, visBoxY + 120);
-  }
-
-  // 5. Variations Schedule & Draftsman Interactive Checklist
-  let curY = visBoxY + visBoxH + 40;
-
-  // Function to draw section header
-  const drawSectionHeader = (title: string, color: string) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(50, curY, width - 100, 38);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 16px sans-serif";
-    ctx.fillText(title, 65, curY + 25);
-    curY += 45;
-
-    // Table Column Headers
-    ctx.fillStyle = "#f1f5f9";
-    ctx.fillRect(50, curY, width - 100, 30);
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.strokeRect(50, curY, width - 100, 30);
-
-    ctx.fillStyle = "#475569";
-    ctx.font = "bold 13px sans-serif";
-    ctx.fillText("#", 65, curY + 20);
-    ctx.fillText("VARIATION / DRAFTING DIRECTIVE SPECIFICATION", 120, curY + 20);
-    ctx.fillText("DRAFTSMAN STATUS & SIGN-OFF", 1080, curY + 20);
-    ctx.fillText("PLAN SHEET REF & DRAFTER NOTES", 1430, curY + 20);
-    curY += 35;
-  };
+  // 4. SIDE-BY-SIDE SPLIT:
+  // LEFT COLUMN: Variations Table (Width: 1120px)
+  // RIGHT COLUMN: Editable Notes & Review Checklist Page (Width: 1120px)
+  const leftX = 60;
+  const leftW = 1120;
+  const rightX = leftX + leftW + 40;
+  const rightW = width - rightX - 60;
+  const contentTopY = 305;
 
   // Helper to wrap text
   const wrapText = (text: string, maxWidth: number): string[] => {
@@ -1473,154 +1389,250 @@ export async function renderDraftsmenVariationsDataUrl(
     return lines;
   };
 
+  // --- LEFT COLUMN: VARIATIONS TABLE ---
+  let curY = contentTopY;
+
+  const drawLeftHeader = (title: string, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(leftX, curY, leftW, 36);
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 15px sans-serif";
+    ctx.fillText(title, leftX + 15, curY + 24);
+    curY += 42;
+
+    // Table Column Headers
+    ctx.fillStyle = "#f1f5f9";
+    ctx.fillRect(leftX, curY, leftW, 28);
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.strokeRect(leftX, curY, leftW, 28);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("#", leftX + 15, curY + 19);
+    ctx.fillText("VARIATION & SPECIFICATION DIRECTIVE", leftX + 60, curY + 19);
+    ctx.fillText("SIGN-OFF", leftX + 850, curY + 19);
+    ctx.fillText("SHEET", leftX + 1020, curY + 19);
+    curY += 32;
+  };
+
   // Section A: Numbered Structural Variations
   if (structuralItems.length > 0) {
-    drawSectionHeader(`SECTION A: NUMBERED STRUCTURAL MODIFICATIONS (${structuralItems.length} ITEMS PINNED ON PLAN)`, "#b45309");
+    drawLeftHeader(`SECTION A: STRUCTURAL MODIFICATIONS (${structuralItems.length} ITEMS PINNED)`, "#b45309");
 
     structuralItems.forEach((item, idx) => {
       const isAlt = idx % 2 === 1;
-      const rowH = 76;
+      const rowH = 68;
 
       ctx.fillStyle = isAlt ? "#fffbeb" : "#ffffff";
-      ctx.fillRect(50, curY, width - 100, rowH);
+      ctx.fillRect(leftX, curY, leftW, rowH);
       ctx.strokeStyle = "#fde68a";
-      ctx.strokeRect(50, curY, width - 100, rowH);
+      ctx.strokeRect(leftX, curY, leftW, rowH);
 
       // Badge
       ctx.beginPath();
-      ctx.arc(80, curY + 38, 16, 0, Math.PI * 2);
+      ctx.arc(leftX + 28, curY + 34, 15, 0, Math.PI * 2);
       ctx.fillStyle = "#f59e0b";
       ctx.fill();
       ctx.fillStyle = "#020617";
-      ctx.font = "bold 15px monospace";
+      ctx.font = "bold 14px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(String(item.itemNumber || idx + 1), 80, curY + 39);
+      ctx.fillText(String(item.itemNumber || idx + 1), leftX + 28, curY + 35);
       ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
 
       // Description
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 15px sans-serif";
-      const lines = wrapText(item.description, 920);
-      lines.slice(0, 3).forEach((l, lIdx) => {
-        ctx.fillText(l, 120, curY + 26 + lIdx * 20);
+      ctx.font = "bold 14px sans-serif";
+      const lines = wrapText(item.description, 760);
+      lines.slice(0, 2).forEach((l, lIdx) => {
+        ctx.fillText(l, leftX + 60, curY + 24 + lIdx * 19);
       });
 
       // Draftsman Checkboxes
-      const boxY = curY + 28;
+      const boxY = curY + 24;
       ctx.strokeStyle = "#64748b";
       ctx.lineWidth = 1.5;
-      
-      // [ ] Approved
-      ctx.strokeRect(1080, boxY, 16, 16);
+      ctx.strokeRect(leftX + 850, boxY, 14, 14);
       ctx.fillStyle = "#0f172a";
-      ctx.font = "12px sans-serif";
-      ctx.fillText("Approved", 1104, boxY + 13);
-
-      // [ ] Query / RFI
-      ctx.strokeRect(1190, boxY, 16, 16);
-      ctx.fillText("Query / RFI", 1214, boxY + 13);
-
-      // [ ] N/A
-      ctx.strokeRect(1320, boxY, 16, 16);
-      ctx.fillText("N/A", 1344, boxY + 13);
-
-      // Sheet Ref & Notes Box
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(1430, curY + 12, 300, 52);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.strokeRect(1430, curY + 12, 300, 52);
-
-      ctx.fillStyle = "#64748b";
       ctx.font = "11px sans-serif";
-      ctx.fillText("Sheet Ref: _________", 1440, curY + 30);
-      ctx.fillText("Notes: ____________________", 1440, curY + 52);
+      ctx.fillText("Approved", leftX + 870, boxY + 11);
 
-      curY += rowH + 6;
+      ctx.strokeRect(leftX + 940, boxY, 14, 14);
+      ctx.fillText("RFI", leftX + 958, boxY + 11);
+
+      // Sheet Ref Box
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(leftX + 1010, curY + 12, 95, 44);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.strokeRect(leftX + 1010, curY + 12, 95, 44);
+      ctx.fillStyle = "#64748b";
+      ctx.font = "10px sans-serif";
+      ctx.fillText("Sht: _____ ", leftX + 1016, curY + 38);
+
+      curY += rowH + 4;
     });
 
-    curY += 20;
+    curY += 16;
   }
 
-  // Section B: All Other Variations & Inclusions
+  // Section B: Other Variations & Inclusions
   if (otherItems.length > 0) {
-    drawSectionHeader(`SECTION B: ALL OTHER VARIATIONS, INCLUSIONS & SITE SPECIFICATIONS (${otherItems.length} ITEMS)`, "#0e7490");
+    drawLeftHeader(`SECTION B: ALL OTHER VARIATIONS & INCLUSIONS (${otherItems.length} ITEMS)`, "#0e7490");
 
     otherItems.forEach((item, idx) => {
       const isAlt = idx % 2 === 1;
-      const rowH = 72;
+      const rowH = 64;
 
       ctx.fillStyle = isAlt ? "#f0fdfa" : "#ffffff";
-      ctx.fillRect(50, curY, width - 100, rowH);
+      ctx.fillRect(leftX, curY, leftW, rowH);
       ctx.strokeStyle = "#cffafe";
-      ctx.strokeRect(50, curY, width - 100, rowH);
+      ctx.strokeRect(leftX, curY, leftW, rowH);
 
       // Bullet
       ctx.beginPath();
-      ctx.arc(80, curY + 36, 6, 0, Math.PI * 2);
+      ctx.arc(leftX + 28, curY + 32, 5, 0, Math.PI * 2);
       ctx.fillStyle = "#06b6d4";
       ctx.fill();
 
       // Description
       ctx.fillStyle = "#0f172a";
-      ctx.font = "500 14px sans-serif";
-      const lines = wrapText(item.description, 920);
-      lines.slice(0, 3).forEach((l, lIdx) => {
-        ctx.fillText(l, 120, curY + 25 + lIdx * 19);
+      ctx.font = "500 13px sans-serif";
+      const lines = wrapText(item.description, 760);
+      lines.slice(0, 2).forEach((l, lIdx) => {
+        ctx.fillText(l, leftX + 60, curY + 23 + lIdx * 18);
       });
 
       // Draftsman Checkboxes
-      const boxY = curY + 26;
+      const boxY = curY + 22;
       ctx.strokeStyle = "#64748b";
       ctx.lineWidth = 1.5;
-
-      // [ ] Approved
-      ctx.strokeRect(1080, boxY, 16, 16);
+      ctx.strokeRect(leftX + 850, boxY, 14, 14);
       ctx.fillStyle = "#0f172a";
-      ctx.font = "12px sans-serif";
-      ctx.fillText("Approved", 1104, boxY + 13);
-
-      // [ ] Query / RFI
-      ctx.strokeRect(1190, boxY, 16, 16);
-      ctx.fillText("Query / RFI", 1214, boxY + 13);
-
-      // [ ] N/A
-      ctx.strokeRect(1320, boxY, 16, 16);
-      ctx.fillText("N/A", 1344, boxY + 13);
-
-      // Sheet Ref & Notes Box
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(1430, curY + 10, 300, 52);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.strokeRect(1430, curY + 10, 300, 52);
-
-      ctx.fillStyle = "#64748b";
       ctx.font = "11px sans-serif";
-      ctx.fillText("Sheet Ref: _________", 1440, curY + 28);
-      ctx.fillText("Notes: ____________________", 1440, curY + 50);
+      ctx.fillText("Approved", leftX + 870, boxY + 11);
 
-      curY += rowH + 6;
+      ctx.strokeRect(leftX + 940, boxY, 14, 14);
+      ctx.fillText("RFI", leftX + 958, boxY + 11);
+
+      // Sheet Ref Box
+      ctx.fillStyle = "#f8fafc";
+      ctx.fillRect(leftX + 1010, curY + 10, 95, 44);
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.strokeRect(leftX + 1010, curY + 10, 95, 44);
+      ctx.fillStyle = "#64748b";
+      ctx.font = "10px sans-serif";
+      ctx.fillText("Sht: _____ ", leftX + 1016, curY + 36);
+
+      curY += rowH + 4;
     });
-
-    curY += 25;
   }
 
-  // 6. Sign-off & Verification Footer Box
+  // --- RIGHT COLUMN: EDITABLE DRAFTING NOTES & CHECKLIST PAGE ---
+  let rightY = contentTopY;
+
+  // Panel 1: Siting & Boundary Setbacks
+  ctx.fillStyle = "#1e293b";
+  ctx.fillRect(rightX, rightY, rightW, 36);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillText("DRAFTING CHECKLIST & SITE DIRECTIVES", rightX + 15, rightY + 24);
+  rightY += 46;
+
+  // Setbacks Card
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(rightX, rightY, rightW, 140);
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.strokeRect(rightX, rightY, rightW, 140);
+
   ctx.fillStyle = "#0f172a";
-  ctx.fillRect(50, height - 140, width - 100, 100);
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("1. Siting & Boundary Clearances (Setback Verification):", rightX + 15, rightY + 25);
+
+  const sb = submission.homeSpec.setbacks || { frontBoundary: "6.0m", rearBoundary: "1.5m", leftBoundary: "1.0m", rightBoundary: "1.0m" };
+  ctx.font = "13px monospace";
+  ctx.fillStyle = "#334155";
+  ctx.fillText(`• Front Boundary Setback: ${sb.frontBoundary} (Min required per Council code)`, rightX + 25, rightY + 52);
+  ctx.fillText(`• Rear Boundary Setback:  ${sb.rearBoundary} (Min required to eaves/structure)`, rightX + 25, rightY + 74);
+  ctx.fillText(`• Left Boundary Setback:  ${sb.leftBoundary} · Right Setback: ${sb.rightBoundary}`, rightX + 25, rightY + 96);
+  ctx.fillText(`• Garage Orientation:    ${submission.homeSpec.garageLocation || "RHS"} (Verify driveway crossover)`, rightX + 25, rightY + 118);
+
+  rightY += 156;
+
+  // Panel 2: Key Engineering & Architectural Specifications
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(rightX, rightY, rightW, 170);
+  ctx.strokeStyle = "#e2e8f0";
+  ctx.strokeRect(rightX, rightY, rightW, 170);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("2. Engineering Directives & Slab Notes:", rightX + 15, rightY + 25);
+
+  ctx.font = "12.5px sans-serif";
+  ctx.fillStyle = "#334155";
+  ctx.fillText(`[✓] Slab Classification: Engineered Waffle Pod Slab / Piering Allowance`, rightX + 25, rightY + 52);
+  ctx.fillText(`[✓] Ceiling Height: ${submission.homeSpec.inclusionsType.includes("H3") ? "2,740mm High Ground Floor" : "2,440mm - 2,590mm Standard"}`, rightX + 25, rightY + 76);
+  ctx.fillText(`[✓] Facade Architectural Detail: ${submission.homeSpec.facade} (Verify window heads & eaves)`, rightX + 25, rightY + 100);
+  ctx.fillText(`[✓] Alfresco / Porch Slab: Step down 100mm with smooth concrete transition`, rightX + 25, rightY + 124);
+  ctx.fillText(`[✓] Wet Area Recesses: Provide 45mm step-down for walk-in shower recesses`, rightX + 25, rightY + 148);
+
+  rightY += 186;
+
+  // Panel 3: Draftsman Editable Notes & Query Section
+  ctx.fillStyle = "#fffbeb";
+  ctx.fillRect(rightX, rightY, rightW, 260);
+  ctx.strokeStyle = "#fde68a";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(rightX, rightY, rightW, 260);
+
+  ctx.fillStyle = "#92400e";
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText("3. Draftsman Working Notes & Special Structural Instructions:", rightX + 15, rightY + 26);
+
+  ctx.fillStyle = "#78350f";
+  ctx.font = "12px sans-serif";
+  ctx.fillText("• Ensure all numbered pins match the redline architectural floorplan exactly.", rightX + 20, rightY + 55);
+  ctx.fillText("• Confirm sewer / stormwater connection point from 1:200 Siting Plan.", rightX + 20, rightY + 80);
+  ctx.fillText("• Maintain NCC 2022 Livable Housing compliance (stepless threshold & 820mm doors).", rightX + 20, rightY + 105);
+
+  // Lined notepad area for drafter's handwritten / typed custom notes
+  ctx.strokeStyle = "#fde68a";
+  ctx.lineWidth = 1;
+  for (let lineY = rightY + 135; lineY <= rightY + 240; lineY += 25) {
+    ctx.beginPath();
+    ctx.moveTo(rightX + 20, lineY);
+    ctx.lineTo(rightX + rightW - 20, lineY);
+    ctx.stroke();
+  }
+
+  // 5. Sign-off & Verification Footer Box
+  ctx.fillStyle = "#0f172a";
+  ctx.fillRect(60, height - 130, width - 120, 95);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 15px sans-serif";
-  ctx.fillText("DRAFTING TEAM VERIFICATION & HANDOFF SIGN-OFF", 70, height - 105);
+  ctx.fillText("DRAFTING TEAM VERIFICATION & WORKFLOW HANDOFF SIGN-OFF", 80, height - 95);
 
   ctx.fillStyle = "#94a3b8";
   ctx.font = "13px sans-serif";
-  ctx.fillText("Lead Draftsman: ________________________", 70, height - 65);
-  ctx.fillText("Date Completed: ___ / ___ / 2026", 460, height - 65);
-  ctx.fillText("Drawing Revision: Rev A (Tender Plans)", 820, height - 65);
-  ctx.fillText("Bernie / Workflow Manager Sign-off: ________________________", 1220, height - 65);
+  ctx.fillText("Lead Draftsman: ________________________", 80, height - 55);
+  ctx.fillText("Date Completed: ___ / ___ / 2026", 520, height - 55);
+  ctx.fillText("Drawing Revision: Rev A (Tender Plans)", 920, height - 55);
+  ctx.fillText("Bernie / Workflow Manager Sign-off: ________________________", 1380, height - 55);
 
-  return canvas.toDataURL("image/png");
+  try {
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "pt",
+      format: [width * 0.75, height * 0.75],
+    });
+    pdf.addImage(imgData, "JPEG", 0, 0, width * 0.75, height * 0.75);
+    return pdf.output("datauristring");
+  } catch (err) {
+    console.warn("Falling back to image data url for draftsmen variations:", err);
+    return canvas.toDataURL("image/png");
+  }
 }
 

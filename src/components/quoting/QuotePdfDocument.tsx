@@ -1838,7 +1838,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 size={95}
               />
               <span className="text-[9px] font-bold text-slate-700 mt-1.5 uppercase font-mono tracking-wider">
-                Scan with Banking App
+                Scan to view banking details
               </span>
             </div>
           </div>

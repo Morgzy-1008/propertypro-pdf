@@ -426,10 +426,10 @@ export function TenderRequestPortal() {
       if (hdFloorplanDataUrl) {
         newDocs.final_floorplan = {
           id: "final_floorplan",
-          label: "Final Floorplan — HD Architectural Markup with Numbered Pins",
-          fileName: getStandardizedDocumentFileName(surname, "final_floorplan", "Final_Floorplan.png", tender.atp.feeAmount),
+          label: "Final Floorplan — HD Architectural Markup with Numbered Pins (PDF)",
+          fileName: getStandardizedDocumentFileName(surname, "final_floorplan", "Final_Floorplan.pdf", tender.atp.feeAmount),
           fileDataUrl: hdFloorplanDataUrl,
-          fileType: "image/png",
+          fileType: "application/pdf",
           category: "land_siting",
           required: false,
         };
@@ -438,10 +438,10 @@ export function TenderRequestPortal() {
       if (draftsmenVariationsDataUrl) {
         newDocs.draftsmen_variations = {
           id: "draftsmen_variations",
-          label: "Draftsmen Variations — Floorplan, Facade & Working Drawings Checklist",
-          fileName: getStandardizedDocumentFileName(surname, "draftsmen_variations", "Draftsmen_Variations.png", tender.atp.feeAmount),
+          label: "Draftsmen Variations Directive & Working Drawings (PDF)",
+          fileName: getStandardizedDocumentFileName(surname, "draftsmen_variations", "Draftsmen_Variations_Directive.pdf", tender.atp.feeAmount),
           fileDataUrl: draftsmenVariationsDataUrl,
-          fileType: "image/png",
+          fileType: "application/pdf",
           category: "land_siting",
           required: false,
         };
@@ -1749,38 +1749,50 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </div>
               </div>
 
-              {/* Turnkey Landscape Package (Placed right under design selection near inclusions, above floorplan) */}
-              <div className="p-3.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+              {/* Turnkey Landscape Package (Full Interactive Box Toggle) */}
+              <div
+                onClick={() => handleToggleLandscape(!tender.homeSpec.includeLandscapePackage)}
+                className={`p-4 rounded-xl border cursor-pointer transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md ${
+                  tender.homeSpec.includeLandscapePackage
+                    ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/50 shadow-emerald-950/20"
+                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-900/80"
+                }`}
+              >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex-none">
-                    <Trees className="h-4 w-4" />
+                  <div
+                    className={`p-2.5 rounded-xl flex-none border transition-colors ${
+                      tender.homeSpec.includeLandscapePackage
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/50"
+                        : "bg-slate-800 text-slate-400 border-slate-700"
+                    }`}
+                  >
+                    <Trees className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <span className="text-xs font-bold text-white uppercase tracking-wider">
                         Turnkey Landscape Package
                       </span>
                       <span className="font-mono font-bold text-xs text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">
-                        {formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2, tender.homeSpec.housingType, tender.homeSpec.homeDesign))}
+                        +{formatAud(calculateLandscapePackageCost(tender.land.lotSizeM2, tender.homeSpec.housingType, tender.homeSpec.homeDesign))}
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-300 mt-0.5">
-                      Full turf, driveway, gardens, fencing, clothesline, letterbox auto-calculated from your <strong>{tender.land.lotSizeM2 || 450} m²</strong> lot area.
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      Full turf, concrete driveway, garden beds, perimeter fencing, clothesline &amp; letterbox based on <strong>{tender.land.lotSizeM2 || 450} m²</strong> lot area.
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 flex-none">
-                  <input
-                    type="checkbox"
-                    id="landscape_check"
-                    checked={!!tender.homeSpec.includeLandscapePackage}
-                    onChange={(e) => handleToggleLandscape(e.target.checked)}
-                    className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
-                  />
-                  <Label htmlFor="landscape_check" className="text-xs font-bold text-slate-200 cursor-pointer">
-                    Include in Build Investment
-                  </Label>
+                  {tender.homeSpec.includeLandscapePackage ? (
+                    <span className="text-xs font-bold bg-emerald-500 text-slate-950 px-3 py-1 rounded-lg flex items-center gap-1 shadow-sm">
+                      <Check className="h-3.5 w-3.5 stroke-[3]" /> Included in Build
+                    </span>
+                  ) : (
+                    <span className="text-xs font-semibold text-slate-400 bg-slate-800/80 hover:text-white px-3 py-1 rounded-lg border border-slate-700">
+                      + Click to Include
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

@@ -435,9 +435,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             <span className="text-[11px] text-slate-400 block mt-0.5">
               Standard equal cut &amp; fill is included up to 1.0m fall ($0).{" "}
               {isSplitLevel ? (
-                <span className="text-cyan-300 font-semibold">Split Level Rates: $12.50/0.1m under 2m, $15.00/0.1m above 2m × {gfaM2} m² GFA</span>
+                <span className="text-cyan-300 font-semibold">Split Level: Smooth progressive gradient (Max $16.00/0.1m × {gfaM2} m² GFA)</span>
               ) : (
-                <span className="text-slate-300 font-semibold">Rates: $15.00/0.1m under 2m, $20.00/0.1m above 2m × {gfaM2} m² GFA</span>
+                <span className="text-slate-300 font-semibold">Standard: Smooth progressive gradient (Max $20.00/0.1m × {gfaM2} m² GFA)</span>
               )}
             </span>
           </div>
@@ -447,7 +447,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               Topography Cost:
             </span>
             <span className="text-base font-extrabold text-amber-400 font-mono">
-              {fallCost === 0 ? "Included ($0)" : `+${formatAud(fallCost)}`}
+              {(site.fallTotalCost ?? fallCost) === 0 ? "Included ($0)" : `+${formatAud(site.fallTotalCost ?? fallCost)}`}
             </span>
           </div>
         </div>
@@ -470,18 +470,31 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </div>
           </div>
 
-          <div className="bg-slate-900/80 p-3 rounded-xl border border-slate-800/80 text-xs space-y-1 text-slate-300">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Standard Allowance:</span>
-              <span className="text-slate-300 font-medium">Up to 1.0m fall (Included)</span>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-slate-400">Fall Allowance Amount ($)</Label>
+              <button
+                type="button"
+                onClick={() => {
+                  const autoCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplitLevel);
+                  onSiteChange({ fallTotalCost: autoCost });
+                }}
+                className="text-[10px] text-cyan-400 hover:text-cyan-300 font-semibold underline"
+              >
+                Auto-Calculate
+              </button>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Excess Fall:</span>
-              <span className="font-mono text-slate-200">{excessMeters > 0 ? `${excessMeters.toFixed(1)}m (${tenthsAbove1m} tenths)` : "0.0m"}</span>
-            </div>
-            <div className="flex justify-between pt-1 border-t border-slate-800 text-emerald-400 font-semibold">
-              <span>Calculated Surcharge:</span>
-              <span className="font-mono">{fallCost === 0 ? "$0 (Included)" : `+${formatAud(fallCost)}`}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-mono">$</span>
+              <Input
+                type="number"
+                step="100"
+                min="0"
+                value={site.fallTotalCost !== undefined ? site.fallTotalCost : fallCost}
+                onChange={(e) => onSiteChange({ fallTotalCost: Number(e.target.value) || 0 })}
+                placeholder="0"
+                className="h-10 text-sm border-slate-800 bg-slate-900 text-amber-400 font-bold font-mono"
+              />
             </div>
           </div>
         </div>
@@ -496,7 +509,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               Site Overlay Reports &amp; Physical Allowances
             </Label>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Matched specialist reports (LHS) aligned with their respective engineering construction allowances (RHS).
+              Specialist reports and engineering allowances.
             </p>
           </div>
           <span className="text-xs font-mono font-bold text-emerald-400">
@@ -527,53 +540,47 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* Bushfire Report (LHS) */}
           <div
             onClick={() => onSiteChange({ bushfireReportRequired: !site.bushfireReportRequired })}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
               site.bushfireReportRequired
                 ? "border-amber-500 bg-amber-950/20 ring-1 ring-amber-500/40 shadow-sm"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Bushfire Hazard Assessment Report</span>
-                {site.bushfireReportRequired && <Check className="h-3.5 w-3.5 text-amber-400" />}
-              </div>
-              
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-white">Bushfire Hazard Assessment Report</span>
+              {site.bushfireReportRequired && <Check className="h-3.5 w-3.5 text-amber-400" />}
             </div>
-            <span className="font-bold text-xs text-amber-400 font-mono text-right pt-2 block">
+            <span className="font-bold text-xs text-amber-400 font-mono flex-none">
               +{formatAud(site.bushfireReportCost ?? 850)}
             </span>
           </div>
 
           {/* Bushfire BAL Rating Allowance (RHS) */}
-          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2">
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                  <Flame className="h-3.5 w-3.5 text-amber-400" />
-                  Bushfire Attack Level (BAL) Allowance
-                </Label>
-                <span className="text-xs font-mono font-bold text-amber-400">
-                  {currentBalCost === 0 ? "($0)" : `+${formatAud(currentBalCost)}`}
-                </span>
-              </div>
-              
+          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5 min-w-0">
+              <Flame className="h-3.5 w-3.5 text-amber-400 flex-none" />
+              <span className="truncate">BAL Protection Allowance</span>
+            </Label>
+            <div className="flex items-center gap-2 flex-none">
+              <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
+                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8 w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  {BUSHFIRE_LEVELS.map((b) => {
+                    const cost = getBushfireCost(b.id, isDouble);
+                    return (
+                      <SelectItem key={b.id} value={b.id}>
+                        {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <span className="text-xs font-mono font-bold text-amber-400 min-w-16 text-right">
+                {currentBalCost === 0 ? "($0)" : `+${formatAud(currentBalCost)}`}
+              </span>
             </div>
-            <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
-              <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                {BUSHFIRE_LEVELS.map((b) => {
-                  const cost = getBushfireCost(b.id, isDouble);
-                  return (
-                    <SelectItem key={b.id} value={b.id}>
-                      {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
@@ -582,50 +589,40 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* Flood Report (LHS - $7,600) */}
           <div
             onClick={() => onSiteChange({ floodReportRequired: !site.floodReportRequired })}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
               site.floodReportRequired
                 ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40 shadow-sm"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Flood Overlay Code Assessment Report</span>
-                {site.floodReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Certified hydraulic engineering overland flow modeling, DFL certification, and formal flood code statement.
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-white">Flood Overlay Code Assessment Report</span>
+              {site.floodReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400" />}
             </div>
-            <span className="font-bold text-xs text-cyan-400 font-mono text-right pt-2 block">
+            <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
               +{formatAud(site.floodReportCost ?? 7600)}
             </span>
           </div>
 
           {/* Slab Elevation & Flood Pad Works (RHS) */}
           <div
-            className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2.5 ${
+            className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2 ${
               site.floodOverlayRequired
                 ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40 shadow-sm"
                 : "border-slate-800 bg-slate-900/60"
             }`}
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
               <div
                 onClick={() => onSiteChange({ floodOverlayRequired: !site.floodOverlayRequired })}
-                className="space-y-0.5 min-w-0 flex-1 cursor-pointer"
+                className="flex items-center gap-2 cursor-pointer flex-1"
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs text-white">Slab Elevation &amp; Flood Pad Works</span>
-                  {site.floodOverlayRequired && (
-                    <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-semibold">
-                      Active
-                    </span>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-400">
-                  Engineered building pad elevation for flood minimum floor levels ($270 × Height × {gfaM2} m² GFA).
-                </p>
+                <span className="font-bold text-xs text-white">Slab Elevation &amp; Flood Pad Works</span>
+                {site.floodOverlayRequired && (
+                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-semibold">
+                    Active
+                  </span>
+                )}
               </div>
               <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
                 +{formatAud(floodCost)}
@@ -633,27 +630,21 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
             </div>
 
             {site.floodOverlayRequired ? (
-              <div className="pt-2 border-t border-slate-800/80 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <Label className="text-[11px] text-slate-300 font-semibold">
-                    Required Pad Height:
-                  </Label>
-                  <div className="flex items-center gap-1.5 w-32">
-                    <Input
-                      type="number"
-                      step="0.05"
-                      min="0.1"
-                      max="2.5"
-                      value={site.slabElevationMeters ?? 0.3}
-                      onChange={(e) => handleSlabHeightChange(Number(e.target.value))}
-                      className="h-7.5 text-xs text-right border-slate-700 bg-slate-950 text-cyan-300 font-mono font-bold"
-                    />
-                    <span className="text-xs text-slate-400 font-mono">m</span>
-                  </div>
-                </div>
-                <div className="text-[10px] text-slate-400 flex justify-between bg-slate-950/60 px-2 py-1 rounded-lg border border-slate-800">
-                  <span>Formula: $270 × {site.slabElevationMeters ?? 0.3}m × {gfaM2} m²</span>
-                  <span className="font-mono text-cyan-400 font-bold">{formatAud(calculatedSlabCost)}</span>
+              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                <Label className="text-[11px] text-slate-300 font-semibold">
+                  Required Pad Height:
+                </Label>
+                <div className="flex items-center gap-1.5 w-32">
+                  <Input
+                    type="number"
+                    step="0.05"
+                    min="0.1"
+                    max="2.5"
+                    value={site.slabElevationMeters ?? 0.3}
+                    onChange={(e) => handleSlabHeightChange(Number(e.target.value))}
+                    className="h-7.5 text-xs text-right border-slate-700 bg-slate-950 text-cyan-300 font-mono font-bold"
+                  />
+                  <span className="text-xs text-slate-400 font-mono">m</span>
                 </div>
               </div>
             ) : (
@@ -673,81 +664,66 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* Acoustic Report (LHS - $1,200) */}
           <div
             onClick={() => onSiteChange({ acousticReportRequired: !site.acousticReportRequired })}
-            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
               site.acousticReportRequired
                 ? "border-indigo-500 bg-indigo-950/20 ring-1 ring-indigo-500/40 shadow-sm"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Acoustic Noise Corridor Assessment Report</span>
-                {site.acousticReportRequired && <Check className="h-3.5 w-3.5 text-indigo-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400">
-                QDC MP 4.4 transport noise corridor testing, decibel analysis, and engineering glazing schedule.
-              </p>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-white">Acoustic Noise Corridor Assessment Report</span>
+              {site.acousticReportRequired && <Check className="h-3.5 w-3.5 text-indigo-400" />}
             </div>
-            <span className="font-bold text-xs text-indigo-400 font-mono text-right pt-2 block">
+            <span className="font-bold text-xs text-indigo-400 font-mono flex-none">
               +{formatAud(site.acousticReportCost ?? 1200)}
             </span>
           </div>
 
           {/* Acoustic Attenuation Package (RHS) */}
-          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2">
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                  <Volume2 className="h-3.5 w-3.5 text-indigo-400" />
-                  Acoustic Attenuation Package Allowance
-                </Label>
-                <span className="text-xs font-mono font-bold text-indigo-400">
-                  {currentAcousticCost === 0 ? "($0)" : `+${formatAud(currentAcousticCost)}`}
-                </span>
-              </div>
-              <p className="text-[10px] text-slate-400">
-                Thickened 6.38mm laminate acoustic glazing and heavy insulation batts.
-              </p>
+          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5 min-w-0">
+              <Volume2 className="h-3.5 w-3.5 text-indigo-400 flex-none" />
+              <span className="truncate">Acoustic Attenuation Package</span>
+            </Label>
+            <div className="flex items-center gap-2 flex-none">
+              <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
+                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8 w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  {ACOUSTIC_TIERS.map((a) => {
+                    const cost = getAcousticCost(a.id, isDouble);
+                    return (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <span className="text-xs font-mono font-bold text-indigo-400 min-w-16 text-right">
+                {currentAcousticCost === 0 ? "($0)" : `+${formatAud(currentAcousticCost)}`}
+              </span>
             </div>
-            <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
-              <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                {ACOUSTIC_TIERS.map((a) => {
-                  const cost = getAcousticCost(a.id, isDouble);
-                  return (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
         {/* ROW 4: ADDITIONAL SPECIALIST REPORTS (LHS & RHS Balanced) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t border-slate-800/80">
-          {/* Hydraulic Engineering Report ($2,200) */}
+          {/* Hydraulic Engineering Report ($2,600) */}
           <div
             onClick={() => onSiteChange({ hydraulicReportRequired: !site.hydraulicReportRequired })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
               site.hydraulicReportRequired
                 ? "border-cyan-500 bg-cyan-950/20 ring-1 ring-cyan-500/40"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Hydraulic Engineering Report</span>
-                {site.hydraulicReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Stormwater catchment management &amp; civil detention designs.
-              </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-white truncate">Hydraulic Engineering Report</span>
+              {site.hydraulicReportRequired && <Check className="h-3.5 w-3.5 text-cyan-400 flex-none" />}
             </div>
-            <span className="font-bold text-xs text-cyan-400 font-mono text-right mt-2 block">
+            <span className="font-bold text-xs text-cyan-400 font-mono flex-none">
               +{formatAud(site.hydraulicReportCost ?? 2600)}
             </span>
           </div>
@@ -755,22 +731,17 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* Landslide Hazard Report ($7,000) */}
           <div
             onClick={() => onSiteChange({ landslideReportRequired: !site.landslideReportRequired })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
               site.landslideReportRequired
                 ? "border-amber-500 bg-amber-950/20 ring-1 ring-amber-500/40"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Landslide Hazard Report</span>
-                {site.landslideReportRequired && <Check className="h-3.5 w-3.5 text-amber-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Slope stability analysis &amp; foundation retention certification.
-              </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-white truncate">Landslide Hazard Report</span>
+              {site.landslideReportRequired && <Check className="h-3.5 w-3.5 text-amber-400 flex-none" />}
             </div>
-            <span className="font-bold text-xs text-amber-400 font-mono text-right mt-2 block">
+            <span className="font-bold text-xs text-amber-400 font-mono flex-none">
               +{formatAud(site.landslideReportCost ?? 7000)}
             </span>
           </div>
@@ -778,22 +749,17 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* Arborist Tree Report ($1,100) */}
           <div
             onClick={() => onSiteChange({ arboristReportRequired: !site.arboristReportRequired })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
               site.arboristReportRequired
                 ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Arborist Tree Report</span>
-                {site.arboristReportRequired && <Check className="h-3.5 w-3.5 text-emerald-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Tree protection zone (TPZ) inspection &amp; root mapping.
-              </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-white truncate">Arborist Tree Report</span>
+              {site.arboristReportRequired && <Check className="h-3.5 w-3.5 text-emerald-400 flex-none" />}
             </div>
-            <span className="font-bold text-xs text-emerald-400 font-mono text-right mt-2 block">
+            <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
               +{formatAud(site.arboristReportCost ?? 1100)}
             </span>
           </div>
@@ -801,22 +767,17 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
           {/* CCTV Sewer Pipe Inspection ($3,300) */}
           <div
             onClick={() => onSiteChange({ cctvSewerReportRequired: !site.cctvSewerReportRequired })}
-            className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
               site.cctvSewerReportRequired
                 ? "border-teal-500 bg-teal-950/20 ring-1 ring-teal-500/40"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">CCTV Sewer Inspection</span>
-                {site.cctvSewerReportRequired && <Check className="h-3.5 w-3.5 text-teal-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Robotic CCTV drainage camera log &amp; council asset verification.
-              </p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-bold text-xs text-white truncate">CCTV Sewer Inspection</span>
+              {site.cctvSewerReportRequired && <Check className="h-3.5 w-3.5 text-teal-400 flex-none" />}
             </div>
-            <span className="font-bold text-xs text-teal-400 font-mono text-right mt-2 block">
+            <span className="font-bold text-xs text-teal-400 font-mono flex-none">
               +{formatAud(site.cctvSewerReportCost ?? 3300)}
             </span>
           </div>
@@ -864,14 +825,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Council DA Application</span>
-                {site.councilDaRequired && <Check className="h-4 w-4 text-emerald-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Town planning statement of reasons, overlay code triggers, and formal council lodgement.
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white">Council DA Application</span>
+              {site.councilDaRequired && <Check className="h-4 w-4 text-emerald-400" />}
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
               +{formatAud(site.councilDaCost ?? 11000)}
@@ -887,22 +843,17 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Council Setback Relaxation</span>
-                {site.councilSetbackRelaxationRequired ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Selected
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                    Optional
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Town planning setback variation application ($2,000 base with $500 increments).
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white">Council Setback Relaxation</span>
+              {site.councilSetbackRelaxationRequired ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Selected
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  Optional
+                </span>
+              )}
             </div>
 
             <div
@@ -940,22 +891,17 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Traffic Management Plan</span>
-                {site.trafficControlRequired ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Selected
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                    Optional
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Certified TGS &amp; safety corridor management ($2,500 increments).
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white">Traffic Management Plan</span>
+              {site.trafficControlRequired ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Selected
+                </span>
+              ) : (
+                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  Optional
+                </span>
+              )}
             </div>
 
             <div
@@ -993,14 +939,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">Dual Living Infrastructure Fee</span>
-                {site.dualLivingInfrastructureRequired && <Check className="h-4 w-4 text-emerald-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Council headworks &amp; water/sewer network infrastructure charge for auxiliary / dual living units.
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white">Dual Living Infrastructure Fee</span>
+              {site.dualLivingInfrastructureRequired && <Check className="h-4 w-4 text-emerald-400" />}
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
               +{formatAud(site.dualLivingInfrastructureCost ?? 23000)}
@@ -1041,10 +982,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                   </span>
                 )}
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Complete existing home demolition, licensed asbestos removal &amp; site clearing.
-              </p>
-              <div className="mt-1 text-[9.5px] text-amber-400 font-semibold bg-amber-950/40 p-1.5 rounded border border-amber-800/40">
+              <div className="mt-1.5 text-[9.5px] text-amber-400 font-semibold bg-amber-950/40 p-1 rounded border border-amber-800/40">
                 Note: Demolition to be organised by owner
               </div>
             </div>
@@ -1074,6 +1012,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
               </button>
             </div>
           </div>
+
           {/* Screw Piering Allowance ($90/m2) */}
           <div
             onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
@@ -1083,16 +1022,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">
-                  Screw Piering (KDRB / Fill)
-                </span>
-                {site.screwPieringRequired && <Check className="h-4 w-4 text-emerald-400" />}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Allowance for helical screw piering due to KDRB site or fill ($90 × {gfaM2} m² GFA).
-              </p>
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white">
+                Screw Piering ({gfaM2} m² GFA)
+              </span>
+              {site.screwPieringRequired && <Check className="h-4 w-4 text-emerald-400" />}
             </div>
             <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
               +{formatAud(site.screwPieringCost ?? Math.round(gfaM2 * 90))}
@@ -1112,25 +1046,20 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  <Mountain className="h-3.5 w-3.5 text-amber-400" />
-                  Rock Excavation Allowance
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                <Mountain className="h-3.5 w-3.5 text-amber-400" />
+                Rock Excavation Allowance
+              </span>
+              {(site.rockExcavationAllowance ?? 0) > 0 ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Selected
                 </span>
-                {(site.rockExcavationAllowance ?? 0) > 0 ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Selected
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                    Optional
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Hydraulic rock breaker &amp; heavy excavator rock extraction allowance ($2,500 increments).
-              </p>
+              ) : (
+                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  Optional
+                </span>
+              )}
             </div>
 
             <div
@@ -1172,25 +1101,20 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  <Hammer className="h-3.5 w-3.5 text-cyan-400" />
-                  Retaining Wall Allowance
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                <Hammer className="h-3.5 w-3.5 text-cyan-400" />
+                Retaining Wall Allowance
+              </span>
+              {(site.retainingWallAllowance ?? 0) > 0 ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Selected
                 </span>
-                {(site.retainingWallAllowance ?? 0) > 0 ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Selected
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                    Optional
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Engineered concrete sleeper / masonry retaining wall construction ($2,500 increments).
-              </p>
+              ) : (
+                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  Optional
+                </span>
+              )}
             </div>
 
             <div
@@ -1235,25 +1159,20 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange }: QuoteSiteCosts
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                  <Truck className="h-3.5 w-3.5 text-amber-400" />
-                  Material Handling Allowance
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                <Truck className="h-3.5 w-3.5 text-amber-400" />
+                Material Handling Allowance
+              </span>
+              {(site.materialHandlingAllowance ?? 0) > 0 ? (
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <Check className="h-3 w-3" /> Selected
                 </span>
-                {(site.materialHandlingAllowance ?? 0) > 0 ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Selected
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                    Optional
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                Allowance for crane truck offloading, spotters, or restricted access due to limited access, overhead powerlines, or narrow lot ($2,500 increments).
-              </p>
+              ) : (
+                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  Optional
+                </span>
+              )}
             </div>
 
             <div

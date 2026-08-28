@@ -552,10 +552,11 @@ export function getSoilRatePerM2(soilClass: SoilClass): number {
 }
 
 /**
- * Calculates topography fall cost:
+ * Calculates topography fall cost with smooth progressive gradient:
  * - Base allowance covers up to 1.0m fall ($0 included).
- * - For fall between 1.0m and 2.0m: Standard = $15 per 0.1m / m² GFA; Split Level = $12.50 per 0.1m / m² GFA.
- * - For fall above 2.0m: Standard = $20 per 0.1m / m² GFA; Split Level = $15.00 per 0.1m / m² GFA.
+ * - Above 1.0m: Progressive gradient curve scaling smoothly from base rate up to a max capped rate of $20.
+ * - Standard: scales smoothly from $15.00 up to $20.00 max per 0.1m / m² GFA.
+ * - Split Level: scales smoothly from $12.50 up to $16.00 max per 0.1m / m² GFA.
  */
 export function calculateTopographyFallCost(
   fallMeters: number,
@@ -565,16 +566,17 @@ export function calculateTopographyFallCost(
   if (fallMeters <= 1.0) return 0;
 
   const excessMeters = Math.max(0, fallMeters - 1.0);
-  const under2mMeters = Math.min(excessMeters, 1.0); // portion between 1.0m and 2.0m (max 1.0m)
-  const above2mMeters = Math.max(0, fallMeters - 2.0); // portion above 2.0m
+  const tenths = excessMeters * 10;
 
-  const under2mTenths = Math.round(under2mMeters * 10);
-  const above2mTenths = Math.round(above2mMeters * 10);
+  const baseRate = isSplitLevel ? 12.5 : 15.0;
+  const maxRate = isSplitLevel ? 16.0 : 20.0;
 
-  const rateUnder2m = isSplitLevel ? 12.5 : 15;
-  const rateAbove2m = isSplitLevel ? 15 : 20;
+  // Progressive gradient curve scaling with depth, capping at maxRate
+  const gradientProgress = Math.min(1.0, excessMeters / 1.0);
+  const blendedRate = baseRate + gradientProgress * (maxRate - baseRate);
+  const cappedRate = Math.min(maxRate, blendedRate);
 
-  const costPerM2 = under2mTenths * rateUnder2m + above2mTenths * rateAbove2m;
+  const costPerM2 = tenths * cappedRate;
   return Math.round(costPerM2 * gfaM2);
 }
 

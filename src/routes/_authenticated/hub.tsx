@@ -264,9 +264,15 @@ function WelcomeHubPage() {
                 <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
                   <Send className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] font-semibold tracking-wider uppercase text-amber-600 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                  Tender Portal
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 shadow-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                    Under Development
+                  </span>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                    Tender Portal
+                  </span>
+                </div>
               </div>
               <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-amber-200"} transition-colors`}>
                 Submit Your Tender Request
@@ -334,9 +340,15 @@ function WelcomeHubPage() {
                 <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
                   <Users className="h-5 w-5" />
                 </div>
-                <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2.5 py-0.5 rounded-full border border-purple-500/20">
-                  Builder CRM
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-purple-400 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1 shadow-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                    Under Development
+                  </span>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                    Builder CRM
+                  </span>
+                </div>
               </div>
               <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-purple-700" : "text-white group-hover:text-purple-200"} transition-colors`}>
                 Hudson Horizon CRM
