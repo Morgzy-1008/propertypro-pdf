@@ -12,11 +12,11 @@ import {
   Plus,
   RefreshCw,
   MousePointer,
-  Image as ImageIcon,
-  CheckCircle2,
   Sparkles,
   Sliders,
-  Maximize2,
+  CheckCircle2,
+  X,
+  Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,10 +39,9 @@ import {
   calculatePolygonAreaM2,
   calculateLiveSetbacks,
   distanceBetween,
-  getHouseCornerVertices,
 } from "@/lib/siting/sitingGeometry";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
-import { type DetectedFloorplan } from "@/lib/floorplan/floorplanDetector";
+import { type DetectedFloorplan, detectFloorplanFromText } from "@/lib/floorplan/floorplanDetector";
 import { saveTenderToIdb, findFloorplanUrl } from "@/lib/tender/tenderStorage";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import {
@@ -58,6 +57,14 @@ interface AdvancedSitingStudioProps {
 }
 
 type LotMode = "rectangle" | "custom_polygon" | "disclosure_plan";
+
+interface CalibrationModalState {
+  isOpen: boolean;
+  type: "floorplan" | "lot";
+  pixelDistance: number;
+  currentMeasuredM: number;
+  inputMeters: string;
+}
 
 export function AdvancedSitingStudio({
   detectedFloorplan,
@@ -94,17 +101,58 @@ export function AdvancedSitingStudio({
     isFlipped: false,
     garageSide: "RHS",
     isBtbActive: true,
-    hasDriveway: true,
+    hasDriveway: false,
     drivewayWidthM: 5.2,
   }));
 
-  // Floorplan image state (Cropped with all internal layout)
+  // Floorplan image state (Cropped with all internal layout and true aspect ratio)
   const [floorplanImageUrl, setFloorplanImageUrl] = useState<string>("");
   const [croppedFloorplanImage, setCroppedFloorplanImage] = useState<HTMLImageElement | null>(null);
+  const [floorplanNaturalAspect, setFloorplanNaturalAspect] = useState<number>(10.55 / 20.15);
   const [isCroppingFloorplan, setIsCroppingFloorplan] = useState<boolean>(false);
   const [wallAnalysis, setWallAnalysis] = useState<WallVectorAnalysis>(() =>
     generateWallVectorAnalysis(houseState.designName)
   );
+
+  // 2-Point Calibration Tool States
+  const [isCalibratingFloorplan, setIsCalibratingFloorplan] = useState<boolean>(false);
+  const [floorplanCalibPoints, setFloorplanCalibPoints] = useState<Point2D[]>([]);
+
+  const [isCalibratingLot, setIsCalibratingLot] = useState<boolean>(false);
+  const [lotCalibPoints, setLotCalibPoints] = useState<Point2D[]>([]);
+
+  const [calibrationModal, setCalibrationModal] = useState<CalibrationModalState>({
+    isOpen: false,
+    type: "floorplan",
+    pixelDistance: 0,
+    currentMeasuredM: 10.55,
+    inputMeters: "10.55",
+  });
+
+  // Disclosure Plan Underlay State
+  const [disclosureImage, setDisclosureImage] = useState<HTMLImageElement | null>(null);
+  const [disclosureFileName, setDisclosureFileName] = useState<string>("");
+  const [disclosureOpacity, setDisclosureOpacity] = useState<number>(0.45);
+  const [scalePixelsPerMeter, setScalePixelsPerMeter] = useState<number>(20.0);
+  const [isSettingBoundaryVertices, setIsSettingBoundaryVertices] = useState<boolean>(false);
+
+  // Canvas & Interaction
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDraggingHouse, setIsDraggingHouse] = useState(false);
+  const [isRotatingHouse, setIsRotatingHouse] = useState(false);
+  const [dragVertexIndex, setDragVertexIndex] = useState<number | null>(null);
+  const [dragOffset, setDragOffset] = useState<Point2D>({ x: 0, y: 0 });
+  const [cursorCanvasPos, setCursorCanvasPos] = useState<Point2D | null>(null);
+
+  // North Compass Angle
+  const [northAngleDeg, setNorthAngleDeg] = useState<number>(0);
+
+  const currentPodRule: EstatePodRule = useMemo(() => {
+    return (
+      QUEENSLAND_ESTATE_POD_PRESETS.find((p) => p.id === selectedEstateId) ||
+      QUEENSLAND_ESTATE_POD_PRESETS[0]
+    );
+  }, [selectedEstateId]);
 
   // Load and auto-crop floorplan when detectedFloorplan changes or initial mount
   useEffect(() => {
@@ -135,6 +183,22 @@ export function AdvancedSitingStudio({
           img.onload = () => {
             if (active) {
               setCroppedFloorplanImage(img);
+              const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 100);
+              setFloorplanNaturalAspect(aspect);
+
+              // Maintain exact natural aspect ratio
+              setHouseState((prev) => {
+                const baseWidth = detectedFloorplan?.widthM || prev.widthM || 10.55;
+                const exactLength = baseWidth / aspect;
+                return {
+                  ...prev,
+                  designName: targetDesign,
+                  widthM: Number(baseWidth.toFixed(2)),
+                  lengthM: Number(exactLength.toFixed(2)),
+                  totalM2: detectedFloorplan?.totalM2 || prev.totalM2 || 192.2,
+                };
+              });
+
               setIsCroppingFloorplan(false);
             }
           };
@@ -148,48 +212,10 @@ export function AdvancedSitingStudio({
         });
     }
 
-    if (detectedFloorplan) {
-      setHouseState((prev) => ({
-        ...prev,
-        designName: detectedFloorplan.matchedDesignName,
-        widthM: detectedFloorplan.widthM || 10.55,
-        lengthM: detectedFloorplan.lengthM || 20.15,
-        totalM2: detectedFloorplan.totalM2 || 192.2,
-        centerX: frontageM / 2,
-        centerY: depthM / 2 + 1.0,
-      }));
-    }
-
     return () => {
       active = false;
     };
   }, [detectedFloorplan]);
-
-  // Disclosure Plan Underlay State
-  const [disclosureImage, setDisclosureImage] = useState<HTMLImageElement | null>(null);
-  const [disclosureFileName, setDisclosureFileName] = useState<string>("");
-  const [disclosureOpacity, setDisclosureOpacity] = useState<number>(0.45);
-  const [isCalibratingScale, setIsCalibratingScale] = useState<boolean>(false);
-  const [calibrationPoints, setCalibrationPoints] = useState<Point2D[]>([]);
-  const [scalePixelsPerMeter, setScalePixelsPerMeter] = useState<number>(20.0);
-  const [isSettingBoundaryVertices, setIsSettingBoundaryVertices] = useState<boolean>(false);
-
-  // Canvas & Interaction
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [isDraggingHouse, setIsDraggingHouse] = useState(false);
-  const [isRotatingHouse, setIsRotatingHouse] = useState(false);
-  const [dragVertexIndex, setDragVertexIndex] = useState<number | null>(null);
-  const [dragOffset, setDragOffset] = useState<Point2D>({ x: 0, y: 0 });
-
-  // North Compass Angle
-  const [northAngleDeg, setNorthAngleDeg] = useState<number>(0);
-
-  const currentPodRule: EstatePodRule = useMemo(() => {
-    return (
-      QUEENSLAND_ESTATE_POD_PRESETS.find((p) => p.id === selectedEstateId) ||
-      QUEENSLAND_ESTATE_POD_PRESETS[0]
-    );
-  }, [selectedEstateId]);
 
   // Construct active lot polygon
   const activeLot: LotPolygon = useMemo(() => {
@@ -316,7 +342,7 @@ export function AdvancedSitingStudio({
       ctx.restore();
     }
 
-    // 2. Draw Lot Polygon (Clean white/soft yard with solid black boundary lines)
+    // 2. Draw Lot Polygon (Clean white yard with solid black boundary lines)
     const lotCanvasPts = activeLot.vertices.map(toCanvas);
     if (lotCanvasPts.length >= 3) {
       ctx.beginPath();
@@ -380,7 +406,6 @@ export function AdvancedSitingStudio({
     const frontEnd = toCanvas(activeLot.vertices[activeLot.vertices.length - 1] || { x: 0, y: depthM });
     const streetY = Math.max(frontStart.y, frontEnd.y);
 
-    // Street Frontage Indicator at Bottom
     ctx.fillStyle = "#64748b";
     ctx.font = "bold 11.5px sans-serif";
     ctx.textAlign = "center";
@@ -388,10 +413,10 @@ export function AdvancedSitingStudio({
     ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 22);
     ctx.textAlign = "left";
 
-    // 3. Draw Floorplan Footprint & Internal Layout (Clean Architectural Rendering)
+    // 3. Draw Floorplan Footprint & Internal Layout (Clean Architectural Rendering with Natural Aspect Ratio)
     const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
     const houseW = houseState.widthM * scale;
-    const houseL = houseState.lengthM * scale;
+    const houseL = (houseState.widthM / (floorplanNaturalAspect || 0.52)) * scale;
 
     ctx.save();
     ctx.translate(houseCenterCanvas.x, houseCenterCanvas.y);
@@ -460,14 +485,14 @@ export function AdvancedSitingStudio({
 
     ctx.restore(); // Restore context to draw unrotated overlays & dimensions
 
-    // 5. Rotation Knob Handle (Visible above house)
-    const rotHandleDist = houseState.lengthM * scale * 0.5 + 28;
+    // 4. Rotation Knob Handle (Visible above house)
+    const rotHandleDist = houseL * 0.5 + 28;
     const rad = (houseState.rotationDeg * Math.PI) / 180;
     const rotHandleX = houseCenterCanvas.x - Math.sin(rad) * rotHandleDist;
     const rotHandleY = houseCenterCanvas.y - Math.cos(rad) * rotHandleDist;
 
     ctx.beginPath();
-    ctx.moveTo(houseCenterCanvas.x, houseCenterCanvas.y - houseState.lengthM * scale * 0.5);
+    ctx.moveTo(houseCenterCanvas.x, houseCenterCanvas.y - houseL * 0.5);
     ctx.lineTo(rotHandleX, rotHandleY);
     ctx.strokeStyle = "#0284c7";
     ctx.lineWidth = 1.5;
@@ -483,7 +508,7 @@ export function AdvancedSitingStudio({
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 6. Architectural Dashed Setback Lines & Dimension Callout Badges
+    // 5. Architectural Dashed Setback Lines & Dimension Callout Badges
     const drawSetbackCallout = (
       x1: number,
       y1: number,
@@ -575,7 +600,7 @@ export function AdvancedSitingStudio({
       houseState.isBtbActive && houseState.garageSide === "RHS" ? "#d97706" : "#0284c7"
     );
 
-    // 7. House Design Label in Top-Left Blueprint Header
+    // 6. House Design Label in Top-Left Blueprint Header
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.fillStyle = "#0f172a";
@@ -585,7 +610,7 @@ export function AdvancedSitingStudio({
     ctx.font = "bold 11.5px sans-serif";
     ctx.fillText(`${houseState.widthM.toFixed(2)}m Wide × ${houseState.lengthM.toFixed(2)}m Deep • Total: ${houseState.totalM2} m² • 1:200 Scale Blueprint`, 30, 44);
 
-    // 8. North Compass Rose (Rotatable)
+    // 7. North Compass Rose (Rotatable)
     const compassX = W - 70;
     const compassY = 70;
     ctx.save();
@@ -623,20 +648,78 @@ export function AdvancedSitingStudio({
     ctx.fillText("N", 0, -28);
     ctx.restore();
 
-    // 9. Calibration Lines if in calibration mode
-    if (isCalibratingScale && calibrationPoints.length > 0) {
-      ctx.fillStyle = "#f59e0b";
+    // 8. Calibration Overlay (Floorplan 2-Point Calibrator)
+    if (isCalibratingFloorplan) {
+      // Top Calibration Banner
+      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
+      ctx.fillRect(W / 2 - 260, 20, 520, 36);
       ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(W / 2 - 260, 20, 520, 36);
+
+      ctx.fillStyle = "#fbbf24";
+      ctx.font = "bold 12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const bannerText = floorplanCalibPoints.length === 0
+        ? "📏 CLICK POINT 1: Click start of any known wall or room width"
+        : "📏 CLICK POINT 2: Click end of the wall/dimension to set scale";
+      ctx.fillText(bannerText, W / 2, 38);
+
+      // Render Calibration Points
+      ctx.fillStyle = "#f59e0b";
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
-      for (const pt of calibrationPoints) {
+      for (let i = 0; i < floorplanCalibPoints.length; i++) {
+        const pt = floorplanCalibPoints[i];
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText(`Pt ${i + 1}`, pt.x + 12, pt.y - 10);
+        ctx.fillStyle = "#f59e0b";
+      }
+
+      // Connecting ruler line
+      if (floorplanCalibPoints.length === 1 && cursorCanvasPos) {
+        ctx.save();
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(floorplanCalibPoints[0].x, floorplanCalibPoints[0].y);
+        ctx.lineTo(cursorCanvasPos.x, cursorCanvasPos.y);
+        ctx.stroke();
+        ctx.restore();
+      } else if (floorplanCalibPoints.length === 2) {
+        ctx.save();
+        ctx.strokeStyle = "#f59e0b";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(floorplanCalibPoints[0].x, floorplanCalibPoints[0].y);
+        ctx.lineTo(floorplanCalibPoints[1].x, floorplanCalibPoints[1].y);
+        ctx.stroke();
+        ctx.restore();
+      }
+    }
+
+    // 9. Lot Scale Calibration Overlay
+    if (isCalibratingLot && lotCalibPoints.length > 0) {
+      ctx.fillStyle = "#38bdf8";
+      ctx.strokeStyle = "#38bdf8";
+      ctx.lineWidth = 2;
+      for (const pt of lotCalibPoints) {
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
         ctx.fill();
       }
-      if (calibrationPoints.length === 2) {
+      if (lotCalibPoints.length === 2) {
         ctx.beginPath();
-        ctx.moveTo(calibrationPoints[0].x, calibrationPoints[0].y);
-        ctx.lineTo(calibrationPoints[1].x, calibrationPoints[1].y);
+        ctx.moveTo(lotCalibPoints[0].x, lotCalibPoints[0].y);
+        ctx.lineTo(lotCalibPoints[1].x, lotCalibPoints[1].y);
         ctx.stroke();
       }
     }
@@ -645,11 +728,15 @@ export function AdvancedSitingStudio({
     houseState,
     liveSetbacks,
     croppedFloorplanImage,
+    floorplanNaturalAspect,
     disclosureImage,
     disclosureOpacity,
     scalePixelsPerMeter,
-    isCalibratingScale,
-    calibrationPoints,
+    isCalibratingFloorplan,
+    floorplanCalibPoints,
+    isCalibratingLot,
+    lotCalibPoints,
+    cursorCanvasPos,
     isSettingBoundaryVertices,
     lotMode,
     northAngleDeg,
@@ -658,7 +745,7 @@ export function AdvancedSitingStudio({
     getCanvasTransform,
   ]);
 
-  // Mouse Handlers for Draggable House, Rotation Knob & Polygon Vertices
+  // Mouse Handlers for Draggable House, Rotation Knob & 2-Point Calibration
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -668,29 +755,47 @@ export function AdvancedSitingStudio({
 
     const { scale, toCanvas, toMeters } = getCanvasTransform();
 
-    // 1. Check if calibrating scale on disclosure plan
-    if (isCalibratingScale) {
-      const newPts = [...calibrationPoints, { x: clickX, y: clickY }];
+    // 1. Check if calibrating Floorplan 2-Point Scale
+    if (isCalibratingFloorplan) {
+      const newPts = [...floorplanCalibPoints, { x: clickX, y: clickY }];
       if (newPts.length >= 2) {
-        const pixDist = distanceBetween(newPts[0], newPts[1]);
-        const enteredMeters = prompt("Enter the real boundary distance in meters for this segment (e.g. 14.0 or 30.0):", "14.0");
-        if (enteredMeters) {
-          const meters = parseFloat(enteredMeters);
-          if (meters > 0) {
-            const ppm = pixDist / (meters * (scale / scalePixelsPerMeter));
-            setScalePixelsPerMeter(ppm > 0 ? ppm : 20.0);
-            toast.success(`Scale calibrated to ${meters}m accurately!`);
-          }
-        }
-        setCalibrationPoints([]);
-        setIsCalibratingScale(false);
+        setFloorplanCalibPoints(newPts);
+        const pDist = distanceBetween(newPts[0], newPts[1]);
+        const currentM = Number((pDist / scale).toFixed(2));
+        setCalibrationModal({
+          isOpen: true,
+          type: "floorplan",
+          pixelDistance: pDist,
+          currentMeasuredM: currentM,
+          inputMeters: String(houseState.widthM || currentM || 11.2),
+        });
       } else {
-        setCalibrationPoints(newPts);
+        setFloorplanCalibPoints(newPts);
       }
       return;
     }
 
-    // 2. Check if clicking on custom polygon vertices
+    // 2. Check if calibrating Disclosure Lot Scale
+    if (isCalibratingLot) {
+      const newPts = [...lotCalibPoints, { x: clickX, y: clickY }];
+      if (newPts.length >= 2) {
+        setLotCalibPoints(newPts);
+        const pDist = distanceBetween(newPts[0], newPts[1]);
+        const currentM = Number((pDist / scale).toFixed(2));
+        setCalibrationModal({
+          isOpen: true,
+          type: "lot",
+          pixelDistance: pDist,
+          currentMeasuredM: currentM,
+          inputMeters: String(frontageM || 14.0),
+        });
+      } else {
+        setLotCalibPoints(newPts);
+      }
+      return;
+    }
+
+    // 3. Check if clicking on custom polygon vertices
     if (lotMode === "custom_polygon" || isSettingBoundaryVertices) {
       const lotCanvasPts = activeLot.vertices.map(toCanvas);
       for (let i = 0; i < lotCanvasPts.length; i++) {
@@ -701,9 +806,10 @@ export function AdvancedSitingStudio({
       }
     }
 
-    // 3. Check if clicking on Rotation Knob Handle
+    // 4. Check if clicking on Rotation Knob Handle
     const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
-    const rotHandleDist = houseState.lengthM * scale * 0.5 + 28;
+    const houseL = (houseState.widthM / (floorplanNaturalAspect || 0.52)) * scale;
+    const rotHandleDist = houseL * 0.5 + 28;
     const rad = (houseState.rotationDeg * Math.PI) / 180;
     const rotHandleX = houseCenterCanvas.x - Math.sin(rad) * rotHandleDist;
     const rotHandleY = houseCenterCanvas.y - Math.cos(rad) * rotHandleDist;
@@ -713,9 +819,9 @@ export function AdvancedSitingStudio({
       return;
     }
 
-    // 4. Check if clicking inside House Footprint to Drag
+    // 5. Check if clicking inside House Footprint to Drag
     const houseWCanvas = houseState.widthM * scale;
-    const houseLCanvas = houseState.lengthM * scale;
+    const houseLCanvas = (houseState.widthM / (floorplanNaturalAspect || 0.52)) * scale;
     if (
       Math.abs(clickX - houseCenterCanvas.x) < houseWCanvas / 2 + 10 &&
       Math.abs(clickY - houseCenterCanvas.y) < houseLCanvas / 2 + 10
@@ -735,6 +841,8 @@ export function AdvancedSitingStudio({
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
+
+    setCursorCanvasPos({ x: mouseX, y: mouseY });
 
     const { toCanvas, toMeters } = getCanvasTransform();
 
@@ -785,6 +893,47 @@ export function AdvancedSitingStudio({
     setDragVertexIndex(null);
   };
 
+  // Apply 2-Point Scale Calibration
+  const handleApplyCalibration = () => {
+    const rawVal = parseFloat(calibrationModal.inputMeters);
+    if (isNaN(rawVal) || rawVal <= 0) {
+      toast.error("Please enter a valid positive length in meters (e.g. 11.20).");
+      return;
+    }
+
+    const { scale } = getCanvasTransform();
+
+    if (calibrationModal.type === "floorplan") {
+      const measuredM = calibrationModal.pixelDistance / scale;
+      if (measuredM > 0) {
+        const scaleFactor = rawVal / measuredM;
+        const newWidth = Number((houseState.widthM * scaleFactor).toFixed(2));
+        const newLength = Number((newWidth / (floorplanNaturalAspect || 0.52)).toFixed(2));
+        const estimatedM2 = Number((newWidth * newLength * 0.88).toFixed(1));
+
+        setHouseState((prev) => ({
+          ...prev,
+          widthM: newWidth,
+          lengthM: newLength,
+          totalM2: estimatedM2,
+        }));
+
+        toast.success(`✨ Calibrated Floorplan: ${newWidth}m Wide × ${newLength}m Deep (${estimatedM2} m²)! Setbacks updated.`);
+      }
+      setIsCalibratingFloorplan(false);
+      setFloorplanCalibPoints([]);
+    } else {
+      // Lot Calibration
+      const ppm = calibrationModal.pixelDistance / rawVal;
+      setScalePixelsPerMeter(ppm > 0 ? ppm : 20.0);
+      toast.success(`✨ Calibrated Lot: Boundary scaled to ${rawVal}m accurately!`);
+      setIsCalibratingLot(false);
+      setLotCalibPoints([]);
+    }
+
+    setCalibrationModal((prev) => ({ ...prev, isOpen: false }));
+  };
+
   // Flip floorplan (LHS vs RHS garage) without reversing room text
   const handleFlipGarageSide = () => {
     setHouseState((prev) => {
@@ -798,43 +947,69 @@ export function AdvancedSitingStudio({
     toast.success(`Floorplan flipped: Garage switched to ${houseState.garageSide === "RHS" ? "LHS" : "RHS"}`);
   };
 
-  // Direct Floorplan Image Upload Handler
+  // Direct Floorplan Image/PDF Upload & Technical Page Analysis
   const handleDirectFloorplanUpload = async (file: File) => {
     try {
+      setIsCroppingFloorplan(true);
       const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      let rawImageUrl = "";
+      let scannedText = "";
+
       if (isPdf) {
-        const { pages } = await pdfDocumentToPagesAndText(file, 1);
-        if (pages[0]) {
-          setFloorplanImageUrl(pages[0]);
-          setIsCroppingFloorplan(true);
-          const analysis = await scanAndVectorizeFloorplan(pages[0], houseState.designName);
-          setWallAnalysis(analysis);
-          const img = new Image();
-          img.onload = () => {
-            setCroppedFloorplanImage(img);
-            setIsCroppingFloorplan(false);
-            toast.success("Floorplan PDF loaded and auto-cropped onto lot!");
-          };
-          img.src = analysis.croppedUrl || pages[0];
-        }
+        const { pages, rawText } = await pdfDocumentToPagesAndText(file, 2);
+        rawImageUrl = pages[0] || "";
+        scannedText = rawText || "";
       } else {
         const reader = new FileReader();
-        reader.onload = async () => {
-          const rawUrl = String(reader.result);
-          setFloorplanImageUrl(rawUrl);
-          setIsCroppingFloorplan(true);
-          const analysis = await scanAndVectorizeFloorplan(rawUrl, houseState.designName);
-          setWallAnalysis(analysis);
-          const img = new Image();
-          img.onload = () => {
-            setCroppedFloorplanImage(img);
-            setIsCroppingFloorplan(false);
-            toast.success("Floorplan image loaded and auto-cropped onto lot!");
-          };
-          img.src = analysis.croppedUrl || rawUrl;
-        };
-        reader.readAsDataURL(file);
+        rawImageUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(String(reader.result));
+          reader.readAsDataURL(file);
+        });
       }
+
+      if (!rawImageUrl) {
+        toast.error("Could not extract image from floorplan file.");
+        setIsCroppingFloorplan(false);
+        return;
+      }
+
+      // Technical floorplan matching
+      const match = detectFloorplanFromText(scannedText, file.name);
+      const targetDesign = match?.matchedDesignName || file.name.replace(/\.[^/.]+$/, "");
+
+      // Auto-crop floorplan drawing
+      const analysis = await scanAndVectorizeFloorplan(rawImageUrl, targetDesign);
+      setWallAnalysis(analysis);
+
+      const finalUrl = analysis.croppedUrl || rawImageUrl;
+      setFloorplanImageUrl(finalUrl);
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        setCroppedFloorplanImage(img);
+        const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 100);
+        setFloorplanNaturalAspect(aspect);
+
+        const initialW = match?.widthM || 11.2;
+        const initialL = Number((initialW / aspect).toFixed(2));
+        const initialM2 = match?.totalM2 || Math.round(initialW * initialL * 0.88);
+
+        setHouseState((prev) => ({
+          ...prev,
+          designName: targetDesign,
+          widthM: initialW,
+          lengthM: initialL,
+          totalM2: initialM2,
+        }));
+
+        setIsCroppingFloorplan(false);
+        setIsCalibratingFloorplan(true);
+        setFloorplanCalibPoints([]);
+        toast.success(`✨ ${targetDesign} loaded in true aspect ratio! Click 2 points on any known wall to verify exact scale.`);
+      };
+      img.src = finalUrl;
     } catch {
       toast.error("Could not process floorplan file.");
       setIsCroppingFloorplan(false);
@@ -854,7 +1029,7 @@ export function AdvancedSitingStudio({
           img.onload = () => {
             setDisclosureImage(img);
             setLotMode("disclosure_plan");
-            toast.success("Disclosure Plan PDF loaded as underlay! Click 'Calibrate Scale' to match boundary lengths.");
+            toast.success("Disclosure Plan PDF loaded as underlay! Click 'Calibrate Lot Scale' to match boundary lengths.");
           };
           img.src = pages[0];
         }
@@ -865,7 +1040,7 @@ export function AdvancedSitingStudio({
           img.onload = () => {
             setDisclosureImage(img);
             setLotMode("disclosure_plan");
-            toast.success("Disclosure Plan image loaded as underlay! Click 'Calibrate Scale' to match boundary lengths.");
+            toast.success("Disclosure Plan image loaded as underlay! Click 'Calibrate Lot Scale' to match boundary lengths.");
           };
           img.src = String(reader.result);
         };
@@ -892,7 +1067,7 @@ export function AdvancedSitingStudio({
       centerX: w / 2,
       centerY: d / 2 + 1.0,
     }));
-    toast.info(`Applied preset lot: ${w}m × ${d}m (${w * d} m²)`);
+    toast.info(`Applied preset lot: ${w}m × ${d}m (${w * d}m²)`);
   };
 
   // Export 1:200 Siting Plan PDF
@@ -1044,6 +1219,79 @@ export function AdvancedSitingStudio({
 
   return (
     <div className="space-y-6">
+      {/* 2-Point Scale Calibration Modal */}
+      {calibrationModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Ruler className="h-5 w-5 text-amber-400" />
+                {calibrationModal.type === "floorplan" ? "Calibrate Floorplan Dimensions" : "Calibrate Lot Scale"}
+              </h3>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCalibrationModal((prev) => ({ ...prev, isOpen: false }));
+                  setIsCalibratingFloorplan(false);
+                  setIsCalibratingLot(false);
+                  setFloorplanCalibPoints([]);
+                  setLotCalibPoints([]);
+                }}
+                className="text-slate-400 hover:text-white h-7 w-7 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <p className="text-xs text-slate-300">
+              {calibrationModal.type === "floorplan"
+                ? "Enter the exact real-world distance (in meters) between the two points you selected on the floorplan (e.g. wall length or overall house width)."
+                : "Enter the real-world length (in meters) of the boundary segment you selected."}
+            </p>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-400">Exact Real-World Length (meters):</Label>
+              <Input
+                type="number"
+                step="0.05"
+                value={calibrationModal.inputMeters}
+                onChange={(e) => setCalibrationModal((prev) => ({ ...prev, inputMeters: e.target.value }))}
+                placeholder="e.g. 11.20"
+                className="border-slate-700 bg-slate-950 text-base font-bold text-cyan-400"
+                autoFocus
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCalibrationModal((prev) => ({ ...prev, isOpen: false }));
+                  setIsCalibratingFloorplan(false);
+                  setIsCalibratingLot(false);
+                  setFloorplanCalibPoints([]);
+                  setLotCalibPoints([]);
+                }}
+                className="border-slate-700 bg-slate-950 text-slate-300 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleApplyCalibration}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Apply Exact Scale &amp; Setbacks
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Controls: Lot Mode, Presets & Estate Selector */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl">
         {/* Estate POD Rules */}
@@ -1183,14 +1431,14 @@ export function AdvancedSitingStudio({
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    setIsCalibratingScale(true);
-                    setCalibrationPoints([]);
+                    setIsCalibratingLot(true);
+                    setLotCalibPoints([]);
                     toast.info("Click 2 points on a known boundary segment to calibrate scale!");
                   }}
-                  className={isCalibratingScale ? "bg-amber-500 text-slate-950 font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1.5"}
+                  className={isCalibratingLot ? "bg-amber-500 text-slate-950 font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1.5"}
                 >
                   <Ruler className="h-3.5 w-3.5 text-amber-400" />
-                  {isCalibratingScale ? "Click 2 Boundary Points on Canvas…" : "Calibrate Scale (Click 2 Points)"}
+                  {isCalibratingLot ? "Click 2 Boundary Points on Canvas…" : "Calibrate Lot Scale (2 Points)"}
                 </Button>
 
                 <Button
@@ -1262,7 +1510,7 @@ export function AdvancedSitingStudio({
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
         {/* Left Column: Pure White Architectural Canvas with Black Boundaries */}
         <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl p-4 flex flex-col items-center">
-          <div className="w-full flex items-center justify-between pb-3 text-xs border-b border-slate-800">
+          <div className="w-full flex flex-wrap items-center justify-between pb-3 text-xs border-b border-slate-800 gap-2">
             <div className="flex items-center gap-2">
               <span className="text-slate-200 font-bold flex items-center gap-1.5">
                 <Building className="h-4 w-4 text-cyan-400" />
@@ -1270,13 +1518,46 @@ export function AdvancedSitingStudio({
               </span>
               {isCroppingFloorplan && (
                 <span className="text-[10px] text-amber-400 bg-amber-950/80 border border-amber-800/60 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                  <Sparkles className="h-3 w-3" /> Auto-cropping layout…
+                  <Sparkles className="h-3 w-3" /> Reading &amp; auto-cropping floorplan…
                 </span>
               )}
             </div>
-            <span className="font-mono text-cyan-400 font-bold">
-              Angle: {houseState.rotationDeg}° &bull; Lot: {activeLot.totalAreaM2.toFixed(1)} m²
-            </span>
+
+            {/* Direct Floorplan Scale Calibration Trigger */}
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setIsCalibratingFloorplan(!isCalibratingFloorplan);
+                  setFloorplanCalibPoints([]);
+                  if (!isCalibratingFloorplan) {
+                    toast.info("Click 2 points on any known wall/dimension to calibrate real scale!");
+                  }
+                }}
+                className={isCalibratingFloorplan ? "bg-amber-500 text-slate-950 font-bold text-xs gap-1.5" : "border-slate-800 bg-slate-900 text-amber-300 hover:bg-slate-800 text-xs gap-1.5 font-bold"}
+              >
+                <Ruler className="h-3.5 w-3.5 text-amber-400" />
+                {isCalibratingFloorplan ? "Calibrating: Click 2 Points on Plan…" : "Measure & Calibrate Scale (2 Points)"}
+              </Button>
+
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept=".pdf,image/*,application/pdf"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleDirectFloorplanUpload(f);
+                  }}
+                  className="hidden"
+                />
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-200 transition-colors">
+                  <Upload className="h-3.5 w-3.5 text-cyan-400" />
+                  Upload PDF / Plan
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* White Blueprint Canvas Container */}
