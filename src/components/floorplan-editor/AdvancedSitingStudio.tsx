@@ -12,6 +12,11 @@ import {
   Plus,
   RefreshCw,
   MousePointer,
+  Image as ImageIcon,
+  CheckCircle2,
+  Sparkles,
+  Sliders,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +43,13 @@ import {
 } from "@/lib/siting/sitingGeometry";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { type DetectedFloorplan } from "@/lib/floorplan/floorplanDetector";
-import { saveTenderToIdb } from "@/lib/tender/tenderStorage";
+import { saveTenderToIdb, findFloorplanUrl } from "@/lib/tender/tenderStorage";
+import { plansForDesign } from "@/components/flyer/floorplans";
+import {
+  scanAndVectorizeFloorplan,
+  generateWallVectorAnalysis,
+  type WallVectorAnalysis,
+} from "@/components/flyer/floorplanVisionEngine";
 
 interface AdvancedSitingStudioProps {
   detectedFloorplan?: DetectedFloorplan | null;
@@ -74,8 +85,8 @@ export function AdvancedSitingStudio({
   // House Placement State
   const [houseState, setHouseState] = useState<SitedHouseState>(() => ({
     designName: detectedFloorplan?.matchedDesignName || "Amber 21",
-    widthM: detectedFloorplan?.widthM || 11.2,
-    lengthM: detectedFloorplan?.lengthM || 19.5,
+    widthM: detectedFloorplan?.widthM || 10.55,
+    lengthM: detectedFloorplan?.lengthM || 20.15,
     totalM2: detectedFloorplan?.totalM2 || 192.2,
     centerX: 7.0,
     centerY: 16.0,
@@ -87,25 +98,77 @@ export function AdvancedSitingStudio({
     drivewayWidthM: 5.2,
   }));
 
-  // Update house specs when detectedFloorplan changes
+  // Floorplan image state (Cropped with all internal layout)
+  const [floorplanImageUrl, setFloorplanImageUrl] = useState<string>("");
+  const [croppedFloorplanImage, setCroppedFloorplanImage] = useState<HTMLImageElement | null>(null);
+  const [isCroppingFloorplan, setIsCroppingFloorplan] = useState<boolean>(false);
+  const [wallAnalysis, setWallAnalysis] = useState<WallVectorAnalysis>(() =>
+    generateWallVectorAnalysis(houseState.designName)
+  );
+
+  // Load and auto-crop floorplan when detectedFloorplan changes or initial mount
   useEffect(() => {
+    let active = true;
+    const targetDesign = detectedFloorplan?.matchedDesignName || houseState.designName;
+    let url = detectedFloorplan?.floorplanUrl || "";
+
+    if (!url) {
+      const directPlans = plansForDesign(targetDesign);
+      if (directPlans.length > 0 && directPlans[0].url) {
+        url = directPlans[0].url;
+      } else {
+        url = findFloorplanUrl(targetDesign);
+      }
+    }
+
+    setFloorplanImageUrl(url);
+
+    if (url) {
+      setIsCroppingFloorplan(true);
+      scanAndVectorizeFloorplan(url, targetDesign)
+        .then((analysis) => {
+          if (!active) return;
+          setWallAnalysis(analysis);
+          const finalUrl = analysis.croppedUrl || url;
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => {
+            if (active) {
+              setCroppedFloorplanImage(img);
+              setIsCroppingFloorplan(false);
+            }
+          };
+          img.onerror = () => {
+            if (active) setIsCroppingFloorplan(false);
+          };
+          img.src = finalUrl;
+        })
+        .catch(() => {
+          if (active) setIsCroppingFloorplan(false);
+        });
+    }
+
     if (detectedFloorplan) {
       setHouseState((prev) => ({
         ...prev,
         designName: detectedFloorplan.matchedDesignName,
-        widthM: detectedFloorplan.widthM,
-        lengthM: detectedFloorplan.lengthM,
-        totalM2: detectedFloorplan.totalM2,
+        widthM: detectedFloorplan.widthM || 10.55,
+        lengthM: detectedFloorplan.lengthM || 20.15,
+        totalM2: detectedFloorplan.totalM2 || 192.2,
         centerX: frontageM / 2,
         centerY: depthM / 2 + 1.0,
       }));
     }
-  }, [detectedFloorplan, frontageM, depthM]);
+
+    return () => {
+      active = false;
+    };
+  }, [detectedFloorplan]);
 
   // Disclosure Plan Underlay State
   const [disclosureImage, setDisclosureImage] = useState<HTMLImageElement | null>(null);
   const [disclosureFileName, setDisclosureFileName] = useState<string>("");
-  const [disclosureOpacity, setDisclosureOpacity] = useState<number>(0.65);
+  const [disclosureOpacity, setDisclosureOpacity] = useState<number>(0.45);
   const [isCalibratingScale, setIsCalibratingScale] = useState<boolean>(false);
   const [calibrationPoints, setCalibrationPoints] = useState<Point2D[]>([]);
   const [scalePixelsPerMeter, setScalePixelsPerMeter] = useState<number>(20.0);
@@ -170,9 +233,9 @@ export function AdvancedSitingStudio({
 
   // Canvas coordinate converters
   const getCanvasTransform = useCallback(() => {
-    const W = 960;
-    const H = 900;
-    const padding = 100;
+    const W = 1000;
+    const H = 940;
+    const padding = 80;
 
     let minX = 0, maxX = frontageM, minY = 0, maxY = depthM;
     if (lotMode !== "rectangle") {
@@ -209,7 +272,7 @@ export function AdvancedSitingStudio({
     };
   }, [frontageM, depthM, lotMode, polygonPoints]);
 
-  // Main Canvas Render
+  // Main Canvas Render — Pure White Architectural Presentation with Black Boundaries
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -220,20 +283,20 @@ export function AdvancedSitingStudio({
     canvas.width = W;
     canvas.height = H;
 
-    // Background
-    ctx.fillStyle = "#090d16";
+    // 1. Pure Architectural White Background
+    ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
 
-    // Grid pattern
-    ctx.strokeStyle = "rgba(51, 65, 85, 0.25)";
+    // Subtle fine architectural grid lines
+    ctx.strokeStyle = "#f1f5f9";
     ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 30) {
+    for (let x = 0; x < W; x += 35) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, H);
       ctx.stroke();
     }
-    for (let y = 0; y < H; y += 30) {
+    for (let y = 0; y < H; y += 35) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(W, y);
@@ -251,7 +314,7 @@ export function AdvancedSitingStudio({
       ctx.restore();
     }
 
-    // Draw Lot Polygon (Grass Yard)
+    // 2. Draw Lot Polygon (Clean white/soft yard with solid black boundary lines)
     const lotCanvasPts = activeLot.vertices.map(toCanvas);
     if (lotCanvasPts.length >= 3) {
       ctx.beginPath();
@@ -260,14 +323,18 @@ export function AdvancedSitingStudio({
         ctx.lineTo(lotCanvasPts[i].x, lotCanvasPts[i].y);
       }
       ctx.closePath();
-      ctx.fillStyle = "rgba(16, 185, 129, 0.08)";
+
+      // Soft architectural white-slate fill
+      ctx.fillStyle = "#fafbfd";
       ctx.fill();
-      ctx.strokeStyle = "#10b981";
+
+      // Crisp Solid Black Boundary Line (2.5px width)
+      ctx.strokeStyle = "#0f172a";
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
-      // Draw Boundary Dimensions & Segment Labels
-      ctx.fillStyle = "#6ee7b7";
+      // Draw Boundary Dimension Labels in Crisp Black
+      ctx.fillStyle = "#0f172a";
       ctx.font = "bold 11px sans-serif";
       for (let i = 0; i < lotCanvasPts.length; i++) {
         const p1 = lotCanvasPts[i];
@@ -275,19 +342,31 @@ export function AdvancedSitingStudio({
         const midX = (p1.x + p2.x) / 2;
         const midY = (p1.y + p2.y) / 2;
         const realSeg = activeLot.segments[i];
-        const lenText = realSeg ? `${realSeg.lengthM.toFixed(1)}m` : "";
-        ctx.fillText(lenText, midX + 4, midY - 4);
+        const lenText = realSeg ? `${realSeg.lengthM.toFixed(2)}m` : "";
+
+        // Position label slightly outside the boundary
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const normX = -dy / len;
+        const normY = dx / len;
+        const labelX = midX + normX * 14;
+        const labelY = midY + normY * 14;
+
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(lenText, labelX, labelY);
       }
 
-      // Draw Interactive Vertices in Custom Mode
+      // Draw Interactive Golden Pins in Custom Mode
       if (lotMode === "custom_polygon" || isSettingBoundaryVertices) {
         for (let i = 0; i < lotCanvasPts.length; i++) {
           const pt = lotCanvasPts[i];
           ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+          ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
           ctx.fillStyle = "#f59e0b";
           ctx.fill();
-          ctx.strokeStyle = "#ffffff";
+          ctx.strokeStyle = "#0f172a";
           ctx.lineWidth = 2;
           ctx.stroke();
         }
@@ -297,40 +376,49 @@ export function AdvancedSitingStudio({
     // Street Frontage Indicator at Bottom
     const frontStart = toCanvas(activeLot.vertices[activeLot.vertices.length - 2] || { x: frontageM, y: depthM });
     const frontEnd = toCanvas(activeLot.vertices[activeLot.vertices.length - 1] || { x: 0, y: depthM });
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 12px sans-serif";
+    const streetY = Math.max(frontStart.y, frontEnd.y);
+
+    // Street Curb Graphic
+    ctx.fillStyle = "#e2e8f0";
+    ctx.fillRect(frontEnd.x - 30, streetY + 4, (frontStart.x - frontEnd.x) + 60, 28);
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(frontEnd.x - 30, streetY + 4, (frontStart.x - frontEnd.x) + 60, 28);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "bold 11px sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(1)}m)`, (frontStart.x + frontEnd.x) / 2, Math.max(frontStart.y, frontEnd.y) + 32);
+    ctx.textBaseline = "middle";
+    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 18);
     ctx.textAlign = "left";
 
-    // 1. Draw House Footprint & Driveway
+    // 3. Draw Driveway & Porch Path
     const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
+    const houseW = houseState.widthM * scale;
+    const houseL = houseState.lengthM * scale;
 
     ctx.save();
     ctx.translate(houseCenterCanvas.x, houseCenterCanvas.y);
     ctx.rotate((houseState.rotationDeg * Math.PI) / 180);
 
-    const houseW = houseState.widthM * scale;
-    const houseL = houseState.lengthM * scale;
-
-    // Driveway & Path
     if (houseState.hasDriveway) {
       const driveW = (houseState.drivewayWidthM || 5.2) * scale;
-      const driveL = (liveSetbacks.garageSetbackM || 5.0) * scale;
+      const driveL = Math.max(20, (liveSetbacks.garageSetbackM || 5.0) * scale);
       const isLhs = houseState.garageSide === "LHS";
       const driveX = isLhs ? -houseW / 2 : houseW / 2 - driveW;
       const driveY = houseL / 2;
 
-      ctx.fillStyle = "#475569";
+      // Exposed aggregate driveway
+      ctx.fillStyle = "#cbd5e1";
       ctx.fillRect(driveX, driveY, driveW, driveL);
-      ctx.strokeStyle = "#334155";
+      ctx.strokeStyle = "#94a3b8";
       ctx.lineWidth = 1.5;
       ctx.strokeRect(driveX, driveY, driveW, driveL);
 
       // Texture dots
-      ctx.fillStyle = "#94a3b8";
-      for (let dx = driveX + 6; dx < driveX + driveW - 4; dx += 14) {
-        for (let dy = driveY + 6; dy < driveY + driveL - 4; dy += 14) {
+      ctx.fillStyle = "#64748b";
+      for (let dx = driveX + 6; dx < driveX + driveW - 4; dx += 12) {
+        for (let dy = driveY + 6; dy < driveY + driveL - 4; dy += 12) {
           ctx.fillRect(dx, dy, 2, 2);
         }
       }
@@ -338,18 +426,51 @@ export function AdvancedSitingStudio({
       // Porch Path
       const pathW = 1.2 * scale;
       const pathX = isLhs ? driveX + driveW : driveX - pathW;
-      ctx.fillStyle = "#64748b";
-      ctx.fillRect(pathX, driveY, pathW, driveL * 0.7);
-      ctx.strokeStyle = "#334155";
-      ctx.strokeRect(pathX, driveY, pathW, driveL * 0.7);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(pathX, driveY, pathW, driveL * 0.75);
+      ctx.strokeStyle = "#94a3b8";
+      ctx.strokeRect(pathX, driveY, pathW, driveL * 0.75);
     }
 
-    // Main House Body
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(-houseW / 2, -houseL / 2, houseW, houseL);
-    ctx.strokeStyle = "#38bdf8";
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(-houseW / 2, -houseL / 2, houseW, houseL);
+    // 4. Draw Real Cropped Floorplan with Internal Layout
+    if (croppedFloorplanImage) {
+      ctx.save();
+      // Handle horizontal garage flip
+      if (houseState.garageSide === "LHS") {
+        ctx.scale(-1, 1);
+      }
+      ctx.drawImage(
+        croppedFloorplanImage,
+        -houseW / 2,
+        -houseL / 2,
+        houseW,
+        houseL
+      );
+      ctx.restore();
+
+      // House boundary outline
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2.0;
+      ctx.strokeRect(-houseW / 2, -houseL / 2, houseW, houseL);
+    } else {
+      // Fallback architectural schematic if image is still loading
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(-houseW / 2, -houseL / 2, houseW, houseL);
+      ctx.strokeStyle = "#0f172a";
+      ctx.lineWidth = 2.0;
+      ctx.strokeRect(-houseW / 2, -houseL / 2, houseW, houseL);
+
+      // Garage Box
+      const garW = 5.8 * scale;
+      const garL = 5.8 * scale;
+      const isGarageLhs = houseState.garageSide === "LHS";
+      const garX = isGarageLhs ? -houseW / 2 : houseW / 2 - garW;
+      const garY = houseL / 2 - garL;
+      ctx.fillStyle = "#f1f5f9";
+      ctx.fillRect(garX, garY, garW, garL);
+      ctx.strokeStyle = "#94a3b8";
+      ctx.strokeRect(garX, garY, garW, garL);
+    }
 
     // Built-To-Boundary (BTB) Highlight Edge
     if (houseState.isBtbActive) {
@@ -366,57 +487,10 @@ export function AdvancedSitingStudio({
       ctx.stroke();
     }
 
-    // Garage Box
-    const garW = 5.8 * scale;
-    const garL = 5.8 * scale;
-    const isGarageLhs = houseState.garageSide === "LHS";
-    const garX = isGarageLhs ? -houseW / 2 : houseW / 2 - garW;
-    const garY = houseL / 2 - garL;
+    ctx.restore(); // Restore context to draw unrotated overlays & dimensions
 
-    ctx.fillStyle = "#334155";
-    ctx.fillRect(garX, garY, garW, garL);
-    ctx.strokeStyle = "#64748b";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(garX, garY, garW, garL);
-
-    // Alfresco Box at Rear
-    const alfW = 4.6 * scale;
-    const alfL = 3.2 * scale;
-    const alfX = isGarageLhs ? houseW / 2 - alfW : -houseW / 2;
-    const alfY = -houseL / 2;
-
-    ctx.fillStyle = "#78350f";
-    ctx.fillRect(alfX, alfY, alfW, alfL);
-    ctx.strokeStyle = "#d97706";
-    ctx.strokeRect(alfX, alfY, alfW, alfL);
-
-    // Entry Porch Box
-    const porchW = 2.2 * scale;
-    const porchL = 1.6 * scale;
-    const porchX = isGarageLhs ? -houseW / 2 + garW : houseW / 2 - garW - porchW;
-    const porchY = houseL / 2 - porchL;
-
-    ctx.fillStyle = "#0f766e";
-    ctx.fillRect(porchX, porchY, porchW, porchL);
-    ctx.strokeStyle = "#14b8a6";
-    ctx.strokeRect(porchX, porchY, porchW, porchL);
-
-    ctx.restore();
-
-    // 2. Render Text Overlays Upright (Un-mirrored for crisp readability)
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    // Main House Design Label
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 13px sans-serif";
-    ctx.fillText(houseState.designName.toUpperCase(), houseCenterCanvas.x, houseCenterCanvas.y - 12);
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "11px sans-serif";
-    ctx.fillText(`${houseState.widthM}m Wide × ${houseState.lengthM}m Deep (${houseState.totalM2} m²)`, houseCenterCanvas.x, houseCenterCanvas.y + 8);
-
-    // Rotation Knob Handle (Visible above house)
-    const rotHandleDist = houseState.lengthM * scale * 0.5 + 30;
+    // 5. Rotation Knob Handle (Visible above house)
+    const rotHandleDist = houseState.lengthM * scale * 0.5 + 28;
     const rad = (houseState.rotationDeg * Math.PI) / 180;
     const rotHandleX = houseCenterCanvas.x - Math.sin(rad) * rotHandleDist;
     const rotHandleY = houseCenterCanvas.y - Math.cos(rad) * rotHandleDist;
@@ -424,39 +498,123 @@ export function AdvancedSitingStudio({
     ctx.beginPath();
     ctx.moveTo(houseCenterCanvas.x, houseCenterCanvas.y - houseState.lengthM * scale * 0.5);
     ctx.lineTo(rotHandleX, rotHandleY);
-    ctx.strokeStyle = "#38bdf8";
+    ctx.strokeStyle = "#0284c7";
     ctx.lineWidth = 1.5;
     ctx.setLineDash([3, 3]);
     ctx.stroke();
     ctx.setLineDash([]);
 
     ctx.beginPath();
-    ctx.arc(rotHandleX, rotHandleY, 10, 0, Math.PI * 2);
+    ctx.arc(rotHandleX, rotHandleY, 9, 0, Math.PI * 2);
     ctx.fillStyle = "#0284c7";
     ctx.fill();
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    // 3. Setback Dimension Lines & Callouts in Cyan
-    ctx.fillStyle = "#38bdf8";
+    // 6. Architectural Dashed Setback Lines & Dimension Callout Badges
+    const drawSetbackCallout = (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      label: string,
+      color = "#dc2626"
+    ) => {
+      // Dashed Line
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Dimension Pill Badge
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2;
+
+      ctx.font = "bold 10.5px sans-serif";
+      const textW = ctx.measureText(label).width;
+      const pillW = textW + 12;
+      const pillH = 20;
+
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 5);
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, midX, midY);
+    };
+
+    // A. Front Setback (Front wall to street)
+    const frontWallY = houseCenterCanvas.y + houseL / 2;
+    drawSetbackCallout(
+      houseCenterCanvas.x,
+      frontWallY,
+      houseCenterCanvas.x,
+      streetY,
+      `Front: ${liveSetbacks.frontSetbackM.toFixed(2)}m (Garage ${liveSetbacks.garageSetbackM.toFixed(2)}m)`,
+      "#dc2626"
+    );
+
+    // B. Rear Setback (Rear wall to rear boundary)
+    const rearWallY = houseCenterCanvas.y - houseL / 2;
+    const rearBoundaryY = toCanvas({ x: frontageM / 2, y: 0 }).y;
+    drawSetbackCallout(
+      houseCenterCanvas.x,
+      rearWallY,
+      houseCenterCanvas.x,
+      rearBoundaryY,
+      `Rear: ${liveSetbacks.rearSetbackM.toFixed(2)}m`,
+      "#dc2626"
+    );
+
+    // C. Left Setback (Left wall to left boundary)
+    const leftWallX = houseCenterCanvas.x - houseW / 2;
+    const leftBoundaryX = toCanvas({ x: 0, y: houseState.centerY }).x;
+    const leftLabel = houseState.isBtbActive && houseState.garageSide === "LHS" ? "BTB 200mm" : `Left: ${liveSetbacks.leftSetbackM.toFixed(2)}m`;
+    drawSetbackCallout(
+      leftWallX,
+      houseCenterCanvas.y,
+      leftBoundaryX,
+      houseCenterCanvas.y,
+      leftLabel,
+      houseState.isBtbActive && houseState.garageSide === "LHS" ? "#d97706" : "#0284c7"
+    );
+
+    // D. Right Setback (Right wall to right boundary)
+    const rightWallX = houseCenterCanvas.x + houseW / 2;
+    const rightBoundaryX = toCanvas({ x: frontageM, y: houseState.centerY }).x;
+    const rightLabel = houseState.isBtbActive && houseState.garageSide === "RHS" ? "BTB 200mm" : `Right: ${liveSetbacks.rightSetbackM.toFixed(2)}m`;
+    drawSetbackCallout(
+      rightWallX,
+      houseCenterCanvas.y,
+      rightBoundaryX,
+      houseCenterCanvas.y,
+      rightLabel,
+      houseState.isBtbActive && houseState.garageSide === "RHS" ? "#d97706" : "#0284c7"
+    );
+
+    // 7. House Design Label in Top-Left Blueprint Header
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 14px sans-serif";
+    ctx.fillText(`DESIGN: ${houseState.designName.toUpperCase()}`, 30, 25);
+    ctx.fillStyle = "#0284c7";
     ctx.font = "bold 11.5px sans-serif";
+    ctx.fillText(`${houseState.widthM.toFixed(2)}m Wide × ${houseState.lengthM.toFixed(2)}m Deep • Total: ${houseState.totalM2} m² • 1:200 Scale Blueprint`, 30, 44);
 
-    // Front Setback Callout
-    ctx.fillText(`Front: ${liveSetbacks.frontSetbackM}m (Garage ${liveSetbacks.garageSetbackM}m)`, W / 2, houseCenterCanvas.y + houseL / 2 + 20);
-
-    // Rear Setback Callout
-    ctx.fillText(`Rear Yard: ${liveSetbacks.rearSetbackM}m`, W / 2, houseCenterCanvas.y - houseL / 2 - 20);
-
-    // Left Side Setback Callout
-    const leftText = houseState.isBtbActive && houseState.garageSide === "LHS" ? "BTB 200mm" : `Left: ${liveSetbacks.leftSetbackM}m`;
-    ctx.fillText(leftText, houseCenterCanvas.x - houseW / 2 - 40, houseCenterCanvas.y);
-
-    // Right Side Setback Callout
-    const rightText = houseState.isBtbActive && houseState.garageSide === "RHS" ? "BTB 200mm" : `Right: ${liveSetbacks.rightSetbackM}m`;
-    ctx.fillText(rightText, houseCenterCanvas.x + houseW / 2 + 40, houseCenterCanvas.y);
-
-    // 4. North Compass Rose (Rotatable)
+    // 8. North Compass Rose (Rotatable)
     const compassX = W - 70;
     const compassY = 70;
     ctx.save();
@@ -464,37 +622,37 @@ export function AdvancedSitingStudio({
     ctx.rotate((northAngleDeg * Math.PI) / 180);
 
     ctx.beginPath();
-    ctx.arc(0, 0, 22, 0, Math.PI * 2);
-    ctx.fillStyle = "#0f172a";
+    ctx.arc(0, 0, 24, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
-    ctx.strokeStyle = "#38bdf8";
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.8;
     ctx.stroke();
 
     // North arrow tip
     ctx.beginPath();
-    ctx.moveTo(0, -18);
-    ctx.lineTo(-6, 2);
-    ctx.lineTo(6, 2);
+    ctx.moveTo(0, -20);
+    ctx.lineTo(-7, 2);
+    ctx.lineTo(7, 2);
     ctx.closePath();
-    ctx.fillStyle = "#ef4444";
+    ctx.fillStyle = "#dc2626";
     ctx.fill();
 
     // South arrow tip
     ctx.beginPath();
-    ctx.moveTo(0, 18);
-    ctx.lineTo(-6, 2);
-    ctx.lineTo(6, 2);
+    ctx.moveTo(0, 20);
+    ctx.lineTo(-7, 2);
+    ctx.lineTo(7, 2);
     ctx.closePath();
-    ctx.fillStyle = "#94a3b8";
+    ctx.fillStyle = "#0f172a";
     ctx.fill();
 
-    ctx.fillStyle = "#ef4444";
-    ctx.font = "bold 11px sans-serif";
-    ctx.fillText("N", 0, -26);
+    ctx.fillStyle = "#dc2626";
+    ctx.font = "bold 12px sans-serif";
+    ctx.fillText("N", 0, -28);
     ctx.restore();
 
-    // 5. Calibration Lines if in calibration mode
+    // 9. Calibration Lines if in calibration mode
     if (isCalibratingScale && calibrationPoints.length > 0) {
       ctx.fillStyle = "#f59e0b";
       ctx.strokeStyle = "#f59e0b";
@@ -515,6 +673,7 @@ export function AdvancedSitingStudio({
     activeLot,
     houseState,
     liveSetbacks,
+    croppedFloorplanImage,
     disclosureImage,
     disclosureOpacity,
     scalePixelsPerMeter,
@@ -564,7 +723,7 @@ export function AdvancedSitingStudio({
     if (lotMode === "custom_polygon" || isSettingBoundaryVertices) {
       const lotCanvasPts = activeLot.vertices.map(toCanvas);
       for (let i = 0; i < lotCanvasPts.length; i++) {
-        if (distanceBetween({ x: clickX, y: clickY }, lotCanvasPts[i]) < 12) {
+        if (distanceBetween({ x: clickX, y: clickY }, lotCanvasPts[i]) < 14) {
           setDragVertexIndex(i);
           return;
         }
@@ -573,12 +732,12 @@ export function AdvancedSitingStudio({
 
     // 3. Check if clicking on Rotation Knob Handle
     const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
-    const rotHandleDist = houseState.lengthM * scale * 0.5 + 30;
+    const rotHandleDist = houseState.lengthM * scale * 0.5 + 28;
     const rad = (houseState.rotationDeg * Math.PI) / 180;
     const rotHandleX = houseCenterCanvas.x - Math.sin(rad) * rotHandleDist;
     const rotHandleY = houseCenterCanvas.y - Math.cos(rad) * rotHandleDist;
 
-    if (distanceBetween({ x: clickX, y: clickY }, { x: rotHandleX, y: rotHandleY }) < 16) {
+    if (distanceBetween({ x: clickX, y: clickY }, { x: rotHandleX, y: rotHandleY }) < 18) {
       setIsRotatingHouse(true);
       return;
     }
@@ -668,6 +827,49 @@ export function AdvancedSitingStudio({
     toast.success(`Floorplan flipped: Garage switched to ${houseState.garageSide === "RHS" ? "LHS" : "RHS"}`);
   };
 
+  // Direct Floorplan Image Upload Handler
+  const handleDirectFloorplanUpload = async (file: File) => {
+    try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        const { pages } = await pdfDocumentToPagesAndText(file, 1);
+        if (pages[0]) {
+          setFloorplanImageUrl(pages[0]);
+          setIsCroppingFloorplan(true);
+          const analysis = await scanAndVectorizeFloorplan(pages[0], houseState.designName);
+          setWallAnalysis(analysis);
+          const img = new Image();
+          img.onload = () => {
+            setCroppedFloorplanImage(img);
+            setIsCroppingFloorplan(false);
+            toast.success("Floorplan PDF loaded and auto-cropped onto lot!");
+          };
+          img.src = analysis.croppedUrl || pages[0];
+        }
+      } else {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          const rawUrl = String(reader.result);
+          setFloorplanImageUrl(rawUrl);
+          setIsCroppingFloorplan(true);
+          const analysis = await scanAndVectorizeFloorplan(rawUrl, houseState.designName);
+          setWallAnalysis(analysis);
+          const img = new Image();
+          img.onload = () => {
+            setCroppedFloorplanImage(img);
+            setIsCroppingFloorplan(false);
+            toast.success("Floorplan image loaded and auto-cropped onto lot!");
+          };
+          img.src = analysis.croppedUrl || rawUrl;
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      toast.error("Could not process floorplan file.");
+      setIsCroppingFloorplan(false);
+    }
+  };
+
   // Upload Disclosure Plan Handler
   const handleUploadDisclosure = async (file: File) => {
     try {
@@ -698,7 +900,7 @@ export function AdvancedSitingStudio({
         };
         reader.readAsDataURL(file);
       }
-    } catch (e) {
+    } catch {
       toast.error("Could not load disclosure plan file.");
     }
   };
@@ -734,31 +936,31 @@ export function AdvancedSitingStudio({
       format: "a4",
     });
 
-    doc.setFillColor(15, 23, 42);
+    doc.setFillColor(255, 255, 255);
     doc.rect(0, 0, 297, 210, "F");
 
     // Title Banner
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(15, 23, 42);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("HUDSON HOMES — 1:200 ARCHITECTURAL LOT SITING PLAN", 15, 14);
 
     doc.setFontSize(10);
-    doc.setTextColor(56, 189, 248);
+    doc.setTextColor(2, 132, 199);
     doc.text(`Estate: ${currentPodRule.estateName} | Lot: ${frontageM}m Frontage × ${depthM}m Depth (${activeLot.totalAreaM2} m²)`, 15, 20);
 
     // Siting Image
     doc.addImage(imgData, "PNG", 15, 24, 267, 155);
 
     // Compliance Footer
-    doc.setTextColor(255, 255, 255);
+    doc.setTextColor(15, 23, 42);
     doc.setFontSize(9);
     doc.text(
       `Front Setback: ${liveSetbacks.frontSetbackM}m | Garage: ${liveSetbacks.garageSetbackM}m | Left: ${liveSetbacks.leftSetbackM}m | Right: ${liveSetbacks.rightSetbackM}m | Rear: ${liveSetbacks.rearSetbackM}m`,
       15,
       188
     );
-    doc.setTextColor(56, 189, 248);
+    doc.setTextColor(2, 132, 199);
     doc.text(
       `Site Coverage: ${liveSetbacks.siteCoveragePct}% (Max ${currentPodRule.maxSiteCoveragePct || 60}%) · ${liveSetbacks.isCompliant ? "COMPLIANT" : "REVIEW REQUIRED"} | POS: ${liveSetbacks.privateOpenSpaceM2} m²`,
       15,
@@ -783,6 +985,7 @@ export function AdvancedSitingStudio({
         widthM: houseState.widthM,
         lengthM: houseState.lengthM,
         totalM2: houseState.totalM2,
+        floorplanUrl: floorplanImageUrl,
       };
 
       localStorage.setItem("hudson_siting_to_quote_bridge", JSON.stringify(sitingPayload));
@@ -800,7 +1003,7 @@ export function AdvancedSitingStudio({
       let pdfDataUrl = "";
       const canvas = canvasRef.current;
       if (canvas) {
-        const imgData = canvas.toDataURL("image/jpeg", 0.85);
+        const imgData = canvas.toDataURL("image/jpeg", 0.88);
         const doc = new jsPDF({
           orientation: "landscape",
           unit: "mm",
@@ -826,6 +1029,7 @@ export function AdvancedSitingStudio({
           ...(currentTender.homeSpec || {}),
           homeDesign: houseState.designName,
           garageLocation: houseState.garageSide,
+          floorplanUrl: floorplanImageUrl,
           setbacks: {
             frontBoundary: `${liveSetbacks.frontSetbackM}m (Garage ${liveSetbacks.garageSetbackM}m)`,
             rearBoundary: `${liveSetbacks.rearSetbackM}m`,
@@ -1039,7 +1243,7 @@ export function AdvancedSitingStudio({
                 min={10}
                 max={100}
                 step={5}
-                onValueChange={(val) => setDisclosureOpacity((val[0] || 65) / 100)}
+                onValueChange={(val) => setDisclosureOpacity((val[0] || 45) / 100)}
                 className="w-48"
               />
               <span className="text-xs font-mono text-cyan-400">{Math.round(disclosureOpacity * 100)}%</span>
@@ -1083,31 +1287,41 @@ export function AdvancedSitingStudio({
         )}
       </div>
 
-      {/* Main Grid: Interactive Canvas (Left) + Siting Controls & Compliance (Right) */}
+      {/* Main Grid: Architectural Canvas (Left) + Siting Controls & Compliance (Right) */}
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
-        {/* Left Column: Architectural Canvas */}
+        {/* Left Column: Pure White Architectural Canvas with Black Boundaries */}
         <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl p-4 flex flex-col items-center">
           <div className="w-full flex items-center justify-between pb-3 text-xs border-b border-slate-800">
-            <span className="text-slate-400 font-semibold flex items-center gap-1.5">
-              <Building className="h-4 w-4 text-emerald-400" />
-              1:200 Siting Canvas &bull; Drag house to position &bull; Drag top knob to rotate by 1°
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-200 font-bold flex items-center gap-1.5">
+                <Building className="h-4 w-4 text-cyan-400" />
+                1:200 Architectural Siting Canvas (White Blueprint)
+              </span>
+              {isCroppingFloorplan && (
+                <span className="text-[10px] text-amber-400 bg-amber-950/80 border border-amber-800/60 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                  <Sparkles className="h-3 w-3" /> Auto-cropping layout…
+                </span>
+              )}
+            </div>
             <span className="font-mono text-cyan-400 font-bold">
               Angle: {houseState.rotationDeg}° &bull; Lot: {activeLot.totalAreaM2.toFixed(1)} m²
             </span>
           </div>
 
-          <canvas
-            ref={canvasRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-            className="cursor-move border border-slate-800/80 rounded-xl my-3 shadow-inner max-w-full h-auto"
-            style={{ width: "100%", maxHeight: "720px", objectFit: "contain" }}
-          />
+          {/* White Blueprint Canvas Container */}
+          <div className="relative w-full my-3 bg-white rounded-xl shadow-lg border border-slate-700/80 overflow-hidden flex items-center justify-center">
+            <canvas
+              ref={canvasRef}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+              className="cursor-move max-w-full h-auto"
+              style={{ width: "100%", maxHeight: "740px", objectFit: "contain" }}
+            />
+          </div>
 
-          {/* Quick House Manipulation Action Bar */}
+          {/* House Manipulation Action Bar */}
           <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800 text-xs">
             <div className="flex items-center gap-2">
               <Button
@@ -1143,7 +1357,7 @@ export function AdvancedSitingStudio({
               </Button>
             </div>
 
-            {/* Fine Rotation Slider */}
+            {/* 1° Fine Angle Slider */}
             <div className="flex items-center gap-2">
               <span className="text-slate-400">1° Fine Angle:</span>
               <Slider
@@ -1181,27 +1395,27 @@ export function AdvancedSitingStudio({
             <div className="space-y-2 text-xs">
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-400">Front Building Line:</span>
-                <strong className="text-cyan-300 font-mono">{liveSetbacks.frontSetbackM}m (Min {currentPodRule.frontSetbackOmpM}m)</strong>
+                <strong className="text-cyan-300 font-mono">{liveSetbacks.frontSetbackM.toFixed(2)}m (Min {currentPodRule.frontSetbackOmpM}m)</strong>
               </div>
 
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-400">Garage Door Setback:</span>
-                <strong className="text-cyan-300 font-mono">{liveSetbacks.garageSetbackM}m (Min {currentPodRule.frontSetbackGarageM}m)</strong>
+                <strong className="text-cyan-300 font-mono">{liveSetbacks.garageSetbackM.toFixed(2)}m (Min {currentPodRule.frontSetbackGarageM}m)</strong>
               </div>
 
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-400">Left Side Boundary:</span>
-                <strong className="text-cyan-300 font-mono">{liveSetbacks.leftSetbackM}m</strong>
+                <strong className="text-cyan-300 font-mono">{liveSetbacks.leftSetbackM.toFixed(2)}m</strong>
               </div>
 
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-400">Right Side Boundary:</span>
-                <strong className="text-cyan-300 font-mono">{liveSetbacks.rightSetbackM}m</strong>
+                <strong className="text-cyan-300 font-mono">{liveSetbacks.rightSetbackM.toFixed(2)}m</strong>
               </div>
 
               <div className="flex justify-between items-center p-2 rounded-lg bg-slate-950 border border-slate-800">
                 <span className="text-slate-400">Rear Boundary:</span>
-                <strong className="text-cyan-300 font-mono">{liveSetbacks.rearSetbackM}m (Min {currentPodRule.rearSetbackM}m)</strong>
+                <strong className="text-cyan-300 font-mono">{liveSetbacks.rearSetbackM.toFixed(2)}m (Min {currentPodRule.rearSetbackM}m)</strong>
               </div>
             </div>
 

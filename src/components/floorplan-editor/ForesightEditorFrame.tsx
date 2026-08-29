@@ -74,11 +74,26 @@ export function ForesightEditorFrame() {
       // Auto-detect matching Hudson Homes floorplan
       const match = detectFloorplanFromText(rawText, file.name);
       if (match) {
+        if (pages[0]) match.floorplanUrl = pages[0];
         setDetectedPlan(match);
         setDesignName(match.matchedDesignName);
         setModifiedLivingM2(String(match.roomAreas.livingM2));
         setModifiedAlfrescoM2(String(match.roomAreas.alfrescoM2));
         toast.success(`✨ Auto-detected: ${match.matchedDesignName} (${match.housingType}, ${match.totalM2} m²)!`);
+      } else if (pages[0]) {
+        const customPlan: DetectedFloorplan = {
+          matchedDesignName: file.name.replace(/\.[^/.]+$/, ""),
+          housingType: "Single Storey",
+          totalM2: 195,
+          widthM: 11.2,
+          lengthM: 19.5,
+          basePriceH2: 0,
+          roomAreas: { livingM2: 138, garageM2: 38, alfrescoM2: 16, porchM2: 3, totalM2: 195 },
+          floorplanUrl: pages[0],
+        };
+        setDetectedPlan(customPlan);
+        setDesignName(customPlan.matchedDesignName);
+        toast.info("Floorplan loaded! Placed onto 1:200 Siting Studio.");
       } else {
         toast.info("Floorplan loaded. You can select or customize the design name.");
       }
