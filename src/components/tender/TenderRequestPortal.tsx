@@ -230,6 +230,68 @@ export function TenderRequestPortal() {
     };
   }, [tender.id, tender.atp.client1Signed]);
 
+  // Check for bridged floorplan or siting imports from Foresight Studio
+  useEffect(() => {
+    try {
+      const rawPlanBridge = localStorage.getItem("hudson_imported_floorplan_tender_bridge");
+      if (rawPlanBridge) {
+        const bridge = JSON.parse(rawPlanBridge);
+        if (bridge && bridge.homeSpec) {
+          setTender((prev) => {
+            const updated = {
+              ...prev,
+              customer1: {
+                ...prev.customer1,
+                ...(bridge.customer1 || {}),
+              },
+              homeSpec: {
+                ...prev.homeSpec,
+                ...bridge.homeSpec,
+                isModifiedFloorplan: true,
+              },
+            };
+            saveTenderToIdb(updated).catch(() => {});
+            return updated;
+          });
+          setActiveTab("home_spec");
+          toast.success(`Imported concept plan: ${bridge.homeSpec.homeDesign}!`);
+          localStorage.removeItem("hudson_imported_floorplan_tender_bridge");
+        }
+      }
+
+      const rawSitingBridge = localStorage.getItem("hudson_siting_to_tender_bridge");
+      if (rawSitingBridge) {
+        const siting = JSON.parse(rawSitingBridge);
+        if (siting && siting.land) {
+          setTender((prev) => {
+            const updated = {
+              ...prev,
+              land: {
+                ...prev.land,
+                ...siting.land,
+              },
+              homeSpec: {
+                ...prev.homeSpec,
+                ...(siting.homeSpec || {}),
+              },
+              documents: {
+                ...prev.documents,
+                ...(siting.documents || {}),
+              },
+            };
+            saveTenderToIdb(updated).catch(() => {});
+            return updated;
+          });
+          setActiveTab("land_siting");
+          toast.success("Imported 1:200 Siting Plan and setbacks into Tender Request!");
+          localStorage.removeItem("hudson_siting_to_tender_bridge");
+        }
+      }
+    } catch (e) {
+      console.warn("Error receiving tender bridge:", e);
+    }
+  }, []);
+
   const updateTender = (patch: Partial<TenderSubmission>) => {
     setTender((prev) => {
       const updated = {

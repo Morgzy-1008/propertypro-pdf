@@ -98,6 +98,101 @@ export function QuoteBuilder() {
     });
   }, []);
 
+  // Check for bridged floorplan or siting imports from Foresight Studio
+  useEffect(() => {
+    try {
+      const rawPlanBridge =
+        localStorage.getItem("hudson_imported_floorplan_bridge") ||
+        localStorage.getItem("hudson_draft_quote_from_concept");
+
+      if (rawPlanBridge) {
+        const bridge = JSON.parse(rawPlanBridge);
+        if (bridge && (bridge.designName || bridge.design?.designName)) {
+          const dName = bridge.designName || bridge.design?.designName;
+          const totalM2 = Math.round((bridge.totalM2 || bridge.design?.designM2 || 195) * 100) / 100;
+          const bPrice = bridge.basePrice || bridge.design?.basePrice || 0;
+          const fUrl = bridge.floorplanUrl || bridge.design?.floorplanUrl || "";
+
+          setQuote((prev) => {
+            const updatedDesign = {
+              ...prev.design,
+              designName: dName,
+              designM2: totalM2,
+              basePrice: bPrice > 0 ? bPrice : prev.design.basePrice,
+              isModifiedFloorplan: true,
+              floorplanUrl: fUrl || prev.design.floorplanUrl,
+              housingType: bridge.housingType || prev.design.housingType,
+              customSpec: {
+                ...prev.design.customSpec,
+                groundLivingM2: bridge.roomAreas?.livingM2 || prev.design.customSpec?.groundLivingM2,
+                garageM2: bridge.roomAreas?.garageM2 || prev.design.customSpec?.garageM2,
+                alfrescoM2: bridge.roomAreas?.alfrescoM2 || prev.design.customSpec?.alfrescoM2,
+                porchM2: bridge.roomAreas?.porchM2 || prev.design.customSpec?.porchM2,
+              },
+            };
+
+            const updatedClient = {
+              ...prev.client,
+              clientName: bridge.clientName || bridge.client?.clientName || prev.client.clientName,
+              notes: bridge.notes || bridge.client?.notes || prev.client.notes,
+            };
+
+            const updatedPricing = calculateQuotePricing(
+              updatedDesign,
+              prev.siteConditions,
+              prev.lineItems,
+              updatedClient.depositAmount
+            );
+
+            const result = {
+              ...prev,
+              design: updatedDesign,
+              client: updatedClient,
+              pricing: updatedPricing,
+            };
+
+            saveQuote(result);
+            return result;
+          });
+
+          setActiveTab("design");
+          toast.success(`Imported concept plan: ${dName} (${totalM2} m²)!`);
+          localStorage.removeItem("hudson_imported_floorplan_bridge");
+          localStorage.removeItem("hudson_draft_quote_from_concept");
+        }
+      }
+
+      const rawSitingBridge = localStorage.getItem("hudson_siting_to_quote_bridge");
+      if (rawSitingBridge) {
+        const siting = JSON.parse(rawSitingBridge);
+        if (siting && siting.estate) {
+          setQuote((prev) => {
+            const updatedClient = {
+              ...prev.client,
+              estate: siting.estate || prev.client.estate,
+              lotNumber: siting.lotNumber || prev.client.lotNumber,
+            };
+            const updatedSite = {
+              ...prev.siteConditions,
+              councilRegion: siting.council || prev.siteConditions.councilRegion,
+            };
+            const result = {
+              ...prev,
+              client: updatedClient,
+              siteConditions: updatedSite,
+            };
+            saveQuote(result);
+            return result;
+          });
+          toast.success(`Applied siting dimensions for ${siting.estate}!`);
+          localStorage.removeItem("hudson_siting_to_quote_bridge");
+        }
+      }
+    } catch (e) {
+      console.warn("Error receiving concept bridge:", e);
+    }
+  }, []);
+
   const refreshSavedQuotes = async () => {
     const list = await loadAllQuotesAsync();
     setSavedQuotes(list);
