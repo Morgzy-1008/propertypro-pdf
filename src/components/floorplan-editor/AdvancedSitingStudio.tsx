@@ -234,8 +234,10 @@ export function AdvancedSitingStudio({
   // Canvas coordinate converters
   const getCanvasTransform = useCallback(() => {
     const W = 1000;
-    const H = 940;
-    const padding = 80;
+    const H = 1020;
+    const paddingX = 90;
+    const paddingTop = 90;
+    const paddingBottom = 90;
 
     let minX = 0, maxX = frontageM, minY = 0, maxY = depthM;
     if (lotMode !== "rectangle") {
@@ -250,12 +252,12 @@ export function AdvancedSitingStudio({
     const lotSpanX = Math.max(10, maxX - minX);
     const lotSpanY = Math.max(15, maxY - minY);
 
-    const scaleX = (W - padding * 2) / lotSpanX;
-    const scaleY = (H - padding * 2) / lotSpanY;
-    const scale = Math.min(scaleX, scaleY) * 0.94;
+    const scaleX = (W - paddingX * 2) / lotSpanX;
+    const scaleY = (H - paddingTop - paddingBottom) / lotSpanY;
+    const scale = Math.min(scaleX, scaleY) * 0.90;
 
     const originCanvasX = (W - lotSpanX * scale) / 2 - minX * scale;
-    const originCanvasY = (H - lotSpanY * scale) / 2 - minY * scale;
+    const originCanvasY = paddingTop + (H - paddingTop - paddingBottom - lotSpanY * scale) / 2 - minY * scale;
 
     return {
       W,
@@ -378,21 +380,15 @@ export function AdvancedSitingStudio({
     const frontEnd = toCanvas(activeLot.vertices[activeLot.vertices.length - 1] || { x: 0, y: depthM });
     const streetY = Math.max(frontStart.y, frontEnd.y);
 
-    // Street Curb Graphic
-    ctx.fillStyle = "#e2e8f0";
-    ctx.fillRect(frontEnd.x - 30, streetY + 4, (frontStart.x - frontEnd.x) + 60, 28);
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(frontEnd.x - 30, streetY + 4, (frontStart.x - frontEnd.x) + 60, 28);
-
-    ctx.fillStyle = "#475569";
-    ctx.font = "bold 11px sans-serif";
+    // Street Frontage Indicator at Bottom
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 11.5px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 18);
+    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 22);
     ctx.textAlign = "left";
 
-    // 3. Draw Driveway & Porch Path
+    // 3. Draw Floorplan Footprint & Internal Layout (Clean Architectural Rendering)
     const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
     const houseW = houseState.widthM * scale;
     const houseL = houseState.lengthM * scale;
@@ -401,40 +397,20 @@ export function AdvancedSitingStudio({
     ctx.translate(houseCenterCanvas.x, houseCenterCanvas.y);
     ctx.rotate((houseState.rotationDeg * Math.PI) / 180);
 
-    if (houseState.hasDriveway) {
-      const driveW = (houseState.drivewayWidthM || 5.2) * scale;
-      const driveL = Math.max(20, (liveSetbacks.garageSetbackM || 5.0) * scale);
-      const isLhs = houseState.garageSide === "LHS";
-      const driveX = isLhs ? -houseW / 2 : houseW / 2 - driveW;
-      const driveY = houseL / 2;
-
-      // Exposed aggregate driveway
-      ctx.fillStyle = "#cbd5e1";
-      ctx.fillRect(driveX, driveY, driveW, driveL);
-      ctx.strokeStyle = "#94a3b8";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(driveX, driveY, driveW, driveL);
-
-      // Texture dots
-      ctx.fillStyle = "#64748b";
-      for (let dx = driveX + 6; dx < driveX + driveW - 4; dx += 12) {
-        for (let dy = driveY + 6; dy < driveY + driveL - 4; dy += 12) {
-          ctx.fillRect(dx, dy, 2, 2);
-        }
-      }
-
-      // Porch Path
-      const pathW = 1.2 * scale;
-      const pathX = isLhs ? driveX + driveW : driveX - pathW;
-      ctx.fillStyle = "#e2e8f0";
-      ctx.fillRect(pathX, driveY, pathW, driveL * 0.75);
-      ctx.strokeStyle = "#94a3b8";
-      ctx.strokeRect(pathX, driveY, pathW, driveL * 0.75);
+    // Active drag indicator outline (only visible while dragging)
+    if (isDraggingHouse) {
+      ctx.save();
+      ctx.strokeStyle = "#f59e0b";
+      ctx.lineWidth = 2.0;
+      ctx.setLineDash([5, 5]);
+      ctx.strokeRect(-houseW / 2 - 2, -houseL / 2 - 2, houseW + 4, houseL + 4);
+      ctx.restore();
     }
 
-    // 4. Draw Real Cropped Floorplan with Internal Layout
+    // Draw Real Cropped Floorplan with Internal Layout
     if (croppedFloorplanImage) {
       ctx.save();
+      ctx.globalCompositeOperation = "multiply";
       // Handle horizontal garage flip
       if (houseState.garageSide === "LHS") {
         ctx.scale(-1, 1);
@@ -447,17 +423,12 @@ export function AdvancedSitingStudio({
         houseL
       );
       ctx.restore();
-
-      // House boundary outline
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 2.0;
-      ctx.strokeRect(-houseW / 2, -houseL / 2, houseW, houseL);
     } else {
       // Fallback architectural schematic if image is still loading
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(-houseW / 2, -houseL / 2, houseW, houseL);
-      ctx.strokeStyle = "#0f172a";
-      ctx.lineWidth = 2.0;
+      ctx.strokeStyle = "#334155";
+      ctx.lineWidth = 1.5;
       ctx.strokeRect(-houseW / 2, -houseL / 2, houseW, houseL);
 
       // Garage Box
@@ -466,9 +437,9 @@ export function AdvancedSitingStudio({
       const isGarageLhs = houseState.garageSide === "LHS";
       const garX = isGarageLhs ? -houseW / 2 : houseW / 2 - garW;
       const garY = houseL / 2 - garL;
-      ctx.fillStyle = "#f1f5f9";
+      ctx.fillStyle = "#f8fafc";
       ctx.fillRect(garX, garY, garW, garL);
-      ctx.strokeStyle = "#94a3b8";
+      ctx.strokeStyle = "#cbd5e1";
       ctx.strokeRect(garX, garY, garW, garL);
     }
 
@@ -1317,7 +1288,7 @@ export function AdvancedSitingStudio({
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               className="cursor-move max-w-full h-auto"
-              style={{ width: "100%", maxHeight: "740px", objectFit: "contain" }}
+              style={{ width: "100%", maxHeight: "860px", objectFit: "contain" }}
             />
           </div>
 
