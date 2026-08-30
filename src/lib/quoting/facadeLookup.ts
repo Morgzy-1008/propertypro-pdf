@@ -1,4 +1,5 @@
 import { HUDSON_FACADES } from "../../components/flyer/facades.data";
+import { PRE_RENDERED_FACADES } from "../../components/flyer/preRenderedFacades.data";
 import type { FacadeItem } from "../../components/flyer/facadeLibrary";
 
 /**
@@ -13,9 +14,18 @@ export function normalizeFacadeKey(nameOrId: string): string {
     .replace(/[^a-z0-9]/g, "");
 }
 
+function resolveWithPreRendered(item: FacadeItem | undefined): FacadeItem | undefined {
+  if (!item) return undefined;
+  const pre = PRE_RENDERED_FACADES[item.id];
+  if (pre) {
+    return { ...item, url: pre };
+  }
+  return item;
+}
+
 /**
  * Finds the exact matching facade item for a given design and housing type.
- * Specifically distinguishes Double Storey vs Single Storey / Split / Dual Living.
+ * Strictly differentiates Double Storey from Single Storey / Split Level / Dual Living.
  */
 export function findFacadeForDesign(
   facadeNameOrId: string,
@@ -29,14 +39,7 @@ export function findFacadeForDesign(
   const rawKey = facadeNameOrId.trim().toLowerCase();
   const baseKey = normalizeFacadeKey(facadeNameOrId);
 
-  // Exact ID check first
-  const exactIdMatch = HUDSON_FACADES.find((f) => f.id.toLowerCase() === rawKey);
-  if (exactIdMatch) {
-    if (isDouble && exactIdMatch.range === "Double Storey") return exactIdMatch;
-    if (!isDouble && exactIdMatch.range !== "Double Storey") return exactIdMatch;
-  }
-
-  // DOUBLE STOREY SPECIFIC RESOLUTION
+  // DOUBLE STOREY RESOLUTION
   if (isDouble) {
     const doubleIdMap: Record<string, string> = {
       classic: "classic-double-garage",
@@ -53,30 +56,43 @@ export function findFacadeForDesign(
       allure: "allure",
       ascot: "ascot",
       ashton: "ashton",
+      aspen: "aspen",
+      breeze: "breeze",
       centro: "centro",
       como: "como",
       delta: "delta",
       deluxe: "deluxe",
       flair: "flair",
       grande: "grande",
+      hamptons: "hamptons",
       madison: "madison",
       marina: "marina",
       meridian: "meridian",
       monash: "monash",
       mondo: "mondo",
       novare: "novare",
+      nuvo: "nuvo",
+      regal: "regal",
       royale: "royale",
       saville: "saville",
       sierra: "sierra",
       soho: "soho",
+      statesman: "statesman",
       tempo: "tempo",
       vista: "vista",
+      vogue: "vogue",
     };
 
     if (doubleIdMap[baseKey]) {
       const found = HUDSON_FACADES.find((f) => f.id === doubleIdMap[baseKey]);
-      if (found) return found;
+      if (found) return resolveWithPreRendered(found);
     }
+
+    // Exact ID check for double storey range
+    const exactIdMatch = HUDSON_FACADES.find(
+      (f) => f.id.toLowerCase() === rawKey && (f.range === "Double Storey" || f.tags.includes("double"))
+    );
+    if (exactIdMatch) return resolveWithPreRendered(exactIdMatch);
 
     // Search Double Storey entries in HUDSON_FACADES
     const doubleCandidates = HUDSON_FACADES.filter(
@@ -94,9 +110,9 @@ export function findFacadeForDesign(
       );
     });
 
-    if (match) return match;
+    if (match) return resolveWithPreRendered(match);
   } else {
-    // SINGLE STOREY / SPLIT LEVEL / DUAL OCCUPANCY RESOLUTION
+    // SINGLE STOREY / SPLIT LEVEL / DUAL LIVING RESOLUTION
     const singleIdMap: Record<string, string> = {
       classic: "classic",
       classicplus: "classic-plus",
@@ -106,15 +122,18 @@ export function findFacadeForDesign(
       majestic: "majestic-single-garage",
       riviera: "riviera-single-garage",
       chateaux: "chateaux",
-      aspen: "aspen",
+      aspen: "aspen-single-garage",
+      avalon: "avalon",
       avoca: "avoca",
       banksia: "banksia",
       bayside: "bayside",
-      breeze: "breeze",
+      breeze: "breeze-single-garage",
+      coastal: "coastal",
       crest: "crest",
       eden: "eden",
       elite: "elite",
       executive: "executive",
+      flair: "flair",
       harmony: "harmony",
       havana: "havana",
       imperial: "imperial",
@@ -122,14 +141,20 @@ export function findFacadeForDesign(
       savoy: "savoy",
       serenity: "serenity",
       sovereign: "sovereign",
-      statesman: "statesman",
+      statesman: "statesman-single-garage",
       hamptons: housingType.toLowerCase().includes("split") ? "hamptons-split" : "hamptons-single",
     };
 
     if (singleIdMap[baseKey]) {
       const found = HUDSON_FACADES.find((f) => f.id === singleIdMap[baseKey]);
-      if (found) return found;
+      if (found) return resolveWithPreRendered(found);
     }
+
+    // Exact ID check for single storey range
+    const exactIdMatch = HUDSON_FACADES.find(
+      (f) => f.id.toLowerCase() === rawKey && f.range !== "Double Storey"
+    );
+    if (exactIdMatch) return resolveWithPreRendered(exactIdMatch);
 
     // Search Non-Double Storey entries in HUDSON_FACADES
     const singleCandidates = HUDSON_FACADES.filter(
@@ -147,13 +172,13 @@ export function findFacadeForDesign(
       );
     });
 
-    if (match) return match;
+    if (match) return resolveWithPreRendered(match);
   }
 
   // Fallback to any matching name
-  return (
-    HUDSON_FACADES.find(
-      (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
-    ) || HUDSON_FACADES[0]
-  );
+  const fallback = HUDSON_FACADES.find(
+    (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
+  ) || HUDSON_FACADES[0];
+
+  return resolveWithPreRendered(fallback);
 }
