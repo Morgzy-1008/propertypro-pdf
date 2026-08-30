@@ -434,11 +434,14 @@ export function calculateModifiedFloorplanPricing(
  * If modified floorplan is enabled, appends "Modified" (e.g. "Coral 21 Modified").
  */
 export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
-  if (!design) return "Home Design";
+  if (!design) return "No Design Selected";
   if (design.mode === "custom_floorplan") {
     return `Custom Architectural Plan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`;
   }
-  const raw = design.designName || "Standard Design";
+  const raw = design.designName || "";
+  if (!raw.trim()) {
+    return "No Design Selected";
+  }
   if (design.isModifiedFloorplan) {
     if (!raw.toLowerCase().includes("modified")) {
       return `${raw} Modified`;
@@ -918,7 +921,7 @@ export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEs
   const text = `${suburbOrLocation || ""} ${addressOrEstate || ""} ${postcode || ""}`.toLowerCase().trim();
   
   if (!text) {
-    return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
+    return { region: "", fee: 0 };
   }
 
   // Check if "no address", "tba", or "land not purchased"

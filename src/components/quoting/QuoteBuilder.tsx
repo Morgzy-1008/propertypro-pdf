@@ -56,7 +56,10 @@ type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 export function QuoteBuilder() {
   const [quote, setQuote] = useState<FullQuote>(() => {
     const draft = loadActiveDraftQuote();
-    return draft || createNewBlankQuote();
+    if (draft && (draft.client.clientName || draft.design.designName || draft.pricing?.grossEstimatedInvestment > 0)) {
+      return draft;
+    }
+    return createNewBlankQuote();
   });
 
   const [savedQuotes, setSavedQuotes] = useState<FullQuote[]>(() => loadAllQuotes());
@@ -276,12 +279,15 @@ export function QuoteBuilder() {
 
   const handleNewQuote = async () => {
     if (confirm("Start a new blank Builders Estimate? Your current work will be preserved in Saved Estimates.")) {
-      await saveQuoteAsync(quote);
+      if (quote.client.clientName || quote.design.designName) {
+        await saveQuoteAsync(quote);
+      }
       const blank = createNewBlankQuote();
       setQuote(blank);
-      await saveQuoteAsync(blank);
+      saveQuote(blank);
       await refreshSavedQuotes();
-      toast.success("New Builders Estimate created");
+      setActiveTab("client");
+      toast.success("Fresh blank Builders Estimate started — ready from scratch!");
     }
   };
 

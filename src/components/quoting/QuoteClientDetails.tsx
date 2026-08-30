@@ -251,8 +251,8 @@ export function QuoteClientDetails({
     }
   };
 
-  const currentCouncil = site?.councilRegion || "Logan City Council";
-  const currentFee = site?.councilFee ?? 2227;
+  const currentCouncil = site?.councilRegion || (client.suburb || client.siteAddress ? "Logan City Council" : "Pending Building Location");
+  const currentFee = site?.councilFee ?? 0;
 
   return (
     <div className="space-y-6">

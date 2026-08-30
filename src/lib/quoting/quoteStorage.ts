@@ -216,7 +216,7 @@ export function createNewBlankQuote(): FullQuote {
     concrete32MpaCost: undefined,
     flexibleConnectionsRequired: false,
     flexibleConnectionsCost: 1800,
-    fallMeters: 0.5,
+    fallMeters: 0,
     fallTotalCost: 0,
 
     bushfireReportRequired: false,
@@ -236,15 +236,15 @@ export function createNewBlankQuote(): FullQuote {
 
     floodOverlayRequired: false,
     floodOverlayCost: undefined,
-    slabElevationMeters: 0.3,
+    slabElevationMeters: 0,
     bushfireBalRating: "BAL-LOW",
     bushfireBalCost: 0,
     acousticGlazingRequired: false,
     acousticGlazingCost: 4500,
 
-    councilRegion: "Logan City Council",
-    councilFee: 2227.1,
-    councilLodgementFee: 2227.1,
+    councilRegion: "",
+    councilFee: 0,
+    councilLodgementFee: 0,
     councilDaRequired: false,
     councilDaCost: 11000,
     councilSetbackRelaxationRequired: false,
