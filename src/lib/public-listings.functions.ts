@@ -138,14 +138,12 @@ function str(val: unknown): string | null {
   return s.length ? s : null;
 }
 
-function findFacadeUrl(nameOrId: string | null | undefined): string {
+import { findFacadeForDesign } from "./quoting/facadeLookup";
+
+function findFacadeUrl(nameOrId: string | null | undefined, housingType?: string): string {
   if (!nameOrId) return HUDSON_FACADES[0]?.url || "";
-  const norm = nameOrId.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const match = HUDSON_FACADES.find(
-    (f) =>
-      f.id.toLowerCase().replace(/[^a-z0-9]/g, "") === norm ||
-      f.name.toLowerCase().replace(/[^a-z0-9]/g, "") === norm
-  );
+  const isDouble = (housingType || "").toLowerCase().includes("double");
+  const match = findFacadeForDesign(nameOrId, isDouble, housingType);
   return match?.url || HUDSON_FACADES[0]?.url || "";
 }
 

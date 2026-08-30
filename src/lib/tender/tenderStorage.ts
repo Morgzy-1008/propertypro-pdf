@@ -35,26 +35,13 @@ export function findFloorplanUrl(designName: string): string {
   return HUDSON_FLOORPLANS[0]?.url || "";
 }
 
+import { findFacadeForDesign } from "../quoting/facadeLookup";
+
 export function findFacadeRenderUrl(facadeName: string, housingType?: string): string {
   if (!facadeName) return HUDSON_FACADES[0]?.url || "";
-  const clean = facadeName.replace(/\(.*?\)/g, "").trim().toLowerCase();
-
   const isDouble = (housingType || "").toLowerCase().includes("double");
-  const match = HUDSON_FACADES.find((f) => {
-    const fName = f.name.toLowerCase();
-    const matchesName = fName.includes(clean) || clean.includes(fName);
-    if (!matchesName) return false;
-    if (isDouble) {
-      return f.range.toLowerCase().includes("double") || f.tags.includes("double");
-    }
-    return true;
-  });
-
-  if (match?.url) return match.url;
-
-  // fallback by name
-  const fallback = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(clean) || clean.includes(f.name.toLowerCase()));
-  return fallback?.url || HUDSON_FACADES[0]?.url || "";
+  const found = findFacadeForDesign(facadeName, isDouble, housingType);
+  return found?.url || HUDSON_FACADES[0]?.url || "";
 }
 
 import { landscapingPriceFor } from "../landscaping";
