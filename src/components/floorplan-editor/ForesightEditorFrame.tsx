@@ -202,7 +202,7 @@ export function ForesightEditorFrame() {
   };
 
   return (
-    <div className="flex flex-col bg-slate-950 text-slate-100 font-sans min-h-[calc(100vh-4rem)] p-4 sm:p-6 max-w-7xl mx-auto space-y-4">
+    <div className="flex flex-col bg-slate-950 text-slate-100 font-sans min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-5">
       {/* Top Main Toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 rounded-2xl border border-slate-800 bg-slate-900/90 backdrop-blur-xl shadow-xl">
         <div className="flex items-center gap-3">

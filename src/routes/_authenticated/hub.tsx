@@ -84,7 +84,7 @@ function WelcomeHubPage() {
     <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} flex flex-col font-sans selection:bg-brand-gold/30`}>
       {/* Top Navigation Bar */}
       <header className={`border-b ${isLight ? "border-slate-200 bg-white/95 shadow-xs" : "border-slate-800/80 bg-slate-900/60"} backdrop-blur-md sticky top-0 z-40`}>
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Logo light={!isLight} size={11} />
             <div className={`hidden sm:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-3`}>
@@ -128,7 +128,7 @@ function WelcomeHubPage() {
       </header>
 
       {/* Main Hub Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-6 py-10 w-full flex flex-col justify-center">
+      <main className="flex-1 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-10 flex flex-col justify-center">
         {/* Welcome Greeting Header */}
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-xs font-medium tracking-wide mb-3">

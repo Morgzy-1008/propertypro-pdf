@@ -352,7 +352,7 @@ export function QuoteBuilder() {
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-20">
+    <div className="space-y-6 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 pb-20">
       {/* Top Header Bar with Live Estimate ID, Status & Primary Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-5">
         <div>

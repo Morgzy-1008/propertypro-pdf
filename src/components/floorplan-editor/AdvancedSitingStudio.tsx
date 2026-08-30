@@ -1733,7 +1733,7 @@ export function AdvancedSitingStudio({
       </div>
 
       {/* Main Grid: Architectural A3 Sheet Canvas (Left) + Siting Controls & Compliance (Right) */}
-      <div className={`grid gap-5 items-start ${isMaximized ? "grid-cols-1 xl:grid-cols-[1fr_320px]" : "grid-cols-1 xl:grid-cols-[1fr_340px]"}`}>
+      <div className={`grid gap-5 items-start ${isMaximized ? "grid-cols-1 xl:grid-cols-[1fr_340px] 2xl:grid-cols-[1fr_380px]" : "grid-cols-1 xl:grid-cols-[1fr_360px] 2xl:grid-cols-[1fr_400px] 3xl:grid-cols-[1fr_440px]"}`}>
         {/* Left Column: Pure White A3 Architectural Canvas with Black Boundaries */}
         <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl p-3.5 flex flex-col items-center">
           <div className="w-full flex flex-wrap items-center justify-between pb-2.5 text-xs border-b border-slate-800 gap-2">
@@ -1804,8 +1804,8 @@ export function AdvancedSitingStudio({
           {/* White Blueprint Canvas Container with Floating Zoom Toolbar */}
           <div
             ref={canvasContainerRef}
-            className="relative w-full my-2 bg-white rounded-xl shadow-lg border border-slate-700/80 overflow-hidden flex items-center justify-center select-none"
-            style={{ minHeight: isMaximized ? "780px" : "680px" }}
+            className="relative w-full my-2 bg-white rounded-xl shadow-lg border border-slate-700/80 overflow-hidden flex items-center justify-center select-none min-h-[720px] lg:min-h-[820px] 2xl:min-h-[920px]"
+            style={{ minHeight: isMaximized ? "880px" : "720px" }}
           >
             {/* Floating Glassmorphic Zoom Toolbar */}
             <div className="absolute top-3 left-3 z-30 flex items-center gap-1 bg-slate-900/90 border border-slate-700 rounded-lg p-1 shadow-lg backdrop-blur-md">
@@ -1862,7 +1862,7 @@ export function AdvancedSitingStudio({
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
               className={`max-w-full h-auto ${isCalibratingFloorplan ? "cursor-crosshair" : isPanningMode ? "cursor-grab" : "cursor-move"}`}
-              style={{ width: "100%", maxHeight: isMaximized ? "880px" : "780px", objectFit: "contain" }}
+              style={{ width: "100%", maxHeight: isMaximized ? "980px" : "900px", objectFit: "contain" }}
             />
           </div>
 

@@ -192,7 +192,7 @@ function PackagesBrowse() {
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 flex flex-col">
       {/* Top Navigation Bar */}
       <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Logo light size={11} />
             <span className="hidden sm:inline-block h-4 w-px bg-slate-700" />
@@ -235,7 +235,7 @@ function PackagesBrowse() {
 
       {/* Hero Banner */}
       <section className="bg-gradient-to-b from-slate-900 via-slate-900/60 to-slate-950 border-b border-slate-800/80 px-4 sm:px-6 py-8 sm:py-12">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
             <Sparkles className="h-3.5 w-3.5" />
             <span>{packages.length} Fixed-Price House &amp; Land Packages Available</span>
@@ -327,14 +327,14 @@ function PackagesBrowse() {
       </section>
 
       {/* Main Content View */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full flex-1">
+      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1">
         {viewMode === "grid" ? (
           /* ========================================================
              GRID / CARDS VIEW (Visual, Interactive, Client-Friendly)
              ======================================================== */
           <div className="space-y-6">
             {filteredPackages.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 3xl:grid-cols-5 gap-6">
                 {filteredPackages.map((p) => {
                   return (
                     <div
