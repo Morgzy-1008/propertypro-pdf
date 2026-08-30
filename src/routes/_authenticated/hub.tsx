@@ -113,7 +113,7 @@ function WelcomeHubPage() {
               </Button>
             </Link>
 
-            {/* NHC Active Profile Pill with Website Admin button */}
+            {/* NHC Active Profile Pill (with Website Admin button for Admins) */}
             <StaffHeaderProfile isLight={isLight} />
           </div>
         </div>
@@ -137,6 +137,28 @@ function WelcomeHubPage() {
               <span className="text-slate-400">{staffUser.phone}</span>
               <span className="text-slate-600">&bull;</span>
               <span className="text-emerald-400 text-[11px] font-mono">24h Active Session</span>
+            </div>
+          )}
+          {isAdmin && (
+            <div className="mt-3 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setIsAdminModalOpen(true)}
+                className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-xs font-semibold shadow-md cursor-pointer ${
+                  isLight
+                    ? "bg-amber-100/90 border-amber-300 text-amber-900 hover:bg-amber-200"
+                    : "bg-gradient-to-r from-amber-950/60 to-slate-900/90 border-amber-500/40 text-amber-300 hover:border-amber-400 hover:text-amber-200"
+                }`}
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                <span>Website Admin Portal & Security Controls</span>
+                {pendingCount > 0 && (
+                  <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-bold animate-bounce">
+                    {pendingCount} Pending Approval
+                  </span>
+                )}
+                <ArrowRight className="h-3 w-3 text-amber-400 ml-0.5" />
+              </button>
             </div>
           )}
         </div>
@@ -319,90 +341,45 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 6: Website Admin & Security Approvals (For Morgan Hales) OR Horizon CRM */}
-          {isAdmin ? (
-            <div
-              onClick={() => setIsAdminModalOpen(true)}
-              className={`group relative overflow-hidden rounded-2xl border cursor-pointer ${
-                isLight
-                  ? "border-amber-300 bg-amber-50/70 shadow-xs hover:border-amber-500 hover:shadow-xl hover:-translate-y-1"
-                  : "border-amber-500/40 bg-gradient-to-b from-amber-950/40 to-slate-900/80 hover:border-amber-400 hover:shadow-2xl hover:shadow-amber-500/20 hover:-translate-y-1"
-              } p-6 transition-all duration-300 flex flex-col justify-between`}
-            >
-              <div className="absolute top-0 right-0 h-32 w-32 bg-amber-500/10 rounded-full blur-3xl group-hover:bg-amber-500/25 transition-all duration-500" />
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {pendingCount > 0 && (
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-amber-950 bg-amber-400 px-2 py-0.5 rounded-full animate-bounce shadow-xs">
-                        {pendingCount} Pending Approval
-                      </span>
-                    )}
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/40">
-                      System Admin
-                    </span>
-                  </div>
+          {/* Card 6: Hudson Horizon CRM */}
+          <Link
+            to="/crm"
+            className={`group relative overflow-hidden rounded-2xl border ${
+              isLight
+                ? "border-slate-200 bg-white shadow-xs hover:border-purple-500/70 hover:shadow-xl hover:-translate-y-1"
+                : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-purple-500/60 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1"
+            } p-6 transition-all duration-300 flex flex-col justify-between`}
+          >
+            <div className="absolute top-0 right-0 h-32 w-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/15 transition-all duration-500" />
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <Users className="h-5 w-5" />
                 </div>
-                <h2 className={`text-lg font-bold ${isLight ? "text-amber-900 group-hover:text-amber-700" : "text-amber-200 group-hover:text-amber-100"} transition-colors`}>
-                  Website Admin Portal
-                </h2>
-                <p className="text-xs text-slate-400 mt-1">
-                  Manage staff logins, whitelist approvals, security alerts, and system diagnostics.
-                </p>
-              </div>
-              <div className={`mt-5 pt-4 border-t ${isLight ? "border-amber-200" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-                  <UserCheck className="h-3.5 w-3.5 text-amber-400" />
-                  <span>5 Authorized Staff</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-purple-400 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1 shadow-xs">
+                    <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                    Under Development
+                  </span>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                    Builder CRM
+                  </span>
                 </div>
-                <span className="font-semibold text-amber-400 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                  Open Admin Center <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </span>
               </div>
+              <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-purple-700" : "text-white group-hover:text-purple-200"} transition-colors`}>
+                Hudson Horizon CRM
+              </h2>
             </div>
-          ) : (
-            <Link
-              to="/crm"
-              className={`group relative overflow-hidden rounded-2xl border ${
-                isLight
-                  ? "border-slate-200 bg-white shadow-xs hover:border-purple-500/70 hover:shadow-xl hover:-translate-y-1"
-                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-purple-500/60 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1"
-              } p-6 transition-all duration-300 flex flex-col justify-between`}
-            >
-              <div className="absolute top-0 right-0 h-32 w-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/15 transition-all duration-500" />
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                    <Users className="h-5 w-5" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-purple-400 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1 shadow-xs">
-                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
-                      Under Development
-                    </span>
-                    <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                      Builder CRM
-                    </span>
-                  </div>
-                </div>
-                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-purple-700" : "text-white group-hover:text-purple-200"} transition-colors`}>
-                  Hudson Horizon CRM
-                </h2>
+            <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+              <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                <Award className="h-3.5 w-3.5 text-purple-500" />
+                <span>$75k + 2.25% Comms</span>
               </div>
-              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  <Award className="h-3.5 w-3.5 text-purple-500" />
-                  <span>$75k + 2.25% Comms</span>
-                </div>
-                <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                  Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </span>
-              </div>
-            </Link>
-          )}
+              <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </span>
+            </div>
+          </Link>
         </div>
       </main>
 
