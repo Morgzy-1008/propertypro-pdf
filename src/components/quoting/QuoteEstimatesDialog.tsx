@@ -30,7 +30,8 @@ import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } f
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { RefreshCw, Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles, Users, UserCheck } from "lucide-react";
+import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -157,8 +158,29 @@ export function QuoteEstimatesDialog({
   onImportQuote,
 }: QuoteEstimatesDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
+  const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("mine");
 
-  const filteredQuotes = savedQuotes.filter((q) => {
+  const isMyQuote = (q: FullQuote) => {
+    if (!activeStaff) return true;
+    const cEmail = (q.client?.consultantEmail || "").toLowerCase().trim();
+    const cName = (q.client?.consultantName || "").toLowerCase().trim();
+    const myEmail = activeStaff.email.toLowerCase().trim();
+    const myName = activeStaff.name.toLowerCase().trim();
+    return (
+      cEmail === myEmail ||
+      (cName.length > 0 && (cName.includes(myName) || myName.includes(cName))) ||
+      q.client?.consultantId === activeStaff.id
+    );
+  };
+
+  const myQuotesCount = savedQuotes.filter(isMyQuote).length;
+  const allQuotesCount = savedQuotes.length;
+
+  const scopedQuotes =
+    scopeFilter === "mine" && activeStaff ? savedQuotes.filter(isMyQuote) : savedQuotes;
+
+  const filteredQuotes = scopedQuotes.filter((q) => {
     const query = searchQuery.toLowerCase().trim();
     if (!query) return true;
     const name = (q.client?.clientName || "").toLowerCase();
@@ -166,12 +188,14 @@ export function QuoteEstimatesDialog({
     const addr = (q.client?.siteAddress || "").toLowerCase();
     const suburb = (q.client?.suburb || "").toLowerCase();
     const design = (q.design?.designName || "").toLowerCase();
+    const consultant = (q.client?.consultantName || "").toLowerCase();
     return (
       name.includes(query) ||
       est.includes(query) ||
       addr.includes(query) ||
       suburb.includes(query) ||
-      design.includes(query)
+      design.includes(query) ||
+      consultant.includes(query)
     );
   });
 
@@ -372,6 +396,45 @@ export function QuoteEstimatesDialog({
               className="h-9 pl-9 text-xs border-slate-800 bg-slate-900/90 text-slate-200"
             />
           </div>
+
+          {/* Scope Tabs: My Estimates (Jesse Jenkins: 8) vs All Team Estimates (24) */}
+          <div className="flex items-center justify-between gap-2 pt-2.5">
+            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setScopeFilter("mine")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  scopeFilter === "mine"
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <UserCheck className="h-3.5 w-3.5" />
+                <span>
+                  {activeStaff
+                    ? `My Estimates (${activeStaff.name.split(" ")[0]}: ${myQuotesCount})`
+                    : `My Estimates (${myQuotesCount})`}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setScopeFilter("all")}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                  scopeFilter === "all"
+                    ? "bg-cyan-500 text-slate-950 shadow-sm"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>All Team Estimates ({allQuotesCount})</span>
+              </button>
+            </div>
+
+            <span className="text-[11px] text-slate-500">
+              Showing {filteredQuotes.length} estimate{filteredQuotes.length === 1 ? "" : "s"}
+            </span>
+          </div>
         </DialogHeader>
 
         {/* Restore from PDF Banner */}
@@ -405,16 +468,33 @@ export function QuoteEstimatesDialog({
         {/* Scrollable Estimates List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
           {filteredQuotes.length === 0 ? (
-            <div className="text-center py-16 px-4 border border-dashed border-slate-800 rounded-2xl bg-slate-900/30">
-              <FolderOpen className="h-10 w-10 text-slate-600 mx-auto mb-3" />
-              <div className="text-sm font-bold text-slate-300">
-                {searchQuery ? "No matching saved estimates" : "No saved estimates yet"}
+            <div className="text-center py-16 px-4 border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 space-y-3">
+              <FolderOpen className="h-10 w-10 text-slate-600 mx-auto" />
+              <div>
+                <div className="text-sm font-bold text-slate-300">
+                  {searchQuery
+                    ? "No matching saved estimates"
+                    : scopeFilter === "mine"
+                    ? `No estimates found created by ${activeStaff?.name || "you"}`
+                    : "No saved estimates yet"}
+                </div>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  {scopeFilter === "mine" && allQuotesCount > 0
+                    ? `There are ${allQuotesCount} estimate(s) saved across the Queensland team.`
+                    : "Click 'Save Active Estimate' or the Save button in the sidebar anytime to keep your work permanently stored."}
+                </p>
               </div>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                {searchQuery
-                  ? "Try searching for a different client name or estimate number."
-                  : "Click 'Save Active Estimate' or the Save button in the sidebar anytime to keep your work permanently stored."}
-              </p>
+              {scopeFilter === "mine" && allQuotesCount > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setScopeFilter("all")}
+                  className="text-xs border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50 font-bold"
+                >
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  View All Team Estimates ({allQuotesCount})
+                </Button>
+              )}
             </div>
           ) : (
             filteredQuotes.map((q) => {
@@ -455,6 +535,11 @@ export function QuoteEstimatesDialog({
                         <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
                           #{q.quoteNumber || q.client?.estimateNumber || "MH"}
                         </span>
+                        {q.client?.consultantName && (
+                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-950/70 border border-amber-800/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            👤 {q.client.consultantName}
+                          </span>
+                        )}
                         {isActive && (
                           <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
                             Currently Active

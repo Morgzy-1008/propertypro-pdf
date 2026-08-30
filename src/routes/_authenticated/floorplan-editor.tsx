@@ -3,6 +3,7 @@ import { ForesightEditorFrame } from "@/components/floorplan-editor/ForesightEdi
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { Home, Layers, Database, FileText, Send, Sliders } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 
 export const Route = createFileRoute("/_authenticated/floorplan-editor")({
   head: () => ({
@@ -70,6 +71,9 @@ function ForesightEditorPage() {
                 Tender Portal
               </Button>
             </Link>
+
+            {/* NHC Active Profile */}
+            <StaffHeaderProfile isLight={false} />
           </div>
         </div>
       </header>

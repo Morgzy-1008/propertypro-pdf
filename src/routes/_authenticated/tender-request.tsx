@@ -3,6 +3,7 @@ import { TenderRequestPortal } from "@/components/tender/TenderRequestPortal";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { Home, Layers, Database, FileText, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 
 export const Route = createFileRoute("/_authenticated/tender-request")({
   head: () => ({
@@ -73,6 +74,9 @@ function TenderRequestPage() {
                 <span className="hidden sm:inline">Flyers</span>
               </Button>
             </Link>
+
+            {/* NHC Active Profile */}
+            <StaffHeaderProfile isLight={false} />
           </div>
         </div>
       </header>

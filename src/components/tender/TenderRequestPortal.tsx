@@ -89,6 +89,7 @@ import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
 import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
+import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 
 type SectionTab = "client_job" | "land_siting" | "home_spec" | "atp_sign" | "job_folder" | "pdf_preview";
 
@@ -229,6 +230,36 @@ export function TenderRequestPortal() {
       clearInterval(interval);
     };
   }, [tender.id, tender.atp.client1Signed]);
+
+  // Auto-assign consultant from active staff session
+  useEffect(() => {
+    const applyStaff = (staff: StaffProfile | null) => {
+      if (staff) {
+        setTender((prev) => {
+          if (prev.newHomeConsultant === staff.name && prev.atp?.consultantEmail?.toLowerCase() === staff.email.toLowerCase()) {
+            return prev;
+          }
+          return {
+            ...prev,
+            newHomeConsultant: staff.name,
+            atp: {
+              ...prev.atp,
+              consultantName: staff.name,
+              consultantPhone: staff.phone,
+              consultantEmail: staff.email,
+            },
+          };
+        });
+      }
+    };
+
+    const initialStaff = getActiveStaffUser();
+    if (initialStaff) {
+      applyStaff(initialStaff);
+    }
+    const unsub = onStaffUserChanged((s) => applyStaff(s));
+    return () => unsub();
+  }, []);
 
   // Check for bridged floorplan or siting imports from Foresight Studio
   useEffect(() => {

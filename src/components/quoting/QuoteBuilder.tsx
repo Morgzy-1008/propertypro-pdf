@@ -24,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
+import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 import { upsertLeadFromQuote } from "@/lib/crm/crmStorage";
@@ -76,26 +77,35 @@ export function QuoteBuilder() {
     }).catch(() => {});
   }, []);
 
-  // Auto-assign consultant if signed-in user matches one of the 3 consultants
+  // Auto-assign consultant from active staff session
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: auth }) => {
-      if (auth.user?.email) {
-        const c = findConsultantByEmail(auth.user.email);
-        if (c && quote.client.consultantId !== c.id) {
-          setQuote((prev) => ({
+    const applyStaff = (staff: StaffProfile | null) => {
+      if (staff) {
+        setQuote((prev) => {
+          if (prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase()) {
+            return prev;
+          }
+          return {
             ...prev,
             client: {
               ...prev.client,
-              consultantId: c.id,
-              consultantName: c.name,
-              consultantPhone: c.phone,
-              consultantEmail: c.email,
-              consultantOffice: c.displayCentre,
+              consultantId: staff.id,
+              consultantName: staff.name,
+              consultantPhone: staff.phone,
+              consultantEmail: staff.email,
+              consultantOffice: staff.displayCentre,
             },
-          }));
-        }
+          };
+        });
       }
-    });
+    };
+
+    const initialStaff = getActiveStaffUser();
+    if (initialStaff) {
+      applyStaff(initialStaff);
+    }
+    const unsub = onStaffUserChanged((s) => applyStaff(s));
+    return () => unsub();
   }, []);
 
   // Check for bridged floorplan or siting imports from Foresight Studio

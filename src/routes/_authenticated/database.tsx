@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1211,9 +1212,8 @@ function DatabasePage() {
             <Button variant="ghost" size="sm" onClick={() => void load()} className="text-slate-400 hover:text-slate-100 hover:bg-slate-900" title="Refresh database">
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={signOut} className="text-slate-400 hover:text-rose-300 hover:bg-rose-500/10" title="Sign out">
-              <LogOut className="h-3.5 w-3.5" />
-            </Button>
+            {/* NHC Active Profile */}
+            <StaffHeaderProfile isLight={false} />
           </div>
         </div>
       </header>

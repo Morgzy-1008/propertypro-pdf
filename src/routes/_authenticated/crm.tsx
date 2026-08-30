@@ -5,6 +5,7 @@ import { Home, Layers, Database, FileText, Send, Users, Sliders } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
@@ -73,6 +74,9 @@ function CrmPage() {
                 Tender
               </Button>
             </Link>
+
+            {/* NHC Active Profile */}
+            <StaffHeaderProfile isLight={isLight} />
           </div>
         </div>
       </header>

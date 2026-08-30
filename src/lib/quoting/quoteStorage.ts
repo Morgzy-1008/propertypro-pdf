@@ -2,6 +2,7 @@ import { DEFAULT_CATALOGUE, DEFAULT_CUSTOM_RATES } from "./quoteCatalogue";
 import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "./quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { SINGLE_STOREY_PRICES } from "@/lib/pricelist.data";
+import { getActiveStaffUser } from "@/lib/authSession";
 import type {
   CatalogueItem,
   FullQuote,
@@ -266,6 +267,7 @@ export function createNewBlankQuote(): FullQuote {
   const defaultDeposit = 1650;
   const pricing = calculateQuotePricing(defaultDesign, defaultSite, lineItems, defaultDeposit);
   const estimateNo = generateQuoteNumber();
+  const activeStaff = getActiveStaffUser();
 
   return {
     id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -292,11 +294,11 @@ export function createNewBlankQuote(): FullQuote {
       depositAmount: defaultDeposit,
       custom3dTourSelected: false,
       quoteValidityDays: 14,
-      consultantId: "morgan-hales",
-      consultantName: "Morgan Hales",
-      consultantPhone: "0417 571 864",
-      consultantEmail: "Morgan.hales@hudsonhomes.com.au",
-      consultantOffice: "Flagstone Display Home",
+      consultantId: activeStaff?.id || "morgan-hales",
+      consultantName: activeStaff?.name || "Morgan Hales",
+      consultantPhone: activeStaff?.phone || "0417 571 864",
+      consultantEmail: activeStaff?.email || "Morgan.hales@hudsonhomes.com.au",
+      consultantOffice: activeStaff?.displayCentre || "Flagstone Display Home",
       notes: "",
     },
     design: defaultDesign,

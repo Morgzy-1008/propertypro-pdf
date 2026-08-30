@@ -16,12 +16,16 @@ import {
   Users,
   Award,
   Monitor,
+  Building,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
+import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { StaffSignInModal } from "@/components/auth/StaffSignInModal";
 
 export const Route = createFileRoute("/_authenticated/hub")({
   head: () => ({
@@ -43,41 +47,30 @@ function getGreeting(): string {
   return "Good evening";
 }
 
-function getUserDisplayName(user: any): string {
-  if (!user) return "there";
-  if (user.user_metadata?.full_name) {
-    return user.user_metadata.full_name.split(" ")[0];
-  }
-  if (user.user_metadata?.name) {
-    return user.user_metadata.name.split(" ")[0];
-  }
-  if (user.email) {
-    const namePart = user.email.split("@")[0].replace(/[._-]/g, " ");
-    const firstName = namePart.split(" ")[0];
-    return firstName.charAt(0).toUpperCase() + firstName.slice(1);
-  }
-  return "there";
-}
-
 function WelcomeHubPage() {
   const { mode } = useTheme();
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
+  const [staffUser, setStaffUser] = useState<StaffProfile | null>(null);
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [greeting, setGreeting] = useState("Good day");
 
   useEffect(() => {
     setGreeting(getGreeting());
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user);
+    const initial = getActiveStaffUser();
+    setStaffUser(initial);
+    if (!initial) {
+      setIsSignInModalOpen(true);
+    }
+    const unsub = onStaffUserChanged((u) => {
+      setStaffUser(u);
+      if (!u) {
+        setIsSignInModalOpen(true);
+      }
     });
+    return () => unsub();
   }, []);
 
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
-  };
-
-  const displayName = getUserDisplayName(user);
+  const displayName = staffUser ? staffUser.name.split(" ")[0] : "there";
   const isLight = mode === "normal";
 
   return (
@@ -111,21 +104,22 @@ function WelcomeHubPage() {
               </Button>
             </Link>
 
-            <div className={`hidden md:flex items-center gap-2 text-xs ${isLight ? "text-slate-700 bg-slate-100 border-slate-200" : "text-slate-400 bg-slate-800/50 border-slate-700/50"} px-3 py-1.5 rounded-full border`}>
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              <span>{user?.email || "Authorized Staff"}</span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className={`text-xs ${isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800"}`}
-            >
-              <LogOut className="h-3.5 w-3.5 mr-1.5" /> Sign out
-            </Button>
+            {/* NHC Active Profile Pill with Switch Profile dropdown */}
+            <StaffHeaderProfile isLight={isLight} />
           </div>
         </div>
       </header>
+
+      {/* Mandatory Sign In Modal on First Visit */}
+      <StaffSignInModal
+        open={isSignInModalOpen}
+        onOpenChange={setIsSignInModalOpen}
+        canDismiss={staffUser !== null}
+        onSignedIn={(u) => {
+          setStaffUser(u);
+          setIsSignInModalOpen(false);
+        }}
+      />
 
       {/* Main Hub Content */}
       <main className="flex-1 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-10 flex flex-col justify-center">
@@ -137,6 +131,14 @@ function WelcomeHubPage() {
           <h1 className={`text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
             {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-600 via-brand-gold to-amber-500">{displayName}</span>.
           </h1>
+          {staffUser && (
+            <div className="mt-2.5 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/90 border border-slate-800 text-slate-300 text-xs font-medium">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-amber-400 font-semibold">{staffUser.displayCentre}</span>
+              <span className="text-slate-600">&bull;</span>
+              <span className="text-slate-400">{staffUser.phone}</span>
+            </div>
+          )}
           <p className={`mt-3 text-sm sm:text-base ${isLight ? "text-slate-600" : "text-slate-400"} font-light leading-relaxed`}>
             Select a studio portal below to manage marketing flyers, concept floorplans, builder quotes, client pipelines, or OnSite tender packages.
           </p>

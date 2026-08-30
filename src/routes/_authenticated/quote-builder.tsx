@@ -5,6 +5,7 @@ import { ShieldCheck, FileText, Database, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 
 export const Route = createFileRoute("/_authenticated/quote-builder")({
   head: () => ({
@@ -80,12 +81,15 @@ function QuoteBuilderPage() {
                 Database
               </Button>
             </Link>
+
+            {/* NHC Active Profile */}
+            <StaffHeaderProfile isLight={isLight} />
           </div>
         </div>
       </header>
 
       {/* Main Quoting Workspace */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full flex-1 relative z-10">
+      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1 relative z-10">
         <QuoteBuilder />
       </main>
     </div>
