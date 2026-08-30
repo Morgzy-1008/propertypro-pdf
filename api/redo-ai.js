@@ -69,31 +69,32 @@ export default async function handler(req, res) {
 
 Canvas & Framing Specifications:
 - Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Prominence: Make the double-storey house LARGE, HEROIC, and MAXIMIZED within the canvas, occupying ~88% to 92% of the total canvas height.
-- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean, narrow 2.5mm (~28px) margin from the top canvas border (do not crop or clip roof).
-- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 3mm (~34px) of driveway visible at the bottom edge.
-- Center the house horizontally, spanning across the central 75% to 85% of the frame.
+- House Scale & Prominence: Make the double-storey house AS LARGE AS POSSIBLE within the canvas, while strictly respecting a 5mm (~57px) safe margin from all photo borders.
+- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean 5mm (~57px) margin from the top photo border (the roof must never cross or touch the top photo border).
+- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 5mm (~57px) of driveway visible at the bottom edge.
+- Center the house horizontally, spanning across the central 70% to 80% of the frame with at least 5mm side clearances.
 
 Strict Architectural Integrity:
 - Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
 
-Seamless Outpainting:
-- Fill the left and right wings seamlessly with matching Australian turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
-- Zero blur, zero black boxes, razor-sharp 8K architectural photography clarity.`
+Seamless Outpainting Background:
+- Perfect outpainting background: Fill the left and right wings seamlessly with matching Australian Sir Walter buffalo turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
+- Sky: Pristine Australian blue sky with soft ambient clouds matching the building illumination.
+- Zero black boxes, zero blur, razor-sharp 8K architectural photography clarity.`
       : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
 
 Canvas & Framing Specifications:
 - Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Prominence: Make the single-storey house LARGE, PROMINENT, and HEROIC, filling the vertical frame and occupying ~85% to 90% of the total canvas height.
-- Roofline Clearance: Keep a tight, clean 2.5mm (~28px) margin between the highest roof ridge/apex and the top canvas edge so the entire roof is 100% visible and maximized in size without clipping.
-- Grounding: Ground the garage slab and front porch near the bottom with a clean 3mm (~34px) of driveway space below.
-- Center the house horizontally, filling the central 75% to 85% width of the frame.
+- House Scale & Prominence: Make the single-storey house AS LARGE AS POSSIBLE, filling the vertical frame while strictly respecting a 5mm (~57px) safe margin from all photo borders.
+- Roofline Clearance: Keep a clean 5mm (~57px) margin between the highest roof ridge/apex and the top photo border so the entire roof is 100% visible and maximized in size without crossing the 5mm border.
+- Grounding: Ground the garage slab and front porch near the bottom with a clean 5mm (~57px) of driveway space below.
+- Center the house horizontally, filling the central 70% to 80% width of the frame with at least 5mm side margins.
 
 Strict Architectural Integrity:
 - Preserve the exact architectural details, materials, roof pitch, brick mortar, and window frames 100% faithfully.
 
-Seamless Outpainting:
-- Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`);
+Seamless Outpainting Background:
+- Perfect outpainting background: Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`);
 
     const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 

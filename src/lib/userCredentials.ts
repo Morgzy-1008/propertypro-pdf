@@ -15,6 +15,7 @@ export const AUTHORIZED_EMAILS = [
   "alyssa.pippig@hudsonhomes.com.au",
   "alyssa.hales@hudsonhhomes.com.au",
   "shelley.lay@hudsonhomes.com.au",
+  "ben.grill@hudsonhomes.com.au",
 ];
 
 export interface StoredCredential {
@@ -39,11 +40,12 @@ export function normalizeStaffEmail(email?: string | null): string {
     clean = "alyssa.hales@hudsonhomes.com.au";
   }
   if (clean === "shelley@hudsonhomes.com.au") clean = "shelley.lay@hudsonhomes.com.au";
+  if (clean === "ben@hudsonhomes.com.au") clean = "ben.grill@hudsonhomes.com.au";
   return clean;
 }
 
 /**
- * Checks if an email is strictly part of the 5 authorized Hudson Homes staff members.
+ * Checks if an email is strictly part of the authorized Hudson Homes staff members.
  */
 export function isAuthorizedStaffMember(email: string): boolean {
   const norm = normalizeStaffEmail(email);
@@ -52,7 +54,8 @@ export function isAuthorizedStaffMember(email: string): boolean {
     norm === "jesse.jenkins@hudsonhomes.com.au" ||
     norm === "adrian.baxter@hudsonhomes.com.au" ||
     norm === "alyssa.hales@hudsonhomes.com.au" ||
-    norm === "shelley.lay@hudsonhomes.com.au"
+    norm === "shelley.lay@hudsonhomes.com.au" ||
+    norm === "ben.grill@hudsonhomes.com.au"
   );
 }
 

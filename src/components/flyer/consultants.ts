@@ -33,6 +33,30 @@ export const CONSULTANTS: Consultant[] = [
     title: "New Home Consultant",
     displayCentre: "Bahrs Scrub Display Home",
   },
+  {
+    id: "alyssa-hales",
+    name: "Alyssa Hales",
+    phone: "0480 893 290",
+    email: "Alyssa.hales@hudsonhomes.com.au",
+    title: "New Home Consultant",
+    displayCentre: "Queensland Division",
+  },
+  {
+    id: "shelley-lay",
+    name: "Shelley Lay",
+    phone: "0428 650 617",
+    email: "Shelley.lay@hudsonhomes.com.au",
+    title: "New Home Consultant",
+    displayCentre: "Queensland Division",
+  },
+  {
+    id: "ben-grill",
+    name: "Ben Grill",
+    phone: "0400 000 000",
+    email: "Ben.grill@hudsonhomes.com.au",
+    title: "New Home Sales Associate",
+    displayCentre: "Queensland Division",
+  },
 ];
 
 export function findConsultant(id: string) {

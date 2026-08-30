@@ -82,13 +82,13 @@ function AuthPage() {
       return;
     }
 
-    // 1. Strict Whitelist Check: Only Morgan, Jesse, Adrian, Alyssa, Shelley
+    // 1. Strict Whitelist Check: Only Morgan, Jesse, Adrian, Alyssa, Shelley, Ben
     if (!isAuthorizedStaffMember(cleanEmail)) {
       if (cleanEmail.endsWith("@hudsonhomes.com.au")) {
         logAccessRequest(cleanEmail);
       }
       setAccessDeniedMessage(
-        "Access Denied: This email address is not authorized for Hudson Homes portal access. Access is strictly limited to authorized personnel (Morgan, Jesse, Adrian, Alyssa, Shelley)."
+        "Access Denied: This email address is not authorized for Hudson Homes portal access. Access is strictly limited to authorized personnel (Morgan, Jesse, Adrian, Alyssa, Shelley, Ben)."
       );
       toast.error("Unauthorized email address.");
       return;

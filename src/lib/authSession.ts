@@ -68,6 +68,17 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     avatarInitials: "SL",
     accentColor: "from-violet-500 to-purple-600",
   },
+  {
+    id: "ben-grill",
+    name: "Ben Grill",
+    email: "ben.grill@hudsonhomes.com.au",
+    phone: "0400 000 000",
+    title: "New Home Sales Associate",
+    displayCentre: "Queensland Division",
+    role: "nhc",
+    avatarInitials: "BG",
+    accentColor: "from-blue-500 to-indigo-600",
+  },
 ];
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 Hours
