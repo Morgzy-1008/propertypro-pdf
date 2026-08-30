@@ -37,10 +37,10 @@ export function findFloorplanUrl(designName: string): string {
 
 import { findFacadeForDesign } from "../quoting/facadeLookup";
 
-export function findFacadeRenderUrl(facadeName: string, housingType?: string): string {
+export function findFacadeRenderUrl(facadeName: string, housingType?: string, designName?: string): string {
   if (!facadeName) return HUDSON_FACADES[0]?.url || "";
   const isDouble = (housingType || "").toLowerCase().includes("double");
-  const found = findFacadeForDesign(facadeName, isDouble, housingType);
+  const found = findFacadeForDesign(facadeName, isDouble, housingType, designName);
   return found?.url || HUDSON_FACADES[0]?.url || "";
 }
 
@@ -571,7 +571,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
   const originalUrl = findFloorplanUrl(d.designName || "");
   const currentPlanUrl = d.floorplanUrl || originalUrl;
   const isMod = !!d.isModifiedFloorplan || (!!d.floorplanUrl && d.floorplanUrl !== originalUrl);
-  const facadeRender = findFacadeRenderUrl(d.facadeName, d.housingType);
+  const facadeRender = findFacadeRenderUrl(d.facadeName, d.housingType, d.designName);
   const isCustomFac = !!d.isCustomFacade || (d.facadePrice > 0 && !HUDSON_FACADES.some(f => f.name.toLowerCase() === (d.facadeName || "").toLowerCase()));
 
   // 1. Line items categorization into variations

@@ -170,8 +170,8 @@ export function getSavedLoginCredentials(): SavedLoginCredential | null {
 
 export function setActiveStaffUser(
   profile: StaffProfile,
-  remember = true,
-  passwordToSave?: string
+  _remember = false,
+  _passwordToSave?: string
 ): void {
   if (typeof window === "undefined") return;
   try {
@@ -181,15 +181,10 @@ export function setActiveStaffUser(
     localStorage.setItem("hudson_hub_unlocked", "true");
     localStorage.setItem(STORAGE_KEY_AUTH_TIME, new Date().toISOString());
 
-    if (remember) {
-      const savedData: SavedLoginCredential = {
-        email: profile.email,
-        name: profile.name,
-        password: passwordToSave || getSavedLoginCredentials()?.password || "",
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(STORAGE_KEY_SAVED_LOGIN, JSON.stringify(savedData));
-    }
+    // Clean up any legacy saved credentials with passwords
+    localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
+    localStorage.removeItem("hudson_saved_login_credential_v1");
+    localStorage.removeItem("hudson_saved_passwords_v1");
 
     // Notify all active components
     listeners.forEach((fn) => {
@@ -204,17 +199,15 @@ export function setActiveStaffUser(
   }
 }
 
-export function clearActiveStaffUser(forgetSaved = false): void {
+export function clearActiveStaffUser(_forgetSaved = false): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(STORAGE_KEY_AUTH_USER);
     localStorage.removeItem("hudson_auth_user");
     localStorage.removeItem("hudson_hub_unlocked");
     localStorage.removeItem(STORAGE_KEY_AUTH_TIME);
-    if (forgetSaved) {
-      localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
-      localStorage.removeItem("hudson_saved_login_credential_v1");
-    }
+    localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
+    localStorage.removeItem("hudson_saved_login_credential_v1");
     listeners.forEach((fn) => fn(null));
   } catch {}
 }

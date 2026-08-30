@@ -60,7 +60,7 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
         : housingType === "Double Storey" || housingType === "double";
 
     // Find matching facade using the comprehensive lookup engine
-    const matched = findFacadeForDesign(facadeName, isDouble, housingType);
+    const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
 
     if (matched) {
       if (PRE_RENDERED_FACADES[matched.id]) {

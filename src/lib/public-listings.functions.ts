@@ -140,10 +140,10 @@ function str(val: unknown): string | null {
 
 import { findFacadeForDesign } from "./quoting/facadeLookup";
 
-function findFacadeUrl(nameOrId: string | null | undefined, housingType?: string): string {
+function findFacadeUrl(nameOrId: string | null | undefined, housingType?: string, designName?: string): string {
   if (!nameOrId) return HUDSON_FACADES[0]?.url || "";
   const isDouble = (housingType || "").toLowerCase().includes("double");
-  const match = findFacadeForDesign(nameOrId, isDouble, housingType);
+  const match = findFacadeForDesign(nameOrId, isDouble, housingType, designName);
   return match?.url || HUDSON_FACADES[0]?.url || "";
 }
 

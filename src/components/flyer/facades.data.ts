@@ -143,6 +143,13 @@ export const HUDSON_FACADES: FacadeItem[] = [
     url: "/facades/classic-double-garage_widescreen.jpg",
   },
   {
+    id: "classic-narrow-dg",
+    name: "Classic (Narrow Double Storey)",
+    range: "Double Storey",
+    tags: ["classic", "narrow", "double", "double-garage", "storey", "carolina", "turquoise", "sabel"],
+    url: "/facades/classic-narrow-dg_widescreen.jpg",
+  },
+  {
     id: "classic-single-garage",
     name: "Classic (Single Garage)",
     range: "Single Storey",

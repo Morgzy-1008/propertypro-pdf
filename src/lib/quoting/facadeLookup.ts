@@ -3,6 +3,23 @@ import { PRE_RENDERED_FACADES } from "../../components/flyer/preRenderedFacades.
 import type { FacadeItem } from "../../components/flyer/facadeLibrary";
 
 /**
+ * Checks if a design model belongs to the Narrow Double Storey range:
+ * - Carolinas (Carolina 24, 26, 28, 30, 32, etc.)
+ * - Turquoise (Turquoise 27, 30, 33, etc.)
+ * - Sabel / Sable (Sabel 25, 28, Sable 25, etc.)
+ */
+export function isNarrowDoubleStorey(designNameOrId?: string): boolean {
+  if (!designNameOrId) return false;
+  const lower = designNameOrId.toLowerCase();
+  return (
+    lower.includes("carolina") ||
+    lower.includes("turquoise") ||
+    lower.includes("sabel") ||
+    lower.includes("sable")
+  );
+}
+
+/**
  * Normalizes facade names to match base variations.
  * E.g., "Classic (Double Garage)" -> "classic", "Classic Plus (Double Storey)" -> "classicplus", "Hamptons" -> "hamptons".
  */
@@ -25,12 +42,16 @@ function resolveWithPreRendered(item: FacadeItem | undefined): FacadeItem | unde
 
 /**
  * Finds the exact matching facade item for a given design and housing type.
- * Strictly differentiates Double Storey from Single Storey / Split Level / Dual Living.
+ * Strictly differentiates:
+ * 1. Single Storey
+ * 2. Narrow Double Storey (Carolinas, Turquoise, Sabel/Sable)
+ * 3. Standard Double Storey (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.)
  */
 export function findFacadeForDesign(
   facadeNameOrId: string,
   isDouble: boolean,
-  housingType: string = "Single Storey"
+  housingType: string = "Single Storey",
+  designName?: string
 ): FacadeItem | undefined {
   if (!facadeNameOrId) {
     facadeNameOrId = "Classic";
@@ -38,54 +59,79 @@ export function findFacadeForDesign(
 
   const rawKey = facadeNameOrId.trim().toLowerCase();
   const baseKey = normalizeFacadeKey(facadeNameOrId);
+  const isNarrowDouble = isDouble && isNarrowDoubleStorey(designName);
 
   // DOUBLE STOREY RESOLUTION
   if (isDouble) {
-    const doubleIdMap: Record<string, string> = {
-      classic: "classic-double-garage",
-      classicplus: "classic-plus-double-garage",
-      deco: "deco-double-garage",
-      mantra: "mantra-double-garage",
-      contemporary: "contemporary",
-      majestic: "majestic",
-      riviera: "riviera",
-      chateaux: "chateaux",
-      cambridge: "cambridge",
-      oxford: "oxford",
-      windsor: "windsor",
-      allure: "allure",
-      ascot: "ascot",
-      ashton: "ashton",
-      aspen: "aspen",
-      breeze: "breeze",
-      centro: "centro",
-      como: "como",
-      delta: "delta",
-      deluxe: "deluxe",
-      flair: "flair",
-      grande: "grande",
-      hamptons: "hamptons",
-      madison: "madison",
-      marina: "marina",
-      meridian: "meridian",
-      monash: "monash",
-      mondo: "mondo",
-      novare: "novare",
-      nuvo: "nuvo",
-      regal: "regal",
-      royale: "royale",
-      saville: "saville",
-      sierra: "sierra",
-      soho: "soho",
-      statesman: "statesman",
-      tempo: "tempo",
-      vista: "vista",
-      vogue: "vogue",
-    };
+    if (isNarrowDouble) {
+      // === NARROW DOUBLE STOREY SPECIFIC (Carolinas, Turquoise, Sabel) ===
+      const narrowDoubleIdMap: Record<string, string> = {
+        classic: "classic-narrow-dg",
+        classicplus: "classic-plus-double-garage",
+        chateaux: "chateaux-single-garage",
+        contemporary: "contemporary-single-garage",
+        deco: "deco-single-garage",
+        madison: "madison",
+        majestic: "majestic-single-garage",
+        marina: "marina-single-garage",
+        meridian: "meridian",
+        novare: "novare-single-garage",
+        sierra: "sierra",
+        vista: "vista",
+      };
 
-    if (doubleIdMap[baseKey]) {
-      const found = HUDSON_FACADES.find((f) => f.id === doubleIdMap[baseKey]);
-      if (found) return resolveWithPreRendered(found);
+      if (narrowDoubleIdMap[baseKey]) {
+        const found = HUDSON_FACADES.find((f) => f.id === narrowDoubleIdMap[baseKey]);
+        if (found) return resolveWithPreRendered(found);
+      }
+    } else {
+      // === STANDARD DOUBLE STOREY (Burgundy, Jasper, Sapphire, Emerald, etc.) ===
+      const standardDoubleIdMap: Record<string, string> = {
+        classic: "classic-double-garage",
+        classicplus: "classic-plus-double-garage",
+        deco: "deco-double-garage",
+        mantra: "mantra-double-garage",
+        contemporary: "contemporary",
+        majestic: "majestic",
+        riviera: "riviera",
+        chateaux: "chateaux",
+        cambridge: "cambridge",
+        oxford: "oxford",
+        windsor: "windsor",
+        allure: "allure",
+        ascot: "ascot",
+        ashton: "ashton",
+        aspen: "aspen",
+        breeze: "breeze",
+        centro: "centro",
+        como: "como",
+        delta: "delta",
+        deluxe: "deluxe",
+        flair: "flair",
+        grande: "grande",
+        hamptons: "hamptons",
+        madison: "madison",
+        marina: "marina",
+        meridian: "meridian",
+        monash: "monash",
+        mondo: "mondo",
+        novare: "novare",
+        nuvo: "nuvo",
+        regal: "regal",
+        royale: "royale",
+        saville: "saville",
+        sierra: "sierra",
+        soho: "soho",
+        statesman: "statesman",
+        tempo: "tempo",
+        vista: "vista",
+        vogue: "vogue",
+      };
+
+      if (standardDoubleIdMap[baseKey]) {
+        const found = HUDSON_FACADES.find((f) => f.id === standardDoubleIdMap[baseKey]);
+        if (found) return resolveWithPreRendered(found);
+      }
     }
 
     // Exact ID check for double storey range
@@ -96,7 +142,7 @@ export function findFacadeForDesign(
 
     // Search Double Storey entries in HUDSON_FACADES
     const doubleCandidates = HUDSON_FACADES.filter(
-      (f) => f.range === "Double Storey" || f.id.includes("double")
+      (f) => f.range === "Double Storey" || f.id.includes("double") || f.tags.includes("double")
     );
 
     const match = doubleCandidates.find((f) => {
@@ -158,7 +204,7 @@ export function findFacadeForDesign(
 
     // Search Non-Double Storey entries in HUDSON_FACADES
     const singleCandidates = HUDSON_FACADES.filter(
-      (f) => f.range !== "Double Storey" && !f.id.includes("double-garage")
+      (f) => f.range !== "Double Storey" && !f.id.includes("double-garage") && !f.id.includes("narrow-dg")
     );
 
     const match = singleCandidates.find((f) => {
@@ -176,9 +222,10 @@ export function findFacadeForDesign(
   }
 
   // Fallback to any matching name
-  const fallback = HUDSON_FACADES.find(
-    (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
-  ) || HUDSON_FACADES[0];
+  const fallback =
+    HUDSON_FACADES.find(
+      (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
+    ) || HUDSON_FACADES[0];
 
   return resolveWithPreRendered(fallback);
 }

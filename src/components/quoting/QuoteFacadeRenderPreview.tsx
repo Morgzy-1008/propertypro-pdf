@@ -48,7 +48,7 @@ export function QuoteFacadeRenderPreview({
     setLoading(true);
 
     // Find matching facade using the comprehensive lookup engine
-    const matched = findFacadeForDesign(facadeName, isDouble, housingType);
+    const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
 
     if (matched) {
       // 1. Check pre-rendered static high-res catalogue
