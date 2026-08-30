@@ -152,14 +152,13 @@ export function QuoteFacadeRenderPreview({
 
       {/* Image Render Canvas */}
       <div
-        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-950 min-h-[220px]"
-        style={{ maxHeight }}
+        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-900/40 aspect-[210/82] max-h-[380px]"
       >
         {src ? (
           <img
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
-            className="w-full h-auto max-h-[380px] object-contain object-center transition-all duration-300"
+            className="w-full h-full object-cover object-center transition-all duration-300"
             style={{ imageRendering: "auto" }}
           />
         ) : (

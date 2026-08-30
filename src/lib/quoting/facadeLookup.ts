@@ -71,6 +71,7 @@ export function findFacadeForDesign(
         chateaux: "chateaux-single-garage",
         contemporary: "contemporary-single-garage",
         deco: "deco-single-garage",
+        mantra: "mantra-single-garage",
         madison: "madison",
         majestic: "majestic-single-garage",
         marina: "marina-single-garage",
@@ -91,6 +92,7 @@ export function findFacadeForDesign(
         classicplus: "classic-plus-double-garage",
         deco: "deco-double-garage",
         mantra: "mantra-double-garage",
+        madison: "madison",
         contemporary: "contemporary",
         majestic: "majestic",
         riviera: "riviera",
@@ -101,8 +103,8 @@ export function findFacadeForDesign(
         allure: "allure",
         ascot: "ascot",
         ashton: "ashton",
-        aspen: "aspen",
-        breeze: "breeze",
+        aspen: "aspen-double",
+        breeze: "breeze-double",
         centro: "centro",
         como: "como",
         delta: "delta",
@@ -110,7 +112,6 @@ export function findFacadeForDesign(
         flair: "flair",
         grande: "grande",
         hamptons: "hamptons",
-        madison: "madison",
         marina: "marina",
         meridian: "meridian",
         monash: "monash",
@@ -136,13 +137,13 @@ export function findFacadeForDesign(
 
     // Exact ID check for double storey range
     const exactIdMatch = HUDSON_FACADES.find(
-      (f) => f.id.toLowerCase() === rawKey && (f.range === "Double Storey" || f.tags.includes("double"))
+      (f) => f.id.toLowerCase() === rawKey && (f.range === "Double Storey" || f.range === "Narrow Double Storey" || f.tags.includes("double"))
     );
     if (exactIdMatch) return resolveWithPreRendered(exactIdMatch);
 
     // Search Double Storey entries in HUDSON_FACADES
     const doubleCandidates = HUDSON_FACADES.filter(
-      (f) => f.range === "Double Storey" || f.id.includes("double") || f.tags.includes("double")
+      (f) => f.range === "Double Storey" || f.range === "Narrow Double Storey" || f.id.includes("double") || f.tags.includes("double")
     );
 
     const match = doubleCandidates.find((f) => {
@@ -162,24 +163,17 @@ export function findFacadeForDesign(
     const singleIdMap: Record<string, string> = {
       classic: "classic",
       classicplus: "classic-plus",
-      deco: "deco-single-garage",
-      mantra: "mantra-single-garage",
-      contemporary: "contemporary-single-garage",
-      majestic: "majestic-single-garage",
-      riviera: "riviera-single-garage",
-      chateaux: "chateaux",
-      aspen: "aspen-single-garage",
+      aspen: "aspen",
       avalon: "avalon",
       avoca: "avoca",
       banksia: "banksia",
       bayside: "bayside",
-      breeze: "breeze-single-garage",
+      breeze: "breeze",
       coastal: "coastal",
+      contemporary: "contemporary-single",
       crest: "crest",
       eden: "eden",
-      elite: "elite",
-      executive: "executive",
-      flair: "flair",
+      hamptons: "hamptons-single",
       harmony: "harmony",
       havana: "havana",
       imperial: "imperial",
@@ -187,8 +181,7 @@ export function findFacadeForDesign(
       savoy: "savoy",
       serenity: "serenity",
       sovereign: "sovereign",
-      statesman: "statesman-single-garage",
-      hamptons: housingType.toLowerCase().includes("split") ? "hamptons-split" : "hamptons-single",
+      statesman: "statesman",
     };
 
     if (singleIdMap[baseKey]) {

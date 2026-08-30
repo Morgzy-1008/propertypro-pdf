@@ -220,10 +220,15 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // Draw the sharp house image centered with full clarity and zero blurry overlays
+    // Pre-fill background seamlessly if house does not fill full width/height
+    if (drawX > 0 || drawX + drawW < outW || drawY > 0 || drawY + drawH < outH) {
+      ctx.drawImage(img, 0, 0, outW, outH);
+    }
+
+    // Draw the sharp house image centered with full clarity and zero black boxes
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-    return canvas.toDataURL("image/jpeg", 0.95);
+    return canvas.toDataURL("image/png");
   } catch (e) {
     console.warn("[preframeFacadeImage fallback]", e);
     return rawB64;

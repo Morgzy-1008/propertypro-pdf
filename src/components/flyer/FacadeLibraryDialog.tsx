@@ -73,15 +73,12 @@ function facadeBelongsToCategory(
     return tags.includes("split") || /split/i.test(range);
   }
 
-  const isDoubleRange = range.includes("double") || tags.includes("double") || /double\s+storey/i.test(name) || /2[-\s]?stry/i.test(f.url);
-  const isSingleRange = range.includes("single") || tags.includes("single") || /single\s+storey/i.test(name);
-
   if (category === "double") {
-    return isDoubleRange && !range.includes("single");
+    return f.range === "Double Storey" || f.range === "Narrow Double Storey";
   }
 
   if (category === "single") {
-    return isSingleRange && !range.includes("double");
+    return f.range === "Single Storey";
   }
 
   return true;
@@ -293,12 +290,19 @@ export function FacadeLibrary({
                       : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
                   }`}
                 >
-                  <img
-                    src={f.url}
-                    alt={f.name}
-                    loading="lazy"
-                    className="h-28 w-full bg-slate-950 object-cover"
-                  />
+                  <div className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden">
+                    <img
+                      src={f.url}
+                      alt={f.name}
+                      loading="lazy"
+                      className="h-full w-full object-cover object-center"
+                    />
+                    {f.range === "Narrow Double Storey" && (
+                      <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
+                        Narrow Double
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-baseline justify-between gap-2 px-2.5 py-2">
                     <span className="truncate text-xs font-semibold text-slate-200">{f.name}</span>
                     <span className="flex-none text-[11px] font-bold text-brand-gold">
