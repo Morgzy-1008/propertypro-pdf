@@ -6,6 +6,7 @@ import {
   calculateModifiedFloorplanPricing,
   getEffectiveDesignM2,
   getEffectiveDesignName,
+  getHousingTypeForDesign,
 } from "@/lib/quoting/quoteEngine";
 import {
   CheckCircle2,
@@ -86,8 +87,18 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
 
   React.useEffect(() => {
-    const facadeName = design.facadeName || "Classic";
-    const housingType = design.housingType || "Single Storey";
+    if (design.isCustomFacade && design.facadeImageUrl) {
+      setSrc(design.facadeImageUrl);
+      return;
+    }
+
+    const facadeName = design.facadeName || (design.designName ? "Classic" : "");
+    if (!facadeName) {
+      setSrc("");
+      return;
+    }
+
+    const housingType = getHousingTypeForDesign(design.designName, design.housingType);
     const isDouble =
       design.mode === "custom_floorplan"
         ? design.customSpec?.storeys === "double"
@@ -128,19 +139,19 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
             }
           }
           // 3. Fallback to prepareFacade
-          prepareFacade(matched.url, matched.originalUrl, matched.id, housingType)
+          prepareFacade(matched!.url, matched!.originalUrl, matched!.id, housingType)
             .then((res) => {
               if (res) setSrc(res);
             })
             .catch(() => {
-              setSrc(matched.url);
+              setSrc(matched!.url);
             });
         })
         .catch(() => {
           setSrc(matched.url);
         });
     }
-  }, [design.facadeName, design.housingType, design.mode, design.customSpec]);
+  }, [design.facadeName, design.housingType, design.mode, design.customSpec, design.isCustomFacade, design.facadeImageUrl, design.designName]);
 
   if (!src) return null;
 

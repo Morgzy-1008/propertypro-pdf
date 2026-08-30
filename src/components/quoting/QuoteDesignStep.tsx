@@ -44,7 +44,9 @@ import {
   calculateModifiedFloorplanPricing,
   getStandardAreaBreakdown,
   getAutomatedPromotionDiscount,
+  getHousingTypeForDesign,
 } from "@/lib/quoting/quoteEngine";
+import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
 import type { InclusionTier, QuoteDesignSelection, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
 
 interface QuoteDesignStepProps {
@@ -205,13 +207,23 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Woodlands", uplift: 105600 },
     { name: "Mayfield", uplift: 113800 },
   ],
+  "Granny Flat": [
+    { name: "Classic", uplift: 0 },
+    { name: "Classic Plus", uplift: 3500 },
+    { name: "Contemporary", uplift: 6500 },
+    { name: "Hamptons", uplift: 9500 },
+    { name: "Modern Coastal", uplift: 9500 },
+    { name: "Modern Barn", uplift: 12500 },
+  ],
 };
 
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const models = HOUSING_TYPE_PRICES[design.housingType] || SINGLE_STOREY_PRICES;
+
+  const effectiveHousingType = getHousingTypeForDesign(design.designName, design.housingType);
+  const models = HOUSING_TYPE_PRICES[effectiveHousingType] || SINGLE_STOREY_PRICES;
   const currentModel = models.find((m) => m.name === design.designName);
 
   const customSpec = design.customSpec || {
@@ -231,13 +243,13 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const isDouble =
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"
-      : design.housingType === "Double Storey" || design.housingType === "double";
+      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double";
 
   const standardPlans = design.designName ? plansForDesign(design.designName) : [];
   const standardFloorplanUrl = standardPlans[0]?.url || "";
   const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
-  const suitableFacades = HOUSING_FACADES[design.housingType] || HOUSING_FACADES["Single Storey"];
+  const suitableFacades = HOUSING_FACADES[effectiveHousingType] || HOUSING_FACADES["Single Storey"];
 
   // 2nd Dwelling or Granny Flat Helpers
   const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
@@ -409,6 +421,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
+    const facadesForType = HOUSING_FACADES[type] || HOUSING_FACADES["Single Storey"];
+    const defaultFacade = facadesForType[0] || { name: "Classic", uplift: 0 };
     onChange({
       housingType: type,
       designName: "",
@@ -420,8 +434,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       standardAreas: undefined,
       modifiedAreas: undefined,
       isModifiedFloorplan: false,
-      facadeName: "",
-      facadePrice: 0,
+      facadeName: defaultFacade.name,
+      facadePrice: defaultFacade.uplift,
       isCustomFacade: false,
       promotionsDiscount: 0,
       floorplanUrl: "",
@@ -434,14 +448,21 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleDesignModelChange = (modelName: string) => {
-    const m = models.find((x) => x.name === modelName);
+    const detectedHousingType = getHousingTypeForDesign(modelName, design.housingType);
+    const typeModels = HOUSING_TYPE_PRICES[detectedHousingType] || SINGLE_STOREY_PRICES;
+    const m = typeModels.find((x) => x.name === modelName) || models.find((x) => x.name === modelName);
     if (!m) return;
+
+    const facadesForType = HOUSING_FACADES[detectedHousingType] || HOUSING_FACADES["Single Storey"];
+    const isCurrentFacadeValid = !design.isCustomFacade && design.facadeName && facadesForType.some((f) => f.name.toLowerCase() === design.facadeName.toLowerCase());
+    const chosenFacade = isCurrentFacadeValid
+      ? facadesForType.find((f) => f.name.toLowerCase() === design.facadeName.toLowerCase())!
+      : (facadesForType[0] || { name: "Classic", uplift: 0 });
 
     const plans = plansForDesign(m.name);
     const floorplanUrl = plans[0]?.url || "";
-    const basePrice = getTierPrice(m, design.specTier, design.housingType);
-    const defaultFacade = suitableFacades[0] || { name: "Classic", uplift: 0 };
-    const stdAreas = getStandardAreaBreakdown(m.name, design.housingType, m.m2);
+    const basePrice = getTierPrice(m, design.specTier, detectedHousingType);
+    const stdAreas = getStandardAreaBreakdown(m.name, detectedHousingType, m.m2);
 
     let effectiveM2 = m.m2;
     let effectiveBasePrice = basePrice;
@@ -450,6 +471,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     if (design.isModifiedFloorplan) {
       const tempDesign: QuoteDesignSelection = {
         ...design,
+        housingType: detectedHousingType,
         designName: m.name,
         designM2: m.m2,
         standardDesignM2: m.m2,
@@ -464,6 +486,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
 
     onChange({
+      housingType: detectedHousingType,
       designName: m.name,
       designM2: m.m2,
       standardDesignM2: m.m2,
@@ -472,8 +495,8 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       modifiedAreas: updatedModifiedAreas,
       modifiedDesignM2: effectiveM2,
       basePrice: effectiveBasePrice,
-      facadeName: design.facadeName || defaultFacade.name,
-      facadePrice: design.facadeName ? design.facadePrice : defaultFacade.uplift,
+      facadeName: design.isCustomFacade ? design.facadeName : chosenFacade.name,
+      facadePrice: design.isCustomFacade ? design.facadePrice : chosenFacade.uplift,
       promotionsDiscount: autoDiscount,
       promotionName: design.promotionName || "Hudson Special Builder Promotion",
       floorplanUrl,
@@ -1738,14 +1761,18 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
         </div>
       )}
 
-      {/* Architectural Floorplan Display & Modified Design Section */}
-      <div className="space-y-3 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      {/* Architectural Facade & Floorplan Visual Specification */}
+      <div className="space-y-4 bg-slate-950/80 p-5 rounded-2xl border border-slate-800">
+        {/* 1. Chosen Facade Render (Rendered on top in HD) */}
+        <QuoteFacadeRenderPreview design={design} maxHeight="360px" />
+
+        {/* 2. Floorplan Header & Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-slate-800/80 pt-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <ImageIcon className="h-4 w-4 text-emerald-400" />
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">
-                Architectural Floorplan Specification
+                Architectural Floorplan Layout Drawing
               </h4>
               {design.isModifiedFloorplan && (
                 <span className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
@@ -1753,7 +1780,6 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 </span>
               )}
             </div>
-            
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">

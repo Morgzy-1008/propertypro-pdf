@@ -24,8 +24,12 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
-import { Logo } from "@/components/flyer/FlyerTemplates";
-import { calculateQuotePricing, getEffectiveDesignM2, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import {
+  calculateQuotePricing,
+  getEffectiveDesignM2,
+  getEffectiveDesignName,
+  getHousingTypeForDesign,
+} from "@/lib/quoting/quoteEngine";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
 import type { FullQuote, InclusionTier } from "@/lib/quoting/quoteTypes";
 import {
@@ -215,9 +219,9 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
   // Available facades for housing type
   const availableFacades = useMemo(() => {
-    const housingType = quote.design.housingType || "Single Storey";
+    const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
     return HOUSING_FACADES[housingType as keyof typeof HOUSING_FACADES] || HOUSING_FACADES["Single Storey"];
-  }, [quote.design.housingType]);
+  }, [quote.design.designName, quote.design.housingType]);
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);

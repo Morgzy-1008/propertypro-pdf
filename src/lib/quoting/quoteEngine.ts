@@ -1,5 +1,11 @@
 import { CATEGORY_LABELS, DEFAULT_CATALOGUE } from "./quoteCatalogue";
 import { landscapingPriceFor } from "@/lib/landscaping";
+import {
+  DOUBLE_STOREY_PRICES,
+  SINGLE_STOREY_PRICES,
+  SPLIT_LEVEL_PRICES,
+  DUAL_OC_PRICES,
+} from "@/lib/pricelist.data";
 import type {
   CategorySubtotal,
   CatalogueCategory,
@@ -10,6 +16,31 @@ import type {
   SiteConditions,
   SoilClass,
 } from "./quoteTypes";
+
+/**
+ * Automatically determines the housing type (Single Storey, Double Storey, Split Level, Dual Living)
+ * based on the selected Hudson Homes model name.
+ */
+export function getHousingTypeForDesign(
+  designName?: string,
+  fallbackType?: QuoteDesignSelection["housingType"],
+): "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" {
+  if (!designName) return fallbackType || "Single Storey";
+  const norm = designName.trim().toLowerCase();
+  if (DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+    return "Double Storey";
+  }
+  if (SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+    return "Split Level";
+  }
+  if (DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+    return "Dual Living";
+  }
+  if (SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+    return "Single Storey";
+  }
+  return fallbackType || "Single Storey";
+}
 
 /**
  * Calculates base price for custom floorplan based on area dimensions and tiered rates.
