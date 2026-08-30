@@ -45,15 +45,29 @@ import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
+import {
+  getActiveStaffUser,
+  onStaffUserChanged,
+  canViewRemuneration,
+  type StaffProfile,
+} from "@/lib/authSession";
 
 export function CrmWorkspace() {
   const { mode } = useTheme();
   const isLight = mode === "normal";
 
+  const [staffUser, setStaffUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
+  const canViewCommissions = useMemo(() => canViewRemuneration(staffUser), [staffUser]);
+
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [messages, setMessages] = useState<CrmMessage[]>([]);
   const [activeTab, setActiveTab] = useState<"kanban" | "tasks" | "conversations" | "commissions">("kanban");
-  const [selectedConsultantId, setSelectedConsultantId] = useState<string>("morgan_hales");
+  const [selectedConsultantId, setSelectedConsultantId] = useState<string>(() => {
+    const user = getActiveStaffUser();
+    if (user?.id.includes("adrian") || user?.name.toLowerCase().includes("adrian")) return "adrian";
+    if (user?.id.includes("jesse") || user?.name.toLowerCase().includes("jesse")) return "jesse";
+    return "morgan_hales";
+  });
   const [userRole, setUserRole] = useState<"nhc" | "viewer">("nhc");
 
   // Modals state
@@ -79,7 +93,20 @@ export function CrmWorkspace() {
 
   useEffect(() => {
     refreshData();
+    const unsub = onStaffUserChanged((user) => {
+      setStaffUser(user);
+      if (!canViewRemuneration(user)) {
+        setActiveTab((prev) => (prev === "commissions" ? "kanban" : prev));
+      }
+    });
+    return () => unsub();
   }, []);
+
+  useEffect(() => {
+    if (!canViewCommissions && activeTab === "commissions") {
+      setActiveTab("kanban");
+    }
+  }, [canViewCommissions, activeTab]);
 
   const handleUpdateStage = async (leadId: string, newStage: CrmStageId) => {
     const updated = await updateCrmLeadStage(leadId, newStage);
@@ -273,7 +300,7 @@ export function CrmWorkspace() {
             </span>
           </button>
 
-          {userRole === "nhc" && (
+          {canViewCommissions && (
             <button
               type="button"
               onClick={() => setActiveTab("commissions")}
@@ -323,6 +350,7 @@ export function CrmWorkspace() {
           onOpenLead={handleOpenLead}
           onUpdateStage={handleUpdateStage}
           onQuickAction={handleQuickAction}
+          canViewCommissions={canViewCommissions}
         />
       )}
 
@@ -346,7 +374,7 @@ export function CrmWorkspace() {
         />
       )}
 
-      {activeTab === "commissions" && userRole === "nhc" && (
+      {activeTab === "commissions" && canViewCommissions && (
         <CrmCommissionDashboard
           leads={leads}
           selectedConsultantId={selectedConsultantId}

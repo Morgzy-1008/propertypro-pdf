@@ -234,3 +234,31 @@ export function isSameStaffEmail(emailA?: string | null, emailB?: string | null)
   if (!emailA || !emailB) return false;
   return emailA.trim().toLowerCase() === emailB.trim().toLowerCase();
 }
+
+export const REMUNERATION_AUTHORIZED_EMAILS = [
+  "morgan.hales@hudsonhomes.com.au",
+  "jesse.jenkins@hudsonhomes.com.au",
+  "adrian.baxter@hudsonhomes.com.au",
+];
+
+export const REMUNERATION_AUTHORIZED_IDS = [
+  "morgan-hales",
+  "morgan_hales",
+  "jesse-jenkins",
+  "jesse_jenkins",
+  "adrian-baxter",
+  "adrian_baxter",
+];
+
+/**
+ * Only Adrian, Jesse, and Morgan are permitted to view salary & commission features in the CRM.
+ */
+export function canViewRemuneration(user: StaffProfile | null | undefined): boolean {
+  if (!user) return false;
+  const email = (user.email || "").trim().toLowerCase();
+  const id = (user.id || "").trim().toLowerCase();
+  return (
+    REMUNERATION_AUTHORIZED_EMAILS.includes(email) ||
+    REMUNERATION_AUTHORIZED_IDS.includes(id)
+  );
+}

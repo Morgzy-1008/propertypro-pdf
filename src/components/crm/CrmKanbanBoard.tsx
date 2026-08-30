@@ -26,6 +26,7 @@ interface CrmKanbanBoardProps {
   onOpenLead: (lead: CrmLead) => void;
   onUpdateStage: (leadId: string, newStage: CrmStageId) => void;
   onQuickAction?: (lead: CrmLead, action: "call" | "sms" | "email") => void;
+  canViewCommissions?: boolean;
 }
 
 export function CrmKanbanBoard({
@@ -33,6 +34,7 @@ export function CrmKanbanBoard({
   onOpenLead,
   onUpdateStage,
   onQuickAction,
+  canViewCommissions = false,
 }: CrmKanbanBoardProps) {
   const { mode } = useTheme();
   const isLight = mode === "normal";
@@ -74,7 +76,7 @@ export function CrmKanbanBoard({
                 </div>
                 <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
                   <span>{formatAud(totalVal)}</span>
-                  {stage.isCommissionTrigger && (
+                  {canViewCommissions && stage.isCommissionTrigger && (
                     <span className="text-[9px] font-bold text-amber-400 bg-amber-950/40 px-1.5 py-0.2 rounded border border-amber-800/50">
                       50% COMMS
                     </span>

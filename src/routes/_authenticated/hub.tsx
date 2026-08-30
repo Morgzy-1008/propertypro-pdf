@@ -372,8 +372,8 @@ function WelcomeHubPage() {
             </div>
             <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
               <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                <Award className="h-3.5 w-3.5 text-purple-500" />
-                <span>$75k + 2.25% Comms</span>
+                <CheckCircle2 className="h-3.5 w-3.5 text-purple-500" />
+                <span>Client Pipeline &amp; Deals</span>
               </div>
               <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
                 Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />

@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
+import { getActiveStaffUser, canViewRemuneration } from "@/lib/authSession";
 
 interface CrmCommissionDashboardProps {
   leads: CrmLead[];
@@ -46,6 +47,21 @@ export function CrmCommissionDashboard({
 }: CrmCommissionDashboardProps) {
   const { mode } = useTheme();
   const isLight = mode === "normal";
+
+  const staffUser = getActiveStaffUser();
+  const isAuthorized = canViewRemuneration(staffUser);
+
+  if (!isAuthorized) {
+    return (
+      <div className={`p-8 rounded-2xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"} text-center space-y-3`}>
+        <Lock className="h-8 w-8 text-amber-500 mx-auto" />
+        <h3 className="text-base font-bold text-white">Remuneration Access Restricted</h3>
+        <p className="text-xs text-slate-400 max-w-md mx-auto">
+          Salary and commission features are private and restricted to authorized management personnel (Adrian, Jesse, and Morgan).
+        </p>
+      </div>
+    );
+  }
 
   // Private salary & commission editor
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
