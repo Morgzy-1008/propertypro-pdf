@@ -24,6 +24,8 @@ import {
   Minimize2,
   Move,
   FileText,
+  Import,
+  Home,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,26 +217,64 @@ export function AdvancedSitingStudio({
   }, [activeLot, houseState, currentPodRule]);
 
   // Determine Architectural Scale (1:100 vs 1:200 on A3 Sheet)
-  // A3 Sheet is 420mm x 297mm. Printable inner border is 370mm x 245mm.
-  // At 1:100, 1m = 10mm. So max lot size that fits at 1:100 is 37m width x 24.5m depth (or vice versa).
   const effectiveScaleRatio = useMemo(() => {
     if (scaleMode === "1:100") return 100;
     if (scaleMode === "1:200") return 200;
 
-    // Auto Mode: check if lot dimensions fit on A3 @ 1:100
     const maxDimension = Math.max(activeLot.frontageM, activeLot.depthM);
     const minDimension = Math.min(activeLot.frontageM, activeLot.depthM);
 
-    // If fits comfortably within A3 1:100 printable boundary (36m x 23.5m)
     if (maxDimension <= 23.5 || (maxDimension <= 35.0 && minDimension <= 21.0)) {
       return 100;
     }
     return 200;
   }, [scaleMode, activeLot.frontageM, activeLot.depthM]);
 
-  // Load and auto-crop floorplan when detectedFloorplan changes or initial mount
+  // Helper to load and process any floorplan URL
+  const loadFloorplanUrl = useCallback(
+    async (url: string, targetDesign: string, isDoubleStorey = false) => {
+      if (!url) return;
+      setIsCroppingFloorplan(true);
+      setFloorplanImageUrl(url);
+
+      try {
+        const housingType = isDoubleStorey ? "Double Storey" : "Single Storey";
+        const analysis = await scanAndVectorizeFloorplan(url, targetDesign, housingType);
+        setWallAnalysis(analysis);
+
+        const finalUrl = analysis.croppedUrl || url;
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          setCroppedFloorplanImage(img);
+          const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 100);
+          setFloorplanNaturalAspect(aspect);
+
+          setHouseState((prev) => {
+            const baseWidth = analysis.houseWidthM || prev.widthM || 10.55;
+            const exactLength = baseWidth / aspect;
+            return {
+              ...prev,
+              designName: targetDesign,
+              widthM: Number(baseWidth.toFixed(2)),
+              lengthM: Number(exactLength.toFixed(2)),
+              totalM2: analysis.roomAreas.totalM2 || prev.totalM2 || 192.2,
+            };
+          });
+
+          setIsCroppingFloorplan(false);
+        };
+        img.onerror = () => setIsCroppingFloorplan(false);
+        img.src = finalUrl;
+      } catch {
+        setIsCroppingFloorplan(false);
+      }
+    },
+    []
+  );
+
+  // Load initial floorplan from detectedFloorplan or design registry
   useEffect(() => {
-    let active = true;
     const targetDesign = detectedFloorplan?.matchedDesignName || houseState.designName;
     let url = detectedFloorplan?.floorplanUrl || "";
 
@@ -247,57 +287,55 @@ export function AdvancedSitingStudio({
       }
     }
 
-    setFloorplanImageUrl(url);
-
     if (url) {
-      setIsCroppingFloorplan(true);
-      scanAndVectorizeFloorplan(url, targetDesign)
-        .then((analysis) => {
-          if (!active) return;
-          setWallAnalysis(analysis);
-          const finalUrl = analysis.croppedUrl || url;
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.onload = () => {
-            if (active) {
-              setCroppedFloorplanImage(img);
-              const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 100);
-              setFloorplanNaturalAspect(aspect);
-
-              // Maintain exact natural aspect ratio
-              setHouseState((prev) => {
-                const baseWidth = detectedFloorplan?.widthM || prev.widthM || 10.55;
-                const exactLength = baseWidth / aspect;
-                return {
-                  ...prev,
-                  designName: targetDesign,
-                  widthM: Number(baseWidth.toFixed(2)),
-                  lengthM: Number(exactLength.toFixed(2)),
-                  totalM2: detectedFloorplan?.totalM2 || prev.totalM2 || 192.2,
-                };
-              });
-
-              setIsCroppingFloorplan(false);
-            }
-          };
-          img.onerror = () => {
-            if (active) setIsCroppingFloorplan(false);
-          };
-          img.src = finalUrl;
-        })
-        .catch(() => {
-          if (active) setIsCroppingFloorplan(false);
-        });
+      loadFloorplanUrl(url, targetDesign, detectedFloorplan?.housingType === "Double Storey");
     }
+  }, [detectedFloorplan, loadFloorplanUrl]);
 
-    return () => {
-      active = false;
-    };
-  }, [detectedFloorplan]);
+  // Import Current Floorplan Directly from Floorplan Editor Tab (Ground Floor Isolation)
+  const handleImportCurrentFloorplan = useCallback(async () => {
+    try {
+      setIsCroppingFloorplan(true);
+
+      // Check localStorage bridge or detected plan
+      const rawBridge = localStorage.getItem("hudson_imported_floorplan_bridge");
+      const bridgeData = rawBridge ? JSON.parse(rawBridge) : null;
+
+      const targetDesign = bridgeData?.designName || detectedFloorplan?.matchedDesignName || houseState.designName || "Amber 21";
+      let url = bridgeData?.floorplanUrl || detectedFloorplan?.floorplanUrl || "";
+
+      if (!url) {
+        const directPlans = plansForDesign(targetDesign);
+        if (directPlans.length > 0 && directPlans[0].url) {
+          url = directPlans[0].url;
+        } else {
+          url = findFloorplanUrl(targetDesign);
+        }
+      }
+
+      if (!url) {
+        toast.error("No active floorplan found in editor. Please select or upload a floorplan.");
+        setIsCroppingFloorplan(false);
+        return;
+      }
+
+      // Isolate Ground Floor (with garage/carport)
+      const isDouble = bridgeData?.isDoubleStorey || /double/i.test(targetDesign) || detectedFloorplan?.housingType === "Double Storey";
+      await loadFloorplanUrl(url, targetDesign, isDouble);
+
+      toast.success(
+        isDouble
+          ? `✨ Imported Ground Floor layout (${targetDesign}) with garage from Floorplan Editor!`
+          : `✨ Imported floorplan (${targetDesign}) directly from Floorplan Editor!`
+      );
+    } catch {
+      toast.error("Could not import floorplan from editor.");
+      setIsCroppingFloorplan(false);
+    }
+  }, [detectedFloorplan, houseState.designName, loadFloorplanUrl]);
 
   // A3 Sheet Canvas Transform (A3 Landscape: 420mm x 297mm)
   const getCanvasTransform = useCallback(() => {
-    // A3 Landscape Canvas Resolution (1414 x 1000 pixels = 1.414 aspect ratio)
     const W = 1414;
     const H = 1000;
     const paddingX = 110;
@@ -320,13 +358,10 @@ export function AdvancedSitingStudio({
     const availW = W - paddingX * 2;
     const availH = H - paddingTop - paddingBottom;
 
-    // Scale calculation based on 1:100 vs 1:200 on A3
     let scale = (availW / lotSpanX);
     if (effectiveScaleRatio === 100) {
-      // 1:100 scale: 1 meter = approx 24.5 pixels on A3 canvas
       scale = Math.min(availW / lotSpanX, availH / lotSpanY, 30.0);
     } else {
-      // 1:200 scale: 1 meter = approx 16-22 pixels on A3 canvas
       const scaleX = availW / lotSpanX;
       const scaleY = availH / lotSpanY;
       scale = Math.min(scaleX, scaleY) * 0.90;
@@ -356,6 +391,45 @@ export function AdvancedSitingStudio({
       },
     };
   }, [frontageM, depthM, lotMode, polygonPoints, effectiveScaleRatio, zoomLevel, panOffset]);
+
+  // Non-passive wheel event listener: Blocks page scroll & zooms directly to cursor location
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = container.getBoundingClientRect();
+      const screenX = (e.clientX - rect.left) * (1414 / rect.width);
+      const screenY = (e.clientY - rect.top) * (1000 / rect.height);
+
+      const { W, H, screenToWorld } = getCanvasTransform();
+      const worldBefore = screenToWorld(screenX, screenY);
+
+      const zoomFactor = e.deltaY < 0 ? 1.18 : 0.85;
+      const nextZoom = Math.max(0.75, Math.min(5.0, Math.round(zoomLevel * zoomFactor * 100) / 100));
+
+      if (nextZoom !== zoomLevel) {
+        const cX = W / 2;
+        const cY = H / 2;
+        const newPanX = screenX - cX - (worldBefore.x - cX) * nextZoom;
+        const newPanY = screenY - cY - (worldBefore.y - cY) * nextZoom;
+
+        setZoomLevel(nextZoom);
+        setPanOffset({
+          x: Math.round(newPanX * 10) / 10,
+          y: Math.round(newPanY * 10) / 10,
+        });
+      }
+    };
+
+    container.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => {
+      container.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [zoomLevel, panOffset, getCanvasTransform]);
 
   // Main Canvas Render — A3 Architectural Sheet Presentation (1:100 or 1:200)
   useEffect(() => {
@@ -590,7 +664,6 @@ export function AdvancedSitingStudio({
       label: string,
       color = "#dc2626"
     ) => {
-      // Dashed Line
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = 1.5;
@@ -601,7 +674,6 @@ export function AdvancedSitingStudio({
       ctx.stroke();
       ctx.restore();
 
-      // Dimension Pill Badge
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
 
@@ -685,7 +757,6 @@ export function AdvancedSitingStudio({
     ctx.lineWidth = 1.5;
     ctx.strokeRect(tbX, tbY, tbW, tbH);
 
-    // Title Block Header
     ctx.fillStyle = "#0f172a";
     ctx.font = "bold 13px sans-serif";
     ctx.textAlign = "left";
@@ -699,12 +770,10 @@ export function AdvancedSitingStudio({
     ctx.font = "10px sans-serif";
     ctx.fillText(`Lot: ${activeLot.frontageM}m × ${activeLot.depthM}m (${activeLot.totalAreaM2.toFixed(1)}m²) | ${currentPodRule.estateName}`, tbX + 12, tbY + 60);
 
-    // Architectural Scale Badge inside Title Block
     ctx.fillStyle = "#0f172a";
     ctx.font = "bold 11px monospace";
     ctx.fillText(`SCALE: 1:${effectiveScaleRatio} @ A3 SHEET`, tbX + 12, tbY + 78);
 
-    // Graphic Bar Scale
     const barScaleX = tbX + 220;
     const barScaleY = tbY + 74;
     const barMeterPx = (100 / effectiveScaleRatio) * (scale / 10);
@@ -732,7 +801,6 @@ export function AdvancedSitingStudio({
     ctx.lineWidth = 1.8;
     ctx.stroke();
 
-    // North arrow tip
     ctx.beginPath();
     ctx.moveTo(0, -20);
     ctx.lineTo(-7, 2);
@@ -741,7 +809,6 @@ export function AdvancedSitingStudio({
     ctx.fillStyle = "#dc2626";
     ctx.fill();
 
-    // South arrow tip
     ctx.beginPath();
     ctx.moveTo(0, 20);
     ctx.lineTo(-7, 2);
@@ -757,7 +824,6 @@ export function AdvancedSitingStudio({
 
     // 8. Calibration Overlay (Floorplan 2-Point Calibrator)
     if (isCalibratingFloorplan) {
-      // Top Calibration Banner
       ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
       ctx.fillRect(W / 2 - 300, 45, 600, 40);
       ctx.strokeStyle = "#f59e0b";
@@ -769,11 +835,10 @@ export function AdvancedSitingStudio({
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const bannerText = floorplanCalibPoints.length === 0
-        ? "🔍 CLICK POINT 1: Click start of any known wall (Zoom In for pixel-perfect precision)"
-        : "🔍 CLICK POINT 2: Click opposite end of the wall/dimension to set scale";
+        ? "🔍 CLICK POINT 1: Click start of any known wall (Zoom In for pixel precision)"
+        : "🔍 CLICK POINT 2: Click opposite end of the wall to set scale";
       ctx.fillText(bannerText, W / 2, 65);
 
-      // Render Calibration Points with Precision Target Crosshairs
       for (let i = 0; i < floorplanCalibPoints.length; i++) {
         const pt = floorplanCalibPoints[i];
         ctx.beginPath();
@@ -784,7 +849,6 @@ export function AdvancedSitingStudio({
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Crosshairs
         ctx.strokeStyle = "#0f172a";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -799,7 +863,6 @@ export function AdvancedSitingStudio({
         ctx.fillText(`Pt ${i + 1}`, pt.x + 14, pt.y - 12);
       }
 
-      // Connecting ruler line
       if (floorplanCalibPoints.length === 1 && cursorWorldPos) {
         ctx.save();
         ctx.strokeStyle = "#f59e0b";
@@ -866,23 +929,13 @@ export function AdvancedSitingStudio({
     getCanvasTransform,
   ]);
 
-  // Wheel Zoom Handler with center-on-cursor
-  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
-    setZoomLevel((prev) => {
-      const next = Math.max(0.75, Math.min(4.5, prev * zoomFactor));
-      return Math.round(next * 100) / 100;
-    });
-  };
-
   // Mouse Handlers for Draggable House, Rotation Knob, Panning & 2-Point Calibration
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX - rect.left;
-    const clientY = e.clientY - rect.top;
+    const clientX = (e.clientX - rect.left) * (1414 / rect.width);
+    const clientY = (e.clientY - rect.top) * (1000 / rect.height);
 
     const { scale, toCanvas, toMeters, screenToWorld } = getCanvasTransform();
     const worldPos = screenToWorld(clientX, clientY);
@@ -978,8 +1031,8 @@ export function AdvancedSitingStudio({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const screenX = e.clientX - rect.left;
-    const screenY = e.clientY - rect.top;
+    const screenX = (e.clientX - rect.left) * (1414 / rect.width);
+    const screenY = (e.clientY - rect.top) * (1000 / rect.height);
 
     const { toCanvas, toMeters, screenToWorld } = getCanvasTransform();
     const worldPos = screenToWorld(screenX, screenY);
@@ -1042,9 +1095,13 @@ export function AdvancedSitingStudio({
     setDragVertexIndex(null);
   };
 
-  // Zoom Controls
-  const handleZoomIn = () => setZoomLevel((z) => Math.min(4.5, Math.round((z + 0.3) * 10) / 10));
-  const handleZoomOut = () => setZoomLevel((z) => Math.max(0.75, Math.round((z - 0.3) * 10) / 10));
+  // Zoom Controls with center-on-canvas
+  const handleZoomIn = () => {
+    setZoomLevel((z) => Math.min(5.0, Math.round((z + 0.3) * 10) / 10));
+  };
+  const handleZoomOut = () => {
+    setZoomLevel((z) => Math.max(0.75, Math.round((z - 0.3) * 10) / 10));
+  };
   const handleResetZoom = () => {
     setZoomLevel(1.0);
     setPanOffset({ x: 0, y: 0 });
@@ -1081,7 +1138,6 @@ export function AdvancedSitingStudio({
       setIsCalibratingFloorplan(false);
       setFloorplanCalibPoints([]);
     } else {
-      // Lot Calibration
       const ppm = calibrationModal.pixelDistance / rawVal;
       setScalePixelsPerMeter(ppm > 0 ? ppm : 20.0);
       toast.success(`✨ Calibrated Lot: Boundary scaled to ${rawVal}m accurately!`);
@@ -1135,40 +1191,14 @@ export function AdvancedSitingStudio({
       // Technical floorplan matching
       const match = detectFloorplanFromText(scannedText, file.name);
       const targetDesign = match?.matchedDesignName || file.name.replace(/\.[^/.]+$/, "");
+      const isDouble = match?.housingType === "Double Storey" || /double/i.test(targetDesign);
 
-      // Auto-crop floorplan drawing
-      const analysis = await scanAndVectorizeFloorplan(rawImageUrl, targetDesign);
-      setWallAnalysis(analysis);
+      await loadFloorplanUrl(rawImageUrl, targetDesign, isDouble);
 
-      const finalUrl = analysis.croppedUrl || rawImageUrl;
-      setFloorplanImageUrl(finalUrl);
-
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        setCroppedFloorplanImage(img);
-        const aspect = (img.naturalWidth || 100) / (img.naturalHeight || 100);
-        setFloorplanNaturalAspect(aspect);
-
-        const initialW = match?.widthM || 11.2;
-        const initialL = Number((initialW / aspect).toFixed(2));
-        const initialM2 = match?.totalM2 || Math.round(initialW * initialL * 0.88);
-
-        setHouseState((prev) => ({
-          ...prev,
-          designName: targetDesign,
-          widthM: initialW,
-          lengthM: initialL,
-          totalM2: initialM2,
-        }));
-
-        setIsCroppingFloorplan(false);
-        setIsCalibratingFloorplan(true);
-        setFloorplanCalibPoints([]);
-        setZoomLevel(1.6);
-        toast.success(`✨ ${targetDesign} loaded in true A3 aspect ratio! Zoomed in for calibration.`);
-      };
-      img.src = finalUrl;
+      setIsCalibratingFloorplan(true);
+      setFloorplanCalibPoints([]);
+      setZoomLevel(1.6);
+      toast.success(`✨ ${targetDesign} loaded in true A3 aspect ratio! Zoomed in for calibration.`);
     } catch {
       toast.error("Could not process floorplan file.");
       setIsCroppingFloorplan(false);
@@ -1234,7 +1264,6 @@ export function AdvancedSitingStudio({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Reset zoom for high-res uncropped A3 export
     const prevZoom = zoomLevel;
     const prevPan = panOffset;
     setZoomLevel(1.0);
@@ -1243,7 +1272,6 @@ export function AdvancedSitingStudio({
     setTimeout(() => {
       const imgData = canvas.toDataURL("image/png", 1.0);
 
-      // True A3 Landscape PDF: 420mm x 297mm
       const doc = new jsPDF({
         orientation: "landscape",
         unit: "mm",
@@ -1253,13 +1281,11 @@ export function AdvancedSitingStudio({
       doc.setFillColor(255, 255, 255);
       doc.rect(0, 0, 420, 297, "F");
 
-      // Embed Canvas Image across A3 Sheet
       doc.addImage(imgData, "PNG", 0, 0, 420, 297);
 
       doc.save(`${houseState.designName.replace(/\s+/g, "_")}_A3_Siting_Plan_1-${effectiveScaleRatio}.pdf`);
       toast.success(`A3 Architectural Siting Plan (1:${effectiveScaleRatio} Scale) exported as PDF!`);
 
-      // Restore zoom
       setZoomLevel(prevZoom);
       setPanOffset(prevPan);
     }, 100);
@@ -1718,13 +1744,26 @@ export function AdvancedSitingStudio({
               </span>
               {isCroppingFloorplan && (
                 <span className="text-[10px] text-amber-400 bg-amber-950/80 border border-amber-800/60 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                  <Sparkles className="h-3 w-3" /> Auto-cropping layout…
+                  <Sparkles className="h-3 w-3" /> Reading &amp; auto-cropping layout…
                 </span>
               )}
             </div>
 
-            {/* Direct Floorplan Scale Calibration Trigger & Upload */}
-            <div className="flex items-center gap-2">
+            {/* Direct Floorplan Scale Calibration Trigger, Import from Editor & Upload */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Import from Floorplan Editor Tab Button */}
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleImportCurrentFloorplan}
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 h-7 shadow-xs"
+                title="Automatically grab active floorplan design from the Floorplan Editor (Ground floor with garage for double-storey)"
+              >
+                <Import className="h-3.5 w-3.5" />
+                Import Plan from Editor
+              </Button>
+
+              {/* Measure & Calibrate Button */}
               <Button
                 type="button"
                 size="sm"
@@ -1743,6 +1782,7 @@ export function AdvancedSitingStudio({
                 {isCalibratingFloorplan ? "Click 2 Points on Wall…" : "Measure & Calibrate Scale"}
               </Button>
 
+              {/* Upload PDF / Plan */}
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -1817,7 +1857,6 @@ export function AdvancedSitingStudio({
             {/* A3 Canvas */}
             <canvas
               ref={canvasRef}
-              onWheel={handleWheel}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
