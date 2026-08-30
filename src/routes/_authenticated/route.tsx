@@ -1,17 +1,14 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { supabase } from "@/integrations/supabase/client";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { isStaffSessionActive, getActiveStaffUser } from "@/lib/authSession";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    let user = null;
-    try {
-      const { data } = await supabase.auth.getUser();
-      user = data?.user ?? null;
-    } catch {
-      /* continue */
+    if (!isStaffSessionActive()) {
+      throw redirect({ to: "/auth", replace: true });
     }
-    return { user };
+    const staffUser = getActiveStaffUser();
+    return { staffUser };
   },
   component: () => <Outlet />,
 });
