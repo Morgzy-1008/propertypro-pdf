@@ -10,6 +10,7 @@ import {
   Ruler,
   Send,
   Plus,
+  Minus,
   RefreshCw,
   MousePointer,
   Sparkles,
@@ -17,6 +18,12 @@ import {
   CheckCircle2,
   X,
   Target,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
+  Move,
+  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,6 +64,7 @@ interface AdvancedSitingStudioProps {
 }
 
 type LotMode = "rectangle" | "custom_polygon" | "disclosure_plan";
+type ScaleMode = "auto" | "1:100" | "1:200";
 
 interface CalibrationModalState {
   isOpen: boolean;
@@ -72,6 +80,10 @@ export function AdvancedSitingStudio({
   onSendToTender,
 }: AdvancedSitingStudioProps) {
   const navigate = useNavigate();
+
+  // Workspace Layout
+  const [isMaximized, setIsMaximized] = useState<boolean>(false);
+  const [scaleMode, setScaleMode] = useState<ScaleMode>("auto");
 
   // Mode Selection
   const [lotMode, setLotMode] = useState<LotMode>("rectangle");
@@ -114,6 +126,13 @@ export function AdvancedSitingStudio({
     generateWallVectorAnalysis(houseState.designName)
   );
 
+  // Zoom & Pan Engine State
+  const [zoomLevel, setZoomLevel] = useState<number>(1.0);
+  const [panOffset, setPanOffset] = useState<Point2D>({ x: 0, y: 0 });
+  const [isPanningMode, setIsPanningMode] = useState<boolean>(false);
+  const [isCurrentlyPanning, setIsCurrentlyPanning] = useState<boolean>(false);
+  const panStartRef = useRef<Point2D>({ x: 0, y: 0 });
+
   // 2-Point Calibration Tool States
   const [isCalibratingFloorplan, setIsCalibratingFloorplan] = useState<boolean>(false);
   const [floorplanCalibPoints, setFloorplanCalibPoints] = useState<Point2D[]>([]);
@@ -138,11 +157,12 @@ export function AdvancedSitingStudio({
 
   // Canvas & Interaction
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDraggingHouse, setIsDraggingHouse] = useState(false);
   const [isRotatingHouse, setIsRotatingHouse] = useState(false);
   const [dragVertexIndex, setDragVertexIndex] = useState<number | null>(null);
   const [dragOffset, setDragOffset] = useState<Point2D>({ x: 0, y: 0 });
-  const [cursorCanvasPos, setCursorCanvasPos] = useState<Point2D | null>(null);
+  const [cursorWorldPos, setCursorWorldPos] = useState<Point2D | null>(null);
 
   // North Compass Angle
   const [northAngleDeg, setNorthAngleDeg] = useState<number>(0);
@@ -153,6 +173,64 @@ export function AdvancedSitingStudio({
       QUEENSLAND_ESTATE_POD_PRESETS[0]
     );
   }, [selectedEstateId]);
+
+  // Construct active lot polygon
+  const activeLot: LotPolygon = useMemo(() => {
+    if (lotMode === "rectangle") {
+      return createStandardLotPolygon(frontageM, depthM);
+    }
+    const area = calculatePolygonAreaM2(polygonPoints);
+    const segs = polygonPoints.map((pt, i) => {
+      const next = polygonPoints[(i + 1) % polygonPoints.length];
+      const len = distanceBetween(pt, next);
+      let type: "front" | "rear" | "left" | "right" | "custom" = "custom";
+      if (i === 0) type = "rear";
+      else if (i === 1) type = "right";
+      else if (i === 2) type = "front";
+      else if (i === 3) type = "left";
+      return {
+        id: `seg_${i}`,
+        type,
+        name: `Boundary ${i + 1} (${len.toFixed(1)}m)`,
+        start: pt,
+        end: next,
+        lengthM: len,
+      };
+    });
+
+    return {
+      vertices: polygonPoints,
+      frontageM: frontageM || 14.0,
+      depthM: depthM || 30.0,
+      totalAreaM2: area || frontageM * depthM,
+      isCustomPolygon: true,
+      segments: segs,
+    };
+  }, [lotMode, frontageM, depthM, polygonPoints]);
+
+  // Calculate live setbacks & compliance
+  const liveSetbacks: LiveSetbacks = useMemo(() => {
+    const maxCov = currentPodRule.maxSiteCoveragePct || 60;
+    return calculateLiveSetbacks(activeLot, houseState, maxCov);
+  }, [activeLot, houseState, currentPodRule]);
+
+  // Determine Architectural Scale (1:100 vs 1:200 on A3 Sheet)
+  // A3 Sheet is 420mm x 297mm. Printable inner border is 370mm x 245mm.
+  // At 1:100, 1m = 10mm. So max lot size that fits at 1:100 is 37m width x 24.5m depth (or vice versa).
+  const effectiveScaleRatio = useMemo(() => {
+    if (scaleMode === "1:100") return 100;
+    if (scaleMode === "1:200") return 200;
+
+    // Auto Mode: check if lot dimensions fit on A3 @ 1:100
+    const maxDimension = Math.max(activeLot.frontageM, activeLot.depthM);
+    const minDimension = Math.min(activeLot.frontageM, activeLot.depthM);
+
+    // If fits comfortably within A3 1:100 printable boundary (36m x 23.5m)
+    if (maxDimension <= 23.5 || (maxDimension <= 35.0 && minDimension <= 21.0)) {
+      return 100;
+    }
+    return 200;
+  }, [scaleMode, activeLot.frontageM, activeLot.depthM]);
 
   // Load and auto-crop floorplan when detectedFloorplan changes or initial mount
   useEffect(() => {
@@ -217,53 +295,14 @@ export function AdvancedSitingStudio({
     };
   }, [detectedFloorplan]);
 
-  // Construct active lot polygon
-  const activeLot: LotPolygon = useMemo(() => {
-    if (lotMode === "rectangle") {
-      return createStandardLotPolygon(frontageM, depthM);
-    }
-    const area = calculatePolygonAreaM2(polygonPoints);
-    const segs = polygonPoints.map((pt, i) => {
-      const next = polygonPoints[(i + 1) % polygonPoints.length];
-      const len = distanceBetween(pt, next);
-      let type: "front" | "rear" | "left" | "right" | "custom" = "custom";
-      if (i === 0) type = "rear";
-      else if (i === 1) type = "right";
-      else if (i === 2) type = "front";
-      else if (i === 3) type = "left";
-      return {
-        id: `seg_${i}`,
-        type,
-        name: `Boundary ${i + 1} (${len.toFixed(1)}m)`,
-        start: pt,
-        end: next,
-        lengthM: len,
-      };
-    });
-
-    return {
-      vertices: polygonPoints,
-      frontageM: frontageM || 14.0,
-      depthM: depthM || 30.0,
-      totalAreaM2: area || frontageM * depthM,
-      isCustomPolygon: true,
-      segments: segs,
-    };
-  }, [lotMode, frontageM, depthM, polygonPoints]);
-
-  // Calculate live setbacks & compliance
-  const liveSetbacks: LiveSetbacks = useMemo(() => {
-    const maxCov = currentPodRule.maxSiteCoveragePct || 60;
-    return calculateLiveSetbacks(activeLot, houseState, maxCov);
-  }, [activeLot, houseState, currentPodRule]);
-
-  // Canvas coordinate converters
+  // A3 Sheet Canvas Transform (A3 Landscape: 420mm x 297mm)
   const getCanvasTransform = useCallback(() => {
-    const W = 1000;
-    const H = 1020;
-    const paddingX = 90;
+    // A3 Landscape Canvas Resolution (1414 x 1000 pixels = 1.414 aspect ratio)
+    const W = 1414;
+    const H = 1000;
+    const paddingX = 110;
     const paddingTop = 90;
-    const paddingBottom = 90;
+    const paddingBottom = 110;
 
     let minX = 0, maxX = frontageM, minY = 0, maxY = depthM;
     if (lotMode !== "rectangle") {
@@ -278,12 +317,23 @@ export function AdvancedSitingStudio({
     const lotSpanX = Math.max(10, maxX - minX);
     const lotSpanY = Math.max(15, maxY - minY);
 
-    const scaleX = (W - paddingX * 2) / lotSpanX;
-    const scaleY = (H - paddingTop - paddingBottom) / lotSpanY;
-    const scale = Math.min(scaleX, scaleY) * 0.90;
+    const availW = W - paddingX * 2;
+    const availH = H - paddingTop - paddingBottom;
+
+    // Scale calculation based on 1:100 vs 1:200 on A3
+    let scale = (availW / lotSpanX);
+    if (effectiveScaleRatio === 100) {
+      // 1:100 scale: 1 meter = approx 24.5 pixels on A3 canvas
+      scale = Math.min(availW / lotSpanX, availH / lotSpanY, 30.0);
+    } else {
+      // 1:200 scale: 1 meter = approx 16-22 pixels on A3 canvas
+      const scaleX = availW / lotSpanX;
+      const scaleY = availH / lotSpanY;
+      scale = Math.min(scaleX, scaleY) * 0.90;
+    }
 
     const originCanvasX = (W - lotSpanX * scale) / 2 - minX * scale;
-    const originCanvasY = paddingTop + (H - paddingTop - paddingBottom - lotSpanY * scale) / 2 - minY * scale;
+    const originCanvasY = paddingTop + (availH - lotSpanY * scale) / 2 - minY * scale;
 
     return {
       W,
@@ -297,10 +347,17 @@ export function AdvancedSitingStudio({
         x: (canvasPt.x - originCanvasX) / scale,
         y: (canvasPt.y - originCanvasY) / scale,
       }),
+      screenToWorld: (screenX: number, screenY: number): Point2D => {
+        const cX = W / 2;
+        const cY = H / 2;
+        const wx = (screenX - (cX + panOffset.x)) / zoomLevel + cX;
+        const wy = (screenY - (cY + panOffset.y)) / zoomLevel + cY;
+        return { x: wx, y: wy };
+      },
     };
-  }, [frontageM, depthM, lotMode, polygonPoints]);
+  }, [frontageM, depthM, lotMode, polygonPoints, effectiveScaleRatio, zoomLevel, panOffset]);
 
-  // Main Canvas Render — Pure White Architectural Presentation with Black Boundaries
+  // Main Canvas Render — A3 Architectural Sheet Presentation (1:100 or 1:200)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -314,6 +371,12 @@ export function AdvancedSitingStudio({
     // 1. Pure Architectural White Background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, W, H);
+
+    // Apply Zoom and Pan transform
+    ctx.save();
+    ctx.translate(W / 2 + panOffset.x, H / 2 + panOffset.y);
+    ctx.scale(zoomLevel, zoomLevel);
+    ctx.translate(-W / 2, -H / 2);
 
     // Subtle fine architectural grid lines
     ctx.strokeStyle = "#f1f5f9";
@@ -330,6 +393,16 @@ export function AdvancedSitingStudio({
       ctx.lineTo(W, y);
       ctx.stroke();
     }
+
+    // A3 Architectural Sheet Border (Outer 20mm Margin)
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2.0;
+    ctx.strokeRect(30, 30, W - 60, H - 60);
+
+    // Inner fine border line
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 0.75;
+    ctx.strokeRect(36, 36, W - 72, H - 72);
 
     // Draw Disclosure Plan Image Underlay if present
     if (disclosureImage && (lotMode === "disclosure_plan" || disclosureOpacity > 0)) {
@@ -363,7 +436,7 @@ export function AdvancedSitingStudio({
 
       // Draw Boundary Dimension Labels in Crisp Black
       ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 11px sans-serif";
+      ctx.font = "bold 11.5px sans-serif";
       for (let i = 0; i < lotCanvasPts.length; i++) {
         const p1 = lotCanvasPts[i];
         const p2 = lotCanvasPts[(i + 1) % lotCanvasPts.length];
@@ -378,8 +451,8 @@ export function AdvancedSitingStudio({
         const len = Math.hypot(dx, dy) || 1;
         const normX = -dy / len;
         const normY = dx / len;
-        const labelX = midX + normX * 14;
-        const labelY = midY + normY * 14;
+        const labelX = midX + normX * 16;
+        const labelY = midY + normY * 16;
 
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
@@ -407,10 +480,10 @@ export function AdvancedSitingStudio({
     const streetY = Math.max(frontStart.y, frontEnd.y);
 
     ctx.fillStyle = "#64748b";
-    ctx.font = "bold 11.5px sans-serif";
+    ctx.font = "bold 12px sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 22);
+    ctx.fillText(`PRIMARY ROAD / STREET FRONTAGE (${activeLot.frontageM.toFixed(2)}m)`, (frontStart.x + frontEnd.x) / 2, streetY + 24);
     ctx.textAlign = "left";
 
     // 3. Draw Floorplan Footprint & Internal Layout (Clean Architectural Rendering with Natural Aspect Ratio)
@@ -532,10 +605,10 @@ export function AdvancedSitingStudio({
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2;
 
-      ctx.font = "bold 10.5px sans-serif";
+      ctx.font = "bold 11px sans-serif";
       const textW = ctx.measureText(label).width;
-      const pillW = textW + 12;
-      const pillH = 20;
+      const pillW = textW + 14;
+      const pillH = 22;
 
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
@@ -600,19 +673,53 @@ export function AdvancedSitingStudio({
       houseState.isBtbActive && houseState.garageSide === "RHS" ? "#d97706" : "#0284c7"
     );
 
-    // 6. House Design Label in Top-Left Blueprint Header
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
+    // 6. Architectural A3 Title Block in Bottom-Right
+    const tbW = 340;
+    const tbH = 90;
+    const tbX = W - 36 - tbW;
+    const tbY = H - 36 - tbH;
+
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(tbX, tbY, tbW, tbH);
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(tbX, tbY, tbW, tbH);
+
+    // Title Block Header
     ctx.fillStyle = "#0f172a";
-    ctx.font = "bold 14px sans-serif";
-    ctx.fillText(`DESIGN: ${houseState.designName.toUpperCase()}`, 30, 25);
+    ctx.font = "bold 13px sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("HUDSON HOMES — SITING PLAN", tbX + 12, tbY + 22);
+
     ctx.fillStyle = "#0284c7";
-    ctx.font = "bold 11.5px sans-serif";
-    ctx.fillText(`${houseState.widthM.toFixed(2)}m Wide × ${houseState.lengthM.toFixed(2)}m Deep • Total: ${houseState.totalM2} m² • 1:200 Scale Blueprint`, 30, 44);
+    ctx.font = "bold 11px sans-serif";
+    ctx.fillText(`DESIGN: ${houseState.designName.toUpperCase()}`, tbX + 12, tbY + 42);
+
+    ctx.fillStyle = "#475569";
+    ctx.font = "10px sans-serif";
+    ctx.fillText(`Lot: ${activeLot.frontageM}m × ${activeLot.depthM}m (${activeLot.totalAreaM2.toFixed(1)}m²) | ${currentPodRule.estateName}`, tbX + 12, tbY + 60);
+
+    // Architectural Scale Badge inside Title Block
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 11px monospace";
+    ctx.fillText(`SCALE: 1:${effectiveScaleRatio} @ A3 SHEET`, tbX + 12, tbY + 78);
+
+    // Graphic Bar Scale
+    const barScaleX = tbX + 220;
+    const barScaleY = tbY + 74;
+    const barMeterPx = (100 / effectiveScaleRatio) * (scale / 10);
+    ctx.strokeStyle = "#0f172a";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(barScaleX, barScaleY - 6, barMeterPx * 5, 6);
+    ctx.fillStyle = "#0f172a";
+    ctx.fillRect(barScaleX, barScaleY - 6, barMeterPx * 2.5, 6);
+    ctx.font = "bold 8px sans-serif";
+    ctx.fillText("0", barScaleX, barScaleY + 8);
+    ctx.fillText("5m", barScaleX + barMeterPx * 5 - 8, barScaleY + 8);
 
     // 7. North Compass Rose (Rotatable)
-    const compassX = W - 70;
-    const compassY = 70;
+    const compassX = W - 80;
+    const compassY = 80;
     ctx.save();
     ctx.translate(compassX, compassY);
     ctx.rotate((northAngleDeg * Math.PI) / 180);
@@ -651,47 +758,56 @@ export function AdvancedSitingStudio({
     // 8. Calibration Overlay (Floorplan 2-Point Calibrator)
     if (isCalibratingFloorplan) {
       // Top Calibration Banner
-      ctx.fillStyle = "rgba(15, 23, 42, 0.92)";
-      ctx.fillRect(W / 2 - 260, 20, 520, 36);
+      ctx.fillStyle = "rgba(15, 23, 42, 0.94)";
+      ctx.fillRect(W / 2 - 300, 45, 600, 40);
       ctx.strokeStyle = "#f59e0b";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(W / 2 - 260, 20, 520, 36);
+      ctx.lineWidth = 2.0;
+      ctx.strokeRect(W / 2 - 300, 45, 600, 40);
 
       ctx.fillStyle = "#fbbf24";
-      ctx.font = "bold 12px sans-serif";
+      ctx.font = "bold 13px sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       const bannerText = floorplanCalibPoints.length === 0
-        ? "📏 CLICK POINT 1: Click start of any known wall or room width"
-        : "📏 CLICK POINT 2: Click end of the wall/dimension to set scale";
-      ctx.fillText(bannerText, W / 2, 38);
+        ? "🔍 CLICK POINT 1: Click start of any known wall (Zoom In for pixel-perfect precision)"
+        : "🔍 CLICK POINT 2: Click opposite end of the wall/dimension to set scale";
+      ctx.fillText(bannerText, W / 2, 65);
 
-      // Render Calibration Points
-      ctx.fillStyle = "#f59e0b";
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
+      // Render Calibration Points with Precision Target Crosshairs
       for (let i = 0; i < floorplanCalibPoints.length; i++) {
         const pt = floorplanCalibPoints[i];
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#f59e0b";
         ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Crosshairs
+        ctx.strokeStyle = "#0f172a";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(pt.x - 14, pt.y);
+        ctx.lineTo(pt.x + 14, pt.y);
+        ctx.moveTo(pt.x, pt.y - 14);
+        ctx.lineTo(pt.x, pt.y + 14);
         ctx.stroke();
 
         ctx.fillStyle = "#0f172a";
-        ctx.font = "bold 10px sans-serif";
-        ctx.fillText(`Pt ${i + 1}`, pt.x + 12, pt.y - 10);
-        ctx.fillStyle = "#f59e0b";
+        ctx.font = "bold 11px sans-serif";
+        ctx.fillText(`Pt ${i + 1}`, pt.x + 14, pt.y - 12);
       }
 
       // Connecting ruler line
-      if (floorplanCalibPoints.length === 1 && cursorCanvasPos) {
+      if (floorplanCalibPoints.length === 1 && cursorWorldPos) {
         ctx.save();
         ctx.strokeStyle = "#f59e0b";
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(floorplanCalibPoints[0].x, floorplanCalibPoints[0].y);
-        ctx.lineTo(cursorCanvasPos.x, cursorCanvasPos.y);
+        ctx.lineTo(cursorWorldPos.x, cursorWorldPos.y);
         ctx.stroke();
         ctx.restore();
       } else if (floorplanCalibPoints.length === 2) {
@@ -713,7 +829,7 @@ export function AdvancedSitingStudio({
       ctx.lineWidth = 2;
       for (const pt of lotCalibPoints) {
         ctx.beginPath();
-        ctx.arc(pt.x, pt.y, 6, 0, Math.PI * 2);
+        ctx.arc(pt.x, pt.y, 7, 0, Math.PI * 2);
         ctx.fill();
       }
       if (lotCalibPoints.length === 2) {
@@ -723,6 +839,8 @@ export function AdvancedSitingStudio({
         ctx.stroke();
       }
     }
+
+    ctx.restore(); // Restore zoom/pan context
   }, [
     activeLot,
     houseState,
@@ -736,28 +854,49 @@ export function AdvancedSitingStudio({
     floorplanCalibPoints,
     isCalibratingLot,
     lotCalibPoints,
-    cursorCanvasPos,
+    cursorWorldPos,
     isSettingBoundaryVertices,
     lotMode,
     northAngleDeg,
     frontageM,
     depthM,
+    effectiveScaleRatio,
+    zoomLevel,
+    panOffset,
     getCanvasTransform,
   ]);
 
-  // Mouse Handlers for Draggable House, Rotation Knob & 2-Point Calibration
+  // Wheel Zoom Handler with center-on-cursor
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87;
+    setZoomLevel((prev) => {
+      const next = Math.max(0.75, Math.min(4.5, prev * zoomFactor));
+      return Math.round(next * 100) / 100;
+    });
+  };
+
+  // Mouse Handlers for Draggable House, Rotation Knob, Panning & 2-Point Calibration
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const clientX = e.clientX - rect.left;
+    const clientY = e.clientY - rect.top;
 
-    const { scale, toCanvas, toMeters } = getCanvasTransform();
+    const { scale, toCanvas, toMeters, screenToWorld } = getCanvasTransform();
+    const worldPos = screenToWorld(clientX, clientY);
+
+    // 0. Panning Mode (Middle Click, Pan Tool, or Spacebar)
+    if (isPanningMode || e.button === 1 || e.altKey) {
+      setIsCurrentlyPanning(true);
+      panStartRef.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
+      return;
+    }
 
     // 1. Check if calibrating Floorplan 2-Point Scale
     if (isCalibratingFloorplan) {
-      const newPts = [...floorplanCalibPoints, { x: clickX, y: clickY }];
+      const newPts = [...floorplanCalibPoints, worldPos];
       if (newPts.length >= 2) {
         setFloorplanCalibPoints(newPts);
         const pDist = distanceBetween(newPts[0], newPts[1]);
@@ -777,7 +916,7 @@ export function AdvancedSitingStudio({
 
     // 2. Check if calibrating Disclosure Lot Scale
     if (isCalibratingLot) {
-      const newPts = [...lotCalibPoints, { x: clickX, y: clickY }];
+      const newPts = [...lotCalibPoints, worldPos];
       if (newPts.length >= 2) {
         setLotCalibPoints(newPts);
         const pDist = distanceBetween(newPts[0], newPts[1]);
@@ -799,7 +938,7 @@ export function AdvancedSitingStudio({
     if (lotMode === "custom_polygon" || isSettingBoundaryVertices) {
       const lotCanvasPts = activeLot.vertices.map(toCanvas);
       for (let i = 0; i < lotCanvasPts.length; i++) {
-        if (distanceBetween({ x: clickX, y: clickY }, lotCanvasPts[i]) < 14) {
+        if (distanceBetween(worldPos, lotCanvasPts[i]) < 18 / zoomLevel) {
           setDragVertexIndex(i);
           return;
         }
@@ -814,7 +953,7 @@ export function AdvancedSitingStudio({
     const rotHandleX = houseCenterCanvas.x - Math.sin(rad) * rotHandleDist;
     const rotHandleY = houseCenterCanvas.y - Math.cos(rad) * rotHandleDist;
 
-    if (distanceBetween({ x: clickX, y: clickY }, { x: rotHandleX, y: rotHandleY }) < 18) {
+    if (distanceBetween(worldPos, { x: rotHandleX, y: rotHandleY }) < 22 / zoomLevel) {
       setIsRotatingHouse(true);
       return;
     }
@@ -823,11 +962,11 @@ export function AdvancedSitingStudio({
     const houseWCanvas = houseState.widthM * scale;
     const houseLCanvas = (houseState.widthM / (floorplanNaturalAspect || 0.52)) * scale;
     if (
-      Math.abs(clickX - houseCenterCanvas.x) < houseWCanvas / 2 + 10 &&
-      Math.abs(clickY - houseCenterCanvas.y) < houseLCanvas / 2 + 10
+      Math.abs(worldPos.x - houseCenterCanvas.x) < houseWCanvas / 2 + 10 &&
+      Math.abs(worldPos.y - houseCenterCanvas.y) < houseLCanvas / 2 + 10
     ) {
       setIsDraggingHouse(true);
-      const clickMeters = toMeters({ x: clickX, y: clickY });
+      const clickMeters = toMeters(worldPos);
       setDragOffset({
         x: clickMeters.x - houseState.centerX,
         y: clickMeters.y - houseState.centerY,
@@ -839,16 +978,25 @@ export function AdvancedSitingStudio({
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
 
-    setCursorCanvasPos({ x: mouseX, y: mouseY });
+    const { toCanvas, toMeters, screenToWorld } = getCanvasTransform();
+    const worldPos = screenToWorld(screenX, screenY);
+    setCursorWorldPos(worldPos);
 
-    const { toCanvas, toMeters } = getCanvasTransform();
+    // 0. Handling Active Panning
+    if (isCurrentlyPanning) {
+      setPanOffset({
+        x: e.clientX - panStartRef.current.x,
+        y: e.clientY - panStartRef.current.y,
+      });
+      return;
+    }
 
     // 1. Dragging Custom Boundary Vertex
     if (dragVertexIndex !== null) {
-      const mouseMeters = toMeters({ x: mouseX, y: mouseY });
+      const mouseMeters = toMeters(worldPos);
       setPolygonPoints((prev) => {
         const next = [...prev];
         next[dragVertexIndex] = {
@@ -863,8 +1011,8 @@ export function AdvancedSitingStudio({
     // 2. Rotating House with 1-Degree Precision
     if (isRotatingHouse) {
       const houseCenterCanvas = toCanvas({ x: houseState.centerX, y: houseState.centerY });
-      const dx = mouseX - houseCenterCanvas.x;
-      const dy = mouseY - houseCenterCanvas.y;
+      const dx = worldPos.x - houseCenterCanvas.x;
+      const dy = worldPos.y - houseCenterCanvas.y;
       let angle = Math.atan2(dx, -dy) * (180 / Math.PI);
       if (angle < 0) angle += 360;
       setHouseState((prev) => ({
@@ -876,7 +1024,7 @@ export function AdvancedSitingStudio({
 
     // 3. Dragging House Footprint
     if (isDraggingHouse) {
-      const mouseMeters = toMeters({ x: mouseX, y: mouseY });
+      const mouseMeters = toMeters(worldPos);
       const newCenterX = Math.round((mouseMeters.x - dragOffset.x) * 10) / 10;
       const newCenterY = Math.round((mouseMeters.y - dragOffset.y) * 10) / 10;
       setHouseState((prev) => ({
@@ -890,7 +1038,17 @@ export function AdvancedSitingStudio({
   const handleMouseUp = () => {
     setIsDraggingHouse(false);
     setIsRotatingHouse(false);
+    setIsCurrentlyPanning(false);
     setDragVertexIndex(null);
+  };
+
+  // Zoom Controls
+  const handleZoomIn = () => setZoomLevel((z) => Math.min(4.5, Math.round((z + 0.3) * 10) / 10));
+  const handleZoomOut = () => setZoomLevel((z) => Math.max(0.75, Math.round((z - 0.3) * 10) / 10));
+  const handleResetZoom = () => {
+    setZoomLevel(1.0);
+    setPanOffset({ x: 0, y: 0 });
+    toast.info("View reset to 100% (Sheet Fit)");
   };
 
   // Apply 2-Point Scale Calibration
@@ -918,7 +1076,7 @@ export function AdvancedSitingStudio({
           totalM2: estimatedM2,
         }));
 
-        toast.success(`✨ Calibrated Floorplan: ${newWidth}m Wide × ${newLength}m Deep (${estimatedM2} m²)! Setbacks updated.`);
+        toast.success(`✨ Calibrated Floorplan: ${newWidth}m Wide × ${newLength}m Deep (${estimatedM2} m²)! 1:1 Architectural Scale.`);
       }
       setIsCalibratingFloorplan(false);
       setFloorplanCalibPoints([]);
@@ -1007,7 +1165,8 @@ export function AdvancedSitingStudio({
         setIsCroppingFloorplan(false);
         setIsCalibratingFloorplan(true);
         setFloorplanCalibPoints([]);
-        toast.success(`✨ ${targetDesign} loaded in true aspect ratio! Click 2 points on any known wall to verify exact scale.`);
+        setZoomLevel(1.6);
+        toast.success(`✨ ${targetDesign} loaded in true A3 aspect ratio! Zoomed in for calibration.`);
       };
       img.src = finalUrl;
     } catch {
@@ -1070,51 +1229,40 @@ export function AdvancedSitingStudio({
     toast.info(`Applied preset lot: ${w}m × ${d}m (${w * d}m²)`);
   };
 
-  // Export 1:200 Siting Plan PDF
+  // Export A3 Architectural 1:100 / 1:200 Siting Plan PDF
   const handleExportPdf = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const imgData = canvas.toDataURL("image/png", 1.0);
 
-    const doc = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
+    // Reset zoom for high-res uncropped A3 export
+    const prevZoom = zoomLevel;
+    const prevPan = panOffset;
+    setZoomLevel(1.0);
+    setPanOffset({ x: 0, y: 0 });
 
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, 297, 210, "F");
+    setTimeout(() => {
+      const imgData = canvas.toDataURL("image/png", 1.0);
 
-    // Title Banner
-    doc.setTextColor(15, 23, 42);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("HUDSON HOMES — 1:200 ARCHITECTURAL LOT SITING PLAN", 15, 14);
+      // True A3 Landscape PDF: 420mm x 297mm
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a3",
+      });
 
-    doc.setFontSize(10);
-    doc.setTextColor(2, 132, 199);
-    doc.text(`Estate: ${currentPodRule.estateName} | Lot: ${frontageM}m Frontage × ${depthM}m Depth (${activeLot.totalAreaM2} m²)`, 15, 20);
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 420, 297, "F");
 
-    // Siting Image
-    doc.addImage(imgData, "PNG", 15, 24, 267, 155);
+      // Embed Canvas Image across A3 Sheet
+      doc.addImage(imgData, "PNG", 0, 0, 420, 297);
 
-    // Compliance Footer
-    doc.setTextColor(15, 23, 42);
-    doc.setFontSize(9);
-    doc.text(
-      `Front Setback: ${liveSetbacks.frontSetbackM}m | Garage: ${liveSetbacks.garageSetbackM}m | Left: ${liveSetbacks.leftSetbackM}m | Right: ${liveSetbacks.rightSetbackM}m | Rear: ${liveSetbacks.rearSetbackM}m`,
-      15,
-      188
-    );
-    doc.setTextColor(2, 132, 199);
-    doc.text(
-      `Site Coverage: ${liveSetbacks.siteCoveragePct}% (Max ${currentPodRule.maxSiteCoveragePct || 60}%) · ${liveSetbacks.isCompliant ? "COMPLIANT" : "REVIEW REQUIRED"} | POS: ${liveSetbacks.privateOpenSpaceM2} m²`,
-      15,
-      194
-    );
+      doc.save(`${houseState.designName.replace(/\s+/g, "_")}_A3_Siting_Plan_1-${effectiveScaleRatio}.pdf`);
+      toast.success(`A3 Architectural Siting Plan (1:${effectiveScaleRatio} Scale) exported as PDF!`);
 
-    doc.save(`${houseState.designName.replace(/\s+/g, "_")}_Siting_Plan_1-200.pdf`);
-    toast.success("1:200 Scale Architectural Siting Plan exported as PDF!");
+      // Restore zoom
+      setZoomLevel(prevZoom);
+      setPanOffset(prevPan);
+    }, 100);
   };
 
   // Transfer Siting to Quoting Tool
@@ -1131,6 +1279,7 @@ export function AdvancedSitingStudio({
         widthM: houseState.widthM,
         lengthM: houseState.lengthM,
         totalM2: houseState.totalM2,
+        scaleRatio: effectiveScaleRatio,
         floorplanUrl: floorplanImageUrl,
       };
 
@@ -1149,13 +1298,13 @@ export function AdvancedSitingStudio({
       let pdfDataUrl = "";
       const canvas = canvasRef.current;
       if (canvas) {
-        const imgData = canvas.toDataURL("image/jpeg", 0.88);
+        const imgData = canvas.toDataURL("image/jpeg", 0.90);
         const doc = new jsPDF({
           orientation: "landscape",
           unit: "mm",
-          format: "a4",
+          format: "a3",
         });
-        doc.addImage(imgData, "JPEG", 10, 10, 277, 190);
+        doc.addImage(imgData, "JPEG", 0, 0, 420, 297);
         pdfDataUrl = doc.output("datauristring");
       }
 
@@ -1189,8 +1338,8 @@ export function AdvancedSitingStudio({
             ? {
                 siting_plan: {
                   id: "siting_plan",
-                  label: "1:200 Scale Siting / House Position Plan (PDF)",
-                  fileName: `${currentTender.customer1?.surname || "Client"}_1-200_Siting_Plan.pdf`,
+                  label: `A3 Architectural Siting Plan (1:${effectiveScaleRatio} Scale PDF)`,
+                  fileName: `${currentTender.customer1?.surname || "Client"}_A3_Siting_Plan.pdf`,
                   fileDataUrl: pdfDataUrl,
                   fileType: "application/pdf",
                   required: true,
@@ -1208,7 +1357,7 @@ export function AdvancedSitingStudio({
         console.warn("Storage quota exceeded, persisted in IndexedDB instead.", storageErr);
       }
 
-      toast.success("1:200 Siting Plan PDF saved to Tender Request Job Folder!");
+      toast.success("A3 Siting Plan PDF saved to Tender Request Job Folder!");
       if (onSendToTender) onSendToTender(currentTender);
       navigate({ to: "/tender-request" });
     } catch (err) {
@@ -1218,11 +1367,11 @@ export function AdvancedSitingStudio({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-4 ${isMaximized ? "fixed inset-0 z-50 bg-slate-950 p-4 overflow-y-auto" : ""}`}>
       {/* 2-Point Scale Calibration Modal */}
       {calibrationModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in duration-150">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <Ruler className="h-5 w-5 text-amber-400" />
@@ -1292,73 +1441,124 @@ export function AdvancedSitingStudio({
         </div>
       )}
 
-      {/* Top Controls: Lot Mode, Presets & Estate Selector */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl">
+      {/* Top Controls: Estate POD, Lot Mode, Scale Selector & Maximize Button */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 p-3.5 rounded-2xl border border-slate-800 bg-slate-900/90 shadow-xl">
         {/* Estate POD Rules */}
-        <div className="space-y-1.5 lg:col-span-2">
+        <div className="space-y-1 lg:col-span-4">
           <Label className="text-xs text-amber-400 font-bold flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5" />
-            Queensland Estate &amp; Council POD Rule Presets
+            Queensland Estate POD Presets
           </Label>
           <Select value={selectedEstateId} onValueChange={setSelectedEstateId}>
-            <SelectTrigger className="border-slate-800 bg-slate-950 text-xs font-semibold text-white">
+            <SelectTrigger className="border-slate-800 bg-slate-950 text-xs font-semibold text-white h-8">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="border-slate-800 bg-slate-950 text-slate-100 max-h-72">
               {QUEENSLAND_ESTATE_POD_PRESETS.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="text-xs">
-                  {p.estateName} ({p.suburb} &bull; {p.council})
+                  {p.estateName} ({p.suburb})
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[10px] text-slate-400">{currentPodRule.notes}</p>
         </div>
 
         {/* Lot Mode Switcher */}
-        <div className="space-y-1.5 lg:col-span-2">
+        <div className="space-y-1 lg:col-span-4">
           <Label className="text-xs text-slate-300 font-bold flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-cyan-400" />
-            Lot Siting Mode
+            Lot Mode
           </Label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5">
             <Button
               type="button"
               size="sm"
               variant={lotMode === "rectangle" ? "default" : "outline"}
               onClick={() => setLotMode("rectangle")}
-              className={lotMode === "rectangle" ? "bg-cyan-600 text-white font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-400 text-xs"}
+              className={lotMode === "rectangle" ? "bg-cyan-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
             >
-              Standard Rectangle
+              Rectangle
             </Button>
             <Button
               type="button"
               size="sm"
               variant={lotMode === "custom_polygon" ? "default" : "outline"}
               onClick={() => setLotMode("custom_polygon")}
-              className={lotMode === "custom_polygon" ? "bg-cyan-600 text-white font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-400 text-xs"}
+              className={lotMode === "custom_polygon" ? "bg-cyan-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
             >
-              Custom Polygon
+              Polygon
             </Button>
             <Button
               type="button"
               size="sm"
               variant={lotMode === "disclosure_plan" ? "default" : "outline"}
               onClick={() => setLotMode("disclosure_plan")}
-              className={lotMode === "disclosure_plan" ? "bg-amber-600 text-white font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-400 text-xs"}
+              className={lotMode === "disclosure_plan" ? "bg-amber-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
             >
-              Upload Disclosure
+              Disclosure
             </Button>
           </div>
+        </div>
+
+        {/* A3 Scale Selector (1:100 vs 1:200) */}
+        <div className="space-y-1 lg:col-span-3">
+          <Label className="text-xs text-slate-300 font-bold flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-emerald-400" />
+            A3 Sheet Scale
+          </Label>
+          <div className="grid grid-cols-3 gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={scaleMode === "auto" ? "default" : "outline"}
+              onClick={() => setScaleMode("auto")}
+              className={scaleMode === "auto" ? "bg-emerald-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
+            >
+              Auto (1:{effectiveScaleRatio})
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={scaleMode === "1:100" ? "default" : "outline"}
+              onClick={() => setScaleMode("1:100")}
+              className={scaleMode === "1:100" ? "bg-emerald-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
+            >
+              1:100
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={scaleMode === "1:200" ? "default" : "outline"}
+              onClick={() => setScaleMode("1:200")}
+              className={scaleMode === "1:200" ? "bg-emerald-600 text-white font-bold text-xs h-8" : "border-slate-800 bg-slate-950 text-slate-400 text-xs h-8"}
+            >
+              1:200
+            </Button>
+          </div>
+        </div>
+
+        {/* Fullscreen / Maximize Toggle */}
+        <div className="flex items-end justify-end lg:col-span-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setIsMaximized(!isMaximized)}
+            className="w-full h-8 border-slate-800 bg-slate-950 text-slate-300 hover:text-white text-xs gap-1"
+            title={isMaximized ? "Exit Fullscreen" : "Maximize Workspace"}
+          >
+            {isMaximized ? <Minimize2 className="h-3.5 w-3.5 text-cyan-400" /> : <Maximize2 className="h-3.5 w-3.5 text-cyan-400" />}
+            {isMaximized ? "Exit" : "Expand"}
+          </Button>
         </div>
       </div>
 
       {/* Mode-Specific Toolbar */}
-      <div className="p-4 rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-md space-y-4">
+      <div className="p-3 rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-md space-y-3">
         {/* Rectangle Mode Quick Presets */}
         {lotMode === "rectangle" && (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-bold text-slate-300">Quick Lot Presets:</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-300">Lot Presets:</span>
             {[
               { w: 10, d: 30 },
               { w: 12.5, d: 30 },
@@ -1374,31 +1574,31 @@ export function AdvancedSitingStudio({
                 size="sm"
                 variant="outline"
                 onClick={() => handleSelectPresetLot(preset.w, preset.d)}
-                className="border-slate-800 bg-slate-950/80 text-slate-300 hover:text-white text-xs font-mono"
+                className="border-slate-800 bg-slate-950/80 text-slate-300 hover:text-white text-xs font-mono h-7 px-2.5"
               >
-                {preset.w}m × {preset.d}m ({preset.w * preset.d}m²)
+                {preset.w}×{preset.d}m
               </Button>
             ))}
 
             <div className="flex items-center gap-2 ml-auto">
               <div className="flex items-center gap-1.5">
-                <Label className="text-xs text-slate-400">Frontage (m):</Label>
+                <Label className="text-xs text-slate-400">Frontage:</Label>
                 <Input
                   type="number"
                   step="0.5"
                   value={frontageM}
                   onChange={(e) => setFrontageM(parseFloat(e.target.value) || 14)}
-                  className="w-20 h-8 border-slate-800 bg-slate-950 text-xs font-bold text-cyan-400"
+                  className="w-16 h-7 border-slate-800 bg-slate-950 text-xs font-bold text-cyan-400"
                 />
               </div>
               <div className="flex items-center gap-1.5">
-                <Label className="text-xs text-slate-400">Depth (m):</Label>
+                <Label className="text-xs text-slate-400">Depth:</Label>
                 <Input
                   type="number"
                   step="0.5"
                   value={depthM}
                   onChange={(e) => setDepthM(parseFloat(e.target.value) || 30)}
-                  className="w-20 h-8 border-slate-800 bg-slate-950 text-xs font-bold text-cyan-400"
+                  className="w-16 h-7 border-slate-800 bg-slate-950 text-xs font-bold text-cyan-400"
                 />
               </div>
             </div>
@@ -1407,8 +1607,8 @@ export function AdvancedSitingStudio({
 
         {/* Disclosure Plan Upload & Scale Calibrator */}
         {lotMode === "disclosure_plan" && (
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="cursor-pointer">
                 <input
                   type="file"
@@ -1435,10 +1635,10 @@ export function AdvancedSitingStudio({
                     setLotCalibPoints([]);
                     toast.info("Click 2 points on a known boundary segment to calibrate scale!");
                   }}
-                  className={isCalibratingLot ? "bg-amber-500 text-slate-950 font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1.5"}
+                  className={isCalibratingLot ? "bg-amber-500 text-slate-950 font-bold text-xs h-7" : "border-slate-800 bg-slate-950 text-slate-300 text-xs h-7 gap-1.5"}
                 >
                   <Ruler className="h-3.5 w-3.5 text-amber-400" />
-                  {isCalibratingLot ? "Click 2 Boundary Points on Canvas…" : "Calibrate Lot Scale (2 Points)"}
+                  {isCalibratingLot ? "Click 2 Boundary Points…" : "Calibrate Lot Scale"}
                 </Button>
 
                 <Button
@@ -1446,10 +1646,10 @@ export function AdvancedSitingStudio({
                   size="sm"
                   variant="outline"
                   onClick={() => setIsSettingBoundaryVertices(!isSettingBoundaryVertices)}
-                  className={isSettingBoundaryVertices ? "bg-emerald-600 text-white font-bold text-xs" : "border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1.5"}
+                  className={isSettingBoundaryVertices ? "bg-emerald-600 text-white font-bold text-xs h-7" : "border-slate-800 bg-slate-950 text-slate-300 text-xs h-7 gap-1.5"}
                 >
                   <MousePointer className="h-3.5 w-3.5 text-emerald-400" />
-                  {isSettingBoundaryVertices ? "Done Adjusting Lot Pins" : "Adjust Lot Boundary Pins"}
+                  {isSettingBoundaryVertices ? "Done Adjusting Pins" : "Adjust Boundary Pins"}
                 </Button>
               </div>
             </div>
@@ -1488,7 +1688,7 @@ export function AdvancedSitingStudio({
                   ]);
                   toast.info("Added new boundary vertex!");
                 }}
-                className="border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1"
+                className="border-slate-800 bg-slate-950 text-slate-300 text-xs h-7 gap-1"
               >
                 <Plus className="h-3 w-3" /> Add Corner Vertex
               </Button>
@@ -1497,7 +1697,7 @@ export function AdvancedSitingStudio({
                 size="sm"
                 variant="outline"
                 onClick={() => handleSelectPresetLot(14, 30)}
-                className="border-slate-800 bg-slate-950 text-slate-300 text-xs gap-1"
+                className="border-slate-800 bg-slate-950 text-slate-300 text-xs h-7 gap-1"
               >
                 <RefreshCw className="h-3 w-3" /> Reset to Rectangle
               </Button>
@@ -1506,24 +1706,24 @@ export function AdvancedSitingStudio({
         )}
       </div>
 
-      {/* Main Grid: Architectural Canvas (Left) + Siting Controls & Compliance (Right) */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6 items-start">
-        {/* Left Column: Pure White Architectural Canvas with Black Boundaries */}
-        <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl p-4 flex flex-col items-center">
-          <div className="w-full flex flex-wrap items-center justify-between pb-3 text-xs border-b border-slate-800 gap-2">
+      {/* Main Grid: Architectural A3 Sheet Canvas (Left) + Siting Controls & Compliance (Right) */}
+      <div className={`grid gap-5 items-start ${isMaximized ? "grid-cols-1 xl:grid-cols-[1fr_320px]" : "grid-cols-1 xl:grid-cols-[1fr_340px]"}`}>
+        {/* Left Column: Pure White A3 Architectural Canvas with Black Boundaries */}
+        <div className="relative rounded-2xl border border-slate-800 bg-slate-950 overflow-hidden shadow-2xl p-3.5 flex flex-col items-center">
+          <div className="w-full flex flex-wrap items-center justify-between pb-2.5 text-xs border-b border-slate-800 gap-2">
             <div className="flex items-center gap-2">
               <span className="text-slate-200 font-bold flex items-center gap-1.5">
                 <Building className="h-4 w-4 text-cyan-400" />
-                1:200 Architectural Siting Canvas (White Blueprint)
+                A3 Siting Blueprint &bull; 1:{effectiveScaleRatio} Scale
               </span>
               {isCroppingFloorplan && (
                 <span className="text-[10px] text-amber-400 bg-amber-950/80 border border-amber-800/60 px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
-                  <Sparkles className="h-3 w-3" /> Reading &amp; auto-cropping floorplan…
+                  <Sparkles className="h-3 w-3" /> Auto-cropping layout…
                 </span>
               )}
             </div>
 
-            {/* Direct Floorplan Scale Calibration Trigger */}
+            {/* Direct Floorplan Scale Calibration Trigger & Upload */}
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -1533,13 +1733,14 @@ export function AdvancedSitingStudio({
                   setIsCalibratingFloorplan(!isCalibratingFloorplan);
                   setFloorplanCalibPoints([]);
                   if (!isCalibratingFloorplan) {
-                    toast.info("Click 2 points on any known wall/dimension to calibrate real scale!");
+                    setZoomLevel(1.6);
+                    toast.info("Zoom In & click 2 points on any known wall to calibrate scale!");
                   }
                 }}
-                className={isCalibratingFloorplan ? "bg-amber-500 text-slate-950 font-bold text-xs gap-1.5" : "border-slate-800 bg-slate-900 text-amber-300 hover:bg-slate-800 text-xs gap-1.5 font-bold"}
+                className={isCalibratingFloorplan ? "bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 h-7" : "border-slate-800 bg-slate-900 text-amber-300 hover:bg-slate-800 text-xs gap-1.5 font-bold h-7"}
               >
                 <Ruler className="h-3.5 w-3.5 text-amber-400" />
-                {isCalibratingFloorplan ? "Calibrating: Click 2 Points on Plan…" : "Measure & Calibrate Scale (2 Points)"}
+                {isCalibratingFloorplan ? "Click 2 Points on Wall…" : "Measure & Calibrate Scale"}
               </Button>
 
               <label className="cursor-pointer">
@@ -1552,7 +1753,7 @@ export function AdvancedSitingStudio({
                   }}
                   className="hidden"
                 />
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-200 transition-colors">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs font-bold text-slate-200 transition-colors h-7">
                   <Upload className="h-3.5 w-3.5 text-cyan-400" />
                   Upload PDF / Plan
                 </span>
@@ -1560,28 +1761,81 @@ export function AdvancedSitingStudio({
             </div>
           </div>
 
-          {/* White Blueprint Canvas Container */}
-          <div className="relative w-full my-3 bg-white rounded-xl shadow-lg border border-slate-700/80 overflow-hidden flex items-center justify-center">
+          {/* White Blueprint Canvas Container with Floating Zoom Toolbar */}
+          <div
+            ref={canvasContainerRef}
+            className="relative w-full my-2 bg-white rounded-xl shadow-lg border border-slate-700/80 overflow-hidden flex items-center justify-center select-none"
+            style={{ minHeight: isMaximized ? "780px" : "680px" }}
+          >
+            {/* Floating Glassmorphic Zoom Toolbar */}
+            <div className="absolute top-3 left-3 z-30 flex items-center gap-1 bg-slate-900/90 border border-slate-700 rounded-lg p-1 shadow-lg backdrop-blur-md">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleZoomIn}
+                className="h-7 w-7 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+                title="Zoom In (+)"
+              >
+                <ZoomIn className="h-3.5 w-3.5 text-cyan-400" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleZoomOut}
+                className="h-7 w-7 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+                title="Zoom Out (-)"
+              >
+                <ZoomOut className="h-3.5 w-3.5 text-cyan-400" />
+              </Button>
+              <div className="px-1.5 text-[11px] font-mono font-bold text-cyan-300">
+                {Math.round(zoomLevel * 100)}%
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleResetZoom}
+                className="h-7 w-7 p-0 text-slate-200 hover:text-white hover:bg-slate-800"
+                title="Fit to Sheet (100%)"
+              >
+                <RefreshCw className="h-3 w-3" />
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsPanningMode(!isPanningMode)}
+                className={`h-7 w-7 p-0 ${isPanningMode ? "bg-cyan-600 text-white" : "text-slate-200 hover:text-white hover:bg-slate-800"}`}
+                title="Pan Mode (or Middle-Click Drag)"
+              >
+                <Move className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+
+            {/* A3 Canvas */}
             <canvas
               ref={canvasRef}
+              onWheel={handleWheel}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              className="cursor-move max-w-full h-auto"
-              style={{ width: "100%", maxHeight: "860px", objectFit: "contain" }}
+              className={`max-w-full h-auto ${isCalibratingFloorplan ? "cursor-crosshair" : isPanningMode ? "cursor-grab" : "cursor-move"}`}
+              style={{ width: "100%", maxHeight: isMaximized ? "880px" : "780px", objectFit: "contain" }}
             />
           </div>
 
           {/* House Manipulation Action Bar */}
-          <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800 text-xs">
+          <div className="w-full flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-slate-800 text-xs">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
                 onClick={handleFlipGarageSide}
-                className="border-slate-800 bg-slate-900 text-cyan-300 hover:bg-slate-800 text-xs gap-1.5 font-bold"
+                className="border-slate-800 bg-slate-900 text-cyan-300 hover:bg-slate-800 text-xs gap-1.5 font-bold h-7"
               >
                 <FlipHorizontal className="h-3.5 w-3.5 text-cyan-400" />
                 Flip Plan (Garage: {houseState.garageSide})
@@ -1592,7 +1846,7 @@ export function AdvancedSitingStudio({
                 size="sm"
                 variant="outline"
                 onClick={() => setHouseState((prev) => ({ ...prev, rotationDeg: (prev.rotationDeg + 90) % 360 }))}
-                className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs gap-1.5"
+                className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 text-xs gap-1.5 h-7"
               >
                 <RotateCw className="h-3.5 w-3.5 text-amber-400" />
                 Rotate 90°
@@ -1603,7 +1857,7 @@ export function AdvancedSitingStudio({
                 size="sm"
                 variant="outline"
                 onClick={() => setHouseState((prev) => ({ ...prev, isBtbActive: !prev.isBtbActive }))}
-                className={houseState.isBtbActive ? "bg-amber-950/80 border-amber-500/60 text-amber-300 text-xs font-bold" : "border-slate-800 bg-slate-900 text-slate-400 text-xs"}
+                className={houseState.isBtbActive ? "bg-amber-950/80 border-amber-500/60 text-amber-300 text-xs font-bold h-7" : "border-slate-800 bg-slate-900 text-slate-400 text-xs h-7"}
               >
                 BTB 200mm Wall: {houseState.isBtbActive ? "ON" : "OFF"}
               </Button>
@@ -1624,7 +1878,7 @@ export function AdvancedSitingStudio({
                 type="number"
                 value={houseState.rotationDeg}
                 onChange={(e) => setHouseState((prev) => ({ ...prev, rotationDeg: (parseInt(e.target.value, 10) || 0) % 360 }))}
-                className="w-16 h-7 border-slate-800 bg-slate-900 text-xs font-mono text-center font-bold text-cyan-400"
+                className="w-14 h-7 border-slate-800 bg-slate-900 text-xs font-mono text-center font-bold text-cyan-400"
               />
             </div>
           </div>
@@ -1705,7 +1959,7 @@ export function AdvancedSitingStudio({
               className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs gap-1.5"
             >
               <Download className="h-3.5 w-3.5 text-cyan-400" />
-              Export 1:200 Siting PDF
+              Export A3 Siting PDF (1:{effectiveScaleRatio})
             </Button>
 
             <Button
@@ -1723,7 +1977,7 @@ export function AdvancedSitingStudio({
               className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs gap-1.5 shadow-md shadow-amber-500/20"
             >
               <Send className="h-3.5 w-3.5" />
-              Save to Tender Job Folder (PDF)
+              Save to Tender Job Folder (A3 PDF)
             </Button>
           </div>
         </div>
