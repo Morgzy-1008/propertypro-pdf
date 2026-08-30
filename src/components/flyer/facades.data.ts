@@ -137,9 +137,9 @@ export const HUDSON_FACADES: FacadeItem[] = [
   },
   {
     id: "classic-double-garage",
-    name: "Classic (Double Garage)",
+    name: "Classic (Double Storey)",
     range: "Double Storey",
-    tags: ["classic", "double", "double-garage", "storey"],
+    tags: ["classic", "double", "double-garage", "storey", "double-storey"],
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/TURQUOISE-Classic-Facade-Double-Garage-2-Stry.jpg",
   },
   {
@@ -165,9 +165,9 @@ export const HUDSON_FACADES: FacadeItem[] = [
   },
   {
     id: "classic-plus-double-garage",
-    name: "Classic Plus (Double Garage)",
+    name: "Classic Plus (Double Storey)",
     range: "Double Storey",
-    tags: ["classic", "plus", "double", "double-garage", "storey"],
+    tags: ["classic", "plus", "double", "double-garage", "storey", "double-storey"],
     url: "https://www.hudsonhomes.com.au/wp-content/uploads/2024/01/Classic-Plus-Facade-Double-Garage-2-Stry.jpg",
   },
   {

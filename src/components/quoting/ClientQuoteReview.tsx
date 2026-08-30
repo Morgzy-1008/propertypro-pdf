@@ -30,6 +30,7 @@ import {
   getEffectiveDesignName,
   getHousingTypeForDesign,
 } from "@/lib/quoting/quoteEngine";
+import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
 import type { FullQuote, InclusionTier } from "@/lib/quoting/quoteTypes";
 import {
@@ -58,21 +59,8 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
         ? design.customSpec?.storeys === "double"
         : housingType === "Double Storey" || housingType === "double";
 
-    const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
-
-    const matches = HUDSON_FACADES.filter((f) => {
-      const fNorm = f.name.toLowerCase().replace(/[\s\-_]/g, "");
-      const fIdNorm = f.id.toLowerCase().replace(/[\s\-_]/g, "");
-      return fNorm === normName || fIdNorm === normName;
-    });
-
-    let matched = isDouble
-      ? matches.find((f) => f.range.toLowerCase().includes("double")) || matches[0]
-      : matches.find((f) => !f.range.toLowerCase().includes("double")) || matches[0];
-
-    if (!matched) {
-      matched = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(normName)) || HUDSON_FACADES[0];
-    }
+    // Find matching facade using the comprehensive lookup engine
+    const matched = findFacadeForDesign(facadeName, isDouble, housingType);
 
     if (matched) {
       if (PRE_RENDERED_FACADES[matched.id]) {

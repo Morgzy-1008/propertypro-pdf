@@ -6,6 +6,7 @@ import { prepareFacade } from "@/components/flyer/facadeEngine";
 import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
 import { loadEnhancedAsync } from "@/components/flyer/facadeLibrary";
 import { formatAud } from "@/lib/pricing";
+import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import type { QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
 
 interface QuoteFacadeRenderPreviewProps {
@@ -46,22 +47,8 @@ export function QuoteFacadeRenderPreview({
     let isMounted = true;
     setLoading(true);
 
-    const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
-
-    // Search HUDSON_FACADES matching name and range
-    const matches = HUDSON_FACADES.filter((f) => {
-      const fNorm = f.name.toLowerCase().replace(/[\s\-_]/g, "");
-      const fIdNorm = f.id.toLowerCase().replace(/[\s\-_]/g, "");
-      return fNorm === normName || fIdNorm === normName;
-    });
-
-    let matched = isDouble
-      ? matches.find((f) => f.range.toLowerCase().includes("double")) || matches[0]
-      : matches.find((f) => !f.range.toLowerCase().includes("double")) || matches[0];
-
-    if (!matched) {
-      matched = HUDSON_FACADES.find((f) => f.name.toLowerCase().includes(normName)) || HUDSON_FACADES[0];
-    }
+    // Find matching facade using the comprehensive lookup engine
+    const matched = findFacadeForDesign(facadeName, isDouble, housingType);
 
     if (matched) {
       // 1. Check pre-rendered static high-res catalogue
