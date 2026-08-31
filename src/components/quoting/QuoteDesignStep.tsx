@@ -167,6 +167,8 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Regal", uplift: 53500 },
     { name: "Tempo", uplift: 53500 },
     { name: "Vogue", uplift: 53500 },
+    { name: "Reed", uplift: 86100 },
+    { name: "Clarence", uplift: 89200 },
   ],
   "Split Level": [
     { name: "Classic", uplift: 0 },

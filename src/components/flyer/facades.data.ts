@@ -9,24 +9,22 @@ export const HUDSON_FACADES: FacadeItem[] = [
     "tags": [
       "classic",
       "single",
-      "double-garage",
-      "standard"
+      "double-garage"
     ],
-    "url": "/facades/classic.jpg",
-    "originalUrl": "/facades/classic.jpg"
+    "url": "/facades/classic-single-storey.png",
+    "originalUrl": "/facades/classic-single-storey.png"
   },
   {
     "id": "classic-plus",
     "name": "Classic Plus",
     "range": "Single Storey",
     "tags": [
-      "classic",
       "classic-plus",
       "single",
       "double-garage"
     ],
-    "url": "/facades/classic-plus.jpg",
-    "originalUrl": "/facades/classic-plus.jpg"
+    "url": "/facades/classic-plus-single-storey.png",
+    "originalUrl": "/facades/classic-plus-single-storey.png"
   },
   {
     "id": "aspen",
@@ -37,8 +35,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/aspen.jpg",
-    "originalUrl": "/facades/aspen.jpg"
+    "url": "/facades/aspen.png",
+    "originalUrl": "/facades/aspen.png"
   },
   {
     "id": "avalon",
@@ -49,8 +47,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/avalon.jpg",
-    "originalUrl": "/facades/avalon.jpg"
+    "url": "/facades/avalon-single-storey.png",
+    "originalUrl": "/facades/avalon-single-storey.png"
   },
   {
     "id": "avoca",
@@ -61,8 +59,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/avoca.jpg",
-    "originalUrl": "/facades/avoca.jpg"
+    "url": "/facades/avoca-single-storey.png",
+    "originalUrl": "/facades/avoca-single-storey.png"
   },
   {
     "id": "banksia",
@@ -73,8 +71,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/banksia.jpg",
-    "originalUrl": "/facades/banksia.jpg"
+    "url": "/facades/banksia-single-storey.png",
+    "originalUrl": "/facades/banksia-single-storey.png"
   },
   {
     "id": "bayside",
@@ -85,8 +83,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/bayside.jpg",
-    "originalUrl": "/facades/bayside.jpg"
+    "url": "/facades/bayside-single-storey.png",
+    "originalUrl": "/facades/bayside-single-storey.png"
   },
   {
     "id": "breeze",
@@ -97,20 +95,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/breeze.jpg",
-    "originalUrl": "/facades/breeze.jpg"
+    "url": "/facades/breeze-single-storey.png",
+    "originalUrl": "/facades/breeze-single-storey.png"
   },
   {
     "id": "chateaux-single",
     "name": "Chateaux (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "chateaux",
+      "chateaux-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/chateaux-facade-single-storey.jpg",
-    "originalUrl": "/facades/chateaux-facade-single-storey.jpg"
+    "url": "/facades/chateaux-single-storey.png",
+    "originalUrl": "/facades/chateaux-single-storey.png"
   },
   {
     "id": "coastal",
@@ -121,20 +119,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/coastal.jpg",
-    "originalUrl": "/facades/coastal.jpg"
+    "url": "/facades/coastal-single-storey.png",
+    "originalUrl": "/facades/coastal-single-storey.png"
   },
   {
     "id": "contemporary-single",
     "name": "Contemporary (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "contemporary",
+      "contemporary-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/contemporary-single-storey.jpg",
-    "originalUrl": "/facades/contemporary-single-storey.jpg"
+    "url": "/facades/contemporary-single-storey.png",
+    "originalUrl": "/facades/contemporary-single-storey.png"
   },
   {
     "id": "crest",
@@ -145,8 +143,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/crest.jpg",
-    "originalUrl": "/facades/crest.jpg"
+    "url": "/facades/crest-single-storey.png",
+    "originalUrl": "/facades/crest-single-storey.png"
   },
   {
     "id": "eden",
@@ -157,447 +155,447 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/eden.jpg",
-    "originalUrl": "/facades/eden.jpg"
+    "url": "/facades/eden-single-storey.png",
+    "originalUrl": "/facades/eden-single-storey.png"
   },
   {
     "id": "elite-single",
     "name": "Elite",
     "range": "Single Storey",
     "tags": [
-      "elite",
+      "elite-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/elite-facade-single-storey.jpg",
-    "originalUrl": "/facades/elite-facade-single-storey.jpg"
+    "url": "/facades/elite-single-storey.png",
+    "originalUrl": "/facades/elite-single-storey.png"
   },
   {
     "id": "executive-single",
     "name": "Executive",
     "range": "Single Storey",
     "tags": [
-      "executive",
+      "executive-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/executive-facade-single-storey.jpg",
-    "originalUrl": "/facades/executive-facade-single-storey.jpg"
+    "url": "/facades/executive-single-storey.png",
+    "originalUrl": "/facades/executive-single-storey.png"
   },
   {
     "id": "hamptons-single",
     "name": "Hamptons (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "hamptons",
+      "hamptons-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/hamptons-single.jpg",
-    "originalUrl": "/facades/hamptons-single.jpg"
+    "url": "/facades/hamptons-single-storey.png",
+    "originalUrl": "/facades/hamptons-single-storey.png"
   },
   {
     "id": "harmony-single",
     "name": "Harmony",
     "range": "Single Storey",
     "tags": [
-      "harmony",
+      "harmony-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/harmony-facade-single-storey.jpg",
-    "originalUrl": "/facades/harmony-facade-single-storey.jpg"
+    "url": "/facades/harmony-single-storey.png",
+    "originalUrl": "/facades/harmony-single-storey.png"
   },
   {
     "id": "havana-single",
     "name": "Havana",
     "range": "Single Storey",
     "tags": [
-      "havana",
+      "havana-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/havana-facade-single-storey.jpg",
-    "originalUrl": "/facades/havana-facade-single-storey.jpg"
+    "url": "/facades/havana-single-storey.png",
+    "originalUrl": "/facades/havana-single-storey.png"
   },
   {
     "id": "hillsdale-single",
     "name": "Hillsdale",
     "range": "Single Storey",
     "tags": [
-      "hillsdale",
+      "hillsdale-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/hillsdale-single-storey.jpg",
-    "originalUrl": "/facades/hillsdale-single-storey.jpg"
+    "url": "/facades/hillsdale-single-storey.png",
+    "originalUrl": "/facades/hillsdale-single-storey.png"
   },
   {
     "id": "imperial-single",
     "name": "Imperial",
     "range": "Single Storey",
     "tags": [
-      "imperial",
+      "imperial-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/imperial-facade-single-storey.jpg",
-    "originalUrl": "/facades/imperial-facade-single-storey.jpg"
+    "url": "/facades/imperial-single-storey.png",
+    "originalUrl": "/facades/imperial-single-storey.png"
   },
   {
     "id": "infinity-single",
     "name": "Infinity MKII",
     "range": "Single Storey",
     "tags": [
-      "infinity",
+      "infinity-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/infinity-mkii-facade-single-storey-1.jpg",
-    "originalUrl": "/facades/infinity-mkii-facade-single-storey-1.jpg"
+    "url": "/facades/infinity-single-storey.png",
+    "originalUrl": "/facades/infinity-single-storey.png"
   },
   {
     "id": "majestic-single",
     "name": "Majestic (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "majestic",
+      "majestic-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/majestic-facade-single-storey.jpg",
-    "originalUrl": "/facades/majestic-facade-single-storey.jpg"
+    "url": "/facades/majestic-single-storey.png",
+    "originalUrl": "/facades/majestic-single-storey.png"
   },
   {
     "id": "merlot-single",
     "name": "Merlot",
     "range": "Single Storey",
     "tags": [
-      "merlot",
+      "merlot-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/merlot-facade-single-storey.jpg",
-    "originalUrl": "/facades/merlot-facade-single-storey.jpg"
+    "url": "/facades/merlot-single-storey.png",
+    "originalUrl": "/facades/merlot-single-storey.png"
   },
   {
     "id": "newport-single",
     "name": "Newport",
     "range": "Single Storey",
     "tags": [
-      "newport",
+      "newport-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/newport-facade-single-storey.jpg",
-    "originalUrl": "/facades/newport-facade-single-storey.jpg"
+    "url": "/facades/newport-single-storey.png",
+    "originalUrl": "/facades/newport-single-storey.png"
   },
   {
     "id": "nuvo-single",
     "name": "Nuvo (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "nuvo",
+      "nuvo-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/nuvo-facade-single-storey.jpg",
-    "originalUrl": "/facades/nuvo-facade-single-storey.jpg"
+    "url": "/facades/nuvo-single-storey.png",
+    "originalUrl": "/facades/nuvo-single-storey.png"
   },
   {
     "id": "pavillion-single",
     "name": "Pavillion",
     "range": "Single Storey",
     "tags": [
-      "pavillion",
+      "pavillion-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/pavillion-facade-single-storey.jpg",
-    "originalUrl": "/facades/pavillion-facade-single-storey.jpg"
+    "url": "/facades/pavillion-single-storey.png",
+    "originalUrl": "/facades/pavillion-single-storey.png"
   },
   {
     "id": "regal-single",
     "name": "Regal (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "regal",
+      "regal-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/regal-facade-single-storey.jpg",
-    "originalUrl": "/facades/regal-facade-single-storey.jpg"
+    "url": "/facades/regal-single-storey.png",
+    "originalUrl": "/facades/regal-single-storey.png"
   },
   {
     "id": "riviera-single",
     "name": "Riviera (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "riviera",
+      "riviera-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/riviera-single-storey.jpg",
-    "originalUrl": "/facades/riviera-single-storey.jpg"
+    "url": "/facades/riviera-single-storey.png",
+    "originalUrl": "/facades/riviera-single-storey.png"
   },
   {
     "id": "savoy-single",
     "name": "Savoy",
     "range": "Single Storey",
     "tags": [
-      "savoy",
+      "savoy-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/savoy-facade-single-storey.jpg",
-    "originalUrl": "/facades/savoy-facade-single-storey.jpg"
+    "url": "/facades/savoy-single-storey.png",
+    "originalUrl": "/facades/savoy-single-storey.png"
   },
   {
     "id": "serenity-single",
     "name": "Serenity",
     "range": "Single Storey",
     "tags": [
-      "serenity",
+      "serenity-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/serenity-facade-single-storey.jpg",
-    "originalUrl": "/facades/serenity-facade-single-storey.jpg"
+    "url": "/facades/serenity-single-storey.png",
+    "originalUrl": "/facades/serenity-single-storey.png"
   },
   {
     "id": "sovereign-single",
     "name": "Sovereign",
     "range": "Single Storey",
     "tags": [
-      "sovereign",
+      "sovereign-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/sovereign-facade-single-storey.jpg",
-    "originalUrl": "/facades/sovereign-facade-single-storey.jpg"
+    "url": "/facades/sovereign-single-storey.png",
+    "originalUrl": "/facades/sovereign-single-storey.png"
   },
   {
     "id": "statesman-single",
     "name": "Statesman (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "statesman",
+      "statesman-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/statesman-facade-single-storey.jpg",
-    "originalUrl": "/facades/statesman-facade-single-storey.jpg"
+    "url": "/facades/statesman-single-storey.png",
+    "originalUrl": "/facades/statesman-single-storey.png"
   },
   {
     "id": "vibe-single",
     "name": "Vibe",
     "range": "Single Storey",
     "tags": [
-      "vibe",
+      "vibe-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/vibe-facade-single-storey.jpg",
-    "originalUrl": "/facades/vibe-facade-single-storey.jpg"
+    "url": "/facades/vibe-single-storey.png",
+    "originalUrl": "/facades/vibe-single-storey.png"
   },
   {
     "id": "vienna-single",
     "name": "Vienna",
     "range": "Single Storey",
     "tags": [
-      "vienna",
+      "vienna-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/vienna-facade-single-storey.jpg",
-    "originalUrl": "/facades/vienna-facade-single-storey.jpg"
+    "url": "/facades/vienna-single-storey.png",
+    "originalUrl": "/facades/vienna-single-storey.png"
   },
   {
     "id": "visage-single",
     "name": "Visage",
     "range": "Single Storey",
     "tags": [
-      "visage",
+      "visage-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/visage-facade-single-storey.jpg",
-    "originalUrl": "/facades/visage-facade-single-storey.jpg"
+    "url": "/facades/visage-single-storey.png",
+    "originalUrl": "/facades/visage-single-storey.png"
   },
   {
     "id": "vogue-single",
     "name": "Vogue (Single Storey)",
     "range": "Single Storey",
     "tags": [
-      "vogue",
+      "vogue-single",
       "single",
       "double-garage"
     ],
-    "url": "/facades/vogue-facade-single-storey.jpg",
-    "originalUrl": "/facades/vogue-facade-single-storey.jpg"
+    "url": "/facades/vogue-single-storey.png",
+    "originalUrl": "/facades/vogue-single-storey.png"
   },
   {
     "id": "classic-single-garage",
     "name": "Classic (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "classic",
+      "classic-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/classic-single-garage.jpg",
-    "originalUrl": "/facades/classic-single-garage.jpg"
+    "url": "/facades/classic-single-garage.png",
+    "originalUrl": "/facades/classic-single-garage.png"
   },
   {
     "id": "aspen-single-garage",
     "name": "Aspen (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "aspen",
+      "aspen-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/aspen-single-garage.jpg",
-    "originalUrl": "/facades/aspen-single-garage.jpg"
+    "url": "/facades/aspen-single-garage.png",
+    "originalUrl": "/facades/aspen-single-garage.png"
   },
   {
     "id": "avoca-single-garage",
     "name": "Avoca (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "avoca",
+      "avoca-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/avoca-single-garage.jpg",
-    "originalUrl": "/facades/avoca-single-garage.jpg"
+    "url": "/facades/avoca-single-garage.png",
+    "originalUrl": "/facades/avoca-single-garage.png"
   },
   {
     "id": "banksia-single-garage",
     "name": "Banksia (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "banksia",
+      "banksia-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/banksia-single-garage.jpg",
-    "originalUrl": "/facades/banksia-single-garage.jpg"
+    "url": "/facades/banksia-single-garage.png",
+    "originalUrl": "/facades/banksia-single-garage.png"
   },
   {
     "id": "bayside-single-garage",
     "name": "Bayside (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "bayside",
+      "bayside-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/bayside-single-garage.jpg",
-    "originalUrl": "/facades/bayside-single-garage.jpg"
+    "url": "/facades/bayside-single-garage.png",
+    "originalUrl": "/facades/bayside-single-garage.png"
   },
   {
     "id": "breeze-single-garage",
     "name": "Breeze (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "breeze",
+      "breeze-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/breeze-single-garage.jpg",
-    "originalUrl": "/facades/breeze-single-garage.jpg"
+    "url": "/facades/breeze-single-garage.png",
+    "originalUrl": "/facades/breeze-single-garage.png"
   },
   {
     "id": "chateaux-single-garage",
     "name": "Chateaux (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "chateaux",
+      "chateaux-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/chateaux-single-garage.jpg",
-    "originalUrl": "/facades/chateaux-single-garage.jpg"
+    "url": "/facades/chateaux-single-garage.png",
+    "originalUrl": "/facades/chateaux-single-garage.png"
   },
   {
     "id": "coastal-single-garage",
     "name": "Coastal (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "coastal",
+      "coastal-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/coastal-single-garage.jpg",
-    "originalUrl": "/facades/coastal-single-garage.jpg"
+    "url": "/facades/coastal-single-garage.png",
+    "originalUrl": "/facades/coastal-single-garage.png"
   },
   {
     "id": "contemporary-single-garage",
     "name": "Contemporary (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "contemporary",
+      "contemporary-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/contemporary-single-garage.jpg",
-    "originalUrl": "/facades/contemporary-single-garage.jpg"
+    "url": "/facades/contemporary-single-garage.png",
+    "originalUrl": "/facades/contemporary-single-garage.png"
   },
   {
     "id": "crest-single-garage",
     "name": "Crest (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "crest",
+      "crest-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/crest-single-garage.jpg",
-    "originalUrl": "/facades/crest-single-garage.jpg"
+    "url": "/facades/crest-single-garage.png",
+    "originalUrl": "/facades/crest-single-garage.png"
   },
   {
     "id": "eden-single-garage",
     "name": "Eden (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "eden",
+      "eden-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/eden-single-garage.jpg",
-    "originalUrl": "/facades/eden-single-garage.jpg"
+    "url": "/facades/eden-single-garage.png",
+    "originalUrl": "/facades/eden-single-garage.png"
   },
   {
     "id": "elite-single-garage",
     "name": "Elite (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "elite",
+      "elite-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/elite-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/elite-facade-single-storey-single-garage.jpg"
+    "url": "/facades/elite-single-garage.png",
+    "originalUrl": "/facades/elite-single-garage.png"
   },
   {
     "id": "executive-single-garage",
     "name": "Executive (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "executive",
+      "executive-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/executive-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/executive-facade-single-storey-single-garage.jpg"
+    "url": "/facades/executive-single-garage.png",
+    "originalUrl": "/facades/executive-single-garage.png"
   },
   {
     "id": "hamptons-single-garage",
     "name": "Hamptons (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "hamptons",
+      "hamptons-single-garage",
       "single",
       "single-garage"
     ],
@@ -609,160 +607,144 @@ export const HUDSON_FACADES: FacadeItem[] = [
     "name": "Harmony (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "harmony",
+      "harmony-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/harmony-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/harmony-facade-single-storey-single-garage.jpg"
+    "url": "/facades/harmony-single-garage.png",
+    "originalUrl": "/facades/harmony-single-garage.png"
   },
   {
     "id": "hillsdale-single-garage",
     "name": "Hillsdale (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "hillsdale",
+      "hillsdale-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/hillsdale-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/hillsdale-facade-single-storey-single-garage.jpg"
+    "url": "/facades/hillsdale-single-garage.png",
+    "originalUrl": "/facades/hillsdale-single-garage.png"
   },
   {
     "id": "infinity-single-garage",
     "name": "Infinity (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "infinity",
+      "infinity-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/infinity-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/infinity-facade-single-storey-single-garage.jpg"
+    "url": "/facades/infinity-single-garage.png",
+    "originalUrl": "/facades/infinity-single-garage.png"
   },
   {
     "id": "majestic-single-garage",
     "name": "Majestic (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "majestic",
+      "majestic-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/majestic-single-garage.jpg",
-    "originalUrl": "/facades/majestic-single-garage.jpg"
+    "url": "/facades/majestic-single-garage.png",
+    "originalUrl": "/facades/majestic-single-garage.png"
   },
   {
     "id": "pavillion-single-garage",
     "name": "Pavillion (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "pavillion",
+      "pavillion-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/pavillion-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/pavillion-facade-single-storey-single-garage.jpg"
+    "url": "/facades/pavillion-single-garage.png",
+    "originalUrl": "/facades/pavillion-single-garage.png"
   },
   {
     "id": "riviera-single-garage",
     "name": "Riviera (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "riviera",
+      "riviera-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/riviera-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/riviera-facade-single-storey-single-garage.jpg"
+    "url": "/facades/riviera-single-garage.png",
+    "originalUrl": "/facades/riviera-single-garage.png"
   },
   {
     "id": "savoy-single-garage",
     "name": "Savoy (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "savoy",
+      "savoy-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/savoy-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/savoy-facade-single-storey-single-garage.jpg"
+    "url": "/facades/savoy-single-garage.png",
+    "originalUrl": "/facades/savoy-single-garage.png"
   },
   {
     "id": "serenity-single-garage",
     "name": "Serenity (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "serenity",
+      "serenity-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/serenity-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/serenity-facade-single-storey-single-garage.jpg"
+    "url": "/facades/serenity-single-garage.png",
+    "originalUrl": "/facades/serenity-single-garage.png"
   },
   {
     "id": "sovereign-single-garage",
     "name": "Sovereign (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "sovereign",
+      "sovereign-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/sovereign-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/sovereign-facade-single-storey-single-garage.jpg"
+    "url": "/facades/sovereign-single-garage.png",
+    "originalUrl": "/facades/sovereign-single-garage.png"
   },
   {
     "id": "statesman-single-garage",
     "name": "Statesman (Single Garage)",
     "range": "Single Storey (Narrow Lot)",
     "tags": [
-      "statesman",
+      "statesman-single-garage",
       "single",
       "single-garage"
     ],
-    "url": "/facades/statesman-facade-single-storey-single-garage.jpg",
-    "originalUrl": "/facades/statesman-facade-single-storey-single-garage.jpg"
+    "url": "/facades/statesman-single-garage.png",
+    "originalUrl": "/facades/statesman-single-garage.png"
   },
   {
     "id": "classic-double-garage",
     "name": "Classic (Double Storey)",
     "range": "Double Storey",
     "tags": [
-      "classic",
+      "classic-double-garage",
       "double",
-      "double-garage",
-      "standard"
+      "double-garage"
     ],
-    "url": "/facades/classic-double-garage.jpg",
-    "originalUrl": "/facades/classic-double-garage.jpg"
+    "url": "/facades/classic-double-storey.png",
+    "originalUrl": "/facades/classic-double-storey.png"
   },
   {
     "id": "classic-plus-double-garage",
     "name": "Classic Plus (Double Storey)",
     "range": "Double Storey",
     "tags": [
-      "classic",
-      "classic-plus",
+      "classic-plus-double-garage",
       "double",
       "double-garage"
     ],
-    "url": "/facades/classic-plus-double-garage.jpg",
-    "originalUrl": "/facades/classic-plus-double-garage.jpg"
-  },
-  {
-    "id": "classic-narrow-dg",
-    "name": "Classic Narrow (Double Storey)",
-    "range": "Double Storey",
-    "tags": [
-      "classic",
-      "double",
-      "narrow",
-      "carolina",
-      "turquoise"
-    ],
-    "url": "/facades/classic-narrow-dg.jpg",
-    "originalUrl": "/facades/classic-narrow-dg.jpg"
+    "url": "/facades/classic-plus-double-storey.png",
+    "originalUrl": "/facades/classic-plus-double-storey.png"
   },
   {
     "id": "allure",
@@ -773,8 +755,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/allure.jpg",
-    "originalUrl": "/facades/allure.jpg"
+    "url": "/facades/allure-double-storey.png",
+    "originalUrl": "/facades/allure-double-storey.png"
   },
   {
     "id": "ascot",
@@ -785,8 +767,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/ascot.jpg",
-    "originalUrl": "/facades/ascot.jpg"
+    "url": "/facades/ascot-double-storey.png",
+    "originalUrl": "/facades/ascot-double-storey.png"
   },
   {
     "id": "ashton",
@@ -797,20 +779,32 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/ashton.jpg",
-    "originalUrl": "/facades/ashton.jpg"
+    "url": "/facades/ashton-double-storey.png",
+    "originalUrl": "/facades/ashton-double-storey.png"
+  },
+  {
+    "id": "aspen-double",
+    "name": "Aspen (Double Storey)",
+    "range": "Double Storey",
+    "tags": [
+      "aspen-double",
+      "double",
+      "double-garage"
+    ],
+    "url": "/facades/aspen-double-storey.png",
+    "originalUrl": "/facades/aspen-double-storey.png"
   },
   {
     "id": "breeze-double",
     "name": "Breeze (Double Storey)",
     "range": "Double Storey",
     "tags": [
-      "breeze",
+      "breeze-double",
       "double",
       "double-garage"
     ],
-    "url": "/facades/breeze-facade-2-stry.jpg",
-    "originalUrl": "/facades/breeze-facade-2-stry.jpg"
+    "url": "/facades/breeze-double-storey.png",
+    "originalUrl": "/facades/breeze-double-storey.png"
   },
   {
     "id": "cambridge",
@@ -821,8 +815,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/cambridge.jpg",
-    "originalUrl": "/facades/cambridge.jpg"
+    "url": "/facades/cambridge-double-storey.png",
+    "originalUrl": "/facades/cambridge-double-storey.png"
   },
   {
     "id": "centro",
@@ -833,8 +827,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/centro.jpg",
-    "originalUrl": "/facades/centro.jpg"
+    "url": "/facades/centro-double-storey.png",
+    "originalUrl": "/facades/centro-double-storey.png"
   },
   {
     "id": "chateaux",
@@ -845,8 +839,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/chateaux.jpg",
-    "originalUrl": "/facades/chateaux.jpg"
+    "url": "/facades/chateaux-double-storey.png",
+    "originalUrl": "/facades/chateaux-double-storey.png"
+  },
+  {
+    "id": "clarence",
+    "name": "Clarence",
+    "range": "Double Storey",
+    "tags": [
+      "clarence",
+      "double",
+      "double-garage"
+    ],
+    "url": "/facades/clarence-double-storey.png",
+    "originalUrl": "/facades/clarence-double-storey.png"
   },
   {
     "id": "como",
@@ -857,8 +863,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/como.jpg",
-    "originalUrl": "/facades/como.jpg"
+    "url": "/facades/como-double-storey.png",
+    "originalUrl": "/facades/como-double-storey.png"
   },
   {
     "id": "contemporary",
@@ -869,20 +875,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/contemporary.jpg",
-    "originalUrl": "/facades/contemporary.jpg"
+    "url": "/facades/contemporary-double-storey.png",
+    "originalUrl": "/facades/contemporary-double-storey.png"
   },
   {
     "id": "deco-double-garage",
     "name": "Deco (Double Storey)",
     "range": "Double Storey",
     "tags": [
-      "deco",
+      "deco-double-garage",
       "double",
       "double-garage"
     ],
-    "url": "/facades/deco-double-garage.jpg",
-    "originalUrl": "/facades/deco-double-garage.jpg"
+    "url": "/facades/deco-double-storey.png",
+    "originalUrl": "/facades/deco-double-storey.png"
   },
   {
     "id": "delta",
@@ -893,8 +899,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/delta.jpg",
-    "originalUrl": "/facades/delta.jpg"
+    "url": "/facades/delta-double-storey.png",
+    "originalUrl": "/facades/delta-double-storey.png"
   },
   {
     "id": "deluxe",
@@ -905,8 +911,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/deluxe.jpg",
-    "originalUrl": "/facades/deluxe.jpg"
+    "url": "/facades/deluxe-double-storey.png",
+    "originalUrl": "/facades/deluxe-double-storey.png"
   },
   {
     "id": "flair",
@@ -917,8 +923,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/flair.jpg",
-    "originalUrl": "/facades/flair.jpg"
+    "url": "/facades/flair-double-storey.png",
+    "originalUrl": "/facades/flair-double-storey.png"
   },
   {
     "id": "grande",
@@ -929,8 +935,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/grande.jpg",
-    "originalUrl": "/facades/grande.jpg"
+    "url": "/facades/grande-double-storey.png",
+    "originalUrl": "/facades/grande-double-storey.png"
   },
   {
     "id": "hamptons",
@@ -941,8 +947,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/hamptons-h2-double-storey.jpg",
-    "originalUrl": "/facades/hamptons-h2-double-storey.jpg"
+    "url": "/facades/hamptons-double-storey.png",
+    "originalUrl": "/facades/hamptons-double-storey.png"
   },
   {
     "id": "madison",
@@ -953,8 +959,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/madison.jpg",
-    "originalUrl": "/facades/madison.jpg"
+    "url": "/facades/madison-narrow-dg.png",
+    "originalUrl": "/facades/madison-narrow-dg.png"
   },
   {
     "id": "majestic",
@@ -965,20 +971,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/majestic.jpg",
-    "originalUrl": "/facades/majestic.jpg"
+    "url": "/facades/majestic-double-storey.png",
+    "originalUrl": "/facades/majestic-double-storey.png"
   },
   {
     "id": "mantra-double-garage",
     "name": "Mantra",
     "range": "Double Storey",
     "tags": [
-      "mantra",
+      "mantra-double-garage",
       "double",
       "double-garage"
     ],
-    "url": "/facades/mantra-double-garage.jpg",
-    "originalUrl": "/facades/mantra-double-garage.jpg"
+    "url": "/facades/mantra-double-storey.png",
+    "originalUrl": "/facades/mantra-double-storey.png"
   },
   {
     "id": "marina",
@@ -989,8 +995,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/marina.jpg",
-    "originalUrl": "/facades/marina.jpg"
+    "url": "/facades/marina-double-storey.png",
+    "originalUrl": "/facades/marina-double-storey.png"
   },
   {
     "id": "meridian",
@@ -1001,8 +1007,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/meridian.jpg",
-    "originalUrl": "/facades/meridian.jpg"
+    "url": "/facades/meridian-narrow-dg.png",
+    "originalUrl": "/facades/meridian-narrow-dg.png"
   },
   {
     "id": "metro",
@@ -1013,8 +1019,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/metro.jpg",
-    "originalUrl": "/facades/metro.jpg"
+    "url": "/facades/metro-double-storey.png",
+    "originalUrl": "/facades/metro-double-storey.png"
   },
   {
     "id": "monash",
@@ -1025,8 +1031,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/monash.jpg",
-    "originalUrl": "/facades/monash.jpg"
+    "url": "/facades/monash-double-storey.png",
+    "originalUrl": "/facades/monash-double-storey.png"
   },
   {
     "id": "mondo",
@@ -1037,8 +1043,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/mondo.jpg",
-    "originalUrl": "/facades/mondo.jpg"
+    "url": "/facades/mondo-double-storey.png",
+    "originalUrl": "/facades/mondo-double-storey.png"
   },
   {
     "id": "novare",
@@ -1049,8 +1055,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/novare.jpg",
-    "originalUrl": "/facades/novare.jpg"
+    "url": "/facades/novare-double-storey.png",
+    "originalUrl": "/facades/novare-double-storey.png"
   },
   {
     "id": "nuvo",
@@ -1061,8 +1067,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/nuvo.jpg",
-    "originalUrl": "/facades/nuvo.jpg"
+    "url": "/facades/nuvo-double-storey.png",
+    "originalUrl": "/facades/nuvo-double-storey.png"
   },
   {
     "id": "oxford",
@@ -1073,8 +1079,20 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/oxford.jpg",
-    "originalUrl": "/facades/oxford.jpg"
+    "url": "/facades/oxford-double-storey.png",
+    "originalUrl": "/facades/oxford-double-storey.png"
+  },
+  {
+    "id": "reed",
+    "name": "Reed",
+    "range": "Double Storey",
+    "tags": [
+      "reed",
+      "double",
+      "double-garage"
+    ],
+    "url": "/facades/reed-double-storey.png",
+    "originalUrl": "/facades/reed-double-storey.png"
   },
   {
     "id": "regal",
@@ -1085,8 +1103,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/regal.jpg",
-    "originalUrl": "/facades/regal.jpg"
+    "url": "/facades/regal-double-storey.png",
+    "originalUrl": "/facades/regal-double-storey.png"
   },
   {
     "id": "riviera",
@@ -1097,8 +1115,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/riviera.jpg",
-    "originalUrl": "/facades/riviera.jpg"
+    "url": "/facades/riviera-double-storey.png",
+    "originalUrl": "/facades/riviera-double-storey.png"
   },
   {
     "id": "royale",
@@ -1109,8 +1127,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/royale.jpg",
-    "originalUrl": "/facades/royale.jpg"
+    "url": "/facades/royale-double-storey.png",
+    "originalUrl": "/facades/royale-double-storey.png"
   },
   {
     "id": "saville",
@@ -1121,8 +1139,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/saville.jpg",
-    "originalUrl": "/facades/saville.jpg"
+    "url": "/facades/saville-double-storey.png",
+    "originalUrl": "/facades/saville-double-storey.png"
   },
   {
     "id": "sierra",
@@ -1133,8 +1151,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/sierra.jpg",
-    "originalUrl": "/facades/sierra.jpg"
+    "url": "/facades/sierra-narrow-dg.png",
+    "originalUrl": "/facades/sierra-narrow-dg.png"
   },
   {
     "id": "soho",
@@ -1145,8 +1163,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/soho.jpg",
-    "originalUrl": "/facades/soho.jpg"
+    "url": "/facades/soho-double-storey.png",
+    "originalUrl": "/facades/soho-double-storey.png"
   },
   {
     "id": "statesman",
@@ -1157,8 +1175,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/statesman.jpg",
-    "originalUrl": "/facades/statesman.jpg"
+    "url": "/facades/statesman-double-storey.png",
+    "originalUrl": "/facades/statesman-double-storey.png"
   },
   {
     "id": "tempo",
@@ -1169,8 +1187,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/tempo.jpg",
-    "originalUrl": "/facades/tempo.jpg"
+    "url": "/facades/tempo-double-storey.png",
+    "originalUrl": "/facades/tempo-double-storey.png"
   },
   {
     "id": "vista",
@@ -1181,8 +1199,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/vista.jpg",
-    "originalUrl": "/facades/vista.jpg"
+    "url": "/facades/vista-narrow-dg.png",
+    "originalUrl": "/facades/vista-narrow-dg.png"
   },
   {
     "id": "vogue",
@@ -1193,8 +1211,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/vogue.jpg",
-    "originalUrl": "/facades/vogue.jpg"
+    "url": "/facades/vogue-double-storey.png",
+    "originalUrl": "/facades/vogue-double-storey.png"
   },
   {
     "id": "windsor",
@@ -1205,32 +1223,330 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "double",
       "double-garage"
     ],
-    "url": "/facades/windsor.jpg",
-    "originalUrl": "/facades/windsor.jpg"
+    "url": "/facades/windsor-double-storey.png",
+    "originalUrl": "/facades/windsor-double-storey.png"
   },
   {
-    "id": "hamptons-acreage",
-    "name": "Hamptons (Acreage)",
-    "range": "Acreage & Split Level",
+    "id": "classic-narrow-dg",
+    "name": "Classic Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
     "tags": [
-      "hamptons",
+      "classic-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/classic-dg-narrow-dg.png",
+    "originalUrl": "/facades/classic-dg-narrow-dg.png"
+  },
+  {
+    "id": "chateaux-narrow-dg",
+    "name": "Chateaux Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "chateaux-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/chateaux-narrow-dg.png",
+    "originalUrl": "/facades/chateaux-narrow-dg.png"
+  },
+  {
+    "id": "contemporary-narrow-dg",
+    "name": "Contemporary Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "contemporary-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/contemporary-narrow-dg.png",
+    "originalUrl": "/facades/contemporary-narrow-dg.png"
+  },
+  {
+    "id": "deco-narrow-dg",
+    "name": "Deco Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "deco-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/deco-narrow-dg.png",
+    "originalUrl": "/facades/deco-narrow-dg.png"
+  },
+  {
+    "id": "madison-narrow-dg",
+    "name": "Madison Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "madison-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/madison-narrow-dg.png",
+    "originalUrl": "/facades/madison-narrow-dg.png"
+  },
+  {
+    "id": "majestic-narrow-dg",
+    "name": "Majestic Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "majestic-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/majestic-narrow-dg.png",
+    "originalUrl": "/facades/majestic-narrow-dg.png"
+  },
+  {
+    "id": "marina-narrow-dg",
+    "name": "Marina Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "marina-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/marina-narrow-dg.png",
+    "originalUrl": "/facades/marina-narrow-dg.png"
+  },
+  {
+    "id": "meridian-narrow-dg",
+    "name": "Meridian Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "meridian-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/meridian-narrow-dg.png",
+    "originalUrl": "/facades/meridian-narrow-dg.png"
+  },
+  {
+    "id": "novare-narrow-dg",
+    "name": "Novare Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "novare-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/novare-narrow-dg.png",
+    "originalUrl": "/facades/novare-narrow-dg.png"
+  },
+  {
+    "id": "sierra-narrow-dg",
+    "name": "Sierra Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "sierra-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/sierra-narrow-dg.png",
+    "originalUrl": "/facades/sierra-narrow-dg.png"
+  },
+  {
+    "id": "vista-narrow-dg",
+    "name": "Vista Narrow (Double Storey)",
+    "range": "Narrow Double Storey",
+    "tags": [
+      "vista-narrow-dg",
+      "double",
+      "narrow",
+      "carolina",
+      "turquoise"
+    ],
+    "url": "/facades/vista-narrow-dg.png",
+    "originalUrl": "/facades/vista-narrow-dg.png"
+  },
+  {
+    "id": "classic-ranch",
+    "name": "Classic (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "classic-ranch",
       "acreage",
       "ranch",
       "mulberry"
     ],
-    "url": "/facades/hamptons-acreage.jpg",
-    "originalUrl": "/facades/hamptons-acreage.jpg"
+    "url": "/facades/classic-ranch.png",
+    "originalUrl": "/facades/classic-ranch.png"
   },
   {
-    "id": "hamptons-split",
-    "name": "Hamptons (Split Level)",
-    "range": "Acreage & Split Level",
+    "id": "classic-plus-ranch",
+    "name": "Classic Plus (Ranch)",
+    "range": "Ranch & Acreage",
     "tags": [
-      "hamptons",
-      "split",
-      "split-level"
+      "classic-plus-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
     ],
-    "url": "/facades/hamptons-split.jpg",
-    "originalUrl": "/facades/hamptons-split.jpg"
+    "url": "/facades/classic-plus-ranch.png",
+    "originalUrl": "/facades/classic-plus-ranch.png"
+  },
+  {
+    "id": "eden-ranch",
+    "name": "Eden (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "eden-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/eden-ranch.png",
+    "originalUrl": "/facades/eden-ranch.png"
+  },
+  {
+    "id": "hampton-ranch",
+    "name": "Hamptons (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "hampton-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/hampton-ranch.png",
+    "originalUrl": "/facades/hampton-ranch.png"
+  },
+  {
+    "id": "imperial-ranch",
+    "name": "Imperial (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "imperial-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/imperial-ranch.png",
+    "originalUrl": "/facades/imperial-ranch.png"
+  },
+  {
+    "id": "metro-ranch",
+    "name": "Metro (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "metro-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/metro-ranch.png",
+    "originalUrl": "/facades/metro-ranch.png"
+  },
+  {
+    "id": "statesman-ranch",
+    "name": "Statesman (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "statesman-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/statesman-ranch.png",
+    "originalUrl": "/facades/statesman-ranch.png"
+  },
+  {
+    "id": "urban-ranch",
+    "name": "Urban (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "urban-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/urban-ranch.png",
+    "originalUrl": "/facades/urban-ranch.png"
+  },
+  {
+    "id": "vogue-ranch",
+    "name": "Vogue (Ranch)",
+    "range": "Ranch & Acreage",
+    "tags": [
+      "vogue-ranch",
+      "acreage",
+      "ranch",
+      "mulberry"
+    ],
+    "url": "/facades/vogue-ranch.png",
+    "originalUrl": "/facades/vogue-ranch.png"
+  },
+  {
+    "id": "classic-cobalt",
+    "name": "Classic (Cobalt Split)",
+    "range": "Split Level",
+    "tags": [
+      "classic-cobalt",
+      "split",
+      "split-level",
+      "cobalt"
+    ],
+    "url": "/facades/classic-cobalt.png",
+    "originalUrl": "/facades/classic-cobalt.png"
+  },
+  {
+    "id": "hamptons-cobalt",
+    "name": "Hamptons (Cobalt Split)",
+    "range": "Split Level",
+    "tags": [
+      "hamptons-cobalt",
+      "split",
+      "split-level",
+      "cobalt"
+    ],
+    "url": "/facades/hamptons-cobalt.png",
+    "originalUrl": "/facades/hamptons-cobalt.png"
+  },
+  {
+    "id": "infinity-cobalt",
+    "name": "Infinity (Cobalt Split)",
+    "range": "Split Level",
+    "tags": [
+      "infinity-cobalt",
+      "split",
+      "split-level",
+      "cobalt"
+    ],
+    "url": "/facades/infinity-cobalt.png",
+    "originalUrl": "/facades/infinity-cobalt.png"
+  },
+  {
+    "id": "vogue-cobalt",
+    "name": "Vogue (Cobalt Split)",
+    "range": "Split Level",
+    "tags": [
+      "vogue-cobalt",
+      "split",
+      "split-level",
+      "cobalt"
+    ],
+    "url": "/facades/vogue-cobalt.png",
+    "originalUrl": "/facades/vogue-cobalt.png"
   }
 ];
