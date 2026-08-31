@@ -25,12 +25,19 @@
 
 ### Exact Geometry & Framing Specifications:
 - **Canvas Resolution**: `2400 × 937 px` (matches 210mm × 82mm flyer banner ratio = 2.56:1, `pxPerMm = 11.4268`).
-- **Roof Headroom**: Roof apex must sit **strictly 5.0mm from the top photo border** (`~57px`).
-- **House Grounding**: Base of house structure sits **~20.0mm from bottom border** (`~228px` for Single Storey, `~137px` for Double Storey).
-- **Full-Bleed Scaling**: `scale = Math.max(outW / srcW, targetHouseH / houseH)` ensures 100% full-bleed coverage across 2400px width with 0 empty wings, 0 blurred mirror reflections, and 0 duplicate slices.
+- **Single Storey Framing (100% UNTOUCHED)**:
+  - Roof Headroom: Strictly 5.0mm from top border (`~57px`).
+  - House Grounding: Base of house sits ~20.0mm from bottom border (`~228px`).
+  - Full-Bleed Scaling: `scale = Math.max(outW / srcW, targetHouseH / houseH)` ensures 100% natural, pristine full-bleed master render across the 2400px width.
+- **Double Storey Framing (CALIBRATED TO SIT IN FRAME AESTHETICALLY)**:
+  - Roof Headroom: Calibrated to ~4.5mm–6.0mm from top border (`~51px–68px`).
+  - House Grounding: Base of house sits ~7.0mm–10.0mm from bottom border (`~80px–114px`).
+  - House Scaling: `scale = Math.min(outW / srcW, targetHouseH / houseH)` scales the house back slightly so that both the roof apex and ground line sit inside the frame without crossing borders.
+  - Natural Landscape Wings: Safe outer landscape columns (`[0, 10%]` and `[90%, 100%]`) fill the outer wings with soft 35px edge feathered blending, completely eliminating ghosted pillars or blurred boxes.
 - **Engine File**: [`src/components/flyer/facadeEngine.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/components/flyer/facadeEngine.ts) (`preframeFacadeImage`, `prepareFacade`, `enhanceImageCrispness`).
 
 ### Facade Catalogue & Lookup Routing:
+- **Single Storey Aspen Fix**: `aspen` in `facades.data.ts` and `preRenderedFacades.data.ts` strictly maps to `/facades/aspen-facade-single-storey.jpg`, while `aspen-double` maps to `/facades/aspen-double-storey.png` and `aspen-single-garage` maps to `/facades/aspen-single-garage.png`.
 - **Catalogue Files**:
   - [`src/components/flyer/facades.data.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/components/flyer/facades.data.ts): 126 curated items with clean tags and categories.
   - [`src/components/flyer/preRenderedFacades.data.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/components/flyer/preRenderedFacades.data.ts): Pre-rendered 4K/HD static mappings.
