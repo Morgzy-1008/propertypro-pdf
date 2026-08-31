@@ -37,6 +37,7 @@ import {
   saveQuoteAsync,
   deleteQuote,
   deleteQuoteAsync,
+  deleteQuotesAsync,
   recoverAllHistoricalQuotes,
 } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
@@ -579,6 +580,10 @@ export function QuoteBuilder() {
         }}
         onDeleteQuote={async (id) => {
           await deleteQuoteAsync(id);
+          await refreshSavedQuotes();
+        }}
+        onDeleteQuotes={async (ids) => {
+          await deleteQuotesAsync(ids);
           await refreshSavedQuotes();
         }}
         onSaveCurrentQuote={handleSaveQuote}

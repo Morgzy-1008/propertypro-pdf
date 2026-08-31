@@ -9,11 +9,18 @@ import {
   Copy,
   Trash2,
   CheckCircle2,
+  CheckSquare,
+  Square,
   FileText,
   Home,
   User,
   Plus,
   ArrowRight,
+  RefreshCw,
+  Sparkles,
+  Users,
+  UserCheck,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
@@ -30,7 +37,6 @@ import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } f
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { RefreshCw, Sparkles, Users, UserCheck } from "lucide-react";
 import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
 
 interface QuoteEstimatesDialogProps {
@@ -40,6 +46,7 @@ interface QuoteEstimatesDialogProps {
   activeQuoteId?: string;
   onLoadQuote: (quote: FullQuote) => void;
   onDeleteQuote: (id: string) => void;
+  onDeleteQuotes?: (ids: string[]) => void | Promise<void>;
   onSaveCurrentQuote: () => void;
   onImportQuote: (quote: FullQuote) => void;
 }
@@ -154,12 +161,14 @@ export function QuoteEstimatesDialog({
   activeQuoteId,
   onLoadQuote,
   onDeleteQuote,
+  onDeleteQuotes,
   onSaveCurrentQuote,
   onImportQuote,
 }: QuoteEstimatesDialogProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("mine");
+  const [selectedQuoteIds, setSelectedQuoteIds] = useState<Set<string>>(new Set());
 
   const isMyQuote = (q: FullQuote) => {
     if (!activeStaff) return true;
@@ -198,6 +207,78 @@ export function QuoteEstimatesDialog({
       consultant.includes(query)
     );
   });
+
+  const isAllFilteredSelected =
+    filteredQuotes.length > 0 && filteredQuotes.every((q) => selectedQuoteIds.has(q.id));
+
+  const handleToggleSelectAllFiltered = () => {
+    if (isAllFilteredSelected) {
+      setSelectedQuoteIds((prev) => {
+        const next = new Set(prev);
+        for (const q of filteredQuotes) {
+          next.delete(q.id);
+        }
+        return next;
+      });
+    } else {
+      setSelectedQuoteIds((prev) => {
+        const next = new Set(prev);
+        for (const q of filteredQuotes) {
+          next.add(q.id);
+        }
+        return next;
+      });
+    }
+  };
+
+  const handleToggleSelectQuote = (id: string) => {
+    setSelectedQuoteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    const idsToDelete = Array.from(selectedQuoteIds);
+    if (idsToDelete.length === 0) return;
+
+    const count = idsToDelete.length;
+    const confirmMsg = `Are you sure you want to permanently delete ${count} selected estimate${count > 1 ? "s" : ""}? This action cannot be undone.`;
+
+    if (confirm(confirmMsg)) {
+      if (onDeleteQuotes) {
+        await onDeleteQuotes(idsToDelete);
+      } else {
+        for (const id of idsToDelete) {
+          await onDeleteQuote(id);
+        }
+      }
+      setSelectedQuoteIds(new Set());
+      toast.success(`Successfully deleted ${count} estimate${count > 1 ? "s" : ""} in bulk`);
+    }
+  };
+
+  const handleBulkExportJson = () => {
+    const selectedList = savedQuotes.filter((q) => selectedQuoteIds.has(q.id));
+    if (selectedList.length === 0) return;
+    try {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(selectedList, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `Hudson_Estimates_Backup_${selectedList.length}_quotes_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast.success(`Exported ${selectedList.length} estimate(s) as JSON backup`);
+    } catch {
+      toast.error("Could not export backup JSON");
+    }
+  };
 
   const handleDuplicate = (quote: FullQuote) => {
     const newEstNo = generateQuoteNumber();
@@ -397,12 +478,15 @@ export function QuoteEstimatesDialog({
             />
           </div>
 
-          {/* Scope Tabs: My Estimates (Jesse Jenkins: 8) vs All Team Estimates (24) */}
-          <div className="flex items-center justify-between gap-2 pt-2.5">
+          {/* Scope Tabs & Select All Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5">
             <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
               <button
                 type="button"
-                onClick={() => setScopeFilter("mine")}
+                onClick={() => {
+                  setScopeFilter("mine");
+                  setSelectedQuoteIds(new Set());
+                }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   scopeFilter === "mine"
                     ? "bg-amber-500 text-slate-950 shadow-sm"
@@ -419,7 +503,10 @@ export function QuoteEstimatesDialog({
 
               <button
                 type="button"
-                onClick={() => setScopeFilter("all")}
+                onClick={() => {
+                  setScopeFilter("all");
+                  setSelectedQuoteIds(new Set());
+                }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   scopeFilter === "all"
                     ? "bg-cyan-500 text-slate-950 shadow-sm"
@@ -431,39 +518,106 @@ export function QuoteEstimatesDialog({
               </button>
             </div>
 
-            <span className="text-[11px] text-slate-500">
-              Showing {filteredQuotes.length} estimate{filteredQuotes.length === 1 ? "" : "s"}
-            </span>
-          </div>
-        </DialogHeader>
+            <div className="flex items-center gap-2.5">
+              {filteredQuotes.length > 0 && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-200 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={isAllFilteredSelected}
+                    onChange={handleToggleSelectAllFiltered}
+                    className="rounded accent-amber-500 w-3.5 h-3.5 cursor-pointer"
+                  />
+                  <span>{isAllFilteredSelected ? "Deselect All" : `Select All (${filteredQuotes.length})`}</span>
+                </label>
+              )}
 
-        {/* Restore from PDF Banner */}
-        <div className="flex-none my-2 p-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 flex items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex-none">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div>
-              <span className="font-bold text-white block">Restore from Previous Estimate PDF</span>
-              <span className="text-[11px] text-slate-400">
-                Upload any Hudson estimate PDF to automatically recover all client details, design selections, modified room sizes, and site items.
+              <span className="text-[11px] text-slate-500">
+                Showing {filteredQuotes.length} estimate{filteredQuotes.length === 1 ? "" : "s"}
               </span>
             </div>
           </div>
-          <label className="cursor-pointer flex-none">
-            <input
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={handleImportPdfFile}
-              disabled={importingPdf}
-              className="hidden"
-            />
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-400/60 bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-xs font-extrabold transition-all shadow-sm">
-              <Upload className="h-3.5 w-3.5" />
-              Upload PDF
-            </span>
-          </label>
-        </div>
+        </DialogHeader>
+
+        {/* Bulk Action Toolbar when 1+ estimates are selected */}
+        {selectedQuoteIds.size > 0 && (
+          <div className="flex-none my-2 p-3 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-950/50 via-slate-900/95 to-slate-900/80 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded bg-amber-500/20 text-amber-400">
+                <CheckSquare className="h-4 w-4" />
+              </span>
+              <span className="font-extrabold text-amber-300 text-sm">
+                {selectedQuoteIds.size} estimate{selectedQuoteIds.size === 1 ? "" : "s"} selected
+              </span>
+              <span className="text-slate-400 text-[11px] hidden sm:inline">
+                ({Math.round((selectedQuoteIds.size / Math.max(1, filteredQuotes.length)) * 100)}% of visible)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedQuoteIds(new Set())}
+                className="text-xs text-slate-400 hover:text-white h-8 px-2.5 gap-1"
+              >
+                <X className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleBulkExportJson}
+                className="text-xs border-emerald-500/40 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/60 font-bold h-8 gap-1.5"
+              >
+                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                Export JSON ({selectedQuoteIds.size})
+              </Button>
+
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleBulkDelete}
+                className="text-xs bg-rose-600 hover:bg-rose-500 text-white font-extrabold h-8 gap-1.5 shadow-md"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete Selected ({selectedQuoteIds.size})
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Restore from PDF Banner (collapsed if selecting) */}
+        {selectedQuoteIds.size === 0 && (
+          <div className="flex-none my-2 p-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex-none">
+                <FileText className="h-4 w-4" />
+              </div>
+              <div>
+                <span className="font-bold text-white block">Restore from Previous Estimate PDF</span>
+                <span className="text-[11px] text-slate-400">
+                  Upload any Hudson estimate PDF to automatically recover all client details, design selections, modified room sizes, and site items.
+                </span>
+              </div>
+            </div>
+            <label className="cursor-pointer flex-none">
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={handleImportPdfFile}
+                disabled={importingPdf}
+                className="hidden"
+              />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-400/60 bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-xs font-extrabold transition-all shadow-sm">
+                <Upload className="h-3.5 w-3.5" />
+                Upload PDF
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* Scrollable Estimates List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
@@ -499,6 +653,7 @@ export function QuoteEstimatesDialog({
           ) : (
             filteredQuotes.map((q) => {
               const isActive = q.id === activeQuoteId;
+              const isSelected = selectedQuoteIds.has(q.id);
               const dateFormatted = q.updatedAt
                 ? new Date(q.updatedAt).toLocaleDateString("en-AU", {
                     day: "numeric",
@@ -520,47 +675,67 @@ export function QuoteEstimatesDialog({
                 <div
                   key={q.id}
                   className={`p-4 rounded-xl border transition-all ${
-                    isActive
+                    isSelected
+                      ? "border-amber-500/90 bg-amber-950/20 ring-1 ring-amber-500/40 shadow-md"
+                      : isActive
                       ? "border-cyan-500/80 bg-slate-900/95 ring-1 ring-cyan-500/30 shadow-lg"
                       : "border-slate-800/90 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-700"
                   }`}
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-extrabold text-sm text-slate-100 flex items-center gap-1.5">
-                          <User className="h-3.5 w-3.5 text-cyan-400" />
-                          {q.client?.clientName || "Unnamed Client"}
-                        </span>
-                        <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
-                          #{q.quoteNumber || q.client?.estimateNumber || "MH"}
-                        </span>
-                        {q.client?.consultantName && (
-                          <span className="text-[10px] font-semibold text-amber-400 bg-amber-950/70 border border-amber-800/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                            👤 {q.client.consultantName}
-                          </span>
-                        )}
-                        {isActive && (
-                          <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                            Currently Active
-                          </span>
-                        )}
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      {/* Checkbox for selection */}
+                      <div className="pt-0.5 flex-none" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => handleToggleSelectQuote(q.id)}
+                          className="rounded accent-amber-500 w-4 h-4 cursor-pointer"
+                          title="Select estimate for bulk action"
+                        />
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Home className="h-3 w-3 text-slate-500" />
-                          <strong className="text-slate-300 font-semibold">{designTitle}</strong>
-                          {m2Label && ` (${m2Label})`}
-                        </span>
-                        {q.client?.siteAddress && (
-                          <span>
-                            · {[q.client.lotNumber, q.client.siteAddress, q.client.suburb].filter(Boolean).join(" ")}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-sm text-slate-100 flex items-center gap-1.5">
+                            <User className="h-3.5 w-3.5 text-cyan-400" />
+                            {q.client?.clientName || "Unnamed Client"}
                           </span>
-                        )}
-                        <span className="text-slate-500 text-[11px]">
-                          · Updated {dateFormatted}
-                        </span>
+                          <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
+                            #{q.quoteNumber || q.client?.estimateNumber || "MH"}
+                          </span>
+                          {q.client?.consultantName && (
+                            <span className="text-[10px] font-semibold text-amber-400 bg-amber-950/70 border border-amber-800/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                              👤 {q.client.consultantName}
+                            </span>
+                          )}
+                          {isActive && (
+                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                              Currently Active
+                            </span>
+                          )}
+                          {isSelected && (
+                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <Home className="h-3 w-3 text-slate-500" />
+                            <strong className="text-slate-300 font-semibold">{designTitle}</strong>
+                            {m2Label && ` (${m2Label})`}
+                          </span>
+                          {q.client?.siteAddress && (
+                            <span>
+                              · {[q.client.lotNumber, q.client.siteAddress, q.client.suburb].filter(Boolean).join(" ")}
+                            </span>
+                          )}
+                          <span className="text-slate-500 text-[11px]">
+                            · Updated {dateFormatted}
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -614,6 +789,11 @@ export function QuoteEstimatesDialog({
                           onClick={async () => {
                             if (confirm(`Delete estimate #${q.quoteNumber} for ${q.client?.clientName || "Client"}?`)) {
                               await onDeleteQuote(q.id);
+                              setSelectedQuoteIds((prev) => {
+                                const next = new Set(prev);
+                                next.delete(q.id);
+                                return next;
+                              });
                               toast.success("Estimate deleted");
                             }
                           }}

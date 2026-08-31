@@ -539,18 +539,33 @@ export function loadActiveDraftQuote(): FullQuote | null {
   }
 }
 
-export async function deleteQuoteAsync(id: string): Promise<void> {
-  if (typeof window === "undefined") return;
+export async function deleteQuotesAsync(ids: string[]): Promise<void> {
+  if (typeof window === "undefined" || ids.length === 0) return;
+  const idSet = new Set(ids);
 
-  // 1. Delete from IndexedDB and wait for transaction to finish
-  await deleteQuoteFromIdb(id);
+  // 1. Delete from IndexedDB in single transaction
+  try {
+    const db = await openQuoteDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE_NAME, "readwrite");
+      const store = tx.objectStore(IDB_STORE_NAME);
+      for (const id of ids) {
+        store.delete(id);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    });
+  } catch (e) {
+    console.warn("IndexedDB bulk delete error:", e);
+  }
 
-  // 2. Clear from active working draft if it matches
+  // 2. Clear from active working draft if matches
   try {
     const rawDraft = localStorage.getItem(STORAGE_KEY_ACTIVE_DRAFT);
     if (rawDraft) {
       const parsedDraft = JSON.parse(rawDraft);
-      if (parsedDraft?.id === id || parsedDraft?.quoteNumber === id) {
+      if (idSet.has(parsedDraft?.id) || idSet.has(parsedDraft?.quoteNumber)) {
         localStorage.removeItem(STORAGE_KEY_ACTIVE_DRAFT);
       }
     }
@@ -564,7 +579,7 @@ export async function deleteQuoteAsync(id: string): Promise<void> {
     if (rawQuotes) {
       const parsed = JSON.parse(rawQuotes);
       if (Array.isArray(parsed)) {
-        const filtered = parsed.filter((q: any) => q.id !== id && q.quoteNumber !== id);
+        const filtered = parsed.filter((q: any) => !idSet.has(q.id) && !idSet.has(q.quoteNumber));
         localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(filtered));
       }
     }
@@ -573,7 +588,7 @@ export async function deleteQuoteAsync(id: string): Promise<void> {
     if (rawV8) {
       const parsedV8 = JSON.parse(rawV8);
       if (Array.isArray(parsedV8)) {
-        const filteredV8 = parsedV8.filter((q: any) => q.id !== id && q.quoteNumber !== id);
+        const filteredV8 = parsedV8.filter((q: any) => !idSet.has(q.id) && !idSet.has(q.quoteNumber));
         localStorage.setItem("hudson_builders_estimate_quotes_v8", JSON.stringify(filteredV8));
       }
     }
@@ -582,28 +597,16 @@ export async function deleteQuoteAsync(id: string): Promise<void> {
   }
 }
 
-export function deleteQuote(id: string): void {
-  if (typeof window === "undefined") return;
-  deleteQuoteFromIdb(id).catch(() => {});
-  
-  try {
-    const rawDraft = localStorage.getItem(STORAGE_KEY_ACTIVE_DRAFT);
-    if (rawDraft) {
-      const parsedDraft = JSON.parse(rawDraft);
-      if (parsedDraft?.id === id || parsedDraft?.quoteNumber === id) {
-        localStorage.removeItem(STORAGE_KEY_ACTIVE_DRAFT);
-      }
-    }
-
-    const rawQuotes = localStorage.getItem(STORAGE_KEY_QUOTES);
-    if (rawQuotes) {
-      const parsed = JSON.parse(rawQuotes);
-      if (Array.isArray(parsed)) {
-        const filtered = parsed.filter((q: any) => q.id !== id && q.quoteNumber !== id);
-        localStorage.setItem(STORAGE_KEY_QUOTES, JSON.stringify(filtered));
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+export function deleteQuotes(ids: string[]): void {
+  if (typeof window === "undefined" || ids.length === 0) return;
+  deleteQuotesAsync(ids).catch(() => {});
 }
+
+export async function deleteQuoteAsync(id: string): Promise<void> {
+  return deleteQuotesAsync([id]);
+}
+
+export function deleteQuote(id: string): void {
+  return deleteQuotes([id]);
+}
+
