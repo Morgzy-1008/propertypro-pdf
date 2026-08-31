@@ -139,46 +139,37 @@ export async function preframeFacadeImage(
     const imgData = sCtx.getImageData(0, 0, srcW, srcH);
     const data = imgData.data;
 
-    // 1. Sample Sky Color from top 8% of original image
-    let skyR = 0, skyG = 0, skyB = 0, skyCount = 0;
-    for (let y = 0; y < Math.round(srcH * 0.08); y += 2) {
-      for (let x = 0; x < srcW; x += 4) {
+    // Scan Roof Apex (top 60%, central 60%)
+    let roofApexY = Math.round(srcH * 0.12);
+    for (let y = 8; y < srcH * 0.60; y += 2) {
+      let nonSkyCount = 0;
+      for (let x = Math.round(srcW * 0.20); x < Math.round(srcW * 0.80); x += 4) {
         const idx = (y * srcW + x) * 4;
-        skyR += data[idx];
-        skyG += data[idx + 1];
-        skyB += data[idx + 2];
-        skyCount++;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        const isSky = (b > r + 14 && b > g - 10) || (r > 215 && g > 225 && b > 230);
+        if (!isSky) nonSkyCount++;
+      }
+      if (nonSkyCount > (srcW * 0.60 / 4) * 0.08) {
+        roofApexY = y;
+        break;
       }
     }
-    skyR = Math.round(skyCount > 0 ? skyR / skyCount : 210);
-    skyG = Math.round(skyCount > 0 ? skyG / skyCount : 225);
-    skyB = Math.round(skyCount > 0 ? skyB / skyCount : 240);
 
-    // 2. Sample Lawn / Ground Color from bottom corners
-    let gndR = 0, gndG = 0, gndB = 0, gndCount = 0;
-    for (let y = Math.round(srcH * 0.88); y < srcH; y += 2) {
-      for (let x = 0; x < Math.round(srcW * 0.25); x += 4) {
+    // Scan Ground Line (bottom of house structure / garage slab)
+    let houseBaseY = Math.round(srcH * 0.82);
+    for (let y = Math.round(srcH * 0.90); y > Math.round(srcH * 0.45); y -= 2) {
+      let structureCount = 0;
+      for (let x = Math.round(srcW * 0.20); x < Math.round(srcW * 0.80); x += 4) {
         const idx = (y * srcW + x) * 4;
-        gndR += data[idx];
-        gndG += data[idx + 1];
-        gndB += data[idx + 2];
-        gndCount++;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        const isStructure = (r < 80 && g < 80 && b < 80) || (r > 130 && g > 110 && b < 100) || (r > 140 && g > 140 && b > 140);
+        if (isStructure) structureCount++;
       }
-      for (let x = Math.round(srcW * 0.75); x < srcW; x += 4) {
-        const idx = (y * srcW + x) * 4;
-        gndR += data[idx];
-        gndG += data[idx + 1];
-        gndB += data[idx + 2];
-        gndCount++;
+      if (structureCount > (srcW * 0.60 / 4) * 0.15) {
+        houseBaseY = y;
+        break;
       }
     }
-    gndR = Math.round(gndCount > 0 ? gndR / gndCount : 120);
-    gndG = Math.round(gndCount > 0 ? gndG / gndCount : 135);
-    gndB = Math.round(gndCount > 0 ? gndB / gndCount : 110);
-
-    const { roofY, baseY, leftX, rightX } = findHouseBounds(img, data);
-    const houseW = Math.max(100, rightX - leftX);
-    const houseH = Math.max(100, baseY - roofY);
 
     const isDouble =
       housingType === "double-storey" ||
@@ -186,23 +177,23 @@ export async function preframeFacadeImage(
       housingType === "Double Storey" ||
       housingType === "Double";
 
-    // Calibrated safe headroom & ground geometry:
-    // User Directive: "make the houses as large as possible without the house itself ever crossing the 5mm from photo border. and perfect the outpainting backround"
-    const margin5mm = Math.round(5.0 * pxPerMm); // 57px (strictly 5.0mm from photo border)
-    const targetRoofApexY = margin5mm; // roof apex exactly at 5mm from top photo border
-    const targetHouseBaseY = outH - margin5mm; // house base/driveway at 5mm from bottom photo border
-    const targetHouseH = targetHouseBaseY - targetRoofApexY; // available height = 823px
+    const houseH = Math.max(100, houseBaseY - roofApexY);
 
-    // Calculate cover scale to fill the 2400x937 banner perfectly while keeping the house centered and sharp
-    const scaleX = outW / srcW;
-    const scaleY = outH / srcH;
-    const scale = Math.max(scaleX, scaleY);
+    // Target Roof Margin: strictly 5mm (~57px) from top
+    const topMarginPx = Math.round(5.0 * pxPerMm); // 57px
+    // Target Bottom House Base Margin: ~20mm (~228px) for single, 12mm (~137px) for double
+    const bottomMarginPx = Math.round((isDouble ? 12.0 : 20.0) * pxPerMm);
+    const targetHouseH = outH - topMarginPx - bottomMarginPx;
+
+    const scaleByHeight = targetHouseH / houseH;
+    const scaleByWidth = outW / srcW;
+    const scale = Math.max(scaleByWidth, scaleByHeight);
 
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
     const drawX = Math.round((outW - drawW) / 2);
-    // Align slightly towards bottom to ensure roof apex is never cropped
-    const drawY = Math.min(0, Math.max(outH - drawH, Math.round((outH - drawH) * 0.35)));
+    // Place roof apex exactly at 5mm from top
+    const drawY = Math.round(topMarginPx - (roofApexY * scale));
 
     const canvas = document.createElement("canvas");
     canvas.width = outW;
@@ -213,10 +204,34 @@ export async function preframeFacadeImage(
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Draw the authentic, pristine master render cleanly
+    // If drawY > 0, extend sky seamlessly at top
+    if (drawY > 0) {
+      const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
+      ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
+      ctx.fillRect(0, 0, outW, drawY + 10);
+    }
+
+    // Draw the authentic, high-resolution master photograph
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-    return canvas.toDataURL("image/jpeg", 0.95);
+    // If drawY + drawH < outH, extend driveway / lawn seamlessly at bottom
+    if (drawY + drawH < outH) {
+      const remainingH = outH - (drawY + drawH);
+      const btmLeftIdx = ((srcH - 8) * srcW + 20) * 4;
+      const btmRightIdx = ((srcH - 8) * srcW + (srcW - 20)) * 4;
+      const btmCenterIdx = ((srcH - 8) * srcW + Math.round(srcW * 0.5)) * 4;
+
+      ctx.fillStyle = `rgb(${data[btmLeftIdx]}, ${data[btmLeftIdx + 1]}, ${data[btmLeftIdx + 2]})`;
+      ctx.fillRect(0, drawY + drawH - 2, outW * 0.35, remainingH + 2);
+
+      ctx.fillStyle = `rgb(${data[btmCenterIdx]}, ${data[btmCenterIdx + 1]}, ${data[btmCenterIdx + 2]})`;
+      ctx.fillRect(outW * 0.35, drawY + drawH - 2, outW * 0.30, remainingH + 2);
+
+      ctx.fillStyle = `rgb(${data[btmRightIdx]}, ${data[btmRightIdx + 1]}, ${data[btmRightIdx + 2]})`;
+      ctx.fillRect(outW * 0.65, drawY + drawH - 2, outW * 0.35, remainingH + 2);
+    }
+
+    return canvas.toDataURL("image/jpeg", 0.96);
   } catch (e) {
     console.warn("[preframeFacadeImage fallback]", e);
     return rawB64;

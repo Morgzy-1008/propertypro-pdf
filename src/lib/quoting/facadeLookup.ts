@@ -86,7 +86,7 @@ export function findFacadeForDesign(
         if (found) return resolveWithPreRendered(found);
       }
     } else {
-      // === STANDARD DOUBLE STOREY (Burgundy, Jasper, Sapphire, Emerald, etc.) ===
+      // === STANDARD DOUBLE STOREY (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.) ===
       const standardDoubleIdMap: Record<string, string> = {
         classic: "classic-double-garage",
         classicplus: "classic-plus-double-garage",
@@ -103,7 +103,6 @@ export function findFacadeForDesign(
         allure: "allure",
         ascot: "ascot",
         ashton: "ashton",
-        aspen: "aspen-double",
         breeze: "breeze-double",
         centro: "centro",
         como: "como",
@@ -114,6 +113,7 @@ export function findFacadeForDesign(
         hamptons: "hamptons",
         marina: "marina",
         meridian: "meridian",
+        metro: "metro",
         monash: "monash",
         mondo: "mondo",
         novare: "novare",
@@ -169,19 +169,34 @@ export function findFacadeForDesign(
       banksia: "banksia",
       bayside: "bayside",
       breeze: "breeze",
+      chateaux: "chateaux-single",
       coastal: "coastal",
       contemporary: "contemporary-single",
       crest: "crest",
       eden: "eden",
+      elite: "elite-single",
+      executive: "executive-single",
       hamptons: "hamptons-single",
-      harmony: "harmony",
-      havana: "havana",
-      imperial: "imperial",
-      pavillion: "pavillion",
-      savoy: "savoy",
-      serenity: "serenity",
-      sovereign: "sovereign",
-      statesman: "statesman",
+      harmony: "harmony-single",
+      havana: "havana-single",
+      hillsdale: "hillsdale-single",
+      imperial: "imperial-single",
+      infinity: "infinity-single",
+      majestic: "majestic-single",
+      merlot: "merlot-single",
+      newport: "newport-single",
+      nuvo: "nuvo-single",
+      pavillion: "pavillion-single",
+      regal: "regal-single",
+      riviera: "riviera-single",
+      savoy: "savoy-single",
+      serenity: "serenity-single",
+      sovereign: "sovereign-single",
+      statesman: "statesman-single",
+      vibe: "vibe-single",
+      vienna: "vienna-single",
+      visage: "visage-single",
+      vogue: "vogue-single",
     };
 
     if (singleIdMap[baseKey]) {

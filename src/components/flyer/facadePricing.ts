@@ -146,9 +146,11 @@ export function facadeBaseName(name: string): string {
   return ALIASES[base] ?? base;
 }
 
-/** Classify a facade from its render: MULBERRY renders are the acreage range,
- *  any two-storey render ("2 Stry" / "Double Storey") is double, else single. */
 export function facadeCategory(item: { url: string; name: string; range?: string; tags?: string[] }): FacadeStorey {
+  if (item.range === "Double Storey" || item.range === "Narrow Double Storey") return "double";
+  if (item.range === "Acreage & Split Level" || item.range === "Acreage") return "acreage";
+  if (item.range === "Single Storey" || item.range === "Single Storey (Narrow Lot)") return "single";
+
   const src = `${item.url} ${item.name} ${item.range ?? ""} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
   if (/mulberry|ranch|acreage/i.test(src)) return "acreage";
   if (/2-?\s?stry|double[-\s]?storey|garage2/i.test(src)) return "double";
