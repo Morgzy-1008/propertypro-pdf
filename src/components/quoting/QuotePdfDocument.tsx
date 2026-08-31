@@ -71,6 +71,7 @@ import { HUDSON_FACADES } from "@/components/flyer/facades.data";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
 import { prepareFacade } from "@/components/flyer/facadeEngine";
 import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
+import { getHighResFloorplanForDesign } from "@/lib/quoting/quoteFloorplanResolver";
 
 interface QuotePdfDocumentProps {
   quote: FullQuote;
@@ -162,21 +163,19 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState(design.floorplanUrl || "");
 
   React.useEffect(() => {
+    let isMounted = true;
     if (design.floorplanUrl && design.floorplanUrl.startsWith("data:")) {
       setSrc(design.floorplanUrl);
       return;
     }
-    if (design.designName) {
-      const plans = plansForDesign(design.designName);
-      if (plans[0]) {
-        if (plans[0].url && !plans[0].url.startsWith("data:")) {
-          setSrc(plans[0].url);
-        }
-        prepareFloorplan(plans[0]).then((enhanced) => {
-          if (enhanced) setSrc(enhanced);
-        }).catch(() => {});
-      }
-    }
+    getHighResFloorplanForDesign(design.designName, design.floorplanUrl)
+      .then((enhanced) => {
+        if (isMounted && enhanced) setSrc(enhanced);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
   }, [design.designName, design.floorplanUrl]);
 
   if (!src) {
@@ -193,7 +192,8 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
       <img
         src={src}
         alt="Selected Floorplan Drawing"
-        className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        className="max-h-[460px] max-w-[690px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
   );
@@ -279,23 +279,21 @@ function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: Secon
   const [src, setSrc] = React.useState(secondDwelling?.floorplanUrl || "");
 
   React.useEffect(() => {
+    let isMounted = true;
     if (secondDwelling?.floorplanUrl && secondDwelling.floorplanUrl.startsWith("data:")) {
       setSrc(secondDwelling.floorplanUrl);
       return;
     }
-    if (secondDwelling?.designName) {
-      const plans = plansForDesign(secondDwelling.designName);
-      if (plans[0]) {
-        if (plans[0].url && !plans[0].url.startsWith("data:")) {
-          setSrc(plans[0].url);
-        }
-        prepareFloorplan(plans[0])
-          .then((enhanced) => {
-            if (enhanced) setSrc(enhanced);
-          })
-          .catch(() => {});
-      }
+    if (secondDwelling?.designName || secondDwelling?.floorplanUrl) {
+      getHighResFloorplanForDesign(secondDwelling.designName, secondDwelling.floorplanUrl)
+        .then((enhanced) => {
+          if (isMounted && enhanced) setSrc(enhanced);
+        })
+        .catch(() => {});
     }
+    return () => {
+      isMounted = false;
+    };
   }, [secondDwelling?.designName, secondDwelling?.floorplanUrl]);
 
   if (!src) {
@@ -313,7 +311,7 @@ function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: Secon
         src={src}
         alt="Secondary Dwelling Floorplan Drawing"
         className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
-        style={{ imageRendering: "auto" }}
+        style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
   );
@@ -946,7 +944,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 2: EXECUTIVE ESTIMATE & CONSTRUCTION COST SUMMARY                     */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-6">
@@ -1192,7 +1190,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 3: DEDICATED ARCHITECTURAL FACADE RENDER & MAXIMIZED FLOORPLAN       */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div className="flex-1 flex flex-col min-h-0">
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
@@ -1299,7 +1297,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* PAGE 4 (OPTIONAL): 2ND DWELLING / GRANNY FLAT ARCHITECTURAL FLOORPLAN      */}
       {/* ========================================================================= */}
       {hasSecondDwelling && secondDwelling && (
-        <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header */}
             <div className="flex items-start justify-between border-b-2 border-slate-900 pb-2 mb-2 flex-none">
@@ -1395,7 +1393,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
         return (
           <div
             key={`spec-page-${pageIdx}`}
-            className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
+            className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always"
           >
             <div>
               {/* Header */}
@@ -1524,7 +1522,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* PAGE 5+: EXPANDED FULL-PAGE STANDARD INCLUSIONS SCHEDULE (WEBSITE STYLED) */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
         <div>
           {/* Header */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
@@ -1712,7 +1710,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       {/* ========================================================================= */}
       {/* FINAL PAGE: LIFETIME GUARANTEE, DEPOSIT & OFFICIAL NAB BANK TRANSFER      */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between relative shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm]">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
         <div className="space-y-5">
           {/* Top Lifetime Structural Guarantee Banner */}
           <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md text-center space-y-2 border border-slate-800">
