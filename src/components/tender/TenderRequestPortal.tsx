@@ -57,7 +57,7 @@ import {
   SPLIT_LEVEL_PRICES,
   DUAL_OC_PRICES,
 } from "@/lib/pricelist.data";
-import { HOUSING_FACADES, INCLUSION_TIERS } from "@/components/quoting/QuoteDesignStep";
+import { HOUSING_FACADES, INCLUSION_TIERS, getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import type {
   TenderSubmission,
   TenderDocumentSlot,
@@ -439,7 +439,7 @@ export function TenderRequestPortal() {
   };
 
   const handleFacadeChange = (facadeName: string) => {
-    const facadesList = HOUSING_FACADES[tender.homeSpec.housingType] || HOUSING_FACADES["Single Storey"];
+    const facadesList = getFacadesForDesignAndHousingType(tender.homeSpec.designName, tender.homeSpec.housingType);
     const match = facadesList.find((f) => f.name === facadeName);
     const facadeUplift = match?.uplift || 0;
     const facadeRender = findFacadeRenderUrl(facadeName, tender.homeSpec.housingType);
@@ -1041,7 +1041,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
       ? DUAL_OC_PRICES
       : SINGLE_STOREY_PRICES;
 
-  const availableFacades = HOUSING_FACADES[tender.homeSpec.housingType] || HOUSING_FACADES["Single Storey"];
+  const availableFacades = getFacadesForDesignAndHousingType(tender.homeSpec.designName, tender.homeSpec.housingType);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-6 font-sans">

@@ -18,16 +18,13 @@ function item(name: string, url: string): FacadeItem {
 const U = "https://www.hudsonhomes.com.au/wp-content/uploads";
 
 export const MULBERRY_FACADES: FacadeItem[] = [
-  item("Classic", `${U}/2024/10/MULBERRY-Classic-Facade-SS-Statesman-scaled.jpg`),
-  item(
-    "Classic Plus",
-    `${U}/2024/07/Hudson-Homes-Ranch-Acerage-Home-Design-Experts-MULBERRY-Classic-Plus-Facade-SS-Statesman-scaled.jpg`,
-  ),
-  item("Eden", `${U}/2019/02/MULBERRY-Eden-Facade-Single-Storey-Satesman.jpg`),
-  item("Statesman", `${U}/2019/02/MULBERRY-Statesman-FacadeSingle-Storey-Statesman.jpg`),
-  item("Metro", `${U}/2019/02/MULBERRY-Metro-Facade-Single-Storey-Statesman.jpg`),
-  item("Hamptons", `${U}/2021/02/MULBERRY-Hamptons-Facade-Single-Storey-Statesman-scaled.jpg`),
-  item("Urban", `${U}/2019/02/MULBERRY-Urban-Facade-Single-Storey-Statesman.jpg`),
-  item("Imperial", `${U}/2019/02/MULBERRY-Imperial-Facade-Single-Storey-Statesman.jpg`),
-  item("Vogue", `${U}/2019/02/MULBERRY-Vogue-Facade-Single-Storey-Statesman.jpg`),
+  item("Classic", `/facades/classic-ranch.png`),
+  item("Classic Plus", `/facades/classic-plus-ranch.png`),
+  item("Eden", `/facades/eden-ranch.png`),
+  item("Statesman", `/facades/statesman-ranch.png`),
+  item("Metro", `/facades/metro-ranch.png`),
+  item("Hamptons", `/facades/hampton-ranch.png`),
+  item("Urban", `/facades/urban-ranch.png`),
+  item("Imperial", `/facades/imperial-ranch.png`),
+  item("Vogue", `/facades/vogue-ranch.png`),
 ];

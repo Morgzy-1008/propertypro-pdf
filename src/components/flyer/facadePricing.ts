@@ -5,124 +5,153 @@
 export type FacadeStorey = "single" | "double" | "split" | "acreage";
 
 export const FACADE_PRICES: Record<FacadeStorey, Record<string, number>> = {
-  split: {},
   single: {
-    aspen: 21300,
-    avalon: 25900,
-    avoca: 7200,
-    banksia: 9900,
-    bayside: 7200,
-    breeze: 7200,
-    chateaux: 21300,
     classic: 0,
     "classic plus": 4700,
-    coastal: 21300,
-    contemporary: 9900,
+    avoca: 7200,
+    bayside: 7200,
+    breeze: 7200,
     crest: 7200,
-    eden: 9900,
-    elite: 15300,
     executive: 7200,
-    hamptons: 15300,
     harmony: 7200,
-    havanna: 25900,
-    hillsdale: 21300,
-    imperial: 28400,
+    banksia: 9900,
+    contemporary: 9900,
+    eden: 9900,
     infinity: 9900,
+    "infinity mkii": 9900,
     majestic: 9900,
-    merlot: 28400,
-    "modern barn": 28400,
-    "modern box": 28400,
-    "modern classical option a": 41900,
-    "modern classical option b": 41900,
+    serenity: 9900,
+    elite: 15300,
+    hamptons: 15300,
     "modern coastal": 15300,
-    "modern farmhouse option b": 28400,
-    newport: 25900,
-    nuvo: 28400,
-    pavillion: 21300,
-    regal: 28400,
+    "modern coastal - new facade - (co-creation)": 15300,
     riviera: 15300,
     savoy: 15300,
-    serenity: 9900,
+    aspen: 21300,
+    chateaux: 21300,
+    coastal: 21300,
+    hillsdale: 21300,
+    pavillion: 21300,
+    pavilion: 21300,
     sovereign: 21300,
     statesman: 21300,
+    avalon: 25900,
+    havanna: 25900,
+    havana: 25900,
+    newport: 25900,
+    imperial: 28400,
+    merlot: 28400,
+    "modern barn": 28400,
+    "modern barn - new facade - (co-creation)": 28400,
+    "modern box": 28400,
+    "modern box - new facade - (co-creation)": 28400,
+    "modern farmhouse option b": 28400,
+    "modern farmhouse option b - new facade - (co-creation)": 28400,
+    "modern farmhouse": 28400,
+    nuvo: 28400,
+    regal: 28400,
     veinna: 28400,
+    vienna: 28400,
+    vogue: 28400,
     vibe: 37700,
     visage: 37700,
-    vogue: 28400,
+    "modern classical option a": 41900,
+    "modern classical option a - new facade - (co-creation)": 41900,
+    "modern classical option b": 41900,
+    "modern classical option b - new facade - (co-creation)": 41900,
+    "modern classical": 41900,
   },
   double: {
-    allure: 14000,
-    ascot: 53400,
-    ashton: 24700,
-    aspen: 32700,
-    breeze: 12300,
-    cambridge: 24800,
-    centro: 53400,
-    chateaux: 24800,
-    "chateaux (no balcony)": 24800,
-    "chateaux (with balcony)": 38900,
-    clarence: 89200,
     classic: 0,
     "classic plus": 5900,
-    como: 53400,
-    contemporary: 16300,
+    breeze: 12300,
     deco: 12300,
     "deco (terracotta 23)": 12300,
-    delta: 38900,
-    deluxe: 39000,
-    flair: 53400,
-    grande: 39000,
-    hamptons: 27400,
-    "hamptons (front, no balcony)": 27400,
-    "hamptons (front, with balcony)": 38900,
-    madison: 32700,
-    "madison (turquoise only)": 32700,
-    majestic: 16300,
-    "majestic (terracotta 23)": 16300,
+    "deco (terracotta 23 )": 12300,
+    oxford: 12300,
+    windsor: 12300,
+    allure: 14000,
+    novare: 14000,
+    contemporary: 16300,
     mantra: 16300,
     "mantra (terracotta 23)": 16300,
     marina: 16300,
-    meridian: 53400,
-    metro: 53500,
+    majestic: 16300,
+    "majestic (terracotta 23)": 16300,
+    ashton: 24700,
+    cambridge: 24800,
+    chateaux: 24800,
+    "chateaux (no balcony)": 24800,
+    "chateaux (with balcony)": 38900,
+    monash: 24800,
+    mondo: 24700,
+    vista: 24700,
+    "vista (without balcony)": 24700,
+    "vista (with balcony)": 53400,
+    hamptons: 27400,
+    "hamptons (front, no balcony)": 27400,
+    "hamptons (front, with balcony)": 38900,
+    aspen: 32700,
+    madison: 32700,
+    "madison (turquoise only)": 32700,
+    "modern box": 32700,
+    "modern box - new facade - (co-creation)": 32700,
+    "modern coastal": 32700,
+    "modern coastal - new facade - (co-creation)": 32700,
     "mocha hamptons": 32700,
     "mocha hamptons (corner lot, no balcony)": 32700,
     "mocha hamptons (corner lot, balcony)": 44400,
     "mocha hamptons (premium corner lot, balcony)": 53400,
+    statesman: 32700,
     "modern barn": 34900,
-    "modern box": 32700,
-    "modern classical": 50900,
-    "modern coastal": 32700,
-    "modern farmhouse option b": 41900,
-    monash: 24800,
-    mondo: 24700,
-    novare: 14000,
-    nuvo: 53500,
-    oxford: 12300,
-    reed: 86100,
-    regal: 53500,
+    "modern barn - new facade - (co-creation)": 34900,
+    delta: 38900,
+    deluxe: 39000,
+    grande: 39000,
     riviera: 38900,
     royale: 39000,
     saville: 39000,
     sierra: 38900,
+    "modern farmhouse option b": 41900,
+    "modern farmhouse option b - new facade - (co-creation)": 41900,
+    "modern farmhouse": 41900,
+    "modern classical": 50900,
+    "modern classical - new facade - (co-creation)": 50900,
+    ascot: 53400,
+    centro: 53400,
+    como: 53400,
+    flair: 53400,
+    meridian: 53400,
+    metro: 53500,
+    nuvo: 53500,
+    regal: 53500,
     soho: 53400,
-    statesman: 32700,
     tempo: 53500,
-    vista: 24700,
-    "vista (without balcony)": 24700,
-    "vista (with balcony)": 53400,
     vogue: 53500,
-    windsor: 12300,
+    reed: 86100,
+    clarence: 89200,
   },
-  acreage: {
-    chateaux: 21600,
+  split: {
     classic: 0,
     eden: 14400,
-    elite: 21600,
-    hamptons: 21500,
     harmony: 15400,
+    hamptons: 21500,
+    chateaux: 21600,
+    elite: 21600,
     infinity: 27000,
     nuvo: 41000,
     vogue: 41400,
+  },
+  acreage: {
+    classic: 0,
+    "classic plus": 4700,
+    eden: 29400,
+    statesman: 57000,
+    metro: 57000,
+    hamptons: 57000,
+    urban: 66500,
+    imperial: 66500,
+    vogue: 158900,
   },
 };
 
@@ -148,10 +177,12 @@ export function facadeBaseName(name: string): string {
 
 export function facadeCategory(item: { url: string; name: string; range?: string; tags?: string[] }): FacadeStorey {
   if (item.range === "Double Storey" || item.range === "Narrow Double Storey") return "double";
-  if (item.range === "Acreage & Split Level" || item.range === "Acreage") return "acreage";
+  if (item.range === "Acreage & Split Level" || item.range === "Acreage" || item.range?.includes("Acreage") || item.range?.includes("Ranch")) return "acreage";
+  if (item.range === "Split Level" || item.range?.includes("Split")) return "split";
   if (item.range === "Single Storey" || item.range === "Single Storey (Narrow Lot)") return "single";
 
   const src = `${item.url} ${item.name} ${item.range ?? ""} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
+  if (/split|cobalt/i.test(src)) return "split";
   if (/mulberry|ranch|acreage/i.test(src)) return "acreage";
   if (/2-?\s?stry|double[-\s]?storey|garage2/i.test(src)) return "double";
   return "single";
@@ -167,7 +198,7 @@ export function facadePriceFor(name: string, storey: FacadeStorey): number | nul
   const exact = FACADE_PRICES[storey]?.[base];
   if (exact !== undefined) return exact;
 
-  for (const s of ["single", "double", "acreage"] as FacadeStorey[]) {
+  for (const s of ["single", "double", "split", "acreage"] as FacadeStorey[]) {
     const vDirect = FACADE_PRICES[s]?.[direct];
     if (vDirect !== undefined) return vDirect;
     const vBase = FACADE_PRICES[s]?.[base];
@@ -266,10 +297,15 @@ export function facadePriceForDesign(
 
   const family = designName ? designFamily(designName) : "";
 
-  if (family === "mulberry") {
-    if (base === "classic plus") return DUPLEX_CLASSIC_PLUS.single;
-    const table = designSize(designName!) >= 33 ? MULBERRY_LARGE : MULBERRY_SMALL;
-    return table[base] ?? facadePriceFor(name, "acreage");
+  if (family === "mulberry" || storey === "acreage") {
+    if (base === "classic plus") return 4700;
+    const isLarge = designName ? designSize(designName) >= 33 : false;
+    const table = isLarge ? MULBERRY_LARGE : MULBERRY_SMALL;
+    return table[base] ?? FACADE_PRICES.acreage[base] ?? facadePriceFor(name, "acreage");
+  }
+
+  if (storey === "split") {
+    return FACADE_PRICES.split[base] ?? facadePriceFor(name, "split");
   }
 
   const duplex = DUPLEX_FACADE_PRICES[family];

@@ -61,6 +61,44 @@ export function findFacadeForDesign(
   const baseKey = normalizeFacadeKey(facadeNameOrId);
   const isNarrowDouble = isDouble && isNarrowDoubleStorey(designName);
 
+  // ACREAGE / RANCH / MULBERRY RESOLUTION
+  const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;
+  const isAcreage = isMulberry || housingType === "Acreage" || housingType === "Acreage & Split Level" || housingType === "Ranch & Acreage" || /mulberry|ranch/i.test(rawKey);
+
+  if (isAcreage) {
+    const ranchIdMap: Record<string, string> = {
+      classic: "classic-ranch",
+      classicplus: "classic-plus-ranch",
+      eden: "eden-ranch",
+      hamptons: "hampton-ranch",
+      hampton: "hampton-ranch",
+      imperial: "imperial-ranch",
+      metro: "metro-ranch",
+      statesman: "statesman-ranch",
+      urban: "urban-ranch",
+      vogue: "vogue-ranch",
+    };
+    if (ranchIdMap[baseKey]) {
+      const found = HUDSON_FACADES.find((f) => f.id === ranchIdMap[baseKey]);
+      if (found) return resolveWithPreRendered(found);
+    }
+  }
+
+  // SPLIT LEVEL RESOLUTION
+  if (housingType === "Split Level" || housingType === "Split" || /cobalt|split/i.test(rawKey)) {
+    const splitIdMap: Record<string, string> = {
+      classic: "classic-cobalt",
+      hamptons: "hamptons-cobalt",
+      hampton: "hamptons-cobalt",
+      infinity: "infinity-cobalt",
+      vogue: "vogue-cobalt",
+    };
+    if (splitIdMap[baseKey]) {
+      const found = HUDSON_FACADES.find((f) => f.id === splitIdMap[baseKey]);
+      if (found) return resolveWithPreRendered(found);
+    }
+  }
+
   // DOUBLE STOREY RESOLUTION
   if (isDouble) {
     if (isNarrowDouble) {

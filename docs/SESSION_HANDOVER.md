@@ -56,7 +56,14 @@
 
 1. **Master Price Lists**:
    - [`src/lib/pricelist.data.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/lib/pricelist.data.ts): Contains official QLD price lists for Single Storey, Double Storey, Split Level, and Dual Living across H1, H2, H3 tiers.
-   - [`src/components/flyer/facadePricing.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/components/flyer/facadePricing.ts): Official facade upgrade pricing.
+   - [`src/components/flyer/facadePricing.ts`](file:///C:/Users/morga/.gemini/antigravity/scratch/propertypro-pdf/src/components/flyer/facadePricing.ts): Official 2026 facade upgrade pricing:
+     - **Single Storey 2026** (Issued 23/7/26): Classic $0, Classic Plus $4.7k, Avoca/Bayside/Breeze/Crest/Executive/Harmony $7.2k, Banksia/Contemporary/Eden/Infinity/Majestic/Serenity $9.9k, Elite/Hamptons/Modern Coastal/Riviera/Savoy $15.3k, Aspen/Chateaux/Coastal/Hillsdale/Pavillion/Sovereign/Statesman $21.3k, Avalon/Havana/Newport $25.9k, Imperial/Merlot/Modern Barn/Modern Box/Modern Farmhouse/Nuvo/Regal/Vienna/Vogue $28.4k, Vibe/Visage $37.7k, Modern Classical Option A/B $41.9k.
+     - **Double Storey 2026** (Issued 23/7/26): Classic $0, Classic Plus $5.9k, Breeze/Deco/Oxford/Windsor $12.3k, Allure/Novare $14k, Contemporary/Mantra/Marina/Majestic $16.3k, Ashton/Mondo/Vista $24.7k, Cambridge/Chateaux No Balcony/Monash $24.8k, Hamptons No Balcony $27.4k, Aspen/Madison/Modern Box/Modern Coastal/Mocha Hamptons No Balcony/Statesman $32.7k, Modern Barn $34.9k, Chateaux Balcony/Delta/Hamptons Balcony/Riviera/Sierra $38.9k, Deluxe/Grande/Royale/Saville $39k, Modern Farmhouse Option B $41.9k, Mocha Hamptons Balcony $44.4k, Modern Classical $50.9k, Ascot/Centro/Como/Flair/Meridian/Soho/Mocha Hamptons Premium/Vista Balcony $53.4k, Metro/Nuvo/Regal/Tempo/Vogue $53.5k, Reed $86.1k, Clarence $89.2k.
+     - **Split Level 2026** (Issued 13/6/26): Classic $0, Eden $14.4k, Harmony $15.4k, Hamptons $21.5k, Chateaux $21.6k, Elite $21.6k, Infinity $27k, Nuvo $41k, Vogue $41.4k.
+     - **Acreage / Ranch (Mulberry)**:
+       - *Small (< 33 sq: Mulberry 22, 25, 28)*: Classic $0, Classic Plus $4.7k, Eden $29.4k, Statesman/Metro/Hamptons $57k, Urban/Imperial $66.5k, Vogue $158.9k.
+       - *Large (>= 33 sq: Mulberry 33, 39)*: Classic $0, Classic Plus $4.7k, Eden $33.2k, Statesman/Metro/Hamptons $64.4k, Urban/Imperial $75.3k, Vogue $180.2k.
+       - Integrated dynamically across Flyer Builder, Quoting System, Client Quote Review, and Tender Portal.
 2. **Saved Estimates Modal**:
    - Master **"Select All ({count})" / "Deselect All"** toggle.
    - Bulk Action Toolbar with **"Delete Selected"** and **"Export JSON"**.

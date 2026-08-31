@@ -46,7 +46,7 @@ import { HUDSON_FACADES } from "@/components/flyer/facades.data";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
 import { prepareFacade } from "@/components/flyer/facadeEngine";
 import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
-import { HOUSING_FACADES } from "@/components/quoting/QuoteDesignStep";
+import { HOUSING_FACADES, getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 
 function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
@@ -208,7 +208,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   // Available facades for housing type
   const availableFacades = useMemo(() => {
     const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
-    return HOUSING_FACADES[housingType as keyof typeof HOUSING_FACADES] || HOUSING_FACADES["Single Storey"];
+    return getFacadesForDesignAndHousingType(quote.design.designName, housingType);
   }, [quote.design.designName, quote.design.housingType]);
 
   const copyToClipboard = (text: string, label: string) => {
@@ -221,12 +221,16 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     const plans = plansForDesign(model.name);
     const floorplanUrl = plans[0]?.url || quote.design.floorplanUrl;
     const basePrice = getTierPrice(model, quote.design.specTier);
+    const newFacades = getFacadesForDesignAndHousingType(model.name, quote.design.housingType);
+    const matchedFacade = newFacades.find((f) => f.name.toLowerCase() === (quote.design.facadeName || "").toLowerCase());
+    const updatedFacadePrice = matchedFacade ? matchedFacade.uplift : quote.design.facadePrice;
 
     const updatedDesign = {
       ...quote.design,
       designName: model.name,
       designM2: model.m2,
       basePrice,
+      facadePrice: updatedFacadePrice,
       floorplanUrl,
       beds: plans[0]?.beds || quote.design.beds,
       baths: plans[0]?.baths || quote.design.baths,

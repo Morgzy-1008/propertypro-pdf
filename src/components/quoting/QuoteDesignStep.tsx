@@ -87,7 +87,7 @@ export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[
   },
 ];
 
-// Exact facade lists and pricing from official Hudson Homes Price Lists (Single, Double, Split, Dual)
+// Exact facade lists and pricing from official Hudson Homes Price Lists (Single Storey 23/7/26, Double Storey 23/7/26, Split Design 13/6/26, Duplex 13/6/26, Mulberry Acreage 13/6/26)
 export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]> = {
   "Single Storey": [
     { name: "Classic", uplift: 0 },
@@ -101,11 +101,12 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Banksia", uplift: 9900 },
     { name: "Contemporary", uplift: 9900 },
     { name: "Eden", uplift: 9900 },
-    { name: "Infinity MKII", uplift: 9900 },
+    { name: "Infinity", uplift: 9900 },
     { name: "Majestic", uplift: 9900 },
     { name: "Serenity", uplift: 9900 },
     { name: "Elite", uplift: 15300 },
     { name: "Hamptons", uplift: 15300 },
+    { name: "Modern Coastal", uplift: 15300 },
     { name: "Riviera", uplift: 15300 },
     { name: "Savoy", uplift: 15300 },
     { name: "Aspen", uplift: 21300 },
@@ -120,12 +121,17 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Newport", uplift: 25900 },
     { name: "Imperial", uplift: 28400 },
     { name: "Merlot", uplift: 28400 },
+    { name: "Modern Barn", uplift: 28400 },
+    { name: "Modern Box", uplift: 28400 },
+    { name: "Modern Farmhouse Option B", uplift: 28400 },
     { name: "Nuvo", uplift: 28400 },
     { name: "Regal", uplift: 28400 },
     { name: "Vienna", uplift: 28400 },
     { name: "Vogue", uplift: 28400 },
     { name: "Vibe", uplift: 37700 },
     { name: "Visage", uplift: 37700 },
+    { name: "Modern Classical Option A", uplift: 41900 },
+    { name: "Modern Classical Option B", uplift: 41900 },
   ],
   "Double Storey": [
     { name: "Classic", uplift: 0 },
@@ -144,18 +150,28 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Mondo", uplift: 24700 },
     { name: "Vista", uplift: 24700 },
     { name: "Cambridge", uplift: 24800 },
-    { name: "Chateaux", uplift: 24800 },
+    { name: "Chateaux (No Balcony)", uplift: 24800 },
     { name: "Monash", uplift: 24800 },
-    { name: "Hamptons", uplift: 27400 },
+    { name: "Hamptons (No Balcony)", uplift: 27400 },
+    { name: "Aspen", uplift: 32700 },
     { name: "Madison", uplift: 32700 },
+    { name: "Modern Box", uplift: 32700 },
+    { name: "Modern Coastal", uplift: 32700 },
+    { name: "Mocha Hamptons (No Balcony)", uplift: 32700 },
     { name: "Statesman", uplift: 32700 },
+    { name: "Modern Barn", uplift: 34900 },
+    { name: "Chateaux (With Balcony)", uplift: 38900 },
     { name: "Delta", uplift: 38900 },
-    { name: "Riviera", uplift: 38900 },
-    { name: "Sierra", uplift: 38900 },
     { name: "Deluxe", uplift: 39000 },
     { name: "Grande", uplift: 39000 },
+    { name: "Hamptons (With Balcony)", uplift: 38900 },
+    { name: "Riviera", uplift: 38900 },
     { name: "Royale", uplift: 39000 },
     { name: "Saville", uplift: 39000 },
+    { name: "Sierra", uplift: 38900 },
+    { name: "Modern Farmhouse Option B", uplift: 41900 },
+    { name: "Mocha Hamptons (Balcony)", uplift: 44400 },
+    { name: "Modern Classical", uplift: 50900 },
     { name: "Ascot", uplift: 53400 },
     { name: "Centro", uplift: 53400 },
     { name: "Como", uplift: 53400 },
@@ -166,25 +182,52 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
     { name: "Nuvo", uplift: 53500 },
     { name: "Regal", uplift: 53500 },
     { name: "Tempo", uplift: 53500 },
+    { name: "Vista (With Balcony)", uplift: 53400 },
     { name: "Vogue", uplift: 53500 },
     { name: "Reed", uplift: 86100 },
     { name: "Clarence", uplift: 89200 },
   ],
   "Split Level": [
     { name: "Classic", uplift: 0 },
-    { name: "Classic Plus", uplift: 5200 },
-    { name: "Contemporary", uplift: 14500 },
-    { name: "Hamptons", uplift: 22800 },
-    { name: "Modern Coastal", uplift: 22800 },
-    { name: "Modern Barn", uplift: 29500 },
-    { name: "Vogue", uplift: 38900 },
+    { name: "Eden", uplift: 14400 },
+    { name: "Harmony", uplift: 15400 },
+    { name: "Hamptons", uplift: 21500 },
+    { name: "Chateaux", uplift: 21600 },
+    { name: "Elite", uplift: 21600 },
+    { name: "Infinity", uplift: 27000 },
+    { name: "Nuvo", uplift: 41000 },
+    { name: "Vogue", uplift: 41400 },
+  ],
+  "Acreage": [
+    { name: "Classic", uplift: 0 },
+    { name: "Classic Plus", uplift: 4700 },
+    { name: "Eden", uplift: 29400 },
+    { name: "Hamptons", uplift: 57000 },
+    { name: "Metro", uplift: 57000 },
+    { name: "Statesman", uplift: 57000 },
+    { name: "Imperial", uplift: 66500 },
+    { name: "Urban", uplift: 66500 },
+    { name: "Vogue", uplift: 158900 },
+  ],
+  "Acreage (Large)": [
+    { name: "Classic", uplift: 0 },
+    { name: "Classic Plus", uplift: 4700 },
+    { name: "Eden", uplift: 33200 },
+    { name: "Hamptons", uplift: 64400 },
+    { name: "Metro", uplift: 64400 },
+    { name: "Statesman", uplift: 64400 },
+    { name: "Imperial", uplift: 75300 },
+    { name: "Urban", uplift: 75300 },
+    { name: "Vogue", uplift: 180200 },
   ],
   "Dual Living": [
     { name: "Classic", uplift: 0 },
-    { name: "Classic Plus", uplift: 6500 },
-    { name: "Madison", uplift: 18500 },
-    { name: "Marina", uplift: 22000 },
-    { name: "Vista", uplift: 29500 },
+    { name: "Classic Plus (Single)", uplift: 4700 },
+    { name: "Classic Plus (Double)", uplift: 5800 },
+    { name: "Madison", uplift: 12100 },
+    { name: "Marina", uplift: 16100 },
+    { name: "Vista", uplift: 24500 },
+    { name: "Teal 45 (Corner)", uplift: 68900 },
     { name: "Brixton", uplift: 80900 },
     { name: "Modena", uplift: 86100 },
     { name: "Cranbrook", uplift: 96400 },
@@ -194,13 +237,48 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
   ],
   "Granny Flat": [
     { name: "Classic", uplift: 0 },
-    { name: "Classic Plus", uplift: 3500 },
-    { name: "Contemporary", uplift: 6500 },
-    { name: "Hamptons", uplift: 9500 },
-    { name: "Modern Coastal", uplift: 9500 },
-    { name: "Modern Barn", uplift: 12500 },
+    { name: "Classic Plus", uplift: 4700 },
+    { name: "Contemporary", uplift: 9900 },
+    { name: "Hamptons", uplift: 15300 },
+    { name: "Modern Coastal", uplift: 15300 },
+    { name: "Modern Barn", uplift: 28400 },
   ],
 };
+
+/**
+ * Returns available facade options with exact upgrade prices for any given design and housing type.
+ * Automatically handles Mulberry acreage sizing (<33 vs >=33) and Split Level pricing.
+ */
+export function getFacadesForDesignAndHousingType(
+  designName?: string,
+  housingType: string = "Single Storey"
+): { name: string; uplift: number }[] {
+  const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;
+  const isAcreage = isMulberry || housingType === "Acreage" || housingType === "Acreage & Split Level" || housingType === "Ranch & Acreage";
+
+  if (isAcreage) {
+    const size = designName ? (Number(designName.match(/\d+/)?.[0]) || 0) : 0;
+    return size >= 33 ? HOUSING_FACADES["Acreage (Large)"] : HOUSING_FACADES["Acreage"];
+  }
+
+  if (housingType === "Split Level") {
+    return HOUSING_FACADES["Split Level"];
+  }
+
+  if (housingType === "Double Storey" || housingType === "double") {
+    return HOUSING_FACADES["Double Storey"];
+  }
+
+  if (housingType === "Dual Living") {
+    return HOUSING_FACADES["Dual Living"];
+  }
+
+  if (housingType === "Granny Flat") {
+    return HOUSING_FACADES["Granny Flat"];
+  }
+
+  return HOUSING_FACADES["Single Storey"];
+}
 
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
@@ -234,7 +312,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const standardFloorplanUrl = standardPlans[0]?.url || "";
   const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
-  const suitableFacades = HOUSING_FACADES[effectiveHousingType] || HOUSING_FACADES["Single Storey"];
+  const suitableFacades = getFacadesForDesignAndHousingType(design.designName, effectiveHousingType);
 
   // 2nd Dwelling or Granny Flat Helpers
   const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
@@ -257,7 +335,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
 
   const secondModels = HOUSING_TYPE_PRICES[secondDwelling.housingType] || HOUSING_TYPE_PRICES["Granny Flat"] || SINGLE_STOREY_PRICES;
   const currentSecondModel = secondModels.find((m) => m.name === secondDwelling.designName) || secondModels[0];
-  const secondSuitableFacades = HOUSING_FACADES[secondDwelling.housingType] || HOUSING_FACADES["Single Storey"];
+  const secondSuitableFacades = getFacadesForDesignAndHousingType(secondDwelling.designName, secondDwelling.housingType);
   const secondStandardPlans = secondDwelling.designName ? plansForDesign(secondDwelling.designName) : [];
   const secondStandardFloorplanUrl = secondStandardPlans[0]?.url || "";
   const activeSecondFloorplanUrl = secondDwelling.floorplanUrl || secondStandardFloorplanUrl;
@@ -406,7 +484,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
-    const facadesForType = HOUSING_FACADES[type] || HOUSING_FACADES["Single Storey"];
+    const facadesForType = getFacadesForDesignAndHousingType(undefined, type);
     const defaultFacade = facadesForType[0] || { name: "Classic", uplift: 0 };
     onChange({
       housingType: type,
@@ -438,7 +516,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const m = typeModels.find((x) => x.name === modelName) || models.find((x) => x.name === modelName);
     if (!m) return;
 
-    const facadesForType = HOUSING_FACADES[detectedHousingType] || HOUSING_FACADES["Single Storey"];
+    const facadesForType = getFacadesForDesignAndHousingType(modelName, detectedHousingType);
     const isCurrentFacadeValid = !design.isCustomFacade && design.facadeName && facadesForType.some((f) => f.name.toLowerCase() === design.facadeName.toLowerCase());
     const chosenFacade = isCurrentFacadeValid
       ? facadesForType.find((f) => f.name.toLowerCase() === design.facadeName.toLowerCase())!
