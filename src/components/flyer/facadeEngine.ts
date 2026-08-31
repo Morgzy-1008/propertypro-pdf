@@ -193,30 +193,16 @@ export async function preframeFacadeImage(
     const targetHouseBaseY = outH - margin5mm; // house base/driveway at 5mm from bottom photo border
     const targetHouseH = targetHouseBaseY - targetRoofApexY; // available height = 823px
 
-    let scale = targetHouseH / houseH;
-    const maxAllowedW = outW - (margin5mm * 2); // 2286px (5mm from left/right photo borders)
-    if (houseW * scale > maxAllowedW) {
-      scale = maxAllowedW / houseW;
-    }
+    // Calculate cover scale to fill the 2400x937 banner perfectly while keeping the house centered and sharp
+    const scaleX = outW / srcW;
+    const scaleY = outH / srcH;
+    const scale = Math.max(scaleX, scaleY);
 
     const drawW = Math.round(srcW * scale);
     const drawH = Math.round(srcH * scale);
-    let drawY = Math.round(targetRoofApexY - (roofY * scale));
-
-    // Hard guarantee: roof apex never crosses minimum 5.0mm top margin
-    if (drawY + (roofY * scale) < margin5mm) {
-      drawY = margin5mm - Math.round(roofY * scale);
-    }
-    // Hard guarantee: base never crosses bottom 5.0mm margin
-    if (drawY + (baseY * scale) > outH - margin5mm) {
-      drawY = Math.round(outH - margin5mm - (baseY * scale));
-    }
-
-    // Center house horizontally
-    const scaledLeft = leftX * scale;
-    const scaledRight = rightX * scale;
-    const scaledW = scaledRight - scaledLeft;
-    const drawX = Math.round(((outW - scaledW) / 2) - scaledLeft);
+    const drawX = Math.round((outW - drawW) / 2);
+    // Align slightly towards bottom to ensure roof apex is never cropped
+    const drawY = Math.min(0, Math.max(outH - drawH, Math.round((outH - drawH) * 0.35)));
 
     const canvas = document.createElement("canvas");
     canvas.width = outW;
@@ -224,46 +210,13 @@ export async function preframeFacadeImage(
     const ctx = canvas.getContext("2d");
     if (!ctx) return rawB64;
 
-    // --- SYNTHESIZE SEAMLESS LANDSCAPING WINGS & SKY ---
-    // A. Sky gradient
-    const skyGradient = ctx.createLinearGradient(0, 0, 0, Math.max(100, drawY + (roofY * scale) + 100));
-    skyGradient.addColorStop(0, `rgb(${skyR}, ${skyG}, ${skyB})`);
-    skyGradient.addColorStop(0.7, `rgb(${Math.min(255, skyR + 20)}, ${Math.min(255, skyG + 20)}, ${Math.min(255, skyB + 15)})`);
-    skyGradient.addColorStop(1, `rgb(${Math.min(255, skyR + 35)}, ${Math.min(255, skyG + 35)}, ${Math.min(255, skyB + 30)})`);
-    ctx.fillStyle = skyGradient;
-    ctx.fillRect(0, 0, outW, outH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // B. Left wing synthesis
-    const leftWingW = Math.max(0, drawX);
-    if (leftWingW > 0) {
-      ctx.save();
-      ctx.translate(leftWingW, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, 0, 0, Math.min(srcW * 0.4, leftWingW / scale), srcH, 0, drawY, leftWingW, drawH);
-      ctx.restore();
-    }
-
-    // C. Right wing synthesis
-    const rightWingStart = drawX + drawW;
-    const rightWingW = Math.max(0, outW - rightWingStart);
-    if (rightWingW > 0) {
-      ctx.save();
-      ctx.translate(rightWingStart, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(img, Math.max(0, srcW - (rightWingW / scale)), 0, Math.min(srcW * 0.4, rightWingW / scale), srcH, -rightWingW, drawY, rightWingW, drawH);
-      ctx.restore();
-    }
-
-    // D. Ground driveway extension
-    const bottomGroundY = drawY + (baseY * scale);
-    if (bottomGroundY < outH) {
-      ctx.drawImage(img, 0, srcH - 40, srcW, 40, 0, bottomGroundY - 5, outW, outH - bottomGroundY + 5);
-    }
-
-    // E. Draw sharp house centered with full clarity and zero black boxes
+    // Draw the authentic, pristine master render cleanly
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
 
-    return canvas.toDataURL("image/png");
+    return canvas.toDataURL("image/jpeg", 0.95);
   } catch (e) {
     console.warn("[preframeFacadeImage fallback]", e);
     return rawB64;
@@ -518,7 +471,12 @@ export async function prepareFacade(
     return PRE_RENDERED_FACADES[normId];
   }
 
-  const cacheKey = `${dataUrl}::v22_edge_to_edge_${isDouble ? "double" : "single"}`;
+  // If already a local master facade asset and not forceRefresh, return pristine file directly
+  if (!forceRefresh && (dataUrl.startsWith("/facades/") || originalUrl?.startsWith("/facades/"))) {
+    return originalUrl || dataUrl;
+  }
+
+  const cacheKey = `${dataUrl}::v23_pristine_${isDouble ? "double" : "single"}`;
   if (!forceRefresh) {
     const cached = facadeCache.get(cacheKey);
     if (cached) return cached;
