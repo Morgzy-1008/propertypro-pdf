@@ -35,8 +35,8 @@ export const HUDSON_FACADES: FacadeItem[] = [
       "single",
       "double-garage"
     ],
-    "url": "/facades/aspen.png",
-    "originalUrl": "/facades/aspen.png"
+    "url": "/facades/aspen-facade-single-storey.jpg",
+    "originalUrl": "/facades/aspen-facade-single-storey.jpg"
   },
   {
     "id": "avalon",

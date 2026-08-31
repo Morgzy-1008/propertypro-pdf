@@ -179,21 +179,46 @@ export async function preframeFacadeImage(
 
     const houseH = Math.max(100, houseBaseY - roofApexY);
 
-    // Target Roof Margin: strictly 5mm (~57px) from top
-    const topMarginPx = Math.round(5.0 * pxPerMm); // 57px
-    // Target Bottom House Base Margin: ~20mm (~228px) for single, 12mm (~137px) for double
-    const bottomMarginPx = Math.round((isDouble ? 12.0 : 20.0) * pxPerMm);
-    const targetHouseH = outH - topMarginPx - bottomMarginPx;
+    let topMarginPx: number;
+    let bottomMarginPx: number;
+    let scale: number;
+    let drawW: number;
+    let drawH: number;
+    let drawX: number;
+    let drawY: number;
 
-    const scaleByHeight = targetHouseH / houseH;
-    const scaleByWidth = outW / srcW;
-    const scale = Math.max(scaleByWidth, scaleByHeight);
+    if (!isDouble) {
+      // === SINGLE STOREY (100% UNTOUCHED & PERFECTED) ===
+      topMarginPx = Math.round(5.0 * pxPerMm); // 57px (~5mm)
+      bottomMarginPx = Math.round(20.0 * pxPerMm); // 228px (~20mm)
+      const targetHouseH = outH - topMarginPx - bottomMarginPx;
+      const scaleByHeight = targetHouseH / houseH;
+      const scaleByWidth = outW / srcW;
+      scale = Math.max(scaleByWidth, scaleByHeight);
 
-    const drawW = Math.round(srcW * scale);
-    const drawH = Math.round(srcH * scale);
-    const drawX = Math.round((outW - drawW) / 2);
-    // Place roof apex exactly at 5mm from top
-    const drawY = Math.round(topMarginPx - (roofApexY * scale));
+      drawW = Math.round(srcW * scale);
+      drawH = Math.round(srcH * scale);
+      drawX = Math.round((outW - drawW) / 2);
+      drawY = Math.round(topMarginPx - (roofApexY * scale));
+    } else {
+      // === DOUBLE STOREY (CALIBRATED WITH ROOF & GROUND FULLY IN FRAME) ===
+      // Target: roof apex at ~4.5mm (51px), ground at ~7.0mm (80px) from bottom
+      topMarginPx = Math.round(4.5 * pxPerMm); // 51px (~4.5mm)
+      bottomMarginPx = Math.round(7.0 * pxPerMm); // 80px (~7.0mm)
+      const targetHouseH = outH - topMarginPx - bottomMarginPx;
+
+      scale = Math.min(outW / srcW, targetHouseH / houseH);
+
+      drawW = Math.round(srcW * scale);
+      drawH = Math.round(srcH * scale);
+      drawX = Math.round((outW - drawW) / 2);
+      drawY = Math.round(topMarginPx - (roofApexY * scale));
+
+      const currentBaseY = drawY + (houseBaseY * scale);
+      if (currentBaseY > outH - bottomMarginPx) {
+        drawY = Math.round(outH - bottomMarginPx - (houseBaseY * scale));
+      }
+    }
 
     const canvas = document.createElement("canvas");
     canvas.width = outW;
@@ -204,15 +229,58 @@ export async function preframeFacadeImage(
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // If drawY > 0, extend sky seamlessly at top
-    if (drawY > 0) {
-      const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
-      ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
-      ctx.fillRect(0, 0, outW, drawY + 10);
-    }
+    if (isDouble && drawX > 0) {
+      // Safe outer landscape slices (pure trees, fence, sky, grass)
+      const safeLeftLandscapeW = Math.round(srcW * 0.10);
+      const safeRightLandscapeX = Math.round(srcW * 0.90);
+      const safeRightLandscapeW = srcW - safeRightLandscapeX;
 
-    // Draw the authentic, high-resolution master photograph
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // 1. Draw pure outer landscape wings
+      ctx.drawImage(img, 0, 0, safeLeftLandscapeW, srcH, 0, drawY, drawX + 30, drawH);
+      ctx.drawImage(img, safeRightLandscapeX, 0, safeRightLandscapeW, srcH, drawX + drawW - 30, drawY, outW - (drawX + drawW) + 30, drawH);
+
+      // 2. Draw centered house image with feathered soft edge mask
+      const houseCanvas = document.createElement("canvas");
+      houseCanvas.width = drawW;
+      houseCanvas.height = drawH;
+      const hCtx = houseCanvas.getContext("2d");
+      if (hCtx) {
+        hCtx.drawImage(img, 0, 0, drawW, drawH);
+        const featherW = 35;
+        hCtx.globalCompositeOperation = "destination-out";
+        const lMask = hCtx.createLinearGradient(0, 0, featherW, 0);
+        lMask.addColorStop(0, "rgba(0,0,0,1)");
+        lMask.addColorStop(1, "rgba(0,0,0,0)");
+        hCtx.fillStyle = lMask;
+        hCtx.fillRect(0, 0, featherW, drawH);
+
+        const rMask = hCtx.createLinearGradient(drawW - featherW, 0, drawW, 0);
+        rMask.addColorStop(0, "rgba(0,0,0,0)");
+        rMask.addColorStop(1, "rgba(0,0,0,1)");
+        hCtx.fillStyle = rMask;
+        hCtx.fillRect(drawW - featherW, 0, featherW, drawH);
+
+        hCtx.globalCompositeOperation = "source-over";
+        ctx.drawImage(houseCanvas, drawX, drawY);
+      } else {
+        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      }
+
+      // Top sky blend
+      if (drawY > 0) {
+        const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
+        ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
+        ctx.fillRect(0, 0, outW, drawY + 1);
+      }
+    } else {
+      // Single Storey standard pristine full-bleed
+      if (drawY > 0) {
+        const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
+        ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
+        ctx.fillRect(0, 0, outW, drawY + 2);
+      }
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
 
     // If drawY + drawH < outH, extend driveway / lawn seamlessly at bottom
     if (drawY + drawH < outH) {

@@ -2,7 +2,7 @@
 export const PRE_RENDERED_FACADES: Record<string, string> = {
   "classic": "/facades/classic-single-storey.png",
   "classic-plus": "/facades/classic-plus-single-storey.png",
-  "aspen": "/facades/aspen.png",
+  "aspen": "/facades/aspen-facade-single-storey.jpg",
   "avalon": "/facades/avalon-single-storey.png",
   "avoca": "/facades/avoca-single-storey.png",
   "banksia": "/facades/banksia-single-storey.png",
