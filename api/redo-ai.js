@@ -40,20 +40,37 @@ export default async function handler(req, res) {
       cleanB64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, "");
       if (imageBase64.startsWith("data:image/png")) mimeType = "image/png";
     } else if (imageUrl) {
-      const imgRes = await fetch(decodeURIComponent(imageUrl), {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
-        },
-        signal: AbortSignal.timeout(10000),
-      });
-      if (!imgRes.ok) {
-        return res.status(400).json({ error: `Failed to fetch image: ${imgRes.statusText}` });
+      if (imageUrl.startsWith("data:")) {
+        cleanB64 = imageUrl.replace(/^data:image\/[a-z]+;base64,/, "");
+        if (imageUrl.startsWith("data:image/png")) mimeType = "image/png";
+      } else if (imageUrl.startsWith("/") || !imageUrl.startsWith("http")) {
+        const fs = await import("fs");
+        const path = await import("path");
+        const cleanPath = decodeURIComponent(imageUrl).replace(/^\//, "").split("?")[0];
+        const localPath = path.resolve(process.cwd(), "public", cleanPath);
+        if (fs.existsSync(localPath)) {
+          const buffer = fs.readFileSync(localPath);
+          cleanB64 = buffer.toString("base64");
+          if (localPath.endsWith(".png")) mimeType = "image/png";
+        } else {
+          return res.status(404).json({ error: `Local facade file not found: ${cleanPath}` });
+        }
+      } else {
+        const imgRes = await fetch(decodeURIComponent(imageUrl), {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+          },
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!imgRes.ok) {
+          return res.status(400).json({ error: `Failed to fetch image: ${imgRes.statusText}` });
+        }
+        const buffer = await imgRes.arrayBuffer();
+        cleanB64 = Buffer.from(buffer).toString("base64");
+        const cType = imgRes.headers.get("content-type");
+        if (cType && cType.includes("png")) mimeType = "image/png";
       }
-      const buffer = await imgRes.arrayBuffer();
-      cleanB64 = Buffer.from(buffer).toString("base64");
-      const cType = imgRes.headers.get("content-type");
-      if (cType && cType.includes("png")) mimeType = "image/png";
     } else {
       return res.status(400).json({ error: "Missing imageBase64 or imageUrl in request body." });
     }

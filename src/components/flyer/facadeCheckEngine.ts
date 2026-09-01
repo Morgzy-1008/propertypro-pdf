@@ -52,22 +52,39 @@ export async function inspectFacadeImage(
         const cw = canvas.width;
         const ch = canvas.height;
 
-        // 1. Check Wing Edges (White Boxes / Transparent Bars)
+        // 1. Check All Edges (White Boxes / Blank Borders on Left, Right, Top, Bottom)
         let leftWhiteCount = 0;
         let rightWhiteCount = 0;
         for (let y = 0; y < ch; y++) {
           const lIdx = (y * cw + 0) * 4;
           const rIdx = (y * cw + (cw - 1)) * 4;
-          if (imgData[lIdx] > 245 && imgData[lIdx + 1] > 245 && imgData[lIdx + 2] > 245) leftWhiteCount++;
-          if (imgData[rIdx] > 245 && imgData[rIdx + 1] > 245 && imgData[rIdx + 2] > 245) rightWhiteCount++;
+          if (imgData[lIdx] > 242 && imgData[lIdx + 1] > 242 && imgData[lIdx + 2] > 242) leftWhiteCount++;
+          if (imgData[rIdx] > 242 && imgData[rIdx + 1] > 242 && imgData[rIdx + 2] > 242) rightWhiteCount++;
+        }
+
+        let topWhiteCount = 0;
+        let bottomWhiteCount = 0;
+        for (let x = 0; x < cw; x++) {
+          const tIdx = (0 * cw + x) * 4;
+          const bIdx = ((ch - 1) * cw + x) * 4;
+          if (imgData[tIdx] > 242 && imgData[tIdx + 1] > 242 && imgData[tIdx + 2] > 242) topWhiteCount++;
+          if (imgData[bIdx] > 242 && imgData[bIdx + 1] > 242 && imgData[bIdx + 2] > 242) bottomWhiteCount++;
         }
 
         const leftWhiteRatio = leftWhiteCount / ch;
         const rightWhiteRatio = rightWhiteCount / ch;
-        const edgesPassed = leftWhiteRatio < 0.08 && rightWhiteRatio < 0.08;
+        const topWhiteRatio = topWhiteCount / cw;
+        const bottomWhiteRatio = bottomWhiteCount / cw;
+
+        const edgesPassed =
+          leftWhiteRatio < 0.05 &&
+          rightWhiteRatio < 0.05 &&
+          topWhiteRatio < 0.05 &&
+          bottomWhiteRatio < 0.05;
+
         const edgesDetails = edgesPassed
           ? "Seamless Australian landscape wings (0 white boxes or seams)"
-          : `White edge artifacts detected (Left: ${Math.round(leftWhiteRatio * 100)}%, Right: ${Math.round(rightWhiteRatio * 100)}%)`;
+          : `White box / border detected (Top: ${Math.round(topWhiteRatio * 100)}%, Bot: ${Math.round(bottomWhiteRatio * 100)}%, Left: ${Math.round(leftWhiteRatio * 100)}%, Right: ${Math.round(rightWhiteRatio * 100)}%)`;
 
         // 2. Check Roof Apex & Headroom
         // Scan middle 60% of image from top down to find roofline apex
@@ -171,7 +188,8 @@ export async function saveFacadePermanentlyForEveryone(
   facadeName?: string
 ): Promise<{ success: boolean; url?: string; message?: string }> {
   try {
-    const filename = `${facadeId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-double-storey.png`;
+    const cleanId = facadeId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-double$/, "");
+    const filename = `${cleanId}-double-storey.png`;
 
     const res = await fetch("/api/save-facade", {
       method: "POST",

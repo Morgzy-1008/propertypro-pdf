@@ -26,6 +26,101 @@ import {
   type FacadeCheckResult,
 } from "./facadeCheckEngine";
 import { saveEnhanced } from "./facadeLibrary";
+import { callGeminiOutpaint } from "./facadeEngine";
+
+async function cleanImageToBase64(url: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const srcW = img.naturalWidth;
+        const srcH = img.naturalHeight;
+        const c = document.createElement("canvas");
+        c.width = srcW;
+        c.height = srcH;
+        const ctx = c.getContext("2d");
+        if (!ctx) return resolve(url);
+        ctx.drawImage(img, 0, 0);
+
+        const imgData = ctx.getImageData(0, 0, srcW, srcH).data;
+
+        // Auto-detect and trim any solid white/light borders (RGB > 240)
+        let top = 0;
+        while (top < srcH * 0.25) {
+          let whiteRow = true;
+          for (let x = 0; x < srcW; x += 10) {
+            const idx = (top * srcW + x) * 4;
+            if (imgData[idx] < 240 || imgData[idx + 1] < 240 || imgData[idx + 2] < 240) {
+              whiteRow = false;
+              break;
+            }
+          }
+          if (!whiteRow) break;
+          top++;
+        }
+
+        let bottom = srcH - 1;
+        while (bottom > srcH * 0.75) {
+          let whiteRow = true;
+          for (let x = 0; x < srcW; x += 10) {
+            const idx = (bottom * srcW + x) * 4;
+            if (imgData[idx] < 240 || imgData[idx + 1] < 240 || imgData[idx + 2] < 240) {
+              whiteRow = false;
+              break;
+            }
+          }
+          if (!whiteRow) break;
+          bottom--;
+        }
+
+        let left = 0;
+        while (left < srcW * 0.25) {
+          let whiteCol = true;
+          for (let y = 0; y < srcH; y += 10) {
+            const idx = (y * srcW + left) * 4;
+            if (imgData[idx] < 240 || imgData[idx + 1] < 240 || imgData[idx + 2] < 240) {
+              whiteCol = false;
+              break;
+            }
+          }
+          if (!whiteCol) break;
+          left++;
+        }
+
+        let right = srcW - 1;
+        while (right > srcW * 0.75) {
+          let whiteCol = true;
+          for (let y = 0; y < srcH; y += 10) {
+            const idx = (y * srcW + right) * 4;
+            if (imgData[idx] < 240 || imgData[idx + 1] < 240 || imgData[idx + 2] < 240) {
+              whiteCol = false;
+              break;
+            }
+          }
+          if (!whiteCol) break;
+          right--;
+        }
+
+        const cropW = Math.max(100, right - left + 1);
+        const cropH = Math.max(100, bottom - top + 1);
+
+        const outCanvas = document.createElement("canvas");
+        outCanvas.width = cropW;
+        outCanvas.height = cropH;
+        const outCtx = outCanvas.getContext("2d");
+        if (!outCtx) return resolve(c.toDataURL("image/png"));
+
+        outCtx.drawImage(img, left, top, cropW, cropH, 0, 0, cropW, cropH);
+        resolve(outCanvas.toDataURL("image/png"));
+      } catch (err) {
+        resolve(url);
+      }
+    };
+    img.onerror = () => resolve(url);
+    img.src = url;
+  });
+}
 
 interface FacadeCheckModalProps {
   isOpen: boolean;
@@ -76,28 +171,57 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
     toast.loading("Calibrating facade proportions and landscape wings...", { id: "recalibrate" });
 
     try {
-      const res = await fetch("/api/redo-ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          imageUrl: currentUrl,
-          housingType,
-        }),
-      });
+      // 1. Clean and extract base64 from image, auto-trimming any white border/letterboxing
+      const cleanB64 = await cleanImageToBase64(currentUrl);
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data?.widenedUrl) {
-          setCurrentUrl(data.widenedUrl);
-          onApplyNewRender(data.widenedUrl);
-          await runCheck(data.widenedUrl);
-          toast.success("Facade re-framed and calibrated with 21:9 panoramic wings!", { id: "recalibrate" });
-          return;
+      let widenedUrl = "";
+
+      // 2. Try server-side API first with clean base64
+      try {
+        const res = await fetch("/api/redo-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: cleanB64,
+            housingType,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.widenedUrl) {
+            widenedUrl = data.widenedUrl;
+          }
+        } else {
+          console.warn("[Recalibrate API Error Status]", res.status, await res.text());
+        }
+      } catch (apiErr) {
+        console.warn("[Recalibrate Server API Warning]", apiErr);
+      }
+
+      // 3. Robust client-side fallback if server was unavailable
+      if (!widenedUrl && cleanB64.startsWith("data:image/")) {
+        try {
+          const clientAi = await callGeminiOutpaint(cleanB64, housingType);
+          if (clientAi) {
+            widenedUrl = clientAi;
+          }
+        } catch (clientErr) {
+          console.warn("[Recalibrate Client Gemini Fallback Warning]", clientErr);
         }
       }
+
+      if (widenedUrl) {
+        setCurrentUrl(widenedUrl);
+        onApplyNewRender(widenedUrl);
+        await runCheck(widenedUrl);
+        toast.success("Facade re-framed and calibrated with 21:9 panoramic wings!", { id: "recalibrate" });
+        return;
+      }
+
       toast.error("Could not complete AI re-calibration. Keeping current render.", { id: "recalibrate" });
-    } catch (e) {
-      console.error(e);
+    } catch (e: any) {
+      console.error("[handleRecalibrate error]", e);
       toast.error("Failed to communicate with calibration service.", { id: "recalibrate" });
     } finally {
       setRecalibrating(false);

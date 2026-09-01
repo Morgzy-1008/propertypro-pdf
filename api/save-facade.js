@@ -27,7 +27,8 @@ export default async function handler(req, res) {
 
     let targetFilename = filename;
     if (!targetFilename && facadeId) {
-      targetFilename = `${facadeId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-double-storey.png`;
+      const cleanId = facadeId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-double$/, "");
+      targetFilename = `${cleanId}-double-storey.png`;
     }
 
     if (!targetFilename.endsWith(".png") && !targetFilename.endsWith(".jpg") && !targetFilename.endsWith(".jpeg")) {
