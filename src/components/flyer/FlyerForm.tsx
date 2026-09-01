@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Loader2, Plus, Sparkles } from "lucide-react";
+import { X, Loader2, Plus, Sparkles, CheckCircle2 } from "lucide-react";
+import { FacadeCheckModal } from "./FacadeCheckModal";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -221,6 +222,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     plansForDesign(data.designName),
   );
   const [canRevertAi, setCanRevertAi] = useState(false);
+  const [facadeCheckOpen, setFacadeCheckOpen] = useState(false);
 
   useEffect(() => {
     const checkRevert = async () => {
@@ -764,16 +766,12 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                     variant="outline"
                     size="sm"
                     disabled={facadeBusy || (!data.facadeUrl && !data.facadeName && !data.facadeId)}
-                    onClick={handleReDoAiEnhancement}
-                    className="flex-none gap-1.5 border-slate-800 bg-slate-900/80 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10 text-xs font-medium cursor-pointer"
-                    title="Re-generate AI facade outpainting variation"
+                    onClick={() => setFacadeCheckOpen(true)}
+                    className="flex-none gap-1.5 border-slate-800 bg-slate-900/80 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10 text-xs font-medium cursor-pointer shadow-sm"
+                    title="Audit and verify facade scale, roof clearance, and quality"
                   >
-                    {facadeBusy ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5 text-brand-gold" />
-                    )}
-                    Re-do AI
+                    <CheckCircle2 className="h-3.5 w-3.5 text-brand-gold" />
+                    Facade Check
                   </Button>
                   {canRevertAi && (
                     <Button
@@ -1009,6 +1007,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       <Section title="Consultant (footer + QR code)">
         <ConsultantPicker data={data} set={set} />
       </Section>
+
+      <FacadeCheckModal
+        isOpen={facadeCheckOpen}
+        onClose={() => setFacadeCheckOpen(false)}
+        facadeUrl={data.facadeUrl}
+        facadeName={data.facadeName || "Current Facade"}
+        facadeId={data.facadeId || "custom"}
+        housingType={data.housingType || "double"}
+        onApplyNewRender={(newUrl) => {
+          set("facadeUrl", newUrl);
+        }}
+      />
     </div>
   );
 }

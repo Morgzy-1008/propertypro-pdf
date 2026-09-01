@@ -201,11 +201,11 @@ export async function preframeFacadeImage(
       drawX = Math.round((outW - drawW) / 2);
       drawY = Math.round(topMarginPx - (roofApexY * scale));
     } else {
-      // === DOUBLE STOREY (CALIBRATED WITH GENEROUS SKY HEADROOM & GROUNDING) ===
-      // Target: roof apex at ~12.5mm (~143px), ground at ~8.5mm (~97px) from bottom
-      // House occupies ~72% to 75% of height with generous room to spare
-      topMarginPx = Math.round(12.5 * pxPerMm); // 143px (~12.5mm)
-      bottomMarginPx = Math.round(8.5 * pxPerMm); // 97px (~8.5mm)
+      // === DOUBLE STOREY (CLOSER & HEROIC WITH GENEROUS HEADROOM & ZERO WHITE BOXES) ===
+      // Target: roof apex at ~7.5mm (~86px), ground at ~6.0mm (~69px) from bottom
+      // House occupies ~82% of height: closer & heroic, yet 100% inside frame with room to spare
+      topMarginPx = Math.round(7.5 * pxPerMm); // 86px (~7.5mm)
+      bottomMarginPx = Math.round(6.0 * pxPerMm); // 69px (~6.0mm)
       const targetHouseH = outH - topMarginPx - bottomMarginPx;
 
       scale = Math.min(outW / srcW, targetHouseH / houseH);
@@ -230,17 +230,34 @@ export async function preframeFacadeImage(
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
+    // 1. Fill entire canvas background with sky gradient and bottom ground so NO white boxes exist
+    const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
+    const midSkyIdx = (Math.round(srcH * 0.3) * srcW + Math.round(srcW * 0.5)) * 4;
+    const skyCol = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
+    const midSkyCol = `rgb(${data[midSkyIdx]}, ${data[midSkyIdx + 1]}, ${data[midSkyIdx + 2]})`;
+
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, Math.round(outH * 0.7));
+    skyGrad.addColorStop(0, skyCol);
+    skyGrad.addColorStop(1, midSkyCol);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, outW, outH);
+
+    // Ground fill at bottom from image baseline
+    const botIdx = ((srcH - 5) * srcW + Math.round(srcW * 0.2)) * 4;
+    ctx.fillStyle = `rgb(${data[botIdx]}, ${data[botIdx + 1]}, ${data[botIdx + 2]})`;
+    ctx.fillRect(0, Math.round(outH * 0.78), outW, Math.round(outH * 0.22));
+
     if (isDouble && drawX > 0) {
       // Safe outer landscape slices (pure trees, fence, sky, grass)
-      const safeLeftLandscapeW = Math.round(srcW * 0.10);
-      const safeRightLandscapeX = Math.round(srcW * 0.90);
+      const safeLeftLandscapeW = Math.round(srcW * 0.12);
+      const safeRightLandscapeX = Math.round(srcW * 0.88);
       const safeRightLandscapeW = srcW - safeRightLandscapeX;
 
-      // 1. Draw pure outer landscape wings
+      // Draw pure outer landscape wings
       ctx.drawImage(img, 0, 0, safeLeftLandscapeW, srcH, 0, drawY, drawX + 30, drawH);
       ctx.drawImage(img, safeRightLandscapeX, 0, safeRightLandscapeW, srcH, drawX + drawW - 30, drawY, outW - (drawX + drawW) + 30, drawH);
 
-      // 2. Draw centered house image with feathered soft edge mask
+      // Draw centered house image with feathered soft edge mask
       const houseCanvas = document.createElement("canvas");
       houseCanvas.width = drawW;
       houseCanvas.height = drawH;
@@ -266,38 +283,8 @@ export async function preframeFacadeImage(
       } else {
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
       }
-
-      // Top sky blend
-      if (drawY > 0) {
-        const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
-        ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
-        ctx.fillRect(0, 0, outW, drawY + 1);
-      }
     } else {
-      // Single Storey standard pristine full-bleed
-      if (drawY > 0) {
-        const topSkyIdx = (4 * srcW + Math.round(srcW * 0.5)) * 4;
-        ctx.fillStyle = `rgb(${data[topSkyIdx]}, ${data[topSkyIdx + 1]}, ${data[topSkyIdx + 2]})`;
-        ctx.fillRect(0, 0, outW, drawY + 2);
-      }
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    }
-
-    // If drawY + drawH < outH, extend driveway / lawn seamlessly at bottom
-    if (drawY + drawH < outH) {
-      const remainingH = outH - (drawY + drawH);
-      const btmLeftIdx = ((srcH - 8) * srcW + 20) * 4;
-      const btmRightIdx = ((srcH - 8) * srcW + (srcW - 20)) * 4;
-      const btmCenterIdx = ((srcH - 8) * srcW + Math.round(srcW * 0.5)) * 4;
-
-      ctx.fillStyle = `rgb(${data[btmLeftIdx]}, ${data[btmLeftIdx + 1]}, ${data[btmLeftIdx + 2]})`;
-      ctx.fillRect(0, drawY + drawH - 2, outW * 0.35, remainingH + 2);
-
-      ctx.fillStyle = `rgb(${data[btmCenterIdx]}, ${data[btmCenterIdx + 1]}, ${data[btmCenterIdx + 2]})`;
-      ctx.fillRect(outW * 0.35, drawY + drawH - 2, outW * 0.30, remainingH + 2);
-
-      ctx.fillStyle = `rgb(${data[btmRightIdx]}, ${data[btmRightIdx + 1]}, ${data[btmRightIdx + 2]})`;
-      ctx.fillRect(outW * 0.65, drawY + drawH - 2, outW * 0.35, remainingH + 2);
     }
 
     return canvas.toDataURL("image/jpeg", 0.96);
@@ -439,20 +426,20 @@ export async function callGeminiOutpaint(
     housingType === "Double";
 
   const prompt = isDouble
-    ? `Task: High-end architectural rendering outpaint, upscale, and PROPORTIONALLY CALIBRATED FRAMING for a DOUBLE STOREY house.
+    ? `Task: High-end architectural rendering outpaint, upscale, and HEROIC CALIBRATED FRAMING for a DOUBLE STOREY house.
 
 Canvas & Framing Specifications:
-- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Prominence: Make the double-storey house sit comfortably within the frame with generous room to spare, occupying ~70% to 75% of the total canvas height.
-- Roofline Clearance: Ensure the highest roof apex, upper gutters, and eaves are 100% visible inside the frame with a generous, clean 12mm to 15mm (~135px to 170px) sky margin from the top canvas border so there is plenty of open sky headroom above the roof. Do not crop or clip the roof.
-- Grounding: Ground the base of the house with a clean 8mm to 10mm (~90px to 115px) of driveway and manicured front lawn visible at the bottom edge.
-- Center the house horizontally, spanning across the central 60% to 70% width of the frame.
+- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px) or 21:9 ultrawide panoramic.
+- House Scale & Prominence: Make the double-storey house LARGE, CLOSER, and HEROIC, occupying ~82% of the total canvas height with room to spare.
+- Roofline Clearance: Ensure the highest roof apex, upper gutters, and eaves are 100% visible inside the frame with a generous, clean ~8mm (90px) sky margin from the top canvas border so there is plenty of open sky headroom above the roof. Do not crop or clip the roof.
+- Grounding: Ground the base of the house with a clean ~6mm (70px) of driveway and manicured front lawn visible at the bottom edge.
+- Center the house horizontally, spanning across the central 75% to 80% width of the frame.
 
 Strict Architectural Integrity:
 - Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
 
 Seamless Outpainting:
-- Fill the left and right wings seamlessly to the full 2400px width with matching Australian native garden beds, eucalyptus/gum trees, lush turf, and Colorbond boundary fencing.
+- Zero White Boxes: Fill the left and right wings seamlessly to the full 2400px width with matching Australian native garden beds, eucalyptus/gum trees, lush turf, and Colorbond boundary fencing.
 - Zero blur, zero duplicate house features, razor-sharp 8K architectural photography clarity.`
     : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
 
@@ -469,7 +456,7 @@ Strict Architectural Integrity:
 Seamless Outpainting:
 - Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`;
 
-  const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
+  const models = ["gemini-2.5-flash-image", "gemini-3.1-flash-image"];
 
   for (const model of models) {
     try {
@@ -490,6 +477,9 @@ Seamless Outpainting:
         ],
         generationConfig: {
           responseModalities: ["IMAGE"],
+          imageConfig: {
+            aspectRatio: isDouble ? "21:9" : "16:9",
+          },
           temperature: 0.1,
         },
       };

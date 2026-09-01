@@ -65,22 +65,15 @@ export default async function handler(req, res) {
       housingType === "Double";
 
     const prompt = customPrompt || (isDouble
-      ? `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a DOUBLE STOREY house.
+      ? `Task: High-end architectural photograph of this DOUBLE STOREY house in 21:9 ultrawide panoramic aspect ratio.
 
-Canvas & Framing Specifications:
-- Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Prominence: Make the double-storey house AS LARGE AS POSSIBLE within the canvas, while strictly respecting a 5mm (~57px) safe margin from all photo borders.
-- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean 5mm (~57px) margin from the top photo border (the roof must never cross or touch the top photo border).
-- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 5mm (~57px) of driveway visible at the bottom edge.
-- Center the house horizontally, spanning across the central 70% to 80% of the frame with at least 5mm side clearances.
-
-Strict Architectural Integrity:
-- Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
-
-Seamless Outpainting Background:
-- Perfect outpainting background: Fill the left and right wings seamlessly with matching Australian Sir Walter buffalo turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
-- Sky: Pristine Australian blue sky with soft ambient clouds matching the building illumination.
-- Zero black boxes, zero blur, razor-sharp 8K architectural photography clarity.`
+Framing & House:
+- Center the house prominently. The double storey house must be LARGE, CLOSE, and HEROIC in the frame, occupying ~82% of the vertical height.
+- Roof Apex Clearance: Ensure the highest roof apex, gutters, and upper eaves are 100% visible inside the frame with a clean, generous ~8mm (90px) sky margin from the top border so the roof is never cut off or crowded.
+- Grounding: Ground the base of the house with a clean, realistic driveway and manicured front lawn at the bottom.
+- Zero White Boxes: The left and right wings must be 100% completely filled to the very outer edges with lush Australian eucalyptus trees, gum foliage, garden beds, and Colorbond fences.
+- Preserve 100% of the architectural structure, facade materials, roof pitch, and colors faithfully.
+- 8K ultra-realistic architectural photography clarity.`
       : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
 
 Canvas & Framing Specifications:
@@ -96,7 +89,7 @@ Strict Architectural Integrity:
 Seamless Outpainting Background:
 - Perfect outpainting background: Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`);
 
-    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image"];
+    const models = ["gemini-2.5-flash-image", "gemini-3.1-flash-image"];
 
     for (const model of models) {
       try {
@@ -120,6 +113,9 @@ Seamless Outpainting Background:
             ],
             generationConfig: {
               responseModalities: ["IMAGE"],
+              imageConfig: {
+                aspectRatio: isDouble ? "21:9" : "16:9",
+              },
               temperature: 0.1,
             },
           }),

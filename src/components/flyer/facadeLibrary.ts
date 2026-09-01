@@ -169,16 +169,31 @@ export async function saveEnhanced(id: string, dataUrl: string, facadeName?: str
 
   // Save globally to Supabase
   void supabase.from("facade_renders").upsert({
-    id: `${id}_v5`,
+    id: `${id}_v7_fresh`,
     facade_name: facadeName || id,
     widened_url: cleanUrl,
   }).then(({ error }) => {
     if (error) {
-      console.error("Failed to save facade to Supabase:", error);
+      console.warn("Supabase facade_renders note:", error.message);
     } else {
-      console.log(`[FacadeLibrary] Permanently saved ${id}_v5 to Supabase.`);
+      console.log(`[FacadeLibrary] Permanently saved ${id}_v7_fresh to Supabase.`);
     }
   });
+
+  // Save permanently to server public directory via API for all users
+  try {
+    const filename = `${id.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-double-storey.png`;
+    void fetch("/api/save-facade", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        facadeId: id,
+        filename,
+        imageBase64: cleanUrl,
+        facadeName,
+      }),
+    });
+  } catch {}
 }
 
 export async function hasPreviousEnhanced(id: string): Promise<boolean> {
