@@ -201,10 +201,11 @@ export async function preframeFacadeImage(
       drawX = Math.round((outW - drawW) / 2);
       drawY = Math.round(topMarginPx - (roofApexY * scale));
     } else {
-      // === DOUBLE STOREY (CALIBRATED WITH ROOF & GROUND FULLY IN FRAME) ===
-      // Target: roof apex at ~4.5mm (51px), ground at ~7.0mm (80px) from bottom
-      topMarginPx = Math.round(4.5 * pxPerMm); // 51px (~4.5mm)
-      bottomMarginPx = Math.round(7.0 * pxPerMm); // 80px (~7.0mm)
+      // === DOUBLE STOREY (CALIBRATED WITH GENEROUS SKY HEADROOM & GROUNDING) ===
+      // Target: roof apex at ~12.5mm (~143px), ground at ~8.5mm (~97px) from bottom
+      // House occupies ~72% to 75% of height with generous room to spare
+      topMarginPx = Math.round(12.5 * pxPerMm); // 143px (~12.5mm)
+      bottomMarginPx = Math.round(8.5 * pxPerMm); // 97px (~8.5mm)
       const targetHouseH = outH - topMarginPx - bottomMarginPx;
 
       scale = Math.min(outW / srcW, targetHouseH / houseH);
@@ -438,21 +439,21 @@ export async function callGeminiOutpaint(
     housingType === "Double";
 
   const prompt = isDouble
-    ? `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a DOUBLE STOREY house.
+    ? `Task: High-end architectural rendering outpaint, upscale, and PROPORTIONALLY CALIBRATED FRAMING for a DOUBLE STOREY house.
 
 Canvas & Framing Specifications:
 - Canvas Aspect Ratio: Strictly 210:82 widescreen (2400 x 937 px).
-- House Scale & Prominence: Make the double-storey house LARGE, HEROIC, and MAXIMIZED within the canvas, occupying ~88% to 92% of the total canvas height.
-- Roofline Clearance: Ensure the highest roof ridge/apex, upper gutters, and eaves are 100% visible inside the frame with a clean, narrow 2.5mm (~28px) margin from the top canvas border (do not crop or clip roof).
-- Grounding: Ground the base of the garage and entrance porch near the bottom with a clean 3mm (~34px) of driveway visible at the bottom edge.
-- Center the house horizontally, spanning across the central 75% to 85% of the frame.
+- House Scale & Prominence: Make the double-storey house sit comfortably within the frame with generous room to spare, occupying ~70% to 75% of the total canvas height.
+- Roofline Clearance: Ensure the highest roof apex, upper gutters, and eaves are 100% visible inside the frame with a generous, clean 12mm to 15mm (~135px to 170px) sky margin from the top canvas border so there is plenty of open sky headroom above the roof. Do not crop or clip the roof.
+- Grounding: Ground the base of the house with a clean 8mm to 10mm (~90px to 115px) of driveway and manicured front lawn visible at the bottom edge.
+- Center the house horizontally, spanning across the central 60% to 70% width of the frame.
 
 Strict Architectural Integrity:
 - Preserve the exact architectural geometry, facade materials, roof pitch, parapets, brick, timber, and windows 100% faithfully without modifications.
 
 Seamless Outpainting:
-- Fill the left and right wings seamlessly with matching Australian turf, flowering native garden beds, gum trees, and Colorbond boundary fencing.
-- Zero blur, zero black boxes, razor-sharp 8K architectural photography clarity.`
+- Fill the left and right wings seamlessly to the full 2400px width with matching Australian native garden beds, eucalyptus/gum trees, lush turf, and Colorbond boundary fencing.
+- Zero blur, zero duplicate house features, razor-sharp 8K architectural photography clarity.`
     : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.
 
 Canvas & Framing Specifications:
