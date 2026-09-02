@@ -1,3 +1,7 @@
+export const config = {
+  maxDuration: 60,
+};
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -12,7 +16,9 @@ export default async function handler(req, res) {
 
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  const { imageBase64, imageUrl, housingType = "single-storey", customPrompt, apiKey: userKey } = req.body || {};
+
+  let key = userKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!key) {
     try {
       const fs = await import("fs");
@@ -27,11 +33,10 @@ export default async function handler(req, res) {
   }
 
   if (!key) {
-    return res.status(500).json({ error: "Gemini API key is not configured on server." });
+    return res.status(500).json({ error: "Gemini API key is not configured on server or in request." });
   }
 
   try {
-    const { imageBase64, imageUrl, housingType = "single-storey", customPrompt } = req.body || {};
 
     let cleanB64 = "";
     let mimeType = "image/jpeg";
@@ -85,10 +90,12 @@ export default async function handler(req, res) {
       ? `Task: High-end architectural photograph of this DOUBLE STOREY house in 21:9 ultrawide panoramic aspect ratio.
 
 Framing & House:
-- Center the house prominently. The double storey house must be LARGE, CLOSE, and HEROIC in the frame, occupying ~82% of the vertical height.
+- Centering: The house MUST be DEAD-CENTERED horizontally (exactly 50% width of the frame). The left landscape wing and right landscape wing must be completely equal and balanced in width.
+- Scale: The house must be LARGE, CLOSE, and HEROIC, occupying ~82% of the vertical frame height with room to spare.
 - Roof Apex Clearance: Ensure the highest roof apex, gutters, and upper eaves are 100% visible inside the frame with a clean, generous ~8mm (90px) sky margin from the top border so the roof is never cut off or crowded.
 - Grounding: Ground the base of the house with a clean, realistic driveway and manicured front lawn at the bottom.
-- Zero White Boxes: The left and right wings must be 100% completely filled to the very outer edges with lush Australian eucalyptus trees, gum foliage, garden beds, and Colorbond fences.
+- Sky: Continuous, uniform, natural Australian blue sky with soft clouds, completely seamless across the entire frame. No halos, no rectangular discoloration.
+- Wings: Fill the left and right wings seamlessly to the outer edges with matching Australian native eucalyptus trees, gum foliage, garden beds, and Colorbond fences. Zero white borders, zero seams.
 - Preserve 100% of the architectural structure, facade materials, roof pitch, and colors faithfully.
 - 8K ultra-realistic architectural photography clarity.`
       : `Task: High-end architectural rendering outpaint, upscale, and MAXIMIZED HERO FRAMING for a SINGLE STOREY house.

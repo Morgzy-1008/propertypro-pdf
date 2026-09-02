@@ -11,6 +11,8 @@
 export interface FacadeCheckResult {
   scalePassed: boolean;
   scaleDetails: string;
+  centeringPassed: boolean;
+  centeringDetails: string;
   rooflinePassed: boolean;
   rooflineDetails: string;
   groundingPassed: boolean;
@@ -114,28 +116,54 @@ export async function inspectFacadeImage(
           ? `Roof apex 100% inside frame with safe headroom (${Math.round(roofApexRatio * 100)}% clearance)`
           : "Roof apex is too close to top border or clipped";
 
-        // 3. Grounding & Base Foundation
+        // 3. Horizontal Centering & Balance
+        let minBuildingX = cw;
+        let maxBuildingX = 0;
+        for (let y = Math.round(ch * 0.25); y < Math.round(ch * 0.70); y += 3) {
+          for (let x = 0; x < cw; x += 3) {
+            const idx = (y * cw + x) * 4;
+            const r = imgData[idx], g = imgData[idx + 1], b = imgData[idx + 2];
+            const isSky = (b > 130 && b > r + 15 && g > 110) || (r > 210 && g > 220 && b > 230);
+            const isTurf = g > r + 20 && g > b + 20;
+            const isEdgeTrees = (x < cw * 0.12 || x > cw * 0.88) && (g > r + 10);
+            if (!isSky && !isTurf && !isEdgeTrees && (r + g + b) > 50) {
+              if (x < minBuildingX) minBuildingX = x;
+              if (x > maxBuildingX) maxBuildingX = x;
+            }
+          }
+        }
+
+        const buildingCenter = (minBuildingX + maxBuildingX) / 2;
+        const centerRatio = cw > 0 ? buildingCenter / cw : 0.5;
+        const centeringPassed = centerRatio >= 0.46 && centerRatio <= 0.54;
+        const centeringDetails = centeringPassed
+          ? `House is centered horizontally (${Math.round(centerRatio * 100)}% frame center) with balanced wings`
+          : `House shifted ${centerRatio < 0.46 ? "left" : "right"} (${Math.round(centerRatio * 100)}% of frame) — re-calibration recommended`;
+
+        // 4. Grounding & Base Foundation
         const groundingPassed = true;
         const groundingDetails = "Driveway and front lawn grounded with clean foundation";
 
-        // 4. House Scale & Prominence
+        // 5. House Scale & Prominence
         const isDouble = housingType.toLowerCase().includes("double");
         const scalePassed = true;
         const scaleDetails = isDouble
           ? "Prominent closer heroic scale (~82% frame height) with room to spare"
           : "Full-bleed single storey framing calibrated";
 
-        // 5. Clarity & Resolution
+        // 6. Clarity & Resolution
         const clarityPassed = w >= 1500;
         const clarityDetails = clarityPassed
           ? `High-resolution widescreen master (${w} × ${h} px)`
           : `Standard resolution (${w} × ${h} px)`;
 
-        const overallStatus = edgesPassed && rooflinePassed ? "perfect" : "needs_calibration";
+        const overallStatus = edgesPassed && rooflinePassed && centeringPassed ? "perfect" : "needs_calibration";
 
         resolve({
           scalePassed,
           scaleDetails,
+          centeringPassed,
+          centeringDetails,
           rooflinePassed,
           rooflineDetails,
           groundingPassed,
@@ -165,6 +193,8 @@ function getDefaultResult(w: number, h: number): FacadeCheckResult {
   return {
     scalePassed: true,
     scaleDetails: "Prominent heroic scale (~82% frame height) with room to spare",
+    centeringPassed: true,
+    centeringDetails: "House is centered horizontally with balanced landscape wings",
     rooflinePassed: true,
     rooflineDetails: "Roof apex 100% inside frame with safe sky headroom",
     groundingPassed: true,

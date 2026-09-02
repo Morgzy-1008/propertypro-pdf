@@ -102,17 +102,22 @@ async function cleanImageToBase64(url: string): Promise<string> {
           right--;
         }
 
-        const cropW = Math.max(100, right - left + 1);
-        const cropH = Math.max(100, bottom - top + 1);
+        const maxDim = 1536;
+        let targetW = cropW;
+        let targetH = cropH;
+        if (targetW > maxDim) {
+          targetH = Math.round((maxDim / targetW) * targetH);
+          targetW = maxDim;
+        }
 
         const outCanvas = document.createElement("canvas");
-        outCanvas.width = cropW;
-        outCanvas.height = cropH;
+        outCanvas.width = targetW;
+        outCanvas.height = targetH;
         const outCtx = outCanvas.getContext("2d");
-        if (!outCtx) return resolve(c.toDataURL("image/png"));
+        if (!outCtx) return resolve(c.toDataURL("image/jpeg", 0.92));
 
-        outCtx.drawImage(img, left, top, cropW, cropH, 0, 0, cropW, cropH);
-        resolve(outCanvas.toDataURL("image/png"));
+        outCtx.drawImage(img, left, top, cropW, cropH, 0, 0, targetW, targetH);
+        resolve(outCanvas.toDataURL("image/jpeg", 0.92));
       } catch (err) {
         resolve(url);
       }
@@ -146,6 +151,8 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(facadeUrl);
   const [results, setResults] = useState<FacadeCheckResult | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showKeyInput, setShowKeyInput] = useState(false);
 
   useEffect(() => {
     if (isOpen && facadeUrl) {
@@ -174,9 +181,16 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
       // 1. Clean and extract base64 from image, auto-trimming any white border/letterboxing
       const cleanB64 = await cleanImageToBase64(currentUrl);
 
-      let widenedUrl = "";
+      const storedKey =
+        localStorage.getItem("hudson_gemini_api_key") ||
+        localStorage.getItem("gemini_api_key") ||
+        (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+        apiKeyInput;
 
-      // 2. Try server-side API first with clean base64
+      let widenedUrl = "";
+      let lastErrorMessage = "";
+
+      // 2. Try server-side API first with clean base64 & key
       try {
         const res = await fetch("/api/redo-ai", {
           method: "POST",
@@ -184,6 +198,7 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
           body: JSON.stringify({
             imageBase64: cleanB64,
             housingType,
+            apiKey: storedKey || undefined,
           }),
         });
 
@@ -193,9 +208,12 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
             widenedUrl = data.widenedUrl;
           }
         } else {
-          console.warn("[Recalibrate API Error Status]", res.status, await res.text());
+          const errData = await res.json().catch(() => ({}));
+          lastErrorMessage = errData.error || res.statusText;
+          console.warn("[Recalibrate API Error Status]", res.status, lastErrorMessage);
         }
-      } catch (apiErr) {
+      } catch (apiErr: any) {
+        lastErrorMessage = apiErr.message || "Network error";
         console.warn("[Recalibrate Server API Warning]", apiErr);
       }
 
@@ -206,7 +224,7 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
           if (clientAi) {
             widenedUrl = clientAi;
           }
-        } catch (clientErr) {
+        } catch (clientErr: any) {
           console.warn("[Recalibrate Client Gemini Fallback Warning]", clientErr);
         }
       }
@@ -215,11 +233,17 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
         setCurrentUrl(widenedUrl);
         onApplyNewRender(widenedUrl);
         await runCheck(widenedUrl);
+        setShowKeyInput(false);
         toast.success("Facade re-framed and calibrated with 21:9 panoramic wings!", { id: "recalibrate" });
         return;
       }
 
-      toast.error("Could not complete AI re-calibration. Keeping current render.", { id: "recalibrate" });
+      if (lastErrorMessage.toLowerCase().includes("api key") || lastErrorMessage.toLowerCase().includes("key")) {
+        setShowKeyInput(true);
+        toast.error("Gemini API key is required for AI calibration. Please enter your key below.", { id: "recalibrate" });
+      } else {
+        toast.error(lastErrorMessage ? `AI calibration error: ${lastErrorMessage}` : "Could not complete AI re-calibration. Keeping current render.", { id: "recalibrate" });
+      }
     } catch (e: any) {
       console.error("[handleRecalibrate error]", e);
       toast.error("Failed to communicate with calibration service.", { id: "recalibrate" });
@@ -310,6 +334,28 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
                 </span>
               </div>
 
+              {/* Horizontal Centering & Balance */}
+              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
+                {results.centeringPassed ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <div className="font-semibold text-slate-200">Horizontal Centering & Balance</div>
+                  <div className="text-[11px] text-slate-400">{results.centeringDetails}</div>
+                </div>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                    results.centeringPassed
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-amber-500/10 text-amber-400"
+                  }`}
+                >
+                  {results.centeringPassed ? "PASSED" : "REVIEW"}
+                </span>
+              </div>
+
               {/* Roof Apex Clearance */}
               <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
                 {results.rooflinePassed ? (
@@ -380,6 +426,45 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
             </div>
           ) : null}
         </div>
+
+        {/* Inline Gemini API Key Setup if required */}
+        {showKeyInput && (
+          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/20 p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+                Gemini API Key Setup
+              </span>
+              <span className="text-[10px] text-slate-400">Stored safely in browser</span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              To calibrate facade renders on-the-fly, enter your Google Gemini API key:
+            </p>
+            <div className="flex gap-2">
+              <Input
+                type="password"
+                placeholder="AIzaSy..."
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="h-8.5 text-xs bg-slate-900/90 border-slate-700 text-slate-100 flex-1 font-mono"
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  if (apiKeyInput.trim()) {
+                    localStorage.setItem("hudson_gemini_api_key", apiKeyInput.trim());
+                    toast.success("API key saved!");
+                    handleRecalibrate();
+                  }
+                }}
+                disabled={!apiKeyInput.trim()}
+                className="h-8.5 text-xs bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 px-3 flex-none"
+              >
+                Save & Run
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Action Controls */}
         <div className="mt-6 flex items-center justify-between border-t border-slate-800/80 pt-4">

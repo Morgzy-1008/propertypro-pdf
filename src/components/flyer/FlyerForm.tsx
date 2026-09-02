@@ -539,95 +539,6 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             onChange={(v) => set("landFrontage", v)}
           />
         </div>
-
-        {/* Setback controls directly under Location when 2-Page Siting template is active */}
-        {template === "siting" && (
-          <div className="mt-3 space-y-3 rounded-xl border border-amber-500/30 bg-amber-950/15 p-3 shadow-inner">
-            <div className="flex items-center justify-between border-b border-amber-500/20 pb-1.5">
-              <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">
-                Siting Setback Controls
-              </span>
-              <span className="text-[10px] text-slate-400 font-medium">
-                {ESTATE_PRESETS.find((p) => p.id === data.estatePreset)?.name || "Standard QLD"}
-              </span>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-300">Estate Preset</Label>
-              <Select
-                value={data.estatePreset || "standard"}
-                onValueChange={(v) => {
-                  set("estatePreset", v);
-                  const preset = ESTATE_PRESETS.find((p) => p.id === v);
-                  if (preset && v !== "custom") {
-                    set("frontSetback", preset.frontSetback);
-                    set("garageSetback", preset.garageSetback);
-                    set("sideSetback", preset.sideSetback);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 text-xs bg-slate-900/90 border-slate-800">
-                  <SelectValue placeholder="Select Estate / Code" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ESTATE_PRESETS.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Front Room / Porch (m)</Label>
-                <Input
-                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
-                  value={data.frontSetback !== undefined ? String(data.frontSetback) : "3.8"}
-                  onChange={(e) => set("frontSetback", e.target.value)}
-                  placeholder="3.8"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Garage Door Line (m)</Label>
-                <Input
-                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
-                  value={data.garageSetback !== undefined ? String(data.garageSetback) : "5.0"}
-                  onChange={(e) => set("garageSetback", e.target.value)}
-                  placeholder="5.0"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
-                <Input
-                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/90 text-xs text-slate-200"
-                  value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
-                  onChange={(e) => set("sideSetback", e.target.value)}
-                  placeholder="1.0"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
-                <Select
-                  value={data.garageSide || "right"}
-                  onValueChange={(v: "left" | "right") => set("garageSide", v)}
-                >
-                  <SelectTrigger className="h-7.5 text-xs bg-slate-900/90 border-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
-                    <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </div>
-        )}
       </Section>
 
 
@@ -880,109 +791,111 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
-      <Section title="Siting & setbacks (2-Page + Siting Plan)">
-        <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
-          <div className="space-y-1.5">
-            <Label className="text-xs tracking-wide text-muted-foreground">Estate Setback Preset (POD)</Label>
-            <Select
-              value={data.estatePreset || "standard"}
-              onValueChange={(v) => {
-                set("estatePreset", v);
-                const preset = ESTATE_PRESETS.find((p) => p.id === v);
-                if (preset && v !== "custom") {
-                  set("frontSetback", preset.frontSetback);
-                  set("garageSetback", preset.garageSetback);
-                  set("sideSetback", preset.sideSetback);
-                }
-              }}
-            >
-              <SelectTrigger className="h-8.5 text-xs bg-slate-900/80 border-slate-800">
-                <SelectValue placeholder="Select Estate / Code" />
-              </SelectTrigger>
-              <SelectContent>
-                {ESTATE_PRESETS.map((p) => (
-                  <SelectItem key={p.id} value={p.id} className="text-xs">
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-400">Front Setback (m)</Label>
-              <Input
-                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
-                value={data.frontSetback !== undefined ? String(data.frontSetback) : "4.5"}
-                onChange={(e) => set("frontSetback", e.target.value)}
-                placeholder="4.5"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-400">Garage Setback (m)</Label>
-              <Input
-                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
-                value={data.garageSetback !== undefined ? String(data.garageSetback) : "5.5"}
-                onChange={(e) => set("garageSetback", e.target.value)}
-                placeholder="5.5"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
-              <Input
-                className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
-                value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
-                onChange={(e) => set("sideSetback", e.target.value)}
-                placeholder="1.0"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
+      {template === "siting" && (
+        <Section title="Siting & setbacks (2-Page + Siting Plan)">
+          <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
+            <div className="space-y-1.5">
+              <Label className="text-xs tracking-wide text-muted-foreground">Estate Setback Preset (POD)</Label>
               <Select
-                value={data.garageSide || "right"}
-                onValueChange={(v: "left" | "right") => set("garageSide", v)}
+                value={data.estatePreset || "standard"}
+                onValueChange={(v) => {
+                  set("estatePreset", v);
+                  const preset = ESTATE_PRESETS.find((p) => p.id === v);
+                  if (preset && v !== "custom") {
+                    set("frontSetback", preset.frontSetback);
+                    set("garageSetback", preset.garageSetback);
+                    set("sideSetback", preset.sideSetback);
+                  }
+                }}
               >
-                <SelectTrigger className="h-7.5 text-xs bg-slate-900/80 border-slate-800">
-                  <SelectValue />
+                <SelectTrigger className="h-8.5 text-xs bg-slate-900/80 border-slate-800">
+                  <SelectValue placeholder="Select Estate / Code" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
-                  <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
+                  {ESTATE_PRESETS.map((p) => (
+                    <SelectItem key={p.id} value={p.id} className="text-xs">
+                      {p.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
 
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-3.5 w-3.5 accent-amber-400 rounded"
-              checked={!!data.isBtb}
-              onChange={(e) => set("isBtb", e.target.checked)}
-            />
-            <div>
-              <span className="text-[11px] font-medium leading-snug text-slate-200 block">
-                Built-To-Boundary (BTB) Wall
-              </span>
-              <span className="text-[10px] text-slate-400 block leading-tight">
-                Places garage wall on side boundary (0.2m setback) to maximize yard space.
-              </span>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Front Setback (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.frontSetback !== undefined ? String(data.frontSetback) : "4.5"}
+                  onChange={(e) => set("frontSetback", e.target.value)}
+                  placeholder="4.5"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Garage Setback (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.garageSetback !== undefined ? String(data.garageSetback) : "5.5"}
+                  onChange={(e) => set("garageSetback", e.target.value)}
+                  placeholder="5.5"
+                />
+              </div>
             </div>
-          </label>
 
-          <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60">
-            <span className="text-amber-300 font-semibold">Calculated Lot Depth: </span>
-            {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
-              ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m`
-              : "32.14m"}
-            <span className="text-slate-500 ml-2">({data.landSize || 450}m² / {data.landFrontage || 14}m)</span>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
+                  onChange={(e) => set("sideSetback", e.target.value)}
+                  placeholder="1.0"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
+                <Select
+                  value={data.garageSide || "right"}
+                  onValueChange={(v: "left" | "right") => set("garageSide", v)}
+                >
+                  <SelectTrigger className="h-7.5 text-xs bg-slate-900/80 border-slate-800">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
+                    <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-3.5 w-3.5 accent-amber-400 rounded"
+                checked={!!data.isBtb}
+                onChange={(e) => set("isBtb", e.target.checked)}
+              />
+              <div>
+                <span className="text-[11px] font-medium leading-snug text-slate-200 block">
+                  Built-To-Boundary (BTB) Wall
+                </span>
+                <span className="text-[10px] text-slate-400 block leading-tight">
+                  Places garage wall on side boundary (0.2m setback) to maximize yard space.
+                </span>
+              </div>
+            </label>
+
+            <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60">
+              <span className="text-amber-300 font-semibold">Calculated Lot Depth: </span>
+              {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
+                ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m`
+                : "32.14m"}
+              <span className="text-slate-500 ml-2">({data.landSize || 450}m² / {data.landFrontage || 14}m)</span>
+            </div>
           </div>
-        </div>
-      </Section>
+        </Section>
+      )}
 
       <Section title="Flyer colour scheme">
         <div className="grid grid-cols-2 gap-2">
