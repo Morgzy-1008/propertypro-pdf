@@ -113,7 +113,8 @@ Strict Architectural Integrity:
 Seamless Outpainting Background:
 - Perfect outpainting background: Outpaint the left and right wings seamlessly to the full 2400px width with lush Australian turf, native gardens, trees, and Colorbond boundary fences. Zero black bars, zero empty borders, zero blur.`);
 
-    const models = ["gemini-2.5-flash-image", "gemini-3.1-flash-image"];
+    const models = ["gemini-2.5-flash-image", "gemini-2.0-flash-exp"];
+    let lastDiagnosticError = "";
 
     for (const model of models) {
       try {
@@ -142,6 +143,12 @@ Seamless Outpainting Background:
               },
               temperature: 0.1,
             },
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            ],
           }),
         });
 
@@ -152,16 +159,24 @@ Seamless Outpainting Background:
             const outMime = candidate.inlineData.mimeType || "image/jpeg";
             const widenedUrl = `data:${outMime};base64,${candidate.inlineData.data}`;
             return res.status(200).json({ success: true, widenedUrl, modelUsed: model });
+          } else {
+            const finishReason = result?.candidates?.[0]?.finishReason;
+            const textPart = result?.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text;
+            lastDiagnosticError = `Model ${model} returned finishReason: ${finishReason || "NO_IMAGE_PARTS"}${textPart ? ` (${textPart})` : ""}`;
+            console.warn(`[Gemini Serverless ${model} No Image Part]`, lastDiagnosticError);
           }
         } else {
-          console.warn(`[Gemini Serverless ${model} Failed]`, geminiRes.status, await geminiRes.text());
+          const errText = await geminiRes.text();
+          lastDiagnosticError = `Model ${model} HTTP ${geminiRes.status}: ${errText}`;
+          console.warn(`[Gemini Serverless ${model} Failed]`, geminiRes.status, errText);
         }
       } catch (err) {
+        lastDiagnosticError = `Model ${model} Exception: ${err.message}`;
         console.warn(`[Gemini Serverless ${model} Exception]`, err.message);
       }
     }
 
-    return res.status(502).json({ error: "Gemini AI image generation models returned no image parts." });
+    return res.status(502).json({ error: lastDiagnosticError || "Gemini AI image generation models returned no image parts." });
   } catch (error) {
     return res.status(500).json({ error: `Server error: ${error.message}` });
   }

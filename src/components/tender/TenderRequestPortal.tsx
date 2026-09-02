@@ -170,7 +170,8 @@ export function TenderRequestPortal() {
             return updated;
           });
           toast.success(
-            `Client ${msg.payload.atp.client1Name || "Purchaser"} signed Authority to Proceed! Signatures synced live into portal & Master PDF.`
+            `Client ${msg.payload.atp.client1Name || "Purchaser"} signed Authority to Proceed! Signatures synced live into portal & Master PDF.`,
+            { id: "atp-signed-alert" }
           );
         }
       })
@@ -184,7 +185,7 @@ export function TenderRequestPortal() {
         if (event.data?.type === "ATP_SIGNED" && event.data.tender) {
           const incoming = event.data.tender as TenderSubmission;
           setTender(incoming);
-          toast.success("Client signed Authority to Proceed! Signatures synced live into the portal and Master PDF.");
+          toast.success("Client signed Authority to Proceed! Signatures synced live into the portal and Master PDF.", { id: "atp-signed-alert" });
         }
       };
     } catch {}
@@ -194,34 +195,56 @@ export function TenderRequestPortal() {
       if (e.key === "hudson_latest_remote_signature" && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue);
-          const raw = localStorage.getItem(`hudson_tender_${parsed.id}`) || localStorage.getItem("hudson_current_tender_draft");
-          if (raw) {
-            const updatedT = JSON.parse(raw) as TenderSubmission;
-            setTender(updatedT);
-            toast.success("Client signed Authority to Proceed! Signatures updated live.");
+          if (parsed.id === tender.id || parsed.tenderId === tender.id) {
+            const raw = localStorage.getItem(`hudson_tender_${parsed.id}`) || localStorage.getItem("hudson_current_tender_draft");
+            if (raw) {
+              const updatedT = JSON.parse(raw) as TenderSubmission;
+              setTender(updatedT);
+              toast.success("Client signed Authority to Proceed! Signatures updated live.", { id: "atp-signed-alert" });
+            }
           }
         } catch {}
       }
     };
     window.addEventListener("storage", handleStorage);
 
-    // 4. Fast polling backup
+    // 4. Fast polling backup with deduplication and tender ID matching
     const interval = setInterval(() => {
       try {
         const rawSig = localStorage.getItem("hudson_latest_remote_signature");
         if (rawSig) {
           const parsed = JSON.parse(rawSig);
-          if (parsed.atp?.client1Signed && !tender.atp.client1Signed) {
-            const rawDraft = localStorage.getItem(`hudson_tender_${tender.id}`) || localStorage.getItem("hudson_current_tender_draft");
-            if (rawDraft) {
-              const parsedDraft = JSON.parse(rawDraft) as TenderSubmission;
-              setTender(parsedDraft);
-              toast.success("Authority to Proceed signed by client!");
+          const matchesThisTender =
+            (parsed.id && parsed.id === tender.id) ||
+            (parsed.tenderId && parsed.tenderId === tender.id) ||
+            (parsed.submissionNumber && parsed.submissionNumber === tender.submissionNumber);
+
+          if (matchesThisTender && parsed.atp?.client1Signed && !tender.atp.client1Signed) {
+            const sigKey = `hudson_sig_notified_${tender.id}_${parsed.atp.client1SignatureDate || "done"}`;
+            if (!sessionStorage.getItem(sigKey)) {
+              sessionStorage.setItem(sigKey, "true");
+              localStorage.removeItem("hudson_latest_remote_signature");
+
+              const rawDraft = localStorage.getItem(`hudson_tender_${tender.id}`) || localStorage.getItem("hudson_current_tender_draft");
+              if (rawDraft) {
+                const parsedDraft = JSON.parse(rawDraft) as TenderSubmission;
+                setTender(parsedDraft);
+              } else {
+                setTender((prev) => ({
+                  ...prev,
+                  status: "client_signed",
+                  atp: { ...prev.atp, ...parsed.atp },
+                }));
+              }
+              toast.success("Authority to Proceed signed by client!", { id: "atp-signed-alert" });
             }
+          } else if (!matchesThisTender && parsed.timestamp && Date.now() - parsed.timestamp > 60000) {
+            // Clean up stale signatures from other sessions older than 1 minute
+            localStorage.removeItem("hudson_latest_remote_signature");
           }
         }
       } catch {}
-    }, 1200);
+    }, 2000);
 
     return () => {
       liveChannel.unsubscribe();

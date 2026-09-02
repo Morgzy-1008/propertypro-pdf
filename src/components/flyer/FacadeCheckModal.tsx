@@ -26,7 +26,7 @@ import {
   type FacadeCheckResult,
 } from "./facadeCheckEngine";
 import { saveEnhanced } from "./facadeLibrary";
-import { callGeminiOutpaint } from "./facadeEngine";
+import { callGeminiOutpaint, widenFacadeClientSide } from "./facadeEngine";
 
 async function cleanImageToBase64(url: string): Promise<string> {
   return new Promise((resolve) => {
@@ -217,7 +217,7 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
         console.warn("[Recalibrate Server API Warning]", apiErr);
       }
 
-      // 3. Robust client-side fallback if server was unavailable
+      // 3. Robust client-side AI fallback
       if (!widenedUrl && cleanB64.startsWith("data:image/")) {
         try {
           const clientAi = await callGeminiOutpaint(cleanB64, housingType);
@@ -226,6 +226,24 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
           }
         } catch (clientErr: any) {
           console.warn("[Recalibrate Client Gemini Fallback Warning]", clientErr);
+        }
+      }
+
+      // 4. Automatic High-Precision Geometric Fallback if AI models returned no image or are busy
+      if (!widenedUrl && cleanB64.startsWith("data:image/")) {
+        try {
+          const clientCanvas = await widenFacadeClientSide(cleanB64, housingType);
+          if (clientCanvas && clientCanvas.startsWith("data:image/")) {
+            widenedUrl = clientCanvas;
+            setCurrentUrl(widenedUrl);
+            onApplyNewRender(widenedUrl);
+            await runCheck(widenedUrl);
+            setShowKeyInput(false);
+            toast.success("Facade centered & calibrated via High-Precision Canvas Engine!", { id: "recalibrate" });
+            return;
+          }
+        } catch (canvasErr: any) {
+          console.warn("[Recalibrate Canvas Fallback Warning]", canvasErr);
         }
       }
 
