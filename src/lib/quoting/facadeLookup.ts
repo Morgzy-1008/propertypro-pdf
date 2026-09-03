@@ -168,6 +168,16 @@ export function findFacadeForDesign(
         tempo: "tempo",
         vista: "vista",
         vogue: "vogue",
+        avoca: "ascot",
+        modernbox: "contemporary",
+        moderncoastal: "contemporary",
+        mochahamptons: "hamptons",
+        modernbarn: "statesman",
+        modernfarmhouse: "statesman",
+        modernfarmhouseoptionb: "statesman",
+        modernclassical: "classic-double-garage",
+        modernclassicaloptiona: "classic-double-garage",
+        modernclassicaloptionb: "classic-double-garage",
       };
 
       if (standardDoubleIdMap[baseKey]) {
@@ -238,6 +248,15 @@ export function findFacadeForDesign(
       vienna: "vienna-single",
       visage: "visage-single",
       vogue: "vogue-single",
+      modernbox: "contemporary-single",
+      moderncoastal: "coastal",
+      mochahamptons: "hamptons-single",
+      modernbarn: "statesman-single",
+      modernfarmhouse: "statesman-single",
+      modernfarmhouseoptionb: "statesman-single",
+      modernclassical: "classic",
+      modernclassicaloptiona: "classic",
+      modernclassicaloptionb: "classic",
     };
 
     if (singleIdMap[baseKey]) {
@@ -270,11 +289,19 @@ export function findFacadeForDesign(
     if (match) return resolveWithPreRendered(match);
   }
 
-  // Fallback to any matching name
+  // Fallback to any matching name, preserving housing type integrity
   const fallback =
-    HUDSON_FACADES.find(
-      (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
-    ) || HUDSON_FACADES[0];
+    (isDouble
+      ? HUDSON_FACADES.find(
+          (f) =>
+            (f.range === "Double Storey" || f.range === "Narrow Double Storey") &&
+            (normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey)
+        ) ||
+        HUDSON_FACADES.find((f) => f.id === "classic-double-garage") ||
+        HUDSON_FACADES.find((f) => f.range === "Double Storey")
+      : HUDSON_FACADES.find(
+          (f) => normalizeFacadeKey(f.name) === baseKey || normalizeFacadeKey(f.id) === baseKey
+        )) || HUDSON_FACADES[0];
 
   return resolveWithPreRendered(fallback);
 }
