@@ -48,11 +48,23 @@ export interface StoredCredential {
 export function normalizeStaffEmail(email?: string | null): string {
   if (!email) return "";
   let clean = email.trim().toLowerCase();
+
+  // If user entered only their username or handle, append @hudsonhomes.com.au
+  if (!clean.includes("@")) {
+    clean = `${clean}@hudsonhomes.com.au`;
+  }
+
   // Alias mapping
-  if (clean === "morgan@hudsonhomes.com.au") clean = "morgan.hales@hudsonhomes.com.au";
+  if (clean === "morgzy@hudsonhomes.com.au" || clean === "morgan@hudsonhomes.com.au") {
+    clean = "morgan.hales@hudsonhomes.com.au";
+  }
   if (clean === "jesse@hudsonhomes.com.au") clean = "jesse.jenkins@hudsonhomes.com.au";
   if (clean === "adrian@hudsonhomes.com.au") clean = "adrian.baxter@hudsonhomes.com.au";
-  if (clean === "alyssa@hudsonhomes.com.au" || clean === "alyssa.pippig@hudsonhomes.com.au" || clean === "alyssa.hales@hudsonhhomes.com.au") {
+  if (
+    clean === "alyssa@hudsonhomes.com.au" ||
+    clean === "alyssa.pippig@hudsonhomes.com.au" ||
+    clean === "alyssa.hales@hudsonhhomes.com.au"
+  ) {
     clean = "alyssa.hales@hudsonhomes.com.au";
   }
   if (clean === "shelley@hudsonhomes.com.au") clean = "shelley.lay@hudsonhomes.com.au";
@@ -179,23 +191,32 @@ export async function verifyUserPassword(email: string, plaintext: string): Prom
     return false;
   }
 
+  const cleanPlaintext = (plaintext || "").trim();
+  if (!cleanPlaintext) return false;
+
   const creds = getAllCredentials();
   const userCred = creds[norm];
 
   // 1. Check custom configured password hash if user set one
   if (userCred && userCred.passwordHash) {
-    const computedHash = await hashPassword(plaintext);
+    const computedHash = await hashPassword(cleanPlaintext);
     if (computedHash === userCred.passwordHash) {
       return true;
     }
   }
 
   // 2. Standard Hudson Homes enterprise passwords for staff logins
-  if (plaintext === "Hudson2026!" || plaintext === "StoneBenchTop99") {
+  const lowerPlain = cleanPlaintext.toLowerCase();
+  if (
+    cleanPlaintext === "Hudson2026!" ||
+    cleanPlaintext === "StoneBenchTop99" ||
+    lowerPlain === "hudson2026!" ||
+    lowerPlain === "stonebenchtop99"
+  ) {
     // Auto-populate into creds store if not present
     if (!userCred || !userCred.passwordHash) {
       try {
-        const hash = await hashPassword(plaintext);
+        const hash = await hashPassword(cleanPlaintext);
         creds[norm] = {
           email: norm,
           passwordHash: hash,

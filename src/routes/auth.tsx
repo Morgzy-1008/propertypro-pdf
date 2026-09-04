@@ -67,9 +67,9 @@ function AuthPage() {
   useEffect(() => {
     // If user already has an active 24-hr session, redirect directly to /hub
     if (isStaffSessionActive()) {
-      navigate({ to: "/hub", replace: true });
+      window.location.replace("/hub");
     }
-  }, [navigate]);
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,15 +124,17 @@ function AuthPage() {
       const profile = findStaffProfileByEmail(cleanEmail);
       if (profile) {
         setActiveStaffUser(profile, true);
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "welcome" })
+          );
+        } catch {}
         toast.success(`Welcome back, ${profile.name}!`, {
-          description: "Authenticated successfully for the next 24 hours.",
+          description: "Entering Enterprise Hub...",
         });
-        navigate({ to: "/hub", replace: true });
-        setTimeout(() => {
-          if (window.location.pathname !== "/hub") {
-            window.location.href = "/hub";
-          }
-        }, 150);
+        // Direct, unconditional browser navigation into /hub
+        window.location.replace("/hub");
       } else {
         toast.error("Staff profile not found. Please contact administration.");
       }
@@ -170,15 +172,16 @@ function AuthPage() {
 
       if (profile) {
         setActiveStaffUser(profile, true);
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "new" })
+          );
+        } catch {}
         toast.success(`Password created successfully! Welcome, ${profile.name}.`, {
-          description: "Your password is saved and your 24-hr session is active.",
+          description: "Entering Enterprise Hub...",
         });
-        navigate({ to: "/hub", replace: true });
-        setTimeout(() => {
-          if (window.location.pathname !== "/hub") {
-            window.location.href = "/hub";
-          }
-        }, 150);
+        window.location.replace("/hub");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to set password.");
@@ -222,13 +225,16 @@ function AuthPage() {
       await setUserPassword(cleanEmail, newPassword);
       if (profile) {
         setActiveStaffUser(profile, true);
-        toast.success("Password reset successfully! Session active for 24h.");
-        navigate({ to: "/hub", replace: true });
-        setTimeout(() => {
-          if (window.location.pathname !== "/hub") {
-            window.location.href = "/hub";
-          }
-        }, 150);
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "reset" })
+          );
+        } catch {}
+        toast.success("Password reset successfully! Session active for 24h.", {
+          description: "Entering Enterprise Hub...",
+        });
+        window.location.replace("/hub");
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to reset password.");
@@ -283,13 +289,15 @@ function AuthPage() {
 
         {/* 1. SIGN IN FORM */}
         {authMode === "signin" && (
-          <form onSubmit={handleSignIn} className="space-y-4">
+          <form onSubmit={handleSignIn} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300 font-medium">Hudson Work Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   required
                   autoFocus
                   value={email}
@@ -387,13 +395,15 @@ function AuthPage() {
 
         {/* 2. CREATE PASSWORD FORM */}
         {authMode === "create_password" && (
-          <form onSubmit={handleCreatePassword} className="space-y-4">
+          <form onSubmit={handleCreatePassword} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300 font-medium">Your Work Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => {
@@ -476,13 +486,15 @@ function AuthPage() {
 
         {/* 3. RESET PASSWORD FORM */}
         {authMode === "reset_password" && (
-          <form onSubmit={handleResetPassword} className="space-y-4">
+          <form onSubmit={handleResetPassword} noValidate className="space-y-4">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-300 font-medium">Hudson Work Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
-                  type="email"
+                  type="text"
+                  inputMode="email"
+                  autoComplete="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
   FileText,
   Database,
@@ -60,6 +61,28 @@ function WelcomeHubPage() {
   const [unreadAlerts, setUnreadAlerts] = useState<number>(() => getUnreadAlertCount());
 
   useEffect(() => {
+    // Check for login toast notification
+    try {
+      const rawToast = sessionStorage.getItem("hudson_login_toast");
+      if (rawToast) {
+        sessionStorage.removeItem("hudson_login_toast");
+        const { name, type } = JSON.parse(rawToast);
+        if (type === "new") {
+          toast.success(`Welcome to Hudson Homes, ${name}!`, {
+            description: "Your password is saved and your 24-hr session is active.",
+          });
+        } else if (type === "reset") {
+          toast.success(`Welcome back, ${name}!`, {
+            description: "Password reset successfully. Your session is active for 24 hours.",
+          });
+        } else {
+          toast.success(`Welcome back, ${name}!`, {
+            description: "Authenticated successfully for the next 24 hours.",
+          });
+        }
+      }
+    } catch {}
+
     setGreeting(getGreeting());
     const initial = getActiveStaffUser();
     setStaffUser(initial);

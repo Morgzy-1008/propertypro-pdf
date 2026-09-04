@@ -1,3 +1,5 @@
+import { normalizeStaffEmail } from "./userCredentials";
+
 /**
  * Hudson staff who may hold a Package Studio / Tender / CRM account.
  * Enforces @hudsonhomes.com.au email domain and personal admin whitelist approval.
@@ -61,25 +63,13 @@ export const ACCESS_REQUEST_EMAIL = "morgan.hales@hudsonhomes.com.au";
  * Rule: Must belong to @hudsonhomes.com.au domain AND be personally approved.
  */
 export function isAllowedEmail(email: string): boolean {
-  const norm = email.trim().toLowerCase();
-  const clean =
-    norm === "morgan@hudsonhomes.com.au" ? "morgan.hales@hudsonhomes.com.au" :
-    norm === "jesse@hudsonhomes.com.au" ? "jesse.jenkins@hudsonhomes.com.au" :
-    norm === "adrian@hudsonhomes.com.au" ? "adrian.baxter@hudsonhomes.com.au" :
-    (norm === "alyssa@hudsonhomes.com.au" || norm === "alyssa.pippig@hudsonhomes.com.au" || norm === "alyssa.hales@hudsonhhomes.com.au") ? "alyssa.hales@hudsonhomes.com.au" :
-    norm === "shelley@hudsonhomes.com.au" ? "shelley.lay@hudsonhomes.com.au" :
-    norm === "ben@hudsonhomes.com.au" ? "ben.grill@hudsonhomes.com.au" :
-    norm === "christine@hudsonhomes.com.au" ? "christine.hunt@hudsonhomes.com.au" :
-    norm === "gary@hudsonhomes.com.au" ? "gary.rees@hudsonhomes.com.au" :
-    norm === "steve@hudsonhomes.com.au" ? "steve.silsar@hudsonhomes.com.au" :
-    norm === "aaron@hudsonhomes.com.au" ? "aaron.martin@hudsonhomes.com.au" :
-    norm;
+  const clean = normalizeStaffEmail(email);
 
   if (!clean.endsWith("@hudsonhomes.com.au")) {
     return false;
   }
   const approved = getApprovedStaffEmails();
-  return approved.some((e) => e.trim().toLowerCase() === clean);
+  return approved.some((e) => normalizeStaffEmail(e) === clean);
 }
 
 /**

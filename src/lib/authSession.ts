@@ -168,13 +168,17 @@ export function isStaffSessionActive(): boolean {
 
     // Check 24-hour expiration timestamp
     const authTimeStr = localStorage.getItem(STORAGE_KEY_AUTH_TIME);
-    if (!authTimeStr) return false;
-    const authTime = new Date(authTimeStr).getTime();
-    if (isNaN(authTime)) return false;
-
-    if (Date.now() - authTime > SESSION_DURATION_MS) {
-      // 24hr session has expired
-      return false;
+    if (authTimeStr) {
+      const authTime = new Date(authTimeStr).getTime();
+      if (!isNaN(authTime) && Date.now() - authTime > SESSION_DURATION_MS) {
+        // 24hr session has expired
+        return false;
+      }
+    } else {
+      // Valid authorized user in storage without timestamp: replenish 24hr timer
+      try {
+        localStorage.setItem(STORAGE_KEY_AUTH_TIME, new Date().toISOString());
+      } catch {}
     }
     return true;
   } catch {
