@@ -9,7 +9,7 @@ export interface Consultant {
   division?: "QLD" | "NSW";
 }
 
-/** New Home Consultants available to be shown in the flyer footer. */
+/** Active New Home Sales Consultants for House & Land and Flyer Studio */
 export const CONSULTANTS: Consultant[] = [
   {
     id: "morgan-hales",
@@ -38,36 +38,6 @@ export const CONSULTANTS: Consultant[] = [
     email: "Adrian.baxter@hudsonhomes.com.au",
     title: "New Home Consultant",
     displayCentre: "Bahrs Scrub Display Home",
-    division: "QLD",
-    state: "QLD",
-  },
-  {
-    id: "alyssa-hales",
-    name: "Alyssa Hales",
-    phone: "0480 893 290",
-    email: "Alyssa.hales@hudsonhomes.com.au",
-    title: "New Home Consultant",
-    displayCentre: "Queensland Division",
-    division: "QLD",
-    state: "QLD",
-  },
-  {
-    id: "shelley-lay",
-    name: "Shelley Lay",
-    phone: "0428 650 617",
-    email: "Shelley.lay@hudsonhomes.com.au",
-    title: "QLD & NSW Sales Manager",
-    displayCentre: "Queensland & New South Wales Divisions",
-    division: "QLD",
-    state: "QLD",
-  },
-  {
-    id: "ben-grill",
-    name: "Ben Grill",
-    phone: "0400 000 000",
-    email: "Ben.grill@hudsonhomes.com.au",
-    title: "New Home Sales Associate",
-    displayCentre: "Queensland Division",
     division: "QLD",
     state: "QLD",
   },
@@ -113,14 +83,49 @@ export const CONSULTANTS: Consultant[] = [
   },
 ];
 
+/** Full staff consultant directory for backward compatibility and profile resolution */
+export const ALL_STAFF_CONSULTANTS: Consultant[] = [
+  ...CONSULTANTS,
+  {
+    id: "alyssa-hales",
+    name: "Alyssa Hales",
+    phone: "0480 893 290",
+    email: "Alyssa.hales@hudsonhomes.com.au",
+    title: "New Home Consultant",
+    displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "shelley-lay",
+    name: "Shelley Lay",
+    phone: "0428 650 617",
+    email: "Shelley.lay@hudsonhomes.com.au",
+    title: "QLD & NSW Sales Manager",
+    displayCentre: "Queensland & New South Wales Divisions",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "ben-grill",
+    name: "Ben Grill",
+    phone: "0468 092 034",
+    email: "Ben.grill@hudsonhomes.com.au",
+    title: "New Home Sales Associate",
+    displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
+  },
+];
+
 export function findConsultant(id: string) {
-  return CONSULTANTS.find((c) => c.id === id);
+  return CONSULTANTS.find((c) => c.id === id) || ALL_STAFF_CONSULTANTS.find((c) => c.id === id);
 }
 
 export function findConsultantByEmail(email?: string | null): Consultant | undefined {
   if (!email) return undefined;
   const clean = email.trim().toLowerCase();
-  return CONSULTANTS.find((c) => c.email.toLowerCase() === clean);
+  return CONSULTANTS.find((c) => c.email.toLowerCase() === clean) || ALL_STAFF_CONSULTANTS.find((c) => c.email.toLowerCase() === clean);
 }
 
 /** vCard payload used for the "scan to save my details" QR code. */

@@ -85,7 +85,7 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     id: "ben-grill",
     name: "Ben Grill",
     email: "ben.grill@hudsonhomes.com.au",
-    phone: "0400 000 000",
+    phone: "0468 092 034",
     title: "New Home Sales Associate",
     displayCentre: "Queensland Division",
     division: "QLD",

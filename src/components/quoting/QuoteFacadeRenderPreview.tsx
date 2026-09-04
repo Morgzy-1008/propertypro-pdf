@@ -31,7 +31,15 @@ export function QuoteFacadeRenderPreview({
     design.mode === "custom_floorplan"
       ? design.customSpec?.storeys === "double"
       : housingType === "Double Storey" || housingType === "double";
-  const isDoubleStorey = isDouble;
+  const isDoubleOrSplit = Boolean(
+    isDouble ||
+    housingType === "Double Storey" ||
+    housingType === "Split Level" ||
+    housingType === "Split" ||
+    /double|split/i.test(housingType) ||
+    /cobalt|split/i.test(design.designName || design.modelName || "") ||
+    (src && /double|2-storey|-ds-|2stry|split|cobalt/i.test(src))
+  );
 
   useEffect(() => {
     if (!facadeName) {
@@ -153,19 +161,19 @@ export function QuoteFacadeRenderPreview({
 
       {/* Image Render Canvas */}
       <div
-        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-900/40 aspect-[210/82] max-h-[380px]"
+        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-900/40 aspect-[210/86] min-h-[220px] max-h-[380px]"
       >
         {src ? (
           <img
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
             className={`w-full h-full object-cover ${
-              isDoubleStorey ? "object-[center_42%]" : "object-center"
+              isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
             } transition-all duration-300`}
             style={{
               imageRendering: "auto",
-              transform: isDoubleStorey ? "scale(0.88)" : undefined,
-              transformOrigin: "center 42%",
+              transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
+              transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
             }}
           />
         ) : (

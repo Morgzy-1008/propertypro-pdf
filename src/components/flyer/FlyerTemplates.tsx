@@ -78,9 +78,16 @@ function Facade({
     setImgSrc(url || "");
   }, [url]);
 
-  const isDoubleStorey = Boolean(
+  const isDoubleOrSplit = Boolean(
     isDouble ||
-    (url && (url.toLowerCase().includes("double") || url.toLowerCase().includes("2-storey") || url.toLowerCase().includes("-ds-") || url.toLowerCase().includes("2stry")))
+    (url && (
+      url.toLowerCase().includes("double") ||
+      url.toLowerCase().includes("2-storey") ||
+      url.toLowerCase().includes("-ds-") ||
+      url.toLowerCase().includes("2stry") ||
+      url.toLowerCase().includes("split") ||
+      url.toLowerCase().includes("cobalt")
+    ))
   );
 
   if (busy && !url) {
@@ -126,11 +133,11 @@ function Facade({
           }
         }}
         className={`h-full w-full object-cover ${
-          isDoubleStorey ? "object-[center_42%]" : "object-center"
+          isDoubleOrSplit ? "object-[center_42%]" : "object-center"
         } ${busy ? "opacity-75" : ""}`}
         style={{
           imageRendering: "auto",
-          transform: isDoubleStorey ? "scale(0.88)" : undefined,
+          transform: isDoubleOrSplit ? "scale(0.88)" : undefined,
           transformOrigin: "center 42%",
         }}
       />

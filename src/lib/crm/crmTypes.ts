@@ -196,7 +196,7 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
     id: "ben_grill",
     name: "Ben Grill",
     email: "ben.grill@hudsonhomes.com.au",
-    phone: "0400 000 000",
+    phone: "0468 092 034",
     displayOffice: "Queensland Division",
     baseSalaryYearly: 0,
     commissionRatePct: 2.25,

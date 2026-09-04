@@ -143,24 +143,32 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) return null;
 
-  const isDoubleStorey = Boolean(
+  const isDoubleOrSplit = Boolean(
     design.housingType === "Double Storey" ||
-    (design.housingType && design.housingType.toLowerCase().includes("double")) ||
-    (src && (src.toLowerCase().includes("double") || src.toLowerCase().includes("2-storey") || src.toLowerCase().includes("-ds-")))
+    design.housingType === "Split Level" ||
+    (design.housingType && (design.housingType.toLowerCase().includes("double") || design.housingType.toLowerCase().includes("split"))) ||
+    (design.designName && design.designName.toLowerCase().includes("cobalt")) ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("-cobalt")
+    ))
   );
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[215px] max-h-[215px] mb-2.5 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[225px] max-h-[225px] mb-2.5 flex-none">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         className={`w-full h-full object-cover ${
-          isDoubleStorey ? "object-[center_42%]" : "object-center"
+          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
         }`}
         style={{
           imageRendering: "auto",
-          transform: isDoubleStorey ? "scale(0.88)" : undefined,
-          transformOrigin: "center 42%",
+          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
+          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
         }}
       />
       <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
@@ -271,13 +279,33 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
 
   if (!src) return null;
 
+  const isDoubleOrSplit = Boolean(
+    secondDwelling?.housingType === "Double Storey" ||
+    secondDwelling?.housingType === "Split Level" ||
+    (secondDwelling?.housingType && (secondDwelling.housingType.toLowerCase().includes("double") || secondDwelling.housingType.toLowerCase().includes("split"))) ||
+    (secondDwelling?.designName && secondDwelling.designName.toLowerCase().includes("cobalt")) ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("-cobalt")
+    ))
+  );
+
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[180px] max-h-[180px] mb-2 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[190px] max-h-[190px] mb-2 flex-none">
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
-        className="w-full h-full object-cover object-center"
-        style={{ imageRendering: "auto" }}
+        className={`w-full h-full object-cover ${
+          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+        }`}
+        style={{
+          imageRendering: "auto",
+          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
+          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
+        }}
       />
       <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
         <Sparkles className="h-3 w-3 text-amber-400" />

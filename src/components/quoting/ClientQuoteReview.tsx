@@ -93,12 +93,32 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) return null;
 
+  const isDoubleOrSplit = Boolean(
+    design.housingType === "Double Storey" ||
+    design.housingType === "Split Level" ||
+    (design.housingType && (design.housingType.toLowerCase().includes("double") || design.housingType.toLowerCase().includes("split"))) ||
+    (design.designName && design.designName.toLowerCase().includes("cobalt")) ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("-cobalt")
+    ))
+  );
+
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 mb-4">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/86] mb-4">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className="w-full h-full max-h-80 object-cover object-center"
+        className={`w-full h-full object-cover ${
+          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+        }`}
+        style={{
+          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
+          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
+        }}
       />
       <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5">
         <Sparkles className="h-3.5 w-3.5 text-amber-400" />
