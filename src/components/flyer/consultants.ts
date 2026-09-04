@@ -5,6 +5,8 @@ export interface Consultant {
   email: string;
   title: string;
   displayCentre: string;
+  state?: "QLD" | "NSW";
+  division?: "QLD" | "NSW";
 }
 
 /** New Home Consultants available to be shown in the flyer footer. */
@@ -14,8 +16,10 @@ export const CONSULTANTS: Consultant[] = [
     name: "Morgan Hales",
     phone: "0417 571 864",
     email: "Morgan.hales@hudsonhomes.com.au",
-    title: "New Home Consultant",
+    title: "Senior New Home Consultant & System Admin",
     displayCentre: "Flagstone Display Home",
+    division: "QLD",
+    state: "QLD",
   },
   {
     id: "jesse-jenkins",
@@ -24,6 +28,8 @@ export const CONSULTANTS: Consultant[] = [
     email: "Jesse.jenkins@hudsonhomes.com.au",
     title: "New Home Consultant",
     displayCentre: "Lilywood Landings Display Home",
+    division: "QLD",
+    state: "QLD",
   },
   {
     id: "adrian-baxter",
@@ -32,6 +38,78 @@ export const CONSULTANTS: Consultant[] = [
     email: "Adrian.baxter@hudsonhomes.com.au",
     title: "New Home Consultant",
     displayCentre: "Bahrs Scrub Display Home",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "alyssa-hales",
+    name: "Alyssa Hales",
+    phone: "0480 893 290",
+    email: "Alyssa.hales@hudsonhomes.com.au",
+    title: "New Home Consultant",
+    displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "shelley-lay",
+    name: "Shelley Lay",
+    phone: "0428 650 617",
+    email: "Shelley.lay@hudsonhomes.com.au",
+    title: "QLD & NSW Sales Manager",
+    displayCentre: "Queensland & New South Wales Divisions",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "ben-grill",
+    name: "Ben Grill",
+    phone: "0400 000 000",
+    email: "Ben.grill@hudsonhomes.com.au",
+    title: "New Home Sales Associate",
+    displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
+  },
+  {
+    id: "gary-rees",
+    name: "Gary Rees",
+    phone: "0429 850 465",
+    email: "Gary.rees@hudsonhomes.com.au",
+    title: "New Home Sales Consultant",
+    displayCentre: "Watagan Park Display",
+    division: "NSW",
+    state: "NSW",
+  },
+  {
+    id: "steve-silsar",
+    name: "Steve Silsar",
+    phone: "0483 950 830",
+    email: "Steve.silsar@hudsonhomes.com.au",
+    title: "New Home Sales Consultant",
+    displayCentre: "HomeWorld Warnervale Display",
+    division: "NSW",
+    state: "NSW",
+  },
+  {
+    id: "christine-hunt",
+    name: "Christine Hunt",
+    phone: "0483 988 125",
+    email: "Christine.hunt@hudsonhomes.com.au",
+    title: "New Home Sales Consultant",
+    displayCentre: "Oran Park Display",
+    division: "NSW",
+    state: "NSW",
+  },
+  {
+    id: "aaron-martin",
+    name: "Aaron Martin",
+    phone: "0483 936 841",
+    email: "Aaron.martin@hudsonhomes.com.au",
+    title: "New Home Sales Consultant",
+    displayCentre: "85 George Street, Parramatta, NSW",
+    division: "NSW",
+    state: "NSW",
   },
 ];
 

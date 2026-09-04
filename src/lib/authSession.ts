@@ -7,6 +7,8 @@ export interface StaffProfile {
   phone: string;
   title: string;
   displayCentre: string;
+  division?: "QLD" | "NSW";
+  state?: "QLD" | "NSW";
   role: "nhc" | "admin" | "estimator";
   avatarInitials: string;
   accentColor: string;
@@ -20,6 +22,8 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     phone: "0431 292 123",
     title: "New Home Consultant",
     displayCentre: "Lilywood Landings Display Home",
+    division: "QLD",
+    state: "QLD",
     role: "nhc",
     avatarInitials: "JJ",
     accentColor: "from-cyan-500 to-blue-600",
@@ -31,6 +35,8 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     phone: "0419 232 955",
     title: "New Home Consultant",
     displayCentre: "Bahrs Scrub Display Home",
+    division: "QLD",
+    state: "QLD",
     role: "nhc",
     avatarInitials: "AB",
     accentColor: "from-emerald-500 to-teal-600",
@@ -42,6 +48,8 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     phone: "0417 571 864",
     title: "Senior New Home Consultant & System Admin",
     displayCentre: "Flagstone Display Home",
+    division: "QLD",
+    state: "QLD",
     role: "admin",
     avatarInitials: "MH",
     accentColor: "from-amber-500 to-orange-600",
@@ -53,6 +61,8 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     phone: "0480 893 290",
     title: "New Home Consultant",
     displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
     role: "nhc",
     avatarInitials: "AH",
     accentColor: "from-rose-500 to-pink-600",
@@ -62,8 +72,10 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     name: "Shelley Lay",
     email: "shelley.lay@hudsonhomes.com.au",
     phone: "0428 650 617",
-    title: "New Home Consultant",
-    displayCentre: "Queensland Division",
+    title: "QLD & NSW Sales Manager",
+    displayCentre: "Queensland & New South Wales Divisions",
+    division: "QLD",
+    state: "QLD",
     role: "nhc",
     avatarInitials: "SL",
     accentColor: "from-violet-500 to-purple-600",
@@ -75,9 +87,63 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     phone: "0400 000 000",
     title: "New Home Sales Associate",
     displayCentre: "Queensland Division",
+    division: "QLD",
+    state: "QLD",
     role: "nhc",
     avatarInitials: "BG",
     accentColor: "from-blue-500 to-indigo-600",
+  },
+  {
+    id: "gary-rees",
+    name: "Gary Rees",
+    email: "gary.rees@hudsonhomes.com.au",
+    phone: "0429 850 465",
+    title: "New Home Sales Consultant",
+    displayCentre: "Watagan Park Display",
+    division: "NSW",
+    state: "NSW",
+    role: "nhc",
+    avatarInitials: "GR",
+    accentColor: "from-teal-500 to-emerald-600",
+  },
+  {
+    id: "steve-silsar",
+    name: "Steve Silsar",
+    email: "steve.silsar@hudsonhomes.com.au",
+    phone: "0483 950 830",
+    title: "New Home Sales Consultant",
+    displayCentre: "HomeWorld Warnervale Display",
+    division: "NSW",
+    state: "NSW",
+    role: "nhc",
+    avatarInitials: "SS",
+    accentColor: "from-indigo-500 to-blue-600",
+  },
+  {
+    id: "christine-hunt",
+    name: "Christine Hunt",
+    email: "christine.hunt@hudsonhomes.com.au",
+    phone: "0483 988 125",
+    title: "New Home Sales Consultant",
+    displayCentre: "Oran Park Display",
+    division: "NSW",
+    state: "NSW",
+    role: "nhc",
+    avatarInitials: "CH",
+    accentColor: "from-pink-500 to-rose-600",
+  },
+  {
+    id: "aaron-martin",
+    name: "Aaron Martin",
+    email: "aaron.martin@hudsonhomes.com.au",
+    phone: "0483 936 841",
+    title: "New Home Sales Consultant",
+    displayCentre: "85 George Street, Parramatta, NSW",
+    division: "NSW",
+    state: "NSW",
+    role: "nhc",
+    avatarInitials: "AM",
+    accentColor: "from-amber-500 to-yellow-600",
   },
 ];
 
@@ -196,6 +262,13 @@ export function setActiveStaffUser(
     localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
     localStorage.removeItem("hudson_saved_login_credential_v1");
     localStorage.removeItem("hudson_saved_passwords_v1");
+
+    // Synchronize active division with consultant's division
+    if (profile.division) {
+      try {
+        localStorage.setItem("hudson_active_division", profile.division);
+      } catch {}
+    }
 
     // Notify all active components
     listeners.forEach((fn) => {

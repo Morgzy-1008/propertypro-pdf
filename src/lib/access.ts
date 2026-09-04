@@ -11,6 +11,10 @@ export const DEFAULT_ALLOWED_EMAILS = [
   "alyssa.pippig@hudsonhomes.com.au",
   "shelley.lay@hudsonhomes.com.au",
   "ben.grill@hudsonhomes.com.au",
+  "christine.hunt@hudsonhomes.com.au",
+  "gary.rees@hudsonhomes.com.au",
+  "steve.silsar@hudsonhomes.com.au",
+  "aaron.martin@hudsonhomes.com.au",
 ];
 
 const LOCAL_APPROVED_EMAILS_KEY = "hudson_approved_staff_emails_v1";

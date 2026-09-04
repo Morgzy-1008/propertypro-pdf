@@ -16,6 +16,10 @@ export const AUTHORIZED_EMAILS = [
   "alyssa.hales@hudsonhhomes.com.au",
   "shelley.lay@hudsonhomes.com.au",
   "ben.grill@hudsonhomes.com.au",
+  "christine.hunt@hudsonhomes.com.au",
+  "gary.rees@hudsonhomes.com.au",
+  "steve.silsar@hudsonhomes.com.au",
+  "aaron.martin@hudsonhomes.com.au",
 ];
 
 export interface StoredCredential {
@@ -41,6 +45,10 @@ export function normalizeStaffEmail(email?: string | null): string {
   }
   if (clean === "shelley@hudsonhomes.com.au") clean = "shelley.lay@hudsonhomes.com.au";
   if (clean === "ben@hudsonhomes.com.au") clean = "ben.grill@hudsonhomes.com.au";
+  if (clean === "christine@hudsonhomes.com.au") clean = "christine.hunt@hudsonhomes.com.au";
+  if (clean === "gary@hudsonhomes.com.au") clean = "gary.rees@hudsonhomes.com.au";
+  if (clean === "steve@hudsonhomes.com.au") clean = "steve.silsar@hudsonhomes.com.au";
+  if (clean === "aaron@hudsonhomes.com.au") clean = "aaron.martin@hudsonhomes.com.au";
   return clean;
 }
 
@@ -55,7 +63,11 @@ export function isAuthorizedStaffMember(email: string): boolean {
     norm === "adrian.baxter@hudsonhomes.com.au" ||
     norm === "alyssa.hales@hudsonhomes.com.au" ||
     norm === "shelley.lay@hudsonhomes.com.au" ||
-    norm === "ben.grill@hudsonhomes.com.au"
+    norm === "ben.grill@hudsonhomes.com.au" ||
+    norm === "christine.hunt@hudsonhomes.com.au" ||
+    norm === "gary.rees@hudsonhomes.com.au" ||
+    norm === "steve.silsar@hudsonhomes.com.au" ||
+    norm === "aaron.martin@hudsonhomes.com.au"
   );
 }
 
@@ -115,7 +127,7 @@ export function hasUserConfiguredPassword(email: string): boolean {
 export async function setUserPassword(email: string, plaintext: string): Promise<boolean> {
   const norm = normalizeStaffEmail(email);
   if (!isAuthorizedStaffMember(norm)) {
-    throw new Error("Only authorized staff members (Jesse, Alyssa, Adrian, Morgan, Shelley) may create an account.");
+    throw new Error("Only authorized staff members may create an account.");
   }
   if (!plaintext || plaintext.length < 5) {
     throw new Error("Password must be at least 5 characters long.");

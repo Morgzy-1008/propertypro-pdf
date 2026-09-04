@@ -55,9 +55,9 @@ export function CrmCommissionDashboard({
     return (
       <div className={`p-8 rounded-2xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"} text-center space-y-3`}>
         <Lock className="h-8 w-8 text-amber-500 mx-auto" />
-        <h3 className="text-base font-bold text-white">Remuneration Access Restricted</h3>
+        <h3 className="text-base font-bold text-white">Commission Access Restricted</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto">
-          Salary and commission features are private and restricted to authorized management personnel (Adrian, Jesse, and Morgan).
+          Commission features are private and restricted to authorized personnel.
         </p>
       </div>
     );
@@ -81,13 +81,13 @@ export function CrmCommissionDashboard({
   const handleSavePrivateSettings = (e: React.FormEvent) => {
     e.preventDefault();
     saveConsultantSettings(selectedConsultantId, currentSettings);
-    toast.success("Private salary & commission structure updated! ✓");
+    toast.success("Private commission structure updated! ✓");
     setIsSettingsOpen(false);
   };
 
   return (
     <div className="space-y-6">
-      {/* Consultant Header & Private Remuneration Configuration */}
+      {/* Consultant Header & Private Commission Configuration */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border ${
         isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/90 border-slate-800 backdrop-blur-xl shadow-xl"
       }`}>
@@ -98,7 +98,7 @@ export function CrmCommissionDashboard({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-black text-white tracking-tight">
-                Consultant Remuneration &amp; Commission Portal
+                Consultant Commission Portal
               </h2>
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded-full border border-amber-800/60 flex items-center gap-1">
                 <Lock className="h-3 w-3" /> Private to {summary.consultantName}
@@ -146,53 +146,35 @@ export function CrmCommissionDashboard({
         </div>
       </div>
 
-      {/* Private Remuneration Config Dropdown */}
+      {/* Private Commission Config Dropdown */}
       {isSettingsOpen && (
         <form
           onSubmit={handleSavePrivateSettings}
-          className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/40 space-y-3 animate-in fade-in"
+          className="p-4 rounded-2xl bg-slate-900/90 border border-amber-500/40 space-y-3 animate-in fade-in max-w-md"
         >
           <div className="flex items-center justify-between border-b border-slate-800 pb-2">
             <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
               <Lock className="h-3.5 w-3.5" />
-              Private Remuneration Structure &bull; {summary.consultantName}
+              Commission Rate Structure &bull; {summary.consultantName}
             </span>
             <span className="text-[11px] text-slate-400">Only visible to your login</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-300">Annual Base Salary ($ AUD)</Label>
-              <Input
-                type="number"
-                value={currentSettings.baseSalaryYearly}
-                onChange={(e) =>
-                  setCurrentSettings({
-                    ...currentSettings,
-                    baseSalaryYearly: Number(e.target.value) || 0,
-                  })
-                }
-                placeholder="75000"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-white font-mono font-bold"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs text-slate-300">Commission Rate (%) per Contract Value</Label>
-              <Input
-                type="number"
-                step="0.05"
-                value={currentSettings.commissionRatePct}
-                onChange={(e) =>
-                  setCurrentSettings({
-                    ...currentSettings,
-                    commissionRatePct: Number(e.target.value) || 0,
-                  })
-                }
-                placeholder="2.25"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-emerald-400 font-mono font-bold"
-              />
-            </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-slate-300">Commission Rate (%) per Contract Value</Label>
+            <Input
+              type="number"
+              step="0.05"
+              value={currentSettings.commissionRatePct}
+              onChange={(e) =>
+                setCurrentSettings({
+                  ...currentSettings,
+                  commissionRatePct: Number(e.target.value) || 0,
+                })
+              }
+              placeholder="2.25"
+              className="h-9 text-xs border-slate-800 bg-slate-950 text-emerald-400 font-mono font-bold"
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
@@ -210,7 +192,7 @@ export function CrmCommissionDashboard({
               size="sm"
               className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1"
             >
-              <Save className="h-3.5 w-3.5" /> Save Remuneration Rate
+              <Save className="h-3.5 w-3.5" /> Save Rate
             </Button>
           </div>
         </form>
@@ -218,17 +200,17 @@ export function CrmCommissionDashboard({
 
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Base Salary */}
+        {/* Card 1: Total Pipeline Value */}
         <div className="p-4 rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 shadow-lg">
           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-            <span>Annual Base Salary</span>
+            <span>Total Active Deal Pipeline</span>
             <Building className="h-4 w-4 text-slate-500" />
           </div>
           <div className="text-2xl font-black text-white">
-            {formatAud(summary.baseSalaryYearly)}
+            {formatAud(summary.totalPipelineDealValue)}
           </div>
           <span className="text-[11px] text-slate-400 mt-1 block">
-            {formatAud(summary.baseSalaryMonthly)} / month gross
+            {summary.totalDealsCount} active client opportunities
           </span>
         </div>
 
@@ -260,21 +242,21 @@ export function CrmCommissionDashboard({
           </span>
         </div>
 
-        {/* Card 4: Projected Annual Total */}
+        {/* Card 4: Total Potential Commission */}
         <div className="p-4 rounded-2xl border border-amber-500/40 bg-gradient-to-b from-amber-950/50 to-slate-900/60 shadow-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 h-24 w-24 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
           <div className="flex items-center justify-between text-xs text-amber-400 mb-2">
             <span className="font-bold flex items-center gap-1">
               <Sparkles className="h-3.5 w-3.5" />
-              Projected Total Remuneration
+              Total Potential Commission
             </span>
             <TrendingUp className="h-4 w-4 text-amber-400" />
           </div>
           <div className="text-2xl font-black text-amber-300">
-            {formatAud(summary.projectedAnnualSalary)}
+            {formatAud(summary.totalRealizedCommissionYTD + summary.totalPendingCommissionPipeline)}
           </div>
           <span className="text-[11px] text-amber-400/90 mt-1 block font-medium">
-            Base + Commissions (Est. Net: {formatAud(summary.estimatedNetTakeHomeYTD)})
+            Realized + Active Pipeline Combined
           </span>
         </div>
       </div>

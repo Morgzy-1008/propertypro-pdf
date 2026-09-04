@@ -31,6 +31,7 @@ export function QuoteFacadeRenderPreview({
     design.mode === "custom_floorplan"
       ? design.customSpec?.storeys === "double"
       : housingType === "Double Storey" || housingType === "double";
+  const isDoubleStorey = isDouble;
 
   useEffect(() => {
     if (!facadeName) {
@@ -158,8 +159,14 @@ export function QuoteFacadeRenderPreview({
           <img
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
-            className="w-full h-full object-cover object-center transition-all duration-300"
-            style={{ imageRendering: "auto" }}
+            className={`w-full h-full object-cover ${
+              isDoubleStorey ? "object-[center_42%]" : "object-center"
+            } transition-all duration-300`}
+            style={{
+              imageRendering: "auto",
+              transform: isDoubleStorey ? "scale(0.88)" : undefined,
+              transformOrigin: "center 42%",
+            }}
           />
         ) : (
           <div className="text-center py-12 text-slate-400 text-xs flex flex-col items-center gap-2">

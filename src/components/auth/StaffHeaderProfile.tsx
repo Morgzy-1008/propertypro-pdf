@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { DivisionSwitcher } from "./DivisionSwitcher";
+
 interface StaffHeaderProfileProps {
   isLight?: boolean;
 }
@@ -56,6 +58,8 @@ export function StaffHeaderProfile({ isLight = false }: StaffHeaderProfileProps)
 
   return (
     <div className="flex items-center gap-2">
+      {/* Top Bar State Switcher (QLD ⇄ NSW) */}
+      <DivisionSwitcher isLight={isLight} size="sm" />
       {/* Website Admin Button for Morgan Hales */}
       {isAdmin && (
         <button

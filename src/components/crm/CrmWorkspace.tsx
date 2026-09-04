@@ -311,7 +311,7 @@ export function CrmWorkspace() {
               }`}
             >
               <Award className="h-3.5 w-3.5" />
-              Commissions &amp; Salary
+              Consultant Commissions
             </button>
           )}
         </div>

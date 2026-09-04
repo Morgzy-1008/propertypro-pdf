@@ -37,6 +37,19 @@ import {
   SPLIT_LEVEL_PRICES,
   type PriceRow,
 } from "@/lib/pricelist.data";
+import {
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+  NSW_DUAL_OC_PRICES,
+} from "@/lib/pricelist.nsw.data";
+import {
+  NSW_SINGLE_STOREY_FACADES,
+  NSW_DOUBLE_STOREY_FACADES,
+  NSW_SPLIT_DESIGN_FACADES,
+  NSW_MULBERRY_FACADES,
+} from "@/lib/facadepricelist.nsw.data";
+import { getActiveDivision, onDivisionChanged, setActiveDivision, type Division } from "@/lib/divisionContext";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import {
   calculateCustomFloorplanPrice,
@@ -54,19 +67,25 @@ interface QuoteDesignStepProps {
   onChange: (patch: Partial<QuoteDesignSelection>) => void;
 }
 
-const HOUSING_TYPE_PRICES: Record<string, PriceRow[]> = {
-  "Single Storey": SINGLE_STOREY_PRICES,
-  "Double Storey": DOUBLE_STOREY_PRICES,
-  "Split Level": SPLIT_LEVEL_PRICES,
-  "Dual Living": DUAL_OC_PRICES,
-  "Granny Flat": [
-    { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
-    { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
-    { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
-    { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
-    ...DUAL_OC_PRICES,
-  ],
-};
+export function getHousingTypePrices(division: Division = getActiveDivision()): Record<string, PriceRow[]> {
+  const isNsw = division === "NSW";
+  const dual = isNsw ? NSW_DUAL_OC_PRICES : DUAL_OC_PRICES;
+  return {
+    "Single Storey": isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES,
+    "Double Storey": isNsw ? NSW_DOUBLE_STOREY_PRICES : DOUBLE_STOREY_PRICES,
+    "Split Level": isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES,
+    "Dual Living": dual,
+    "Granny Flat": [
+      { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
+      { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
+      { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
+      { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
+      ...dual,
+    ],
+  };
+}
+
+const HOUSING_TYPE_PRICES = getHousingTypePrices("QLD");
 
 // Clean titles for Inclusions without paragraph descriptions to save space
 export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[] = [
@@ -247,26 +266,31 @@ export const HOUSING_FACADES: Record<string, { name: string; uplift: number }[]>
 
 /**
  * Returns available facade options with exact upgrade prices for any given design and housing type.
- * Automatically handles Mulberry acreage sizing (<33 vs >=33) and Split Level pricing.
+ * Automatically handles division (NSW vs QLD), Mulberry acreage sizing (<33 vs >=33), and Split Level pricing.
  */
 export function getFacadesForDesignAndHousingType(
   designName?: string,
-  housingType: string = "Single Storey"
+  housingType: string = "Single Storey",
+  division: Division = getActiveDivision()
 ): { name: string; uplift: number }[] {
+  const isNsw = division === "NSW";
   const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;
   const isAcreage = isMulberry || housingType === "Acreage" || housingType === "Acreage & Split Level" || housingType === "Ranch & Acreage";
 
   if (isAcreage) {
     const size = designName ? (Number(designName.match(/\d+/)?.[0]) || 0) : 0;
+    if (isNsw) {
+      return size >= 33 ? NSW_MULBERRY_FACADES["33-39"] : NSW_MULBERRY_FACADES["22-28"];
+    }
     return size >= 33 ? HOUSING_FACADES["Acreage (Large)"] : HOUSING_FACADES["Acreage"];
   }
 
   if (housingType === "Split Level") {
-    return HOUSING_FACADES["Split Level"];
+    return isNsw ? NSW_SPLIT_DESIGN_FACADES : HOUSING_FACADES["Split Level"];
   }
 
   if (housingType === "Double Storey" || housingType === "double") {
-    return HOUSING_FACADES["Double Storey"];
+    return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
   }
 
   if (housingType === "Dual Living") {
@@ -277,17 +301,53 @@ export function getFacadesForDesignAndHousingType(
     return HOUSING_FACADES["Granny Flat"];
   }
 
-  return HOUSING_FACADES["Single Storey"];
+  return isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
 }
 
 export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
+  const [division, setDivision] = useState<Division>(() => getActiveDivision());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const housingTypePrices = getHousingTypePrices(division);
   const effectiveHousingType = getHousingTypeForDesign(design.designName, design.housingType);
-  const models = HOUSING_TYPE_PRICES[effectiveHousingType] || SINGLE_STOREY_PRICES;
+  const models = housingTypePrices[effectiveHousingType] || housingTypePrices["Single Storey"] || SINGLE_STOREY_PRICES;
   const currentModel = models.find((m) => m.name === design.designName);
+
+  // Subscribe to division changes (e.g. from top-bar state switcher)
+  React.useEffect(() => {
+    return onDivisionChanged((newDiv) => {
+      setDivision(newDiv);
+      if (design.designName) {
+        const detectedType = getHousingTypeForDesign(design.designName, design.housingType);
+        const divPrices = getHousingTypePrices(newDiv);
+        const typeModels = divPrices[detectedType] || divPrices["Single Storey"] || SINGLE_STOREY_PRICES;
+        const m = typeModels.find((x) => x.name === design.designName);
+        if (m) {
+          const newBasePrice = getTierPrice(m, design.specTier, detectedType);
+          const facades = getFacadesForDesignAndHousingType(design.designName, detectedType, newDiv);
+          const matchedFacade = facades.find((f) => f.name.toLowerCase() === (design.facadeName || "").toLowerCase());
+          const newFacadePrice = matchedFacade ? matchedFacade.uplift : (design.isCustomFacade ? design.facadePrice : 0);
+          
+          let effectiveBasePrice = newBasePrice;
+          if (design.isModifiedFloorplan) {
+            const tempDesign: QuoteDesignSelection = {
+              ...design,
+              standardBasePrice: newBasePrice,
+            };
+            effectiveBasePrice = calculateModifiedFloorplanPricing(tempDesign).modifiedBasePrice;
+          }
+
+          onChange({
+            standardBasePrice: newBasePrice,
+            basePrice: effectiveBasePrice,
+            facadePrice: newFacadePrice,
+          });
+        }
+      }
+    });
+  }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan]);
 
   const customSpec = design.customSpec || {
     groundLivingM2: 0,
@@ -312,7 +372,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   const standardFloorplanUrl = standardPlans[0]?.url || "";
   const activeFloorplanUrl = design.floorplanUrl || standardFloorplanUrl;
 
-  const suitableFacades = getFacadesForDesignAndHousingType(design.designName, effectiveHousingType);
+  const suitableFacades = getFacadesForDesignAndHousingType(design.designName, effectiveHousingType, division);
 
   // 2nd Dwelling or Granny Flat Helpers
   const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
@@ -333,16 +393,16 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     modifiedAreas: { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 },
   };
 
-  const secondModels = HOUSING_TYPE_PRICES[secondDwelling.housingType] || HOUSING_TYPE_PRICES["Granny Flat"] || SINGLE_STOREY_PRICES;
+  const secondModels = housingTypePrices[secondDwelling.housingType] || housingTypePrices["Granny Flat"] || SINGLE_STOREY_PRICES;
   const currentSecondModel = secondModels.find((m) => m.name === secondDwelling.designName) || secondModels[0];
-  const secondSuitableFacades = getFacadesForDesignAndHousingType(secondDwelling.designName, secondDwelling.housingType);
+  const secondSuitableFacades = getFacadesForDesignAndHousingType(secondDwelling.designName, secondDwelling.housingType, division);
   const secondStandardPlans = secondDwelling.designName ? plansForDesign(secondDwelling.designName) : [];
   const secondStandardFloorplanUrl = secondStandardPlans[0]?.url || "";
   const activeSecondFloorplanUrl = secondDwelling.floorplanUrl || secondStandardFloorplanUrl;
 
   const handleToggleSecondDwelling = (enabled: boolean) => {
     if (enabled && (!design.secondDwelling || !design.secondDwelling.designName)) {
-      const defaultModel = HOUSING_TYPE_PRICES["Granny Flat"][0] || { name: "Acacia 60", m2: 60, h1: 154000 };
+      const defaultModel = housingTypePrices["Granny Flat"]?.[0] || { name: "Acacia 60", m2: 60, h1: 154000 };
       const defaultTier: InclusionTier = "H1 Smart Inclusions";
       const defaultPrice = defaultModel.h1 || 154000;
       const defaultStdAreas = { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 };
@@ -381,7 +441,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleSecondDwellingHousingTypeChange = (type: SecondDwellingSelection["housingType"]) => {
-    const typeModels = HOUSING_TYPE_PRICES[type] || HOUSING_TYPE_PRICES["Granny Flat"];
+    const typeModels = housingTypePrices[type] || housingTypePrices["Granny Flat"];
     const firstModel = typeModels[0];
     const stdPrice = firstModel.h1 || firstModel.hbs || 154000;
     const stdAreas = getStandardAreaBreakdown(firstModel.name, type === "Double Storey" ? "Double Storey" : "Single Storey", firstModel.m2);
@@ -484,7 +544,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
-    const facadesForType = getFacadesForDesignAndHousingType(undefined, type);
+    const facadesForType = getFacadesForDesignAndHousingType(undefined, type, division);
     const defaultFacade = facadesForType[0] || { name: "Classic", uplift: 0 };
     onChange({
       housingType: type,
@@ -512,11 +572,11 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
 
   const handleDesignModelChange = (modelName: string) => {
     const detectedHousingType = getHousingTypeForDesign(modelName, design.housingType);
-    const typeModels = HOUSING_TYPE_PRICES[detectedHousingType] || SINGLE_STOREY_PRICES;
+    const typeModels = housingTypePrices[detectedHousingType] || SINGLE_STOREY_PRICES;
     const m = typeModels.find((x) => x.name === modelName) || models.find((x) => x.name === modelName);
     if (!m) return;
 
-    const facadesForType = getFacadesForDesignAndHousingType(modelName, detectedHousingType);
+    const facadesForType = getFacadesForDesignAndHousingType(modelName, detectedHousingType, division);
     const isCurrentFacadeValid = !design.isCustomFacade && design.facadeName && facadesForType.some((f) => f.name.toLowerCase() === design.facadeName.toLowerCase());
     const chosenFacade = isCurrentFacadeValid
       ? facadesForType.find((f) => f.name.toLowerCase() === design.facadeName.toLowerCase())!

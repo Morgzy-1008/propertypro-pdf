@@ -50,21 +50,22 @@ import {
   deleteLocalLot,
   upsertLocalPackage,
   deleteLocalPackage,
+  getLotState,
 } from "@/lib/databaseStorage";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
     meta: [
-      { title: "QLD House & Land Database | Hudson Homes" },
+      { title: "House & Land Database (QLD & NSW) | Hudson Homes" },
       {
         name: "description",
         content:
-          "Live database of Hudson Homes QLD land lots and House & Land packages — availability, pricing and one-click flyer export.",
+          "Live database of Hudson Homes QLD & NSW land lots and House & Land packages — availability, pricing and one-click flyer export.",
       },
-      { property: "og:title", content: "Hudson Homes QLD House & Land Database" },
+      { property: "og:title", content: "Hudson Homes House & Land Database (QLD & NSW)" },
       {
         property: "og:description",
-        content: "Every available QLD land lot and package, ready to print as a flyer.",
+        content: "Every available QLD & NSW land lot and package, ready to print as a flyer.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -77,6 +78,7 @@ interface Lot {
   id: string;
   estate: string;
   suburb: string;
+  state?: "QLD" | "NSW";
   developer: string | null;
   developer_contact_name: string | null;
   developer_contact_phone: string | null;
@@ -110,6 +112,7 @@ interface Pkg {
   beds: string | null;
   baths: string | null;
   cars: string | null;
+  state?: "QLD" | "NSW";
   status: "draft" | "live" | "sold";
   needs_review: boolean;
   notes: string | null;
@@ -193,6 +196,7 @@ function StatusPill({ value }: { value: string }) {
 const emptyLotForm = {
   estate: "",
   suburb: "",
+  state: "QLD" as "QLD" | "NSW",
   stage: "",
   developer: "",
   developer_contact_name: "",
@@ -217,6 +221,7 @@ function lotToForm(lot: Lot): LotForm {
   return {
     estate: lot.estate ?? "",
     suburb: lot.suburb ?? "",
+    state: (lot.state || getLotState(lot)) as "QLD" | "NSW",
     stage: stageMatch ? stageMatch[1] : "",
     developer: lot.developer ?? "",
     developer_contact_name: lot.developer_contact_name ?? "",
@@ -310,6 +315,7 @@ function LotDialog({
     const payload = {
       estate: form.estate.trim(),
       suburb: form.suburb.trim(),
+      state: form.state,
       developer: form.developer.trim(),
       developer_contact_name: form.developer_contact_name.trim() || null,
       developer_contact_phone: form.developer_contact_phone.trim() || null,
@@ -374,6 +380,18 @@ function LotDialog({
           <DialogTitle className="text-white font-bold tracking-wide">{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5 col-span-2 sm:col-span-1">
+            <Label className="text-xs text-slate-400 font-medium">State / Division *</Label>
+            <Select value={form.state} onValueChange={(v: "QLD" | "NSW") => update("state", v)}>
+              <SelectTrigger className="h-8.5 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                <SelectItem value="QLD">Queensland (QLD)</SelectItem>
+                <SelectItem value="NSW">New South Wales (NSW)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {field("estate", "Estate *")}
           {field("suburb", "Suburb *")}
           {field("stage", "Stage / Release")}
@@ -904,6 +922,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
 function DatabasePage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<"lots" | "packages">("lots");
+  const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
   const [lots, setLots] = useState<Lot[]>([]);
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [loading, setLoading] = useState(true);
@@ -964,20 +983,35 @@ function DatabasePage() {
     return grouped;
   }, [packages]);
 
+  const qldLotsCount = useMemo(() => lots.filter((l) => getLotState(l) === "QLD").length, [lots]);
+  const nswLotsCount = useMemo(() => lots.filter((l) => getLotState(l) === "NSW").length, [lots]);
+  const qldPkgsCount = useMemo(
+    () => packages.filter((p) => (p.state || (p.lot_id ? getLotState(lotById.get(p.lot_id) || {}) : "QLD")) === "QLD").length,
+    [packages, lotById]
+  );
+  const nswPkgsCount = useMemo(
+    () => packages.filter((p) => (p.state || (p.lot_id ? getLotState(lotById.get(p.lot_id) || {}) : "QLD")) === "NSW").length,
+    [packages, lotById]
+  );
+
   const filteredLots = useMemo(() => {
+    let result = lots;
+    if (stateFilter !== "ALL") {
+      result = result.filter((l) => getLotState(l) === stateFilter);
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return lots;
-    return lots.filter((l) =>
+    if (!q) return result;
+    return result.filter((l) =>
       [l.estate, l.suburb, l.lot_number, l.address, l.developer, l.notes]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(q),
     );
-  }, [lots, query]);
+  }, [lots, query, stateFilter]);
 
-  /** Lots grouped by suburb, then by estate inside each suburb. */
-  const lotGroups = useMemo(() => {
+  /** Lots grouped by state (QLD / NSW), then by suburb, then by estate inside each suburb. */
+  const stateLotGroups = useMemo(() => {
     const cmp = (a: Lot, b: Lot) => {
       if (lotSort === "land_price") return (a.land_price ?? 0) - (b.land_price ?? 0);
       if (lotSort === "land_size") return (a.land_size ?? 0) - (b.land_size ?? 0);
@@ -987,37 +1021,51 @@ function DatabasePage() {
       return av.localeCompare(bv);
     };
 
-    // Lots that mention the same suburb word sit under one heading.
-    const suburbKey = (l: Lot) => (l.suburb || "Unassigned suburb").trim().toLowerCase();
+    const targetStates: ("QLD" | "NSW")[] = stateFilter === "ALL" ? ["QLD", "NSW"] : [stateFilter];
 
-    const suburbs = new Map<string, { label: string; lots: Lot[] }>();
-    for (const l of filteredLots) {
-      const key = suburbKey(l);
-      const entry = suburbs.get(key);
-      if (entry) entry.lots.push(l);
-      else suburbs.set(key, { label: l.suburb?.trim() || "Unassigned suburb", lots: [l] });
-    }
+    return targetStates.map((st) => {
+      const stateLots = filteredLots.filter((l) => getLotState(l) === st);
+      const suburbKey = (l: Lot) => (l.suburb || "Unassigned suburb").trim().toLowerCase();
 
-    return [...suburbs.entries()]
-      .sort((a, b) => a[1].label.localeCompare(b[1].label))
-      .map(([key, { label, lots: items }]) => {
-        const estates = new Map<string, Lot[]>();
-        for (const l of items) {
-          const e = l.estate || "Unassigned estate";
-          const arr = estates.get(e);
-          if (arr) arr.push(l);
-          else estates.set(e, [l]);
-        }
-        return {
-          key,
-          label,
-          count: items.length,
-          estates: [...estates.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([estate, group]) => ({ estate, lots: [...group].sort(cmp) })),
-        };
-      });
-  }, [filteredLots, lotSort]);
+      const suburbs = new Map<string, { label: string; lots: Lot[] }>();
+      for (const l of stateLots) {
+        const key = suburbKey(l);
+        const entry = suburbs.get(key);
+        if (entry) entry.lots.push(l);
+        else suburbs.set(key, { label: l.suburb?.trim() || "Unassigned suburb", lots: [l] });
+      }
+
+      const suburbGroups = [...suburbs.entries()]
+        .sort((a, b) => a[1].label.localeCompare(b[1].label))
+        .map(([key, { label, lots: items }]) => {
+          const estates = new Map<string, Lot[]>();
+          for (const l of items) {
+            const e = l.estate || "Unassigned estate";
+            const arr = estates.get(e);
+            if (arr) arr.push(l);
+            else estates.set(e, [l]);
+          }
+          return {
+            key: `${st}-${key}`,
+            rawKey: key,
+            label,
+            count: items.length,
+            estates: [...estates.entries()]
+              .sort((a, b) => a[0].localeCompare(b[0]))
+              .map(([estate, group]) => ({ estate, lots: [...group].sort(cmp) })),
+          };
+        });
+
+      return {
+        state: st,
+        title: st === "QLD" ? "Queensland (QLD) Estates & Suburbs" : "New South Wales (NSW) Estates & Suburbs",
+        subtitle: st === "QLD" ? "South East Queensland Division" : "Greater Sydney & Regional NSW Division",
+        lotsCount: stateLots.length,
+        suburbsCount: suburbGroups.length,
+        suburbGroups,
+      };
+    }).filter((g) => g.lotsCount > 0 || stateFilter === g.state);
+  }, [filteredLots, lotSort, stateFilter]);
 
   const [openSuburbs, setOpenSuburbs] = useState<string[]>([]);
   const searching = query.trim().length > 0;
@@ -1026,9 +1074,17 @@ function DatabasePage() {
 
 
   const filteredPackages = useMemo(() => {
+    let list = packages;
+    if (stateFilter !== "ALL") {
+      list = list.filter((p) => {
+        const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+        const st = p.state || (lot ? getLotState(lot) : "QLD");
+        return st === stateFilter;
+      });
+    }
     const q = query.trim().toLowerCase();
-    if (!q) return packages;
-    return packages.filter((p) => {
+    if (!q) return list;
+    return list.filter((p) => {
       const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
       return [p.name, p.design, p.facade_name, lot?.estate, lot?.suburb]
         .filter(Boolean)
@@ -1036,7 +1092,7 @@ function DatabasePage() {
         .toLowerCase()
         .includes(q);
     });
-  }, [packages, query, lotById]);
+  }, [packages, query, stateFilter, lotById]);
 
   const updateLot = async (id: string, patch: { status: Lot["status"] }) => {
     setLots((prev) => {
@@ -1191,10 +1247,10 @@ function DatabasePage() {
             <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-7" />
             <div className="min-w-0 leading-tight border-l border-slate-800 pl-3">
               <h1 className="truncate text-xs font-bold tracking-[0.14em] text-white uppercase sm:text-sm">
-                QLD House &amp; Land Database
+                QLD &amp; NSW House &amp; Land Database
               </h1>
               <p className="hidden text-[10px] tracking-wider text-cyan-400 font-medium uppercase sm:block">
-                Live Availability &amp; Pricing CRM
+                Live Multi-State Availability &amp; Pricing CRM
               </p>
             </div>
           </Link>
@@ -1236,6 +1292,45 @@ function DatabasePage() {
                 {t === "lots" ? `Land lots (${lots.length})` : `Packages (${packages.length})`}
               </button>
             ))}
+          </div>
+
+          {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
+          <div className="flex rounded-xl border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
+            <button
+              type="button"
+              onClick={() => setStateFilter("ALL")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                stateFilter === "ALL"
+                  ? "bg-slate-800 text-white border border-slate-700 shadow-sm font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              All States ({tab === "lots" ? lots.length : packages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStateFilter("QLD")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                stateFilter === "QLD"
+                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+              QLD ({tab === "lots" ? qldLotsCount : qldPkgsCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStateFilter("NSW")}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                stateFilter === "NSW"
+                  ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              NSW ({tab === "lots" ? nswLotsCount : nswPkgsCount})
+            </button>
           </div>
           <Input
             className="h-9 w-full rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 sm:max-w-xs"
@@ -1386,7 +1481,7 @@ function DatabasePage() {
 
         {loading ? (
           <div className="flex items-center justify-center gap-3 p-16 text-sm text-slate-400 rounded-2xl border border-slate-800/80 bg-slate-900/40">
-            <Loader2 className="h-5 w-5 animate-spin text-cyan-400" /> Loading QLD database…
+            <Loader2 className="h-5 w-5 animate-spin text-cyan-400" /> Loading database…
           </div>
         ) : tab === "lots" ? (
           <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl">
@@ -1415,46 +1510,76 @@ function DatabasePage() {
                   <th className="p-3" />
                 </tr>
               </thead>
-              {lotGroups.map((group) => (
-                <tbody key={group.key} className="divide-y divide-slate-800/50">
-                  <tr
-                    className="cursor-pointer bg-slate-900/90 hover:bg-slate-850 transition-colors"
-                    onClick={() =>
-                      setOpenSuburbs((prev) => toggle(prev, group.key))
-                    }
-                  >
-                    <td colSpan={11} className="px-3.5 py-3">
-                      <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-100">
-                        {isOpen(group.key) ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-cyan-400" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
-                        )}
-                        <span className="truncate">{titleCase(group.label)}</span>
-                        <span className="text-xs font-normal text-slate-400">
-                          {group.estates.length} estate{group.estates.length === 1 ? "" : "s"} ·{" "}
-                          {group.count} lot{group.count === 1 ? "" : "s"}
-                        </span>
-                        <span className="ml-auto text-xs font-medium text-cyan-400 hover:underline">
-                          {isOpen(group.key) ? "Hide" : "View"}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  {isOpen(group.key) &&
-                    group.estates.map(({ estate, lots: groupLots }) => (
-                      <Fragment key={estate}>
-                        <tr className="bg-slate-950/60 border-b border-slate-800/60">
-                          <td
-                            colSpan={11}
-                            className="px-3.5 py-2 pl-9 text-xs font-semibold text-slate-300"
-                          >
-                            {titleCase(estate)}{" "}
-                            <span className="ml-1 font-normal text-slate-500 normal-case">
-                              {groupLots.length} lot{groupLots.length === 1 ? "" : "s"}
+              {stateLotGroups.map((stateGroup) => (
+                <Fragment key={stateGroup.state}>
+                  {/* Division / State Header Banner */}
+                  <tbody className="border-t-2 border-slate-700/80">
+                    <tr className={stateGroup.state === "QLD" ? "bg-gradient-to-r from-cyan-950/60 via-slate-900 to-slate-950" : "bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950"}>
+                      <td colSpan={11} className="px-4 py-3 border-y border-slate-800">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase font-mono ${
+                              stateGroup.state === "QLD"
+                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                                : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                            }`}>
+                              {stateGroup.state} Division
                             </span>
-                          </td>
-                        </tr>
+                            <h2 className="text-sm font-bold text-white tracking-wide">
+                              {stateGroup.title}
+                            </h2>
+                            <span className="text-xs text-slate-400">
+                              ({stateGroup.suburbsCount} suburbs · {stateGroup.lotsCount} lots)
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 hidden sm:inline-block">
+                            {stateGroup.subtitle}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+
+                  {stateGroup.suburbGroups.map((group) => (
+                    <tbody key={group.key} className="divide-y divide-slate-800/50">
+                      <tr
+                        className="cursor-pointer bg-slate-900/90 hover:bg-slate-850 transition-colors"
+                        onClick={() =>
+                          setOpenSuburbs((prev) => toggle(prev, group.key))
+                        }
+                      >
+                        <td colSpan={11} className="px-3.5 py-3">
+                          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-100">
+                            {isOpen(group.key) ? (
+                              <ChevronDown className={`h-4 w-4 shrink-0 ${stateGroup.state === "QLD" ? "text-cyan-400" : "text-amber-400"}`} />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                            )}
+                            <span className="truncate">{titleCase(group.label)}</span>
+                            <span className="text-xs font-normal text-slate-400">
+                              {group.estates.length} estate{group.estates.length === 1 ? "" : "s"} ·{" "}
+                              {group.count} lot{group.count === 1 ? "" : "s"}
+                            </span>
+                            <span className={`ml-auto text-xs font-medium hover:underline ${stateGroup.state === "QLD" ? "text-cyan-400" : "text-amber-400"}`}>
+                              {isOpen(group.key) ? "Hide" : "View"}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                      {isOpen(group.key) &&
+                        group.estates.map(({ estate, lots: groupLots }) => (
+                          <Fragment key={estate}>
+                            <tr className="bg-slate-950/60 border-b border-slate-800/60">
+                              <td
+                                colSpan={11}
+                                className="px-3.5 py-2 pl-9 text-xs font-semibold text-slate-300"
+                              >
+                                {titleCase(estate)}{" "}
+                                <span className="ml-1 font-normal text-slate-500 normal-case">
+                                  {groupLots.length} lot{groupLots.length === 1 ? "" : "s"}
+                                </span>
+                              </td>
+                            </tr>
                         {groupLots.map((l: Lot) => (
 
                   <tr key={l.id} className="align-top hover:bg-slate-800/40 transition-colors">
@@ -1610,6 +1735,8 @@ function DatabasePage() {
                     ))}
                 </tbody>
               ))}
+            </Fragment>
+          ))}
 
               {!filteredLots.length && (
                 <tbody>
@@ -1653,6 +1780,7 @@ function DatabasePage() {
               <tbody className="divide-y divide-slate-800/50">
                 {filteredPackages.map((p) => {
                   const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+                  const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
                   return (
                     <tr key={p.id} className="align-top hover:bg-slate-800/40 transition-colors">
                       <td className="p-3">
@@ -1664,8 +1792,17 @@ function DatabasePage() {
                         />
                       </td>
                       <td className="p-3">
-                        <div className="font-semibold text-slate-100">
-                          {titleCase(p.name || p.design) || "Untitled"}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${
+                            pkgState === "QLD"
+                              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                              : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                          }`}>
+                            {pkgState}
+                          </span>
+                          <span className="font-semibold text-slate-100">
+                            {titleCase(p.name || p.design) || "Untitled"}
+                          </span>
                         </div>
                         <div className="text-xs text-slate-400">
                           {[titleCase(p.facade_name), titleCase(p.range_id)]

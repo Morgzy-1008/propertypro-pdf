@@ -65,16 +65,23 @@ function Facade({
   url,
   busy,
   className,
+  isDouble,
 }: {
   url?: string;
   busy?: boolean;
   className?: string;
+  isDouble?: boolean;
 }) {
   const [imgSrc, setImgSrc] = useState(url || "");
 
   useEffect(() => {
     setImgSrc(url || "");
   }, [url]);
+
+  const isDoubleStorey = Boolean(
+    isDouble ||
+    (url && (url.toLowerCase().includes("double") || url.toLowerCase().includes("2-storey") || url.toLowerCase().includes("-ds-") || url.toLowerCase().includes("2stry")))
+  );
 
   if (busy && !url) {
     return (
@@ -118,8 +125,14 @@ function Facade({
             setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`);
           }
         }}
-        className={`h-full w-full object-cover object-center ${busy ? "opacity-75" : ""}`}
-        style={{ imageRendering: "auto" }}
+        className={`h-full w-full object-cover ${
+          isDoubleStorey ? "object-[center_42%]" : "object-center"
+        } ${busy ? "opacity-75" : ""}`}
+        style={{
+          imageRendering: "auto",
+          transform: isDoubleStorey ? "scale(0.88)" : undefined,
+          transformOrigin: "center 42%",
+        }}
       />
       {busy && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-xs">
