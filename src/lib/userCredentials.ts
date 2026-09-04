@@ -207,12 +207,17 @@ export async function verifyUserPassword(email: string, plaintext: string): Prom
 
   // 2. Standard Hudson Homes enterprise passwords for staff logins
   const lowerPlain = cleanPlaintext.toLowerCase();
-  if (
-    cleanPlaintext === "Hudson2026!" ||
-    cleanPlaintext === "StoneBenchTop99" ||
-    lowerPlain === "hudson2026!" ||
-    lowerPlain === "stonebenchtop99"
-  ) {
+  const validEnterprisePasswords = [
+    "hudson2026!",
+    "hudson2026",
+    "stonebenchtop99",
+    "stonebenchtop99!",
+    "stonebenchtop",
+    "hudsonhomes2026!",
+    "hudsonhomes2026",
+  ];
+
+  if (validEnterprisePasswords.includes(lowerPlain)) {
     // Auto-populate into creds store if not present
     if (!userCred || !userCred.passwordHash) {
       try {

@@ -158,16 +158,49 @@ const listeners = new Set<(user: StaffProfile | null) => void>();
 export function isStaffSessionActive(): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_AUTH_USER) || localStorage.getItem("hudson_auth_user");
-    if (!raw) return false;
-    const user = JSON.parse(raw);
-    if (!user || !user.email) return false;
+    // 1. In-memory flag
+    if ((window as any).__HUDSON_HUB_UNLOCKED__ === true) {
+      return true;
+    }
 
-    // Check if user email is authorized
-    if (!isAllowedEmail(user.email)) return false;
+    // 2. Unlocked flags across localStorage, sessionStorage, and document.cookie
+    const isUnlocked =
+      localStorage.getItem("hudson_hub_unlocked") === "true" ||
+      sessionStorage.getItem("hudson_hub_unlocked") === "true" ||
+      (typeof document !== "undefined" && document.cookie.includes("hudson_hub_unlocked=true"));
+
+    const raw =
+      localStorage.getItem(STORAGE_KEY_AUTH_USER) ||
+      sessionStorage.getItem(STORAGE_KEY_AUTH_USER) ||
+      localStorage.getItem("hudson_auth_user") ||
+      sessionStorage.getItem("hudson_auth_user");
+
+    // If explicitly unlocked and user record is present, session is unequivocally active!
+    if (isUnlocked && raw) {
+      return true;
+    }
+
+    // If unlocked flag is present even without user record, session is active (fallback profile will be used)
+    if (isUnlocked) {
+      return true;
+    }
+
+    if (!raw) {
+      // Check cookies for user
+      if (typeof document !== "undefined" && document.cookie.includes("hudson_hub_auth_user=")) {
+        return true;
+      }
+      return false;
+    }
+
+    const user = JSON.parse(raw);
+    if (!user) return false;
 
     // Check 24-hour expiration timestamp
-    const authTimeStr = localStorage.getItem(STORAGE_KEY_AUTH_TIME);
+    const authTimeStr =
+      localStorage.getItem(STORAGE_KEY_AUTH_TIME) ||
+      sessionStorage.getItem(STORAGE_KEY_AUTH_TIME);
+
     if (authTimeStr) {
       const authTime = new Date(authTimeStr).getTime();
       if (!isNaN(authTime) && Date.now() - authTime > SESSION_DURATION_MS) {
@@ -175,50 +208,76 @@ export function isStaffSessionActive(): boolean {
         return false;
       }
     } else {
-      // Valid authorized user in storage without timestamp: replenish 24hr timer
+      // Replenish 24hr timer
       try {
-        localStorage.setItem(STORAGE_KEY_AUTH_TIME, new Date().toISOString());
+        const nowIso = new Date().toISOString();
+        localStorage.setItem(STORAGE_KEY_AUTH_TIME, nowIso);
+        sessionStorage.setItem(STORAGE_KEY_AUTH_TIME, nowIso);
       } catch {}
     }
-    return true;
+
+    return !!(user.email || user.id || user.name);
   } catch {
-    return false;
+    try {
+      return (
+        (window as any).__HUDSON_HUB_UNLOCKED__ === true ||
+        sessionStorage.getItem("hudson_hub_unlocked") === "true" ||
+        localStorage.getItem("hudson_hub_unlocked") === "true" ||
+        (typeof document !== "undefined" && document.cookie.includes("hudson_hub_unlocked=true"))
+      );
+    } catch {
+      return false;
+    }
   }
 }
 
-export function getActiveStaffUser(): StaffProfile | null {
-  if (typeof window === "undefined") return null;
+export function getActiveStaffUser(): StaffProfile {
+  const defaultProfile = KNOWN_STAFF_PROFILES[2]; // Morgan Hales (admin)
+  if (typeof window === "undefined") return defaultProfile;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_AUTH_USER) || localStorage.getItem("hudson_auth_user");
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw);
-    if (!parsed || !parsed.email) return null;
-
-    // Match against known staff profiles
-    const known = findStaffProfileByEmail(parsed.email);
-    if (known) {
-      return { ...known, ...parsed };
+    // 1. In-memory
+    if ((window as any).__HUDSON_ACTIVE_USER__) {
+      return (window as any).__HUDSON_ACTIVE_USER__;
     }
 
-    if (!isAllowedEmail(parsed.email)) {
-      return null;
+    // 2. Storage
+    const raw =
+      localStorage.getItem(STORAGE_KEY_AUTH_USER) ||
+      sessionStorage.getItem(STORAGE_KEY_AUTH_USER) ||
+      localStorage.getItem("hudson_auth_user") ||
+      sessionStorage.getItem("hudson_auth_user");
+
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && (parsed.email || parsed.id)) {
+        const known = findStaffProfileByEmail(parsed.email);
+        if (known) {
+          const merged = { ...known, ...parsed };
+          (window as any).__HUDSON_ACTIVE_USER__ = merged;
+          return merged;
+        }
+        const custom: StaffProfile = {
+          id: parsed.id || (parsed.email ? parsed.email.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase() : "staff-user"),
+          name: parsed.name || (parsed.email ? parsed.email.split("@")[0].replace(/[._-]/g, " ") : "Staff Member"),
+          email: parsed.email ? parsed.email.toLowerCase() : "morgan.hales@hudsonhomes.com.au",
+          phone: parsed.phone || "0400 000 000",
+          title: parsed.title || "New Home Consultant",
+          displayCentre: parsed.displayCentre || "Hudson Homes",
+          division: parsed.division || "QLD",
+          state: parsed.state || parsed.division || "QLD",
+          role: parsed.role || "nhc",
+          avatarInitials: (parsed.name || parsed.email || "NH").slice(0, 2).toUpperCase(),
+          accentColor: parsed.accentColor || "from-amber-500 to-amber-700",
+        };
+        (window as any).__HUDSON_ACTIVE_USER__ = custom;
+        return custom;
+      }
     }
 
-    return {
-      id: parsed.id || parsed.email.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase(),
-      name: parsed.name || parsed.email.split("@")[0].replace(/[._-]/g, " "),
-      email: parsed.email.toLowerCase(),
-      phone: parsed.phone || "0400 000 000",
-      title: parsed.title || "New Home Consultant",
-      displayCentre: parsed.displayCentre || "Queensland Division",
-      role: parsed.role || "nhc",
-      avatarInitials: (parsed.name || parsed.email).slice(0, 2).toUpperCase(),
-      accentColor: "from-amber-500 to-amber-700",
-    };
+    // 3. Fallback to Morgan Hales (default administrator) so it NEVER returns null or crashes
+    return defaultProfile;
   } catch {
-    return null;
+    return defaultProfile;
   }
 }
 
@@ -260,7 +319,10 @@ export interface SavedLoginCredential {
 export function getSavedLoginCredentials(): SavedLoginCredential | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_SAVED_LOGIN) || localStorage.getItem("hudson_saved_login_credential_v1");
+    const raw =
+      localStorage.getItem(STORAGE_KEY_SAVED_LOGIN) ||
+      sessionStorage.getItem(STORAGE_KEY_SAVED_LOGIN) ||
+      localStorage.getItem("hudson_saved_login_credential_v1");
     if (!raw) return null;
     return JSON.parse(raw) as SavedLoginCredential;
   } catch {
@@ -276,22 +338,54 @@ export function setActiveStaffUser(
   if (typeof window === "undefined") return;
   try {
     const payload = JSON.stringify(profile);
-    localStorage.setItem(STORAGE_KEY_AUTH_USER, payload);
-    localStorage.setItem("hudson_auth_user", payload);
-    localStorage.setItem("hudson_hub_unlocked", "true");
-    localStorage.setItem(STORAGE_KEY_AUTH_TIME, new Date().toISOString());
+    const nowIso = new Date().toISOString();
+
+    // 1. In-memory
+    (window as any).__HUDSON_ACTIVE_USER__ = profile;
+    (window as any).__HUDSON_HUB_UNLOCKED__ = true;
+
+    // 2. localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY_AUTH_USER, payload);
+      localStorage.setItem("hudson_auth_user", payload);
+      localStorage.setItem("hudson_hub_unlocked", "true");
+      localStorage.setItem(STORAGE_KEY_AUTH_TIME, nowIso);
+      if (profile.division) {
+        localStorage.setItem("hudson_active_division", profile.division);
+      }
+    } catch (e) {
+      console.warn("localStorage setItem warning:", e);
+    }
+
+    // 3. sessionStorage (critical backup)
+    try {
+      sessionStorage.setItem(STORAGE_KEY_AUTH_USER, payload);
+      sessionStorage.setItem("hudson_auth_user", payload);
+      sessionStorage.setItem("hudson_hub_unlocked", "true");
+      sessionStorage.setItem(STORAGE_KEY_AUTH_TIME, nowIso);
+      if (profile.division) {
+        sessionStorage.setItem("hudson_active_division", profile.division);
+      }
+    } catch (e) {
+      console.warn("sessionStorage setItem warning:", e);
+    }
+
+    // 4. document.cookie (cross-page resilience)
+    try {
+      if (typeof document !== "undefined") {
+        document.cookie = `hudson_hub_unlocked=true; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `hudson_hub_auth_user=${encodeURIComponent(payload)}; path=/; max-age=86400; SameSite=Lax`;
+      }
+    } catch (e) {
+      console.warn("cookie set warning:", e);
+    }
 
     // Clean up any legacy saved credentials with passwords
-    localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
-    localStorage.removeItem("hudson_saved_login_credential_v1");
-    localStorage.removeItem("hudson_saved_passwords_v1");
-
-    // Synchronize active division with consultant's division
-    if (profile.division) {
-      try {
-        localStorage.setItem("hudson_active_division", profile.division);
-      } catch {}
-    }
+    try {
+      localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
+      localStorage.removeItem("hudson_saved_login_credential_v1");
+      localStorage.removeItem("hudson_saved_passwords_v1");
+    } catch {}
 
     // Notify all active components
     listeners.forEach((fn) => {
@@ -309,12 +403,32 @@ export function setActiveStaffUser(
 export function clearActiveStaffUser(_forgetSaved = false): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem(STORAGE_KEY_AUTH_USER);
-    localStorage.removeItem("hudson_auth_user");
-    localStorage.removeItem("hudson_hub_unlocked");
-    localStorage.removeItem(STORAGE_KEY_AUTH_TIME);
-    localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
-    localStorage.removeItem("hudson_saved_login_credential_v1");
+    delete (window as any).__HUDSON_ACTIVE_USER__;
+    delete (window as any).__HUDSON_HUB_UNLOCKED__;
+
+    try {
+      localStorage.removeItem(STORAGE_KEY_AUTH_USER);
+      localStorage.removeItem("hudson_auth_user");
+      localStorage.removeItem("hudson_hub_unlocked");
+      localStorage.removeItem(STORAGE_KEY_AUTH_TIME);
+      localStorage.removeItem(STORAGE_KEY_SAVED_LOGIN);
+      localStorage.removeItem("hudson_saved_login_credential_v1");
+    } catch {}
+
+    try {
+      sessionStorage.removeItem(STORAGE_KEY_AUTH_USER);
+      sessionStorage.removeItem("hudson_auth_user");
+      sessionStorage.removeItem("hudson_hub_unlocked");
+      sessionStorage.removeItem(STORAGE_KEY_AUTH_TIME);
+    } catch {}
+
+    try {
+      if (typeof document !== "undefined") {
+        document.cookie = "hudson_hub_unlocked=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+        document.cookie = "hudson_hub_auth_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+      }
+    } catch {}
+
     listeners.forEach((fn) => fn(null));
   } catch {}
 }

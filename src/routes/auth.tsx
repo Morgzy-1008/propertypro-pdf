@@ -67,9 +67,9 @@ function AuthPage() {
   useEffect(() => {
     // If user already has an active 24-hr session, redirect directly to /hub
     if (isStaffSessionActive()) {
-      window.location.replace("/hub");
+      navigate({ to: "/hub", replace: true });
     }
-  }, []);
+  }, [navigate]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,8 +133,13 @@ function AuthPage() {
         toast.success(`Welcome back, ${profile.name}!`, {
           description: "Entering Enterprise Hub...",
         });
-        // Direct, unconditional browser navigation into /hub
-        window.location.replace("/hub");
+        // Immediate client-side transition into /hub
+        navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (typeof window !== "undefined" && window.location.pathname !== "/hub") {
+            window.location.replace("/hub");
+          }
+        }, 150);
       } else {
         toast.error("Staff profile not found. Please contact administration.");
       }
@@ -181,7 +186,12 @@ function AuthPage() {
         toast.success(`Password created successfully! Welcome, ${profile.name}.`, {
           description: "Entering Enterprise Hub...",
         });
-        window.location.replace("/hub");
+        navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (typeof window !== "undefined" && window.location.pathname !== "/hub") {
+            window.location.replace("/hub");
+          }
+        }, 150);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to set password.");
@@ -234,7 +244,12 @@ function AuthPage() {
         toast.success("Password reset successfully! Session active for 24h.", {
           description: "Entering Enterprise Hub...",
         });
-        window.location.replace("/hub");
+        navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (typeof window !== "undefined" && window.location.pathname !== "/hub") {
+            window.location.replace("/hub");
+          }
+        }, 150);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to reset password.");
