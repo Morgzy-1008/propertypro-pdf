@@ -66,6 +66,7 @@ import type {
   PurchaserType,
   LandStatus,
   KdrOccupancy,
+  KdrContactRole,
   TenderInclusionType,
   TenderFloorplanPin,
 } from "@/lib/tender/tenderTypes";
@@ -75,6 +76,8 @@ import {
   exportTenderZipPackage,
   loadAllTendersFromIdb,
   saveTenderToIdb,
+  deleteTenderFromIdb,
+  deleteMultipleTendersFromIdb,
   findFloorplanUrl,
   findFacadeRenderUrl,
   calculateLandscapePackageCost,
@@ -128,6 +131,7 @@ export function TenderRequestPortal() {
   const [savedTenders, setSavedTenders] = useState<TenderSubmission[]>([]);
   const [isImportQuoteOpen, setIsImportQuoteOpen] = useState(false);
   const [isSavedTendersOpen, setIsSavedTendersOpen] = useState(false);
+  const [selectedTenderIds, setSelectedTenderIds] = useState<string[]>([]);
   const [isShareRemoteOpen, setIsShareRemoteOpen] = useState(false);
   const [isCustomFacadeOpen, setIsCustomFacadeOpen] = useState(false);
   const [customFacadeNameInput, setCustomFacadeNameInput] = useState("");
@@ -1776,36 +1780,22 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
-            {/* KDRB Specific Occupancy & Tenant Contact Panel */}
+            {/* KDRB Specific Occupancy & Site Access Pop-up Panel */}
             {tender.buildType.includes("KDRB") && (
-              <div className="space-y-4 bg-amber-950/20 p-4 rounded-xl border border-amber-500/40">
-                <span className="text-xs font-bold uppercase text-amber-400 block border-b border-amber-800/60 pb-1.5">
-                  Knock-Down Rebuild (KDRB) Occupancy &amp; Site Access
-                </span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-[11px] text-slate-300">Property Occupancy Status *</Label>
-                    <Select
-                      value={tender.land.ifKdrOccupancy || "Owner Occupied"}
-                      onValueChange={(v: KdrOccupancy) =>
-                        updateTender({ land: { ...tender.land, ifKdrOccupancy: v } })
-                      }
-                    >
-                      <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-bold text-amber-400">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                        <SelectItem value="Owner Occupied">Owner Occupied</SelectItem>
-                        <SelectItem value="Vacant">Vacant / Unoccupied</SelectItem>
-                        <SelectItem value="Tenanted">Tenanted Property</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-4">
+                {/* Site Access & Demolition Issues */}
+                <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-xs font-bold uppercase text-amber-400 flex items-center gap-1.5">
+                      <HardHat className="h-3.5 w-3.5" />
+                      Knock-Down Rebuild (KDRB) Site Assessment &amp; Demolition
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-400">Site Conditions</span>
                   </div>
-
                   <div>
                     <Label className="text-[11px] text-slate-300 flex items-center justify-between">
-                      <span>Site Access / Demolition Issues *</span>
-                      <span className="text-[10px] text-amber-400">Power poles, slope, overhead wires, fences</span>
+                      <span>Site Access &amp; Demolition Issues *</span>
+                      <span className="text-[10px] text-amber-400">Power poles, slope, overhead wires, fences, asbestos</span>
                     </Label>
                     <Input
                       value={tender.land.comments || ""}
@@ -1816,86 +1806,259 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   </div>
                 </div>
 
-                {tender.land.ifKdrOccupancy === "Tenanted" && (
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-950/70 p-3 rounded-lg border border-slate-800">
+                {/* Pop-up Section: Current Property Occupancy Status */}
+                <div className="space-y-4 bg-gradient-to-b from-amber-950/30 to-slate-950/90 p-4 rounded-xl border border-amber-500/50 shadow-lg">
+                  <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
                     <div>
-                      <Label className="text-[11px] text-slate-300">Tenant Name *</Label>
-                      <Input
-                        value={tender.land.kdrTenantDetails?.name || ""}
-                        onChange={(e) =>
-                          updateTender({
-                            land: {
-                              ...tender.land,
-                              kdrTenantDetails: {
-                                ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
-                                name: e.target.value,
-                              },
-                            },
-                          })
-                        }
-                        placeholder="e.g. John Doe"
-                        className="border-slate-800 bg-slate-900 text-xs"
-                      />
+                      <span className="text-xs font-extrabold uppercase tracking-wide text-amber-300 block">
+                        Current Property Status *
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Specify existing dwelling status for site inspection and soil testing access.
+                      </span>
                     </div>
-                    <div>
-                      <Label className="text-[11px] text-slate-300">Tenant Phone *</Label>
-                      <Input
-                        value={tender.land.kdrTenantDetails?.phone || ""}
-                        onChange={(e) =>
-                          updateTender({
-                            land: {
-                              ...tender.land,
-                              kdrTenantDetails: {
-                                ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
-                                phone: e.target.value,
-                              },
-                            },
-                          })
-                        }
-                        placeholder="e.g. 0400 123 456"
-                        className="border-slate-800 bg-slate-900 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-slate-300">Tenant Email</Label>
-                      <Input
-                        value={tender.land.kdrTenantDetails?.email || ""}
-                        onChange={(e) =>
-                          updateTender({
-                            land: {
-                              ...tender.land,
-                              kdrTenantDetails: {
-                                ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
-                                email: e.target.value,
-                              },
-                            },
-                          })
-                        }
-                        placeholder="e.g. tenant@gmail.com"
-                        className="border-slate-800 bg-slate-900 text-xs"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-[11px] text-slate-300">Access / Inspection Instructions</Label>
-                      <Input
-                        value={tender.land.kdrTenantDetails?.accessNotes || ""}
-                        onChange={(e) =>
-                          updateTender({
-                            land: {
-                              ...tender.land,
-                              kdrTenantDetails: {
-                                ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
-                                accessNotes: e.target.value,
-                              },
-                            },
-                          })
-                        }
-                        placeholder="e.g. Call 24h prior, beware of dog"
-                        className="border-slate-800 bg-slate-900 text-xs"
-                      />
-                    </div>
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      {tender.land.ifKdrOccupancy || "Vacant"}
+                    </span>
                   </div>
-                )}
+
+                  {/* 3 Status Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {(
+                      [
+                        { value: "Vacant", label: "Vacant", desc: "Unoccupied / Ready for site access" },
+                        { value: "Owner Occupied", label: "Occupied by Owner", desc: "Client/owner residing on site" },
+                        { value: "Tenanted", label: "Tenanted", desc: "Currently leased to tenants" },
+                      ] as const
+                    ).map((opt) => {
+                      const isSelected = (tender.land.ifKdrOccupancy || "Vacant") === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => updateTender({ land: { ...tender.land, ifKdrOccupancy: opt.value } })}
+                          className={`p-3 rounded-xl border text-left transition-all ${
+                            isSelected
+                              ? "bg-amber-500/15 border-amber-400 text-white shadow-md ring-1 ring-amber-400/50"
+                              : "bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <strong className="text-xs font-bold text-amber-200">{opt.label}</strong>
+                            <div
+                              className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                                isSelected ? "border-amber-400 bg-amber-400 text-slate-950" : "border-slate-600"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-2.5 w-2.5 stroke-[3]" />}
+                            </div>
+                          </div>
+                          <span className="text-[10.5px] text-slate-400 block mt-1 leading-snug">{opt.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* If Tenanted: Details & Role Confirmation */}
+                  {tender.land.ifKdrOccupancy === "Tenanted" && (
+                    <div className="space-y-4 pt-3 border-t border-amber-500/30">
+                      <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 space-y-3">
+                        <div>
+                          <Label className="text-[11px] font-bold uppercase tracking-wider text-amber-400 block mb-1">
+                            Confirm Contact Designation *
+                          </Label>
+                          <p className="text-[11px] text-slate-400 mb-2">
+                            Please confirm who our site inspection team should coordinate access with:
+                          </p>
+                          <div className="grid grid-cols-2 gap-3 max-w-md">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      contactRole: "Tenant",
+                                    },
+                                  },
+                                })
+                              }
+                              className={`p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-between transition-all ${
+                                (tender.land.kdrTenantDetails?.contactRole || "Tenant") === "Tenant"
+                                  ? "bg-cyan-500/20 border-cyan-400 text-cyan-200"
+                                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                              }`}
+                            >
+                              <span>Tenant Details</span>
+                              {(tender.land.kdrTenantDetails?.contactRole || "Tenant") === "Tenant" && (
+                                <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      contactRole: "Property Manager",
+                                    },
+                                  },
+                                })
+                              }
+                              className={`p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-between transition-all ${
+                                tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                  ? "bg-cyan-500/20 border-cyan-400 text-cyan-200"
+                                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200"
+                              }`}
+                            >
+                              <span>Property Manager Details</span>
+                              {tender.land.kdrTenantDetails?.contactRole === "Property Manager" && (
+                                <CheckCircle2 className="h-4 w-4 text-cyan-400" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Detail Inputs */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+                          {tender.land.kdrTenantDetails?.contactRole === "Property Manager" && (
+                            <div>
+                              <Label className="text-[11px] text-slate-300">Real Estate Agency / Office *</Label>
+                              <Input
+                                value={tender.land.kdrTenantDetails?.agencyName || ""}
+                                onChange={(e) =>
+                                  updateTender({
+                                    land: {
+                                      ...tender.land,
+                                      kdrTenantDetails: {
+                                        ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                        contactRole: "Property Manager",
+                                        agencyName: e.target.value,
+                                      },
+                                    },
+                                  })
+                                }
+                                placeholder="e.g. Ray White Flagstone"
+                                className="border-slate-800 bg-slate-900 text-xs text-white"
+                              />
+                            </div>
+                          )}
+                          <div className={tender.land.kdrTenantDetails?.contactRole === "Property Manager" ? "" : "sm:col-span-1"}>
+                            <Label className="text-[11px] text-slate-300">
+                              {tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                ? "Property Manager Name *"
+                                : "Tenant Name *"}
+                            </Label>
+                            <Input
+                              value={tender.land.kdrTenantDetails?.name || ""}
+                              onChange={(e) =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      name: e.target.value,
+                                    },
+                                  },
+                                })
+                              }
+                              placeholder={
+                                tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                  ? "e.g. Sarah Jenkins"
+                                  : "e.g. John Doe"
+                              }
+                              className="border-slate-800 bg-slate-900 text-xs text-white"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-[11px] text-slate-300">
+                              {tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                ? "Agent Mobile / Phone *"
+                                : "Tenant Phone *"}
+                            </Label>
+                            <Input
+                              value={tender.land.kdrTenantDetails?.phone || ""}
+                              onChange={(e) =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      phone: e.target.value,
+                                    },
+                                  },
+                                })
+                              }
+                              placeholder="e.g. 0400 123 456"
+                              className="border-slate-800 bg-slate-900 text-xs text-white font-mono"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="text-[11px] text-slate-300">
+                              {tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                ? "Agent Email"
+                                : "Tenant Email"}
+                            </Label>
+                            <Input
+                              value={tender.land.kdrTenantDetails?.email || ""}
+                              onChange={(e) =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      email: e.target.value,
+                                    },
+                                  },
+                                })
+                              }
+                              placeholder={
+                                tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                  ? "e.g. pm@agency.com.au"
+                                  : "e.g. tenant@gmail.com"
+                              }
+                              className="border-slate-800 bg-slate-900 text-xs text-white"
+                            />
+                          </div>
+
+                          <div className={tender.land.kdrTenantDetails?.contactRole === "Property Manager" ? "sm:col-span-4" : "sm:col-span-1"}>
+                            <Label className="text-[11px] text-slate-300">
+                              {tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                ? "Entry Notice & Key Instructions"
+                                : "Access & Inspection Notes"}
+                            </Label>
+                            <Input
+                              value={tender.land.kdrTenantDetails?.accessNotes || ""}
+                              onChange={(e) =>
+                                updateTender({
+                                  land: {
+                                    ...tender.land,
+                                    kdrTenantDetails: {
+                                      ...(tender.land.kdrTenantDetails || { name: "", phone: "", email: "", accessNotes: "" }),
+                                      accessNotes: e.target.value,
+                                    },
+                                  },
+                                })
+                              }
+                              placeholder={
+                                tender.land.kdrTenantDetails?.contactRole === "Property Manager"
+                                  ? "e.g. 48h Form 9 notice required, key available at agency office"
+                                  : "e.g. Call 24h prior, beware of dog in back yard"
+                              }
+                              className="border-slate-800 bg-slate-900 text-xs text-white"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -3038,13 +3201,66 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
       </Dialog>
 
       {/* Saved Tenders Dialog */}
-      <Dialog open={isSavedTendersOpen} onOpenChange={setIsSavedTendersOpen}>
+      <Dialog
+        open={isSavedTendersOpen}
+        onOpenChange={(open) => {
+          setIsSavedTendersOpen(open);
+          if (!open) setSelectedTenderIds([]);
+        }}
+      >
         <DialogContent className="max-w-2xl border-slate-800 bg-slate-950/98 text-slate-100 p-6 rounded-2xl shadow-2xl">
-          <DialogHeader className="pb-3 border-b border-slate-800">
+          <DialogHeader className="pb-3 border-b border-slate-800 flex flex-row items-center justify-between">
             <DialogTitle className="text-base font-bold text-white flex items-center gap-2">
               <FolderOpen className="h-4 w-4 text-amber-400" />
               Saved Tender Submissions ({savedTenders.length})
             </DialogTitle>
+
+            {savedTenders.length > 0 && (
+              <div className="flex items-center gap-3">
+                <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded accent-amber-400 cursor-pointer"
+                    checked={savedTenders.length > 0 && selectedTenderIds.length === savedTenders.length}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedTenderIds(savedTenders.map((t) => t.id));
+                      } else {
+                        setSelectedTenderIds([]);
+                      }
+                    }}
+                  />
+                  <span>Select All ({savedTenders.length})</span>
+                </label>
+
+                {selectedTenderIds.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-7 text-xs font-bold gap-1 px-2.5 bg-red-600 hover:bg-red-500"
+                    onClick={async () => {
+                      const count = selectedTenderIds.length;
+                      if (
+                        window.confirm(
+                          `Delete ${count} selected tender submission${
+                            count > 1 ? "s" : ""
+                          }? This cannot be undone.`
+                        )
+                      ) {
+                        await deleteMultipleTendersFromIdb(selectedTenderIds);
+                        const list = await loadAllTendersFromIdb();
+                        setSavedTenders(list);
+                        setSelectedTenderIds([]);
+                        toast.success(`Deleted ${count} tender submission(s)`);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete Selected ({selectedTenderIds.length})
+                  </Button>
+                )}
+              </div>
+            )}
           </DialogHeader>
 
           <div className="max-h-80 overflow-y-auto space-y-2 py-2">
@@ -3053,34 +3269,86 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 No saved tender submissions yet.
               </div>
             ) : (
-              savedTenders.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => {
-                    setTender(t);
-                    setIsSavedTendersOpen(false);
-                    toast.success(`Loaded tender ${t.submissionNumber} for ${t.customer1.surname || "Client"}`);
-                  }}
-                  className="p-3.5 rounded-xl border border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-amber-500/60 cursor-pointer transition-all flex items-center justify-between"
-                >
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <strong className="text-xs text-white">
-                        {t.customer1.firstName} {t.customer1.surname}
-                      </strong>
-                      <span className="text-[10px] font-mono text-amber-400 bg-amber-950 px-1.5 py-0.2 rounded border border-amber-800">
-                        {t.submissionNumber}
-                      </span>
+              savedTenders.map((t) => {
+                const isSelected = selectedTenderIds.includes(t.id);
+                return (
+                  <div
+                    key={t.id}
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? "border-amber-500/80 bg-amber-500/10 shadow-sm"
+                        : "border-slate-800 bg-slate-900/60 hover:bg-slate-900 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedTenderIds((prev) =>
+                            prev.includes(t.id) ? prev.filter((id) => id !== t.id) : [...prev, t.id]
+                          );
+                        }}
+                        className="h-4 w-4 rounded accent-amber-400 cursor-pointer flex-none"
+                      />
+                      <div
+                        onClick={() => {
+                          setTender(t);
+                          setIsSavedTendersOpen(false);
+                          toast.success(`Loaded tender ${t.submissionNumber} for ${t.customer1.surname || "Client"}`);
+                        }}
+                        className="cursor-pointer flex-1 min-w-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <strong className="text-xs text-white truncate">
+                            {t.customer1.firstName} {t.customer1.surname}
+                          </strong>
+                          <span className="text-[10px] font-mono text-amber-400 bg-amber-950 px-1.5 py-0.2 rounded border border-amber-800 flex-none">
+                            {t.submissionNumber}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 block mt-0.5 truncate">
+                          {t.homeSpec.homeDesign || "Custom Design"} &bull; Lot {t.land.lotNo || "TBA"}, {t.land.suburb || "QLD"} &bull; {formatAud(t.homeSpec.totalBudgetEstimate)}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[11px] text-slate-400 block mt-0.5">
-                      {t.homeSpec.homeDesign} &bull; Lot {t.land.lotNo}, {t.land.suburb} &bull; {formatAud(t.homeSpec.totalBudgetEstimate)}
-                    </span>
+
+                    <div className="flex items-center gap-2 flex-none">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg"
+                        title="Delete this tender"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm(`Delete tender ${t.submissionNumber} for ${t.customer1.surname || "Client"}?`)) {
+                            await deleteTenderFromIdb(t.id);
+                            const list = await loadAllTendersFromIdb();
+                            setSavedTenders(list);
+                            setSelectedTenderIds((prev) => prev.filter((id) => id !== t.id));
+                            toast.success(`Tender ${t.submissionNumber} deleted`);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setTender(t);
+                          setIsSavedTendersOpen(false);
+                          toast.success(`Loaded tender ${t.submissionNumber} for ${t.customer1.surname || "Client"}`);
+                        }}
+                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1 h-7 px-2.5"
+                      >
+                        Load <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-                  <Button size="sm" className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1">
-                    Load Tender <ArrowRight className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </DialogContent>

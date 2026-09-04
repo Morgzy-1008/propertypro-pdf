@@ -51,6 +51,8 @@ import {
   upsertLocalPackage,
   deleteLocalPackage,
   getLotState,
+  DB_SYNC_CHANNEL_NAME,
+  broadcastDatabaseChange,
 } from "@/lib/databaseStorage";
 
 export const Route = createFileRoute("/_authenticated/database")({
@@ -937,7 +939,7 @@ function DatabasePage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    // Instant load from localStorage cache (auto-seeded if empty)
+    // Instant load from localStorage cache (auto-seeded if uninitialized)
     const localL = getLocalLots();
     const localP = getLocalPackages();
     setLots(localL);
@@ -949,13 +951,17 @@ function DatabasePage() {
         supabase.from("packages").select("*").order("created_at", { ascending: false }),
       ]);
       
-      if (lotRes.data && lotRes.data.length > 0) {
-        setLots(lotRes.data as Lot[]);
-        saveLocalLots(lotRes.data as Lot[]);
+      if (!lotRes.error && Array.isArray(lotRes.data)) {
+        if (lotRes.data.length > 0 || localL.length === 0) {
+          setLots(lotRes.data as Lot[]);
+          saveLocalLots(lotRes.data as Lot[]);
+        }
       }
-      if (pkgRes.data && pkgRes.data.length > 0) {
-        setPackages(pkgRes.data as Pkg[]);
-        saveLocalPackages(pkgRes.data as Pkg[]);
+      if (!pkgRes.error && Array.isArray(pkgRes.data)) {
+        if (pkgRes.data.length > 0 || localP.length === 0) {
+          setPackages(pkgRes.data as Pkg[]);
+          saveLocalPackages(pkgRes.data as Pkg[]);
+        }
       }
       setSelLots([]);
       setSelPkgs([]);
@@ -966,9 +972,67 @@ function DatabasePage() {
     }
   }, []);
 
-
   useEffect(() => {
     void load();
+
+    // 1. Cross-tab live sync via BroadcastChannel
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(DB_SYNC_CHANNEL_NAME);
+      channel.onmessage = () => {
+        setLots(getLocalLots());
+        setPackages(getLocalPackages());
+      };
+    } catch {}
+
+    // 2. Storage & custom event listeners
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "hudson_qld_database_lots_v3" || e.key === "hudson_qld_database_packages_v3") {
+        setLots(getLocalLots());
+        setPackages(getLocalPackages());
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    const handleCustomChange = () => {
+      setLots(getLocalLots());
+      setPackages(getLocalPackages());
+    };
+    window.addEventListener("hudson_database_change", handleCustomChange);
+
+    // 3. Supabase Realtime channel for cross-device cloud sync
+    const realtimeSub = supabase
+      .channel("hudson_database_live_realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "land_lots" },
+        async () => {
+          const { data } = await supabase.from("land_lots").select("*").order("created_at", { ascending: false });
+          if (data) {
+            setLots(data as Lot[]);
+            saveLocalLots(data as Lot[]);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "packages" },
+        async () => {
+          const { data } = await supabase.from("packages").select("*").order("created_at", { ascending: false });
+          if (data) {
+            setPackages(data as Pkg[]);
+            saveLocalPackages(data as Pkg[]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel?.close();
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("hudson_database_change", handleCustomChange);
+      supabase.removeChannel(realtimeSub);
+    };
   }, [load]);
 
   const lotById = useMemo(() => new Map(lots.map((l) => [l.id, l])), [lots]);

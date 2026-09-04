@@ -48,6 +48,21 @@ export interface Pkg {
 
 const STORAGE_KEY_LOTS = "hudson_qld_database_lots_v3";
 const STORAGE_KEY_PACKAGES = "hudson_qld_database_packages_v3";
+const STORAGE_KEY_INITIALIZED = "hudson_qld_database_initialized_v3";
+
+export const DB_SYNC_CHANNEL_NAME = "hudson_qld_database_sync";
+
+export function broadcastDatabaseChange(action: string, payload?: unknown): void {
+  if (typeof window === "undefined") return;
+  try {
+    const channel = new BroadcastChannel(DB_SYNC_CHANNEL_NAME);
+    channel.postMessage({ action, payload, timestamp: Date.now() });
+    channel.close();
+  } catch {}
+  try {
+    window.dispatchEvent(new CustomEvent("hudson_database_change", { detail: { action, payload } }));
+  } catch {}
+}
 
 export function getLotState(lot: { state?: "QLD" | "NSW"; suburb?: string | null; address?: string | null; estate?: string | null }): "QLD" | "NSW" {
   if (lot.state === "NSW" || lot.state === "QLD") return lot.state;
@@ -223,9 +238,10 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
 export function getLocalLots(): Lot[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_LOTS);
-    if (raw) {
+    const isInitialized = localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
         return parsed;
       }
     }
@@ -235,23 +251,29 @@ export function getLocalLots(): Lot[] {
   const seed = generateSeedData();
   saveLocalLots(seed.lots);
   saveLocalPackages(seed.packages);
+  try {
+    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+  } catch {}
   return seed.lots;
 }
 
 export function saveLocalLots(lots: Lot[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(lots));
+    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
     console.warn("[databaseStorage] saveLocalLots write error:", e);
   }
+  broadcastDatabaseChange("lots_updated", { count: lots.length });
 }
 
 export function getLocalPackages(): Pkg[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PACKAGES);
-    if (raw) {
+    const isInitialized = localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
+    if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
         return parsed;
       }
     }
@@ -261,15 +283,20 @@ export function getLocalPackages(): Pkg[] {
   const seed = generateSeedData();
   saveLocalLots(seed.lots);
   saveLocalPackages(seed.packages);
+  try {
+    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+  } catch {}
   return seed.packages;
 }
 
 export function saveLocalPackages(packages: Pkg[]): void {
   try {
     localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(packages));
+    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
     console.warn("[databaseStorage] saveLocalPackages write error:", e);
   }
+  broadcastDatabaseChange("packages_updated", { count: packages.length });
 }
 
 export function upsertLocalLot(lot: Lot): Lot[] {

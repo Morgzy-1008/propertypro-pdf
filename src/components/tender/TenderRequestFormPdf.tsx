@@ -263,20 +263,36 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
                 </div>
               </div>
 
-              {tender.buildType === "Knock-Down, Rebuild" && (
-                <div className="pt-1 border-t border-slate-200 grid grid-cols-3 gap-3">
+              {(tender.buildType.includes("KDRB") || tender.buildType.includes("Knock-Down")) && (
+                <div className="pt-2 border-t border-slate-200 grid grid-cols-3 gap-3 bg-amber-50/50 p-2 rounded-lg text-xs">
                   <div>
-                    <span className="text-[9px] text-slate-500 block">KDR Occupancy:</span>
-                    <strong className="text-slate-900">{land.ifKdrOccupancy || "Owner Occupied"}</strong>
+                    <span className="text-[9px] uppercase font-bold text-slate-500 block">KDR Occupancy:</span>
+                    <strong className="text-slate-900">
+                      {land.ifKdrOccupancy === "Owner Occupied" ? "Occupied by Owner" : (land.ifKdrOccupancy || "Vacant")}
+                    </strong>
                   </div>
-                  <div>
-                    <span className="text-[9px] text-slate-500 block">Access Contact:</span>
-                    <strong className="text-slate-900">{land.kdrAccessName || "—"}</strong>
-                  </div>
-                  <div>
-                    <span className="text-[9px] text-slate-500 block">Access Phone:</span>
-                    <span className="font-mono text-slate-900">{land.kdrAccessPhone || "—"}</span>
-                  </div>
+                  {land.ifKdrOccupancy === "Tenanted" ? (
+                    <>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-500 block">
+                          Contact ({land.kdrTenantDetails?.contactRole || "Tenant"}):
+                        </span>
+                        <strong className="text-slate-900 truncate block">
+                          {land.kdrTenantDetails?.name || "—"}
+                          {land.kdrTenantDetails?.agencyName ? ` (${land.kdrTenantDetails.agencyName})` : ""}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-500 block">Contact Phone:</span>
+                        <span className="font-mono text-slate-900 block">{land.kdrTenantDetails?.phone || "—"}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="col-span-2">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 block">Site / Access Notes:</span>
+                      <span className="text-slate-700 truncate block">{land.comments || "Preliminary site assessment ready"}</span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

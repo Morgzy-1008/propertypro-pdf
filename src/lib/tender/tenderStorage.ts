@@ -319,6 +319,30 @@ export async function deleteTenderFromIdb(id: string): Promise<void> {
   }
 }
 
+export async function deleteMultipleTendersFromIdb(ids: string[]): Promise<void> {
+  if (!ids || ids.length === 0) return;
+  try {
+    const db = await openTenderDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_TENDER_STORE, "readwrite");
+      const store = tx.objectStore(IDB_TENDER_STORE);
+      for (const id of ids) {
+        store.delete(id);
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    for (const id of ids) {
+      localStorage.removeItem(`hudson_tender_${id}`);
+    }
+  } catch {}
+}
+
 export function generateTenderNumber(): string {
   const year = new Date().getFullYear();
   const rand = Math.floor(1000 + Math.random() * 9000);
@@ -404,7 +428,15 @@ export function createBlankTenderSubmission(): TenderSubmission {
       isRegistered: false,
       registeredDate: "",
       landStatus: "Exchanged",
-      ifKdrOccupancy: "Owner Occupied",
+      ifKdrOccupancy: "Vacant",
+      kdrTenantDetails: {
+        contactRole: "Tenant",
+        agencyName: "",
+        name: "",
+        phone: "",
+        email: "",
+        accessNotes: "",
+      },
       comments: "",
     },
 

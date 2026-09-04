@@ -356,19 +356,61 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
               </div>
 
               {buildType.includes("KDRB") && (
-                <div className="pt-1.5 border-t border-slate-200 grid grid-cols-3 gap-2 text-[11px] bg-amber-50/50 p-2 rounded-lg">
-                  <div>
-                    <span className="text-[9px] text-slate-500 block uppercase font-bold">KDRB Occupancy:</span>
-                    <strong>{land.ifKdrOccupancy || "Owner Occupied"}</strong>
+                <div className="pt-2 border-t border-slate-200 bg-amber-50/70 border border-amber-200/90 rounded-lg p-2.5 mt-1 space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-amber-900 tracking-wide flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-600 inline-block"></span>
+                      KDRB Property Status &amp; Site Access
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-200 text-amber-950 uppercase border border-amber-300">
+                      Status: {land.ifKdrOccupancy === "Owner Occupied" ? "Occupied by Owner" : (land.ifKdrOccupancy || "Vacant")}
+                    </span>
                   </div>
-                  {land.ifKdrOccupancy === "Tenanted" && (
-                    <div className="col-span-2">
-                      <span className="text-[9px] text-slate-500 block uppercase font-bold">Tenant Contact:</span>
-                      <span>
-                        {land.kdrTenantDetails?.name || "Tenant"} &bull; {land.kdrTenantDetails?.phone} &bull; {land.kdrTenantDetails?.accessNotes}
-                      </span>
+
+                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-amber-200/60 text-[11px]">
+                    <div>
+                      <span className="text-[9px] uppercase text-slate-500 block font-semibold">Dwelling Status:</span>
+                      <strong className="text-slate-900">
+                        {land.ifKdrOccupancy === "Owner Occupied"
+                          ? "Occupied by Owner"
+                          : land.ifKdrOccupancy === "Tenanted"
+                          ? "Tenanted Property"
+                          : "Vacant / Unoccupied"}
+                      </strong>
                     </div>
-                  )}
+
+                    {land.ifKdrOccupancy === "Tenanted" ? (
+                      <>
+                        <div>
+                          <span className="text-[9px] uppercase text-slate-500 block font-semibold">
+                            Access Contact ({land.kdrTenantDetails?.contactRole === "Property Manager" ? "Property Manager" : "Tenant"}):
+                          </span>
+                          <strong className="text-slate-900 block truncate">
+                            {land.kdrTenantDetails?.name || "—"}
+                            {land.kdrTenantDetails?.agencyName ? ` (${land.kdrTenantDetails.agencyName})` : ""}
+                          </strong>
+                          <span className="text-[9.5px] text-slate-600 font-mono block truncate">
+                            {land.kdrTenantDetails?.phone || "No phone"} {land.kdrTenantDetails?.email ? `· ${land.kdrTenantDetails.email}` : ""}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[9px] uppercase text-slate-500 block font-semibold">
+                            {land.kdrTenantDetails?.contactRole === "Property Manager" ? "Entry Notice / Keys:" : "Access / Inspection:"}
+                          </span>
+                          <span className="text-slate-700 text-[10px] leading-tight block truncate">
+                            {land.kdrTenantDetails?.accessNotes || land.comments || "Standard inspection notice required"}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="col-span-2">
+                        <span className="text-[9px] uppercase text-slate-500 block font-semibold">Demolition / Access Notes:</span>
+                        <span className="text-slate-700 text-[10.5px] leading-tight block truncate">
+                          {land.comments || "Ready for preliminary site inspection & soil test."}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

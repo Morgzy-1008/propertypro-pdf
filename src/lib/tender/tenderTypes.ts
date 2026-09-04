@@ -7,6 +7,7 @@ export type BuildType =
 export type PurchaserType = "Owner Occupier" | "Property Investor" | "First-Home Buyer" | "Repeat Purchaser";
 export type LandStatus = "Exclusive" | "Expression of Interest" | "Deposited" | "Exchanged" | "Settled";
 export type KdrOccupancy = "Owner Occupied" | "Vacant" | "Tenanted";
+export type KdrContactRole = "Tenant" | "Property Manager";
 export type GarageLocation = "LHS" | "RHS" | "Detached" | "Zero Lot";
 export type TenderInclusionType = "Standard" | "H1 Smart" | "H2 Designer" | "H3 Luxury" | "LP Landscape" | "IP Investment" | "FHB First Home Buyer";
 
@@ -166,6 +167,8 @@ export interface TenderSubmission {
     kdrAccessName?: string;
     kdrAccessPhone?: string;
     kdrTenantDetails?: {
+      contactRole?: KdrContactRole;
+      agencyName?: string;
       name: string;
       phone: string;
       email: string;
