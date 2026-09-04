@@ -1342,45 +1342,57 @@ export async function renderHdFinalFloorplanDataUrl(
 }
 
 /**
- * Helper to convert an image URL or source into a base64 Data URL
+ * Helper to convert an image URL or source into a base64 Data URL with natural dimensions
  */
-async function loadImgToDataUrl(url: string): Promise<string> {
-  if (!url) return "";
-  if (url.startsWith("data:image")) return url;
-  if (typeof document === "undefined") return "";
+export async function loadImgWithDimensions(
+  url: string
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  if (!url) return { dataUrl: "", width: 0, height: 0 };
+  if (typeof document === "undefined") return { dataUrl: "", width: 0, height: 0 };
 
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
       try {
+        const width = img.naturalWidth || img.width || 1200;
+        const height = img.naturalHeight || img.height || 800;
         const canvas = document.createElement("canvas");
-        canvas.width = img.naturalWidth || img.width || 1200;
-        canvas.height = img.naturalHeight || img.height || 800;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/jpeg", 0.9));
+          resolve({
+            dataUrl: canvas.toDataURL("image/jpeg", 0.9),
+            width,
+            height,
+          });
           return;
         }
       } catch (e) {
         console.warn("Could not convert image to dataUrl:", e);
       }
-      resolve("");
+      resolve({ dataUrl: "", width: 0, height: 0 });
     };
-    img.onerror = () => resolve("");
+    img.onerror = () => resolve({ dataUrl: "", width: 0, height: 0 });
     img.src = url;
   });
 }
 
+async function loadImgToDataUrl(url: string): Promise<string> {
+  const res = await loadImgWithDimensions(url);
+  return res.dataUrl;
+}
+
 /**
- * Helper to render floorplan with numbered pins onto a canvas and return an image data URL
+ * Helper to render floorplan with numbered pins onto a canvas and return an image data URL with dimensions
  */
-async function renderFloorplanWithPinsImageDataUrl(
+async function renderFloorplanWithPinsResult(
   floorplanUrl: string,
   pins: TenderFloorplanPin[]
-): Promise<string> {
-  if (typeof document === "undefined" || !floorplanUrl) return "";
+): Promise<{ dataUrl: string; width: number; height: number }> {
+  if (typeof document === "undefined" || !floorplanUrl) return { dataUrl: "", width: 0, height: 0 };
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -1394,7 +1406,7 @@ async function renderFloorplanWithPinsImageDataUrl(
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve("");
+          resolve({ dataUrl: "", width: 0, height: 0 });
           return;
         }
 
@@ -1428,22 +1440,34 @@ async function renderFloorplanWithPinsImageDataUrl(
           ctx.fillText(String(pin.number), pinX, pinY + 1);
         });
 
-        resolve(canvas.toDataURL("image/jpeg", 0.92));
+        resolve({
+          dataUrl: canvas.toDataURL("image/jpeg", 0.92),
+          width,
+          height,
+        });
       } catch (err) {
         console.warn("Could not render floorplan with pins:", err);
-        resolve("");
+        resolve({ dataUrl: "", width: 0, height: 0 });
       }
     };
-    img.onerror = () => resolve("");
+    img.onerror = () => resolve({ dataUrl: "", width: 0, height: 0 });
     img.src = floorplanUrl;
   });
 }
 
+async function renderFloorplanWithPinsImageDataUrl(
+  floorplanUrl: string,
+  pins: TenderFloorplanPin[]
+): Promise<string> {
+  const res = await renderFloorplanWithPinsResult(floorplanUrl, pins);
+  return res.dataUrl;
+}
+
 /**
  * Generates an official multi-page A4 landscape working drawing directive package for draftsmen.
- * Page 1: Siting & Boundary Setbacks, Engineering Directives & Fillable Drafting Notes (with AcroForms)
- * Page 2: Original Catalog Floorplan
- * Page 3: Modified Construction Floorplan with Numbered Pins
+ * Page 1: Siting & Boundary Setbacks, Inclusions Tier & Drawing Directives Overview
+ * Page 2: Original Catalog Architectural Floorplan (centered & aspect-preserved)
+ * Page 3: Modified Construction Floorplan with Numbered Pins (centered & aspect-preserved)
  * Page 4+: Itemised Numbered Variations Schedule with Form-fillable AcroForm Checkboxes & Text Fields
  * 100% genuine interactive PDF format for Bluebeam / Adobe Acrobat.
  */
@@ -1471,26 +1495,27 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
   }
 
   const totalPages = 3 + varChunks.length;
+  const inclusionTier = submission.homeSpec.inclusionsType || "H2 Designer";
 
   const drawHeader = (title: string, subtitle: string, pageNum: number) => {
     doc.setFillColor(15, 23, 42); // #0f172a
     doc.rect(0, 0, pageW, 46, "F");
 
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13);
+    doc.setFontSize(12.5);
     doc.setFont("helvetica", "bold");
-    doc.text(title, 28, 22);
+    doc.text(title, 28, 21);
 
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(56, 189, 248); // sky-400
-    doc.text(subtitle, 28, 36);
+    doc.text(subtitle, 28, 35);
 
     doc.setFontSize(8.5);
     doc.setTextColor(245, 158, 11); // amber-500
-    doc.text(`Job Ref: ${submission.submissionNumber} · Page ${pageNum} of ${totalPages}`, pageW - 28, 22, { align: "right" });
+    doc.text(`Job Ref: ${submission.submissionNumber} · Page ${pageNum} of ${totalPages}`, pageW - 28, 21, { align: "right" });
     doc.setTextColor(148, 163, 184);
-    doc.text(`${submission.customer1.surname || "Client"} Residence`, pageW - 28, 36, { align: "right" });
+    doc.text(`${submission.customer1.surname || "Client"} Residence`, pageW - 28, 35, { align: "right" });
   };
 
   const drawFooter = (pageNum: number) => {
@@ -1515,83 +1540,125 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
   };
 
   // =========================================================================
-  // PAGE 1: SITING DIRECTIVES, SETBACKS & FILLABLE DRAFTING CHECKLIST
+  // PAGE 1: SITING DIRECTIVES, SETBACKS & INCLUSION TIER (POINTS 2, 3, 4 REMOVED)
   // =========================================================================
   drawHeader(
     "HUDSON HOMES — DRAFTSMEN WORKING DRAWINGS & SITING DIRECTIVES",
-    "Prepared for Bernie & OnSite Drafting Team · Siting Clearances, Setback Specifications & Draftsman Review",
+    `Prepared for Bernie & OnSite Drafting Team · Inclusions: ${inclusionTier} · Siting Clearances & Directives`,
     1
   );
 
-  // Project Info Metadata Strip
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(203, 213, 225);
-  doc.rect(28, 54, pageW - 56, 44, "FD");
+  // Project Info Metadata Strip — 5 Dedicated Columns including INCLUSION TYPE
+  const stripY = 54;
+  const stripH = 46;
+  const gap = 8;
+  const totalStripW = pageW - 56;
+  const colW = (totalStripW - 4 * gap) / 5; // ~150.78 pt each
 
-  const colW = (pageW - 56) / 4;
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("PURCHASER / CLIENT", 36, 67);
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${submission.customer1.firstName} ${submission.customer1.surname}`, 36, 80);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Ph: ${submission.customer1.mobile || "N/A"}`, 36, 91);
+  const drawMetaCard = (
+    x: number,
+    title: string,
+    val1: string,
+    val2: string,
+    isSpecial = false
+  ) => {
+    if (isSpecial) {
+      doc.setFillColor(240, 249, 255); // sky-50
+      doc.setDrawColor(56, 189, 248); // sky-400
+    } else {
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.setDrawColor(203, 213, 225); // slate-300
+    }
+    doc.roundedRect(x, stripY, colW, stripH, 3, 3, "FD");
 
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("BUILDING SITE LOCATION", 36 + colW, 67);
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`Lot ${submission.land.lotNo || "TBA"}, ${submission.land.suburb || "QLD"}`, 36 + colW, 80);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(100, 116, 139);
-  doc.text(`${submission.land.streetName || "Street TBA"} (${submission.land.council || "Council"})`, 36 + colW, 91);
+    doc.setFontSize(6.8);
+    doc.setFont("helvetica", "bold");
+    if (isSpecial) {
+      doc.setTextColor(3, 105, 161); // sky-700
+    } else {
+      doc.setTextColor(71, 85, 105);
+    }
+    doc.text(title, x + 8, stripY + 12);
 
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("HOME DESIGN & FACADE", 36 + colW * 2, 67);
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`, 36 + colW * 2, 80);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(3, 105, 161);
-  doc.text(`Tier: ${submission.homeSpec.inclusionsType} · Garage: ${submission.homeSpec.garageLocation || "RHS"}`, 36 + colW * 2, 91);
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "bold");
+    if (isSpecial) {
+      doc.setTextColor(2, 132, 199); // sky-600
+    } else {
+      doc.setTextColor(15, 23, 42);
+    }
+    const val1Clean = doc.splitTextToSize(val1, colW - 16)[0] || "";
+    doc.text(val1Clean, x + 8, stripY + 26);
 
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(71, 85, 105);
-  doc.text("CONSULTANT & TARGET", 36 + colW * 3, 67);
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`${submission.newHomeConsultant || "Morgan Hales"}`, 36 + colW * 3, 80);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(5, 150, 105);
-  doc.text("Target: Bernie & OnSite Drafting", 36 + colW * 3, 91);
+    doc.setFontSize(7.2);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    const val2Clean = doc.splitTextToSize(val2, colW - 16)[0] || "";
+    doc.text(val2Clean, x + 8, stripY + 38);
+  };
 
-  // Left Column (w = 380): Siting, Setbacks & Engineering Directives
+  // Card 1: Purchaser / Client
+  drawMetaCard(
+    28,
+    "PURCHASER / CLIENT",
+    `${submission.customer1.firstName} ${submission.customer1.surname}`,
+    `Ph: ${submission.customer1.mobile || "N/A"}`
+  );
+
+  // Card 2: Building Site Location
+  drawMetaCard(
+    28 + (colW + gap) * 1,
+    "BUILDING SITE LOCATION",
+    `Lot ${submission.land.lotNo || "TBA"}, ${submission.land.estate || submission.land.suburb || "QLD"}`,
+    `${submission.land.streetName || "Street TBA"}`
+  );
+
+  // Card 3: Home Design & Facade
+  drawMetaCard(
+    28 + (colW + gap) * 2,
+    "HOME DESIGN & FACADE",
+    `${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`,
+    `Garage: ${submission.homeSpec.garageLocation || "RHS"} · ${(submission.homeSpec.standardDesignM2 || submission.homeSpec.designM2 || 195.4).toFixed(1)} m²`
+  );
+
+  // Card 4: INCLUSION TYPE (PROMINENT ACCENT CARD)
+  drawMetaCard(
+    28 + (colW + gap) * 3,
+    "INCLUSION TYPE",
+    inclusionTier,
+    "Specification Range Tier",
+    true
+  );
+
+  // Card 5: Consultant & Target
+  drawMetaCard(
+    28 + (colW + gap) * 4,
+    "CONSULTANT & TARGET",
+    `${submission.newHomeConsultant || "Morgan Hales"}`,
+    "Target: Bernie & OnSite Drafting"
+  );
+
+  // Main Body of Page 1: Balanced Two-Column Architectural Directive (Points 2, 3, 4 completely removed)
+  const bodyY = 108;
+  const bodyH = 435;
+  const colGap = 16;
+  const bodyColW = (pageW - 56 - colGap) / 2; // ~384.94 pt each
   const leftX = 28;
-  const leftW = 380;
+  const rightX = leftX + bodyColW + colGap;
 
-  // Panel 1: Siting & Setback Verification
-  doc.setFillColor(30, 41, 59);
-  doc.rect(leftX, 106, leftW, 20, "F");
+  // ---------------------------------------------------------------------------
+  // LEFT COLUMN: 1. SITING & BOUNDARY CLEARANCES (SETBACK VERIFICATION)
+  // ---------------------------------------------------------------------------
+  doc.setFillColor(15, 23, 42);
+  doc.rect(leftX, bodyY, bodyColW, 24, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
-  doc.text("1. SITING & BOUNDARY CLEARANCES (SETBACK VERIFICATION)", leftX + 8, 120);
+  doc.text("1. SITING & BOUNDARY CLEARANCES (SETBACK VERIFICATION)", leftX + 10, bodyY + 16);
 
   doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.rect(leftX, 126, leftW, 110, "FD");
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(leftX, bodyY + 24, bodyColW, bodyH - 24, "FD");
 
   const sb = submission.homeSpec.setbacks || {
     frontBoundary: "6.0m",
@@ -1600,179 +1667,183 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
     rightBoundary: "1.0m",
   };
 
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(51, 65, 85);
-  doc.text(`• Front Boundary Setback: ${sb.frontBoundary} (Min required per Council code)`, leftX + 10, 142);
-  doc.text(`• Rear Boundary Setback:  ${sb.rearBoundary} (Min required to eaves/structure)`, leftX + 10, 158);
-  doc.text(`• Left Boundary Setback:  ${sb.leftBoundary} · Right Setback: ${sb.rightBoundary}`, leftX + 10, 174);
-  doc.text(`• Garage Orientation:    ${submission.homeSpec.garageLocation || "RHS"} (Verify driveway crossover)`, leftX + 10, 190);
-  doc.text(`• Building Code Standard: NCC 2022 Livable Housing compliance (stepless threshold)`, leftX + 10, 206);
-  doc.text(`• Land Registration:     ${submission.land.registeredDate?.trim() ? `Unregistered (Expected: ${submission.land.registeredDate})` : "Already Registered"}`, leftX + 10, 222);
-
-  // Siting Approval AcroForm Checkboxes
+  let ly = bodyY + 44;
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("Siting Review Check:", leftX + 10, 248);
+  doc.text("COUNCIL PLANNING & BOUNDARY SETBACK CONTROLS", leftX + 12, ly);
 
-  const cbSitingApp = new AcroFormCheckBox();
-  cbSitingApp.Rect = [leftX + 115, 238, 12, 12];
-  cbSitingApp.fieldName = "siting_approved";
-  doc.addField(cbSitingApp);
-  doc.setFont("helvetica", "normal");
-  doc.text("Siting Approved", leftX + 132, 248);
-
-  const cbSitingRfi = new AcroFormCheckBox();
-  cbSitingRfi.Rect = [leftX + 220, 238, 12, 12];
-  cbSitingRfi.fieldName = "siting_rfi";
-  doc.addField(cbSitingRfi);
-  doc.text("RFI / Variance Required", leftX + 237, 248);
-
-  // Panel 2: Key Engineering & Architectural Directives
-  doc.setFillColor(30, 41, 59);
-  doc.rect(leftX, 262, leftW, 20, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("2. ENGINEERING DIRECTIVES & SLAB NOTES", leftX + 8, 276);
-
-  doc.setFillColor(248, 250, 252);
-  doc.setDrawColor(226, 232, 240);
-  doc.rect(leftX, 282, leftW, 110, "FD");
-
-  doc.setFontSize(7.5);
+  ly += 16;
   doc.setFont("helvetica", "normal");
   doc.setTextColor(51, 65, 85);
-  doc.text(`[✓] Slab Classification: Engineered Waffle Pod Slab / Piering Allowance`, leftX + 10, 298);
-  doc.text(`[✓] Ceiling Height: ${submission.homeSpec.inclusionsType.includes("H3") ? "2,740mm High Ground Floor" : "2,440mm - 2,590mm Standard"}`, leftX + 10, 314);
-  doc.text(`[✓] Facade Architectural Detail: ${submission.homeSpec.facade} (Verify window heads & eaves)`, leftX + 10, 330);
-  doc.text(`[✓] Alfresco / Porch Slab: Step down 100mm with smooth concrete transition`, leftX + 10, 346);
-  doc.text(`[✓] Wet Area Recesses: Provide 45mm step-down for walk-in shower recesses`, leftX + 10, 362);
-  doc.text(`[✓] Termite Management: Visual barrier system in accordance with AS 3660.1`, leftX + 10, 378);
+  doc.text(`• Front Boundary Setback:  ${sb.frontBoundary} (Min required per Council code)`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Rear Boundary Setback:   ${sb.rearBoundary} (Min clearance to eaves & outdoor living)`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Left Boundary Setback:   ${sb.leftBoundary} · Right Boundary Setback: ${sb.rightBoundary}`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Garage Orientation:     ${submission.homeSpec.garageLocation || "RHS"} (Verify driveway crossover alignment)`, leftX + 14, ly);
 
-  // Summary of Variations count
-  doc.setFillColor(254, 243, 199);
-  doc.setDrawColor(251, 191, 36);
-  doc.rect(leftX, 400, leftW, 40, "FD");
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(146, 64, 14);
-  doc.text(`Active Variations Pinned: ${variations.length} Items Total`, leftX + 10, 416);
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "normal");
-  doc.text(`• Structural Modifications: ${variations.filter(v => v.isStructural).length} items (See Page 3 & 4)`, leftX + 10, 428);
-  doc.text(`• Inclusions & Selections: ${variations.filter(v => !v.isStructural).length} items`, leftX + 10, 437);
-
-  // Right Column (w = 380, x = 432): Form-fillable Draftsman Notes & Sign-off
-  const rightX = 432;
-  const rightW = pageW - rightX - 28;
-
-  doc.setFillColor(15, 23, 42);
-  doc.rect(rightX, 106, rightW, 20, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("3. DRAFTSMAN WORKING NOTES & SPECIAL INSTRUCTIONS", rightX + 8, 120);
-
-  doc.setFillColor(255, 251, 235);
-  doc.setDrawColor(253, 230, 138);
-  doc.rect(rightX, 126, rightW, 175, "FD");
-
-  doc.setFontSize(7.5);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(146, 64, 14);
-  doc.text("Draftsman Siting Assessment & Setback Verification Notes (Interactive Fillable):", rightX + 8, 138);
-
-  // Form-fillable multiline text field for draftsman notes
-  const tfDraftNotes = new AcroFormTextField();
-  tfDraftNotes.Rect = [rightX + 8, 144, rightW - 16, 70];
-  tfDraftNotes.multiline = true;
-  tfDraftNotes.fieldName = "draftsman_general_notes";
-  tfDraftNotes.value = submission.draftsmanGeneralNotes || "";
-  doc.addField(tfDraftNotes);
-
-  doc.text("Structural & Slab Clarification Queries (Fillable):", rightX + 8, 226);
-  const tfStructNotes = new AcroFormTextField();
-  tfStructNotes.Rect = [rightX + 8, 232, rightW - 16, 60];
-  tfStructNotes.multiline = true;
-  tfStructNotes.fieldName = "draftsman_structural_queries";
-  doc.addField(tfStructNotes);
-
-  // Handoff & Sign-off Card
-  doc.setFillColor(15, 23, 42);
-  doc.rect(rightX, 310, rightW, 20, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "bold");
-  doc.text("4. DRAFTING TEAM VERIFICATION & SIGN-OFF", rightX + 8, 324);
-
-  doc.setFillColor(248, 250, 252);
+  // Subtle separator line
+  ly += 16;
   doc.setDrawColor(226, 232, 240);
-  doc.rect(rightX, 330, rightW, 110, "FD");
+  doc.line(leftX + 12, ly, leftX + bodyColW - 12, ly);
+
+  ly += 20;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("SITE ATTRIBUTES & CODE COMPLIANCE SPECIFICATIONS", leftX + 12, ly);
+
+  ly += 16;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`• Planning Authority:     ${submission.land.council || "Logan City Council"}`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Building Site Location:  Lot ${submission.land.lotNo || "TBA"}, ${submission.land.streetName || "Street TBA"}`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Land Registration:      ${submission.land.registeredDate?.trim() ? `Unregistered (Expected: ${submission.land.registeredDate})` : "Already Registered"}`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Building Code Standard:  NCC 2022 Livable Housing Standard (Stepless threshold)`, leftX + 14, ly);
+  ly += 18;
+  doc.text(`• Foundation / Piering:    Engineered Waffle Pod Slab / Piering Allowance`, leftX + 14, ly);
+
+  // Siting Approval Section (Vector styled checkboxes + AcroForm overlay)
+  ly += 26;
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(leftX + 12, ly, bodyColW - 24, 75, 4, 4, "FD");
 
   doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("SITING REVIEW & DRAFTING VERIFICATION CHECK", leftX + 22, ly + 18);
+
+  // Checkbox 1: Siting Approved
+  const cb1Y = ly + 28;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(leftX + 22, cb1Y, 14, 14, 2, 2, "FD");
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(71, 85, 105);
-  doc.text("Lead Draftsman:", rightX + 10, 350);
-  const tfDrafterName = new AcroFormTextField();
-  tfDrafterName.Rect = [rightX + 90, 338, rightW - 100, 18];
-  tfDrafterName.fieldName = "lead_draftsman_name";
-  doc.addField(tfDrafterName);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Siting Approved (Complies with Council setbacks & code)", leftX + 44, cb1Y + 11);
 
-  doc.text("Date Completed:", rightX + 10, 376);
-  const tfDrafterDate = new AcroFormTextField();
-  tfDrafterDate.Rect = [rightX + 90, 364, 130, 18];
-  tfDrafterDate.fieldName = "drafting_date_completed";
-  tfDrafterDate.value = submission.draftsmanReviewedAt || new Date().toLocaleDateString("en-AU");
-  doc.addField(tfDrafterDate);
+  // Checkbox 2: RFI / Setback Variance
+  const cb2Y = ly + 48;
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(203, 213, 225);
+  doc.roundedRect(leftX + 22, cb2Y, 14, 14, 2, 2, "FD");
+  doc.setTextColor(15, 23, 42);
+  doc.text("RFI / Boundary Setback Relaxation / Variance Required", leftX + 44, cb2Y + 11);
 
-  doc.text("Drawing Rev:", rightX + 230, 376);
-  const tfDrafterRev = new AcroFormTextField();
-  tfDrafterRev.Rect = [rightX + 295, 364, rightW - 305, 18];
-  tfDrafterRev.fieldName = "drawing_revision";
-  tfDrafterRev.value = "Rev A (Tender)";
-  doc.addField(tfDrafterRev);
+  // ---------------------------------------------------------------------------
+  // RIGHT COLUMN: PROJECT SPECIFICATIONS & WORKING DRAWINGS SCHEDULE
+  // ---------------------------------------------------------------------------
+  doc.setFillColor(15, 23, 42);
+  doc.rect(rightX, bodyY, bodyColW, 24, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("PROJECT SPECIFICATIONS & WORKING DRAWINGS SCHEDULE", rightX + 10, bodyY + 16);
 
-  doc.text("Workflow Mgr:", rightX + 10, 402);
-  const tfMgrName = new AcroFormTextField();
-  tfMgrName.Rect = [rightX + 90, 390, rightW - 100, 18];
-  tfMgrName.fieldName = "workflow_manager_signoff";
-  tfMgrName.value = "Bernie (Workflow Manager)";
-  doc.addField(tfMgrName);
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(rightX, bodyY + 24, bodyColW, bodyH - 24, "FD");
 
-  doc.text("Review Status:", rightX + 10, 428);
-  const tfStatus = new AcroFormTextField();
-  tfStatus.Rect = [rightX + 90, 416, rightW - 100, 18];
-  tfStatus.fieldName = "overall_drafting_status";
-  tfStatus.value = submission.draftsmanReviewStatus === "approved" ? "Approved" : submission.draftsmanReviewStatus === "rfi_raised" ? "RFI Raised" : "Pending Review";
-  doc.addField(tfStatus);
+  let ry = bodyY + 44;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("ARCHITECTURAL SPECIFICATIONS & INCLUSIONS TIER", rightX + 12, ry);
+
+  ry += 16;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`• Inclusions Range:        ${inclusionTier} (Hudson Homes Specifications)`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Ceiling Height Standard: ${inclusionTier.includes("H3") ? "2,740mm (9'0\") Ground Floor High Ceilings" : "2,590mm (8'6\") Standard Ceilings"}`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Architectural Facade:    ${submission.homeSpec.facade} (Verify window heads & eaves detail)`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Total House Area:        ${(submission.homeSpec.standardDesignM2 || submission.homeSpec.designM2 || 195.4).toFixed(1)} m² Standard Catalog Footprint`, rightX + 14, ry);
+
+  // Highlighted Active Variations Summary Card
+  ry += 24;
+  doc.setFillColor(254, 243, 199); // amber-100
+  doc.setDrawColor(251, 191, 36); // amber-400
+  doc.roundedRect(rightX + 12, ry, bodyColW - 24, 75, 4, 4, "FD");
+
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(146, 64, 14);
+  doc.text(`ACTIVE VARIATIONS PINNED: ${variations.length} ITEMS TOTAL`, rightX + 22, ry + 20);
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(`• Structural Modifications: ${variations.filter(v => v.isStructural).length} items (Refer to Construction Floorplan on Page 3)`, rightX + 22, ry + 36);
+  doc.text(`• Inclusions & Selections:   ${variations.filter(v => !v.isStructural).length} items (Refer to Itemised Schedule on Pages 4+)`, rightX + 22, ry + 50);
+  doc.text(`• Floorplan Physical Pins:   ${(submission.homeSpec.floorplanPins || []).length} numbered pins placed`, rightX + 22, ry + 64);
+
+  // Drawing Package Index for Bernie & Drafting Team
+  ry += 95;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("WORKING DRAWINGS PACKAGE DIRECTORY", rightX + 12, ry);
+
+  ry += 16;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`• Page 1: Siting Clearances, Setback Specifications & Inclusions Tier`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Page 2: Original Architectural Catalog Reference Floorplan`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Page 3: Final Architectural Floorplan Markup with Numbered Variation Pins`, rightX + 14, ry);
+  ry += 18;
+  doc.text(`• Pages 4+: Itemised Numbered Variations Schedule & Draftsman Review`, rightX + 14, ry);
+
+  ry += 24;
+  doc.setFontSize(7.2);
+  doc.setFont("helvetica", "italic");
+  doc.setTextColor(100, 116, 139);
+  doc.text("Directives prepared for Bernie and OnSite drafting team. Cross-reference marked pins.", rightX + 14, ry);
 
   drawFooter(1);
 
   // =========================================================================
-  // PAGE 2: ORIGINAL CATALOG ARCHITECTURAL FLOORPLAN
+  // PAGE 2: ORIGINAL CATALOG ARCHITECTURAL FLOORPLAN (ASPECT-PRESERVED & CENTERED)
   // =========================================================================
   doc.addPage("a4", "landscape");
   drawHeader(
     `ORIGINAL ARCHITECTURAL CATALOG FLOORPLAN — ${submission.homeSpec.homeDesign || "Standard Design"}`,
-    `Standard Catalog Reference Drawing · Facade: ${submission.homeSpec.facade || "Classic"} · Area: ${(submission.homeSpec.standardDesignM2 || submission.homeSpec.designM2 || 195.4).toFixed(1)} m²`,
+    `Standard Catalog Reference Drawing · Facade: ${submission.homeSpec.facade || "Classic"} · Inclusions: ${inclusionTier} · Area: ${(submission.homeSpec.standardDesignM2 || submission.homeSpec.designM2 || 195.4).toFixed(1)} m²`,
     2
   );
 
   const origFloorplanUrl = submission.homeSpec.originalFloorplanUrl || submission.homeSpec.floorplanUrl || "";
-  let origDataUrl = "";
+  let origPlan = { dataUrl: "", width: 0, height: 0 };
   if (origFloorplanUrl) {
     try {
-      origDataUrl = await loadImgToDataUrl(origFloorplanUrl);
+      origPlan = await loadImgWithDimensions(origFloorplanUrl);
     } catch (e) {
       console.warn("Could not load original floorplan data url:", e);
     }
   }
 
-  if (origDataUrl) {
+  const maxCanvasW = pageW - 56;
+  const maxCanvasH = pageH - 95;
+
+  if (origPlan.dataUrl) {
     try {
-      doc.addImage(origDataUrl, "JPEG", 28, 54, pageW - 56, pageH - 85, undefined, "FAST");
+      const aspect = (origPlan.width && origPlan.height) ? origPlan.width / origPlan.height : 1.4;
+      let drawW = maxCanvasW;
+      let drawH = maxCanvasW / aspect;
+      if (drawH > maxCanvasH) {
+        drawH = maxCanvasH;
+        drawW = maxCanvasH * aspect;
+      }
+      const drawX = 28 + (maxCanvasW - drawW) / 2;
+      const drawY = 54 + (maxCanvasH - drawH) / 2;
+      doc.addImage(origPlan.dataUrl, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
     } catch (err) {
       console.warn("Error drawing original floorplan into pdf:", err);
     }
@@ -1780,7 +1851,7 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
     // Placeholder Box
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(203, 213, 225);
-    doc.rect(28, 54, pageW - 56, pageH - 85, "FD");
+    doc.rect(28, 54, maxCanvasW, maxCanvasH, "FD");
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
@@ -1794,20 +1865,20 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
   drawFooter(2);
 
   // =========================================================================
-  // PAGE 3: MODIFIED CONSTRUCTION FLOORPLAN WITH NUMBERED PINS
+  // PAGE 3: MODIFIED CONSTRUCTION FLOORPLAN WITH NUMBERED PINS (CENTERED)
   // =========================================================================
   doc.addPage("a4", "landscape");
   const pinCount = (submission.homeSpec.floorplanPins || []).length;
   drawHeader(
     `FINAL ARCHITECTURAL FLOORPLAN MARKUP WITH NUMBERED VARIATION PINS`,
-    `Construction Markups & Numbered Pin Schedule (${pinCount} Pinned Locations) · Job Ref: ${submission.submissionNumber}`,
+    `Construction Markups & Numbered Pin Schedule (${pinCount} Pinned Locations) · Inclusions: ${inclusionTier} · Job Ref: ${submission.submissionNumber}`,
     3
   );
 
-  let markupDataUrl = "";
+  let markupPlan = { dataUrl: "", width: 0, height: 0 };
   if (submission.homeSpec.floorplanUrl) {
     try {
-      markupDataUrl = await renderFloorplanWithPinsImageDataUrl(
+      markupPlan = await renderFloorplanWithPinsResult(
         submission.homeSpec.floorplanUrl,
         submission.homeSpec.floorplanPins || []
       );
@@ -1816,9 +1887,19 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
     }
   }
 
-  if (markupDataUrl) {
+  const maxMarkupH = pageH - 125;
+  if (markupPlan.dataUrl) {
     try {
-      doc.addImage(markupDataUrl, "JPEG", 28, 54, pageW - 56, pageH - 115, undefined, "FAST");
+      const aspect = (markupPlan.width && markupPlan.height) ? markupPlan.width / markupPlan.height : 1.4;
+      let drawW = maxCanvasW;
+      let drawH = maxCanvasW / aspect;
+      if (drawH > maxMarkupH) {
+        drawH = maxMarkupH;
+        drawW = maxMarkupH * aspect;
+      }
+      const drawX = 28 + (maxCanvasW - drawW) / 2;
+      const drawY = 54 + (maxMarkupH - drawH) / 2;
+      doc.addImage(markupPlan.dataUrl, "JPEG", drawX, drawY, drawW, drawH, undefined, "FAST");
     } catch (err) {
       console.warn("Error drawing markup floorplan into pdf:", err);
     }
@@ -1826,7 +1907,7 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
     // Placeholder
     doc.setFillColor(248, 250, 252);
     doc.setDrawColor(203, 213, 225);
-    doc.rect(28, 54, pageW - 56, pageH - 115, "FD");
+    doc.rect(28, 54, maxCanvasW, maxMarkupH, "FD");
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
@@ -1836,12 +1917,12 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
   // Legend bar at the bottom of Page 3
   doc.setFillColor(241, 245, 249);
   doc.setDrawColor(203, 213, 225);
-  doc.rect(28, pageH - 56, pageW - 56, 30, "FD");
+  doc.roundedRect(28, pageH - 58, pageW - 56, 32, 4, 4, "FD");
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("PIN LEGEND:", 36, pageH - 42);
+  doc.text("PIN LEGEND:", 38, pageH - 42);
 
   const pins = submission.homeSpec.floorplanPins || [];
   let legendText = pins.slice(0, 7).map(p => `[#${p.number}] ${p.label || "Mod"}`).join("   ·   ");
@@ -1853,7 +1934,7 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
   drawFooter(3);
 
   // =========================================================================
-  // PAGE 4+: ITEMISED NUMBERED VARIATIONS SCHEDULE (WITH ACROFORMS)
+  // PAGE 4+: ITEMISED NUMBERED VARIATIONS SCHEDULE (NO CLIPPING / VECTOR CHECKBOXES)
   // =========================================================================
   varChunks.forEach((chunk, chunkIdx) => {
     const pageNum = 4 + chunkIdx;
@@ -1861,27 +1942,49 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
 
     drawHeader(
       `ITEMISED NUMBERED VARIATIONS SCHEDULE & WORKING DRAWINGS DIRECTIVES`,
-      `Form-fillable Bluebeam / Acrobat Review Sheet · Page ${chunkIdx + 1} of ${varChunks.length} · ${variations.length} Items Total`,
+      `Form-fillable Bluebeam / Acrobat Review Sheet · Page ${chunkIdx + 1} of ${varChunks.length} · Inclusions Tier: ${inclusionTier} · ${variations.length} Items Total`,
       pageNum
     );
 
-    // Table Header
+    // Exact Column Geometry (Guaranteed inside margins: Total W = 785.89 pt, ends at X = 813.89 pt)
     const tableTopY = 56;
+    const colX_Item = 28;
+    const colW_Item = 46;
+
+    const colX_Desc = 74;
+    const colW_Desc = 320;
+
+    const colX_Cat = 394;
+    const colW_Cat = 72;
+
+    const colX_App = 466;
+    const colW_App = 56;
+
+    const colX_Rfi = 522;
+    const colW_Rfi = 54;
+
+    const colX_Sheet = 576;
+    const colW_Sheet = 74;
+
+    const colX_Notes = 650;
+    const colW_Notes = 813.89 - colX_Notes; // 163.89 pt
+
+    // Table Header Bar
     doc.setFillColor(15, 23, 42);
-    doc.rect(28, tableTopY, pageW - 56, 24, "F");
+    doc.rect(28, tableTopY, pageW - 56, 26, "F");
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(8);
     doc.setFont("helvetica", "bold");
-    doc.text("#", 38, tableTopY + 16);
-    doc.text("VARIATION / SPECIFICATION DIRECTIVE", 70, tableTopY + 16);
-    doc.text("CATEGORY", 410, tableTopY + 16);
-    doc.text("APPROVE", 490, tableTopY + 16);
-    doc.text("RFI", 550, tableTopY + 16);
-    doc.text("SHEET REF", 595, tableTopY + 16);
-    doc.text("DRAFTSMAN REMARKS / ACTION (FILLABLE)", 675, tableTopY + 16);
+    doc.text("#", colX_Item + colW_Item / 2, tableTopY + 17, { align: "center" });
+    doc.text("VARIATION / SPECIFICATION DIRECTIVE", colX_Desc + 8, tableTopY + 17);
+    doc.text("CATEGORY", colX_Cat + colW_Cat / 2, tableTopY + 17, { align: "center" });
+    doc.text("APPROVE", colX_App + colW_App / 2, tableTopY + 17, { align: "center" });
+    doc.text("RFI", colX_Rfi + colW_Rfi / 2, tableTopY + 17, { align: "center" });
+    doc.text("SHEET REF", colX_Sheet + colW_Sheet / 2, tableTopY + 17, { align: "center" });
+    doc.text("DRAFTSMAN REMARKS", colX_Notes + 8, tableTopY + 17);
 
-    let rowY = tableTopY + 24;
+    let rowY = tableTopY + 26;
     const rowH = 54;
 
     if (chunk.length === 0) {
@@ -1898,54 +2001,134 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
         doc.setDrawColor(226, 232, 240);
         doc.rect(28, rowY, pageW - 56, rowH, "FD");
 
-        // Pin # Badge
-        doc.setFillColor(v.isStructural ? 245 : 6, v.isStructural ? 158 : 182, v.isStructural ? 11 : 212);
-        doc.circle(44, rowY + 27, 10, "F");
+        const schedIdx = chunkIdx * itemsPerPage + vIdx + 1;
+        const linkedPinNum = v.pinNumber || (v.isStructural ? v.itemNumber : undefined);
+
+        // Col 1: Pin / Item Badge
+        if (v.isStructural) {
+          doc.setFillColor(245, 158, 11); // amber-500
+          doc.circle(colX_Item + colW_Item / 2, rowY + 22, 10, "F");
+          doc.setTextColor(15, 23, 42);
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "bold");
+          doc.text(String(schedIdx), colX_Item + colW_Item / 2, rowY + 25, { align: "center" });
+          doc.setFontSize(6);
+          doc.setTextColor(180, 83, 9);
+          doc.text(linkedPinNum ? `Pin #${linkedPinNum}` : "Structural", colX_Item + colW_Item / 2, rowY + 40, { align: "center" });
+        } else {
+          doc.setFillColor(224, 242, 254); // sky-100
+          doc.setDrawColor(186, 230, 253);
+          doc.circle(colX_Item + colW_Item / 2, rowY + 22, 10, "FD");
+          doc.setTextColor(3, 105, 161);
+          doc.setFontSize(7.5);
+          doc.setFont("helvetica", "bold");
+          doc.text(String(schedIdx), colX_Item + colW_Item / 2, rowY + 25, { align: "center" });
+          doc.setFontSize(6);
+          doc.setTextColor(100, 116, 139);
+          doc.text("Item", colX_Item + colW_Item / 2, rowY + 40, { align: "center" });
+        }
+
+        // Col 2: Description (split multi-line within colW_Desc - 16)
         doc.setTextColor(15, 23, 42);
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
-        doc.text(String(v.itemNumber || vIdx + 1), 44, rowY + 30, { align: "center" });
+        const lines = doc.splitTextToSize(v.description || "", colW_Desc - 16);
+        doc.text(lines.slice(0, 3), colX_Desc + 8, rowY + 18);
 
-        // Description (split multi-line)
-        doc.setTextColor(15, 23, 42);
-        doc.setFontSize(8);
+        // Col 3: Category Badge
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
-        const lines = doc.splitTextToSize(v.description || "", 325);
-        doc.text(lines.slice(0, 3), 70, rowY + 18);
+        if (v.isStructural) {
+          doc.setFillColor(254, 243, 199);
+          doc.setDrawColor(251, 191, 36);
+          doc.roundedRect(colX_Cat + 6, rowY + 18, colW_Cat - 12, 16, 3, 3, "FD");
+          doc.setTextColor(180, 83, 9);
+          doc.text("Structural", colX_Cat + colW_Cat / 2, rowY + 29, { align: "center" });
+        } else {
+          doc.setFillColor(241, 245, 249);
+          doc.setDrawColor(203, 213, 225);
+          doc.roundedRect(colX_Cat + 6, rowY + 18, colW_Cat - 12, 16, 3, 3, "FD");
+          doc.setTextColor(71, 85, 105);
+          doc.text("Inclusion", colX_Cat + colW_Cat / 2, rowY + 29, { align: "center" });
+        }
 
-        // Category
-        doc.setFontSize(7.5);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(v.isStructural ? 180 : 14, v.isStructural ? 83 : 116, v.isStructural ? 9 : 144);
-        doc.text(v.isStructural ? "Structural" : "Inclusion", 410, rowY + 28);
+        // Col 4: Clean Vector Checkbox: Approved
+        const appBoxX = colX_App + (colW_App - 14) / 2;
+        const appBoxY = rowY + (rowH - 14) / 2;
+        const isApproved = v.draftsmanStatus === "approved";
 
-        // AcroForm Checkbox: Approved
-        const cbApp = new AcroFormCheckBox();
-        cbApp.Rect = [502, rowY + 20, 14, 14];
-        cbApp.fieldName = `var_${v.id}_approved`;
-        if (v.draftsmanStatus === "approved") cbApp.value = "Yes";
-        doc.addField(cbApp);
+        doc.setFillColor(isApproved ? 16 : 255, isApproved ? 185 : 255, isApproved ? 129 : 255);
+        doc.setDrawColor(isApproved ? 16 : 203, isApproved ? 185 : 213, isApproved ? 129 : 225);
+        doc.roundedRect(appBoxX, appBoxY, 14, 14, 2, 2, "FD");
+        if (isApproved) {
+          doc.setDrawColor(255, 255, 255);
+          doc.setLineWidth(1.5);
+          doc.line(appBoxX + 3.5, appBoxY + 7, appBoxX + 6, appBoxY + 10.5);
+          doc.line(appBoxX + 6, appBoxY + 10.5, appBoxX + 10.5, appBoxY + 4);
+          doc.setLineWidth(0.75);
+        }
 
-        // AcroForm Checkbox: RFI
-        const cbRfi = new AcroFormCheckBox();
-        cbRfi.Rect = [555, rowY + 20, 14, 14];
-        cbRfi.fieldName = `var_${v.id}_rfi`;
-        if (v.draftsmanStatus === "rfi") cbRfi.value = "Yes";
-        doc.addField(cbRfi);
+        // Col 5: Clean Vector Checkbox: RFI
+        const rfiBoxX = colX_Rfi + (colW_Rfi - 14) / 2;
+        const rfiBoxY = rowY + (rowH - 14) / 2;
+        const isRfi = v.draftsmanStatus === "rfi";
 
-        // AcroForm TextField: Sheet Ref
+        doc.setFillColor(isRfi ? 245 : 255, isRfi ? 158 : 255, isRfi ? 11 : 255);
+        doc.setDrawColor(isRfi ? 217 : 203, isRfi ? 119 : 213, isRfi ? 6 : 225);
+        doc.roundedRect(rfiBoxX, rfiBoxY, 14, 14, 2, 2, "FD");
+        if (isRfi) {
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(255, 255, 255);
+          doc.text("!", rfiBoxX + 7, rfiBoxY + 10.5, { align: "center" });
+        }
+
+        // Col 6: Sheet Ref
+        const sheetBoxX = colX_Sheet + 4;
+        const sheetBoxW = colW_Sheet - 8;
+        const sheetBoxY = rowY + 16;
+        const sheetBoxH = 22;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(sheetBoxX, sheetBoxY, sheetBoxW, sheetBoxH, 2, 2, "FD");
+        if (v.draftsmanSheetRef) {
+          doc.setFontSize(7.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(15, 23, 42);
+          doc.text(v.draftsmanSheetRef, sheetBoxX + 4, sheetBoxY + 14);
+        }
+
         const tfSheet = new AcroFormTextField();
-        tfSheet.Rect = [595, rowY + 18, 65, 18];
+        tfSheet.Rect = [sheetBoxX, sheetBoxY, sheetBoxW, sheetBoxH];
         tfSheet.fieldName = `var_${v.id}_sheet`;
         tfSheet.value = v.draftsmanSheetRef || "";
+        tfSheet.fontSize = 8;
         doc.addField(tfSheet);
 
-        // AcroForm TextField: Remarks
+        // Col 7: Draftsman Remarks (Strictly within colW_Notes - 8 pt, never outside page margin!)
+        const notesBoxX = colX_Notes + 4;
+        const notesBoxW = colW_Notes - 8;
+        const notesBoxY = rowY + 12;
+        const notesBoxH = 30;
+
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(notesBoxX, notesBoxY, notesBoxW, notesBoxH, 2, 2, "FD");
+        if (v.draftsmanNotes) {
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(15, 23, 42);
+          const noteLines = doc.splitTextToSize(v.draftsmanNotes, notesBoxW - 8);
+          doc.text(noteLines.slice(0, 2), notesBoxX + 4, notesBoxY + 12);
+        }
+
         const tfNotes = new AcroFormTextField();
-        tfNotes.Rect = [675, rowY + 14, 134, 28];
+        tfNotes.Rect = [notesBoxX, notesBoxY, notesBoxW, notesBoxH];
         tfNotes.multiline = true;
         tfNotes.fieldName = `var_${v.id}_remarks`;
         tfNotes.value = v.draftsmanNotes || "";
+        tfNotes.fontSize = 8;
         doc.addField(tfNotes);
 
         rowY += rowH;
