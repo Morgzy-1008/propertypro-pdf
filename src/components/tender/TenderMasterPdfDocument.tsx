@@ -990,7 +990,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           </div>
 
           {/* Acknowledgement & Legal Terms */}
-          <div className="space-y-2.5 text-xs text-slate-700 leading-relaxed mb-4">
+          <div className="space-y-2 text-[11px] text-slate-700 leading-relaxed mb-3">
             <p>
               I/We hereby request that a Tender document be produced outlining the cost of constructing my/our new Hudson Home along with all assessed site costs, inclusions, options, upgrades and variations that I/we have selected with our New Home Consultant.
             </p>
@@ -1000,34 +1000,37 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           </div>
 
           {/* Fee Selection Box */}
-          <div className="border border-slate-300 rounded-xl p-3.5 bg-slate-50 mb-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2">
-              I/We acknowledge a non-refundable charge of:
+          <div className="border border-slate-300 rounded-xl p-3 bg-slate-50 mb-2.5">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2 flex items-center justify-between">
+              <span>I/We acknowledge a non-refundable charge of:</span>
+              <span className="text-[9.5px] uppercase font-black tracking-wider text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-300">
+                Non-Refundable &bull; Credited to Deposit
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 text-xs">
-              <div className={`p-2.5 rounded-lg border flex items-center gap-2 ${isGreenfield ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className={`p-2 rounded-lg border flex items-center gap-2 ${isGreenfield ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
                 <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isGreenfield ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                   {isGreenfield && <Check className="h-3 w-3" />}
                 </div>
                 <span>$1,650 (inc GST) for Greenfield site</span>
               </div>
 
-              <div className={`p-2.5 rounded-lg border flex items-center gap-2 ${isPackage ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+              <div className={`p-2 rounded-lg border flex items-center gap-2 ${isPackage ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
                 <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isPackage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                   {isPackage && <Check className="h-3 w-3" />}
                 </div>
                 <span>$3,000 (inc GST) for House &amp; Land package</span>
               </div>
 
-              <div className={`p-2.5 rounded-lg border flex items-center gap-2 ${isKdr ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+              <div className={`p-2 rounded-lg border flex items-center gap-2 ${isKdr ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
                 <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isKdr ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                   {isKdr && <Check className="h-3 w-3" />}
                 </div>
                 <span>$3,300 (inc GST) for Knock-Down / Duplex</span>
               </div>
 
-              <div className={`p-2.5 rounded-lg border flex items-center gap-2 ${isCustom ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+              <div className={`p-2 rounded-lg border flex items-center gap-2 ${isCustom ? "bg-cyan-50 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
                 <div className={`h-4 w-4 rounded border flex items-center justify-center ${isCustom ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                   {isCustom && <Check className="h-3 w-3" />}
                 </div>
@@ -1036,13 +1039,19 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
           </div>
 
-          {/* Terms with 5% Deposit Credit Clause */}
-          <div className="space-y-1.5 text-[11px] text-slate-600 mb-3 leading-snug bg-amber-50/60 p-3 rounded-xl border border-amber-300">
+          {/* Terms with Non-Refundable, 3-Tender Limit & Deposit Credit Clauses */}
+          <div className="space-y-1.5 text-[10px] text-slate-600 mb-2.5 leading-snug bg-amber-50/60 p-2.5 rounded-xl border border-amber-300">
+            <p>
+              &bull; <strong>Tender Fee Scope &amp; Non-Refundable Policy:</strong> The Tender Fee covers up to <strong>(3) three tenders</strong>. Any additional tender thereafter will incur a <strong>$1,000 fee, payable upfront</strong>. We understand that whilst the Tender Fee is <strong>strictly non-refundable under any circumstances</strong>, it will be <strong>credited towards my/our Building Deposit</strong>.
+            </p>
+            <p>
+              &bull; <strong>Variations &amp; Redesigns:</strong> I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur <strong>additional administration fees</strong>, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
+            </p>
             <p>
               &bull; <strong>Fixed Price Guarantee:</strong> Tender is valid for <strong>270 days (9 months)</strong> from issue date and must be accepted within 10 days of issue with payment of the <strong>${atp.tenderAcceptanceFee.toLocaleString()} Tender Acceptance Fee</strong>.
             </p>
             <p>
-              &bull; <strong>5% Building Contract Deposit Crediting:</strong> Once the tender is accepted and the formal Building Contract is prepared, you will pay the <strong>5% contract deposit which is subtracted by both the 1st deposit (Preliminary Tender Fee) and 2nd deposit (Tender Acceptance Fee)</strong> already paid.
+              &bull; <strong>5% Building Contract Deposit Crediting:</strong> Once the tender is accepted and the formal Building Contract is prepared, the 5% contract deposit will be credited with both the 1st deposit (Preliminary Tender Fee) and 2nd deposit (Tender Acceptance Fee) already paid.
             </p>
           </div>
 

@@ -33,7 +33,7 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
         </div>
 
         {/* Introduction Statements */}
-        <div className="space-y-3 text-xs leading-relaxed text-slate-700 mb-6">
+        <div className="space-y-2 text-xs leading-relaxed text-slate-700 mb-3.5">
           <p>
             I/We hereby request that a Tender document be produced outlining the cost of constructing my/our new Hudson Home along with all assessed site costs, inclusions, options, upgrades and variations that I/we have selected with our New Home Consultant.
           </p>
@@ -43,34 +43,37 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
         </div>
 
         {/* Fee Selection Box */}
-        <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 mb-6">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">
-            I/We acknowledge a non-refundable charge of (tick applicable):
+        <div className="border border-slate-300 rounded-xl p-3.5 bg-slate-50 mb-3.5">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-2.5 flex items-center justify-between">
+            <span>I/We acknowledge a non-refundable charge of (tick applicable):</span>
+            <span className="text-[9.5px] uppercase font-black tracking-wider text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded border border-amber-300">
+              Strictly Non-Refundable &bull; Credited to Deposit
+            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div className={`p-3 rounded-lg border flex items-center gap-3 ${isGreenfield ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+          <div className="grid grid-cols-2 gap-2.5 text-xs">
+            <div className={`p-2.5 rounded-lg border flex items-center gap-2.5 ${isGreenfield ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
               <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isGreenfield ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                 {isGreenfield && <Check className="h-3 w-3" />}
               </div>
               <span>$1,650 (inc GST) for Greenfield site</span>
             </div>
 
-            <div className={`p-3 rounded-lg border flex items-center gap-3 ${isPackage ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+            <div className={`p-2.5 rounded-lg border flex items-center gap-2.5 ${isPackage ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
               <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isPackage ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                 {isPackage && <Check className="h-3 w-3" />}
               </div>
               <span>$3,000 (inc GST) for House &amp; Land packages</span>
             </div>
 
-            <div className={`p-3 rounded-lg border flex items-center gap-3 ${isKdr ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+            <div className={`p-2.5 rounded-lg border flex items-center gap-2.5 ${isKdr ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
               <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isKdr ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                 {isKdr && <Check className="h-3 w-3" />}
               </div>
               <span>$3,300 (inc GST) for Knock-Down, Rebuild &amp; Duplex site</span>
             </div>
 
-            <div className={`p-3 rounded-lg border flex items-center gap-3 ${isCustom ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
+            <div className={`p-2.5 rounded-lg border flex items-center gap-2.5 ${isCustom ? "bg-cyan-50/80 border-cyan-500 font-bold text-cyan-950" : "bg-white border-slate-200 text-slate-700"}`}>
               <div className={`h-4 w-4 rounded border flex items-center justify-center ${isCustom ? "border-cyan-600 bg-cyan-600 text-white" : "border-slate-400"}`}>
                 {isCustom && <Check className="h-3 w-3" />}
               </div>
@@ -78,38 +81,40 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
             </div>
           </div>
 
-          <div className="mt-3 text-[11px] text-slate-600 leading-snug">
-            is payable for the cost of producing the Tender and includes the cost of obtaining a contour survey as well as bore holes to conduct a soil test where necessary. The Tender Fee covers up to (3) three tenders. Any additional tender thereafter will incur a $1000 fee, payable upfront. We understand that whilst the Tender Fee is non-refundable under any circumstances, it will be credited towards my/our Building Deposit.
+          <div className="mt-2.5 text-[10.5px] text-slate-600 leading-snug bg-white p-2.5 rounded-lg border border-slate-200">
+            <strong>Tender Fee Scope &amp; Non-Refundable Policy:</strong> The preliminary charge is payable for the cost of producing the Tender and includes obtaining a contour survey and bore holes for soil testing where necessary. The Tender Fee covers up to <strong>(3) three tenders</strong>. Any additional tender thereafter will incur a <strong>$1,000 fee, payable upfront</strong>. We understand that whilst the Tender Fee is <strong>strictly non-refundable under any circumstances</strong>, it will be <strong>credited towards my/our Building Deposit</strong> upon building contract signing.
           </div>
         </div>
 
         {/* Terms and Conditions */}
-        <div className="space-y-4 text-xs text-slate-700 mb-6">
-          <p className="text-[11px] text-slate-600 leading-snug">
-            I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur additional administration fees, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
-          </p>
-
-          <div className="border-l-2 border-cyan-700 pl-3">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide">
-              For Registered / Unregistered Land:
-            </h4>
-            <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-              I/We acknowledge that the Tender must be accepted within 10 days from the date on my/our Tender document and that my/our Tender will remain valid for 270 days (9 months) from the date on my/our Tender document, being the Tender Expiry Date (&ldquo;the Fixed Price Guarantee Date&rdquo;). I/We acknowledge that upon my/our Tender Acceptance, a non-refundable Tender Acceptance Fee of <strong>$4,400 (inc. GST)</strong> will be payable, which will also be credited towards my/our Building Deposit.
-            </p>
+        <div className="space-y-2.5 text-xs text-slate-700 mb-3.5">
+          <div className="p-2.5 rounded-lg bg-amber-50/70 border border-amber-200/80 text-[10.5px] text-slate-700 leading-snug">
+            <strong>Substantial Variations &amp; Redesigns:</strong> I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur <strong>additional administration fees</strong>, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
           </div>
 
-          <div className="border-l-2 border-slate-700 pl-3">
-            <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide">
-              For Knock-Down, Rebuild &amp; Duplex:
-            </h4>
-            <p className="text-[11px] text-slate-600 mt-1 leading-snug">
-              I/We acknowledge that the Tender must be accepted within 10 days from the date on my/our Tender document and that my/our Tender will remain valid for 270 days (9 months) from the date on my/our Tender document. I/We acknowledge that upon my/our Tender Acceptance, a non-refundable Tender Acceptance Fee of <strong>$6,600 (inc. GST)</strong> will be payable, which will also be credited towards my/our Building Deposit.
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="border-l-2 border-cyan-700 pl-3">
+              <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide">
+                For Registered / Unregistered Land:
+              </h4>
+              <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
+                Must be accepted within 10 days of issue. Valid for <strong>270 days (9 months)</strong> from date of issue (&ldquo;Fixed Price Guarantee Date&rdquo;). Upon acceptance, a non-refundable Tender Acceptance Fee of <strong>$4,400 (inc. GST)</strong> is payable, credited towards my/our Building Deposit.
+              </p>
+            </div>
+
+            <div className="border-l-2 border-slate-700 pl-3">
+              <h4 className="font-bold text-slate-900 text-[11px] uppercase tracking-wide">
+                For Knock-Down, Rebuild &amp; Duplex:
+              </h4>
+              <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
+                Must be accepted within 10 days of issue. Valid for <strong>270 days (9 months)</strong> from date of issue. Upon acceptance, a non-refundable Tender Acceptance Fee of <strong>$6,600 (inc. GST)</strong> is payable, credited towards my/our Building Deposit.
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Signatures & Execution Section */}
-        <div className="border border-slate-300 rounded-xl p-4 bg-slate-50 mb-6">
+        <div className="border border-slate-300 rounded-xl p-3.5 bg-slate-50 mb-3.5">
           <div className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3 flex items-center justify-between">
             <span>CLIENT &amp; CONSULTANT SIGNATURES</span>
             <span className="text-[10px] text-emerald-700 font-mono font-normal flex items-center gap-1">

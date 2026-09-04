@@ -491,22 +491,33 @@ function RemoteTenderSignPage() {
 
         {/* Comprehensive ATP Legal Terms Box */}
         <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2 border-b border-slate-800 pb-3">
-            <FileCheck className="h-4 w-4 text-cyan-400" /> Terms of Authority &amp; Deposit Crediting Clause
-          </h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white flex items-center gap-2">
+              <FileCheck className="h-4 w-4 text-cyan-400" /> Terms of Authority &amp; Deposit Crediting Clause
+            </h3>
+            <span className="text-[10px] uppercase font-black tracking-wider text-amber-300 bg-amber-950 px-2.5 py-0.5 rounded border border-amber-700/80">
+              Strictly Non-Refundable &bull; Credited to Building Deposit
+            </span>
+          </div>
 
           <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
             <p>
-              1. <strong>Site Investigation Authority:</strong> I/We hereby request that a formal Tender document be produced for the construction of my/our new Hudson Home. I/we authorize Hudson Homes to conduct all necessary site inspections, contour surveys, soil test boreholes, and council planning assessments.
+              1. <strong>Tender Fee Scope &amp; Non-Refundable Policy:</strong> The Tender Fee covers up to <strong>(3) three tenders</strong>. Any additional tender thereafter will incur a <strong>$1,000 fee, payable upfront</strong>. We understand that whilst the Tender Fee is <strong>strictly non-refundable under any circumstances</strong>, it will be <strong>credited towards my/our Building Deposit</strong> upon contract signing.
             </p>
             <p>
-              2. <strong>270-Day Fixed Price Guarantee:</strong> The tender price provided by Hudson Homes will remain fixed for a period of <strong>270 days (9 months)</strong> from the date of tender issuance.
+              2. <strong>Variations &amp; Redesigns Administration Fees:</strong> I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur <strong>additional administration fees</strong>, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
             </p>
             <p>
-              3. <strong>Tender Acceptance Fee:</strong> Upon presentation of the completed Tender document, an Acceptance Fee of <strong>$4,400</strong> (or <strong>$6,600</strong> for Knock-Down Rebuild / Dual Occupancy) is payable within 10 days to proceed with architectural working drawings and engineering.
+              3. <strong>Site Investigation Authority:</strong> I/We hereby request that a formal Tender document be produced for the construction of my/our new Hudson Home. I/we authorize Hudson Homes to conduct all necessary site inspections, contour surveys, soil test boreholes, and council planning assessments.
+            </p>
+            <p>
+              4. <strong>270-Day Fixed Price Guarantee:</strong> The tender price provided by Hudson Homes will remain fixed for a period of <strong>270 days (9 months)</strong> from the date of tender issuance.
+            </p>
+            <p>
+              5. <strong>Tender Acceptance Fee:</strong> Upon presentation of the completed Tender document, an Acceptance Fee of <strong>$4,400</strong> (or <strong>$6,600</strong> for Knock-Down Rebuild / Dual Occupancy) is payable within 10 days to proceed with architectural working drawings and engineering.
             </p>
             <div className="p-3.5 rounded-2xl bg-amber-950/40 border border-amber-500/40 text-amber-200">
-              <strong>4. 5% Building Contract Deposit Crediting:</strong> Upon tender acceptance, the formal Master Builders / HIA Building Contract will be prepared. Upon contract signing, the standard <strong>5% contract deposit is required, minus both the Preliminary Fee (Deposit 1) and the Tender Acceptance Fee (Deposit 2) already paid</strong>.
+              <strong>6. 5% Building Contract Deposit Crediting:</strong> Upon tender acceptance, the formal Master Builders / HIA Building Contract will be prepared. Upon contract signing, the standard <strong>5% contract deposit is required, minus both the Preliminary Fee (Deposit 1) and the Tender Acceptance Fee (Deposit 2) already paid</strong>.
             </div>
           </div>
         </div>

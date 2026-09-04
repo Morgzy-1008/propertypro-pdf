@@ -2402,6 +2402,48 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
+            {/* ATP Legal Terms & Acknowledgement Notice */}
+            <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-950/20 text-xs text-slate-300 space-y-3 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-500/20 pb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-amber-400" /> Authority to Proceed Terms &amp; Conditions
+                </span>
+                <span className="text-[10px] uppercase font-black tracking-wider text-amber-300 bg-amber-950 px-2.5 py-0.5 rounded border border-amber-700/80 shadow-xs">
+                  Strictly Non-Refundable &bull; Credited to Building Deposit
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-[11.5px] leading-relaxed">
+                <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <strong className="text-amber-200 block text-xs">1. Tender Fee Scope &amp; Additional Tenders:</strong>
+                  <p className="text-slate-300">
+                    The Tender Fee covers up to <strong>(3) three tenders</strong>. Any additional tender thereafter will incur a <strong>$1,000 fee, payable upfront</strong>. We understand that whilst the Tender Fee is <strong>strictly non-refundable under any circumstances</strong>, it will be <strong>credited towards my/our Building Deposit</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <strong className="text-amber-200 block text-xs">2. Variations &amp; Redesigns Administration Fees:</strong>
+                  <p className="text-slate-300">
+                    I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur <strong>additional administration fees</strong>, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <strong className="text-cyan-200 block text-xs">3. 270-Day Fixed Price Guarantee:</strong>
+                  <p className="text-slate-300">
+                    Tender remains valid for <strong>270 days (9 months)</strong> from issue date and must be accepted within 10 days of issue with payment of the <strong>{formatAud(tender.atp.tenderAcceptanceFee)} Tender Acceptance Fee</strong>.
+                  </p>
+                </div>
+
+                <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
+                  <strong className="text-emerald-200 block text-xs">4. 5% Building Contract Deposit Crediting:</strong>
+                  <p className="text-slate-300">
+                    Once the tender is accepted and the formal Building Contract is prepared, the 5% contract deposit will be credited with both the 1st deposit (Preliminary Tender Fee) and 2nd deposit (Tender Acceptance Fee) already paid.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* In-Person Interactive Signature Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Client 1 Sign */}
