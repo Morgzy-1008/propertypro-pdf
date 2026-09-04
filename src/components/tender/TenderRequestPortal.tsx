@@ -100,7 +100,26 @@ export function TenderRequestPortal() {
       const draft = localStorage.getItem("hudson_current_tender_draft");
       if (draft) {
         const parsed = JSON.parse(draft);
-        if (parsed && parsed.submissionNumber) return parsed;
+        if (parsed && parsed.submissionNumber) {
+          const activeUser = typeof window !== "undefined" ? getActiveStaffUser() : null;
+          const defaultConsultant = activeUser?.name || "Morgan Hales";
+          const defaultDisplay = activeUser?.displayCentre || "Flagstone Display Home";
+          const defaultPhone = activeUser?.phone || "0417 571 864";
+          const defaultEmail = activeUser?.email || "morgan.hales@hudsonhomes.com.au";
+          return {
+            ...parsed,
+            newHomeConsultant: parsed.newHomeConsultant || parsed.atp?.consultantName || defaultConsultant,
+            displayOffice: parsed.displayOffice || defaultDisplay,
+            consultantPhone: parsed.consultantPhone || parsed.atp?.consultantPhone || defaultPhone,
+            consultantEmail: parsed.consultantEmail || parsed.atp?.consultantEmail || defaultEmail,
+            atp: {
+              ...parsed.atp,
+              consultantName: parsed.atp?.consultantName || parsed.newHomeConsultant || defaultConsultant,
+              consultantPhone: parsed.atp?.consultantPhone || parsed.consultantPhone || defaultPhone,
+              consultantEmail: parsed.atp?.consultantEmail || parsed.consultantEmail || defaultEmail,
+            },
+          };
+        }
       }
     } catch {}
     return createBlankTenderSubmission();
@@ -298,17 +317,34 @@ export function TenderRequestPortal() {
     const applyStaff = (staff: StaffProfile | null) => {
       if (staff) {
         setTender((prev) => {
-          if (prev.newHomeConsultant === staff.name && prev.atp?.consultantEmail?.toLowerCase() === staff.email.toLowerCase()) {
+          const targetConsultant = prev.newHomeConsultant || staff.name;
+          const targetDisplay = prev.displayOffice || staff.displayCentre || "Flagstone Display Home";
+          const targetPhone = prev.consultantPhone || prev.atp?.consultantPhone || staff.phone || "0417 571 864";
+          const targetEmail = prev.consultantEmail || prev.atp?.consultantEmail || staff.email || "morgan.hales@hudsonhomes.com.au";
+
+          if (
+            prev.newHomeConsultant === targetConsultant &&
+            prev.displayOffice === targetDisplay &&
+            prev.consultantPhone === targetPhone &&
+            prev.consultantEmail === targetEmail &&
+            prev.atp?.consultantName === targetConsultant &&
+            prev.atp?.consultantPhone === targetPhone &&
+            prev.atp?.consultantEmail === targetEmail
+          ) {
             return prev;
           }
+
           return {
             ...prev,
-            newHomeConsultant: staff.name,
+            newHomeConsultant: targetConsultant,
+            displayOffice: targetDisplay,
+            consultantPhone: targetPhone,
+            consultantEmail: targetEmail,
             atp: {
               ...prev.atp,
-              consultantName: staff.name,
-              consultantPhone: staff.phone,
-              consultantEmail: staff.email,
+              consultantName: targetConsultant,
+              consultantPhone: targetPhone,
+              consultantEmail: targetEmail,
             },
           };
         });
@@ -1506,11 +1542,11 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
 
             {/* Sales Consultant & Buyer Classification */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Consultant Selector */}
+              {/* Consultant & Display Centre Selector */}
               <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
                   <span className="text-xs font-bold uppercase text-amber-400 block">
-                    New Home Consultant (NHC) Assignment *
+                    New Home Consultant &amp; Display Centre *
                   </span>
                   {getActiveStaffUser()?.name === tender.newHomeConsultant && (
                     <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold">
@@ -1520,19 +1556,24 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] text-slate-300">Select Consultant Profile</Label>
+                  <Label className="text-[11px] text-slate-300">New Home Consultant (NHC) Assignment</Label>
                   <Select
                     value={tender.newHomeConsultant || "Morgan Hales"}
                     onValueChange={(val) => {
                       const profile = KNOWN_STAFF_PROFILES.find((p) => p.name === val);
+                      const targetDisplay = profile?.displayCentre || tender.displayOffice || "Flagstone Display Home";
+                      const targetPhone = profile?.phone || tender.consultantPhone || "0417 571 864";
+                      const targetEmail = profile?.email || tender.consultantEmail || "morgan.hales@hudsonhomes.com.au";
                       updateTender({
                         newHomeConsultant: val,
-                        displayOffice: profile?.displayCentre || tender.displayOffice,
+                        displayOffice: targetDisplay,
+                        consultantPhone: targetPhone,
+                        consultantEmail: targetEmail,
                         atp: {
                           ...tender.atp,
                           consultantName: val,
-                          consultantPhone: profile?.phone || tender.atp.consultantPhone,
-                          consultantEmail: profile?.email || tender.atp.consultantEmail,
+                          consultantPhone: targetPhone,
+                          consultantEmail: targetEmail,
                         },
                       });
                     }}
@@ -1550,15 +1591,48 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   </Select>
                 </div>
 
+                {/* Display Centre Selection & Custom Input */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] text-slate-300 flex items-center justify-between">
+                    <span>Display Centre / Office Location *</span>
+                    <span className="text-[10px] text-cyan-400 font-mono">Printed on Master PDF</span>
+                  </Label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <Select
+                      value={tender.displayOffice || "Flagstone Display Home"}
+                      onValueChange={(val) => updateTender({ displayOffice: val })}
+                    >
+                      <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-white font-medium">
+                        <SelectValue placeholder="Select Display Centre" />
+                      </SelectTrigger>
+                      <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                        <SelectItem value="Flagstone Display Home">Flagstone Display Home</SelectItem>
+                        <SelectItem value="Lilywood Landings Display Home">Lilywood Landings Display Home</SelectItem>
+                        <SelectItem value="Bahrs Scrub Display Home">Bahrs Scrub Display Home</SelectItem>
+                        <SelectItem value="Ridgeview Display Home">Ridgeview Display Home</SelectItem>
+                        <SelectItem value="North Harbour Display Home">North Harbour Display Home</SelectItem>
+                        <SelectItem value="Pelican Waters Display Home">Pelican Waters Display Home</SelectItem>
+                        <SelectItem value="Queensland Division (Head Office)">Queensland Division (Head Office)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={tender.displayOffice || ""}
+                      onChange={(e) => updateTender({ displayOffice: e.target.value })}
+                      placeholder="Or enter custom display office..."
+                      className="border-slate-800 bg-slate-900 text-xs text-white"
+                    />
+                  </div>
+                </div>
+
                 {/* Consultant Contact Details preview */}
                 <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono text-slate-400">
                   <div>
                     <span className="text-[9px] uppercase text-slate-500 block">Mobile:</span>
-                    <span className="text-slate-300 font-semibold">{tender.atp.consultantPhone || "0417 571 864"}</span>
+                    <span className="text-slate-300 font-semibold">{tender.consultantPhone || tender.atp.consultantPhone || "0417 571 864"}</span>
                   </div>
                   <div>
                     <span className="text-[9px] uppercase text-slate-500 block">Email:</span>
-                    <span className="text-slate-300 truncate block font-semibold">{tender.atp.consultantEmail || "morgan.hales@hudsonhomes.com.au"}</span>
+                    <span className="text-slate-300 truncate block font-semibold">{tender.consultantEmail || tender.atp.consultantEmail || "morgan.hales@hudsonhomes.com.au"}</span>
                   </div>
                 </div>
               </div>

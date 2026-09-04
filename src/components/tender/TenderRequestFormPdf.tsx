@@ -11,6 +11,9 @@ interface TenderRequestFormPdfProps {
 export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
   const { customer1, customer2, hasCustomer2, land, homeSpec, variations, solicitor, financier, atp, checklist } = tender;
 
+  const consultantName = tender.newHomeConsultant || tender.atp?.consultantName || "Morgan Hales";
+  const consultantDisplayOffice = tender.displayOffice || "Flagstone Display Home";
+
   const variationsPage1 = variations.slice(0, 14);
   const variationsPage2 = variations.slice(14);
 
@@ -91,11 +94,11 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Display / Office:</span>
-              <strong className="text-slate-900 truncate block">{tender.displayOffice}</strong>
+              <strong className="text-slate-900 leading-snug block break-words">{consultantDisplayOffice}</strong>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">New Home Consultant:</span>
-              <strong className="text-slate-900">{tender.newHomeConsultant}</strong>
+              <strong className="text-slate-900">{consultantName}</strong>
             </div>
             <div className="col-span-2 pt-1 border-t border-slate-200">
               <span className="text-[9px] uppercase text-slate-500 block">iQuote Reference / Estimate #:</span>
@@ -634,11 +637,11 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
           <div className="border border-slate-300 rounded-xl p-3 bg-slate-50 flex items-center justify-between text-xs">
             <div>
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">New Home Consultant:</span>
-              <strong className="text-slate-900">{tender.newHomeConsultant}</strong>
+              <strong className="text-slate-900">{consultantName}</strong>
             </div>
             <div>
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">Display Centre:</span>
-              <span className="text-slate-700">{tender.displayOffice}</span>
+              <span className="text-slate-700">{consultantDisplayOffice}</span>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-500 uppercase block font-semibold">Tender Request Date:</span>

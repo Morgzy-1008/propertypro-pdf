@@ -23,6 +23,11 @@ interface TenderMasterPdfDocumentProps {
 export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps) {
   const { customer1, customer2, hasCustomer2, land, homeSpec, variations, atp, buildType } = tender;
 
+  const consultantName = tender.newHomeConsultant || tender.atp?.consultantName || "Morgan Hales";
+  const consultantDisplayOffice = tender.displayOffice || "Flagstone Display Home";
+  const consultantPhone = tender.consultantPhone || tender.atp?.consultantPhone || "0417 571 864";
+  const consultantEmail = tender.consultantEmail || tender.atp?.consultantEmail || "morgan.hales@hudsonhomes.com.au";
+
   const structuralVariations = variations.filter((v) => v.isStructural);
   const allOtherVariations = variations.filter((v) => !v.isStructural);
 
@@ -223,7 +228,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           </div>
 
           {/* Top Meta Strip */}
-          <div className="grid grid-cols-4 gap-2 text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
+          <div className="grid grid-cols-[1fr_1fr_1.35fr_1.65fr] gap-3 text-xs bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4">
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Tender Reference:</span>
               <strong className="font-mono text-cyan-800 font-bold">{tender.submissionNumber}</strong>
@@ -234,17 +239,13 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">New Home Consultant:</span>
-              <strong className="text-slate-900 block truncate">{tender.newHomeConsultant || "—"}</strong>
-              {tender.consultantPhone && (
-                <span className="text-[9.5px] text-slate-500 font-mono block">{tender.consultantPhone}</span>
-              )}
+              <strong className="text-slate-900 block truncate">{consultantName}</strong>
+              <span className="text-[9.5px] text-slate-600 font-mono block">{consultantPhone}</span>
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Display Centre:</span>
-              <strong className="text-slate-900 truncate block">{tender.displayOffice || "—"}</strong>
-              {tender.consultantEmail && (
-                <span className="text-[9.5px] text-slate-500 truncate block">{tender.consultantEmail}</span>
-              )}
+              <strong className="text-slate-900 leading-snug block break-words">{consultantDisplayOffice}</strong>
+              <span className="text-[9.5px] text-slate-600 truncate block">{consultantEmail}</span>
             </div>
           </div>
 
@@ -582,7 +583,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
 
         {/* Footer */}
         <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-          <div>Hudson Homes Pty Ltd · Master Tender Request Specification</div>
+          <div>Hudson Homes Pty Ltd · Master Tender Request Specification · NHC: {consultantName} ({consultantDisplayOffice})</div>
           <div className="flex items-center gap-4">
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
@@ -1108,8 +1109,8 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="mt-2 pt-2 border-t border-slate-200 flex items-center justify-between text-xs">
               <div>
                 <span className="text-[9px] text-slate-500 uppercase block font-bold">New Home Consultant:</span>
-                <strong className="text-slate-900">{tender.newHomeConsultant || "Hudson Homes"}</strong>
-                <span className="text-[10px] text-slate-500 block">{tender.displayOffice || "Display Office"} {tender.consultantPhone ? `· ${tender.consultantPhone}` : ""}</span>
+                <strong className="text-slate-900">{consultantName}</strong>
+                <span className="text-[10px] text-slate-500 block">{consultantDisplayOffice} {consultantPhone ? `· ${consultantPhone}` : ""}</span>
               </div>
               <div className="text-right">
                 <span className="text-[9px] text-slate-500 uppercase block font-bold">Verified Date:</span>

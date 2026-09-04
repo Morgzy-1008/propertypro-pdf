@@ -15,6 +15,7 @@ import type {
 } from "./tenderTypes";
 
 import { HUDSON_FACADES } from "@/components/flyer/facades.data";
+import { getActiveStaffUser, KNOWN_STAFF_PROFILES } from "@/lib/authSession";
 
 export function findFloorplanUrl(designName: string): string {
   if (!designName) return "";
@@ -329,6 +330,12 @@ export function createBlankTenderSubmission(): TenderSubmission {
   const subNo = generateTenderNumber();
   const dateStr = now.toLocaleDateString("en-AU", { day: "numeric", month: "numeric", year: "numeric" });
 
+  const activeStaff = typeof window !== "undefined" ? getActiveStaffUser() : null;
+  const defaultConsultant = activeStaff?.name || "Morgan Hales";
+  const defaultDisplay = activeStaff?.displayCentre || "Flagstone Display Home";
+  const defaultPhone = activeStaff?.phone || "0417 571 864";
+  const defaultEmail = activeStaff?.email || "morgan.hales@hudsonhomes.com.au";
+
   const initialDocs: Record<string, TenderDocumentSlot> = {};
   for (const slot of STANDARD_DOCUMENT_SLOTS) {
     initialDocs[slot.id] = { ...slot };
@@ -343,10 +350,10 @@ export function createBlankTenderSubmission(): TenderSubmission {
 
     tenderRequestDate: dateStr,
     priceListDate: "",
-    displayOffice: "",
-    newHomeConsultant: "",
-    consultantPhone: "",
-    consultantEmail: "",
+    displayOffice: defaultDisplay,
+    newHomeConsultant: defaultConsultant,
+    consultantPhone: defaultPhone,
+    consultantEmail: defaultEmail,
     iquoteDate: "",
     iquoteId: "",
     source: "",
@@ -449,7 +456,9 @@ export function createBlankTenderSubmission(): TenderSubmission {
       client2Name: "",
       client2SignatureDate: dateStr,
       consultantSigned: false,
-      consultantName: "",
+      consultantName: defaultConsultant,
+      consultantPhone: defaultPhone,
+      consultantEmail: defaultEmail,
       consultantSignatureDate: dateStr,
       paymentMethod: "eft",
       eftAccountName: "Hudson Homes Pty Ltd",
@@ -840,6 +849,10 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       totalBudgetEstimate: p.grossEstimatedInvestment || 0,
     },
     variations: processedVariations,
+    newHomeConsultant: (c.consultantName || (quote as any).salesConsultant || (typeof window !== "undefined" && getActiveStaffUser()?.name) || "Morgan Hales"),
+    displayOffice: (c.consultantDisplayCentre || (quote as any).displayCentre || (typeof window !== "undefined" && getActiveStaffUser()?.displayCentre) || "Flagstone Display Home"),
+    consultantPhone: (c.consultantPhone || (typeof window !== "undefined" && getActiveStaffUser()?.phone) || "0417 571 864"),
+    consultantEmail: (c.consultantEmail || (typeof window !== "undefined" && getActiveStaffUser()?.email) || "morgan.hales@hudsonhomes.com.au"),
     atp: {
       ...base.atp,
       feeType,
@@ -848,7 +861,9 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       tenderAcceptanceFee: acceptanceFee,
       client1Name: `${c1First} ${c1Last}`.trim() || c.clientName || "",
       client2Name: has2 ? `${c2First} ${c2Last}`.trim() || c.client2Name || "" : "",
-      consultantName: c.consultantName || "Morgan Hales",
+      consultantName: (c.consultantName || (quote as any).salesConsultant || (typeof window !== "undefined" && getActiveStaffUser()?.name) || "Morgan Hales"),
+      consultantPhone: (c.consultantPhone || (typeof window !== "undefined" && getActiveStaffUser()?.phone) || "0417 571 864"),
+      consultantEmail: (c.consultantEmail || (typeof window !== "undefined" && getActiveStaffUser()?.email) || "morgan.hales@hudsonhomes.com.au"),
       eftReference: `${(c1Last || "Client").replace(/\s+/g, "").toUpperCase()}-${quote.quoteNumber || "MH"}`,
     },
     documents: docs,

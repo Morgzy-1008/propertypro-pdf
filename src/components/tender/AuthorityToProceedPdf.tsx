@@ -11,6 +11,10 @@ interface AuthorityToProceedPdfProps {
 export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
   const { customer1, customer2, hasCustomer2, atp, land, homeSpec } = tender;
 
+  const consultantName = tender.newHomeConsultant || tender.atp?.consultantName || "Morgan Hales";
+  const consultantDisplayOffice = tender.displayOffice || "Flagstone Display Home";
+  const consultantPhone = tender.consultantPhone || tender.atp?.consultantPhone || "0417 571 864";
+
   const isGreenfield = atp.feeType === "greenfield_1650";
   const isKdr = atp.feeType === "kdr_duplex_3300";
   const isPackage = atp.feeType === "package_3000";
@@ -166,8 +170,8 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
           <div className="mt-3 pt-3 border-t border-slate-200 grid grid-cols-2 gap-4 text-xs">
             <div>
               <span className="text-[10px] text-slate-500 uppercase font-bold block">New Home Consultant:</span>
-              <span className="font-bold text-slate-900">{tender.newHomeConsultant || "Morgan Hales"}</span>
-              <span className="text-[10px] text-slate-500 block">{tender.displayOffice} · {tender.consultantPhone}</span>
+              <span className="font-bold text-slate-900">{consultantName}</span>
+              <span className="text-[10px] text-slate-500 block">{consultantDisplayOffice} · {consultantPhone}</span>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-500 uppercase font-bold block">Signed &amp; Verified:</span>
