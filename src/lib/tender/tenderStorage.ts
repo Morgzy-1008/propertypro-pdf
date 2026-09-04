@@ -1,5 +1,5 @@
 import JSZip from "jszip";
-import { jsPDF } from "jspdf";
+import { jsPDF, AcroFormTextField, AcroFormCheckBox } from "jspdf";
 import type { FullQuote } from "../quoting/quoteTypes";
 import { formatAud } from "../pricing";
 import { plansForDesign } from "@/components/flyer/floorplans";
@@ -350,6 +350,11 @@ export function createBlankTenderSubmission(): TenderSubmission {
     iquoteDate: "",
     iquoteId: "",
     source: "",
+
+    buyerType: "Owner-Occupied",
+    leadSource: "display home",
+    draftsmanGeneralNotes: "",
+    draftsmanReviewStatus: "pending",
 
     buildType: "Greenfield Site",
     purchaserType: "Owner Occupier",
@@ -851,100 +856,148 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
 }
 
 /**
+ * Converts any raster image attachment (png, jpeg, webp) into a genuine, print-ready A4 PDF.
+ */
+export async function convertImageAttachmentToPdf(
+  dataUrl: string,
+  title: string,
+  subtitle?: string
+): Promise<Uint8Array> {
+  const isLandscape = await new Promise<boolean>((resolve) => {
+    if (typeof Image === "undefined") {
+      resolve(false);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => resolve(img.naturalWidth > img.naturalHeight);
+    img.onerror = () => resolve(false);
+    img.src = dataUrl;
+  });
+
+  const pdf = new jsPDF({
+    orientation: isLandscape ? "landscape" : "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageW = isLandscape ? 841.89 : 595.28;
+  const pageH = isLandscape ? 595.28 : 841.89;
+
+  // Dark Navy Header Banner
+  pdf.setFillColor(15, 23, 42);
+  pdf.rect(0, 0, pageW, 45, "F");
+
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(13);
+  pdf.setFont("helvetica", "bold");
+  pdf.text(title.toUpperCase(), 25, 25);
+
+  if (subtitle) {
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(56, 189, 248);
+    pdf.text(subtitle, 25, 38);
+  }
+
+  // Draw image fitted inside margins
+  const maxW = pageW - 50;
+  const maxH = pageH - 75;
+  try {
+    pdf.addImage(dataUrl, "JPEG", 25, 55, maxW, maxH, undefined, "FAST");
+  } catch {
+    try {
+      pdf.addImage(dataUrl, "PNG", 25, 55, maxW, maxH, undefined, "FAST");
+    } catch {}
+  }
+
+  // Bottom footer
+  pdf.setFontSize(8);
+  pdf.setTextColor(148, 163, 184);
+  pdf.text("Hudson Homes Pty Ltd · Job Document Archive", 25, pageH - 12);
+
+  return new Uint8Array(pdf.output("arraybuffer"));
+}
+
+/**
  * Compiles all documents and forms in the submission into a ready-to-unzip Job Folder ZIP archive!
+ * 100% PDF GUARANTEE: Every single document inside the folder is strictly in PDF format!
  */
 export async function exportTenderZipPackage(
   submission: TenderSubmission,
-  generatedPdfs?: { atpPdfBlob?: Blob; trFormPdfBlob?: Blob; quotePdfBlob?: Blob }
+  generatedPdfs?: {
+    atpPdfBlob?: Blob;
+    masterPdfBlob?: Blob;
+    draftsmenPdfBlob?: Blob;
+    trFormPdfBlob?: Blob;
+    quotePdfBlob?: Blob;
+  }
 ): Promise<Blob> {
   const zip = new JSZip();
   const surname = (submission.customer1.surname || "Client").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
   const folderName = `${surname} - Job Folder`;
   const folder = zip.folder(folderName) || zip;
 
-  // 1. Add Unified Tender Request & ATP Master PDF
-  if (generatedPdfs?.trFormPdfBlob) {
-    folder.file(`${surname} - Tender Request & Authority to Proceed.pdf`, generatedPdfs.trFormPdfBlob);
-  } else if (generatedPdfs?.atpPdfBlob) {
-    folder.file(`${surname} - Authority to Proceed Signed.pdf`, generatedPdfs.atpPdfBlob);
+  // 1. Add Unified Master PDF (Tender Request Specification)
+  if (generatedPdfs?.masterPdfBlob) {
+    folder.file(`${surname} - Master Tender Request Specification.pdf`, generatedPdfs.masterPdfBlob);
   }
 
+  // 2. Add Authority to Proceed Signed PDF
+  if (generatedPdfs?.atpPdfBlob) {
+    folder.file(`${surname} - Authority to Proceed Signed.pdf`, generatedPdfs.atpPdfBlob);
+  } else if (generatedPdfs?.trFormPdfBlob) {
+    folder.file(`${surname} - Tender Request & Authority to Proceed.pdf`, generatedPdfs.trFormPdfBlob);
+  }
+
+  // 3. Add Draftsmen Variations & Working Drawing Directives PDF
+  if (generatedPdfs?.draftsmenPdfBlob) {
+    folder.file(`${surname} - Draftsmen Variations & Working Drawing Directives.pdf`, generatedPdfs.draftsmenPdfBlob);
+  } else {
+    try {
+      const draftsmenBlob = await renderMultiPageDraftsmenVariationPdfBlob(submission);
+      folder.file(`${surname} - Draftsmen Variations & Working Drawing Directives.pdf`, draftsmenBlob);
+    } catch (e) {
+      console.warn("Could not auto-render Draftsmen Variations PDF for zip:", e);
+    }
+  }
+
+  // 4. Add Building Quote PDF if provided
   if (generatedPdfs?.quotePdfBlob) {
     folder.file(`${surname} - Building Quote.pdf`, generatedPdfs.quotePdfBlob);
   }
 
-  // 2. Add Attached Documents from document slots
+  // 5. Add Attached Documents from document slots (100% PDF GUARANTEE!)
   for (const [slotId, doc] of Object.entries(submission.documents)) {
     if (doc.fileDataUrl) {
       try {
-        const commaIdx = doc.fileDataUrl.indexOf(",");
-        if (commaIdx >= 0) {
-          const base64Data = doc.fileDataUrl.slice(commaIdx + 1);
-          const ext = doc.fileName ? doc.fileName.split(".").pop() : "pdf";
-          const standardizedFileName = getStandardizedDocumentFileName(
-            surname,
-            slotId,
-            doc.fileName || `${doc.label}.${ext}`,
-            submission.atp.feeAmount
-          );
+        const isPdf =
+          doc.fileDataUrl.startsWith("data:application/pdf") ||
+          (doc.fileName && doc.fileName.toLowerCase().endsWith(".pdf"));
+        const standardizedPdfName = getStandardizedDocumentFileName(
+          surname,
+          slotId,
+          doc.fileName || `${doc.label}.pdf`,
+          submission.atp.feeAmount
+        ).replace(/\.[^.]+$/, ".pdf");
 
-          folder.file(standardizedFileName, base64Data, { base64: true });
+        if (isPdf) {
+          const commaIdx = doc.fileDataUrl.indexOf(",");
+          const base64Data = commaIdx >= 0 ? doc.fileDataUrl.slice(commaIdx + 1) : doc.fileDataUrl;
+          folder.file(standardizedPdfName, base64Data, { base64: true });
+        } else {
+          // Raster Image -> Convert into an official A4 PDF!
+          const pdfBytes = await convertImageAttachmentToPdf(
+            doc.fileDataUrl,
+            `HUDSON HOMES — ${doc.label}`,
+            `${surname} · Ref: ${submission.submissionNumber} · Job Document`
+          );
+          folder.file(standardizedPdfName, pdfBytes);
         }
       } catch (e) {
-        console.warn(`Could not add document ${slotId} to zip:`, e);
+        console.warn(`Could not add document ${slotId} to zip as PDF:`, e);
       }
     }
   }
-
-  // 3. Add OnSite Client Summary JSON & Text file
-  const onsiteSummary = `=====================================================
-HUDSON HOMES - TENDER REQUEST ONSITE SUMMARY
-=====================================================
-Submission Ref: ${submission.submissionNumber}
-Date: ${submission.tenderRequestDate}
-Consultant: ${submission.newHomeConsultant} (${submission.consultantPhone})
-Office: ${submission.displayOffice}
-
-CUSTOMER 1:
-Name: ${submission.customer1.title || ""} ${submission.customer1.firstName} ${submission.customer1.surname}
-Mobile: ${submission.customer1.mobile}
-Email: ${submission.customer1.email}
-
-CUSTOMER 2:
-${submission.hasCustomer2 ? `Name: ${submission.customer2.title || ""} ${submission.customer2.firstName} ${submission.customer2.surname}\nMobile: ${submission.customer2.mobile}\nEmail: ${submission.customer2.email}` : "None"}
-
-PROPOSED SITE ADDRESS:
-Lot ${submission.land.lotNo}, ${submission.land.streetName || submission.land.estate || ""}
-Suburb: ${submission.land.suburb} (${submission.land.council})
-Estate / Stage: ${submission.land.estate} ${submission.land.stage ? `· Stage ${submission.land.stage}` : ""}
-Lot Size: ${submission.land.lotSizeM2} m² · Frontage: ${submission.land.frontageM} m
-Registration: ${submission.land.isRegistered ? "Registered" : `Unregistered (${submission.land.registeredDate || "TBA"})`}
-
-BUILD SPECIFICATION:
-Build Type: ${submission.buildType}
-Design: ${submission.homeSpec.homeDesign} (${submission.homeSpec.isDoubleStorey ? "Double Storey" : "Single Storey"})
-Facade: ${submission.homeSpec.facade}
-Inclusion Range: ${submission.homeSpec.inclusionsType}
-Garage: ${submission.homeSpec.garageLocation}
-
-ESTIMATED PRICING BREAKDOWN:
-Base House Price: ${formatAud(submission.homeSpec.baseDesignCost)}
-Facade Uplift: ${formatAud(submission.homeSpec.facadeCost)}
-Structural Variations: ${formatAud(submission.homeSpec.structuralVariationsCost)}
-Internal Selections: ${formatAud(submission.homeSpec.internalUpgradesCost)}
-Site & Statutory Costs: ${formatAud(submission.homeSpec.additionalSiteCost)}
-Builder Promotion Discount: -${formatAud(submission.homeSpec.promotionDiscountCost)}
------------------------------------------------------
-TOTAL ESTIMATED BUILD INVESTMENT: ${formatAud(submission.homeSpec.totalBudgetEstimate)}
-
-AUTHORITY TO PROCEED & TENDER FEE:
-Tender Fee: ${formatAud(submission.atp.feeAmount)} via ${submission.atp.paymentMethod.toUpperCase()}
-Reference: ${submission.atp.eftReference}
-Client 1 Signed: ${submission.atp.client1Signed ? `YES (${submission.atp.client1SignatureDate})` : "Pending"}
-Client 2 Signed: ${submission.atp.client2Signed ? `YES (${submission.atp.client2SignatureDate})` : "N/A"}
-=====================================================`;
-
-  folder.file(`${surname} - OnSite Summary.txt`, onsiteSummary);
 
   return await zip.generateAsync({ type: "blob" });
 }
@@ -1242,384 +1295,643 @@ export async function renderHdFinalFloorplanDataUrl(
 }
 
 /**
+ * Helper to convert an image URL or source into a base64 Data URL
+ */
+async function loadImgToDataUrl(url: string): Promise<string> {
+  if (!url) return "";
+  if (url.startsWith("data:image")) return url;
+  if (typeof document === "undefined") return "";
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || img.width || 1200;
+        canvas.height = img.naturalHeight || img.height || 800;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/jpeg", 0.9));
+          return;
+        }
+      } catch (e) {
+        console.warn("Could not convert image to dataUrl:", e);
+      }
+      resolve("");
+    };
+    img.onerror = () => resolve("");
+    img.src = url;
+  });
+}
+
+/**
+ * Helper to render floorplan with numbered pins onto a canvas and return an image data URL
+ */
+async function renderFloorplanWithPinsImageDataUrl(
+  floorplanUrl: string,
+  pins: TenderFloorplanPin[]
+): Promise<string> {
+  if (typeof document === "undefined" || !floorplanUrl) return "";
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        const width = Math.max(1600, img.naturalWidth || 1600);
+        const height = Math.max(1200, img.naturalHeight || 1200);
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve("");
+          return;
+        }
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Draw numbered pins
+        pins.forEach((pin) => {
+          const pinX = (pin.x / 100) * width;
+          const pinY = (pin.y / 100) * height;
+          const radius = 24;
+
+          // Dark halo
+          ctx.beginPath();
+          ctx.arc(pinX, pinY, radius + 4, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
+          ctx.fill();
+
+          // Body
+          ctx.beginPath();
+          ctx.arc(pinX, pinY, radius, 0, Math.PI * 2);
+          ctx.fillStyle = "#f59e0b";
+          ctx.fill();
+
+          // Text
+          ctx.fillStyle = "#020617";
+          ctx.font = "bold 22px monospace";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(pin.number), pinX, pinY + 1);
+        });
+
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      } catch (err) {
+        console.warn("Could not render floorplan with pins:", err);
+        resolve("");
+      }
+    };
+    img.onerror = () => resolve("");
+    img.src = floorplanUrl;
+  });
+}
+
+/**
+ * Generates an official multi-page A4 landscape working drawing directive package for draftsmen.
+ * Page 1: Siting & Boundary Setbacks, Engineering Directives & Fillable Drafting Notes (with AcroForms)
+ * Page 2: Original Catalog Floorplan
+ * Page 3: Modified Construction Floorplan with Numbered Pins
+ * Page 4+: Itemised Numbered Variations Schedule with Form-fillable AcroForm Checkboxes & Text Fields
+ * 100% genuine interactive PDF format for Bluebeam / Adobe Acrobat.
+ */
+export async function renderMultiPageDraftsmenVariationPdfBlob(
+  submission: TenderSubmission
+): Promise<Blob> {
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageW = 841.89;
+  const pageH = 595.28;
+
+  const variations = submission.variations || [];
+  const itemsPerPage = 8;
+  const varChunks: TenderNumberedVariation[][] = [];
+  if (variations.length === 0) {
+    varChunks.push([]);
+  } else {
+    for (let i = 0; i < variations.length; i += itemsPerPage) {
+      varChunks.push(variations.slice(i, i + itemsPerPage));
+    }
+  }
+
+  const totalPages = 3 + varChunks.length;
+
+  const drawHeader = (title: string, subtitle: string, pageNum: number) => {
+    doc.setFillColor(15, 23, 42); // #0f172a
+    doc.rect(0, 0, pageW, 46, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, 28, 22);
+
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(56, 189, 248); // sky-400
+    doc.text(subtitle, 28, 36);
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(245, 158, 11); // amber-500
+    doc.text(`Job Ref: ${submission.submissionNumber} · Page ${pageNum} of ${totalPages}`, pageW - 28, 22, { align: "right" });
+    doc.setTextColor(148, 163, 184);
+    doc.text(`${submission.customer1.surname || "Client"} Residence`, pageW - 28, 36, { align: "right" });
+  };
+
+  const drawFooter = (pageNum: number) => {
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.75);
+    doc.line(28, pageH - 22, pageW - 28, pageH - 22);
+
+    doc.setFontSize(7.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(
+      `Hudson Homes Pty Ltd · Working Drawing Directives · Interactive Bluebeam / Acrobat AcroForm Edition · Page ${pageNum} of ${totalPages}`,
+      28,
+      pageH - 10
+    );
+    doc.text(
+      `Consultant: ${submission.newHomeConsultant || "Morgan Hales"} (${submission.atp.consultantPhone || "0417 571 864"})`,
+      pageW - 28,
+      pageH - 10,
+      { align: "right" }
+    );
+  };
+
+  // =========================================================================
+  // PAGE 1: SITING DIRECTIVES, SETBACKS & FILLABLE DRAFTING CHECKLIST
+  // =========================================================================
+  drawHeader(
+    "HUDSON HOMES — DRAFTSMEN WORKING DRAWINGS & SITING DIRECTIVES",
+    "Prepared for Bernie & OnSite Drafting Team · Siting Clearances, Setback Specifications & Draftsman Review",
+    1
+  );
+
+  // Project Info Metadata Strip
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(28, 54, pageW - 56, 44, "FD");
+
+  const colW = (pageW - 56) / 4;
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("PURCHASER / CLIENT", 36, 67);
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${submission.customer1.firstName} ${submission.customer1.surname}`, 36, 80);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Ph: ${submission.customer1.mobile || "N/A"}`, 36, 91);
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("BUILDING SITE LOCATION", 36 + colW, 67);
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`Lot ${submission.land.lotNo || "TBA"}, ${submission.land.suburb || "QLD"}`, 36 + colW, 80);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 116, 139);
+  doc.text(`${submission.land.streetName || "Street TBA"} (${submission.land.council || "Council"})`, 36 + colW, 91);
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("HOME DESIGN & FACADE", 36 + colW * 2, 67);
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`, 36 + colW * 2, 80);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(3, 105, 161);
+  doc.text(`Tier: ${submission.homeSpec.inclusionsType} · Garage: ${submission.homeSpec.garageLocation || "RHS"}`, 36 + colW * 2, 91);
+
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(71, 85, 105);
+  doc.text("CONSULTANT & TARGET", 36 + colW * 3, 67);
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(`${submission.newHomeConsultant || "Morgan Hales"}`, 36 + colW * 3, 80);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(5, 150, 105);
+  doc.text("Target: Bernie & OnSite Drafting", 36 + colW * 3, 91);
+
+  // Left Column (w = 380): Siting, Setbacks & Engineering Directives
+  const leftX = 28;
+  const leftW = 380;
+
+  // Panel 1: Siting & Setback Verification
+  doc.setFillColor(30, 41, 59);
+  doc.rect(leftX, 106, leftW, 20, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("1. SITING & BOUNDARY CLEARANCES (SETBACK VERIFICATION)", leftX + 8, 120);
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(leftX, 126, leftW, 110, "FD");
+
+  const sb = submission.homeSpec.setbacks || {
+    frontBoundary: "6.0m",
+    rearBoundary: "1.5m",
+    leftBoundary: "1.0m",
+    rightBoundary: "1.0m",
+  };
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`• Front Boundary Setback: ${sb.frontBoundary} (Min required per Council code)`, leftX + 10, 142);
+  doc.text(`• Rear Boundary Setback:  ${sb.rearBoundary} (Min required to eaves/structure)`, leftX + 10, 158);
+  doc.text(`• Left Boundary Setback:  ${sb.leftBoundary} · Right Setback: ${sb.rightBoundary}`, leftX + 10, 174);
+  doc.text(`• Garage Orientation:    ${submission.homeSpec.garageLocation || "RHS"} (Verify driveway crossover)`, leftX + 10, 190);
+  doc.text(`• Building Code Standard: NCC 2022 Livable Housing compliance (stepless threshold)`, leftX + 10, 206);
+  doc.text(`• Land Registration:     ${submission.land.registeredDate?.trim() ? `Unregistered (Expected: ${submission.land.registeredDate})` : "Already Registered"}`, leftX + 10, 222);
+
+  // Siting Approval AcroForm Checkboxes
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("Siting Review Check:", leftX + 10, 248);
+
+  const cbSitingApp = new AcroFormCheckBox();
+  cbSitingApp.Rect = [leftX + 115, 238, 12, 12];
+  cbSitingApp.fieldName = "siting_approved";
+  doc.addField(cbSitingApp);
+  doc.setFont("helvetica", "normal");
+  doc.text("Siting Approved", leftX + 132, 248);
+
+  const cbSitingRfi = new AcroFormCheckBox();
+  cbSitingRfi.Rect = [leftX + 220, 238, 12, 12];
+  cbSitingRfi.fieldName = "siting_rfi";
+  doc.addField(cbSitingRfi);
+  doc.text("RFI / Variance Required", leftX + 237, 248);
+
+  // Panel 2: Key Engineering & Architectural Directives
+  doc.setFillColor(30, 41, 59);
+  doc.rect(leftX, 262, leftW, 20, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("2. ENGINEERING DIRECTIVES & SLAB NOTES", leftX + 8, 276);
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(leftX, 282, leftW, 110, "FD");
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(`[✓] Slab Classification: Engineered Waffle Pod Slab / Piering Allowance`, leftX + 10, 298);
+  doc.text(`[✓] Ceiling Height: ${submission.homeSpec.inclusionsType.includes("H3") ? "2,740mm High Ground Floor" : "2,440mm - 2,590mm Standard"}`, leftX + 10, 314);
+  doc.text(`[✓] Facade Architectural Detail: ${submission.homeSpec.facade} (Verify window heads & eaves)`, leftX + 10, 330);
+  doc.text(`[✓] Alfresco / Porch Slab: Step down 100mm with smooth concrete transition`, leftX + 10, 346);
+  doc.text(`[✓] Wet Area Recesses: Provide 45mm step-down for walk-in shower recesses`, leftX + 10, 362);
+  doc.text(`[✓] Termite Management: Visual barrier system in accordance with AS 3660.1`, leftX + 10, 378);
+
+  // Summary of Variations count
+  doc.setFillColor(254, 243, 199);
+  doc.setDrawColor(251, 191, 36);
+  doc.rect(leftX, 400, leftW, 40, "FD");
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(146, 64, 14);
+  doc.text(`Active Variations Pinned: ${variations.length} Items Total`, leftX + 10, 416);
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "normal");
+  doc.text(`• Structural Modifications: ${variations.filter(v => v.isStructural).length} items (See Page 3 & 4)`, leftX + 10, 428);
+  doc.text(`• Inclusions & Selections: ${variations.filter(v => !v.isStructural).length} items`, leftX + 10, 437);
+
+  // Right Column (w = 380, x = 432): Form-fillable Draftsman Notes & Sign-off
+  const rightX = 432;
+  const rightW = pageW - rightX - 28;
+
+  doc.setFillColor(15, 23, 42);
+  doc.rect(rightX, 106, rightW, 20, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("3. DRAFTSMAN WORKING NOTES & SPECIAL INSTRUCTIONS", rightX + 8, 120);
+
+  doc.setFillColor(255, 251, 235);
+  doc.setDrawColor(253, 230, 138);
+  doc.rect(rightX, 126, rightW, 175, "FD");
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(146, 64, 14);
+  doc.text("Draftsman Siting Assessment & Setback Verification Notes (Interactive Fillable):", rightX + 8, 138);
+
+  // Form-fillable multiline text field for draftsman notes
+  const tfDraftNotes = new AcroFormTextField();
+  tfDraftNotes.Rect = [rightX + 8, 144, rightW - 16, 70];
+  tfDraftNotes.multiline = true;
+  tfDraftNotes.fieldName = "draftsman_general_notes";
+  tfDraftNotes.value = submission.draftsmanGeneralNotes || "";
+  doc.addField(tfDraftNotes);
+
+  doc.text("Structural & Slab Clarification Queries (Fillable):", rightX + 8, 226);
+  const tfStructNotes = new AcroFormTextField();
+  tfStructNotes.Rect = [rightX + 8, 232, rightW - 16, 60];
+  tfStructNotes.multiline = true;
+  tfStructNotes.fieldName = "draftsman_structural_queries";
+  doc.addField(tfStructNotes);
+
+  // Handoff & Sign-off Card
+  doc.setFillColor(15, 23, 42);
+  doc.rect(rightX, 310, rightW, 20, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "bold");
+  doc.text("4. DRAFTING TEAM VERIFICATION & SIGN-OFF", rightX + 8, 324);
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.rect(rightX, 330, rightW, 110, "FD");
+
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(71, 85, 105);
+  doc.text("Lead Draftsman:", rightX + 10, 350);
+  const tfDrafterName = new AcroFormTextField();
+  tfDrafterName.Rect = [rightX + 90, 338, rightW - 100, 18];
+  tfDrafterName.fieldName = "lead_draftsman_name";
+  doc.addField(tfDrafterName);
+
+  doc.text("Date Completed:", rightX + 10, 376);
+  const tfDrafterDate = new AcroFormTextField();
+  tfDrafterDate.Rect = [rightX + 90, 364, 130, 18];
+  tfDrafterDate.fieldName = "drafting_date_completed";
+  tfDrafterDate.value = submission.draftsmanReviewedAt || new Date().toLocaleDateString("en-AU");
+  doc.addField(tfDrafterDate);
+
+  doc.text("Drawing Rev:", rightX + 230, 376);
+  const tfDrafterRev = new AcroFormTextField();
+  tfDrafterRev.Rect = [rightX + 295, 364, rightW - 305, 18];
+  tfDrafterRev.fieldName = "drawing_revision";
+  tfDrafterRev.value = "Rev A (Tender)";
+  doc.addField(tfDrafterRev);
+
+  doc.text("Workflow Mgr:", rightX + 10, 402);
+  const tfMgrName = new AcroFormTextField();
+  tfMgrName.Rect = [rightX + 90, 390, rightW - 100, 18];
+  tfMgrName.fieldName = "workflow_manager_signoff";
+  tfMgrName.value = "Bernie (Workflow Manager)";
+  doc.addField(tfMgrName);
+
+  doc.text("Review Status:", rightX + 10, 428);
+  const tfStatus = new AcroFormTextField();
+  tfStatus.Rect = [rightX + 90, 416, rightW - 100, 18];
+  tfStatus.fieldName = "overall_drafting_status";
+  tfStatus.value = submission.draftsmanReviewStatus === "approved" ? "Approved" : submission.draftsmanReviewStatus === "rfi_raised" ? "RFI Raised" : "Pending Review";
+  doc.addField(tfStatus);
+
+  drawFooter(1);
+
+  // =========================================================================
+  // PAGE 2: ORIGINAL CATALOG ARCHITECTURAL FLOORPLAN
+  // =========================================================================
+  doc.addPage("a4", "landscape");
+  drawHeader(
+    `ORIGINAL ARCHITECTURAL CATALOG FLOORPLAN — ${submission.homeSpec.homeDesign || "Standard Design"}`,
+    `Standard Catalog Reference Drawing · Facade: ${submission.homeSpec.facade || "Classic"} · Area: ${(submission.homeSpec.standardDesignM2 || submission.homeSpec.designM2 || 195.4).toFixed(1)} m²`,
+    2
+  );
+
+  const origFloorplanUrl = submission.homeSpec.originalFloorplanUrl || submission.homeSpec.floorplanUrl || "";
+  let origDataUrl = "";
+  if (origFloorplanUrl) {
+    try {
+      origDataUrl = await loadImgToDataUrl(origFloorplanUrl);
+    } catch (e) {
+      console.warn("Could not load original floorplan data url:", e);
+    }
+  }
+
+  if (origDataUrl) {
+    try {
+      doc.addImage(origDataUrl, "JPEG", 28, 54, pageW - 56, pageH - 85, undefined, "FAST");
+    } catch (err) {
+      console.warn("Error drawing original floorplan into pdf:", err);
+    }
+  } else {
+    // Placeholder Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(28, 54, pageW - 56, pageH - 85, "FD");
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Catalog Plan: ${submission.homeSpec.homeDesign}`, pageW / 2, pageH / 2 - 10, { align: "center" });
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text("Standard architectural layout plan on record.", pageW / 2, pageH / 2 + 12, { align: "center" });
+  }
+
+  drawFooter(2);
+
+  // =========================================================================
+  // PAGE 3: MODIFIED CONSTRUCTION FLOORPLAN WITH NUMBERED PINS
+  // =========================================================================
+  doc.addPage("a4", "landscape");
+  const pinCount = (submission.homeSpec.floorplanPins || []).length;
+  drawHeader(
+    `FINAL ARCHITECTURAL FLOORPLAN MARKUP WITH NUMBERED VARIATION PINS`,
+    `Construction Markups & Numbered Pin Schedule (${pinCount} Pinned Locations) · Job Ref: ${submission.submissionNumber}`,
+    3
+  );
+
+  let markupDataUrl = "";
+  if (submission.homeSpec.floorplanUrl) {
+    try {
+      markupDataUrl = await renderFloorplanWithPinsImageDataUrl(
+        submission.homeSpec.floorplanUrl,
+        submission.homeSpec.floorplanPins || []
+      );
+    } catch (e) {
+      console.warn("Could not render markup floorplan with pins:", e);
+    }
+  }
+
+  if (markupDataUrl) {
+    try {
+      doc.addImage(markupDataUrl, "JPEG", 28, 54, pageW - 56, pageH - 115, undefined, "FAST");
+    } catch (err) {
+      console.warn("Error drawing markup floorplan into pdf:", err);
+    }
+  } else {
+    // Placeholder
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(203, 213, 225);
+    doc.rect(28, 54, pageW - 56, pageH - 115, "FD");
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(15, 23, 42);
+    doc.text(`Construction Floorplan: ${submission.homeSpec.homeDesign}`, pageW / 2, pageH / 2 - 10, { align: "center" });
+  }
+
+  // Legend bar at the bottom of Page 3
+  doc.setFillColor(241, 245, 249);
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(28, pageH - 56, pageW - 56, 30, "FD");
+
+  doc.setFontSize(7.5);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("PIN LEGEND:", 36, pageH - 42);
+
+  const pins = submission.homeSpec.floorplanPins || [];
+  let legendText = pins.slice(0, 7).map(p => `[#${p.number}] ${p.label || "Mod"}`).join("   ·   ");
+  if (pins.length > 7) legendText += `  (+${pins.length - 7} more)`;
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(51, 65, 85);
+  doc.text(legendText || "No physical pins placed on standard plan.", 105, pageH - 42);
+
+  drawFooter(3);
+
+  // =========================================================================
+  // PAGE 4+: ITEMISED NUMBERED VARIATIONS SCHEDULE (WITH ACROFORMS)
+  // =========================================================================
+  varChunks.forEach((chunk, chunkIdx) => {
+    const pageNum = 4 + chunkIdx;
+    doc.addPage("a4", "landscape");
+
+    drawHeader(
+      `ITEMISED NUMBERED VARIATIONS SCHEDULE & WORKING DRAWINGS DIRECTIVES`,
+      `Form-fillable Bluebeam / Acrobat Review Sheet · Page ${chunkIdx + 1} of ${varChunks.length} · ${variations.length} Items Total`,
+      pageNum
+    );
+
+    // Table Header
+    const tableTopY = 56;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(28, tableTopY, pageW - 56, 24, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("#", 38, tableTopY + 16);
+    doc.text("VARIATION / SPECIFICATION DIRECTIVE", 70, tableTopY + 16);
+    doc.text("CATEGORY", 410, tableTopY + 16);
+    doc.text("APPROVE", 490, tableTopY + 16);
+    doc.text("RFI", 550, tableTopY + 16);
+    doc.text("SHEET REF", 595, tableTopY + 16);
+    doc.text("DRAFTSMAN REMARKS / ACTION (FILLABLE)", 675, tableTopY + 16);
+
+    let rowY = tableTopY + 24;
+    const rowH = 54;
+
+    if (chunk.length === 0) {
+      doc.setFillColor(248, 250, 252);
+      doc.rect(28, rowY, pageW - 56, 80, "F");
+      doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.setFont("helvetica", "normal");
+      doc.text("No custom variations entered for this tender. Build conforms to standard specifications.", pageW / 2, rowY + 45, { align: "center" });
+    } else {
+      chunk.forEach((v, vIdx) => {
+        const isAlt = vIdx % 2 === 1;
+        doc.setFillColor(isAlt ? 248 : 255, isAlt ? 250 : 255, isAlt ? 252 : 255);
+        doc.setDrawColor(226, 232, 240);
+        doc.rect(28, rowY, pageW - 56, rowH, "FD");
+
+        // Pin # Badge
+        doc.setFillColor(v.isStructural ? 245 : 6, v.isStructural ? 158 : 182, v.isStructural ? 11 : 212);
+        doc.circle(44, rowY + 27, 10, "F");
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.text(String(v.itemNumber || vIdx + 1), 44, rowY + 30, { align: "center" });
+
+        // Description (split multi-line)
+        doc.setTextColor(15, 23, 42);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        const lines = doc.splitTextToSize(v.description || "", 325);
+        doc.text(lines.slice(0, 3), 70, rowY + 18);
+
+        // Category
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(v.isStructural ? 180 : 14, v.isStructural ? 83 : 116, v.isStructural ? 9 : 144);
+        doc.text(v.isStructural ? "Structural" : "Inclusion", 410, rowY + 28);
+
+        // AcroForm Checkbox: Approved
+        const cbApp = new AcroFormCheckBox();
+        cbApp.Rect = [502, rowY + 20, 14, 14];
+        cbApp.fieldName = `var_${v.id}_approved`;
+        if (v.draftsmanStatus === "approved") cbApp.value = "Yes";
+        doc.addField(cbApp);
+
+        // AcroForm Checkbox: RFI
+        const cbRfi = new AcroFormCheckBox();
+        cbRfi.Rect = [555, rowY + 20, 14, 14];
+        cbRfi.fieldName = `var_${v.id}_rfi`;
+        if (v.draftsmanStatus === "rfi") cbRfi.value = "Yes";
+        doc.addField(cbRfi);
+
+        // AcroForm TextField: Sheet Ref
+        const tfSheet = new AcroFormTextField();
+        tfSheet.Rect = [595, rowY + 18, 65, 18];
+        tfSheet.fieldName = `var_${v.id}_sheet`;
+        tfSheet.value = v.draftsmanSheetRef || "";
+        doc.addField(tfSheet);
+
+        // AcroForm TextField: Remarks
+        const tfNotes = new AcroFormTextField();
+        tfNotes.Rect = [675, rowY + 14, 134, 28];
+        tfNotes.multiline = true;
+        tfNotes.fieldName = `var_${v.id}_remarks`;
+        tfNotes.value = v.draftsmanNotes || "";
+        doc.addField(tfNotes);
+
+        rowY += rowH;
+      });
+    }
+
+    drawFooter(pageNum);
+  });
+
+  return new Blob([doc.output("arraybuffer")], { type: "application/pdf" });
+}
+
+/**
  * Renders an HD standalone working drawings specification directive for Bernie and the OnSite drafting team.
- * Formatted with side-by-side variations table on one side and an editable drafting notes & checklist page on the other,
- * exported as a clean genuine PDF.
+ * Formatted with side-by-side variations table and fillable drafting notes & checklist,
+ * exported as a clean genuine PDF data URI.
  */
 export async function renderDraftsmenVariationsDataUrl(
   submission: TenderSubmission
 ): Promise<string> {
   if (typeof document === "undefined") return "";
 
-  const structuralItems = (submission.variations || []).filter((v) => v.isStructural);
-  const otherItems = (submission.variations || []).filter((v) => !v.isStructural);
-  const totalItemsCount = structuralItems.length + otherItems.length;
-
-  const width = 2400;
-  const baseHeight = 1600;
-  const itemRowHeight = 90;
-  const maxRows = Math.max(totalItemsCount, 10);
-  const height = Math.max(2000, baseHeight + (maxRows - 8) * (itemRowHeight / 2));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return "";
-
-  // 1. Background
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
-  // 2. Dark Navy Top Header Banner
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(0, 0, width, 150);
-
-  // Logo / Title
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "900 36px sans-serif";
-  ctx.fillText("HUDSON HOMES — DRAFTSMEN VARIATION DIRECTIVE & WORKING DRAWINGS", 60, 62);
-
-  ctx.fillStyle = "#38bdf8";
-  ctx.font = "bold 20px sans-serif";
-  ctx.fillText(
-    `Prepared for Bernie & OnSite Drafting Team · Job Ref: ${submission.submissionNumber} · Created ${submission.tenderRequestDate || new Date().toLocaleDateString("en-AU")}`,
-    60,
-    108
-  );
-
-  ctx.fillStyle = "#f59e0b";
-  ctx.font = "bold 18px monospace";
-  ctx.textAlign = "right";
-  ctx.fillText(`TOTAL VARIATIONS: ${totalItemsCount} ITEMS`, width - 60, 108);
-  ctx.textAlign = "left";
-
-  // 3. Project Information Metadata Card
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(60, 170, width - 120, 110);
-  ctx.strokeStyle = "#cbd5e1";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(60, 170, width - 120, 110);
-
-  const colW = (width - 120) / 4;
-
-  // Meta Col 1: Customer
-  ctx.fillStyle = "#475569";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("CLIENT / PURCHASER", 80, 200);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.customer1.firstName} ${submission.customer1.surname}`, 80, 230);
-  ctx.font = "14px monospace";
-  ctx.fillStyle = "#64748b";
-  ctx.fillText(`Ph: ${submission.customer1.mobile || "N/A"}`, 80, 258);
-
-  // Meta Col 2: Site Location
-  ctx.fillStyle = "#475569";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("BUILDING SITE LOCATION", 80 + colW, 200);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`Lot ${submission.land.lotNo || "TBA"}, ${submission.land.suburb || "QLD"}`, 80 + colW, 230);
-  ctx.font = "14px sans-serif";
-  ctx.fillStyle = "#64748b";
-  ctx.fillText(`${submission.land.streetName || "Street TBA"} · ${submission.land.council || ""}`, 80 + colW, 258);
-
-  // Meta Col 3: Design & Inclusions
-  ctx.fillStyle = "#475569";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("HOME DESIGN & FACADE", 80 + colW * 2, 200);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.homeSpec.homeDesign} · ${submission.homeSpec.facade}`, 80 + colW * 2, 230);
-  ctx.font = "14px sans-serif";
-  ctx.fillStyle = "#0369a1";
-  ctx.fillText(`Tier: ${submission.homeSpec.inclusionsType} · Garage: ${submission.homeSpec.garageLocation}`, 80 + colW * 2, 258);
-
-  // Meta Col 4: Consultant & Workflow
-  ctx.fillStyle = "#475569";
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillText("CONSULTANT & TARGET", 80 + colW * 3, 200);
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText(`${submission.newHomeConsultant || "Morgan Hales"}`, 80 + colW * 3, 230);
-  ctx.font = "14px sans-serif";
-  ctx.fillStyle = "#059669";
-  ctx.fillText(`Target: Bernie & OnSite Drafting`, 80 + colW * 3, 258);
-
-  // 4. SIDE-BY-SIDE SPLIT:
-  // LEFT COLUMN: Variations Table (Width: 1120px)
-  // RIGHT COLUMN: Editable Notes & Review Checklist Page (Width: 1120px)
-  const leftX = 60;
-  const leftW = 1120;
-  const rightX = leftX + leftW + 40;
-  const rightW = width - rightX - 60;
-  const contentTopY = 305;
-
-  // Helper to wrap text
-  const wrapText = (text: string, maxWidth: number): string[] => {
-    const words = text.split(" ");
-    const lines: string[] = [];
-    let currentLine = words[0] || "";
-
-    for (let i = 1; i < words.length; i++) {
-      const word = words[i];
-      const w = ctx.measureText(currentLine + " " + word).width;
-      if (w < maxWidth) {
-        currentLine += " " + word;
-      } else {
-        lines.push(currentLine);
-        currentLine = word;
-      }
-    }
-    lines.push(currentLine);
-    return lines;
-  };
-
-  // --- LEFT COLUMN: VARIATIONS TABLE ---
-  let curY = contentTopY;
-
-  const drawLeftHeader = (title: string, color: string) => {
-    ctx.fillStyle = color;
-    ctx.fillRect(leftX, curY, leftW, 36);
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 15px sans-serif";
-    ctx.fillText(title, leftX + 15, curY + 24);
-    curY += 42;
-
-    // Table Column Headers
-    ctx.fillStyle = "#f1f5f9";
-    ctx.fillRect(leftX, curY, leftW, 28);
-    ctx.strokeStyle = "#cbd5e1";
-    ctx.strokeRect(leftX, curY, leftW, 28);
-
-    ctx.fillStyle = "#475569";
-    ctx.font = "bold 12px sans-serif";
-    ctx.fillText("#", leftX + 15, curY + 19);
-    ctx.fillText("VARIATION & SPECIFICATION DIRECTIVE", leftX + 60, curY + 19);
-    ctx.fillText("SIGN-OFF", leftX + 850, curY + 19);
-    ctx.fillText("SHEET", leftX + 1020, curY + 19);
-    curY += 32;
-  };
-
-  // Section A: Numbered Structural Variations
-  if (structuralItems.length > 0) {
-    drawLeftHeader(`SECTION A: STRUCTURAL MODIFICATIONS (${structuralItems.length} ITEMS PINNED)`, "#b45309");
-
-    structuralItems.forEach((item, idx) => {
-      const isAlt = idx % 2 === 1;
-      const rowH = 68;
-
-      ctx.fillStyle = isAlt ? "#fffbeb" : "#ffffff";
-      ctx.fillRect(leftX, curY, leftW, rowH);
-      ctx.strokeStyle = "#fde68a";
-      ctx.strokeRect(leftX, curY, leftW, rowH);
-
-      // Badge
-      ctx.beginPath();
-      ctx.arc(leftX + 28, curY + 34, 15, 0, Math.PI * 2);
-      ctx.fillStyle = "#f59e0b";
-      ctx.fill();
-      ctx.fillStyle = "#020617";
-      ctx.font = "bold 14px monospace";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(String(item.itemNumber || idx + 1), leftX + 28, curY + 35);
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-
-      // Description
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "bold 14px sans-serif";
-      const lines = wrapText(item.description, 760);
-      lines.slice(0, 2).forEach((l, lIdx) => {
-        ctx.fillText(l, leftX + 60, curY + 24 + lIdx * 19);
-      });
-
-      // Draftsman Checkboxes
-      const boxY = curY + 24;
-      ctx.strokeStyle = "#64748b";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(leftX + 850, boxY, 14, 14);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "11px sans-serif";
-      ctx.fillText("Approved", leftX + 870, boxY + 11);
-
-      ctx.strokeRect(leftX + 940, boxY, 14, 14);
-      ctx.fillText("RFI", leftX + 958, boxY + 11);
-
-      // Sheet Ref Box
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(leftX + 1010, curY + 12, 95, 44);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.strokeRect(leftX + 1010, curY + 12, 95, 44);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "10px sans-serif";
-      ctx.fillText("Sht: _____ ", leftX + 1016, curY + 38);
-
-      curY += rowH + 4;
-    });
-
-    curY += 16;
-  }
-
-  // Section B: Other Variations & Inclusions
-  if (otherItems.length > 0) {
-    drawLeftHeader(`SECTION B: ALL OTHER VARIATIONS & INCLUSIONS (${otherItems.length} ITEMS)`, "#0e7490");
-
-    otherItems.forEach((item, idx) => {
-      const isAlt = idx % 2 === 1;
-      const rowH = 64;
-
-      ctx.fillStyle = isAlt ? "#f0fdfa" : "#ffffff";
-      ctx.fillRect(leftX, curY, leftW, rowH);
-      ctx.strokeStyle = "#cffafe";
-      ctx.strokeRect(leftX, curY, leftW, rowH);
-
-      // Bullet
-      ctx.beginPath();
-      ctx.arc(leftX + 28, curY + 32, 5, 0, Math.PI * 2);
-      ctx.fillStyle = "#06b6d4";
-      ctx.fill();
-
-      // Description
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "500 13px sans-serif";
-      const lines = wrapText(item.description, 760);
-      lines.slice(0, 2).forEach((l, lIdx) => {
-        ctx.fillText(l, leftX + 60, curY + 23 + lIdx * 18);
-      });
-
-      // Draftsman Checkboxes
-      const boxY = curY + 22;
-      ctx.strokeStyle = "#64748b";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(leftX + 850, boxY, 14, 14);
-      ctx.fillStyle = "#0f172a";
-      ctx.font = "11px sans-serif";
-      ctx.fillText("Approved", leftX + 870, boxY + 11);
-
-      ctx.strokeRect(leftX + 940, boxY, 14, 14);
-      ctx.fillText("RFI", leftX + 958, boxY + 11);
-
-      // Sheet Ref Box
-      ctx.fillStyle = "#f8fafc";
-      ctx.fillRect(leftX + 1010, curY + 10, 95, 44);
-      ctx.strokeStyle = "#cbd5e1";
-      ctx.strokeRect(leftX + 1010, curY + 10, 95, 44);
-      ctx.fillStyle = "#64748b";
-      ctx.font = "10px sans-serif";
-      ctx.fillText("Sht: _____ ", leftX + 1016, curY + 36);
-
-      curY += rowH + 4;
-    });
-  }
-
-  // --- RIGHT COLUMN: EDITABLE DRAFTING NOTES & CHECKLIST PAGE ---
-  let rightY = contentTopY;
-
-  // Panel 1: Siting & Boundary Setbacks
-  ctx.fillStyle = "#1e293b";
-  ctx.fillRect(rightX, rightY, rightW, 36);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 15px sans-serif";
-  ctx.fillText("DRAFTING CHECKLIST & SITE DIRECTIVES", rightX + 15, rightY + 24);
-  rightY += 46;
-
-  // Setbacks Card
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(rightX, rightY, rightW, 140);
-  ctx.strokeStyle = "#e2e8f0";
-  ctx.strokeRect(rightX, rightY, rightW, 140);
-
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("1. Siting & Boundary Clearances (Setback Verification):", rightX + 15, rightY + 25);
-
-  const sb = submission.homeSpec.setbacks || { frontBoundary: "6.0m", rearBoundary: "1.5m", leftBoundary: "1.0m", rightBoundary: "1.0m" };
-  ctx.font = "13px monospace";
-  ctx.fillStyle = "#334155";
-  ctx.fillText(`• Front Boundary Setback: ${sb.frontBoundary} (Min required per Council code)`, rightX + 25, rightY + 52);
-  ctx.fillText(`• Rear Boundary Setback:  ${sb.rearBoundary} (Min required to eaves/structure)`, rightX + 25, rightY + 74);
-  ctx.fillText(`• Left Boundary Setback:  ${sb.leftBoundary} · Right Setback: ${sb.rightBoundary}`, rightX + 25, rightY + 96);
-  ctx.fillText(`• Garage Orientation:    ${submission.homeSpec.garageLocation || "RHS"} (Verify driveway crossover)`, rightX + 25, rightY + 118);
-
-  rightY += 156;
-
-  // Panel 2: Key Engineering & Architectural Specifications
-  ctx.fillStyle = "#f8fafc";
-  ctx.fillRect(rightX, rightY, rightW, 170);
-  ctx.strokeStyle = "#e2e8f0";
-  ctx.strokeRect(rightX, rightY, rightW, 170);
-
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("2. Engineering Directives & Slab Notes:", rightX + 15, rightY + 25);
-
-  ctx.font = "12.5px sans-serif";
-  ctx.fillStyle = "#334155";
-  ctx.fillText(`[✓] Slab Classification: Engineered Waffle Pod Slab / Piering Allowance`, rightX + 25, rightY + 52);
-  ctx.fillText(`[✓] Ceiling Height: ${submission.homeSpec.inclusionsType.includes("H3") ? "2,740mm High Ground Floor" : "2,440mm - 2,590mm Standard"}`, rightX + 25, rightY + 76);
-  ctx.fillText(`[✓] Facade Architectural Detail: ${submission.homeSpec.facade} (Verify window heads & eaves)`, rightX + 25, rightY + 100);
-  ctx.fillText(`[✓] Alfresco / Porch Slab: Step down 100mm with smooth concrete transition`, rightX + 25, rightY + 124);
-  ctx.fillText(`[✓] Wet Area Recesses: Provide 45mm step-down for walk-in shower recesses`, rightX + 25, rightY + 148);
-
-  rightY += 186;
-
-  // Panel 3: Draftsman Editable Notes & Query Section
-  ctx.fillStyle = "#fffbeb";
-  ctx.fillRect(rightX, rightY, rightW, 260);
-  ctx.strokeStyle = "#fde68a";
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(rightX, rightY, rightW, 260);
-
-  ctx.fillStyle = "#92400e";
-  ctx.font = "bold 14px sans-serif";
-  ctx.fillText("3. Draftsman Working Notes & Special Structural Instructions:", rightX + 15, rightY + 26);
-
-  ctx.fillStyle = "#78350f";
-  ctx.font = "12px sans-serif";
-  ctx.fillText("• Ensure all numbered pins match the redline architectural floorplan exactly.", rightX + 20, rightY + 55);
-  ctx.fillText("• Confirm sewer / stormwater connection point from 1:200 Siting Plan.", rightX + 20, rightY + 80);
-  ctx.fillText("• Maintain NCC 2022 Livable Housing compliance (stepless threshold & 820mm doors).", rightX + 20, rightY + 105);
-
-  // Lined notepad area for drafter's handwritten / typed custom notes
-  ctx.strokeStyle = "#fde68a";
-  ctx.lineWidth = 1;
-  for (let lineY = rightY + 135; lineY <= rightY + 240; lineY += 25) {
-    ctx.beginPath();
-    ctx.moveTo(rightX + 20, lineY);
-    ctx.lineTo(rightX + rightW - 20, lineY);
-    ctx.stroke();
-  }
-
-  // 5. Sign-off & Verification Footer Box
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(60, height - 130, width - 120, 95);
-
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 15px sans-serif";
-  ctx.fillText("DRAFTING TEAM VERIFICATION & WORKFLOW HANDOFF SIGN-OFF", 80, height - 95);
-
-  ctx.fillStyle = "#94a3b8";
-  ctx.font = "13px sans-serif";
-  ctx.fillText("Lead Draftsman: ________________________", 80, height - 55);
-  ctx.fillText("Date Completed: ___ / ___ / 2026", 520, height - 55);
-  ctx.fillText("Drawing Revision: Rev A (Tender Plans)", 920, height - 55);
-  ctx.fillText("Bernie / Workflow Manager Sign-off: ________________________", 1380, height - 55);
-
   try {
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "pt",
-      format: [width * 0.75, height * 0.75],
+    const blob = await renderMultiPageDraftsmenVariationPdfBlob(submission);
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(blob);
     });
-    pdf.addImage(imgData, "JPEG", 0, 0, width * 0.75, height * 0.75);
-    return pdf.output("datauristring");
   } catch (err) {
-    console.warn("Falling back to image data url for draftsmen variations:", err);
-    return canvas.toDataURL("image/png");
+    console.warn("Could not generate multi-page draftsmen variation pdf data url:", err);
+    return "";
   }
 }
 

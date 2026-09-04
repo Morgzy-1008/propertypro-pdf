@@ -28,6 +28,7 @@ import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
 import { Route as CIdRouteImport } from './routes/c/$id'
 import { Route as PackageIdRouteImport } from './routes/package/$id'
 import { Route as QuoteIdRouteImport } from './routes/quote/$id'
+import { Route as TenderDraftingIdRouteImport } from './routes/tender-drafting/$id'
 import { Route as TenderSignIdRouteImport } from './routes/tender-sign/$id'
 
 const IndexRoute = IndexRouteImport.update({
@@ -127,6 +128,11 @@ const QuoteIdRoute = QuoteIdRouteImport.update({
   path: '/quote/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TenderDraftingIdRoute = TenderDraftingIdRouteImport.update({
+  id: '/tender-drafting/$id',
+  path: '/tender-drafting/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TenderSignIdRoute = TenderSignIdRouteImport.update({
   id: '/tender-sign/$id',
   path: '/tender-sign/$id',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
+  '/tender-drafting/$id': typeof TenderDraftingIdRoute
   '/tender-sign/$id': typeof TenderSignIdRoute
 }
 export interface FileRoutesByTo {
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
+  '/tender-drafting/$id': typeof TenderDraftingIdRoute
   '/tender-sign/$id': typeof TenderSignIdRoute
 }
 export interface FileRoutesById {
@@ -196,6 +204,7 @@ export interface FileRoutesById {
   '/c/$id': typeof CIdRoute
   '/package/$id': typeof PackageIdRoute
   '/quote/$id': typeof QuoteIdRoute
+  '/tender-drafting/$id': typeof TenderDraftingIdRoute
   '/tender-sign/$id': typeof TenderSignIdRoute
 }
 export interface FileRouteTypes {
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
+    | '/tender-drafting/$id'
     | '/tender-sign/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -240,6 +250,7 @@ export interface FileRouteTypes {
     | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
+    | '/tender-drafting/$id'
     | '/tender-sign/$id'
   id:
     | '__root__'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/c/$id'
     | '/package/$id'
     | '/quote/$id'
+    | '/tender-drafting/$id'
     | '/tender-sign/$id'
   fileRoutesById: FileRoutesById
 }
@@ -278,6 +290,7 @@ export interface RootRouteChildren {
   CIdRoute: typeof CIdRoute
   PackageIdRoute: typeof PackageIdRoute
   QuoteIdRoute: typeof QuoteIdRoute
+  TenderDraftingIdRoute: typeof TenderDraftingIdRoute
   TenderSignIdRoute: typeof TenderSignIdRoute
 }
 
@@ -416,6 +429,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof QuoteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tender-drafting/$id': {
+      id: '/tender-drafting/$id'
+      path: '/tender-drafting/$id'
+      fullPath: '/tender-drafting/$id'
+      preLoaderRoute: typeof TenderDraftingIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tender-sign/$id': {
       id: '/tender-sign/$id'
       path: '/tender-sign/$id'
@@ -462,6 +482,7 @@ const rootRouteChildren: RootRouteChildren = {
   CIdRoute: CIdRoute,
   PackageIdRoute: PackageIdRoute,
   QuoteIdRoute: QuoteIdRoute,
+  TenderDraftingIdRoute: TenderDraftingIdRoute,
   TenderSignIdRoute: TenderSignIdRoute,
 }
 export const routeTree = rootRouteImport

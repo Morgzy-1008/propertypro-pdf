@@ -26,6 +26,9 @@ export interface TenderNumberedVariation {
   cost: number;
   category?: "structural" | "all_variations" | string;
   isStructural: boolean; // True = shown on floorplan with #, False = unnumbered general variation
+  draftsmanNotes?: string;
+  draftsmanStatus?: "approved" | "rfi" | "pending";
+  draftsmanSheetRef?: string;
 }
 
 export interface TenderCustomer {
@@ -117,6 +120,15 @@ export interface TenderSubmission {
   consultantEmail: string;
   displayOffice: string;
   
+  // Buyer Classification & Acquisition Channel
+  buyerType?: "FHB" | "Investor" | "Owner-Occupied";
+  leadSource?: "online lead" | "display home" | "referral";
+
+  // Draftsman Collaborative Workflow
+  draftsmanGeneralNotes?: string;
+  draftsmanReviewStatus?: "pending" | "rfi_raised" | "approved";
+  draftsmanReviewedAt?: string;
+
   // Project Type & Client
   buildType: BuildType;
   purchaserType: PurchaserType;

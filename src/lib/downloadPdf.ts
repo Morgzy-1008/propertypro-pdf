@@ -23,8 +23,8 @@ function safeFilename(value: string) {
   return `${cleaned || "H+L - Hudson Homes Flyer"}.pdf`;
 }
 
-/** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
-export async function downloadA4Pdf(root: ParentNode, filename: string) {
+/** Renders high-resolution print-ready A4 sheets and returns the jsPDF instance. */
+export async function renderA4PdfDocument(root?: ParentNode) {
   // Support both House & Land flyers (.flyer-page) and Builders Estimate Quotes (.quote-page)
   let sheets: HTMLElement[] = [];
   
@@ -34,7 +34,7 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
   
   if (!sheets.length) {
     const visibleContainer = document.querySelector(
-      ".quote-pdf-root:not(#quote-pdf-export-container), .flyer-preview-container"
+      ".quote-pdf-root:not(#quote-pdf-export-container), .flyer-preview-container, .tender-master-pdf-root"
     );
     if (visibleContainer) {
       sheets = Array.from(visibleContainer.querySelectorAll<HTMLElement>(".quote-page, .flyer-page"));
@@ -193,5 +193,17 @@ export async function downloadA4Pdf(root: ParentNode, filename: string) {
     }
   }
 
+  return pdf;
+}
+
+/** Downloads high-resolution print-ready A4 sheets directly as a PDF. */
+export async function downloadA4Pdf(root: ParentNode | undefined, filename: string) {
+  const pdf = await renderA4PdfDocument(root);
   pdf.save(safeFilename(filename));
+}
+
+/** Renders high-resolution print-ready A4 sheets directly into a PDF Blob. */
+export async function renderA4PdfBlob(root?: ParentNode): Promise<Blob> {
+  const pdf = await renderA4PdfDocument(root);
+  return pdf.output("blob");
 }

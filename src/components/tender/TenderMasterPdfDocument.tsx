@@ -31,10 +31,179 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
   const isPackage = atp.feeType === "package_3000";
   const isCustom = atp.isCustomDesignAddon || atp.feeType === "custom_design_800";
 
-  const totalPages = 5;
+  // Dynamic calculation to ensure no table or text ever exceeds the printable A4 border
+  const isKdrb = buildType.includes("KDRB");
+  // Page 1 usable vertical height is ~1042px (1122px - 80px padding).
+  // Fixed sections: Header (75px) + Meta Strip (90px) + Cust Profile (170px) + Land/Site (155px, +45px if KDRB) + Build Spec (100px) + Point 4 Title/Header/Total (105px) + Footer (45px) = 740px (785px if KDRB).
+  // Available space remaining inside Page 1 border for Point 4 table rows is ~300px (255px if KDRB).
+  const availableBorderHeightPx = isKdrb ? 255 : 300;
+
+  // Exact physical height needed by all item rows
+  let calculatedItemsHeightPx = 34; // Base price row
+  if ((homeSpec.areaAdjustmentsBreakdown && homeSpec.areaAdjustmentsBreakdown.length > 0) || 
+      (homeSpec.modifiedDesignM2 && homeSpec.designM2 && Math.abs(homeSpec.modifiedDesignM2 - homeSpec.designM2) > 0.05)) {
+    calculatedItemsHeightPx += (homeSpec.areaAdjustmentsBreakdown?.length || 1) * 34;
+  }
+  calculatedItemsHeightPx += 34; // Facade row
+  for (const v of structuralVariations) {
+    const extraLines = Math.floor(Math.max(0, (v.description || "").length - 45) / 45);
+    calculatedItemsHeightPx += 32 + extraLines * 16;
+  }
+  for (const v of allOtherVariations) {
+    const extraLines = Math.floor(Math.max(0, (v.description || "").length - 45) / 45);
+    calculatedItemsHeightPx += 32 + extraLines * 16;
+  }
+  if (homeSpec.includeLandscapePackage) calculatedItemsHeightPx += 34;
+  if (homeSpec.promotionDiscountCost > 0) calculatedItemsHeightPx += 32;
+
+  // Trigger overflow continuation whenever content exceeds physical printable border height
+  const isPoint4Overflow = calculatedItemsHeightPx > availableBorderHeightPx;
+
+  // Build the complete list of itemised Point 4 detail rows for clean continuation pagination
+  interface Point4DetailItem {
+    id: string;
+    description: React.ReactNode;
+    category: string;
+    amount: number;
+    isStructural?: boolean;
+    itemNumber?: number;
+    isDiscount?: boolean;
+    rowBg?: string;
+  }
+
+  const allDetailItems: Point4DetailItem[] = [
+    {
+      id: "base_house_design",
+      description: (
+        <div>
+          <span className="font-semibold text-slate-900">
+            Base House Design — {homeSpec.homeDesign || "Standard Design"} ({homeSpec.inclusionsType})
+          </span>
+          {homeSpec.standardDesignM2 && homeSpec.modifiedDesignM2 && homeSpec.standardDesignM2 !== homeSpec.modifiedDesignM2 ? (
+            <span className="block text-[10.5px] text-slate-600 font-normal mt-0.5">
+              Standard Catalog Plan: {homeSpec.standardDesignM2.toFixed(2)} m² &rarr; Modified Construction Plan: {homeSpec.modifiedDesignM2.toFixed(2)} m²
+            </span>
+          ) : null}
+        </div>
+      ),
+      category: `${(homeSpec.standardDesignM2 || homeSpec.designM2 || 195.4).toFixed(1)} m²`,
+      amount: homeSpec.standardBasePrice || homeSpec.baseDesignCost,
+      rowBg: "bg-slate-50",
+    },
+  ];
+
+  if (homeSpec.areaAdjustmentsBreakdown && homeSpec.areaAdjustmentsBreakdown.length > 0) {
+    homeSpec.areaAdjustmentsBreakdown.forEach((adj, idx) => {
+      allDetailItems.push({
+        id: `area_adj_${idx}`,
+        description: (
+          <div>
+            <span className="text-blue-950 font-medium">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
+              Floorplan SQM Adjustment &mdash; {adj.label} ({adj.standardM2.toFixed(2)} m² &rarr; {adj.modifiedM2.toFixed(2)} m²)
+            </span>
+            {adj.ratePerM2 ? (
+              <span className="text-[10px] text-blue-700 ml-1">(@ {formatAud(adj.ratePerM2)}/m²)</span>
+            ) : null}
+          </div>
+        ),
+        category: adj.diffM2 > 0 ? `+${adj.diffM2.toFixed(2)} m²` : `${adj.diffM2.toFixed(2)} m²`,
+        amount: adj.cost,
+        rowBg: "bg-blue-50/40",
+      });
+    });
+  } else if (homeSpec.modifiedDesignM2 && homeSpec.designM2 && Math.abs(homeSpec.modifiedDesignM2 - homeSpec.designM2) > 0.05) {
+    allDetailItems.push({
+      id: "area_adj_total",
+      description: (
+        <span className="text-blue-950 font-medium">
+          <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
+          Floorplan SQM Adjustment &mdash; Modified Custom Layout ({homeSpec.designM2.toFixed(2)} m² &rarr; {homeSpec.modifiedDesignM2.toFixed(2)} m²)
+        </span>
+      ),
+      category: `${(homeSpec.modifiedDesignM2 - homeSpec.designM2).toFixed(2)} m²`,
+      amount: Math.round((homeSpec.modifiedDesignM2 - homeSpec.designM2) * (homeSpec.sqmRate || 1847)),
+      rowBg: "bg-blue-50/40",
+    });
+  }
+
+  allDetailItems.push({
+    id: "facade_uplift",
+    description: (
+      <span className="text-slate-800 font-medium">
+        Architectural Facade — {homeSpec.facade || "Standard Facade"} {homeSpec.isCustomFacade ? "(Custom Render / Inspo)" : ""}
+      </span>
+    ),
+    category: "Facade",
+    amount: homeSpec.facadeCost || 0,
+  });
+
+  structuralVariations.forEach((v) => {
+    allDetailItems.push({
+      id: `struct_${v.id}`,
+      description: (
+        <span className="text-slate-900 font-medium">
+          <span className="font-mono font-bold text-amber-800 mr-1.5 bg-amber-200/60 px-1.5 py-0.5 rounded border border-amber-300">
+            #{v.itemNumber}
+          </span>
+          {v.description}
+        </span>
+      ),
+      category: `Structural #${v.itemNumber}`,
+      amount: v.cost,
+      isStructural: true,
+      itemNumber: v.itemNumber,
+      rowBg: "bg-amber-50/40",
+    });
+  });
+
+  allOtherVariations.forEach((v) => {
+    allDetailItems.push({
+      id: `other_${v.id}`,
+      description: <span className="text-slate-800 font-medium">{v.description}</span>,
+      category: "Inclusion / Site",
+      amount: v.cost,
+    });
+  });
+
+  if (homeSpec.includeLandscapePackage) {
+    allDetailItems.push({
+      id: "landscape_package",
+      description: (
+        <span className="font-semibold text-emerald-950 flex items-center gap-1.5">
+          <Trees className="h-3.5 w-3.5 text-emerald-600" /> Turnkey Complete Landscape Package
+        </span>
+      ),
+      category: `${land.lotSizeM2 || 450} m² Lot`,
+      amount: homeSpec.landscapePackageCost || 0,
+      rowBg: "bg-emerald-50/50",
+    });
+  }
+
+  if (homeSpec.promotionDiscountCost > 0) {
+    allDetailItems.push({
+      id: "promo_discount",
+      description: <span className="text-emerald-900 font-semibold">Special Builder Promotion Discount</span>,
+      category: "Discount",
+      amount: -homeSpec.promotionDiscountCost,
+      isDiscount: true,
+      rowBg: "bg-emerald-50/70",
+    });
+  }
+
+  // Chunk items cleanly across continuation pages so no continuation page ever overflows
+  const CHUNK_SIZE = 20;
+  const continuationChunks: Point4DetailItem[][] = [];
+  if (isPoint4Overflow) {
+    for (let i = 0; i < allDetailItems.length; i += CHUNK_SIZE) {
+      continuationChunks.push(allDetailItems.slice(i, i + CHUNK_SIZE));
+    }
+  }
+  const continuationPagesCount = continuationChunks.length;
+  const totalPages = 5 + continuationPagesCount;
 
   return (
-    <div className="space-y-8 bg-slate-900/50 p-4 rounded-2xl">
+    <div className="tender-master-pdf-root space-y-8 bg-slate-900/50 p-4 rounded-2xl">
       {/* ========================================================================= */}
       {/* PAGE 1: PROJECT PROFILE, LAND & PRICING SUMMARY                           */}
       {/* ========================================================================= */}
@@ -65,18 +234,32 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">New Home Consultant:</span>
-              <strong className="text-slate-900">{tender.newHomeConsultant || "—"}</strong>
+              <strong className="text-slate-900 block truncate">{tender.newHomeConsultant || "—"}</strong>
+              {tender.consultantPhone && (
+                <span className="text-[9.5px] text-slate-500 font-mono block">{tender.consultantPhone}</span>
+              )}
             </div>
             <div>
               <span className="text-[9px] uppercase text-slate-500 block">Display Centre:</span>
               <strong className="text-slate-900 truncate block">{tender.displayOffice || "—"}</strong>
+              {tender.consultantEmail && (
+                <span className="text-[9.5px] text-slate-500 truncate block">{tender.consultantEmail}</span>
+              )}
             </div>
           </div>
 
           {/* Customer Profile Cards */}
           <div className="mb-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-2">
-              1. CUSTOMER / PURCHASER PROFILE
+            <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-2 flex items-center justify-between">
+              <span>1. CUSTOMER / PURCHASER PROFILE</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-cyan-950 bg-cyan-100/80 px-2 py-0.5 rounded border border-cyan-300">
+                  Buyer: <strong>{tender.buyerType || "Owner-Occupied"}</strong>
+                </span>
+                <span className="text-[10px] font-semibold text-emerald-950 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300 uppercase">
+                  Lead: <strong>{tender.leadSource || "display home"}</strong>
+                </span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-1.5">
@@ -164,7 +347,9 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 <div>
                   <span className="text-[9px] text-slate-500 block">Registration Status:</span>
                   <strong className="text-slate-900">
-                    {land.isRegistered ? "Registered Land" : `Unregistered (${land.registeredDate || "TBA"})`}
+                    {land.registeredDate?.trim()
+                      ? `Un-registered — Expected Rego Date: ${land.registeredDate.trim()}`
+                      : "Already Registered"}
                   </strong>
                 </div>
               </div>
@@ -213,11 +398,13 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             </div>
           </div>
 
-          {/* Full Itemised Estimate Breakdown Table */}
+          {/* Full Itemised Estimate Breakdown Table (or Executive Investment Summary if Overflowing) */}
           <div className="mb-2">
             <div className="text-xs font-bold uppercase tracking-wider text-cyan-800 mb-1.5 flex items-center justify-between">
-              <span>4. FULL ITEMISED ESTIMATE BREAKDOWN &amp; INVESTMENT SCHEDULE</span>
-              <span className="text-[10px] font-normal text-slate-500">All Variations, Upgrades &amp; Allowances Included</span>
+              <span>4. {isPoint4Overflow ? "EXECUTIVE ESTIMATE SUMMARY & INVESTMENT SCHEDULE" : "FULL ITEMISED ESTIMATE BREAKDOWN & INVESTMENT SCHEDULE"}</span>
+              <span className="text-[10px] font-normal text-slate-500">
+                {isPoint4Overflow ? "High-Level Subtotals · Complete Breakdown Continues on Page 2" : "All Variations, Upgrades & Allowances Included"}
+              </span>
             </div>
             <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
               <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
@@ -232,57 +419,37 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 <tr className="bg-slate-50">
                   <td className="py-1.5 px-3 font-semibold text-slate-900">
                     Base House Design — {homeSpec.homeDesign || "Standard Design"} ({homeSpec.inclusionsType})
-                    {homeSpec.standardDesignM2 && homeSpec.modifiedDesignM2 && homeSpec.standardDesignM2 !== homeSpec.modifiedDesignM2 ? (
-                      <span className="block text-[10px] text-slate-600 font-normal">
-                        Standard Catalog Plan: {homeSpec.standardDesignM2.toFixed(2)} m² &rarr; Modified Construction Plan: {homeSpec.modifiedDesignM2.toFixed(2)} m²
-                      </span>
-                    ) : null}
+                    <span className="block text-[10px] text-slate-500 font-normal">
+                      Standard Catalog Area: {(homeSpec.standardDesignM2 || homeSpec.designM2 || 195.4).toFixed(1)} m²
+                    </span>
                   </td>
                   <td className="py-1.5 px-2.5 text-center text-[10.5px] text-slate-600 font-mono">
-                    {(homeSpec.standardDesignM2 || homeSpec.designM2 || 195.4).toFixed(1)} m²
+                    Base
                   </td>
                   <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-950">
                     {formatAud(homeSpec.standardBasePrice || homeSpec.baseDesignCost)}
                   </td>
                 </tr>
 
-                {/* 1b. Floorplan SQM Area Adjustments & Extensions */}
-                {homeSpec.areaAdjustmentsBreakdown && homeSpec.areaAdjustmentsBreakdown.length > 0 ? (
-                  homeSpec.areaAdjustmentsBreakdown.map((adj, idx) => (
-                    <tr key={`area_adj_${idx}`} className="bg-blue-50/40">
-                      <td className="py-1.5 px-3 text-blue-950 font-medium">
-                        <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
-                        Floorplan SQM Adjustment &mdash; {adj.label} ({adj.standardM2.toFixed(2)} m² &rarr; {adj.modifiedM2.toFixed(2)} m²)
-                        {adj.ratePerM2 ? (
-                          <span className="text-[10px] text-blue-700 ml-1">
-                            (@ {formatAud(adj.ratePerM2)}/m²)
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="py-1.5 px-2.5 text-center text-[10px] font-mono font-semibold text-blue-800">
-                        {adj.diffM2 > 0 ? `+${adj.diffM2.toFixed(2)}` : adj.diffM2.toFixed(2)} m²
-                      </td>
-                      <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-950">
-                        {adj.cost >= 0 ? `+${formatAud(adj.cost)}` : formatAud(adj.cost)}
-                      </td>
-                    </tr>
-                  ))
-                ) : homeSpec.modifiedDesignM2 && homeSpec.designM2 && Math.abs(homeSpec.modifiedDesignM2 - homeSpec.designM2) > 0.05 ? (
+                {/* 1b. Floorplan SQM Area Adjustments */}
+                {(homeSpec.areaAdjustmentsBreakdown && homeSpec.areaAdjustmentsBreakdown.length > 0) || (homeSpec.modifiedDesignM2 && homeSpec.designM2 && Math.abs(homeSpec.modifiedDesignM2 - homeSpec.designM2) > 0.05) ? (
                   <tr className="bg-blue-50/40">
                     <td className="py-1.5 px-3 text-blue-950 font-medium">
-                      <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5"></span>
-                      Floorplan SQM Adjustment &mdash; Modified Custom Layout ({homeSpec.designM2.toFixed(2)} m² &rarr; {homeSpec.modifiedDesignM2.toFixed(2)} m²)
-                      {homeSpec.sqmRate ? (
-                        <span className="text-[10px] text-blue-700 ml-1">
-                          (@ {formatAud(homeSpec.sqmRate)}/m²)
+                      Floorplan SQM Area Adjustments &amp; Extensions
+                      {isPoint4Overflow ? (
+                        <span className="block text-[10px] text-blue-700 font-normal">
+                          Dimensional room adjustments detailed on Page 2
                         </span>
                       ) : null}
                     </td>
                     <td className="py-1.5 px-2.5 text-center text-[10px] font-mono font-semibold text-blue-800">
-                      {homeSpec.modifiedDesignM2 > homeSpec.designM2 ? `+${(homeSpec.modifiedDesignM2 - homeSpec.designM2).toFixed(2)}` : (homeSpec.modifiedDesignM2 - homeSpec.designM2).toFixed(2)} m²
+                      SQM Adj.
                     </td>
                     <td className="py-1.5 px-3 text-right font-mono font-bold text-blue-950">
-                      {formatAud(Math.round((homeSpec.modifiedDesignM2 - homeSpec.designM2) * (homeSpec.sqmRate || 1847)))}
+                      {formatAud(
+                        homeSpec.areaAdjustmentsBreakdown?.reduce((sum, a) => sum + a.cost, 0) ??
+                        Math.round((homeSpec.modifiedDesignM2! - homeSpec.designM2!) * (homeSpec.sqmRate || 1847))
+                      )}
                     </td>
                   </tr>
                 ) : null}
@@ -290,7 +457,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 {/* 2. Facade Uplift */}
                 <tr>
                   <td className="py-1.5 px-3 text-slate-800 font-medium">
-                    Architectural Facade — {homeSpec.facade || "Standard Facade"} {homeSpec.isCustomFacade ? "(Custom Render / Inspo)" : ""}
+                    Architectural Facade — {homeSpec.facade || "Standard Facade"} {homeSpec.isCustomFacade ? "(Custom Render)" : ""}
                   </td>
                   <td className="py-1.5 px-2.5 text-center text-[10px] text-slate-500 uppercase">
                     Facade
@@ -300,36 +467,74 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                   </td>
                 </tr>
 
-                {/* 3. Numbered Structural Variations (Individual Line Items with Prices) */}
-                {structuralVariations.map((v) => (
-                  <tr key={v.id} className="bg-amber-50/40">
-                    <td className="py-1.5 px-3 text-slate-900 font-medium">
-                      <span className="font-mono font-bold text-amber-800 mr-1.5">#{v.itemNumber}</span>
-                      {v.description}
-                    </td>
-                    <td className="py-1.5 px-2.5 text-center text-[10px] text-amber-800 font-bold uppercase">
-                      Structural #{v.itemNumber}
-                    </td>
-                    <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
-                      {formatAud(v.cost)}
-                    </td>
-                  </tr>
-                ))}
-
-                {/* 4. All Other Selections & Inclusions (Individual Line Items with Prices) */}
-                {allOtherVariations.map((v) => (
-                  <tr key={v.id}>
-                    <td className="py-1.5 px-3 text-slate-800 font-medium">
-                      {v.description}
-                    </td>
-                    <td className="py-1.5 px-2.5 text-center text-[10px] text-cyan-800 uppercase">
-                      Inclusion / Site
-                    </td>
-                    <td className="py-1.5 px-3 text-right font-mono text-slate-900 font-medium">
-                      {formatAud(v.cost)}
-                    </td>
-                  </tr>
-                ))}
+                {/* If Overflowing: Show summary rows for Structural & Selections */}
+                {isPoint4Overflow ? (
+                  <>
+                    {structuralVariations.length > 0 && (
+                      <tr className="bg-amber-50/40">
+                        <td className="py-1.5 px-3 text-slate-900 font-medium">
+                          Numbered Structural Modifications Subtotal ({structuralVariations.length} Items Pinned)
+                          <span className="block text-[10px] text-amber-800 font-normal">
+                            Individual #1–#{structuralVariations.length} specifications itemised on Page 2
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2.5 text-center text-[10px] text-amber-800 font-bold uppercase">
+                          Structural
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                          {formatAud(structuralVariations.reduce((sum, v) => sum + v.cost, 0))}
+                        </td>
+                      </tr>
+                    )}
+                    {allOtherVariations.length > 0 && (
+                      <tr>
+                        <td className="py-1.5 px-3 text-slate-800 font-medium">
+                          Selections, Upgrades &amp; Site Allowances ({allOtherVariations.length} Items)
+                          <span className="block text-[10px] text-slate-500 font-normal">
+                            Detailed itemised selections listed on Page 2
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2.5 text-center text-[10px] text-cyan-800 uppercase">
+                          Inclusions
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-mono text-slate-900 font-medium">
+                          {formatAud(allOtherVariations.reduce((sum, v) => sum + v.cost, 0))}
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ) : (
+                  /* Standard short list directly on Page 1 when not overflowing */
+                  <>
+                    {structuralVariations.map((v) => (
+                      <tr key={v.id} className="bg-amber-50/40">
+                        <td className="py-1.5 px-3 text-slate-900 font-medium">
+                          <span className="font-mono font-bold text-amber-800 mr-1.5">#{v.itemNumber}</span>
+                          {v.description}
+                        </td>
+                        <td className="py-1.5 px-2.5 text-center text-[10px] text-amber-800 font-bold uppercase">
+                          Structural #{v.itemNumber}
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-mono font-bold text-slate-900">
+                          {formatAud(v.cost)}
+                        </td>
+                      </tr>
+                    ))}
+                    {allOtherVariations.map((v) => (
+                      <tr key={v.id}>
+                        <td className="py-1.5 px-3 text-slate-800 font-medium">
+                          {v.description}
+                        </td>
+                        <td className="py-1.5 px-2.5 text-center text-[10px] text-cyan-800 uppercase">
+                          Inclusion / Site
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-mono text-slate-900 font-medium">
+                          {formatAud(v.cost)}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
 
                 {/* 5. Landscape Package */}
                 {homeSpec.includeLandscapePackage && (
@@ -366,6 +571,12 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
                 </tr>
               </tbody>
             </table>
+
+            {isPoint4Overflow && (
+              <div className="mt-2 text-center text-[10px] font-semibold text-cyan-800 bg-cyan-50/80 border border-cyan-200 py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5">
+                <span>&bull; Due to the comprehensive scope of variations, full itemised specifications continue on <strong>Page 2 (Full Itemised Schedule)</strong> &rarr;</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -380,6 +591,88 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* PAGE 1b / 2: FULL ITEMISED VARIATION & INVESTMENT SCHEDULE (CONTINUED)   */}
+      {/* ========================================================================= */}
+      {isPoint4Overflow && continuationChunks.map((chunk, chunkIdx) => {
+        const isLastChunk = chunkIdx === continuationChunks.length - 1;
+        const pageNum = 2 + chunkIdx;
+        return (
+          <div key={`point4_cont_page_${chunkIdx}`} className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+            <div>
+              {/* Header */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3 mb-4">
+                <div>
+                  <h2 className="text-xl font-black uppercase tracking-tight text-slate-950">
+                    POINT 4: FULL ITEMISED VARIATION &amp; INVESTMENT SCHEDULE {continuationChunks.length > 1 ? `(PART ${chunkIdx + 1} OF ${continuationChunks.length})` : ""}
+                  </h2>
+                  <span className="text-xs font-semibold text-cyan-800 uppercase tracking-widest block mt-0.5">
+                    Itemised Specification Schedule &bull; {homeSpec.homeDesign || "Home Design"} with {homeSpec.facade || "Facade"} ({homeSpec.inclusionsType})
+                  </span>
+                </div>
+                <div className="text-right text-xs">
+                  <div className="font-mono font-bold text-slate-900">Ref: {tender.submissionNumber}</div>
+                  <div className="text-slate-500">{customer1.surname || "Client"} Residence</div>
+                </div>
+              </div>
+
+              {/* Complete Itemised Table Chunk */}
+              <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden mb-4">
+                <thead className="bg-slate-100 text-[9.5px] font-bold uppercase text-slate-600 border-b border-slate-200">
+                  <tr>
+                    <th className="py-1.5 px-3 text-left">Detailed Specification / Selection Description</th>
+                    <th className="py-1.5 px-2.5 text-center w-28">Category</th>
+                    <th className="py-1.5 px-3 text-right w-28">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {chunk.map((item) => (
+                    <tr key={item.id} className={item.rowBg || "bg-white"}>
+                      <td className="py-2 px-3">{item.description}</td>
+                      <td className="py-2 px-2.5 text-center text-[10px] font-mono font-semibold text-slate-600 uppercase">
+                        {item.category}
+                      </td>
+                      <td className={`py-2 px-3 text-right font-mono font-bold ${item.isDiscount ? "text-emerald-700" : "text-slate-950"}`}>
+                        {item.isDiscount ? `-${formatAud(Math.abs(item.amount))}` : formatAud(item.amount)}
+                      </td>
+                    </tr>
+                  ))}
+
+                  {/* Grand Total Row on Last Chunk */}
+                  {isLastChunk ? (
+                    <tr className="bg-slate-900 text-white font-bold text-sm">
+                      <td colSpan={2} className="py-2.5 px-3 uppercase tracking-wider">
+                        TOTAL ESTIMATED BUILD INVESTMENT (INC. GST)
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-black text-amber-300">
+                        {formatAud(homeSpec.totalBudgetEstimate)}
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr className="bg-slate-100 text-slate-600 font-semibold text-xs italic">
+                      <td colSpan={3} className="py-2 px-3 text-center">
+                        Schedule continues on Page {pageNum + 1}...
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
+              <div>Hudson Homes Pty Ltd · Master Tender Request Specification (Continuation)</div>
+              <div className="flex items-center gap-4">
+                <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
+                  CUSTOMER INITIAL
+                </div>
+                <div className="font-mono">Page {pageNum} of {totalPages}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
       {/* ========================================================================= */}
       {/* ========================================================================= */}
@@ -471,7 +764,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page 2 of {totalPages}</div>
+            <div className="font-mono">Page {2 + continuationPagesCount} of {totalPages}</div>
           </div>
         </div>
       </div>
@@ -600,7 +893,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page 3 of {totalPages}</div>
+            <div className="font-mono">Page {3 + continuationPagesCount} of {totalPages}</div>
           </div>
         </div>
       </div>
@@ -673,7 +966,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page 4 of {totalPages}</div>
+            <div className="font-mono">Page {4 + continuationPagesCount} of {totalPages}</div>
           </div>
         </div>
       </div>
@@ -839,7 +1132,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
             <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
               CUSTOMER INITIAL
             </div>
-            <div className="font-mono">Page 5 of {totalPages}</div>
+            <div className="font-mono">Page {5 + continuationPagesCount} of {totalPages}</div>
           </div>
         </div>
       </div>

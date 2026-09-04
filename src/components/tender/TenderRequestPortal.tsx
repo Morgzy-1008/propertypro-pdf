@@ -89,7 +89,8 @@ import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
 import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
-import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
+import { getActiveStaffUser, onStaffUserChanged, KNOWN_STAFF_PROFILES, type StaffProfile } from "@/lib/authSession";
+import { renderA4PdfBlob } from "@/lib/downloadPdf";
 
 type SectionTab = "client_job" | "land_siting" | "home_spec" | "atp_sign" | "job_folder" | "pdf_preview";
 
@@ -175,6 +176,36 @@ export function TenderRequestPortal() {
           );
         }
       })
+      .on("broadcast", { event: "draftsman_review_submitted" }, (msg) => {
+        if (msg.payload) {
+          setTender((prev) => {
+            const updated: TenderSubmission = {
+              ...prev,
+              draftsmanReviewStatus: msg.payload.reviewStatus,
+              draftsmanGeneralNotes: msg.payload.generalNotes,
+              draftsmanReviewedAt: msg.payload.reviewedAt,
+            };
+            saveTenderToIdb(updated).catch(() => {});
+            try {
+              localStorage.setItem(`hudson_tender_${updated.id}`, JSON.stringify(updated));
+              localStorage.setItem(`hudson_tender_${updated.submissionNumber}`, JSON.stringify(updated));
+              localStorage.setItem("hudson_current_tender_draft", JSON.stringify(updated));
+            } catch {}
+            return updated;
+          });
+          if (msg.payload.reviewStatus === "rfi_raised") {
+            toast.error(
+              `⚠️ Draftsman (${msg.payload.drafterName || "Drafting Team"}) raised an RFI: ${msg.payload.generalNotes || "Clarification required"}`,
+              { id: "draftsman-rfi-alert", duration: 8000 }
+            );
+          } else {
+            toast.success(
+              `✓ Draftsman (${msg.payload.drafterName || "Drafting Team"}) approved working drawings!`,
+              { id: "draftsman-approved-alert" }
+            );
+          }
+        }
+      })
       .subscribe();
 
     // 2. BroadcastChannel for instant cross-tab live sync
@@ -186,6 +217,14 @@ export function TenderRequestPortal() {
           const incoming = event.data.tender as TenderSubmission;
           setTender(incoming);
           toast.success("Client signed Authority to Proceed! Signatures synced live into the portal and Master PDF.", { id: "atp-signed-alert" });
+        } else if (event.data?.type === "DRAFTSMAN_REVIEW_SUBMITTED" && event.data.tender) {
+          const incoming = event.data.tender as TenderSubmission;
+          setTender(incoming);
+          if (incoming.draftsmanReviewStatus === "rfi_raised") {
+            toast.error("⚠️ Draftsman raised an RFI on your tender! Please review notes and amend.", { id: "draftsman-rfi-alert", duration: 8000 });
+          } else {
+            toast.success("✓ Draftsman approved working drawings!", { id: "draftsman-approved-alert" });
+          }
         }
       };
     } catch {}
@@ -965,9 +1004,20 @@ export function TenderRequestPortal() {
 
   const handleExportZip = async () => {
     setExportingZip(true);
-    const toastId = toast.loading("Packaging complete Job Folder ZIP archive...");
+    const toastId = toast.loading("Packaging complete Job Folder ZIP archive (100% PDF format)...");
     try {
-      const zipBlob = await exportTenderZipPackage(tender);
+      // Pre-render Master PDF Blob from mounted or offscreen DOM root
+      let masterPdfBlob: Blob | undefined;
+      try {
+        const masterElement = document.querySelector(".tender-master-pdf-root") || document.querySelector("#offscreen-tender-master-pdf");
+        if (masterElement) {
+          masterPdfBlob = await renderA4PdfBlob(masterElement);
+        }
+      } catch (err) {
+        console.warn("Could not pre-render Master PDF Blob for ZIP:", err);
+      }
+
+      const zipBlob = await exportTenderZipPackage(tender, { masterPdfBlob });
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -977,7 +1027,7 @@ export function TenderRequestPortal() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast.success("Job Folder ZIP downloaded successfully!", { id: toastId });
+      toast.success("Job Folder ZIP downloaded successfully (100% PDF format)!", { id: toastId });
     } catch (e) {
       console.error(e);
       toast.error("Could not generate ZIP archive", { id: toastId });
@@ -1000,9 +1050,18 @@ export function TenderRequestPortal() {
     ? `${window.location.origin}/tender-sign/${tender.submissionNumber || tender.id}${compactCode ? `?d=${compactCode}` : ""}`
     : "";
 
+  const draftsmanReviewUrl = typeof window !== "undefined"
+    ? `${window.location.origin}/tender-drafting/${tender.submissionNumber || tender.id}${compactCode ? `?d=${compactCode}` : ""}`
+    : "";
+
   const handleCopyRemoteLink = () => {
     navigator.clipboard.writeText(remoteSigningUrl);
     toast.success("Remote Client Signing Link copied to clipboard!");
+  };
+
+  const handleCopyDraftsmanLink = () => {
+    navigator.clipboard.writeText(draftsmanReviewUrl);
+    toast.success("Draftsman Collaborative Review Link copied to clipboard!");
   };
 
   const handleCopyAtpSms = () => {
@@ -1131,6 +1190,34 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
           </Button>
         </div>
       </div>
+
+      {/* Draftsman RFI Notification Alert Banner */}
+      {tender.draftsmanReviewStatus === "rfi_raised" && (
+        <div className="p-4 rounded-2xl border border-rose-500/50 bg-gradient-to-r from-rose-950/60 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-pulse">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex-none mt-0.5">
+              <ShieldCheck className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-xs font-bold text-rose-200 uppercase tracking-wider flex items-center gap-2">
+                Draftsman Raised an RFI on this Tender ({tender.draftsmanReviewedAt || "Action Required"})
+              </h4>
+              <p className="text-xs text-rose-300 mt-1">
+                {tender.draftsmanGeneralNotes || "Bernie / Drafting Team flagged one or more variations requiring clarification or architectural amendment."}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-none">
+            <Button
+              size="sm"
+              onClick={() => window.open(draftsmanReviewUrl, "_blank")}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs gap-1.5"
+            >
+              Open Draftsman Directives <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Tabs (6 Steps) */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-slate-800/80 scrollbar-thin">
@@ -1413,6 +1500,125 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     placeholder="e.g. Pelican Waters"
                     className="border-slate-800 bg-slate-900 text-xs"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Sales Consultant & Buyer Classification */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Consultant Selector */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="text-xs font-bold uppercase text-amber-400 block">
+                    New Home Consultant (NHC) Assignment *
+                  </span>
+                  {getActiveStaffUser()?.name === tender.newHomeConsultant && (
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold">
+                      Auto-filled (Active User)
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] text-slate-300">Select Consultant Profile</Label>
+                  <Select
+                    value={tender.newHomeConsultant || "Morgan Hales"}
+                    onValueChange={(val) => {
+                      const profile = KNOWN_STAFF_PROFILES.find((p) => p.name === val);
+                      updateTender({
+                        newHomeConsultant: val,
+                        displayOffice: profile?.displayCentre || tender.displayOffice,
+                        atp: {
+                          ...tender.atp,
+                          consultantName: val,
+                          consultantPhone: profile?.phone || tender.atp.consultantPhone,
+                          consultantEmail: profile?.email || tender.atp.consultantEmail,
+                        },
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="border-slate-800 bg-slate-900 text-xs font-semibold text-white">
+                      <SelectValue placeholder="Select Consultant" />
+                    </SelectTrigger>
+                    <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                      {KNOWN_STAFF_PROFILES.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.name}>
+                          {profile.name} ({profile.displayCentre || profile.division || "Hudson Homes"})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Consultant Contact Details preview */}
+                <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono text-slate-400">
+                  <div>
+                    <span className="text-[9px] uppercase text-slate-500 block">Mobile:</span>
+                    <span className="text-slate-300 font-semibold">{tender.atp.consultantPhone || "0417 571 864"}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] uppercase text-slate-500 block">Email:</span>
+                    <span className="text-slate-300 truncate block font-semibold">{tender.atp.consultantEmail || "morgan.hales@hudsonhomes.com.au"}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buyer Type & Lead Source */}
+              <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+                <span className="text-xs font-bold uppercase text-amber-400 block border-b border-slate-800 pb-1.5">
+                  Buyer Profile &amp; Lead Acquisition Details *
+                </span>
+
+                {/* Buyer Type */}
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] text-slate-300">
+                    What type of buyer is the client? *
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["FHB", "Investor", "Owner-Occupied"] as const).map((type) => {
+                      const isSelected = tender.buyerType === type;
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => updateTender({ buyerType: type })}
+                          className={`py-2 px-1 rounded-lg text-xs font-bold transition-all border text-center ${
+                            isSelected
+                              ? "bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-sm"
+                              : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800"
+                          }`}
+                        >
+                          {type === "FHB" ? "FHB (First Home)" : type}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Lead Source */}
+                <div className="space-y-1.5 pt-1">
+                  <Label className="text-[11px] text-slate-300">
+                    Where did the client come from? *
+                  </Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["online lead", "display home", "referral"] as const).map((source) => {
+                      const isSelected = tender.leadSource === source;
+                      return (
+                        <button
+                          key={source}
+                          type="button"
+                          onClick={() => updateTender({ leadSource: source })}
+                          className={`py-2 px-1 rounded-lg text-xs font-bold transition-all border text-center capitalize ${
+                            isSelected
+                              ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/50 shadow-sm"
+                              : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200 hover:bg-slate-800"
+                          }`}
+                        >
+                          {source}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1703,16 +1909,41 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </Select>
               </div>
 
-              <div>
-                <Label className="text-[11px] text-slate-300">Registration Date (if unregistered)</Label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-slate-300">Registration Status &amp; Expected Date</Label>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      tender.land.registeredDate?.trim()
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                    }`}
+                  >
+                    {tender.land.registeredDate?.trim()
+                      ? `Un-registered (Expected: ${tender.land.registeredDate.trim()})`
+                      : "Already Registered"}
+                  </span>
+                </div>
                 <Input
-                  value={tender.land.registeredDate}
-                  onChange={(e) =>
-                    updateTender({ land: { ...tender.land, registeredDate: e.target.value } })
-                  }
-                  placeholder="e.g. November 2026"
+                  value={tender.land.registeredDate || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateTender({
+                      land: {
+                        ...tender.land,
+                        registeredDate: val,
+                        isRegistered: !val.trim(),
+                      },
+                    });
+                  }}
+                  placeholder="Leave blank if already registered, or enter e.g. November 2026"
                   className="border-slate-800 bg-slate-900 text-xs"
                 />
+                <p className="text-[10px] text-slate-400">
+                  {tender.land.registeredDate?.trim()
+                    ? `Marked as Un-registered. Expected Rego Date: "${tender.land.registeredDate.trim()}" (Reflected on Section 2 of Master PDF).`
+                    : "No rego date entered. Status will display as \"Already Registered\" on Section 2 of Master PDF."}
+                </p>
               </div>
             </div>
 
@@ -2452,6 +2683,53 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
+            {/* Draftsman Collaboration & Working Drawings Directives Card */}
+            <div className="p-4 rounded-2xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/40 via-slate-900 to-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex-none mt-0.5">
+                  <Layers className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    Draftsman Collaboration &amp; Working Drawings Directives
+                    {tender.draftsmanReviewStatus === "approved" && (
+                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/40 font-bold">
+                        Approved by Draftsman
+                      </span>
+                    )}
+                    {tender.draftsmanReviewStatus === "rfi_raised" && (
+                      <span className="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/40 font-bold">
+                        RFI Raised
+                      </span>
+                    )}
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-2xl">
+                    Share the live collaboration review link with Bernie or the drafting team to flag RFIs, assign sheet refs, and submit notes back to you. The Job Folder ZIP also includes the 100% interactive, form-fillable PDF for Bluebeam / Acrobat.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 flex-none">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyDraftsmanLink}
+                  className="border-cyan-500/50 bg-slate-900 text-cyan-200 hover:bg-cyan-950 text-xs font-semibold gap-1.5"
+                >
+                  <Copy className="h-3.5 w-3.5 text-cyan-400" />
+                  Copy Draftsman Link
+                </Button>
+
+                <Button
+                  size="sm"
+                  onClick={() => window.open(draftsmanReviewUrl, "_blank")}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs gap-1.5 shadow-md shadow-cyan-600/20"
+                >
+                  Open Draftsman Portal <ExternalLink className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+
             <div className="flex justify-between pt-2">
               <Button
                 type="button"
@@ -2535,6 +2813,38 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
             </div>
 
+            {/* Draftsman Collaboration Card in Tab 6 */}
+            <div className="p-4 rounded-xl border border-cyan-500/40 bg-cyan-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <Layers className="h-4 w-4 text-cyan-400 flex-none" />
+                <div>
+                  <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider block">
+                    Draftsman Collaboration &amp; Working Drawings Directives:
+                  </span>
+                  <span className="text-[11px] text-slate-300">
+                    Share the live review link with Bernie or OnSite drafting to flag RFIs and submit notes.
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-none">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyDraftsmanLink}
+                  className="border-cyan-500/50 bg-slate-900 text-cyan-200 text-xs font-semibold gap-1.5"
+                >
+                  <Copy className="h-3 w-3" /> Copy Link
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => window.open(draftsmanReviewUrl, "_blank")}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs gap-1.5"
+                >
+                  Open Portal <ExternalLink className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
             {/* Generated Master PDF Preview */}
             <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 p-4">
               <div className="text-xs font-bold text-slate-300 mb-3 flex items-center justify-between">
@@ -2546,6 +2856,24 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
           </div>
         )}
       </div>
+
+      {/* Offscreen Master PDF render target for instant 100% PDF generation during ZIP export from ANY tab */}
+      {activeTab !== "pdf_preview" && (
+        <div
+          id="offscreen-tender-master-pdf"
+          className="tender-master-pdf-root"
+          style={{
+            position: "absolute",
+            left: "-99999px",
+            top: 0,
+            width: "210mm",
+            pointerEvents: "none",
+            opacity: 0,
+          }}
+        >
+          <TenderMasterPdfDocument tender={tender} />
+        </div>
+      )}
 
       {/* Auto-Fill from Saved Estimate Dialog */}
       <Dialog open={isImportQuoteOpen} onOpenChange={setIsImportQuoteOpen}>
