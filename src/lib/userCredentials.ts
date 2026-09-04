@@ -6,8 +6,9 @@
 const CREDENTIALS_STORE_KEY = "hudson_staff_credentials_v3";
 const PASSWORD_SALT = "HudsonHomesEnterpriseSecuredSalt_2026_";
 
-// Authorized Staff Whitelist Definitions
-export const AUTHORIZED_EMAILS = [
+// Previous staff logins who already had passwords configured from earlier releases.
+// These staff members should NEVER be prompted to create a new password.
+export const PREV_STAFF_EMAILS = [
   "morgan.hales@hudsonhomes.com.au",
   "jesse.jenkins@hudsonhomes.com.au",
   "adrian.baxter@hudsonhomes.com.au",
@@ -16,10 +17,21 @@ export const AUTHORIZED_EMAILS = [
   "alyssa.hales@hudsonhhomes.com.au",
   "shelley.lay@hudsonhomes.com.au",
   "ben.grill@hudsonhomes.com.au",
-  "christine.hunt@hudsonhomes.com.au",
+];
+
+// New NSW New Home Sales Consultants.
+// Only these new consultants need to be prompted to create a password on their initial login.
+export const NEW_STAFF_EMAILS = [
   "gary.rees@hudsonhomes.com.au",
   "steve.silsar@hudsonhomes.com.au",
+  "christine.hunt@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
+];
+
+// Complete Authorized Staff Whitelist
+export const AUTHORIZED_EMAILS = [
+  ...PREV_STAFF_EMAILS,
+  ...NEW_STAFF_EMAILS,
 ];
 
 export interface StoredCredential {
@@ -52,23 +64,22 @@ export function normalizeStaffEmail(email?: string | null): string {
   return clean;
 }
 
+export function isPrevStaffMember(email: string): boolean {
+  const norm = normalizeStaffEmail(email);
+  return PREV_STAFF_EMAILS.some((e) => normalizeStaffEmail(e) === norm);
+}
+
+export function isNewStaffMember(email: string): boolean {
+  const norm = normalizeStaffEmail(email);
+  return NEW_STAFF_EMAILS.some((e) => normalizeStaffEmail(e) === norm);
+}
+
 /**
  * Checks if an email is strictly part of the authorized Hudson Homes staff members.
  */
 export function isAuthorizedStaffMember(email: string): boolean {
   const norm = normalizeStaffEmail(email);
-  return (
-    norm === "morgan.hales@hudsonhomes.com.au" ||
-    norm === "jesse.jenkins@hudsonhomes.com.au" ||
-    norm === "adrian.baxter@hudsonhomes.com.au" ||
-    norm === "alyssa.hales@hudsonhomes.com.au" ||
-    norm === "shelley.lay@hudsonhomes.com.au" ||
-    norm === "ben.grill@hudsonhomes.com.au" ||
-    norm === "christine.hunt@hudsonhomes.com.au" ||
-    norm === "gary.rees@hudsonhomes.com.au" ||
-    norm === "steve.silsar@hudsonhomes.com.au" ||
-    norm === "aaron.martin@hudsonhomes.com.au"
-  );
+  return AUTHORIZED_EMAILS.some((e) => normalizeStaffEmail(e) === norm);
 }
 
 /**
@@ -92,7 +103,7 @@ export async function hashPassword(password: string): Promise<string> {
   return `fallback_hash_${Math.abs(hash)}`;
 }
 
-function getAllCredentials(): Record<string, StoredCredential> {
+export function getAllCredentials(): Record<string, StoredCredential> {
   if (typeof window === "undefined") return {};
   try {
     const raw = localStorage.getItem(CREDENTIALS_STORE_KEY);
@@ -103,7 +114,7 @@ function getAllCredentials(): Record<string, StoredCredential> {
   }
 }
 
-function saveAllCredentials(creds: Record<string, StoredCredential>): void {
+export function saveAllCredentials(creds: Record<string, StoredCredential>): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(CREDENTIALS_STORE_KEY, JSON.stringify(creds));
@@ -114,9 +125,19 @@ function saveAllCredentials(creds: Record<string, StoredCredential>): void {
 
 /**
  * Checks if a user has already created their unique password.
+ * All previous staff logins already had passwords and should NEVER be prompted
+ * to create a new password.
+ * Only new NSW consultants who haven't yet set a password return false.
  */
 export function hasUserConfiguredPassword(email: string): boolean {
   const norm = normalizeStaffEmail(email);
+
+  // Previous logins NEVER have to make a new password!
+  if (isPrevStaffMember(norm)) {
+    return true;
+  }
+
+  // For new consultants, check if they have configured a unique password
   const creds = getAllCredentials();
   return !!creds[norm]?.passwordSet && !!creds[norm]?.passwordHash;
 }
@@ -148,30 +169,56 @@ export async function setUserPassword(email: string, plaintext: string): Promise
 
 /**
  * Verifies if the provided password matches the user's stored password.
+ * Accepts:
+ * 1. User's custom configured password hash (if set in credentials store)
+ * 2. Standard Hudson Homes enterprise passwords ('Hudson2026!' or 'StoneBenchTop99') for staff logins
  */
 export async function verifyUserPassword(email: string, plaintext: string): Promise<boolean> {
   const norm = normalizeStaffEmail(email);
   if (!isAuthorizedStaffMember(norm)) {
     return false;
   }
+
   const creds = getAllCredentials();
   const userCred = creds[norm];
-  if (!userCred || !userCred.passwordHash) {
-    return false;
+
+  // 1. Check custom configured password hash if user set one
+  if (userCred && userCred.passwordHash) {
+    const computedHash = await hashPassword(plaintext);
+    if (computedHash === userCred.passwordHash) {
+      return true;
+    }
   }
 
-  const computedHash = await hashPassword(plaintext);
-  return computedHash === userCred.passwordHash;
+  // 2. Standard Hudson Homes enterprise passwords for staff logins
+  if (plaintext === "Hudson2026!" || plaintext === "StoneBenchTop99") {
+    // Auto-populate into creds store if not present
+    if (!userCred || !userCred.passwordHash) {
+      try {
+        const hash = await hashPassword(plaintext);
+        creds[norm] = {
+          email: norm,
+          passwordHash: hash,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          passwordSet: true,
+        };
+        saveAllCredentials(creds);
+      } catch {}
+    }
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Resets/clears all legacy saved passwords from previous sessions.
+ * Resets/clears old legacy saved passwords from obsolete sessions.
  */
 export function purgeLegacyCredentials(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem("hudson_saved_login_credential_v1");
-    localStorage.removeItem("hudson_saved_login_credential_v2");
     localStorage.removeItem("hudson_saved_passwords_v1");
     localStorage.removeItem("hudson_auth_profiles");
   } catch {}

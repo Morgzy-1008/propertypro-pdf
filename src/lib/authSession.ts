@@ -1,4 +1,5 @@
 import { isAllowedEmail } from "./access";
+import { normalizeStaffEmail } from "./userCredentials";
 
 export interface StaffProfile {
   id: string;
@@ -219,12 +220,30 @@ export function getActiveStaffUser(): StaffProfile | null {
 
 export function findStaffProfileByEmail(email?: string | null): StaffProfile | undefined {
   if (!email) return undefined;
-  const clean = email.trim().toLowerCase();
-  // Handle alias for Alyssa Hales (alyssa.hales, alyssa.pippig)
-  if (clean === "alyssa.pippig@hudsonhomes.com.au" || clean === "alyssa.hales@hudsonhhomes.com.au") {
-    return KNOWN_STAFF_PROFILES.find((p) => p.id === "alyssa-hales");
+  const clean = normalizeStaffEmail(email);
+  const found = KNOWN_STAFF_PROFILES.find((p) => normalizeStaffEmail(p.email) === clean);
+  if (found) return found;
+
+  // Fallback for authorized staff emails not explicitly pre-defined in KNOWN_STAFF_PROFILES
+  if (isAllowedEmail(clean)) {
+    const rawName = clean.split("@")[0].replace(/[._-]/g, " ");
+    const name = rawName.replace(/\b\w/g, (c) => c.toUpperCase());
+    return {
+      id: clean.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase(),
+      name,
+      email: clean,
+      phone: "0400 000 000",
+      title: "New Home Consultant",
+      displayCentre: "Hudson Homes",
+      division: "QLD",
+      state: "QLD",
+      role: "nhc",
+      avatarInitials: name.slice(0, 2).toUpperCase(),
+      accentColor: "from-amber-500 to-amber-700",
+    };
   }
-  return KNOWN_STAFF_PROFILES.find((p) => p.email.toLowerCase() === clean);
+
+  return undefined;
 }
 
 export interface SavedLoginCredential {

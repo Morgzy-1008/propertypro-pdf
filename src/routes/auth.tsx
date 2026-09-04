@@ -94,27 +94,27 @@ function AuthPage() {
       return;
     }
 
-    // 2. Check if user needs to create their initial unique password
+    // 2. Only new consultants who haven't yet set their unique password get prompted
     if (!hasUserConfiguredPassword(cleanEmail)) {
       const profile = findStaffProfileByEmail(cleanEmail);
-      toast.info(`Welcome ${profile?.name || "Staff Member"}! Please set up your unique personal password.`);
+      toast.info(`Welcome ${profile?.name || "Staff Member"}! As a new team member, please set up your password.`);
       setAuthMode("create_password");
       return;
     }
 
     if (!password) {
-      toast.error("Please enter your unique account password.");
+      toast.error("Please enter your account password.");
       return;
     }
 
     setBusy(true);
 
     try {
-      // 3. Verify user's unique password hash
+      // 3. Verify user's password
       const isValid = await verifyUserPassword(cleanEmail, password);
       if (!isValid) {
         toast.error("Incorrect password for this account.", {
-          description: "Please check your password or click 'Reset Password'.",
+          description: "Please check your password or click 'Forgot Password'.",
         });
         setBusy(false);
         return;
@@ -123,11 +123,18 @@ function AuthPage() {
       // 4. Authenticate & start 24-hr session
       const profile = findStaffProfileByEmail(cleanEmail);
       if (profile) {
-        setActiveStaffUser(profile, false);
+        setActiveStaffUser(profile, true);
         toast.success(`Welcome back, ${profile.name}!`, {
           description: "Authenticated successfully for the next 24 hours.",
         });
         navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (window.location.pathname !== "/hub") {
+            window.location.href = "/hub";
+          }
+        }, 150);
+      } else {
+        toast.error("Staff profile not found. Please contact administration.");
       }
     } catch {
       toast.error("Authentication failed. Please try again.");
@@ -162,11 +169,16 @@ function AuthPage() {
       const profile = findStaffProfileByEmail(cleanEmail);
 
       if (profile) {
-        setActiveStaffUser(profile, false);
+        setActiveStaffUser(profile, true);
         toast.success(`Password created successfully! Welcome, ${profile.name}.`, {
-          description: "Your unique password is saved and your 24-hr session is active.",
+          description: "Your password is saved and your 24-hr session is active.",
         });
         navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (window.location.pathname !== "/hub") {
+            window.location.href = "/hub";
+          }
+        }, 150);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to set password.");
@@ -209,9 +221,14 @@ function AuthPage() {
     try {
       await setUserPassword(cleanEmail, newPassword);
       if (profile) {
-        setActiveStaffUser(profile, false);
+        setActiveStaffUser(profile, true);
         toast.success("Password reset successfully! Session active for 24h.");
         navigate({ to: "/hub", replace: true });
+        setTimeout(() => {
+          if (window.location.pathname !== "/hub") {
+            window.location.href = "/hub";
+          }
+        }, 150);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to reset password.");
@@ -245,8 +262,8 @@ function AuthPage() {
             {authMode === "reset_password" && "Reset Your Password"}
           </h1>
           <p className="text-xs text-slate-400 max-w-xs mx-auto">
-            {authMode === "signin" && "Enter your work email and unique password to access Quoting, CRM & Database."}
-            {authMode === "create_password" && `Welcome ${currentProfile?.name || ""}! Choose a unique password to secure your account.`}
+            {authMode === "signin" && "Enter your work email and password to access Quoting, CRM & Database."}
+            {authMode === "create_password" && `Welcome ${currentProfile?.name || ""}! Choose a password to secure your account.`}
             {authMode === "reset_password" && "Verify your registered mobile number to set a new password."}
           </p>
         </div>
@@ -284,11 +301,28 @@ function AuthPage() {
                   className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
                 />
               </div>
+              {currentProfile && (
+                <div className="flex items-center justify-between text-[11px] text-amber-400 font-medium pt-0.5">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 flex-none" />
+                    <span className="truncate">{currentProfile.name} • {currentProfile.title} ({currentProfile.displayCentre})</span>
+                  </div>
+                  {!hasUserConfiguredPassword(email) && (
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode("create_password")}
+                      className="text-[10.5px] text-amber-300 hover:text-amber-200 underline font-semibold flex-none ml-2"
+                    >
+                      Set password →
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-medium">Unique Password</Label>
+                <Label className="text-xs text-slate-300 font-medium">Password</Label>
                 <button
                   type="button"
                   onClick={() => {
@@ -304,10 +338,10 @@ function AuthPage() {
                 <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
                 <Input
                   type={showPassword ? "text" : "password"}
-                  required
+                  required={hasUserConfiguredPassword(email)}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your personal password"
+                  placeholder={hasUserConfiguredPassword(email) ? "Enter your password" : "Enter password or click Set password above"}
                   className="pl-9 pr-10 bg-slate-950/70 border-slate-800 text-slate-100 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
                 />
                 <button
