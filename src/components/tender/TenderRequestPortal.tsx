@@ -713,16 +713,18 @@ export function TenderRequestPortal() {
   };
 
   const handleApplyFeasibilityToTender = (dossier: SiteFeasibilityDossier, appliedItems: EditableAllowanceItem[]) => {
+    const isBrownfieldDossier = dossier.mode === "brownfield_kdrb";
     const newLand = {
       ...tender.land,
+      estate: isBrownfieldDossier ? "" : (dossier.stageId && dossier.stageId !== "qdc_statutory" ? tender.land.estate : ""),
       lotNo: dossier.parcel.lotNumber || tender.land.lotNo,
       lotSizeM2: dossier.parcel.areaM2 || tender.land.lotSizeM2,
       frontageM: dossier.parcel.frontageM || tender.land.frontageM,
       streetName: dossier.parcel.streetAddress || tender.land.streetName,
       suburb: dossier.parcel.suburb || tender.land.suburb,
       council: dossier.parcel.council || tender.land.council,
-      isRegistered: dossier.parcel.isRegistered,
-      registeredDate: dossier.parcel.expectedRegistrationDate || tender.land.registeredDate,
+      isRegistered: isBrownfieldDossier ? true : dossier.parcel.isRegistered,
+      registeredDate: isBrownfieldDossier ? "" : (dossier.parcel.expectedRegistrationDate || tender.land.registeredDate),
     };
 
     const newSetbacks = {
@@ -1813,9 +1815,15 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
                         {tender.feasibility.parcel.standardLotPlan}
                       </span>
-                      <span className="text-[9.5px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
-                        {tender.feasibility.houseStorey === "double" ? "Double Storey Setbacks" : "Single Storey Setbacks"}
-                      </span>
+                      {tender.feasibility.mode === "brownfield_kdrb" ? (
+                        <span className="text-[9.5px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                          Brownfield / KDRB (QDC MP 1.1/1.2)
+                        </span>
+                      ) : (
+                        <span className="text-[9.5px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                          {tender.feasibility.houseStorey === "double" ? "Double Storey Setbacks" : "Single Storey Setbacks"}
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-300 mt-0.5">
                       {tender.feasibility.parcel.areaM2} m² ({tender.feasibility.parcel.frontageM}m &times; {tender.feasibility.parcel.depthM}m) &bull; Setbacks: Front {tender.feasibility.activeSetbacks.frontOmpM}m, Garage {tender.feasibility.activeSetbacks.frontGarageM}m, Side {tender.feasibility.activeSetbacks.sideStandardM}m, Rear {tender.feasibility.activeSetbacks.rearM}m &bull; Council: {tender.feasibility.parcel.council}
@@ -1867,6 +1875,11 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                     const isKdr = v.includes("KDRB");
                     updateTender({
                       buildType: v,
+                      land: {
+                        ...tender.land,
+                        estate: isKdr ? "" : tender.land.estate,
+                        stage: isKdr ? "" : tender.land.stage,
+                      },
                       atp: {
                         ...tender.atp,
                         feeType: isKdr ? "kdr_duplex_3300" : v.includes("Package") ? "package_3000" : "greenfield_1650",
@@ -1890,22 +1903,28 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
 
               <div>
-                <Label className="text-[11px] text-slate-300">Estate Name</Label>
+                <Label className="text-[11px] text-slate-300">
+                  {tender.buildType.includes("KDRB") ? "Estate Name (N/A for KDRB)" : "Estate Name"}
+                </Label>
                 <Input
-                  value={tender.land.estate}
+                  value={tender.buildType.includes("KDRB") ? "" : tender.land.estate}
                   onChange={(e) => updateTender({ land: { ...tender.land, estate: e.target.value } })}
-                  placeholder="e.g. Flagstone Rise"
-                  className="border-slate-800 bg-slate-900 text-xs"
+                  placeholder={tender.buildType.includes("KDRB") ? "N/A (Established Suburb / KDRB)" : "e.g. Flagstone Rise"}
+                  disabled={tender.buildType.includes("KDRB")}
+                  className={`border-slate-800 bg-slate-900 text-xs ${tender.buildType.includes("KDRB") ? "opacity-60 cursor-not-allowed text-slate-500" : ""}`}
                 />
               </div>
 
               <div>
-                <Label className="text-[11px] text-slate-300">Stage</Label>
+                <Label className="text-[11px] text-slate-300">
+                  {tender.buildType.includes("KDRB") ? "Stage (N/A for KDRB)" : "Stage"}
+                </Label>
                 <Input
-                  value={tender.land.stage}
+                  value={tender.buildType.includes("KDRB") ? "" : tender.land.stage}
                   onChange={(e) => updateTender({ land: { ...tender.land, stage: e.target.value } })}
-                  placeholder="e.g. Stage 4A"
-                  className="border-slate-800 bg-slate-900 text-xs"
+                  placeholder={tender.buildType.includes("KDRB") ? "N/A (Statutory Council Code)" : "e.g. Stage 4A"}
+                  disabled={tender.buildType.includes("KDRB")}
+                  className={`border-slate-800 bg-slate-900 text-xs ${tender.buildType.includes("KDRB") ? "opacity-60 cursor-not-allowed text-slate-500" : ""}`}
                 />
               </div>
             </div>
@@ -3676,19 +3695,47 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
       />
 
       {/* NHC Site Feasibility & Archistar-Equivalent Drawer */}
-      <SiteFeasibilityDrawer
-        open={isFeasibilityOpen}
-        onOpenChange={setIsFeasibilityOpen}
-        initialAddress={
-          tender.land.streetName
-            ? `${tender.land.lotNo ? `Lot ${tender.land.lotNo}, ` : ""}${tender.land.streetName}, ${tender.land.suburb || tender.land.estate || "Flagstone"}`
-            : (tender.land.lotNo ? `Lot ${tender.land.lotNo}, Flagstone` : "Lot 243, 61 Paradise Road, Flagstone")
-        }
-        initialMode={tender.buildType.includes("KDRB") ? "brownfield_kdrb" : "greenfield"}
-        initialStorey={tender.homeSpec.isDoubleStorey ? "double" : "single"}
-        initialHouseDesign={tender.homeSpec.homeDesign}
-        onApplyAllowances={handleApplyFeasibilityToTender}
-      />
+      {(() => {
+        const isKdrb =
+          tender.buildType.includes("KDRB") ||
+          tender.buildType.includes("Brownfield") ||
+          tender.land.kdrOccupancy !== undefined;
+
+        const streetWithNo = tender.land.streetNumber
+          ? `${tender.land.streetNumber} ${tender.land.streetName}`
+          : tender.land.streetName;
+
+        const computedAddress = [
+          !isKdrb && tender.land.lotNo
+            ? (tender.land.lotNo.toLowerCase().startsWith("lot") ? tender.land.lotNo : `Lot ${tender.land.lotNo}`)
+            : "",
+          streetWithNo,
+          tender.land.suburb,
+          !isKdrb ? tender.land.estate : "",
+          "QLD",
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        const resolvedAddress =
+          computedAddress.length > 5
+            ? computedAddress
+            : isKdrb
+            ? "14 Waratah Avenue, Graceville, QLD"
+            : "Lot 243, 61 Paradise Road, Flagstone, QLD";
+
+        return (
+          <SiteFeasibilityDrawer
+            open={isFeasibilityOpen}
+            onOpenChange={setIsFeasibilityOpen}
+            initialAddress={resolvedAddress}
+            initialMode={isKdrb ? "brownfield_kdrb" : "greenfield"}
+            initialStorey={tender.homeSpec.isDoubleStorey ? "double" : "single"}
+            initialHouseDesign={tender.homeSpec.homeDesign}
+            onApplyAllowances={handleApplyFeasibilityToTender}
+          />
+        );
+      })()}
     </div>
   );
 }

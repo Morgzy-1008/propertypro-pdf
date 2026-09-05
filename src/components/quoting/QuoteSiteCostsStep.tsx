@@ -1292,15 +1292,40 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </div>
       </div>
 
-      <SiteFeasibilityDrawer
-        open={isFeasibilityOpen}
-        onOpenChange={setIsFeasibilityOpen}
-        initialAddress={quote.client.siteAddress || (quote.client.lotNumber ? `Lot ${quote.client.lotNumber}, ${quote.client.suburb || quote.client.estate || "Flagstone"}` : "Lot 243, 61 Paradise Road, Flagstone")}
-        initialMode={quote.client.depositType === "brownfield" || site.demolitionAsbestosRequired ? "brownfield_kdrb" : "greenfield"}
-        initialStorey={isDouble ? "double" : "single"}
-        initialHouseDesign={quote.design.designName}
-        onApplyAllowances={handleFeasibilityApply}
-      />
+      {(() => {
+        const isBrownfieldQuote = quote.client.depositType === "brownfield" || site.demolitionAsbestosRequired;
+        const computedAddress = [
+          !isBrownfieldQuote && quote.client.lotNumber
+            ? (quote.client.lotNumber.toLowerCase().startsWith("lot") ? quote.client.lotNumber : `Lot ${quote.client.lotNumber}`)
+            : "",
+          quote.client.siteAddress,
+          quote.client.suburb,
+          !isBrownfieldQuote ? quote.client.estate : "",
+          "QLD",
+          quote.client.postcode,
+        ]
+          .filter(Boolean)
+          .join(", ");
+
+        const resolvedInitialAddress =
+          computedAddress.length > 5
+            ? computedAddress
+            : isBrownfieldQuote
+            ? "14 Waratah Avenue, Graceville, QLD"
+            : "Lot 243, 61 Paradise Road, Flagstone, QLD";
+
+        return (
+          <SiteFeasibilityDrawer
+            open={isFeasibilityOpen}
+            onOpenChange={setIsFeasibilityOpen}
+            initialAddress={resolvedInitialAddress}
+            initialMode={isBrownfieldQuote ? "brownfield_kdrb" : "greenfield"}
+            initialStorey={isDouble ? "double" : "single"}
+            initialHouseDesign={quote.design.designName}
+            onApplyAllowances={handleFeasibilityApply}
+          />
+        );
+      })()}
     </div>
   );
 }

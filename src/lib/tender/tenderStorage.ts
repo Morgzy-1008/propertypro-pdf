@@ -831,8 +831,16 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
     },
     land: {
       ...base.land,
-      estate: quote.feasibility?.parcel?.suburb || c.estate || "",
-      stage: quote.feasibility?.stageId || base.land.stage || "",
+      estate: (buildType.includes("KDRB") || quote.feasibility?.mode === "brownfield_kdrb" || c.depositType === "brownfield")
+        ? ""
+        : ((quote.feasibility?.estateId && quote.feasibility.estateId !== "qdc_statutory")
+            ? (c.estate || quote.feasibility.estateId)
+            : (c.estate || "")),
+      stage: (buildType.includes("KDRB") || quote.feasibility?.mode === "brownfield_kdrb" || c.depositType === "brownfield")
+        ? ""
+        : ((quote.feasibility?.stageId && quote.feasibility.stageId !== "qdc_statutory")
+            ? quote.feasibility.stageId
+            : (base.land.stage || "")),
       lotNo: quote.feasibility?.parcel?.lotNumber || c.lotNumber || "",
       lotSizeM2: quote.feasibility?.parcel?.areaM2 || base.land.lotSizeM2,
       frontageM: quote.feasibility?.parcel?.frontageM || base.land.frontageM,

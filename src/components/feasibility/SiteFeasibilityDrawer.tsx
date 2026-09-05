@@ -78,7 +78,9 @@ export function SiteFeasibilityDrawer({
   const [addressInput, setAddressInput] = useState(initialAddress);
   const [mode, setMode] = useState<FeasibilityMode>(initialMode);
   const [houseStorey, setHouseStorey] = useState<HouseStoreyType>(initialStorey);
-  const [selectedStageId, setSelectedStageId] = useState<string>("flagstone_stg12");
+  const [selectedStageId, setSelectedStageId] = useState<string>(
+    initialMode === "brownfield_kdrb" ? "qdc_statutory" : "flagstone_stg12"
+  );
   const [activeTab, setActiveTab] = useState<"aerial_street" | "siting_envelope" | "hazard_radar" | "allowances">("aerial_street");
   const [loading, setLoading] = useState(false);
   const [dossier, setDossier] = useState<SiteFeasibilityDossier | null>(null);
@@ -86,21 +88,19 @@ export function SiteFeasibilityDrawer({
 
   const estateStages = useMemo(() => getAllEstateStages(), []);
 
-  // Update initial parameters if props change
-  useEffect(() => {
-    if (initialAddress) setAddressInput(initialAddress);
-    if (initialMode) setMode(initialMode);
-    if (initialStorey) setHouseStorey(initialStorey);
-  }, [initialAddress, initialMode, initialStorey]);
-
   // Run feasibility analysis
-  const executeAnalysis = async (searchQuery?: string, selectedMode?: FeasibilityMode, selectedStorey?: HouseStoreyType, stageId?: string) => {
+  const executeAnalysis = async (
+    searchQuery?: string,
+    selectedMode?: FeasibilityMode,
+    selectedStorey?: HouseStoreyType,
+    stageId?: string
+  ) => {
     setLoading(true);
     try {
       const q = searchQuery || addressInput;
       const m = selectedMode || mode;
       const s = selectedStorey || houseStorey;
-      const stg = stageId || selectedStageId;
+      const stg = m === "brownfield_kdrb" ? "qdc_statutory" : (stageId || (selectedStageId === "qdc_statutory" ? "flagstone_stg12" : selectedStageId));
 
       const result = await runSiteFeasibilityAnalysis({
         addressOrLot: q,
@@ -120,17 +120,36 @@ export function SiteFeasibilityDrawer({
     }
   };
 
+  // Synchronize and re-scan when modal opens or initial props change
   useEffect(() => {
-    if (open && !dossier) {
-      executeAnalysis();
+    if (open) {
+      const addr = initialAddress || addressInput;
+      const m = initialMode || mode;
+      const st = initialStorey || houseStorey;
+      const stg = m === "brownfield_kdrb" ? "qdc_statutory" : (selectedStageId === "qdc_statutory" ? "flagstone_stg12" : selectedStageId);
+
+      setAddressInput(addr);
+      setMode(m);
+      setHouseStorey(st);
+      setSelectedStageId(stg);
+      executeAnalysis(addr, m, st, stg);
     }
-  }, [open]);
+  }, [open, initialAddress, initialMode, initialStorey]);
+
+  // Handle Greenfield vs Brownfield mode change
+  const handleModeChange = (newMode: FeasibilityMode) => {
+    setMode(newMode);
+    const targetStage = newMode === "brownfield_kdrb" ? "qdc_statutory" : (selectedStageId === "qdc_statutory" ? "flagstone_stg12" : selectedStageId);
+    setSelectedStageId(targetStage);
+    executeAnalysis(addressInput, newMode, houseStorey, targetStage);
+  };
 
   // Handle house storey change (SS vs DS)
   const handleStoreyChange = (newStorey: HouseStoreyType) => {
     setHouseStorey(newStorey);
     if (dossier) {
-      const stage = estateStages.find((s) => s.id === selectedStageId) || estateStages[0];
+      const activeStageId = mode === "brownfield_kdrb" ? "qdc_statutory" : selectedStageId;
+      const stage = estateStages.find((s) => s.id === activeStageId) || estateStages[0];
       const newSetbacks = resolveSetbacksForStorey(stage, newStorey);
       setDossier({
         ...dossier,
@@ -246,10 +265,7 @@ export function SiteFeasibilityDrawer({
               <Label className="text-[10.5px] uppercase font-semibold text-slate-400">Build Type</Label>
               <Select
                 value={mode}
-                onValueChange={(v: FeasibilityMode) => {
-                  setMode(v);
-                  executeAnalysis(addressInput, v, houseStorey, selectedStageId);
-                }}
+                onValueChange={(v: FeasibilityMode) => handleModeChange(v)}
               >
                 <SelectTrigger className="border-slate-800 bg-slate-900 text-xs h-8 font-semibold text-cyan-400 mt-1">
                   <SelectValue />
@@ -261,22 +277,39 @@ export function SiteFeasibilityDrawer({
               </Select>
             </div>
 
-            {/* Estate & Stage Selector */}
-            <div className="sm:col-span-3">
-              <Label className="text-[10.5px] uppercase font-semibold text-slate-400">Estate &amp; Stage PoD Rules</Label>
-              <Select value={selectedStageId} onValueChange={handleStageChange}>
-                <SelectTrigger className="border-slate-800 bg-slate-900 text-xs h-8 font-medium text-slate-200 mt-1 truncate">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
-                  {estateStages.map((stage) => (
-                    <SelectItem key={stage.id} value={stage.id} className="text-xs">
-                      {stage.estateName} — {stage.stageName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Estate & Stage Selector (Only for Greenfield) */}
+            {mode === "greenfield" ? (
+              <div className="sm:col-span-3">
+                <Label className="text-[10.5px] uppercase font-semibold text-slate-400">Estate &amp; Stage PoD Rules</Label>
+                <Select value={selectedStageId} onValueChange={handleStageChange}>
+                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs h-8 font-medium text-slate-200 mt-1 truncate">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                    {estateStages
+                      .filter((s) => s.id !== "qdc_statutory")
+                      .map((stage) => (
+                        <SelectItem key={stage.id} value={stage.id} className="text-xs">
+                          {stage.estateName} — {stage.stageName}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="sm:col-span-3">
+                <Label className="text-[10.5px] uppercase font-semibold text-amber-400">Statutory Planning Framework</Label>
+                <div className="h-8 rounded-md bg-amber-950/40 border border-amber-500/40 px-2.5 flex items-center justify-between mt-1 text-xs text-amber-200">
+                  <span className="font-bold flex items-center gap-1.5 truncate text-[11px]">
+                    <ShieldCheck className="h-3.5 w-3.5 text-amber-400 flex-none" />
+                    QDC MP 1.1 / 1.2 Infill (No Estate)
+                  </span>
+                  <span className="text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 flex-none font-bold">
+                    Statutory
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* House Storey Filter */}
             <div className="sm:col-span-3">

@@ -250,9 +250,26 @@ export async function runSiteFeasibilityAnalysis(params: {
 }): Promise<SiteFeasibilityDossier> {
   const query = params.addressOrLot.toLowerCase().trim();
   const stages = getAllEstateStages();
+  const isBrownfield = params.mode === "brownfield_kdrb" || query.includes("kdr") || query.includes("brownfield");
 
+  // 1. Try Live QLD Cadastre & Nominatim Geocoding Lookup via API
+  let liveLookup: any = null;
+  try {
+    const apiUrl = `/api/cadastre-lookup?address=${encodeURIComponent(params.addressOrLot)}&mode=${isBrownfield ? "brownfield_kdrb" : "greenfield"}`;
+    const resp = await fetch(apiUrl, { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.success && data.parcel) {
+        liveLookup = data;
+      }
+    }
+  } catch (err) {
+    console.warn("Live cadastre lookup API request skipped/failed:", err);
+  }
+
+  // 2. Determine base mock / fallback if live lookup unavailable
   let matchedMockKey = "flagstone_stage12";
-  if (params.mode === "brownfield_kdrb" || query.includes("graceville") || query.includes("waratah") || query.includes("kdr")) {
+  if (isBrownfield) {
     matchedMockKey = "brownfield_graceville";
   } else if (query.includes("stage 8") || query.includes("104") || query.includes("trailblazer")) {
     matchedMockKey = "flagstone_stage8";
@@ -262,20 +279,77 @@ export async function runSiteFeasibilityAnalysis(params: {
     matchedMockKey = "flagstone_stage12";
   }
 
-  const baseData = PRESEEDED_MOCK_LOTS[matchedMockKey] || PRESEEDED_MOCK_LOTS["flagstone_stage12"];
-  const stageId = params.estateStageId || baseData.estateStageId;
-  const stage = stages.find((s) => s.id === stageId) || stages[0];
+  const baseData = PRESEEDED_MOCK_LOTS[matchedMockKey] || PRESEEDED_MOCK_LOTS[isBrownfield ? "brownfield_graceville" : "flagstone_stage12"];
+
+  // 3. Strict Greenfield vs Brownfield Stage Selection
+  let stageId: string;
+  let stage: any;
+
+  if (isBrownfield) {
+    // Brownfield / KDRB is ALWAYS governed by QDC MP 1.1 / 1.2 Statutory Code, NEVER developer estates!
+    stageId = "qdc_statutory";
+    stage = stages.find((s) => s.id === "qdc_statutory") || stages[stages.length - 1];
+  } else {
+    // Greenfield: resolve estate stage from suburb or explicit stageId
+    if (params.estateStageId && params.estateStageId !== "qdc_statutory") {
+      stageId = params.estateStageId;
+    } else if (liveLookup?.estate?.toLowerCase().includes("providence") || query.includes("ripley") || query.includes("providence")) {
+      stageId = "providence_stg5";
+    } else if (liveLookup?.estate?.toLowerCase().includes("yarrabilba") || query.includes("yarrabilba")) {
+      stageId = "yarrabilba_stg4";
+    } else if (liveLookup?.estate?.toLowerCase().includes("harmony") || query.includes("palmview") || query.includes("harmony")) {
+      stageId = "harmony_stg14";
+    } else if (liveLookup?.estate?.toLowerCase().includes("springfield") || query.includes("springfield")) {
+      stageId = "springfield_rise_stg22";
+    } else if (liveLookup?.estate?.toLowerCase().includes("north harbour") || query.includes("north harbour")) {
+      stageId = "north_harbour_stg31";
+    } else {
+      stageId = baseData.estateStageId || "flagstone_stg12";
+    }
+    stage = stages.find((s) => s.id === stageId) || stages[0];
+  }
 
   const activeSetbacks: SetbackRules = resolveSetbacksForStorey(stage, params.houseStorey);
 
-  const lotMatch = params.addressOrLot.match(/lot\s*([0-9A-Za-z]+)/i);
-  const lotNum = lotMatch ? lotMatch[1] : baseData.parcel.lotNumber;
-  const currentParcel: CadastralParcel = {
-    ...baseData.parcel,
-    lotNumber: lotNum,
-    standardLotPlan: `Lot ${lotNum} on ${baseData.parcel.planNumber}`,
-    streetAddress: params.addressOrLot.includes(",") ? params.addressOrLot.split(",")[0] : baseData.parcel.streetAddress,
-  };
+  // 4. Construct Final Parcel
+  let currentParcel: CadastralParcel;
+  if (liveLookup?.parcel) {
+    const p = liveLookup.parcel;
+    currentParcel = {
+      lotNumber: p.lotNumber || (isBrownfield ? "1" : "243"),
+      planNumber: p.planNumber || (isBrownfield ? "RP45910" : "SP312456"),
+      standardLotPlan: p.standardLotPlan || `Lot ${p.lotNumber || "1"} on ${p.planNumber || "RP45910"}`,
+      streetAddress: p.streetAddress || params.addressOrLot.split(",")[0].trim(),
+      suburb: p.suburb || (isBrownfield ? "Established Suburb" : stage.suburb),
+      postcode: p.postcode || "4000",
+      council: p.council || (isBrownfield ? "Brisbane City Council" : stage.council),
+      areaM2: p.areaM2 || (isBrownfield ? 607 : 450),
+      frontageM: p.frontageM || (isBrownfield ? 15.1 : 15.0),
+      depthM: p.depthM || (isBrownfield ? 40.2 : 30.0),
+      rearWidthM: p.rearWidthM || (isBrownfield ? 15.1 : 15.0),
+      shape: "rectangular",
+      latitude: p.latitude || liveLookup.latitude,
+      longitude: p.longitude || liveLookup.longitude,
+      isRegistered: isBrownfield ? true : baseData.parcel.isRegistered,
+      expectedRegistrationDate: isBrownfield ? "" : baseData.parcel.expectedRegistrationDate,
+      smartMapUrl: p.smartMapUrl,
+      boundaryCoordinates: p.boundaryCoordinates || baseData.parcel.boundaryCoordinates,
+    };
+  } else {
+    const lotMatch = params.addressOrLot.match(/lot\s*([0-9A-Za-z]+)/i);
+    const lotNum = lotMatch ? lotMatch[1] : (isBrownfield ? "1" : baseData.parcel.lotNumber);
+    const streetPart = params.addressOrLot.includes(",") ? params.addressOrLot.split(",")[0].trim() : params.addressOrLot;
+    const suburbPart = params.addressOrLot.includes(",") ? params.addressOrLot.split(",")[1].trim() : (isBrownfield ? "Established Suburb" : stage.suburb);
+
+    currentParcel = {
+      ...baseData.parcel,
+      lotNumber: lotNum,
+      standardLotPlan: isBrownfield ? `Lot ${lotNum} on RP45910` : `Lot ${lotNum} on ${baseData.parcel.planNumber}`,
+      streetAddress: streetPart,
+      suburb: suburbPart,
+      council: isBrownfield ? "Brisbane City Council" : stage.council,
+    };
+  }
 
   const allowances: EditableAllowanceItem[] = [];
 
@@ -450,8 +524,8 @@ export async function runSiteFeasibilityAnalysis(params: {
     mode: params.mode,
     houseStorey: params.houseStorey,
     houseDesignName: params.houseDesignName,
-    estateId: stage.estateId,
-    stageId: stage.id,
+    estateId: isBrownfield ? "" : stage.estateId,
+    stageId: isBrownfield ? "qdc_statutory" : stage.id,
     parcel: currentParcel,
     activeSetbacks,
     surrounding: baseData.surrounding,
@@ -460,6 +534,8 @@ export async function runSiteFeasibilityAnalysis(params: {
     totalAllowancesCost: totalAllowances,
     confidenceScore: 98,
     humanClarifications,
-    notes: `Feasibility Dossier generated using surveyed cadastre and official planning controls for ${stage.estateName} (${stage.stageName}). Setbacks calibrated strictly for ${params.houseStorey === "double" ? "Double Storey" : "Single Storey"}.`,
+    notes: isBrownfield
+      ? `Brownfield / KDRB Infill Dossier: Sited strictly under Queensland Development Code (QDC MP 1.1 / 1.2) & Local Council Planning Scheme in ${currentParcel.suburb} (${currentParcel.council}). Zero developer estate covenants apply. Setbacks calibrated strictly for ${params.houseStorey === "double" ? "Double Storey" : "Single Storey"}.`
+      : `Feasibility Dossier generated using surveyed cadastre and official planning controls for ${stage.estateName} (${stage.stageName}). Setbacks calibrated strictly for ${params.houseStorey === "double" ? "Double Storey" : "Single Storey"}.`,
   };
 }

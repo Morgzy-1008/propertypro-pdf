@@ -187,7 +187,15 @@ export function QuoteClientDetails({
     if (type === "brownfield") baseAmount = 3300;
     if (type === "custom") baseAmount = client.depositAmount || 1650;
     const finalAmount = client.custom3dTourSelected ? baseAmount + 800 : baseAmount;
-    onChange({ depositType: type, depositAmount: finalAmount });
+    
+    const patch: Partial<ClientDetails> = {
+      depositType: type,
+      depositAmount: finalAmount,
+    };
+    if (type === "brownfield") {
+      patch.estate = "";
+    }
+    onChange(patch);
 
     if (type === "brownfield" && onSiteChange) {
       onSiteChange({ screwPieringRequired: true });
@@ -495,10 +503,15 @@ export function QuoteClientDetails({
           <div className="space-y-1.5 sm:col-span-2 md:col-span-2">
             <Label className="text-[11px] text-slate-400">Estate Name</Label>
             <Input
-              value={client.estate}
+              value={client.depositType === "brownfield" ? "" : client.estate}
+              disabled={client.depositType === "brownfield"}
               onChange={(e) => handleAddressChange({ estate: e.target.value })}
-              placeholder="e.g. Flagstone Rise"
-              className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
+              placeholder={client.depositType === "brownfield" ? "N/A (Established Suburb / KDRB)" : "e.g. Flagstone Rise"}
+              className={`h-8.5 border-slate-800 text-xs ${
+                client.depositType === "brownfield"
+                  ? "bg-slate-900/40 text-slate-500 cursor-not-allowed italic"
+                  : "bg-slate-950/70 text-slate-100 placeholder:text-slate-500"
+              }`}
             />
           </div>
 

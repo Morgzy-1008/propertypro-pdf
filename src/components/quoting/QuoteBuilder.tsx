@@ -264,6 +264,13 @@ export function QuoteBuilder() {
     if (dossier.parcel?.streetAddress && !quote.client.siteAddress) clientPatch.siteAddress = dossier.parcel.streetAddress;
     if (dossier.parcel?.suburb && !quote.client.suburb) clientPatch.suburb = dossier.parcel.suburb;
 
+    if (dossier.mode === "brownfield_kdrb") {
+      clientPatch.depositType = "brownfield";
+      clientPatch.estate = "";
+    } else if (dossier.estateId && dossier.estateId !== "qdc_statutory" && !quote.client.estate) {
+      clientPatch.estate = dossier.parcel?.suburb || "";
+    }
+
     updateQuote({
       siteConditions: updatedSite,
       feasibility: dossier,
