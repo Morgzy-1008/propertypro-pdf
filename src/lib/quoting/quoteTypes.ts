@@ -1,3 +1,5 @@
+import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
+
 export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty";
 
 export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living";
@@ -293,4 +295,5 @@ export interface FullQuote {
   secondDwellingLineItems?: QuoteSelectedLineItem[];
   pricing: QuotePricingSummary;
   clientNotes?: string;
+  feasibility?: SiteFeasibilityDossier;
 }

@@ -257,6 +257,20 @@ export function QuoteBuilder() {
     updateQuote({ siteConditions: updatedSite });
   };
 
+  const handleFeasibilityApply = (dossier: any, sitePatch: any) => {
+    const updatedSite = { ...quote.siteConditions, ...sitePatch };
+    const clientPatch: Record<string, any> = {};
+    if (dossier.parcel?.lotNumber && !quote.client.lotNumber) clientPatch.lotNumber = dossier.parcel.lotNumber;
+    if (dossier.parcel?.streetAddress && !quote.client.siteAddress) clientPatch.siteAddress = dossier.parcel.streetAddress;
+    if (dossier.parcel?.suburb && !quote.client.suburb) clientPatch.suburb = dossier.parcel.suburb;
+
+    updateQuote({
+      siteConditions: updatedSite,
+      feasibility: dossier,
+      client: { ...quote.client, ...clientPatch },
+    });
+  };
+
   const handleLineItemsChange = (items: FullQuote["lineItems"]) => {
     updateQuote({ lineItems: items });
   };
@@ -513,6 +527,7 @@ export function QuoteBuilder() {
                 quote={quote}
                 site={quote.siteConditions}
                 onSiteChange={handleSiteChange}
+                onFeasibilityApply={handleFeasibilityApply}
               />
             )}
 

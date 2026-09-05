@@ -806,6 +806,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
     sourceQuoteId: quote.id,
     iquoteId: quote.quoteNumber || base.iquoteId,
     buildType,
+    feasibility: quote.feasibility,
     customer1: {
       title: "Mr",
       firstName: c1First,
@@ -830,13 +831,18 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
     },
     land: {
       ...base.land,
-      estate: c.estate || "",
-      lotNo: c.lotNumber || "",
+      estate: quote.feasibility?.parcel?.suburb || c.estate || "",
+      stage: quote.feasibility?.stageId || base.land.stage || "",
+      lotNo: quote.feasibility?.parcel?.lotNumber || c.lotNumber || "",
+      lotSizeM2: quote.feasibility?.parcel?.areaM2 || base.land.lotSizeM2,
+      frontageM: quote.feasibility?.parcel?.frontageM || base.land.frontageM,
       streetNumber: "",
-      streetName: c.siteAddress || "",
-      suburb: c.suburb || "",
-      council: s.councilRegion || "Logan City Council",
+      streetName: quote.feasibility?.parcel?.streetAddress || c.siteAddress || "",
+      suburb: quote.feasibility?.parcel?.suburb || c.suburb || "",
+      council: quote.feasibility?.parcel?.council || s.councilRegion || "Logan City Council",
       landStatus: c.depositType === "brownfield" ? "Settled" : "Exchanged",
+      isRegistered: quote.feasibility?.parcel?.isRegistered ?? base.land.isRegistered,
+      registeredDate: quote.feasibility?.parcel?.expectedRegistrationDate || base.land.registeredDate,
     },
     homeSpec: {
       housingType: (d.housingType as any) || "Single Storey",
@@ -864,12 +870,19 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       floorplanPins: [], // No auto-pins on quote import!
       includeLandscapePackage: hasLandscaping,
       landscapePackageCost: lpCost,
-      setbacks: {
-        frontBoundary: "6.0m",
-        rearBoundary: "1.5m",
-        leftBoundary: "1.0m",
-        rightBoundary: "1.0m",
-      },
+      setbacks: quote.feasibility?.activeSetbacks
+        ? {
+            frontBoundary: `${quote.feasibility.activeSetbacks.frontOmpM}m`,
+            rearBoundary: `${quote.feasibility.activeSetbacks.rearM}m`,
+            leftBoundary: `${quote.feasibility.activeSetbacks.sideStandardM}m`,
+            rightBoundary: `${quote.feasibility.activeSetbacks.sideBtbM > 0 ? quote.feasibility.activeSetbacks.sideBtbM + "m (BTB)" : quote.feasibility.activeSetbacks.sideStandardM + "m"}`,
+          }
+        : {
+            frontBoundary: "6.0m",
+            rearBoundary: "1.5m",
+            leftBoundary: "1.0m",
+            rightBoundary: "1.0m",
+          },
       specialOffers: d.specialPromotionTitle || "Hudson Special Builder Promotion",
       customerBudget: p.grossEstimatedInvestment || "",
       baseDesignCost: p.baseHousePrice || 0,
@@ -899,6 +912,7 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       eftReference: `${(c1Last || "Client").replace(/\s+/g, "").toUpperCase()}-${quote.quoteNumber || "MH"}`,
     },
     documents: docs,
+    feasibility: quote.feasibility,
   };
 }
 

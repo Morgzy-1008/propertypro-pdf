@@ -29,6 +29,8 @@ import {
   HardHat,
   Trees,
   Cloud,
+  Compass,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
@@ -94,6 +96,8 @@ import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
 import { getActiveStaffUser, onStaffUserChanged, KNOWN_STAFF_PROFILES, type StaffProfile } from "@/lib/authSession";
 import { renderA4PdfBlob } from "@/lib/downloadPdf";
+import { SiteFeasibilityDrawer } from "@/components/feasibility/SiteFeasibilityDrawer";
+import type { SiteFeasibilityDossier, EditableAllowanceItem } from "@/lib/feasibility/feasibilityTypes";
 
 type SectionTab = "client_job" | "land_siting" | "home_spec" | "atp_sign" | "job_folder" | "pdf_preview";
 
@@ -140,6 +144,7 @@ export function TenderRequestPortal() {
   const [activeTab, setActiveTab] = useState<SectionTab>("client_job");
   const [saving, setSaving] = useState(false);
   const [exportingZip, setExportingZip] = useState(false);
+  const [isFeasibilityOpen, setIsFeasibilityOpen] = useState(false);
 
   // Digital Signature Modal state
   const [sigModal, setSigModal] = useState<{
@@ -705,6 +710,72 @@ export function TenderRequestPortal() {
 
     setIsCustomFacadeOpen(false);
     toast.success(`Applied Custom Architectural Facade: "${customFacadeNameInput.trim()}"!`);
+  };
+
+  const handleApplyFeasibilityToTender = (dossier: SiteFeasibilityDossier, appliedItems: EditableAllowanceItem[]) => {
+    const newLand = {
+      ...tender.land,
+      lotNo: dossier.parcel.lotNumber || tender.land.lotNo,
+      lotSizeM2: dossier.parcel.areaM2 || tender.land.lotSizeM2,
+      frontageM: dossier.parcel.frontageM || tender.land.frontageM,
+      streetName: dossier.parcel.streetAddress || tender.land.streetName,
+      suburb: dossier.parcel.suburb || tender.land.suburb,
+      council: dossier.parcel.council || tender.land.council,
+      isRegistered: dossier.parcel.isRegistered,
+      registeredDate: dossier.parcel.expectedRegistrationDate || tender.land.registeredDate,
+    };
+
+    const newSetbacks = {
+      frontBoundary: `${dossier.activeSetbacks.frontOmpM}m`,
+      rearBoundary: `${dossier.activeSetbacks.rearM}m`,
+      leftBoundary: `${dossier.activeSetbacks.sideStandardM}m`,
+      rightBoundary: `${dossier.activeSetbacks.sideBtbM > 0 ? dossier.activeSetbacks.sideBtbM + "m (BTB)" : dossier.activeSetbacks.sideStandardM + "m"}`,
+    };
+
+    const updatedVariations = [...tender.variations];
+    for (const item of appliedItems) {
+      const existingIdx = updatedVariations.findIndex(
+        (v) => v.id.includes(item.id) || v.description.toLowerCase().includes(item.title.toLowerCase())
+      );
+      if (existingIdx >= 0) {
+        updatedVariations[existingIdx] = {
+          ...updatedVariations[existingIdx],
+          cost: item.currentAmount,
+        };
+      } else {
+        updatedVariations.push({
+          id: `var_${item.id}_${Date.now()}`,
+          description: item.title,
+          cost: item.currentAmount,
+          category: "all_variations",
+          isStructural: false,
+        });
+      }
+    }
+
+    const newLandscapeCost = calculateLandscapePackageCost(newLand.lotSizeM2, tender.homeSpec.housingType, tender.homeSpec.homeDesign);
+    const newAdditionalSiteCost = updatedVariations.reduce((sum, v) => sum + v.cost, 0);
+
+    updateTender({
+      feasibility: dossier,
+      land: newLand,
+      homeSpec: {
+        ...tender.homeSpec,
+        setbacks: newSetbacks,
+        landscapePackageCost: newLandscapeCost,
+        additionalSiteCost: newAdditionalSiteCost,
+        totalBudgetEstimate:
+          tender.homeSpec.baseDesignCost +
+          tender.homeSpec.facadeCost +
+          tender.homeSpec.structuralVariationsCost +
+          newAdditionalSiteCost +
+          (tender.homeSpec.includeLandscapePackage ? newLandscapeCost : 0) -
+          tender.homeSpec.promotionDiscountCost,
+      },
+      variations: updatedVariations,
+    });
+
+    toast.success(`Applied Feasibility Dossier (${dossier.parcel.standardLotPlan}) to Tender Request!`);
   };
 
   const handleAddStructuralVariation = (pin: TenderFloorplanPin, customTitle?: string, customCost?: number) => {
@@ -1726,6 +1797,65 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 Configure build type, lot specifications, council jurisdiction, and KDRB tenant access if applicable.
               </p>
             </div>
+
+            {/* Site Feasibility Dossier Status / Launcher */}
+            {tender.feasibility ? (
+              <div className="bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-950 border border-cyan-500/50 p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-none">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <strong className="text-xs font-bold text-white">
+                        Site Feasibility &amp; Cadastre Dossier Verified
+                      </strong>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                        {tender.feasibility.parcel.standardLotPlan}
+                      </span>
+                      <span className="text-[9.5px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400">
+                        {tender.feasibility.houseStorey === "double" ? "Double Storey Setbacks" : "Single Storey Setbacks"}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      {tender.feasibility.parcel.areaM2} m² ({tender.feasibility.parcel.frontageM}m &times; {tender.feasibility.parcel.depthM}m) &bull; Setbacks: Front {tender.feasibility.activeSetbacks.frontOmpM}m, Garage {tender.feasibility.activeSetbacks.frontGarageM}m, Side {tender.feasibility.activeSetbacks.sideStandardM}m, Rear {tender.feasibility.activeSetbacks.rearM}m &bull; Council: {tender.feasibility.parcel.council}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsFeasibilityOpen(true)}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs gap-1.5 flex-none"
+                >
+                  <Eye className="h-3.5 w-3.5" /> View / Edit Dossier
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-slate-950/70 border border-dashed border-slate-800 hover:border-slate-700 p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-cyan-400 flex-none">
+                    <Compass className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <strong className="text-xs font-semibold text-slate-200">
+                      Run Site Feasibility &amp; Archistar Check on this Lot (Optional)
+                    </strong>
+                    <p className="text-[11px] text-slate-400">
+                      Auto-fill exact surveyed dimensions, SPP overlays, bus stop / school zone traffic control, and estate setbacks.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => setIsFeasibilityOpen(true)}
+                  className="bg-slate-900 hover:bg-slate-800 border border-slate-700 text-cyan-400 font-bold text-xs gap-1.5 flex-none"
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Run Feasibility
+                </Button>
+              </div>
+            )}
 
             {/* Build Type & Deposit Tier */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
@@ -3543,6 +3673,21 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         title={sigModal.title}
         signerName={sigModal.name}
         onSaveSignature={handleSaveSignature}
+      />
+
+      {/* NHC Site Feasibility & Archistar-Equivalent Drawer */}
+      <SiteFeasibilityDrawer
+        open={isFeasibilityOpen}
+        onOpenChange={setIsFeasibilityOpen}
+        initialAddress={
+          tender.land.streetName
+            ? `${tender.land.lotNo ? `Lot ${tender.land.lotNo}, ` : ""}${tender.land.streetName}, ${tender.land.suburb || tender.land.estate || "Flagstone"}`
+            : (tender.land.lotNo ? `Lot ${tender.land.lotNo}, Flagstone` : "Lot 243, 61 Paradise Road, Flagstone")
+        }
+        initialMode={tender.buildType.includes("KDRB") ? "brownfield_kdrb" : "greenfield"}
+        initialStorey={tender.homeSpec.isDoubleStorey ? "double" : "single"}
+        initialHouseDesign={tender.homeSpec.homeDesign}
+        onApplyAllowances={handleApplyFeasibilityToTender}
       />
     </div>
   );

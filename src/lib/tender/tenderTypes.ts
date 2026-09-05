@@ -1,3 +1,5 @@
+import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
+
 export type BuildType =
   | "Greenfield Site"
   | "Exclusive Lot"
@@ -108,6 +110,7 @@ export interface TenderSubmission {
   id: string;
   submissionNumber: string;
   sourceQuoteId?: string;
+  feasibility?: SiteFeasibilityDossier;
   createdAt: string;
   updatedAt: string;
   status: "draft" | "submitted" | "approved" | "client_signed" | "rejected";
