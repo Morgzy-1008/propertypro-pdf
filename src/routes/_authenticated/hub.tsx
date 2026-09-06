@@ -21,6 +21,7 @@ import {
   Shield,
   Bell,
   UserCheck,
+  Compass,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
@@ -400,6 +401,66 @@ function WelcomeHubPage() {
               </div>
               <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
                 Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />
+              </span>
+            </div>
+          </Link>
+
+          {/* Card 7: Hudson Site Studio (Archistar Replacement) */}
+          <Link
+            to="/site-studio"
+            className={`group relative overflow-hidden rounded-2xl border ${
+              isLight
+                ? "border-slate-200 bg-white shadow-xs hover:border-emerald-500/70 hover:shadow-xl hover:-translate-y-1"
+                : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1"
+            } p-6 transition-all duration-300 flex flex-col justify-between md:col-span-2 lg:col-span-3`}
+          >
+            <div className="absolute top-0 right-0 h-44 w-44 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-500" />
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-brand-gold/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                  <Compass className="h-5 w-5" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+                    <Sparkles className="h-3 w-3 text-emerald-400" />
+                    Archistar Replacement
+                  </span>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full border border-brand-gold/20">
+                    Siting Studio
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
+                <h2 className={`text-xl font-bold ${isLight ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-300"} transition-colors`}>
+                  Hudson Site Studio
+                </h2>
+                <span className="text-xs text-amber-500 font-semibold font-mono">1:200 &amp; 1:100 Siting Engine • QLD QSpatial &amp; NSW DCDB</span>
+              </div>
+              <p className={`mt-2 text-xs ${isLight ? "text-slate-600" : "text-slate-400"} max-w-3xl leading-relaxed`}>
+                Official cadastral boundary bearings and dimensions, high-res satellite hybrid imagery, interactive floorplan placement with Wall Setbacks &amp; 450mm eaves, live site coverage %, winter solar ingress analysis, and 1-click A3 Siting Plan PDF generation with direct Tender Request attachment.
+              </p>
+            </div>
+            <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
+              <div className={`flex flex-wrap items-center gap-3 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Cadastre Boundary Bearings</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Google Satellite Hybrid</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Hudson 450mm Eaves</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>1-Click Tender Handoff</span>
+                </div>
+              </div>
+              <span className="font-black text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                Launch Site Studio <ArrowRight className="ml-1 h-3.5 w-3.5" />
               </span>
             </div>
           </Link>

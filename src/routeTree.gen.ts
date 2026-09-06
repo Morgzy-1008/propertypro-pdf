@@ -22,6 +22,7 @@ import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_auth
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
+import { Route as AuthenticatedSiteStudioRouteImport } from './routes/_authenticated/site-studio'
 import { Route as AuthenticatedTenderRequestRouteImport } from './routes/_authenticated/tender-request'
 import { Route as BrowseLandRouteImport } from './routes/browse/land'
 import { Route as BrowsePackagesRouteImport } from './routes/browse/packages'
@@ -97,6 +98,11 @@ const AuthenticatedQuoteBuilderRoute =
     path: '/quote-builder',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSiteStudioRoute = AuthenticatedSiteStudioRouteImport.update({
+  id: '/site-studio',
+  path: '/site-studio',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTenderRequestRoute =
   AuthenticatedTenderRequestRouteImport.update({
     id: '/tender-request',
@@ -152,6 +158,7 @@ export interface FileRoutesByFullPath {
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/site-studio': typeof AuthenticatedSiteStudioRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/site-studio': typeof AuthenticatedSiteStudioRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -198,6 +206,7 @@ export interface FileRoutesById {
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
+  '/_authenticated/site-studio': typeof AuthenticatedSiteStudioRoute
   '/_authenticated/tender-request': typeof AuthenticatedTenderRequestRoute
   '/browse/land': typeof BrowseLandRoute
   '/browse/packages': typeof BrowsePackagesRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/flyer'
     | '/hub'
     | '/quote-builder'
+    | '/site-studio'
     | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
     | '/flyer'
     | '/hub'
     | '/quote-builder'
+    | '/site-studio'
     | '/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -267,6 +278,7 @@ export interface FileRouteTypes {
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
     | '/_authenticated/quote-builder'
+    | '/_authenticated/site-studio'
     | '/_authenticated/tender-request'
     | '/browse/land'
     | '/browse/packages'
@@ -387,6 +399,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedQuoteBuilderRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/site-studio': {
+      id: '/_authenticated/site-studio'
+      path: '/site-studio'
+      fullPath: '/site-studio'
+      preLoaderRoute: typeof AuthenticatedSiteStudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tender-request': {
       id: '/_authenticated/tender-request'
       path: '/tender-request'
@@ -453,6 +472,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
   AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
+  AuthenticatedSiteStudioRoute: typeof AuthenticatedSiteStudioRoute
   AuthenticatedTenderRequestRoute: typeof AuthenticatedTenderRequestRoute
 }
 
@@ -463,6 +483,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
   AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
+  AuthenticatedSiteStudioRoute: AuthenticatedSiteStudioRoute,
   AuthenticatedTenderRequestRoute: AuthenticatedTenderRequestRoute,
 }
 
