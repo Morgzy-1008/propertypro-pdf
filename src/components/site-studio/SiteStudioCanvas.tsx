@@ -92,6 +92,22 @@ export function SiteStudioCanvas({
   // 450mm Eaves offset in pixels
   const eavePx = (rules.eaveWidthM || 0.45) * pixelsPerMetre;
 
+  // High-Resolution Esri World Imagery Satellite URL ($0 Free Government & Open Data)
+  const satelliteUrl = useMemo(() => {
+    const spanWidthM = 240;
+    const spanHeightM = 160;
+    const dLat = (spanHeightM / 111320) / 2;
+    const cosLat = Math.cos((parcel.latitude * Math.PI) / 180);
+    const dLon = (spanWidthM / (111320 * (cosLat || 0.88))) / 2;
+
+    const minLon = (parcel.longitude - dLon).toFixed(6);
+    const maxLon = (parcel.longitude + dLon).toFixed(6);
+    const minLat = (parcel.latitude - dLat).toFixed(6);
+    const maxLat = (parcel.latitude + dLat).toFixed(6);
+
+    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${minLon},${minLat},${maxLon},${maxLat}&bboxSR=4326&imageSR=4326&size=1600,1000&f=image`;
+  }, [parcel.latitude, parcel.longitude]);
+
   // Reset View to center
   const handleResetView = () => {
     setZoom(1.0);
@@ -225,27 +241,18 @@ export function SiteStudioCanvas({
         isLight ? "bg-slate-100" : "bg-[#090D14]"
       }`}
     >
-      {/* 1. Archistar High-Resolution Satellite Basemap */}
-      {basemapMode === "satellite-hybrid" && (
+      {/* 1. Real-World High-Resolution Satellite Basemap (Ambient Backdrop) */}
+      {(basemapMode === "satellite-hybrid" || basemapMode === "esri-aerial") && (
         <div
-          className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-50 transition-opacity duration-300"
+          className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-30 transition-opacity duration-300"
           style={{
-            backgroundImage: `url('https://api.mapbox.com/styles/v1/mapbox/satellite-streets-v12/static/${parcel.longitude},${parcel.latitude},18.2,0/1600x1000?access_token=pk.eyJ1IjoibW9yZ2FuLWhhbGVzIiwiYSI6ImNsc3g0YmcyYTA4OXMya3BjaWdxYnVjYXAifQ.sample')`,
-            backgroundBlendMode: "luminosity",
+            backgroundImage: `url('${satelliteUrl}')`,
+            filter: "brightness(0.65) contrast(1.1)",
           }}
         />
       )}
 
-      {basemapMode === "esri-aerial" && (
-        <div
-          className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-60"
-          style={{
-            backgroundImage: `radial-gradient(circle, rgba(16,185,129,0.12) 0%, rgba(11,15,23,0.95) 100%)`,
-          }}
-        />
-      )}
-
-      {/* Blueprint Grid Lines */}
+      {/* Blueprint Grid Lines (for technical drafting) */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -253,18 +260,49 @@ export function SiteStudioCanvas({
             ? "linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)"
             : "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
+          opacity: basemapMode === "blueprint-cadastre" ? 1 : 0.35,
         }}
       />
 
-      {/* 2. Interactive Subdivision Parcel Street Grid */}
+      {/* 2. Interactive Subdivision Parcel Street Grid & Dynamic Satellite Underlay */}
       <div
         className="relative transition-transform duration-75 origin-center flex items-center justify-center"
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px)`,
         }}
       >
+        {/* Synchronized High-Resolution Satellite Aerial Photography Plate */}
+        {(basemapMode === "satellite-hybrid" || basemapMode === "esri-aerial") && (
+          <div
+            className="absolute pointer-events-none rounded-2xl overflow-hidden shadow-2xl transition-all duration-150 border border-slate-700/60"
+            style={{
+              width: `${240 * pixelsPerMetre}px`,
+              height: `${160 * pixelsPerMetre}px`,
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 0,
+            }}
+          >
+            <img
+              src={satelliteUrl}
+              alt="High-Resolution Satellite Aerial Imagery"
+              className="w-full h-full object-cover select-none filter contrast-105"
+              loading="eager"
+            />
+            {/* Soft border vignette */}
+            <div className="absolute inset-0 ring-1 ring-inset ring-black/40 pointer-events-none" />
+
+            {/* Satellite Source Watermark */}
+            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-md text-[9px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Esri World Imagery &bull; 0.3m HD Aerial</span>
+            </div>
+          </div>
+        )}
+
         {/* Contiguous Street Lots Container */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 z-10">
           {streetParcels.map((p, idx) => {
             const isTargetLot = p.lotNumber === parcel.lotNumber;
             const pWidthPx = p.frontageM * pixelsPerMetre;
@@ -279,18 +317,24 @@ export function SiteStudioCanvas({
                 className={`relative rounded-sm transition-all cursor-pointer ${
                   isTargetLot
                     ? "z-10 shadow-2xl border-2"
-                    : "opacity-40 hover:opacity-85 border border-dashed hover:border-amber-400 bg-slate-900/60 hover:bg-slate-900/90"
+                    : "opacity-60 hover:opacity-95 border border-dashed hover:border-amber-400 bg-slate-900/40 hover:bg-slate-900/70"
                 }`}
                 style={{
                   width: `${pWidthPx}px`,
                   height: `${pLengthPx}px`,
-                  borderColor: isTargetLot ? "#f59e0b" : "rgba(148, 163, 184, 0.4)",
+                  borderColor: isTargetLot ? "#f59e0b" : "rgba(148, 163, 184, 0.5)",
                   backgroundColor: isTargetLot
+                    ? basemapMode === "blueprint-cadastre"
+                      ? isLight
+                        ? "rgba(255, 255, 255, 0.95)"
+                        : "rgba(15, 23, 42, 0.96)"
+                      : "rgba(245, 158, 11, 0.05)"
+                    : basemapMode === "blueprint-cadastre"
                     ? isLight
-                      ? "rgba(255, 255, 255, 0.95)"
-                      : "rgba(15, 23, 42, 0.96)"
-                    : undefined,
-                  boxShadow: isTargetLot ? "0 25px 50px -12px rgba(0, 0, 0, 0.7)" : undefined,
+                      ? "rgba(255, 255, 255, 0.85)"
+                      : "rgba(15, 23, 42, 0.85)"
+                    : "rgba(15, 23, 42, 0.45)",
+                  boxShadow: isTargetLot ? "0 25px 50px -12px rgba(0, 0, 0, 0.8)" : undefined,
                 }}
               >
                 {/* Neighboring Lot Label */}
