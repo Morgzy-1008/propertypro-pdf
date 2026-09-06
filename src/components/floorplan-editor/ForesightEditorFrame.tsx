@@ -5,16 +5,10 @@ import {
   Send,
   Layers,
   Sparkles,
-  Maximize2,
-  FileCheck,
   Upload,
-  ArrowRight,
   Info,
   Sliders,
   CheckCircle2,
-  FileText,
-  MapPin,
-  Building,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -24,13 +18,9 @@ import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { detectFloorplanFromText, type DetectedFloorplan } from "@/lib/floorplan/floorplanDetector";
-import { AdvancedSitingStudio } from "./AdvancedSitingStudio";
-
-type StudioTab = "floorplan_editor" | "siting_studio";
 
 export function ForesightEditorFrame() {
   const navigate = useNavigate();
-  const [activeStudioTab, setActiveStudioTab] = useState<StudioTab>("floorplan_editor");
   const [iframeKey, setIframeKey] = useState(0);
   const [isExportQuoteOpen, setIsExportQuoteOpen] = useState(false);
   const [isExportTenderOpen, setIsExportTenderOpen] = useState(false);
@@ -93,7 +83,7 @@ export function ForesightEditorFrame() {
         };
         setDetectedPlan(customPlan);
         setDesignName(customPlan.matchedDesignName);
-        toast.info("Floorplan loaded! Placed onto 1:200 Siting Studio.");
+        toast.info("Floorplan loaded! Ready to export or edit.");
       } else {
         toast.info("Floorplan loaded. You can select or customize the design name.");
       }
@@ -212,43 +202,37 @@ export function ForesightEditorFrame() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-base sm:text-lg font-black text-white tracking-tight">
-                Foresight Studio — Architectural Planning &amp; Siting
+                Foresight Studio — Concept Floorplan Editor
               </h1>
               <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded-full border border-cyan-800/60">
                 Connected Studio
               </span>
             </div>
             <p className="text-xs text-slate-400">
-              Interactive architectural 2D concept floorplans, PDF design auto-detection, and 1:200 lot siting calculations.
+              Interactive architectural 2D concept floorplans, PDF design auto-detection, and direct quoting &amp; tender integration.
             </p>
           </div>
         </div>
 
-        {/* Tab Mode Buttons: Floorplan Editor vs 1:200 Siting Studio */}
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center p-1 rounded-xl bg-slate-950 border border-slate-800 gap-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={activeStudioTab === "floorplan_editor" ? "default" : "ghost"}
-              onClick={() => setActiveStudioTab("floorplan_editor")}
-              className={activeStudioTab === "floorplan_editor" ? "bg-amber-500 text-slate-950 font-bold text-xs gap-1.5 shadow-sm" : "text-slate-400 hover:text-white text-xs gap-1.5"}
-            >
-              <Sliders className="h-3.5 w-3.5" />
-              Concept Floorplan Editor
-            </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
+          >
+            <RefreshCw className="h-3 w-3" /> Reload
+          </Button>
 
-            <Button
-              type="button"
-              size="sm"
-              variant={activeStudioTab === "siting_studio" ? "default" : "ghost"}
-              onClick={() => setActiveStudioTab("siting_studio")}
-              className={activeStudioTab === "siting_studio" ? "bg-cyan-600 text-white font-bold text-xs gap-1.5 shadow-sm" : "text-slate-400 hover:text-white text-xs gap-1.5"}
-            >
-              <Building className="h-3.5 w-3.5 text-cyan-300" />
-              1:200 Siting Studio
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenExternal}
+            className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
+          >
+            <ExternalLink className="h-3 w-3 text-cyan-400" /> Full Window
+          </Button>
 
           <Button
             variant="outline"
@@ -324,64 +308,53 @@ export function ForesightEditorFrame() {
             <Button
               type="button"
               size="sm"
-              onClick={() => setActiveStudioTab("siting_studio")}
-              className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs gap-1.5 shadow-sm"
+              onClick={handleSendToTender}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5 shadow-sm"
             >
-              <Building className="h-3.5 w-3.5" />
-              Site This Design (1:200)
+              <Send className="h-3.5 w-3.5" />
+              Send to Tender Portal
             </Button>
           </div>
         )}
       </div>
 
-      {/* TAB 1: Foresight Concept Floorplan Editor Workspace */}
-      {activeStudioTab === "floorplan_editor" && (
-        <div className="relative flex-1 w-full min-h-[780px] rounded-2xl border border-slate-800/80 bg-slate-900 overflow-hidden shadow-2xl">
-          <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
-            >
-              <RefreshCw className="h-3 w-3" /> Reload
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenExternal}
-              className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
-            >
-              <ExternalLink className="h-3 w-3 text-cyan-400" /> Full Window
-            </Button>
-          </div>
-
-          <iframe
-            key={iframeKey}
-            src={editorUrl}
-            title="Foresight Home Planning Concept Floorplan Editor"
-            className="w-full h-full min-h-[780px] border-0"
-            allow="clipboard-read; clipboard-write; fullscreen"
-            loading="lazy"
-          />
-
-          <div className="absolute bottom-4 right-4 bg-slate-950/90 border border-slate-800/90 rounded-xl px-3.5 py-2 text-[11px] text-slate-300 backdrop-blur-md shadow-lg flex items-center gap-2 pointer-events-auto">
-            <Info className="h-4 w-4 text-amber-400 flex-none" />
-            <span>
-              Design in Foresight &bull; Use &ldquo;1:200 Siting Studio&rdquo; above to site onto lot with setbacks!
-            </span>
-          </div>
+      {/* Foresight Concept Floorplan Editor Workspace */}
+      <div className="relative flex-1 w-full min-h-[780px] rounded-2xl border border-slate-800/80 bg-slate-900 overflow-hidden shadow-2xl">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
+          >
+            <RefreshCw className="h-3 w-3" /> Reload
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenExternal}
+            className="border-slate-800 bg-slate-950/90 text-slate-300 hover:bg-slate-800 text-xs gap-1 shadow-md"
+          >
+            <ExternalLink className="h-3 w-3 text-cyan-400" /> Full Window
+          </Button>
         </div>
-      )}
 
-      {/* TAB 2: Advanced Interactive 1:200 Siting Studio */}
-      {activeStudioTab === "siting_studio" && (
-        <AdvancedSitingStudio
-          detectedFloorplan={detectedPlan}
-          onSendToQuoting={() => navigate({ to: "/quote-builder" })}
-          onSendToTender={() => navigate({ to: "/tender-request" })}
+        <iframe
+          key={iframeKey}
+          src={editorUrl}
+          title="Foresight Home Planning Concept Floorplan Editor"
+          className="w-full h-full min-h-[780px] border-0"
+          allow="clipboard-read; clipboard-write; fullscreen"
+          loading="lazy"
         />
-      )}
+
+        <div className="absolute bottom-4 right-4 bg-slate-950/90 border border-slate-800/90 rounded-xl px-3.5 py-2 text-[11px] text-slate-300 backdrop-blur-md shadow-lg flex items-center gap-2 pointer-events-auto">
+          <Info className="h-4 w-4 text-amber-400 flex-none" />
+          <span>
+            Design in Foresight &bull; Use &ldquo;Send Plan to Quoting Tool&rdquo; or &ldquo;Send Plan to Tender Portal&rdquo; to bridge dimensions!
+          </span>
+        </div>
+      </div>
 
       {/* Modal 1: Send to Quoting Tool */}
       <Dialog open={isExportQuoteOpen} onOpenChange={setIsExportQuoteOpen}>
