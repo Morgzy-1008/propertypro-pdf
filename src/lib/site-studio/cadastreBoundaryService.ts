@@ -2,6 +2,72 @@ import {
   CadastreParcel,
   BoundarySegment,
 } from "@/components/site-studio/siteStudioTypes";
+import type { StaffProfile } from "@/lib/authSession";
+
+export interface DisplayHomeLocation {
+  id: string;
+  name: string;
+  villageName: string;
+  streetAddress: string;
+  suburb: string;
+  postcode: string;
+  council: string;
+  latitude: number;
+  longitude: number;
+  defaultParcelKey: string;
+}
+
+export const DISPLAY_HOME_LOCATIONS: Record<string, DisplayHomeLocation> = {
+  flagstone: {
+    id: "flagstone",
+    name: "Flagstone Display Home",
+    villageName: "Flagstone Display Village",
+    streetAddress: "Flagstone Display Village, Trailblazer Drive",
+    suburb: "Flagstone",
+    postcode: "4280",
+    council: "Logan City Council",
+    latitude: -27.8184,
+    longitude: 152.9568,
+    defaultParcelKey: "61-paradise-rd-flagstone",
+  },
+  lilywood: {
+    id: "lilywood",
+    name: "Lilywood Landings Display Home",
+    villageName: "Lilywood Landings Display Village",
+    streetAddress: "Lilywood Landings, South Maclean",
+    suburb: "South Maclean",
+    postcode: "4280",
+    council: "Logan City Council",
+    latitude: -27.7850,
+    longitude: 152.9950,
+    defaultParcelKey: "lilywood-lot-14",
+  },
+  "bahrs-scrub": {
+    id: "bahrs-scrub",
+    name: "Bahrs Scrub Display Home",
+    villageName: "Bahrs Scrub Display Village",
+    streetAddress: "12 Haven Street, Bahrs Scrub",
+    suburb: "Bahrs Scrub",
+    postcode: "4207",
+    council: "Logan City Council",
+    latitude: -27.7420,
+    longitude: 153.1850,
+    defaultParcelKey: "bahrs-scrub-lot-105",
+  },
+};
+
+export function getDisplayHomeLocationForStaff(staffUser: StaffProfile | null): DisplayHomeLocation {
+  if (!staffUser) return DISPLAY_HOME_LOCATIONS.flagstone;
+
+  const centre = (staffUser.displayCentre || "").toLowerCase();
+  if (centre.includes("lilywood")) {
+    return DISPLAY_HOME_LOCATIONS.lilywood;
+  }
+  if (centre.includes("bahrs") || centre.includes("scrub")) {
+    return DISPLAY_HOME_LOCATIONS["bahrs-scrub"];
+  }
+  return DISPLAY_HOME_LOCATIONS.flagstone;
+}
 
 /**
  * Pre-calibrated cadastral parcels for instant offline or fallback siting,
@@ -144,7 +210,144 @@ export const VERIFIED_CADASTRAL_CATALOG: Record<string, CadastreParcel> = {
       { startIndex: 3, endIndex: 0, lengthM: 30.0, bearingStr: "359°50'10\"", type: "left" },
     ],
   },
+  "lilywood-lot-14": {
+    lotNumber: "14",
+    planNumber: "SP338910",
+    standardLotPlan: "Lot 14 on SP338910",
+    streetAddress: "14 Lilywood Landings Boulevard",
+    suburb: "South Maclean",
+    postcode: "4280",
+    council: "Logan City Council",
+    zoning: "Low Density Residential (Lilywood POD)",
+    areaM2: 450,
+    frontageM: 15.0,
+    depthM: 30.0,
+    rearWidthM: 15.0,
+    shape: "rectangular",
+    latitude: -27.7850,
+    longitude: 152.9950,
+    isRegistered: true,
+    naturalFallM: 0.5,
+    slopeDirection: "Front to Rear (1.7%)",
+    statutoryLandValuation: 290000,
+    valuationYear: "2025/2026",
+    boundaryCoordinates: [
+      [-27.7848, 152.9948],
+      [-27.7848, 152.9950],
+      [-27.7852, 152.9950],
+      [-27.7852, 152.9948],
+    ],
+    boundarySegments: [
+      { startIndex: 0, endIndex: 1, lengthM: 15.0, bearingStr: "90°00'00\"", type: "front" },
+      { startIndex: 1, endIndex: 2, lengthM: 30.0, bearingStr: "180°00'00\"", type: "right" },
+      { startIndex: 2, endIndex: 3, lengthM: 15.0, bearingStr: "270°00'00\"", type: "rear" },
+      { startIndex: 3, endIndex: 0, lengthM: 30.0, bearingStr: "0°00'00\"", type: "left" },
+    ],
+  },
+  "bahrs-scrub-lot-105": {
+    lotNumber: "105",
+    planNumber: "SP342115",
+    standardLotPlan: "Lot 105 on SP342115",
+    streetAddress: "12 Haven Street",
+    suburb: "Bahrs Scrub",
+    postcode: "4207",
+    council: "Logan City Council",
+    zoning: "Low Density Residential (Bahrs Scrub POD)",
+    areaM2: 420,
+    frontageM: 14.0,
+    depthM: 30.0,
+    rearWidthM: 14.0,
+    shape: "rectangular",
+    latitude: -27.7420,
+    longitude: 153.1850,
+    isRegistered: true,
+    naturalFallM: 0.8,
+    slopeDirection: "Side to Side (2.2%)",
+    statutoryLandValuation: 280000,
+    valuationYear: "2025/2026",
+    boundaryCoordinates: [
+      [-27.7418, 153.1848],
+      [-27.7418, 153.1850],
+      [-27.7422, 153.1850],
+      [-27.7422, 153.1848],
+    ],
+    boundarySegments: [
+      { startIndex: 0, endIndex: 1, lengthM: 14.0, bearingStr: "88°45'00\"", type: "front" },
+      { startIndex: 1, endIndex: 2, lengthM: 30.0, bearingStr: "178°45'00\"", type: "right" },
+      { startIndex: 2, endIndex: 3, lengthM: 14.0, bearingStr: "268°45'00\"", type: "rear" },
+      { startIndex: 3, endIndex: 0, lengthM: 30.0, bearingStr: "358°45'00\"", type: "left" },
+    ],
+  },
 };
+
+export function getDisplayHomeParcelForStaff(staffUser: StaffProfile | null): CadastreParcel {
+  const displayLocation = getDisplayHomeLocationForStaff(staffUser);
+  return VERIFIED_CADASTRAL_CATALOG[displayLocation.defaultParcelKey] || VERIFIED_CADASTRAL_CATALOG["61-paradise-rd-flagstone"];
+}
+
+/**
+ * Returns a street block of contiguous cadastral lot parcels for Archistar-style
+ * satellite browsing, allowing consultants to pan and click on any lot in the street.
+ */
+export function getSubdivisionParcels(centerParcel: CadastreParcel): CadastreParcel[] {
+  const baseLotNum = parseInt(centerParcel.lotNumber.replace(/[^0-9]/g, ""), 10) || 240;
+  const basePlan = centerParcel.planNumber || "SP312456";
+  const council = centerParcel.council || "Logan City Council";
+  const suburb = centerParcel.suburb || "Flagstone";
+  const street = centerParcel.streetAddress.replace(/^[0-9]+\s*/, "") || "Paradise Road";
+  const isAcreage = centerParcel.areaM2 >= 2000;
+
+  // Generate 7 contiguous street lots (-3 to +3 around base lot)
+  const offsets = [-3, -2, -1, 0, 1, 2, 3];
+  const lotWidth = centerParcel.frontageM;
+  const lotDepth = centerParcel.depthM;
+
+  return offsets.map((offset) => {
+    if (offset === 0) return centerParcel;
+
+    const lotNum = `${baseLotNum + offset}`;
+    const baseStNum = parseInt(centerParcel.streetAddress.match(/^[0-9]+/)?.[0] || "61", 10);
+    const stNumber = `${Math.max(1, baseStNum + offset * 2)}`;
+    const frontage = isAcreage ? 35.0 : offset % 2 === 0 ? 14.0 : 16.0;
+    const depth = lotDepth;
+    const area = Math.round(frontage * depth);
+
+    return {
+      lotNumber: lotNum,
+      planNumber: basePlan,
+      standardLotPlan: `Lot ${lotNum} on ${basePlan}`,
+      streetAddress: `${stNumber} ${street}`,
+      suburb,
+      postcode: centerParcel.postcode || "4280",
+      council,
+      zoning: isAcreage ? "Rural Residential / Acreage" : centerParcel.zoning || "Low Density Residential",
+      areaM2: area,
+      frontageM: frontage,
+      depthM: depth,
+      rearWidthM: frontage,
+      shape: "rectangular",
+      latitude: centerParcel.latitude + offset * 0.00015,
+      longitude: centerParcel.longitude + offset * 0.0002,
+      isRegistered: true,
+      naturalFallM: 0.6,
+      slopeDirection: "Front to Rear (2.0%)",
+      statutoryLandValuation: isAcreage ? 410000 : 285000 + offset * 5000,
+      valuationYear: "2025/2026",
+      boundaryCoordinates: [
+        [centerParcel.latitude + 0.0001, centerParcel.longitude - 0.0001],
+        [centerParcel.latitude + 0.0001, centerParcel.longitude + 0.0001],
+        [centerParcel.latitude - 0.0002, centerParcel.longitude + 0.0001],
+        [centerParcel.latitude - 0.0002, centerParcel.longitude - 0.0001],
+      ],
+      boundarySegments: [
+        { startIndex: 0, endIndex: 1, lengthM: frontage, bearingStr: "90°00'00\"", type: "front" },
+        { startIndex: 1, endIndex: 2, lengthM: depth, bearingStr: "180°00'00\"", type: "right" },
+        { startIndex: 2, endIndex: 3, lengthM: frontage, bearingStr: "270°00'00\"", type: "rear" },
+        { startIndex: 3, endIndex: 0, lengthM: depth, bearingStr: "0°00'00\"", type: "left" },
+      ],
+    };
+  });
+}
 
 /**
  * Searches real-world Queensland cadastre or geocodes the address.

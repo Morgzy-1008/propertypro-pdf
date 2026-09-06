@@ -7,7 +7,12 @@ import {
   BasemapMode,
   DrawingScale,
 } from "./siteStudioTypes";
-import { lookupCadastreParcel, VERIFIED_CADASTRAL_CATALOG } from "@/lib/site-studio/cadastreBoundaryService";
+import {
+  lookupCadastreParcel,
+  VERIFIED_CADASTRAL_CATALOG,
+  getDisplayHomeLocationForStaff,
+  getDisplayHomeParcelForStaff,
+} from "@/lib/site-studio/cadastreBoundaryService";
 import {
   resolveZoningRules,
   computeComplianceReport,
@@ -47,6 +52,8 @@ import {
   ArrowRight,
   Building,
   DollarSign,
+  MapPin,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -57,32 +64,18 @@ export function SiteStudioWorkspace() {
 
   const activeStaff = getActiveStaffUser();
   const consultantName = activeStaff?.name || "Morgan Hales";
+  const displayHomeLocation = useMemo(() => getDisplayHomeLocationForStaff(activeStaff), [activeStaff]);
 
-  // Search & Parcel State
-  const [searchQuery, setSearchQuery] = useState("61 Paradise Road, Flagstone");
+  // Search & Parcel State: starts fresh with empty address search input and consultant's display home parcel
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-  const [parcel, setParcel] = useState<CadastreParcel>(
-    VERIFIED_CADASTRAL_CATALOG["61-paradise-rd-flagstone"]
-  );
+  const [parcel, setParcel] = useState<CadastreParcel>(() => getDisplayHomeParcelForStaff(activeStaff));
 
   // Client Details
   const [clientName, setClientName] = useState("John & Sarah Henderson");
 
-  // Selected Sited House
-  const [sitedHouse, setSitedHouse] = useState<SitedHouse>({
-    designId: "amber-21",
-    designName: "Amber 21",
-    source: "hudson-catalog",
-    totalM2: 192.2,
-    widthM: 10.55,
-    lengthM: 20.15,
-    posX: 1.25, // default left setback
-    posY: 4.5, // default front setback
-    rotationDeg: 0,
-    isMirrored: false,
-    isBtb: false,
-    btbSide: "none",
-  });
+  // Selected Sited House: starts unplaced (null) so consultant browses satellite and picks design
+  const [sitedHouse, setSitedHouse] = useState<SitedHouse | null>(null);
 
   // Statutory Rules & Overrides
   const defaultRules = useMemo(() => {
@@ -112,8 +105,9 @@ export function SiteStudioWorkspace() {
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [isPushingTender, setIsPushingTender] = useState(false);
 
-  // Live Compliance Computation
+  // Live Compliance Computation (computed only when a house is sited)
   const compliance = useMemo(() => {
+    if (!sitedHouse) return null;
     return computeComplianceReport({
       parcel,
       rules,
@@ -123,8 +117,9 @@ export function SiteStudioWorkspace() {
 
   // Solar Orientation
   const solar = useMemo(() => {
+    if (!sitedHouse) return null;
     return calculateSolarOrientation(sitedHouse.rotationDeg);
-  }, [sitedHouse.rotationDeg]);
+  }, [sitedHouse?.rotationDeg]);
 
   // A3 1:100 Scale Fit Check
   const a3ScaleFits = useMemo(() => {
@@ -141,13 +136,15 @@ export function SiteStudioWorkspace() {
       const found = await lookupCadastreParcel(searchQuery);
       setParcel(found);
 
-      // Re-center house on new lot
-      const centeredX = Math.max(0.2, Math.round(((found.frontageM - sitedHouse.widthM) / 2) * 100) / 100);
-      setSitedHouse((prev) => ({
-        ...prev,
-        posX: centeredX,
-        posY: Math.max(3.0, rules.frontSetback),
-      }));
+      // Re-center house on new lot if already placed
+      if (sitedHouse) {
+        const centeredX = Math.max(0.2, Math.round(((found.frontageM - sitedHouse.widthM) / 2) * 100) / 100);
+        setSitedHouse((prev) => (prev ? {
+          ...prev,
+          posX: centeredX,
+          posY: Math.max(3.0, rules.frontSetback),
+        } : null));
+      }
 
       // If switching to a larger lot that does not fit A3 1:100, reset scale to 1:200
       if (!canFitA3At1to100(found.frontageM, found.depthM) && scale === "1:100") {
@@ -168,12 +165,14 @@ export function SiteStudioWorkspace() {
     setSearchQuery(address);
     lookupCadastreParcel(address).then((found) => {
       setParcel(found);
-      const centeredX = Math.max(0.2, Math.round(((found.frontageM - sitedHouse.widthM) / 2) * 100) / 100);
-      setSitedHouse((prev) => ({
-        ...prev,
-        posX: centeredX,
-        posY: Math.max(3.0, rules.frontSetback),
-      }));
+      if (sitedHouse) {
+        const centeredX = Math.max(0.2, Math.round(((found.frontageM - sitedHouse.widthM) / 2) * 100) / 100);
+        setSitedHouse((prev) => (prev ? {
+          ...prev,
+          posX: centeredX,
+          posY: Math.max(3.0, rules.frontSetback),
+        } : null));
+      }
     });
   };
 
@@ -185,7 +184,6 @@ export function SiteStudioWorkspace() {
     const centeredX = Math.max(0.2, Math.round(((parcel.frontageM - selected.widthM) / 2) * 100) / 100);
 
     setSitedHouse((prev) => ({
-      ...prev,
       designId: selected.id,
       designName: selected.name,
       source: "hudson-catalog",
@@ -193,6 +191,11 @@ export function SiteStudioWorkspace() {
       widthM: selected.widthM,
       lengthM: selected.lengthM,
       posX: centeredX,
+      posY: Math.max(3.0, rules.frontSetback),
+      rotationDeg: prev?.rotationDeg ?? 0,
+      isMirrored: prev?.isMirrored ?? false,
+      isBtb: prev?.isBtb ?? false,
+      btbSide: prev?.btbSide ?? "none",
       customPlanUrl: undefined,
     }));
 
@@ -211,7 +214,6 @@ export function SiteStudioWorkspace() {
     const centeredX = Math.max(0.2, Math.round(((parcel.frontageM - plan.widthM) / 2) * 100) / 100);
 
     setSitedHouse((prev) => ({
-      ...prev,
       designId: "custom-upload",
       designName: plan.name,
       source: "custom-upload",
@@ -219,6 +221,11 @@ export function SiteStudioWorkspace() {
       widthM: plan.widthM,
       lengthM: plan.lengthM,
       posX: centeredX,
+      posY: Math.max(3.0, rules.frontSetback),
+      rotationDeg: prev?.rotationDeg ?? 0,
+      isMirrored: prev?.isMirrored ?? false,
+      isBtb: prev?.isBtb ?? false,
+      btbSide: prev?.btbSide ?? "none",
       customPlanUrl: plan.imageUrl,
       customScalePxPerM: plan.scalePxPerM,
     }));
@@ -226,6 +233,11 @@ export function SiteStudioWorkspace() {
 
   // Download Siting Plan PDF
   const handleDownloadPdf = async () => {
+    if (!sitedHouse || !compliance) {
+      toast.warning("Please select a home design from the catalog first.");
+      return;
+    }
+
     setIsExportingPdf(true);
     try {
       const { pdf, fileName } = await generateSitingPlanPdf({
@@ -250,6 +262,11 @@ export function SiteStudioWorkspace() {
 
   // Push Directly to Active Tender Job Folder
   const handlePushToTender = async () => {
+    if (!sitedHouse || !compliance) {
+      toast.warning("Please select a home design from the catalog first.");
+      return;
+    }
+
     setIsPushingTender(true);
     try {
       const { submissionNumber, fileName } = await pushSitingToActiveTender({
@@ -338,8 +355,9 @@ export function SiteStudioWorkspace() {
             variant="outline"
             size="sm"
             onClick={handleDownloadPdf}
-            disabled={isExportingPdf}
-            className="h-9 text-xs gap-1.5 border-slate-700 hover:bg-slate-800"
+            disabled={isExportingPdf || !sitedHouse}
+            className={`h-9 text-xs gap-1.5 border-slate-700 hover:bg-slate-800 ${!sitedHouse ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={!sitedHouse ? "Select a design from catalog to export PDF" : "Export 1:200 Siting Plan PDF"}
           >
             <FileDown className="h-3.5 w-3.5 text-emerald-400" />
             <span className="hidden sm:inline">Export PDF</span>
@@ -348,8 +366,9 @@ export function SiteStudioWorkspace() {
           <Button
             size="sm"
             onClick={handlePushToTender}
-            disabled={isPushingTender}
-            className="h-9 px-3.5 bg-gradient-to-r from-amber-500 to-brand-gold hover:from-amber-600 hover:to-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-md shadow-brand-gold/20"
+            disabled={isPushingTender || !sitedHouse}
+            className={`h-9 px-3.5 bg-gradient-to-r from-amber-500 to-brand-gold hover:from-amber-600 hover:to-amber-500 text-slate-950 font-black text-xs gap-1.5 shadow-md shadow-brand-gold/20 ${!sitedHouse ? "opacity-50 cursor-not-allowed" : ""}`}
+            title={!sitedHouse ? "Select a design from catalog to attach to Tender Request" : "Push Siting Plan to Tender Request"}
           >
             <Send className="h-3.5 w-3.5" />
             <span>Push to Tender Request</span>
@@ -531,10 +550,12 @@ export function SiteStudioWorkspace() {
 
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {HUDSON_DESIGNS_CATALOG.map((design) => {
-                const isSelected = sitedHouse.designId === design.id;
+                const isSelected = sitedHouse?.designId === design.id;
                 return (
                   <div
                     key={design.id}
+                    data-design-id={design.id}
+                    data-testid={`design-card-${design.id}`}
                     onClick={() => handleSelectDesign(design.id)}
                     className={`p-2.5 rounded-xl border cursor-pointer transition-all ${
                       isSelected
@@ -675,6 +696,7 @@ export function SiteStudioWorkspace() {
         <div className="lg:col-span-6 relative h-full min-h-[600px] flex flex-col">
           <SiteStudioCanvas
             parcel={parcel}
+            setParcel={setParcel}
             sitedHouse={sitedHouse}
             setSitedHouse={setSitedHouse}
             rules={rules}
@@ -684,126 +706,193 @@ export function SiteStudioWorkspace() {
             isLight={isLight}
             showContours={showContours}
             showSolar={showSolar}
+            displayHomeLocation={displayHomeLocation}
           />
         </div>
 
         {/* Right Sidebar (Col 10-12): Compliance Dashboard & Export */}
         <div className={`lg:col-span-3 border-l ${isLight ? "border-slate-200 bg-white" : "border-slate-800/80 bg-slate-950"} p-4 overflow-y-auto space-y-4 max-h-[calc(100vh-100px)]`}>
-          {/* Site Coverage Gauge */}
-          <div className={`p-4 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-              Site Coverage Ratio
-            </span>
+          {sitedHouse && compliance && solar ? (
+            <>
+              {/* Site Coverage Gauge */}
+              <div className={`p-4 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                  Site Coverage Ratio
+                </span>
 
-            <div className="flex items-end justify-between mb-2">
-              <div>
-                <span className={`text-3xl font-black ${
-                  compliance.isSiteCoveragePassed ? "text-emerald-400" : "text-red-400"
-                }`}>
-                  {compliance.siteCoveragePercent}%
-                </span>
-                <span className="text-xs text-slate-400 ml-1.5">
-                  / Max {rules.maxSiteCoverage}%
-                </span>
+                <div className="flex items-end justify-between mb-2">
+                  <div>
+                    <span className={`text-3xl font-black ${
+                      compliance.isSiteCoveragePassed ? "text-emerald-400" : "text-red-400"
+                    }`}>
+                      {compliance.siteCoveragePercent}%
+                    </span>
+                    <span className="text-xs text-slate-400 ml-1.5">
+                      / Max {rules.maxSiteCoverage}%
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    compliance.isSiteCoveragePassed
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  }`}>
+                    {compliance.isSiteCoveragePassed ? "COMPLIANT" : "OVER LIMIT"}
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      compliance.isSiteCoveragePassed ? "bg-emerald-500" : "bg-red-500"
+                    }`}
+                    style={{ width: `${Math.min(100, (compliance.siteCoveragePercent / rules.maxSiteCoverage) * 100)}%` }}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+                  <span>Footprint: {sitedHouse.totalM2}m²</span>
+                  <span>Allotment: {parcel.areaM2}m²</span>
+                </div>
               </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                compliance.isSiteCoveragePassed
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-              }`}>
-                {compliance.isSiteCoveragePassed ? "COMPLIANT" : "OVER LIMIT"}
-              </span>
-            </div>
 
-            {/* Progress Bar */}
-            <div className="w-full h-2 rounded-full bg-slate-800 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  compliance.isSiteCoveragePassed ? "bg-emerald-500" : "bg-red-500"
-                }`}
-                style={{ width: `${Math.min(100, (compliance.siteCoveragePercent / rules.maxSiteCoverage) * 100)}%` }}
-              />
-            </div>
+              {/* Private Open Space (POS) */}
+              <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Private Open Space (POS)
+                    </span>
+                    <span className="text-lg font-black text-white">
+                      {compliance.privateOpenSpaceM2} m²
+                    </span>
+                    <span className="text-[10px] text-slate-400 block">
+                      Min {rules.minPosM2} m² outdoor living area
+                    </span>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    compliance.isPosPassed
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-red-500/10 text-red-400 border border-red-500/20"
+                  }`}>
+                    {compliance.isPosPassed ? "PASSED" : "NON-COMPLIANT"}
+                  </span>
+                </div>
+              </div>
 
-            <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
-              <span>Footprint: {sitedHouse.totalM2}m²</span>
-              <span>Allotment: {parcel.areaM2}m²</span>
-            </div>
-          </div>
+              {/* Live Setback Dimension Clearance Checklist */}
+              <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
+                <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                  Statutory Clearance Audit
+                </h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Front Wall:</span>
+                    <span className={`font-mono font-bold ${compliance.isFrontCompliant ? "text-emerald-400" : "text-red-400"}`}>
+                      {compliance.liveSetbacks.frontWallSetback}m / {rules.frontSetback}m
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Garage Door:</span>
+                    <span className={`font-mono font-bold ${compliance.isGarageCompliant ? "text-emerald-400" : "text-red-400"}`}>
+                      {compliance.liveSetbacks.garageWallSetback}m / {rules.garageSetback}m
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Left Side Wall:</span>
+                    <span className={`font-mono font-bold ${compliance.isLeftCompliant ? "text-emerald-400" : "text-red-400"}`}>
+                      {compliance.liveSetbacks.leftWallSetback}m / {rules.leftSetback}m
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Right Side Wall:</span>
+                    <span className={`font-mono font-bold ${compliance.isRightCompliant ? "text-emerald-400" : "text-red-400"}`}>
+                      {compliance.liveSetbacks.rightWallSetback}m / {rules.rightSetback}m
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Rear Boundary:</span>
+                    <span className={`font-mono font-bold ${compliance.isRearCompliant ? "text-emerald-400" : "text-red-400"}`}>
+                      {compliance.liveSetbacks.rearWallSetback}m / {rules.rearSetback}m
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-          {/* Private Open Space (POS) */}
-          <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
-            <div className="flex items-center justify-between">
-              <div>
+              {/* Solar Orientation Analysis */}
+              <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
+                <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs mb-1.5">
+                  <Sun className="h-4 w-4" />
+                  <span>Solar &amp; Aspect Analysis</span>
+                </div>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {solar.orientationNotes}
+                </p>
+              </div>
+            </>
+          ) : (
+            /* Guided Onboarding State when no house is sited yet */
+            <div className="space-y-4">
+              {/* Display Home Location Banner */}
+              <div className={`p-4 rounded-2xl border ${isLight ? "border-slate-200 bg-amber-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+                <div className="flex items-center gap-2 mb-2">
+                  <Home className="h-4 w-4 text-brand-gold" />
+                  <span className="text-xs font-bold text-brand-gold uppercase tracking-wider">
+                    Display Home Geolocation
+                  </span>
+                </div>
+                <h3 className="text-sm font-bold text-white">{displayHomeLocation.name}</h3>
+                <p className="text-xs text-slate-300 mt-0.5">{displayHomeLocation.streetAddress}</p>
+                <div className="mt-2 flex items-center gap-1.5 text-[10px] text-amber-400 font-mono">
+                  <MapPin className="h-3 w-3" />
+                  <span>{displayHomeLocation.suburb}, QLD {displayHomeLocation.postcode}</span>
+                </div>
+              </div>
+
+              {/* Siting Workflow Checklist */}
+              <div className={`p-4 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"} space-y-3`}>
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                  Private Open Space (POS)
+                  Interactive Siting Workflow
                 </span>
-                <span className="text-lg font-black text-white">
-                  {compliance.privateOpenSpaceM2} m²
-                </span>
-                <span className="text-[10px] text-slate-400 block">
-                  Min {rules.minPosM2} m² outdoor living area
-                </span>
-              </div>
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                compliance.isPosPassed
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-              }`}>
-                {compliance.isPosPassed ? "PASSED" : "NON-COMPLIANT"}
-              </span>
-            </div>
-          </div>
 
-          {/* Live Setback Dimension Clearance Checklist */}
-          <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
-            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-              Statutory Clearance Audit
-            </h4>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Front Wall:</span>
-                <span className={`font-mono font-bold ${compliance.isFrontCompliant ? "text-emerald-400" : "text-red-400"}`}>
-                  {compliance.liveSetbacks.frontWallSetback}m / {rules.frontSetback}m
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Garage Door:</span>
-                <span className={`font-mono font-bold ${compliance.isGarageCompliant ? "text-emerald-400" : "text-red-400"}`}>
-                  {compliance.liveSetbacks.garageWallSetback}m / {rules.garageSetback}m
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Left Side Wall:</span>
-                <span className={`font-mono font-bold ${compliance.isLeftCompliant ? "text-emerald-400" : "text-red-400"}`}>
-                  {compliance.liveSetbacks.leftWallSetback}m / {rules.leftSetback}m
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Right Side Wall:</span>
-                <span className={`font-mono font-bold ${compliance.isRightCompliant ? "text-emerald-400" : "text-red-400"}`}>
-                  {compliance.liveSetbacks.rightWallSetback}m / {rules.rightSetback}m
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Rear Boundary:</span>
-                <span className={`font-mono font-bold ${compliance.isRearCompliant ? "text-emerald-400" : "text-red-400"}`}>
-                  {compliance.liveSetbacks.rearWallSetback}m / {rules.rearSetback}m
-                </span>
-              </div>
-            </div>
-          </div>
+                <div className="flex items-start gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
+                    ✓
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">1. Lot Selected</span>
+                    <span className="text-[11px] text-slate-400">
+                      {parcel.standardLotPlan} ({parcel.areaM2}m²). Click any street lot on the satellite map to switch target property.
+                    </span>
+                  </div>
+                </div>
 
-          {/* Solar Orientation Analysis */}
-          <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
-            <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs mb-1.5">
-              <Sun className="h-4 w-4" />
-              <span>Solar &amp; Aspect Analysis</span>
+                <div className="flex items-start gap-2.5">
+                  <div className="h-5 w-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0 text-[10px] font-bold animate-pulse">
+                    2
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-brand-gold block">2. Choose Hudson Design</span>
+                    <span className="text-[11px] text-slate-300">
+                      Pick any floorplan from the left catalog (e.g. Amber 21, Jasper 24) or upload a custom plan to site onto this lot.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5 opacity-60">
+                  <div className="h-5 w-5 rounded-full bg-slate-800 border border-slate-700 text-slate-400 flex items-center justify-center shrink-0 text-[10px] font-bold">
+                    3
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-400 block">3. Real-Time Siting &amp; Export</span>
+                    <span className="text-[11px] text-slate-500">
+                      Auto-computes setbacks, POS, site coverage, 450mm eaves, and generates 1:200 Siting Plan PDF.
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
-              {solar.orientationNotes}
-            </p>
-          </div>
+          )}
 
           {/* Client Name Input for Title Block */}
           <div className="space-y-1.5">
@@ -818,10 +907,20 @@ export function SiteStudioWorkspace() {
 
           {/* Primary Action Buttons */}
           <div className="space-y-2 pt-2">
+            {!sitedHouse && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                <span className="text-[11px] text-amber-300 font-medium">
+                  Select a home design from the left catalog to activate 1:200 Siting Plan PDF and Tender Request export.
+                </span>
+              </div>
+            )}
+
             <Button
               onClick={handlePushToTender}
-              disabled={isPushingTender}
-              className="w-full h-11 bg-gradient-to-r from-amber-500 via-brand-gold to-amber-500 hover:from-amber-600 hover:to-amber-500 text-slate-950 font-black text-xs gap-2 shadow-lg shadow-brand-gold/15"
+              disabled={isPushingTender || !sitedHouse}
+              className={`w-full h-11 bg-gradient-to-r from-amber-500 via-brand-gold to-amber-500 hover:from-amber-600 hover:to-amber-500 text-slate-950 font-black text-xs gap-2 shadow-lg shadow-brand-gold/15 ${
+                !sitedHouse ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <Send className="h-4 w-4" />
               <span>Attach Siting Plan to Tender Request</span>
@@ -830,8 +929,10 @@ export function SiteStudioWorkspace() {
             <Button
               variant="outline"
               onClick={handleDownloadPdf}
-              disabled={isExportingPdf}
-              className="w-full h-9 text-xs border-slate-700 hover:bg-slate-800 gap-2"
+              disabled={isExportingPdf || !sitedHouse}
+              className={`w-full h-9 text-xs border-slate-700 hover:bg-slate-800 gap-2 ${
+                !sitedHouse ? "opacity-50 cursor-not-allowed" : ""
+              }`}
             >
               <FileDown className="h-4 w-4 text-emerald-400" />
               <span>Download 1:200 Siting Plan PDF</span>
