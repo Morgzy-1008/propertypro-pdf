@@ -16,9 +16,9 @@ const THEME_STORAGE_KEY_PREFIX = "hudson_theme_mode_";
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string>("default");
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "night";
+    if (typeof window === "undefined") return "normal";
     const saved = localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}default`);
-    return saved === "normal" ? "normal" : "night";
+    return saved === "night" ? "night" : "normal";
   });
 
   // Track logged-in user to uniquely customize and persist their theme choice

@@ -53,7 +53,26 @@ import {
   getLotState,
   DB_SYNC_CHANNEL_NAME,
   broadcastDatabaseChange,
+  type Lot,
+  type Pkg,
 } from "@/lib/databaseStorage";
+import {
+  ensureStaffSupabaseAuth,
+  seedRemoteDatabaseIfEmpty,
+  subscribeToCloudDatabaseSync,
+  syncLotToSupabase,
+  deleteLotFromSupabase,
+  syncLotsBatchToSupabase,
+  deleteLotsBatchFromSupabase,
+  syncPackageToSupabase,
+  deletePackageFromSupabase,
+  syncPackagesBatchToSupabase,
+  deletePackagesBatchFromSupabase,
+  fetchRemoteLotsAndPackages,
+  type SyncPayload,
+} from "@/lib/supabaseSync";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useTheme } from "@/lib/theme";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 
 export const Route = createFileRoute("/_authenticated/database")({
@@ -77,54 +96,8 @@ export const Route = createFileRoute("/_authenticated/database")({
   component: DatabasePage,
 });
 
-interface Lot {
-  id: string;
-  estate: string;
-  suburb: string;
-  state?: "QLD" | "NSW";
-  developer: string | null;
-  developer_contact_name: string | null;
-  developer_contact_phone: string | null;
-  developer_contact_email: string | null;
-  lot_number: string | null;
-  address: string | null;
-  land_size: number | null;
-  frontage: number | null;
-  land_price: number | null;
-  titled: boolean | null;
-  registration_date: string | null;
-  status: "available" | "on_hold" | "sold" | "nhc_exclusive";
-  exclusive_consultants: string[] | null;
-  deadline: string | null;
-  notes: string | null;
-  updated_at: string | null;
-}
-
-
-interface Pkg {
-  id: string;
-  lot_id: string | null;
-  name: string | null;
-  housing_type: string;
-  design: string;
-  range_id: string;
-  facade_name: string | null;
-  house_price: number | null;
-  land_price: number | null;
-  total_price: number | null;
-  beds: string | null;
-  baths: string | null;
-  cars: string | null;
-  state?: "QLD" | "NSW";
-  status: "draft" | "live" | "sold";
-  needs_review: boolean;
-  notes: string | null;
-  flyer_data: unknown;
-  updated_at: string | null;
-}
-
 const LOT_STATUS = ["available", "on_hold", "sold", "nhc_exclusive"] as const;
-const PKG_STATUS = ["draft", "live", "sold"] as const;
+const PKG_STATUS = ["draft", "live", "sold", "nhc_exclusive"] as const;
 
 /** Capital letter at the start of each word, acronyms preserved. */
 function titleCase(value: string | null | undefined) {
@@ -150,6 +123,7 @@ function statusLabel(value: string) {
 
 const money = (v: number | null) => (v == null ? "—" : formatAud(Number(v)));
 
+
 /** "3 hours ago" style label plus the exact local date/time. */
 function lastUpdated(value: string | null) {
   if (!value) return { rel: "—", exact: "" };
@@ -174,22 +148,38 @@ function lastUpdated(value: string | null) {
   };
 }
 
+function toggle<T>(list: T[], item: T): T[] {
+  return list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
+}
 
-/** Luxury Dark Tone Badges */
-function statusTone(value: string) {
+/** Dynamic Status Tone Badges (Adaptive Normal / Night) */
+function statusTone(value: string, isLight = false) {
+  if (isLight) {
+    if (value === "available" || value === "live")
+      return "bg-emerald-100 text-emerald-800 border-emerald-300 font-semibold shadow-xs";
+    if (value === "on_hold" || value === "draft")
+      return "bg-amber-100 text-amber-900 border-amber-300 font-semibold shadow-xs";
+    if (value === "nhc_exclusive")
+      return "bg-purple-100 text-purple-900 border-purple-300 font-semibold shadow-xs";
+    if (value === "sold")
+      return "bg-rose-100 text-rose-800 border-rose-300 font-bold shadow-xs";
+    return "bg-slate-100 text-slate-700 border-slate-300";
+  }
   if (value === "available" || value === "live")
     return "bg-emerald-500/15 text-emerald-300 border-emerald-500/30 shadow-sm";
   if (value === "on_hold" || value === "draft")
     return "bg-amber-500/15 text-amber-300 border-amber-500/30 shadow-sm";
-  if (value === "nhc_exclusive") return "bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-sm";
-  if (value === "sold") return "bg-slate-800 text-slate-400 border-slate-700";
+  if (value === "nhc_exclusive")
+    return "bg-purple-500/15 text-purple-300 border-purple-500/30 shadow-sm";
+  if (value === "sold")
+    return "bg-rose-950/60 text-rose-300 border-rose-800/60 shadow-sm";
   return "bg-slate-800/60 text-slate-400 border-slate-800";
 }
 
-function StatusPill({ value }: { value: string }) {
+function StatusPill({ value, isLight = false }: { value: string; isLight?: boolean }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize transition-colors ${statusTone(value)}`}
+      className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize transition-colors ${statusTone(value, isLight)}`}
     >
       {statusLabel(value)}
     </span>
@@ -251,6 +241,8 @@ function LotDialog({
   lot?: Lot;
   trigger?: React.ReactNode;
 }) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<LotForm>(lot ? lotToForm(lot) : emptyLotForm);
@@ -345,19 +337,12 @@ function LotDialog({
       updated_at: new Date().toISOString(),
     };
     upsertLocalLot(fullLot);
-
     try {
-      const { error } = lot
-        ? await supabase.from("land_lots").update(payload).eq("id", lotId)
-        : await supabase.from("land_lots").insert({ ...payload, id: lotId });
-      if (error) {
-        console.warn("[database] Supabase sync lot error:", error);
-      }
+      await syncLotToSupabase(fullLot);
     } catch (err) {
-      console.warn("[database] Supabase sync exception:", err);
+      console.warn("[database] syncLotToSupabase warning:", err);
     }
-
-    if (form.developer.trim()) {
+if (form.developer.trim()) {
       await rememberDeveloper({
         name: form.developer,
         contact_name: form.developer_contact_name,
@@ -380,7 +365,10 @@ function LotDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
+      <DialogContent className={`max-h-[85vh] overflow-y-auto sm:max-w-2xl backdrop-blur-2xl shadow-2xl ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"}`}>
+        <DialogHeader>
+          <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
+        </DialogHeader>
         <DialogHeader>
           <DialogTitle className="text-white font-bold tracking-wide">{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
         </DialogHeader>
@@ -391,7 +379,7 @@ function LotDialog({
               <SelectTrigger className="h-8.5 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+              <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                 <SelectItem value="QLD">Queensland (QLD)</SelectItem>
                 <SelectItem value="NSW">New South Wales (NSW)</SelectItem>
               </SelectContent>
@@ -424,13 +412,13 @@ function LotDialog({
           {field("developer_contact_email", "Contact email")}
           {field("notes", "Notes")}
         </div>
-        <div className="mt-3 rounded-xl border border-slate-800/80 bg-slate-900/60 p-3.5 text-slate-300">
-          <Label className="text-xs text-slate-400 font-medium">
+        <div className={`mt-3 rounded-xl p-3.5 ${isLight ? "border border-slate-200 bg-slate-50 text-slate-800 shadow-xs" : "border border-slate-800/80 bg-slate-900/60 text-slate-300"}`}>
+          <Label className={`text-xs font-medium ${isLight ? "text-slate-700" : "text-slate-400"}`}>
             NHC Exclusive — consultants who can sell this lot
           </Label>
           <div className="mt-2 flex flex-wrap gap-3">
             {CONSULTANTS.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 text-xs text-slate-300">
+              <label key={c.id} className={`flex items-center gap-2 text-xs ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 <input
                   type="checkbox"
                   className="h-3.5 w-3.5 accent-purple-400 rounded"
@@ -445,11 +433,12 @@ function LotDialog({
               </label>
             ))}
           </div>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className={`mt-2 text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
             Only used when the lot status is set to NHC Exclusive — the lot stays hidden from
             customer listings.
           </p>
         </div>
+
         <Button onClick={save} disabled={busy} className="mt-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold hover:from-cyan-400 text-xs shadow-md">
           {busy && <Loader2 className="h-4 w-4 animate-spin" />} {lot ? "Save changes" : "Save lot"}
         </Button>
@@ -458,17 +447,7 @@ function LotDialog({
   );
 }
 
-interface ParsedLot {
-  lot_number?: string | null;
-  address?: string | null;
-  land_size?: number | null;
-  frontage?: number | null;
-  land_price?: number | null;
-  registration_date?: string | null;
-  titled?: boolean | null;
-  status?: Lot["status"] | null;
-  notes?: string | null;
-}
+
 
 /** Same lot number in the same estate + suburb = already in the database. */
 const dupeKey = (estate: string, suburb: string, lotNumber: string | null | undefined) =>
@@ -476,6 +455,8 @@ const dupeKey = (estate: string, suburb: string, lotNumber: string | null | unde
 
 /** Upload a developer price list (PDF, image, CSV, TXT) or paste raw text and auto-create every lot. */
 function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existingLots: Lot[] }) {
+  const { mode: themeMode } = useTheme();
+  const isLight = themeMode === "normal";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"file" | "paste">("file");
@@ -648,12 +629,11 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     saveLocalLots([...newLotPayloads, ...existing]);
 
     try {
-      await supabase.from("land_lots").insert(newLotPayloads);
+      await syncLotsBatchToSupabase(newLotPayloads);
     } catch (err) {
-      console.warn("[database] Supabase sync import error:", err);
+      console.warn("[database] syncLotsBatchToSupabase warning:", err);
     }
-
-    if (developer.trim()) {
+if (developer.trim()) {
       await rememberDeveloper({
         name: developer,
         contact_name: contactName,
@@ -662,10 +642,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       });
     }
     setBusy(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
+    
     toast.success(
       `${selected.length} lots imported${dupeCount ? ` · ${dupeCount} duplicate${dupeCount === 1 ? "" : "s"} skipped` : ""}`,
     );
@@ -681,11 +658,17 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
+        <Button size="sm" variant="outline" className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
           <Upload className="h-3.5 w-3.5 text-amber-400" /> Import price list
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-4xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
+      <DialogContent className={`max-h-[85vh] overflow-y-auto sm:max-w-4xl backdrop-blur-2xl shadow-2xl ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"}`}>
+        <DialogHeader>
+          <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>Import Developer Price List</DialogTitle>
+        </DialogHeader>
+        <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot, stage, size, and price is extracted automatically.
+        </p>
         <DialogHeader>
           <DialogTitle className="text-white font-bold tracking-wide">Import Developer Price List</DialogTitle>
         </DialogHeader>
@@ -923,8 +906,9 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
   );
 }
 
-
 function DatabasePage() {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const navigate = useNavigate();
   const [tab, setTab] = useState<"lots" | "packages">("lots");
   const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
@@ -939,31 +923,48 @@ function DatabasePage() {
   const [selPkgs, setSelPkgs] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkRegDate, setBulkRegDate] = useState("");
+  const [openSuburbs, setOpenSuburbs] = useState<string[]>(() => {
+    const local = getLocalLots();
+    return Array.from(new Set(local.map((l) => l.suburb.trim().toLowerCase())));
+  });
+  const isOpen = (key: string) => openSuburbs.includes(key);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    // Instant load from localStorage cache (auto-seeded if uninitialized)
+    // Instant load from localStorage cache
     const localL = getLocalLots();
     const localP = getLocalPackages();
     setLots(localL);
     setPackages(localP);
+    if (localL.length > 0) {
+      setOpenSuburbs((prev) =>
+        prev.length === 0
+          ? Array.from(new Set(localL.map((l) => l.suburb.trim().toLowerCase())))
+          : prev,
+      );
+    }
+    if (localL.length > 0 || localP.length > 0) {
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     try {
-      const [lotRes, pkgRes] = await Promise.all([
-        supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-        supabase.from("packages").select("*").order("created_at", { ascending: false }),
-      ]);
-      
-      if (!lotRes.error && Array.isArray(lotRes.data)) {
-        if (lotRes.data.length > 0 || localL.length === 0) {
-          setLots(lotRes.data as Lot[]);
-          saveLocalLots(lotRes.data as Lot[]);
+      await ensureStaffSupabaseAuth();
+      await seedRemoteDatabaseIfEmpty();
+      const remote = await fetchRemoteLotsAndPackages();
+      if (remote) {
+        if (remote.lots.length > 0 || localL.length === 0) {
+          setLots(remote.lots);
+          saveLocalLots(remote.lots);
+          setOpenSuburbs((prev) =>
+            prev.length === 0
+              ? Array.from(new Set(remote.lots.map((l) => l.suburb.trim().toLowerCase())))
+              : prev,
+          );
         }
-      }
-      if (!pkgRes.error && Array.isArray(pkgRes.data)) {
-        if (pkgRes.data.length > 0 || localP.length === 0) {
-          setPackages(pkgRes.data as Pkg[]);
-          saveLocalPackages(pkgRes.data as Pkg[]);
+        if (remote.packages.length > 0 || localP.length === 0) {
+          setPackages(remote.packages);
+          saveLocalPackages(remote.packages);
         }
       }
       setSelLots([]);
@@ -1003,38 +1004,83 @@ function DatabasePage() {
     };
     window.addEventListener("hudson_database_change", handleCustomChange);
 
-    // 3. Supabase Realtime channel for cross-device cloud sync
-    const realtimeSub = supabase
-      .channel("hudson_database_live_realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "land_lots" },
-        async () => {
-          const { data } = await supabase.from("land_lots").select("*").order("created_at", { ascending: false });
-          if (data) {
-            setLots(data as Lot[]);
-            saveLocalLots(data as Lot[]);
+    // 3. Supabase Realtime WebSocket broadcast subscription for live cross-device sync
+    const unsubscribeCloud = subscribeToCloudDatabaseSync((mutation) => {
+      if (mutation.action === "lot_updated") {
+        setLots((prev) => {
+          const exists = prev.some((l) => l.id === mutation.lot.id);
+          const next = exists
+            ? prev.map((l) => (l.id === mutation.lot.id ? { ...l, ...mutation.lot } : l))
+            : [mutation.lot, ...prev];
+          saveLocalLots(next);
+          return next;
+        });
+      } else if (mutation.action === "lots_bulk_updated") {
+        setLots((prev) => {
+          const map = new Map(mutation.lots.map((l) => [l.id, l]));
+          const next = prev.map((l) => (map.has(l.id) ? { ...l, ...map.get(l.id)! } : l));
+          saveLocalLots(next);
+          return next;
+        });
+      } else if (mutation.action === "lot_deleted") {
+        setLots((prev) => {
+          const next = prev.filter((l) => l.id !== mutation.id);
+          saveLocalLots(next);
+          return next;
+        });
+      } else if (mutation.action === "lots_bulk_deleted") {
+        setLots((prev) => {
+          const set = new Set(mutation.ids);
+          const next = prev.filter((l) => !set.has(l.id));
+          saveLocalLots(next);
+          return next;
+        });
+      } else if (mutation.action === "package_updated") {
+        setPackages((prev) => {
+          const exists = prev.some((p) => p.id === mutation.package.id);
+          const next = exists
+            ? prev.map((p) => (p.id === mutation.package.id ? { ...p, ...mutation.package } : p))
+            : [mutation.package, ...prev];
+          saveLocalPackages(next);
+          return next;
+        });
+      } else if (mutation.action === "packages_bulk_updated") {
+        setPackages((prev) => {
+          const map = new Map(mutation.packages.map((p) => [p.id, p]));
+          const next = prev.map((p) => (map.has(p.id) ? { ...p, ...map.get(p.id)! } : p));
+          saveLocalPackages(next);
+          return next;
+        });
+      } else if (mutation.action === "package_deleted") {
+        setPackages((prev) => {
+          const next = prev.filter((p) => p.id !== mutation.id);
+          saveLocalPackages(next);
+          return next;
+        });
+      } else if (mutation.action === "packages_bulk_deleted") {
+        setPackages((prev) => {
+          const set = new Set(mutation.ids);
+          const next = prev.filter((p) => !set.has(p.id));
+          saveLocalPackages(next);
+          return next;
+        });
+      } else if (mutation.action === "database_full_sync" || mutation.action === "lots_imported") {
+        void fetchRemoteLotsAndPackages().then((remote) => {
+          if (remote) {
+            setLots(remote.lots);
+            saveLocalLots(remote.lots);
+            setPackages(remote.packages);
+            saveLocalPackages(remote.packages);
           }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "packages" },
-        async () => {
-          const { data } = await supabase.from("packages").select("*").order("created_at", { ascending: false });
-          if (data) {
-            setPackages(data as Pkg[]);
-            saveLocalPackages(data as Pkg[]);
-          }
-        }
-      )
-      .subscribe();
+        });
+      }
+    });
 
     return () => {
       channel?.close();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("hudson_database_change", handleCustomChange);
-      supabase.removeChannel(realtimeSub);
+      unsubscribeCloud();
     };
   }, [load]);
 
@@ -1043,116 +1089,109 @@ function DatabasePage() {
     const grouped = new Map<string, Pkg[]>();
     for (const pkg of packages) {
       if (!pkg.lot_id) continue;
-      const existing = grouped.get(pkg.lot_id);
-      if (existing) existing.push(pkg);
-      else grouped.set(pkg.lot_id, [pkg]);
+      const list = grouped.get(pkg.lot_id) ?? [];
+      list.push(pkg);
+      grouped.set(pkg.lot_id, list);
     }
     return grouped;
   }, [packages]);
 
-  const qldLotsCount = useMemo(() => lots.filter((l) => getLotState(l) === "QLD").length, [lots]);
-  const nswLotsCount = useMemo(() => lots.filter((l) => getLotState(l) === "NSW").length, [lots]);
-  const qldPkgsCount = useMemo(
-    () => packages.filter((p) => (p.state || (p.lot_id ? getLotState(lotById.get(p.lot_id) || {}) : "QLD")) === "QLD").length,
-    [packages, lotById]
-  );
-  const nswPkgsCount = useMemo(
-    () => packages.filter((p) => (p.state || (p.lot_id ? getLotState(lotById.get(p.lot_id) || {}) : "QLD")) === "NSW").length,
-    [packages, lotById]
-  );
+  // Counts by State Division
+  const qldLotsCount = useMemo(() => lots.filter((l) => (l.state || getLotState(l)) === "QLD").length, [lots]);
+  const nswLotsCount = useMemo(() => lots.filter((l) => (l.state || getLotState(l)) === "NSW").length, [lots]);
+
+  const qldPkgsCount = useMemo(() => {
+    return packages.filter((p) => {
+      const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+      return (p.state || (lot ? getLotState(lot) : "QLD")) === "QLD";
+    }).length;
+  }, [packages, lotById]);
+
+  const nswPkgsCount = useMemo(() => {
+    return packages.filter((p) => {
+      const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+      return (p.state || (lot ? getLotState(lot) : "NSW")) === "NSW";
+    }).length;
+  }, [packages, lotById]);
 
   const filteredLots = useMemo(() => {
-    let result = lots;
-    if (stateFilter !== "ALL") {
-      result = result.filter((l) => getLotState(l) === stateFilter);
-    }
     const q = query.trim().toLowerCase();
-    if (!q) return result;
-    return result.filter((l) =>
-      [l.estate, l.suburb, l.lot_number, l.address, l.developer, l.notes]
+    const list = lots.filter((l) => {
+      const lotState = l.state || getLotState(l);
+      if (stateFilter !== "ALL" && lotState !== stateFilter) return false;
+      if (!q) return true;
+      return [l.estate, l.suburb, l.lot_number, l.address, l.developer, l.notes]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(q),
-    );
-  }, [lots, query, stateFilter]);
+        .includes(q);
+    });
 
-  /** Lots grouped by state (QLD / NSW), then by suburb, then by estate inside each suburb. */
-  const stateLotGroups = useMemo(() => {
-    const cmp = (a: Lot, b: Lot) => {
-      if (lotSort === "land_price") return (a.land_price ?? 0) - (b.land_price ?? 0);
-      if (lotSort === "land_size") return (a.land_size ?? 0) - (b.land_size ?? 0);
-      // registration: registered lots first, then soonest date, undated last
-      const av = a.titled ? "0000-00-00" : (a.registration_date ?? "9999-12-31");
-      const bv = b.titled ? "0000-00-00" : (b.registration_date ?? "9999-12-31");
-      return av.localeCompare(bv);
-    };
-
-    const targetStates: ("QLD" | "NSW")[] = stateFilter === "ALL" ? ["QLD", "NSW"] : [stateFilter];
-
-    return targetStates.map((st) => {
-      const stateLots = filteredLots.filter((l) => getLotState(l) === st);
-      const suburbKey = (l: Lot) => (l.suburb || "Unassigned suburb").trim().toLowerCase();
-
-      const suburbs = new Map<string, { label: string; lots: Lot[] }>();
-      for (const l of stateLots) {
-        const key = suburbKey(l);
-        const entry = suburbs.get(key);
-        if (entry) entry.lots.push(l);
-        else suburbs.set(key, { label: l.suburb?.trim() || "Unassigned suburb", lots: [l] });
+    return [...list].sort((a, b) => {
+      if (lotSort === "land_price") {
+        return (a.land_price ?? Infinity) - (b.land_price ?? Infinity);
       }
+      if (lotSort === "land_size") {
+        return (b.land_size ?? 0) - (a.land_size ?? 0);
+      }
+      if (a.titled !== b.titled) return a.titled ? -1 : 1;
+      return (a.registration_date ?? "9999").localeCompare(b.registration_date ?? "9999");
+    });
+  }, [lots, query, lotSort, stateFilter]);
 
-      const suburbGroups = [...suburbs.entries()]
-        .sort((a, b) => a[1].label.localeCompare(b[1].label))
-        .map(([key, { label, lots: items }]) => {
-          const estates = new Map<string, Lot[]>();
-          for (const l of items) {
-            const e = l.estate || "Unassigned estate";
-            const arr = estates.get(e);
-            if (arr) arr.push(l);
-            else estates.set(e, [l]);
-          }
+  const stateLotGroups = useMemo(() => {
+    const states: ("QLD" | "NSW")[] = stateFilter === "ALL" ? ["QLD", "NSW"] : [stateFilter];
+    return states.map((st) => {
+      const stateLots = filteredLots.filter((l) => (l.state || getLotState(l)) === st);
+      const suburbMap = new Map<string, Lot[]>();
+      stateLots.forEach((l) => {
+        const key = l.suburb.trim().toLowerCase();
+        const list = suburbMap.get(key) ?? [];
+        list.push(l);
+        suburbMap.set(key, list);
+      });
+
+      const suburbGroups = Array.from(suburbMap.entries())
+        .map(([key, groupLots]) => {
+          const estateMap = new Map<string, Lot[]>();
+          groupLots.forEach((l) => {
+            const eKey = l.estate.trim().toLowerCase();
+            const list = estateMap.get(eKey) ?? [];
+            list.push(l);
+            estateMap.set(eKey, list);
+          });
+          const estates = Array.from(estateMap.entries()).map(([eKey, eLots]) => ({
+            key: eKey,
+            estate: eLots[0]?.estate ?? eKey,
+            lots: eLots,
+          }));
           return {
-            key: `${st}-${key}`,
-            rawKey: key,
-            label,
-            count: items.length,
-            estates: [...estates.entries()]
-              .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([estate, group]) => ({ estate, lots: [...group].sort(cmp) })),
+            key,
+            label: groupLots[0]?.suburb ?? key,
+            count: groupLots.length,
+            estates,
           };
-        });
+        })
+        .sort((a, b) => a.label.localeCompare(b.label));
 
       return {
         state: st,
-        title: st === "QLD" ? "Queensland (QLD) Estates & Suburbs" : "New South Wales (NSW) Estates & Suburbs",
-        subtitle: st === "QLD" ? "South East Queensland Division" : "Greater Sydney & Regional NSW Division",
+        title: st === "QLD" ? "Queensland Land Releases" : "New South Wales Land Releases",
+        subtitle: st === "QLD" ? "Brisbane, Logan, Ipswich, Moreton Bay & Gold Coast" : "Sydney Metro, South Coast, Hunter & Central Coast",
         lotsCount: stateLots.length,
         suburbsCount: suburbGroups.length,
         suburbGroups,
       };
-    }).filter((g) => g.lotsCount > 0 || stateFilter === g.state);
-  }, [filteredLots, lotSort, stateFilter]);
-
-  const [openSuburbs, setOpenSuburbs] = useState<string[]>([]);
-  const searching = query.trim().length > 0;
-  // Suburbs always stay collapsed until they are clicked open.
-  const isOpen = (key: string) => openSuburbs.includes(key);
-
+    });
+  }, [filteredLots, stateFilter]);
 
   const filteredPackages = useMemo(() => {
-    let list = packages;
-    if (stateFilter !== "ALL") {
-      list = list.filter((p) => {
-        const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
-        const st = p.state || (lot ? getLotState(lot) : "QLD");
-        return st === stateFilter;
-      });
-    }
     const q = query.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter((p) => {
+    return packages.filter((p) => {
       const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+      const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
+      if (stateFilter !== "ALL" && pkgState !== stateFilter) return false;
+      if (!q) return true;
       return [p.name, p.design, p.facade_name, lot?.estate, lot?.suburb]
         .filter(Boolean)
         .join(" ")
@@ -1161,51 +1200,41 @@ function DatabasePage() {
     });
   }, [packages, query, stateFilter, lotById]);
 
-  const updateLot = async (id: string, patch: { status: Lot["status"] }) => {
+  const updateLot = async (id: string, patch: Partial<Lot>) => {
     setLots((prev) => {
-      const next = prev.map((l) => (l.id === id ? { ...l, ...patch } : l));
+      const existing = prev.find((l) => l.id === id) || getLocalLots().find((l) => l.id === id);
+      if (!existing) return prev;
+      const updatedLot: Lot = { ...existing, ...patch, updated_at: new Date().toISOString() };
+      const next = prev.map((l) => (l.id === id ? updatedLot : l));
       saveLocalLots(next);
+      void syncLotToSupabase(updatedLot);
       return next;
     });
-    try {
-      await supabase.from("land_lots").update(patch).eq("id", id);
-    } catch (e) {
-      console.warn("[database] Supabase update lot warning:", e);
-    }
   };
 
-  const updatePkg = async (id: string, patch: { status: Pkg["status"] }) => {
+  const updatePkg = async (id: string, patch: Partial<Pkg>) => {
     setPackages((prev) => {
-      const next = prev.map((p) => (p.id === id ? { ...p, ...patch } : p));
+      const existing = prev.find((p) => p.id === id) || getLocalPackages().find((p) => p.id === id);
+      if (!existing) return prev;
+      const updatedPkg: Pkg = { ...existing, ...patch, updated_at: new Date().toISOString() };
+      const next = prev.map((p) => (p.id === id ? updatedPkg : p));
       saveLocalPackages(next);
+      void syncPackageToSupabase(updatedPkg);
       return next;
     });
-    try {
-      await supabase.from("packages").update(patch).eq("id", id);
-    } catch (e) {
-      console.warn("[database] Supabase update pkg warning:", e);
-    }
   };
 
   const removeLot = async (id: string) => {
     deleteLocalLot(id);
     setLots((prev) => prev.filter((l) => l.id !== id));
-    try {
-      await supabase.from("land_lots").delete().eq("id", id);
-    } catch (e) {
-      console.warn("[database] Supabase delete lot warning:", e);
-    }
+    void deleteLotFromSupabase(id);
     toast.success("Lot removed");
   };
 
   const removePkg = async (id: string) => {
     deleteLocalPackage(id);
     setPackages((prev) => prev.filter((p) => p.id !== id));
-    try {
-      await supabase.from("packages").delete().eq("id", id);
-    } catch (e) {
-      console.warn("[database] Supabase delete pkg warning:", e);
-    }
+    void deletePackageFromSupabase(id);
     toast.success("Package removed");
   };
 
@@ -1214,21 +1243,28 @@ function DatabasePage() {
 
   /** Apply one change to every selected land lot. */
   const bulkLots = async (
-    patch: { status?: Lot["status"]; registration_date?: string | null; titled?: boolean; deadline?: string | null },
+    patch: Partial<Lot>,
     label: string,
   ) => {
     if (!selLots.length) return;
     setBulkBusy(true);
+    const selSet = new Set(selLots);
     setLots((prev) => {
-      const next = prev.map((l) => (selLots.includes(l.id) ? { ...l, ...patch } : l));
+      const updatedList: Lot[] = [];
+      const next = prev.map((l) => {
+        if (selSet.has(l.id)) {
+          const updated = { ...l, ...patch, updated_at: new Date().toISOString() };
+          updatedList.push(updated);
+          return updated;
+        }
+        return l;
+      });
       saveLocalLots(next);
+      if (updatedList.length) {
+        void syncLotsBatchToSupabase(updatedList);
+      }
       return next;
     });
-    try {
-      await supabase.from("land_lots").update(patch).in("id", selLots);
-    } catch (e) {
-      console.warn("[database] Bulk lot update warning:", e);
-    }
     setBulkBusy(false);
     toast.success(`${selLots.length} lots ${label}`);
   };
@@ -1237,33 +1273,38 @@ function DatabasePage() {
     if (!selLots.length) return;
     if (!window.confirm(`Delete ${selLots.length} land lots? This cannot be undone.`)) return;
     setBulkBusy(true);
+    const selSet = new Set(selLots);
     setLots((prev) => {
-      const next = prev.filter((l) => !selLots.includes(l.id));
+      const next = prev.filter((l) => !selSet.has(l.id));
       saveLocalLots(next);
       return next;
     });
-    try {
-      await supabase.from("land_lots").delete().in("id", selLots);
-    } catch (e) {
-      console.warn("[database] Bulk delete lots warning:", e);
-    }
+    void deleteLotsBatchFromSupabase(selLots);
+    setSelLots([]);
     setBulkBusy(false);
-    toast.success(`${selLots.length} lots deleted`);
+    toast.success(`Deleted ${selLots.length} lots`);
   };
 
-  const bulkPkgs = async (patch: Partial<Pick<Pkg, "status" | "needs_review">>, label: string) => {
+  const bulkPkgs = async (patch: Partial<Pkg>, label: string) => {
     if (!selPkgs.length) return;
     setBulkBusy(true);
+    const selSet = new Set(selPkgs);
     setPackages((prev) => {
-      const next = prev.map((p) => (selPkgs.includes(p.id) ? { ...p, ...patch } : p));
+      const updatedList: Pkg[] = [];
+      const next = prev.map((p) => {
+        if (selSet.has(p.id)) {
+          const updated = { ...p, ...patch, updated_at: new Date().toISOString() };
+          updatedList.push(updated);
+          return updated;
+        }
+        return p;
+      });
       saveLocalPackages(next);
+      if (updatedList.length) {
+        void syncPackagesBatchToSupabase(updatedList);
+      }
       return next;
     });
-    try {
-      await supabase.from("packages").update(patch).in("id", selPkgs);
-    } catch (e) {
-      console.warn("[database] Bulk packages warning:", e);
-    }
     setBulkBusy(false);
     toast.success(`${selPkgs.length} packages ${label}`);
   };
@@ -1272,18 +1313,16 @@ function DatabasePage() {
     if (!selPkgs.length) return;
     if (!window.confirm(`Delete ${selPkgs.length} packages? This cannot be undone.`)) return;
     setBulkBusy(true);
+    const selSet = new Set(selPkgs);
     setPackages((prev) => {
-      const next = prev.filter((p) => !selPkgs.includes(p.id));
+      const next = prev.filter((p) => !selSet.has(p.id));
       saveLocalPackages(next);
       return next;
     });
-    try {
-      await supabase.from("packages").delete().in("id", selPkgs);
-    } catch (e) {
-      console.warn("[database] Bulk delete pkgs warning:", e);
-    }
+    void deletePackagesBatchFromSupabase(selPkgs);
+    setSelPkgs([]);
     setBulkBusy(false);
-    toast.success(`${selPkgs.length} packages deleted`);
+    toast.success(`Deleted ${selPkgs.length} packages`);
   };
 
 
@@ -1303,47 +1342,48 @@ function DatabasePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 relative overflow-hidden font-sans selection:bg-brand-gold/30 flex flex-col">
+    <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} relative overflow-hidden font-sans selection:bg-brand-gold/30 flex flex-col`}>
       {/* Ambient Gradient Lights */}
       <div className="ambient-glow-cyan h-96 w-96 -top-20 right-10" />
       <div className="ambient-glow-gold h-96 w-96 top-96 -left-20" />
 
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+      <header className={`sticky top-0 z-30 border-b ${isLight ? "border-slate-200 bg-white/95 shadow-xs" : "border-slate-800/80 bg-slate-950/80"} backdrop-blur-xl`}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-2.5 sm:flex sm:flex-wrap sm:justify-between sm:px-6">
           <Link to="/hub" className="flex min-w-0 items-center gap-3 hover:opacity-90 transition-opacity">
             <img src={logoUrl} alt="Hudson Homes" className="h-6 w-auto shrink-0 object-contain sm:h-7" />
-            <div className="min-w-0 leading-tight border-l border-slate-800 pl-3">
-              <h1 className="truncate text-xs font-bold tracking-[0.14em] text-white uppercase sm:text-sm">
+            <div className={`min-w-0 leading-tight border-l ${isLight ? "border-slate-200" : "border-slate-800"} pl-3`}>
+              <h1 className={`truncate text-xs font-bold tracking-[0.14em] ${isLight ? "text-slate-900" : "text-white"} uppercase sm:text-sm`}>
                 QLD &amp; NSW House &amp; Land Database
               </h1>
-              <p className="hidden text-[10px] tracking-wider text-cyan-400 font-medium uppercase sm:block">
+              <p className={`hidden text-[10px] tracking-wider ${isLight ? "text-cyan-700" : "text-cyan-400"} font-semibold uppercase sm:block`}>
                 Live Multi-State Availability &amp; Pricing CRM
               </p>
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            <ThemeToggle />
             <Link to="/hub">
-              <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent hover:border-slate-800">
+              <Button variant="ghost" size="sm" className={`text-xs ${isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"} border border-transparent`}>
                 Hub
               </Button>
             </Link>
             <Link to="/flyer">
-              <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs">
+              <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
                 Flyer builder
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => void load()} className="text-slate-400 hover:text-slate-100 hover:bg-slate-900" title="Refresh database">
+            <Button variant="ghost" size="sm" onClick={() => void load()} className={isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"} title="Refresh database">
               <RefreshCw className="h-3.5 w-3.5" />
             </Button>
             {/* NHC Active Profile */}
-            <StaffHeaderProfile isLight={false} />
+            <StaffHeaderProfile isLight={isLight} />
           </div>
         </div>
       </header>
 
       <main className="space-y-5 p-4 sm:p-6 relative z-10 flex-1 max-w-[1700px] mx-auto w-full">
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex rounded-xl border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
+          <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
             {(["lots", "packages"] as const).map((t) => (
               <button
                 key={t}
@@ -1351,9 +1391,15 @@ function DatabasePage() {
                 className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold capitalize transition-all ${
                   tab === t
                     ? t === "lots"
-                      ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                      : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200"
+                      ? isLight
+                        ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : isLight
+                        ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-amber-200 border border-brand-gold/40 shadow-sm"
+                    : isLight
+                      ? "text-slate-600 hover:text-slate-900"
+                      : "text-slate-400 hover:text-slate-200"
                 }`}
               >
                 {t === "lots" ? `Land lots (${lots.length})` : `Packages (${packages.length})`}
@@ -1362,14 +1408,18 @@ function DatabasePage() {
           </div>
 
           {/* State Division Filter Tabs: All | Queensland (QLD) | New South Wales (NSW) */}
-          <div className="flex rounded-xl border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
+          <div className={`flex rounded-xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/90 bg-slate-900/90 shadow-inner"} p-1 backdrop-blur-md`}>
             <button
               type="button"
               onClick={() => setStateFilter("ALL")}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
                 stateFilter === "ALL"
-                  ? "bg-slate-800 text-white border border-slate-700 shadow-sm font-bold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? isLight
+                    ? "bg-slate-900 text-white shadow-xs font-bold"
+                    : "bg-slate-800 text-white border border-slate-700 shadow-sm font-bold"
+                  : isLight
+                    ? "text-slate-600 hover:text-slate-900"
+                    : "text-slate-400 hover:text-slate-200"
               }`}
             >
               All States ({tab === "lots" ? lots.length : packages.length})
@@ -1379,11 +1429,15 @@ function DatabasePage() {
               onClick={() => setStateFilter("QLD")}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 stateFilter === "QLD"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm font-bold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? isLight
+                    ? "bg-cyan-100 text-cyan-900 border border-cyan-300 shadow-xs font-bold"
+                    : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm font-bold"
+                  : isLight
+                    ? "text-slate-600 hover:text-slate-900"
+                    : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-500" />
               QLD ({tab === "lots" ? qldLotsCount : qldPkgsCount})
             </button>
             <button
@@ -1391,26 +1445,35 @@ function DatabasePage() {
               onClick={() => setStateFilter("NSW")}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all flex items-center gap-1.5 ${
                 stateFilter === "NSW"
-                  ? "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold"
-                  : "text-slate-400 hover:text-slate-200"
+                  ? isLight
+                    ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs font-bold"
+                    : "bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/40 shadow-sm font-bold"
+                  : isLight
+                    ? "text-slate-600 hover:text-slate-900"
+                    : "text-slate-400 hover:text-slate-200"
               }`}
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
               NSW ({tab === "lots" ? nswLotsCount : nswPkgsCount})
             </button>
           </div>
+
           <Input
-            className="h-9 w-full rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60 sm:max-w-xs"
+            className={`h-9 w-full rounded-lg text-xs sm:max-w-xs ${
+              isLight
+                ? "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-500 shadow-xs"
+                : "border-slate-800 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
+            }`}
             placeholder="Search estate, suburb, design…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {tab === "lots" && (
             <Select value={lotSort} onValueChange={(v) => setLotSort(v as typeof lotSort)}>
-              <SelectTrigger className="h-9 w-[190px] rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-200">
+              <SelectTrigger className={`h-9 w-[190px] rounded-lg text-xs ${isLight ? "border-slate-200 bg-white text-slate-800 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200"}`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+              <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                 <SelectItem value="registration">Sort: Registration</SelectItem>
                 <SelectItem value="land_price">Sort: Land price</SelectItem>
                 <SelectItem value="land_size">Sort: Land size</SelectItem>
@@ -1421,7 +1484,7 @@ function DatabasePage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+              className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
               onClick={() => window.open("/browse/land", "_blank", "noopener")}
             >
               <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Customer land PDF
@@ -1429,7 +1492,7 @@ function DatabasePage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+              className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
               onClick={() => window.open("/browse/packages", "_blank", "noopener")}
             >
               <FileDown className="h-3.5 w-3.5 text-amber-400" /> Customer packages PDF
@@ -1445,7 +1508,7 @@ function DatabasePage() {
         </div>
 
         {tab === "lots" && selLots.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-cyan-500/30 bg-slate-900/90 backdrop-blur-xl p-3 text-sm shadow-xl">
+          <div className={`flex flex-wrap items-center gap-2.5 rounded-xl p-3 text-sm ${isLight ? "border border-cyan-200 bg-cyan-50/70 text-slate-800 shadow-xs" : "border border-cyan-500/30 bg-slate-900/90 backdrop-blur-xl shadow-xl"}`}>
             <span className="font-semibold text-cyan-300">{selLots.length} lots selected</span>
             <Select
               onValueChange={(v) => void bulkLots({ status: v as Lot["status"] }, `set to ${v}`)}
@@ -1453,7 +1516,7 @@ function DatabasePage() {
               <SelectTrigger className="h-8 w-[150px] border-slate-800 bg-slate-950/80 text-xs text-slate-200">
                 <SelectValue placeholder="Set status" />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+              <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                 {LOT_STATUS.map((s) => (
                   <SelectItem key={s} value={s} className="capitalize">
                     {statusLabel(s)}
@@ -1506,7 +1569,7 @@ function DatabasePage() {
         )}
 
         {tab === "packages" && selPkgs.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-amber-500/30 bg-slate-900/90 backdrop-blur-xl p-3 text-sm shadow-xl">
+          <div className={`flex flex-wrap items-center gap-2.5 rounded-xl p-3 text-sm ${isLight ? "border border-amber-200 bg-amber-50/70 text-slate-800 shadow-xs" : "border border-amber-500/30 bg-slate-900/90 backdrop-blur-xl shadow-xl"}`}>
             <span className="font-semibold text-amber-300">{selPkgs.length} packages selected</span>
             <Select
               onValueChange={(v) => void bulkPkgs({ status: v as Pkg["status"] }, `set to ${v}`)}
@@ -1551,9 +1614,9 @@ function DatabasePage() {
             <Loader2 className="h-5 w-5 animate-spin text-cyan-400" /> Loading database…
           </div>
         ) : tab === "lots" ? (
-          <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl">
+          <div className={`overflow-x-auto rounded-2xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl"}`}>
             <table className="w-full text-sm">
-              <thead className="bg-slate-950/80 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-800/80">
+              <thead className={`text-left text-[11px] font-semibold tracking-wider uppercase border-b ${isLight ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-slate-950/80 text-slate-400 border-slate-800/80"}`}>
                 <tr>
                   <th className="p-3">
                     <input
@@ -1581,28 +1644,31 @@ function DatabasePage() {
                 <Fragment key={stateGroup.state}>
                   {/* Division / State Header Banner */}
                   <tbody className="border-t-2 border-slate-700/80">
-                    <tr className={stateGroup.state === "QLD" ? "bg-gradient-to-r from-cyan-950/60 via-slate-900 to-slate-950" : "bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950"}>
-                      <td colSpan={11} className="px-4 py-3 border-y border-slate-800">
+                    <tr className={isLight 
+    ? (stateGroup.state === "QLD" ? "bg-cyan-50/75 border-b border-cyan-100" : "bg-amber-50/75 border-b border-amber-100") 
+    : (stateGroup.state === "QLD" ? "bg-gradient-to-r from-cyan-950/60 via-slate-900 to-slate-950" : "bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950")}>
+                      <td colSpan={11} className={`px-4 py-3 border-y ${isLight ? "border-slate-200" : "border-slate-800"}`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase font-mono ${
                               stateGroup.state === "QLD"
-                                ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                                : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                ? isLight ? "bg-cyan-100 text-cyan-800 border border-cyan-300 font-bold" : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                                : isLight ? "bg-amber-100 text-amber-900 border border-amber-300 font-bold" : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
                             }`}>
                               {stateGroup.state} Division
                             </span>
-                            <h2 className="text-sm font-bold text-white tracking-wide">
+                            <h2 className={`text-sm font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>
                               {stateGroup.title}
                             </h2>
-                            <span className="text-xs text-slate-400">
+                            <span className={`text-xs ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                               ({stateGroup.suburbsCount} suburbs · {stateGroup.lotsCount} lots)
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-400 hidden sm:inline-block">
+                          <span className={`text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"} hidden sm:inline-block`}>
                             {stateGroup.subtitle}
                           </span>
                         </div>
+
                       </td>
                     </tr>
                   </tbody>
@@ -1610,46 +1676,48 @@ function DatabasePage() {
                   {stateGroup.suburbGroups.map((group) => (
                     <tbody key={group.key} className="divide-y divide-slate-800/50">
                       <tr
-                        className="cursor-pointer bg-slate-900/90 hover:bg-slate-850 transition-colors"
+                        className={`cursor-pointer transition-colors ${isLight ? "bg-slate-50 hover:bg-slate-100/90 border-b border-slate-200" : "bg-slate-900/90 hover:bg-slate-850"}`}
                         onClick={() =>
                           setOpenSuburbs((prev) => toggle(prev, group.key))
                         }
                       >
                         <td colSpan={11} className="px-3.5 py-3">
-                          <div className="flex items-center gap-2.5 text-sm font-semibold text-slate-100">
+                          <div className={`flex items-center gap-2.5 text-sm font-semibold ${isLight ? "text-slate-900" : "text-slate-100"}`}>
                             {isOpen(group.key) ? (
-                              <ChevronDown className={`h-4 w-4 shrink-0 ${stateGroup.state === "QLD" ? "text-cyan-400" : "text-amber-400"}`} />
+                              <ChevronDown className={`h-4 w-4 shrink-0 ${stateGroup.state === "QLD" ? isLight ? "text-cyan-600" : "text-cyan-400" : isLight ? "text-amber-600" : "text-amber-400"}`} />
                             ) : (
-                              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+                              <ChevronRight className={`h-4 w-4 shrink-0 ${isLight ? "text-slate-500" : "text-slate-400"}`} />
                             )}
                             <span className="truncate">{titleCase(group.label)}</span>
-                            <span className="text-xs font-normal text-slate-400">
+                            <span className={`text-xs font-normal ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                               {group.estates.length} estate{group.estates.length === 1 ? "" : "s"} ·{" "}
                               {group.count} lot{group.count === 1 ? "" : "s"}
                             </span>
-                            <span className={`ml-auto text-xs font-medium hover:underline ${stateGroup.state === "QLD" ? "text-cyan-400" : "text-amber-400"}`}>
+                            <span className={`ml-auto text-xs font-semibold hover:underline ${stateGroup.state === "QLD" ? isLight ? "text-cyan-700" : "text-cyan-400" : isLight ? "text-amber-700" : "text-amber-400"}`}>
                               {isOpen(group.key) ? "Hide" : "View"}
                             </span>
                           </div>
+
                         </td>
                       </tr>
                       {isOpen(group.key) &&
                         group.estates.map(({ estate, lots: groupLots }) => (
                           <Fragment key={estate}>
-                            <tr className="bg-slate-950/60 border-b border-slate-800/60">
+                            <tr className={isLight ? "bg-slate-100/70 border-b border-slate-200" : "bg-slate-950/60 border-b border-slate-800/60"}>
                               <td
                                 colSpan={11}
-                                className="px-3.5 py-2 pl-9 text-xs font-semibold text-slate-300"
+                                className={`px-3.5 py-2 pl-9 text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}
                               >
                                 {titleCase(estate)}{" "}
-                                <span className="ml-1 font-normal text-slate-500 normal-case">
+                                <span className={`ml-1 font-normal ${isLight ? "text-slate-500" : "text-slate-500"} normal-case`}>
                                   {groupLots.length} lot{groupLots.length === 1 ? "" : "s"}
                                 </span>
                               </td>
                             </tr>
+
                         {groupLots.map((l: Lot) => (
 
-                  <tr key={l.id} className="align-top hover:bg-slate-800/40 transition-colors">
+                  <tr key={l.id} className={`align-top transition-colors border-b ${isLight ? "hover:bg-slate-50/80 border-slate-200 bg-white" : "hover:bg-slate-800/40 border-slate-800/50"}`}>
                     <td className="p-3">
                       <input
                         type="checkbox"
@@ -1659,30 +1727,30 @@ function DatabasePage() {
                       />
                     </td>
                     <td className="p-3">
-                      <div className="font-semibold text-slate-100">{titleCase(l.estate)}</div>
-                      <div className="text-xs text-slate-400">{titleCase(l.suburb)}</div>
+                      <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-100"}`}>{titleCase(l.estate)}</div>
+                      <div className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>{titleCase(l.suburb)}</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-medium text-slate-100 flex items-center gap-1.5 flex-wrap">
+                      <div className={`font-medium flex items-center gap-1.5 flex-wrap ${isLight ? "text-slate-900" : "text-slate-100"}`}>
                         <span>{l.lot_number ? `Lot ${l.lot_number}` : "—"}</span>
                         {l.notes?.match(/Stage\s*([A-Za-z0-9\.\-]+)/i) && (
-                          <span className="inline-block rounded-md bg-cyan-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-300 border border-cyan-500/30">
+                          <span className={`inline-block rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${isLight ? "bg-cyan-50 text-cyan-800 border border-cyan-300" : "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"}`}>
                             {l.notes.match(/Stage\s*([A-Za-z0-9\.\-]+)/i)![0]}
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-slate-400">{titleCase(l.address)}</div>
+                      <div className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>{titleCase(l.address)}</div>
                     </td>
-                    <td className="p-3 whitespace-nowrap text-slate-200">
+                    <td className={`p-3 whitespace-nowrap ${isLight ? "text-slate-700 font-medium" : "text-slate-200"}`}>
                       {l.land_size ? `${l.land_size} m²` : "—"}
-                      <div className="text-xs text-slate-400">
+                      <div className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {l.frontage ? `${l.frontage} m frontage` : ""}
                       </div>
                     </td>
-                    <td className="p-3 whitespace-nowrap font-semibold text-cyan-300">{money(l.land_price)}</td>
+                    <td className={`p-3 whitespace-nowrap font-bold ${isLight ? "text-cyan-700 font-semibold" : "text-cyan-300"}`}>{money(l.land_price)}</td>
                     <td className="p-3">
-                      <div className="text-slate-200">{l.developer || "—"}</div>
-                      <div className="text-xs text-slate-400">
+                      <div className={isLight ? "text-slate-800 font-medium" : "text-slate-200"}>{l.developer || "—"}</div>
+                      <div className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {[l.developer_contact_name, l.developer_contact_phone]
                           .filter(Boolean)
                           .join(" · ")}
@@ -1694,11 +1762,11 @@ function DatabasePage() {
                         onValueChange={(v) => updateLot(l.id, { status: v as Lot["status"] })}
                       >
                         <SelectTrigger
-                          className={`h-8 w-[130px] text-xs font-medium capitalize rounded-full ${statusTone(l.status)}`}
+                          className={`h-8 w-[130px] text-xs font-medium capitalize rounded-full ${statusTone(l.status, isLight)}`}
                         >
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                        <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                           {LOT_STATUS.map((s) => (
                             <SelectItem key={s} value={s} className="capitalize">
                               {statusLabel(s)}
@@ -1714,7 +1782,7 @@ function DatabasePage() {
                         </div>
                       )}
                     </td>
-                      <td className="p-3 text-xs whitespace-nowrap text-slate-300">
+                      <td className={`p-3 text-xs whitespace-nowrap ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>
                         <div>
                           {l.titled
                             ? "Registered"
@@ -1725,11 +1793,12 @@ function DatabasePage() {
                       </td>
 
                       <td className="p-3 text-xs whitespace-nowrap">
-                        <div className="text-slate-300">{lastUpdated(l.updated_at).rel}</div>
-                        <div className="text-slate-500">
+                        <div className={isLight ? "text-slate-700" : "text-slate-300"}>{lastUpdated(l.updated_at).rel}</div>
+                        <div className={isLight ? "text-slate-400" : "text-slate-500"}>
                           {lastUpdated(l.updated_at).exact}
                         </div>
                       </td>
+
 
                       <td className="p-3">
                         {(packagesByLot.get(l.id)?.length ?? 0) > 0 ? (
@@ -1746,10 +1815,10 @@ function DatabasePage() {
                               });
                             }}
                           >
-                            <SelectTrigger className="h-8 w-[170px] border-slate-800 bg-slate-900/80 text-xs text-slate-200 hover:border-slate-700">
+                            <SelectTrigger className={`h-8 w-[170px] text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200 hover:border-slate-700"}`}>
                               <SelectValue placeholder={`${packagesByLot.get(l.id)?.length ?? 0} package${packagesByLot.get(l.id)?.length === 1 ? "" : "s"}`} />
                             </SelectTrigger>
-                            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                            <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                               {packagesByLot.get(l.id)?.map((pkg) => (
                                 <SelectItem key={pkg.id} value={pkg.id}>
                                   {pkg.name || pkg.design || "Untitled package"}
@@ -1767,7 +1836,7 @@ function DatabasePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-medium shadow-sm"
+                            className={`text-xs gap-1.5 font-medium shadow-xs ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900" : "border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white shadow-sm"}`}
                             onClick={() =>
                               openInFlyer({
                                 lotId: l.id,
@@ -1786,12 +1855,12 @@ function DatabasePage() {
                             lot={l}
                             onSaved={load}
                             trigger={
-                              <Button size="icon" variant="ghost" className="text-slate-400 hover:text-slate-100 hover:bg-slate-800/60" title="Edit lot">
+                              <Button size="icon" variant="ghost" className={isLight ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-800/60"} title="Edit lot">
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
                             }
                           />
-                          <Button size="icon" variant="ghost" className="text-slate-400 hover:text-rose-400 hover:bg-rose-500/10" onClick={() => removeLot(l.id)} title="Delete lot">
+                          <Button size="icon" variant="ghost" className={isLight ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-slate-400 hover:text-rose-400 hover:bg-rose-500/10"} onClick={() => removeLot(l.id)} title="Delete lot">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
@@ -1817,9 +1886,9 @@ function DatabasePage() {
             </table>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl">
+          <div className={`overflow-x-auto rounded-2xl border ${isLight ? "border-slate-200 bg-white shadow-xs" : "border-slate-800/80 bg-slate-900/80 backdrop-blur-xl shadow-2xl"}`}>
             <table className="w-full text-sm">
-              <thead className="bg-slate-950/80 text-left text-[11px] font-semibold tracking-wider text-slate-400 uppercase border-b border-slate-800/80">
+              <thead className={`text-left text-[11px] font-semibold tracking-wider uppercase border-b ${isLight ? "bg-slate-50 text-slate-600 border-slate-200" : "bg-slate-950/80 text-slate-400 border-slate-800/80"}`}>
                 <tr>
                   <th className="p-3">
                     <input
@@ -1849,7 +1918,47 @@ function DatabasePage() {
                   const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
                   const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
                   return (
-                    <tr key={p.id} className="align-top hover:bg-slate-800/40 transition-colors">
+                    <tr key={p.id} className={`align-top transition-colors border-b ${isLight ? "hover:bg-slate-50/80 border-slate-200 bg-white" : "hover:bg-slate-800/40 border-slate-800/50"}`}>
+                      <td className="p-3">
+                        <input
+                          type="checkbox"
+                          className="h-3.5 w-3.5 accent-amber-400 rounded"
+                          checked={selPkgs.includes(p.id)}
+                          onChange={() => setSelPkgs((prev) => toggle(prev, p.id))}
+                        />
+                      </td>
+                      <td className="p-3">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${
+                            pkgState === "QLD"
+                              ? isLight ? "bg-cyan-100 text-cyan-800 border border-cyan-300" : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                              : isLight ? "bg-amber-100 text-amber-900 border border-amber-300" : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                          }`}>
+                            {pkgState}
+                          </span>
+                          <span className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-100"}`}>
+                            {titleCase(p.name || p.design) || "Untitled"}
+                          </span>
+                        </div>
+                        <div className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                          {[titleCase(p.facade_name), titleCase(p.range_id)]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          {p.needs_review && (
+                            <span className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold ${isLight ? "bg-amber-100 text-amber-800 border border-amber-300" : "bg-amber-500/10 text-amber-300 border border-amber-500/30"}`}>Price Review</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className={`p-3 text-xs ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                        {lot ? `${titleCase(lot.estate)} · ${titleCase(lot.suburb)}` : "—"}
+                      </td>
+
+                      <td className={`p-3 text-xs whitespace-nowrap ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>
+                        {[p.beds, p.baths, p.cars].filter(Boolean).join(" / ") || "—"}
+                      </td>
+                      <td className={`p-3 whitespace-nowrap ${isLight ? "text-slate-800 font-medium" : "text-slate-200"}`}>{money(p.house_price)}</td>
+                      <td className={`p-3 whitespace-nowrap ${isLight ? "text-slate-800 font-medium" : "text-slate-200"}`}>{money(p.land_price)}</td>
+                      <td className={`p-3 font-bold whitespace-nowrap ${isLight ? "text-amber-700" : "text-amber-300"}`}>{money(p.total_price)}</td>
                       <td className="p-3">
                         <input
                           type="checkbox"
@@ -1896,11 +2005,11 @@ function DatabasePage() {
                           onValueChange={(v) => updatePkg(p.id, { status: v as Pkg["status"] })}
                         >
                           <SelectTrigger
-                            className={`h-8 w-[110px] text-xs font-medium capitalize rounded-full ${statusTone(p.status)}`}
+                            className={`h-8 w-[110px] text-xs font-medium capitalize rounded-full ${statusTone(p.status, isLight)}`}
                           >
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                          <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                             {PKG_STATUS.map((s) => (
                               <SelectItem key={s} value={s} className="capitalize">
                                 {s}
@@ -1920,7 +2029,7 @@ function DatabasePage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+                            className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
                             onClick={() =>
                               openInFlyer({
                                 ...(p.flyer_data && typeof p.flyer_data === "object"

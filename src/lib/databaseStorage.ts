@@ -43,6 +43,8 @@ export interface Pkg {
   status: "live" | "draft" | "sold" | "nhc_exclusive";
   exclusive_consultants: string[] | null;
   flyer_json: Record<string, unknown> | null;
+  flyer_data?: unknown;
+  notes?: string | null;
   needs_review: boolean | null;
   updated_at: string | null;
 }
@@ -345,15 +347,28 @@ export function getLocalPackages(): Pkg[] {
 
 export function saveLocalPackages(packages: Pkg[]): void {
   try {
-    const cleanPackages = packages.map((p) => ({
-      ...p,
-      id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
-      lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
-    }));
+    const cleanPackages = packages.map((p) => {
+      let flyer = p.flyer_data || p.flyer_json;
+      if (flyer && typeof flyer === "object") {
+        const copy = { ...(flyer as Record<string, unknown>) };
+        for (const [k, v] of Object.entries(copy)) {
+          if (typeof v === "string" && v.startsWith("data:") && v.length > 30000) {
+            delete copy[k];
+          }
+        }
+        flyer = copy;
+      }
+      return {
+        ...p,
+        id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
+        lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
+        flyer_data: flyer,
+      };
+    });
     localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(cleanPackages));
     localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
-    console.warn("[databaseStorage] saveLocalPackages write error:", e);
+    console.warn("[databaseStorage] saveLocalPackages write notice (handled):", e);
   }
   broadcastDatabaseChange("packages_updated", { count: packages.length });
 }

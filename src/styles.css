@@ -488,7 +488,7 @@ html.normal-mode,
 }
 
 /* Inclusions Pills */
-.normal-mode aside div.flex.items-center.gap-1.5 input {
+.normal-mode aside div.flex.items-center[class*="gap-1.5"] input {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -548,3 +548,194 @@ html.normal-mode,
 .normal-mode div.grid.grid-cols-1 span {
   color: #334155 !important;
 }
+
+/* ==========================================================================
+   Universal Light Palette Overrides (Zero Darker Boxes Across Entire Website)
+   ========================================================================== */
+
+/* 1. Universal Panel and Card Backgrounds */
+.normal-mode main div.rounded-2xl.border,
+.normal-mode main div.rounded-xl.border,
+.normal-mode [role="dialog"],
+.normal-mode [data-radix-dialog-content],
+.normal-mode [data-radix-popper-content-wrapper] [role="dialog"],
+.normal-mode div[class*="bg-slate-950"],
+.normal-mode div[class*="bg-slate-900"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* Sub-panels and inset cards use subtle slate-50 */
+.normal-mode div[class*="bg-slate-950/60"],
+.normal-mode div[class*="bg-slate-950/70"],
+.normal-mode div[class*="bg-slate-900/40"],
+.normal-mode div[class*="bg-slate-900/50"],
+.normal-mode div[class*="bg-slate-900/60"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* 2. Text Colors */
+.normal-mode h1,
+.normal-mode h2,
+.normal-mode h3,
+.normal-mode h4,
+.normal-mode .text-slate-100,
+.normal-mode .text-slate-200,
+.normal-mode .text-white {
+  color: #0f172a !important;
+}
+
+.normal-mode .text-slate-400,
+.normal-mode .text-slate-500 {
+  color: #64748b !important;
+}
+
+.normal-mode label {
+  color: #334155 !important;
+}
+
+/* 3. Global Buttons in Normal Mode */
+.normal-mode button[class*="border-slate-800"],
+.normal-mode button[class*="bg-slate-900"],
+.normal-mode button[class*="bg-slate-950"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+.normal-mode button[class*="border-slate-800"]:hover,
+.normal-mode button[class*="bg-slate-900"]:hover,
+.normal-mode button[class*="bg-slate-950"]:hover {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+/* 4. Dropdowns, Menus & Select Popovers */
+.normal-mode [data-radix-select-content],
+.normal-mode [data-radix-dropdown-menu-content],
+.normal-mode [data-radix-popover-content] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.normal-mode [data-radix-select-item]:hover,
+.normal-mode [data-radix-select-item][data-highlighted] {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* 5. Database Page Normal Mode Overrides */
+.normal-mode table {
+  background-color: #ffffff !important;
+}
+
+.normal-mode table thead tr {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode table thead th {
+  color: #475569 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode table tbody tr {
+  border-color: #f1f5f9 !important;
+}
+
+.normal-mode table tbody tr:hover {
+  background-color: #f8fafc !important;
+}
+
+.normal-mode table td {
+  color: #0f172a !important;
+}
+
+/* 6. Quote Builder & Tender Request Normal Mode Overrides */
+.normal-mode aside {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode aside div[class*="bg-slate-950"],
+.normal-mode aside div[class*="bg-slate-900"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* 7. CRM Normal Mode Overrides */
+.normal-mode .crm-toolbar button,
+.normal-mode button.crm-action-btn {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #1e293b !important;
+}
+
+.normal-mode div[class*="kanban-column"],
+.normal-mode div[class*="pipeline-column"] {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode div[class*="lead-card"],
+.normal-mode div[class*="crm-card"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+/* 8. Hub Greeting Pill Badge */
+.normal-mode span.hub-display-pill,
+.normal-mode span[class*="bg-slate-900"][class*="rounded-full"],
+.normal-mode span[class*="bg-slate-950"][class*="rounded-full"] {
+  background-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+/* 9. Portal & Banner Gradient Overrides in Normal Mode */
+.normal-mode div[class*="from-rose-950"] {
+  background-image: none !important;
+  background-color: #fff1f2 !important;
+  border-color: #fecdd3 !important;
+}
+.normal-mode div[class*="from-rose-950"] h4,
+.normal-mode div[class*="from-rose-950"] div {
+  color: #9f1239 !important;
+}
+.normal-mode div[class*="from-rose-950"] p {
+  color: #881337 !important;
+}
+
+.normal-mode div[class*="from-cyan-950"] {
+  background-image: none !important;
+  background-color: #f0fdfa !important;
+  border-color: #a5f3fc !important;
+}
+.normal-mode div[class*="from-cyan-950"] h4 {
+  color: #0e7490 !important;
+}
+.normal-mode div[class*="from-cyan-950"] p {
+  color: #155e75 !important;
+}
+
+.normal-mode div[class*="from-emerald-950"] {
+  background-image: none !important;
+  background-color: #f0fdf4 !important;
+  border-color: #bbf7d0 !important;
+}
+.normal-mode div[class*="from-emerald-950"] h4 {
+  color: #15803d !important;
+}
+.normal-mode div[class*="from-emerald-950"] p {
+  color: #166534 !important;
+}
+
+
