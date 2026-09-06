@@ -45,5 +45,5 @@ export function otherSizesForDesign(priceListName: string) {
       return true;
     })
     .sort((a, b) => Number(a.size) - Number(b.size))
-    .map((p) => ({ label: p.label.replace(/[AB]$/, ""), size: `${p.size} m²` }));
+    .map((p) => ({ label: p.label.replace(/\s*\([^)]*\)/g, "").replace(/[AB]$/, "").trim(), size: `${p.size} m²` }));
 }

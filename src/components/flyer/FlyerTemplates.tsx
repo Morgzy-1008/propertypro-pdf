@@ -355,7 +355,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
                     key={o.label + o.size}
                     className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
                   >
-                    <span className="truncate min-w-0 font-medium text-brand-ink/75" title={o.label}>
+                    <span className="whitespace-nowrap font-medium text-brand-ink/80 flex-none" title={o.label}>
                       {o.label}
                     </span>
                     <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
@@ -665,7 +665,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
                     key={o.label + o.size}
                     className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
                   >
-                    <span className="truncate min-w-0 font-medium text-brand-ink/75" title={o.label}>
+                    <span className="whitespace-nowrap font-medium text-brand-ink/80 flex-none" title={o.label}>
                       {o.label}
                     </span>
                     <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
