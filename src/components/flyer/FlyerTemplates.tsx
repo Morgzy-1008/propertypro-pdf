@@ -316,14 +316,14 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
       </div>
 
       {/* Floorplan & Inclusions Row */}
-      <div className="grid grid-cols-[40mm_1fr] gap-[3mm] px-[2mm] pt-[0.8mm]">
+      <div className="grid grid-cols-[48mm_1fr] gap-[3.5mm] px-[2mm] pt-[0.8mm]">
         <div>
-          <div className="text-[2.5mm] font-bold tracking-[0.22em] text-brand-gold-deep">
+          <div className="text-[2.4mm] font-bold tracking-[0.16em] text-brand-gold-deep">
             {getRange(d.range).label.toUpperCase()}
           </div>
           <ul className="mt-[1.8mm] space-y-[1.2mm]">
             {rangeItems(d).map((line) => (
-              <li key={line} className="flex gap-[1.5mm] text-[2.6mm] leading-[1.2]">
+              <li key={line} className="flex gap-[1.5mm] text-[2.5mm] leading-[1.2]">
                 <span className="mt-[1mm] h-[1mm] w-[1mm] flex-none rounded-full bg-brand-gold" />
                 <span className="text-brand-ink/80">{line}</span>
               </li>
@@ -331,14 +331,14 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
           </ul>
           <div className="mt-[3mm] grid grid-cols-2 gap-[1.5mm]">
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
-              <div className="text-[1.9mm] font-semibold tracking-[0.18em] text-brand-ink/50">LAND ONLY</div>
-              <div className="font-display text-[4.8mm] leading-[1.1] text-brand-navy">
+              <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">LAND ONLY</div>
+              <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
                 {d.landPrice || "$—"}
               </div>
             </div>
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
-              <div className="text-[1.9mm] font-semibold tracking-[0.18em] text-brand-ink/50">HOUSE ONLY</div>
-              <div className="font-display text-[4.8mm] leading-[1.1] text-brand-navy">
+              <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">HOUSE ONLY</div>
+              <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
                 {d.housePrice || "$—"}
               </div>
             </div>
@@ -346,17 +346,21 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 
           {d.showOtherSizes && d.otherSizes.length > 0 && (
             <div className="mt-[3mm]">
-              <div className="text-[2.2mm] font-bold tracking-[0.22em] text-brand-gold-deep">
+              <div className="text-[2.1mm] font-bold tracking-[0.14em] text-brand-gold-deep whitespace-nowrap uppercase">
                 OTHER SIZES AVAILABLE
               </div>
               <div className="mt-[1.2mm] divide-y divide-brand-sand border-t border-brand-sand">
                 {d.otherSizes.slice(0, 5).map((o) => (
                   <div
                     key={o.label + o.size}
-                    className="flex justify-between gap-[2mm] py-[1mm] text-[2.4mm]"
+                    className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
                   >
-                    <span className="truncate text-brand-ink/70">{o.label}</span>
-                    <span className="flex-none font-semibold text-brand-navy">{o.size}</span>
+                    <span className="truncate min-w-0 font-medium text-brand-ink/75" title={o.label}>
+                      {o.label}
+                    </span>
+                    <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
+                      {o.size}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -626,14 +630,14 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
       </div>
 
       {/* Floorplan & Inclusions Row */}
-      <div className="grid grid-cols-[40mm_1fr] gap-[3mm] px-[2mm] pt-[0.8mm]">
+      <div className="grid grid-cols-[48mm_1fr] gap-[3.5mm] px-[2mm] pt-[0.8mm]">
         <div>
-          <div className="text-[2.5mm] font-bold tracking-[0.22em] text-brand-gold-deep">
+          <div className="text-[2.4mm] font-bold tracking-[0.16em] text-brand-gold-deep">
             {getRange(d.range).label.toUpperCase()}
           </div>
           <ul className="mt-[1.8mm] space-y-[1.2mm]">
             {rangeItems(d).map((line) => (
-              <li key={line} className="flex gap-[1.5mm] text-[2.6mm] leading-[1.2]">
+              <li key={line} className="flex gap-[1.5mm] text-[2.5mm] leading-[1.2]">
                 <span className="mt-[1mm] h-[1mm] w-[1mm] flex-none rounded-full bg-brand-gold" />
                 <span className="text-brand-ink/80">{line}</span>
               </li>
@@ -641,7 +645,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
           </ul>
 
           <div className="mt-[3mm] rounded-[1.2mm] bg-brand-sand px-[2.2mm] py-[2mm]">
-            <div className="text-[1.9mm] font-semibold tracking-[0.18em] text-brand-ink/50">BUILD PRICE FROM</div>
+            <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">BUILD PRICE FROM</div>
             <div className="font-display text-[5.5mm] leading-[1.1] text-brand-navy">
               {d.housePrice || "$—"}
             </div>
@@ -652,17 +656,21 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
           {d.showOtherSizes && d.otherSizes.length > 0 && (
             <div className="mt-[3mm]">
-              <div className="text-[2.2mm] font-bold tracking-[0.22em] text-brand-gold-deep">
+              <div className="text-[2.1mm] font-bold tracking-[0.14em] text-brand-gold-deep whitespace-nowrap uppercase">
                 OTHER SIZES AVAILABLE
               </div>
               <div className="mt-[1.2mm] divide-y divide-brand-sand border-t border-brand-sand">
                 {d.otherSizes.slice(0, 5).map((o) => (
                   <div
                     key={o.label + o.size}
-                    className="flex justify-between gap-[2mm] py-[1mm] text-[2.4mm]"
+                    className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
                   >
-                    <span className="truncate text-brand-ink/70">{o.label}</span>
-                    <span className="flex-none font-semibold text-brand-navy">{o.size}</span>
+                    <span className="truncate min-w-0 font-medium text-brand-ink/75" title={o.label}>
+                      {o.label}
+                    </span>
+                    <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
+                      {o.size}
+                    </span>
                   </div>
                 ))}
               </div>

@@ -1,4 +1,5 @@
 import { CURRENT_DATABASE_PACKAGES } from "@/lib/public-listings.functions";
+import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 
 export interface Lot {
   id: string;
@@ -101,7 +102,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
       : `${100 + idx + 1}`;
     const lotKey = `qld-${estate.toLowerCase()}-${suburb.toLowerCase()}-${lotNum}`;
 
-    let lotId = `lot-${lotKey}`;
+    let lotId = toValidUuid(lotKey) || generateUuid();
     if (!lotMap.has(lotKey)) {
       const newLot: Lot = {
         id: lotId,
@@ -138,7 +139,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
     }
 
     pkgs.push({
-      id: item.id || `pkg-${idx + 1}`,
+      id: toValidUuid(item.id || `pkg-${idx + 1}`) || generateUuid(),
       lot_id: lotId,
       name: item.name || `${item.design} · ${estate}`,
       housing_type: item.housingType || "Single Storey",
@@ -176,7 +177,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
     for (let l = 1; l <= 3; l++) {
       const lotNum = `${200 + i * 10 + l}`;
       const lotKey = `nsw-${nsw.estate.toLowerCase()}-${nsw.suburb.toLowerCase()}-${lotNum}`;
-      const lotId = `lot-${lotKey}`;
+      const lotId = toValidUuid(lotKey) || generateUuid();
 
       const newLot: Lot = {
         id: lotId,
@@ -208,7 +209,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
       const isDouble = chosenDesign.includes("Burgundy") || chosenDesign.includes("Emerald");
 
       pkgs.push({
-        id: `pkg-nsw-${i}-${l}`,
+        id: toValidUuid(`pkg-nsw-${i}-${l}`) || generateUuid(),
         lot_id: lotId,
         name: `${chosenDesign} · ${nsw.estate}`,
         housing_type: isDouble ? "Double Storey" : "Single Storey",
@@ -242,7 +243,38 @@ export function getLocalLots(): Lot[] {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
-        return parsed;
+        let hasMigration = false;
+        const idReplacements = new Map<string, string>();
+        const migratedLots: Lot[] = parsed.map((lot: Lot) => {
+          if (!lot.id || !isValidUuid(lot.id)) {
+            const newId = toValidUuid(lot.id || `${lot.estate}-${lot.lot_number}`) || generateUuid();
+            if (lot.id) idReplacements.set(lot.id, newId);
+            hasMigration = true;
+            return { ...lot, id: newId };
+          }
+          return lot;
+        });
+
+        if (hasMigration) {
+          try {
+            localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(migratedLots));
+            // Also update any existing packages that referenced old lot IDs
+            const pkgRaw = localStorage.getItem(STORAGE_KEY_PACKAGES);
+            if (pkgRaw) {
+              const pkgs = JSON.parse(pkgRaw);
+              if (Array.isArray(pkgs)) {
+                const updatedPkgs = pkgs.map((p: Pkg) => {
+                  if (p.lot_id && idReplacements.has(p.lot_id)) {
+                    return { ...p, lot_id: idReplacements.get(p.lot_id)! };
+                  }
+                  return p;
+                });
+                localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(updatedPkgs));
+              }
+            }
+          } catch {}
+        }
+        return migratedLots;
       }
     }
   } catch (e) {
@@ -259,7 +291,11 @@ export function getLocalLots(): Lot[] {
 
 export function saveLocalLots(lots: Lot[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(lots));
+    const cleanLots = lots.map((l) => ({
+      ...l,
+      id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
+    }));
+    localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(cleanLots));
     localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
     console.warn("[databaseStorage] saveLocalLots write error:", e);
@@ -274,7 +310,25 @@ export function getLocalPackages(): Pkg[] {
     if (raw !== null) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
-        return parsed;
+        let hasMigration = false;
+        const migratedPkgs: Pkg[] = parsed.map((pkg: Pkg) => {
+          let updated = pkg;
+          if (!pkg.id || !isValidUuid(pkg.id)) {
+            hasMigration = true;
+            updated = { ...updated, id: toValidUuid(pkg.id || pkg.name) || generateUuid() };
+          }
+          if (pkg.lot_id && !isValidUuid(pkg.lot_id)) {
+            hasMigration = true;
+            updated = { ...updated, lot_id: toValidUuid(pkg.lot_id) };
+          }
+          return updated;
+        });
+        if (hasMigration) {
+          try {
+            localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(migratedPkgs));
+          } catch {}
+        }
+        return migratedPkgs;
       }
     }
   } catch (e) {
@@ -291,7 +345,12 @@ export function getLocalPackages(): Pkg[] {
 
 export function saveLocalPackages(packages: Pkg[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(packages));
+    const cleanPackages = packages.map((p) => ({
+      ...p,
+      id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
+      lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
+    }));
+    localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(cleanPackages));
     localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
     console.warn("[databaseStorage] saveLocalPackages write error:", e);
@@ -300,14 +359,18 @@ export function saveLocalPackages(packages: Pkg[]): void {
 }
 
 export function upsertLocalLot(lot: Lot): Lot[] {
+  const normalizedLot: Lot = {
+    ...lot,
+    id: isValidUuid(lot.id) ? lot.id : (toValidUuid(lot.id) || generateUuid()),
+  };
   const current = getLocalLots();
-  const idx = current.findIndex((l) => l.id === lot.id);
+  const idx = current.findIndex((l) => l.id === normalizedLot.id);
   let updated: Lot[];
   if (idx >= 0) {
     updated = [...current];
-    updated[idx] = { ...lot, updated_at: new Date().toISOString() };
+    updated[idx] = { ...normalizedLot, updated_at: new Date().toISOString() };
   } else {
-    updated = [{ ...lot, updated_at: new Date().toISOString() }, ...current];
+    updated = [{ ...normalizedLot, updated_at: new Date().toISOString() }, ...current];
   }
   saveLocalLots(updated);
   return updated;
@@ -315,20 +378,26 @@ export function upsertLocalLot(lot: Lot): Lot[] {
 
 export function deleteLocalLot(id: string): Lot[] {
   const current = getLocalLots();
-  const updated = current.filter((l) => l.id !== id);
+  const normalizedId = isValidUuid(id) ? id : (toValidUuid(id) || id);
+  const updated = current.filter((l) => l.id !== id && l.id !== normalizedId);
   saveLocalLots(updated);
   return updated;
 }
 
 export function upsertLocalPackage(pkg: Pkg): Pkg[] {
+  const normalizedPkg: Pkg = {
+    ...pkg,
+    id: isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid()),
+    lot_id: pkg.lot_id ? (isValidUuid(pkg.lot_id) ? pkg.lot_id : toValidUuid(pkg.lot_id)) : null,
+  };
   const current = getLocalPackages();
-  const idx = current.findIndex((p) => p.id === pkg.id);
+  const idx = current.findIndex((p) => p.id === normalizedPkg.id);
   let updated: Pkg[];
   if (idx >= 0) {
     updated = [...current];
-    updated[idx] = { ...pkg, updated_at: new Date().toISOString() };
+    updated[idx] = { ...normalizedPkg, updated_at: new Date().toISOString() };
   } else {
-    updated = [{ ...pkg, updated_at: new Date().toISOString() }, ...current];
+    updated = [{ ...normalizedPkg, updated_at: new Date().toISOString() }, ...current];
   }
   saveLocalPackages(updated);
   return updated;
@@ -336,7 +405,8 @@ export function upsertLocalPackage(pkg: Pkg): Pkg[] {
 
 export function deleteLocalPackage(id: string): Pkg[] {
   const current = getLocalPackages();
-  const updated = current.filter((p) => p.id !== id);
+  const normalizedId = isValidUuid(id) ? id : (toValidUuid(id) || id);
+  const updated = current.filter((p) => p.id !== id && p.id !== normalizedId);
   saveLocalPackages(updated);
   return updated;
 }

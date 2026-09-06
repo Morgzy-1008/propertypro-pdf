@@ -54,6 +54,7 @@ import {
   DB_SYNC_CHANNEL_NAME,
   broadcastDatabaseChange,
 } from "@/lib/databaseStorage";
+import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
@@ -334,7 +335,9 @@ function LotDialog({
       exclusive_consultants: exclusive,
     };
 
-    const lotId = lot?.id || `lot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const lotId = (lot?.id && isValidUuid(lot.id))
+      ? lot.id
+      : (lot?.id ? toValidUuid(lot.id) : null) || generateUuid();
     const fullLot: Lot = {
       ...payload,
       id: lotId,
@@ -345,7 +348,7 @@ function LotDialog({
 
     try {
       const { error } = lot
-        ? await supabase.from("land_lots").update(payload).eq("id", lot.id)
+        ? await supabase.from("land_lots").update(payload).eq("id", lotId)
         : await supabase.from("land_lots").insert({ ...payload, id: lotId });
       if (error) {
         console.warn("[database] Supabase sync lot error:", error);
@@ -618,7 +621,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
 
       return {
-        id: `lot-imp-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+        id: generateUuid(),
         estate: estate.trim(),
         suburb: suburb.trim(),
         developer: developer.trim(),

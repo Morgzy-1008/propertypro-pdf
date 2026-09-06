@@ -79,7 +79,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     host.style.overflow = "hidden";
     host.style.background = "#ffffff";
     host.style.boxSizing = "border-box";
-    host.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    host.style.fontFamily = "'Barlow', 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     (host.style as any).webkitFontSmoothing = "antialiased";
     (host.style as any).mozOsxFontSmoothing = "grayscale";
 
@@ -94,7 +94,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     clone.style.minHeight = "1123px";
     clone.style.maxHeight = "1123px";
     clone.style.overflow = "hidden";
-    clone.style.fontFamily = "'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    clone.style.fontFamily = "'Barlow', 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     (clone.style as any).webkitFontSmoothing = "antialiased";
     (clone.style as any).mozOsxFontSmoothing = "grayscale";
 
