@@ -93,6 +93,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { FloorplanMarkupViewer } from "./FloorplanMarkupViewer";
 import { TenderMasterPdfDocument } from "./TenderMasterPdfDocument";
+import { TenderReadinessChecklist } from "./TenderReadinessChecklist";
 import { DigitalSignatureModal } from "./DigitalSignatureModal";
 import { getActiveStaffUser, onStaffUserChanged, KNOWN_STAFF_PROFILES, type StaffProfile } from "@/lib/authSession";
 import { renderA4PdfBlob } from "@/lib/downloadPdf";
@@ -3272,6 +3273,12 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </Button>
               </div>
             </div>
+
+            {/* Pre-Flight Checklist: Audits ATP, Client Details, Land Details, and Required Job Folder Files */}
+            <TenderReadinessChecklist
+              tender={tender}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+            />
 
             {/* Generated Master PDF Preview */}
             <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 p-4">

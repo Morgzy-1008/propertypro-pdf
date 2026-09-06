@@ -31,8 +31,10 @@ import {
   CrmStageId,
   CRM_PIPELINE_STAGES,
   HUDSON_CONSULTANTS,
+  normalizeConsultantId,
 } from "@/lib/crm/crmTypes";
 import { saveCrmLead } from "@/lib/crm/crmStorage";
+import { getActiveStaffUser } from "@/lib/authSession";
 import { toast } from "sonner";
 
 interface CrmNewClientModalProps {
@@ -75,9 +77,20 @@ export function CrmNewClientModal({
 
   // Workflow & Assignment
   const [stage, setStage] = useState<CrmStageId>("new_lead");
-  const [assignedConsultantId, setAssignedConsultantId] = useState(defaultConsultantId);
+  const [assignedConsultantId, setAssignedConsultantId] = useState(() => normalizeConsultantId(defaultConsultantId));
   const [leadSource, setLeadSource] = useState<CrmLead["leadSource"]>("Display Home Kiosk");
   const [notes, setNotes] = useState("");
+
+  // Auto-sync consultant assignment whenever modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      const activeUser = getActiveStaffUser();
+      const resolvedId = defaultConsultantId && defaultConsultantId !== "all"
+        ? normalizeConsultantId(defaultConsultantId)
+        : normalizeConsultantId(activeUser?.id || activeUser?.name);
+      setAssignedConsultantId(resolvedId);
+    }
+  }, [isOpen, defaultConsultantId]);
 
   const handleReset = () => {
     setClient1FirstName("");
@@ -98,7 +111,7 @@ export function CrmNewClientModal({
     setFacadeName("Classic");
     setTotalEstimatedDealValue(460000);
     setStage("new_lead");
-    setAssignedConsultantId(defaultConsultantId);
+    setAssignedConsultantId(normalizeConsultantId(defaultConsultantId));
     setLeadSource("Display Home Kiosk");
     setNotes("");
   };
@@ -112,7 +125,8 @@ export function CrmNewClientModal({
       return;
     }
 
-    const consultant = HUDSON_CONSULTANTS.find((c) => c.id === assignedConsultantId) || HUDSON_CONSULTANTS[0];
+    const resolvedConsultantId = normalizeConsultantId(assignedConsultantId);
+    const consultant = HUDSON_CONSULTANTS.find((c) => c.id === resolvedConsultantId) || HUDSON_CONSULTANTS[0];
 
     const newLead: CrmLead = {
       id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -207,22 +221,20 @@ export function CrmNewClientModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">First Name *</Label>
+                <Label className="text-xs text-slate-300">First / Full Name *</Label>
                 <Input
-                  required
                   value={client1FirstName}
                   onChange={(e) => setClient1FirstName(e.target.value)}
-                  placeholder="e.g. Jordan"
+                  placeholder="e.g. Jordan Mitchell"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-white font-medium"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Last Name *</Label>
+                <Label className="text-xs text-slate-300">Last Name (Optional if Full Name entered)</Label>
                 <Input
-                  required
                   value={client1LastName}
                   onChange={(e) => setClient1LastName(e.target.value)}
-                  placeholder="e.g. Hales"
+                  placeholder="e.g. Mitchell"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-white font-medium"
                 />
               </div>

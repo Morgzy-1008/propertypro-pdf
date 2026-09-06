@@ -239,6 +239,22 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
   },
 ];
 
+export function normalizeConsultantId(idOrEmailOrName?: string): string {
+  if (!idOrEmailOrName) return "morgan_hales";
+  const s = idOrEmailOrName.toLowerCase().replace(/-/g, "_").trim();
+  if (s.includes("jesse")) return "jesse";
+  if (s.includes("adrian")) return "adrian";
+  if (s.includes("morgan")) return "morgan_hales";
+  if (s.includes("alyssa")) return "alyssa_hales";
+  if (s.includes("shelley")) return "shelley_lay";
+  if (s.includes("ben")) return "ben_grill";
+  if (s.includes("gary")) return "gary_rees";
+  if (s.includes("steve")) return "steve_silsar";
+  if (s.includes("christine")) return "christine_hunt";
+  if (s.includes("aaron")) return "aaron_martin";
+  return s;
+}
+
 export interface CrmTask {
   id: string;
   title: string;

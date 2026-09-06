@@ -86,15 +86,55 @@ export default async function handler(req, res) {
       }
     }
 
-    let lat = geoItem ? parseFloat(geoItem.lat) : (isBrownfield ? -27.5180 : -27.8184);
-    let lon = geoItem ? parseFloat(geoItem.lon) : (isBrownfield ? 152.9828 : 152.9568);
+    // Known Queensland / South East Queensland Suburb Coordinates Map for exact fallback
+    const SEQ_SUBURB_COORDS = {
+      "jimboomba": { lat: -27.8300, lon: 153.0300, council: "Logan City Council", postcode: "4280" },
+      "tamborine": { lat: -27.8800, lon: 153.1300, council: "Scenic Rim Regional Council", postcode: "4270" },
+      "greenbank": { lat: -27.7300, lon: 152.9800, council: "Logan City Council", postcode: "4124" },
+      "chambers flat": { lat: -27.7500, lon: 153.0800, council: "Logan City Council", postcode: "4133" },
+      "park ridge": { lat: -27.7000, lon: 153.0300, council: "Logan City Council", postcode: "4125" },
+      "flagstone": { lat: -27.8184, lon: 152.9568, council: "Logan City Council", postcode: "4280" },
+      "south ripley": { lat: -27.6934, lon: 152.7912, council: "Ipswich City Council", postcode: "4306" },
+      "ripley": { lat: -27.6850, lon: 152.7950, council: "Ipswich City Council", postcode: "4306" },
+      "yarrabilba": { lat: -27.8150, lon: 153.1300, council: "Logan City Council", postcode: "4207" },
+      "springfield": { lat: -27.6600, lon: 152.9100, council: "Ipswich City Council", postcode: "4300" },
+      "springfield rise": { lat: -27.6700, lon: 152.9000, council: "Ipswich City Council", postcode: "4300" },
+      "harmony": { lat: -26.7400, lon: 153.0600, council: "Sunshine Coast Council", postcode: "4553" },
+      "palmview": { lat: -26.7400, lon: 153.0600, council: "Sunshine Coast Council", postcode: "4553" },
+      "north harbour": { lat: -27.1400, lon: 153.0200, council: "City of Moreton Bay", postcode: "4505" },
+      "burpengary": { lat: -27.1600, lon: 152.9700, council: "City of Moreton Bay", postcode: "4505" },
+      "bahrs scrub": { lat: -27.7300, lon: 153.1800, council: "Logan City Council", postcode: "4207" },
+      "cedar creek": { lat: -27.8500, lon: 153.1900, council: "Logan City Council", postcode: "4207" },
+      "waterford": { lat: -27.7000, lon: 153.1400, council: "Logan City Council", postcode: "4133" },
+      "logan village": { lat: -27.7700, lon: 153.1100, council: "Logan City Council", postcode: "4207" },
+      "undullah": { lat: -27.8200, lon: 152.9000, council: "Logan City Council", postcode: "4285" },
+      "graceville": { lat: -27.5218, lon: 152.9782, council: "Brisbane City Council", postcode: "4075" },
+      "sherwood": { lat: -27.5300, lon: 152.9800, council: "Brisbane City Council", postcode: "4075" },
+      "chelmer": { lat: -27.5150, lon: 152.9750, council: "Brisbane City Council", postcode: "4068" },
+    };
+
+    let matchedSubCoord = null;
+    const lowerQ = queryAddress.toLowerCase();
+    for (const [subKey, val] of Object.entries(SEQ_SUBURB_COORDS)) {
+      if (lowerQ.includes(subKey)) {
+        matchedSubCoord = { name: subKey, ...val };
+        break;
+      }
+    }
+
+    let lat = geoItem
+      ? parseFloat(geoItem.lat)
+      : (matchedSubCoord ? matchedSubCoord.lat : (isBrownfield ? -27.5180 : -27.8184));
+    let lon = geoItem
+      ? parseFloat(geoItem.lon)
+      : (matchedSubCoord ? matchedSubCoord.lon : (isBrownfield ? 152.9828 : 152.9568));
     const addr = geoItem?.address || {};
 
-    const suburb = addr.suburb || addr.city_district || addr.town || addr.village || (isBrownfield ? "Graceville" : "Flagstone");
-    const postcode = addr.postcode || (isBrownfield ? "4075" : "4280");
+    const suburb = addr.suburb || addr.city_district || addr.town || addr.village || (matchedSubCoord ? matchedSubCoord.name.toUpperCase() : (isBrownfield ? "Graceville" : "Flagstone"));
+    const postcode = addr.postcode || (matchedSubCoord ? matchedSubCoord.postcode : (isBrownfield ? "4075" : "4280"));
     const streetName = addr.road || "";
     const houseNumber = addr.house_number || "";
-    const councilName = addr.city || addr.county || (isBrownfield ? "Brisbane City Council" : "Logan City Council");
+    const councilName = addr.city || addr.county || (matchedSubCoord ? matchedSubCoord.council : (isBrownfield ? "Brisbane City Council" : "Logan City Council"));
 
     // 3. Query Queensland Spatial Information DCDB (Department of Resources)
     let parcelData = null;
@@ -206,6 +246,13 @@ export default async function handler(req, res) {
       }
     }
 
+    const isAcreage =
+      queryAddress.toLowerCase().includes("acre") ||
+      queryAddress.toLowerCase().includes("rural") ||
+      queryAddress.toLowerCase().includes("ha") ||
+      queryAddress.toLowerCase().includes("hectare") ||
+      (parcelData.areaM2 && parcelData.areaM2 >= 1200);
+
     return res.status(200).json({
       success: true,
       address: queryAddress,
@@ -219,6 +266,38 @@ export default async function handler(req, res) {
         postcode: postcode || "4000",
         latitude: lat,
         longitude: lon,
+      },
+      surrounding: {
+        hasBusStopWithin50m: false,
+        busStopDistanceM: 0,
+        busStopDetails: "",
+        hasSchoolWithin100m: false,
+        trafficControlRequired: false,
+        trafficControlCost: 0,
+        hasOverheadPowerLines: false,
+        hasPowerPoleOnFrontage: false,
+        treeCount: 0,
+        significantTreesPresent: false,
+        onStreetParkingRestricted: false,
+        siteAccessRating: isAcreage ? "Good (Acreage - Ample On-Site Parking)" : "Good",
+      },
+      overlays: {
+        bushfireBal: "None",
+        bushfireReportRequired: false,
+        bushfireCost: 0,
+        floodHazard: "None",
+        floodReportRequired: false,
+        floodCost: 0,
+        recommendedSlabElevationM: 0,
+        contoursFallM: 0.5,
+        slopeDirection: "Relatively Flat",
+        fallCost: 0,
+        acousticCategory: "None",
+        acousticReportRequired: false,
+        acousticCost: 0,
+        hasSewerEasement: false,
+        cctvSewerRequired: false,
+        cctvSewerCost: 0,
       },
     });
   } catch (err) {

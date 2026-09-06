@@ -5,6 +5,7 @@ import {
   CRM_PIPELINE_STAGES,
   HUDSON_CONSULTANTS,
   CrmMessage,
+  normalizeConsultantId,
 } from "@/lib/crm/crmTypes";
 import {
   loadAllCrmLeads,
@@ -58,6 +59,13 @@ export function CrmWorkspace() {
 
   const [staffUser, setStaffUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const canViewCommissions = useMemo(() => canViewRemuneration(staffUser), [staffUser]);
+  const isAdmin = useMemo(
+    () =>
+      staffUser?.role === "admin" ||
+      staffUser?.id === "morgan-hales" ||
+      staffUser?.email === "morgan.hales@hudsonhomes.com.au",
+    [staffUser]
+  );
 
   const [leads, setLeads] = useState<CrmLead[]>([]);
   const [messages, setMessages] = useState<CrmMessage[]>([]);
@@ -328,18 +336,25 @@ export function CrmWorkspace() {
             />
           </div>
 
-          <select
-            value={selectedConsultantId}
-            onChange={(e) => setSelectedConsultantId(e.target.value)}
-            className="h-8 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 px-2.5 font-medium"
-          >
-            <option value="all">All Consultants</option>
-            {HUDSON_CONSULTANTS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({c.displayOffice})
-              </option>
-            ))}
-          </select>
+          {activeTab === "commissions" && !isAdmin ? (
+            <div className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold shrink-0">
+              <Lock className="h-3 w-3" />
+              <span>{staffUser?.name || "My Account"}</span>
+            </div>
+          ) : (
+            <select
+              value={selectedConsultantId}
+              onChange={(e) => setSelectedConsultantId(e.target.value)}
+              className="h-8 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 px-2.5 font-medium"
+            >
+              <option value="all">All Consultants</option>
+              {HUDSON_CONSULTANTS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.displayOffice})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -405,9 +420,14 @@ export function CrmWorkspace() {
       <CrmNewClientModal
         isOpen={isNewClientModalOpen}
         onClose={() => setIsNewClientModalOpen(false)}
-        defaultConsultantId={selectedConsultantId !== "all" ? selectedConsultantId : "morgan_hales"}
+        defaultConsultantId={selectedConsultantId !== "all" ? selectedConsultantId : normalizeConsultantId(staffUser?.id || staffUser?.name)}
         onCreated={(newLead) => {
-          refreshData();
+          setLeads((prev) => [newLead, ...prev.filter((l) => l.id !== newLead.id)]);
+          if (selectedConsultantId !== "all" && selectedConsultantId !== newLead.assignedConsultantId) {
+            setSelectedConsultantId(newLead.assignedConsultantId);
+          }
+          setActiveTab("kanban");
+          void refreshData();
           setActiveLead(newLead);
           setIsClientDetailOpen(true);
         }}

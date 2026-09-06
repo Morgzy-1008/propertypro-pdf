@@ -15,7 +15,7 @@ import {
   Lock,
   Save,
 } from "lucide-react";
-import { CrmLead, HUDSON_CONSULTANTS } from "@/lib/crm/crmTypes";
+import { CrmLead, HUDSON_CONSULTANTS, normalizeConsultantId } from "@/lib/crm/crmTypes";
 import {
   calculateConsultantEarnings,
   ConsultantEarningsSummary,
@@ -51,6 +51,26 @@ export function CrmCommissionDashboard({
   const staffUser = getActiveStaffUser();
   const isAuthorized = canViewRemuneration(staffUser);
 
+  // Admin access check (Morgan Hales or admin role)
+  const isAdmin =
+    staffUser?.role === "admin" ||
+    staffUser?.id === "morgan-hales" ||
+    staffUser?.email === "morgan.hales@hudsonhomes.com.au";
+
+  // If user is NHC, strictly lock to their own consultant ID.
+  const activeConsultantId = isAdmin
+    ? selectedConsultantId && selectedConsultantId !== "all"
+      ? selectedConsultantId
+      : "morgan_hales"
+    : normalizeConsultantId(staffUser?.id || staffUser?.name);
+
+  // Auto-sync parent state if NHC is currently on another consultant or "all"
+  React.useEffect(() => {
+    if (!isAdmin && selectedConsultantId !== activeConsultantId) {
+      onSelectConsultant(activeConsultantId);
+    }
+  }, [isAdmin, selectedConsultantId, activeConsultantId, onSelectConsultant]);
+
   if (!isAuthorized) {
     return (
       <div className={`p-8 rounded-2xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"} text-center space-y-3`}>
@@ -66,10 +86,14 @@ export function CrmCommissionDashboard({
   // Private salary & commission editor
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [currentSettings, setCurrentSettings] = useState(() =>
-    loadConsultantSettings(selectedConsultantId)
+    loadConsultantSettings(activeConsultantId)
   );
 
-  const summary = calculateConsultantEarnings(selectedConsultantId, leads);
+  React.useEffect(() => {
+    setCurrentSettings(loadConsultantSettings(activeConsultantId));
+  }, [activeConsultantId]);
+
+  const summary = calculateConsultantEarnings(activeConsultantId, leads);
 
   const formatAud = (val: number) =>
     new Intl.NumberFormat("en-AU", {
@@ -80,7 +104,7 @@ export function CrmCommissionDashboard({
 
   const handleSavePrivateSettings = (e: React.FormEvent) => {
     e.preventDefault();
-    saveConsultantSettings(selectedConsultantId, currentSettings);
+    saveConsultantSettings(activeConsultantId, currentSettings);
     toast.success("Private commission structure updated! ✓");
     setIsSettingsOpen(false);
   };
@@ -110,29 +134,37 @@ export function CrmCommissionDashboard({
           </div>
         </div>
 
-        {/* Consultant Switcher & Settings Toggle */}
+        {/* Consultant Switcher (Admin only) or Locked Identity Badge (NHC) */}
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1.5 min-w-[200px]">
-            <UserCheck className="h-4 w-4 text-slate-400" />
-            <Select
-              value={selectedConsultantId}
-              onValueChange={(id) => {
-                onSelectConsultant(id);
-                setCurrentSettings(loadConsultantSettings(id));
-              }}
-            >
-              <SelectTrigger className="border-slate-800 bg-slate-950 text-xs font-bold text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-950 text-slate-100">
-                {HUDSON_CONSULTANTS.map((c) => (
-                  <SelectItem key={c.id} value={c.id} className="text-xs font-semibold">
-                    {c.name} ({c.displayOffice})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isAdmin ? (
+            <div className="flex items-center gap-1.5 min-w-[200px]">
+              <UserCheck className="h-4 w-4 text-slate-400" />
+              <Select
+                value={activeConsultantId}
+                onValueChange={(id) => {
+                  onSelectConsultant(id);
+                  setCurrentSettings(loadConsultantSettings(id));
+                }}
+              >
+                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs font-bold text-white">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="border-slate-800 bg-slate-950 text-slate-100">
+                  {HUDSON_CONSULTANTS.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs font-semibold">
+                      {c.name} ({c.displayOffice})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-300 font-bold text-xs shadow-inner">
+              <Lock className="h-3.5 w-3.5 text-amber-400" />
+              <span>{summary.consultantName}</span>
+              <span className="text-[10px] text-amber-400/80 font-normal">({staffUser?.displayCentre || "My Commissions"})</span>
+            </div>
+          )}
 
           <Button
             variant="outline"
