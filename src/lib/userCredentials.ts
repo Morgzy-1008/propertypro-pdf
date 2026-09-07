@@ -23,7 +23,7 @@ export const PREV_STAFF_EMAILS = [
 // Only these new consultants need to be prompted to create a password on their initial login.
 export const NEW_STAFF_EMAILS = [
   "gary.rees@hudsonhomes.com.au",
-  "steve.silsar@hudsonhomes.com.au",
+  "steve.slisar@hudsonhomes.com.au",
   "christine.hunt@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
 ];
@@ -71,7 +71,9 @@ export function normalizeStaffEmail(email?: string | null): string {
   if (clean === "ben@hudsonhomes.com.au") clean = "ben.grill@hudsonhomes.com.au";
   if (clean === "christine@hudsonhomes.com.au") clean = "christine.hunt@hudsonhomes.com.au";
   if (clean === "gary@hudsonhomes.com.au") clean = "gary.rees@hudsonhomes.com.au";
-  if (clean === "steve@hudsonhomes.com.au") clean = "steve.silsar@hudsonhomes.com.au";
+  if (clean === "steve@hudsonhomes.com.au" || clean === "steve.silsar@hudsonhomes.com.au") {
+    clean = "steve.slisar@hudsonhomes.com.au";
+  }
   if (clean === "aaron@hudsonhomes.com.au") clean = "aaron.martin@hudsonhomes.com.au";
   return clean;
 }

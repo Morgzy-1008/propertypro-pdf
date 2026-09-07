@@ -108,9 +108,9 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     accentColor: "from-teal-500 to-emerald-600",
   },
   {
-    id: "steve-silsar",
-    name: "Steve Silsar",
-    email: "steve.silsar@hudsonhomes.com.au",
+    id: "steve-slisar",
+    name: "Steve Slisar",
+    email: "steve.slisar@hudsonhomes.com.au",
     phone: "0483 950 830",
     title: "New Home Sales Consultant",
     displayCentre: "HomeWorld Warnervale Display",
@@ -250,9 +250,12 @@ export function getActiveStaffUser(): StaffProfile {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && (parsed.email || parsed.id)) {
-        const known = findStaffProfileByEmail(parsed.email);
+        let known = findStaffProfileByEmail(parsed.email);
+        if (!known && (parsed.id === "steve-silsar" || parsed.id === "steve-slisar")) {
+          known = KNOWN_STAFF_PROFILES.find((p) => p.id === "steve-slisar");
+        }
         if (known) {
-          const merged = { ...known, ...parsed };
+          const merged = { ...parsed, ...known };
           (window as any).__HUDSON_ACTIVE_USER__ = merged;
           return merged;
         }

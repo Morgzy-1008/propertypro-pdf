@@ -105,6 +105,11 @@ function WelcomeHubPage() {
   const displayName = staffUser ? staffUser.name.split(" ")[0] : "there";
   const isLight = mode === "normal";
   const isAdmin = staffUser?.role === "admin" || staffUser?.id === "morgan-hales";
+  const isMorgan =
+    staffUser?.id === "morgan-hales" ||
+    staffUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
+    staffUser?.email?.toLowerCase().includes("morgan.hales") ||
+    staffUser?.name?.toLowerCase().includes("morgan hales");
 
   return (
     <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} flex flex-col font-sans selection:bg-brand-gold/30`}>
@@ -291,8 +296,11 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 4: Submit Your Tender Request */}
-          <Link
+          {/* Cards 4-7: Restricted to Morgan Hales (Tender, Floorplan Editor, CRM, Siting Studio) */}
+          {isMorgan && (
+            <>
+              {/* Card 4: Submit Your Tender Request */}
+              <Link
             to="/tender-request"
             className={`group relative overflow-hidden rounded-2xl border ${
               isLight
@@ -464,6 +472,8 @@ function WelcomeHubPage() {
               </span>
             </div>
           </Link>
+            </>
+          )}
         </div>
       </main>
 

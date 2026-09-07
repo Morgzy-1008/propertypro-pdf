@@ -211,9 +211,9 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
     commissionRatePct: 2.25,
   },
   {
-    id: "steve_silsar",
-    name: "Steve Silsar",
-    email: "steve.silsar@hudsonhomes.com.au",
+    id: "steve_slisar",
+    name: "Steve Slisar",
+    email: "steve.slisar@hudsonhomes.com.au",
     phone: "0483 950 830",
     displayOffice: "HomeWorld Warnervale Display (NSW)",
     baseSalaryYearly: 0,
@@ -249,7 +249,7 @@ export function normalizeConsultantId(idOrEmailOrName?: string): string {
   if (s.includes("shelley")) return "shelley_lay";
   if (s.includes("ben")) return "ben_grill";
   if (s.includes("gary")) return "gary_rees";
-  if (s.includes("steve")) return "steve_silsar";
+  if (s.includes("steve")) return "steve_slisar";
   if (s.includes("christine")) return "christine_hunt";
   if (s.includes("aaron")) return "aaron_martin";
   return s;

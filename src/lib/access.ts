@@ -15,6 +15,7 @@ export const DEFAULT_ALLOWED_EMAILS = [
   "ben.grill@hudsonhomes.com.au",
   "christine.hunt@hudsonhomes.com.au",
   "gary.rees@hudsonhomes.com.au",
+  "steve.slisar@hudsonhomes.com.au",
   "steve.silsar@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
 ];

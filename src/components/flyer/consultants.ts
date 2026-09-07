@@ -52,10 +52,10 @@ export const CONSULTANTS: Consultant[] = [
     state: "NSW",
   },
   {
-    id: "steve-silsar",
-    name: "Steve Silsar",
+    id: "steve-slisar",
+    name: "Steve Slisar",
     phone: "0483 950 830",
-    email: "Steve.silsar@hudsonhomes.com.au",
+    email: "Steve.slisar@hudsonhomes.com.au",
     title: "New Home Sales Consultant",
     displayCentre: "HomeWorld Warnervale Display",
     division: "NSW",
@@ -119,12 +119,16 @@ export const ALL_STAFF_CONSULTANTS: Consultant[] = [
 ];
 
 export function findConsultant(id: string) {
-  return CONSULTANTS.find((c) => c.id === id) || ALL_STAFF_CONSULTANTS.find((c) => c.id === id);
+  const targetId = id === "steve-silsar" ? "steve-slisar" : id;
+  return CONSULTANTS.find((c) => c.id === targetId) || ALL_STAFF_CONSULTANTS.find((c) => c.id === targetId);
 }
 
 export function findConsultantByEmail(email?: string | null): Consultant | undefined {
   if (!email) return undefined;
-  const clean = email.trim().toLowerCase();
+  let clean = email.trim().toLowerCase();
+  if (clean === "steve.silsar@hudsonhomes.com.au" || clean === "steve@hudsonhomes.com.au") {
+    clean = "steve.slisar@hudsonhomes.com.au";
+  }
   return CONSULTANTS.find((c) => c.email.toLowerCase() === clean) || ALL_STAFF_CONSULTANTS.find((c) => c.email.toLowerCase() === clean);
 }
 
