@@ -41,9 +41,8 @@ import {
   getBushfireCost,
   getSoilRatePerM2,
 } from "@/lib/quoting/quoteEngine";
-import type { FullQuote, SiteConditions, SoilClass } from "@/lib/quoting/quoteTypes";
-import { SiteFeasibilityDrawer } from "@/components/feasibility/SiteFeasibilityDrawer";
-import type { SiteFeasibilityDossier, EditableAllowanceItem } from "@/lib/feasibility/feasibilityTypes";
+import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
+import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 import { toast } from "sonner";
 
 interface QuoteSiteCostsStepProps {
@@ -107,53 +106,6 @@ const ACOUSTIC_TIERS = [
 ];
 
 export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApply }: QuoteSiteCostsStepProps) {
-  const [isFeasibilityOpen, setIsFeasibilityOpen] = React.useState(false);
-
-  const handleFeasibilityApply = (dossier: SiteFeasibilityDossier, appliedItems: EditableAllowanceItem[]) => {
-    const sitePatch: Partial<SiteConditions> = {};
-
-    for (const item of appliedItems) {
-      if (item.id === "allow_traffic_control") {
-        sitePatch.trafficControlRequired = true;
-        sitePatch.trafficControlCost = item.currentAmount;
-      } else if (item.id === "allow_bushfire_spec") {
-        sitePatch.bushfireBal = dossier.overlays.bushfireBal;
-        sitePatch.bushfireCost = item.currentAmount;
-      } else if (item.id === "allow_bushfire_report") {
-        sitePatch.bushfireReportRequired = true;
-        sitePatch.bushfireReportCost = item.currentAmount;
-      } else if (item.id === "allow_flood_slab") {
-        sitePatch.floodOverlayRequired = true;
-        sitePatch.floodOverlayCost = item.currentAmount;
-        sitePatch.slabElevationMeters = dossier.overlays.recommendedSlabElevationM || 0.3;
-      } else if (item.id === "allow_flood_report") {
-        sitePatch.floodReportRequired = true;
-        sitePatch.floodReportCost = item.currentAmount;
-      } else if (item.id === "allow_site_fall") {
-        sitePatch.fallMeters = dossier.overlays.contoursFallM;
-        sitePatch.fallTotalCost = item.currentAmount;
-      } else if (item.id === "allow_retaining_wall") {
-        sitePatch.retainingWallAllowance = item.currentAmount;
-      } else if (item.id === "allow_cctv_sewer") {
-        sitePatch.cctvSewerReportRequired = true;
-        sitePatch.cctvSewerReportCost = item.currentAmount;
-      } else if (item.id === "allow_demolition") {
-        sitePatch.demolitionAsbestosRequired = true;
-        sitePatch.demolitionAsbestosCost = item.currentAmount;
-      } else if (item.id === "allow_arborist_report") {
-        sitePatch.arboristReportRequired = true;
-        sitePatch.arboristReportCost = item.currentAmount;
-      }
-    }
-
-    if (onFeasibilityApply) {
-      onFeasibilityApply(dossier, sitePatch);
-    } else {
-      onSiteChange(sitePatch);
-    }
-    toast.success(`Applied ${appliedItems.length} site allowances (${formatAud(dossier.totalAllowancesCost)}) to quote!`);
-  };
-
   const isDouble =
     quote.design.mode === "custom_floorplan"
       ? quote.design.customSpec.storeys === "double"
@@ -361,42 +313,14 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </div>
       </div>
 
-      {/* Site Feasibility & Archistar Intelligence Launch Card */}
-      <div className="bg-gradient-to-r from-cyan-950/70 via-slate-900 to-slate-950 border border-cyan-500/40 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="h-10 w-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 flex-none mt-0.5">
-            <Compass className="h-5 w-5 animate-pulse" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-sm font-extrabold text-white tracking-tight">
-                NHC Site Feasibility &amp; Archistar-Equivalent Dossier Engine
-              </h4>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
-                $0 Gov Cadastre &amp; Overlays
-              </span>
-            </div>
-            <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              Scan cadastral boundaries, Queensland SPP hazard overlays (bushfire, flood, contours/fall), bus stops &amp; school zones (traffic control), and inspect 1st-person street view.
-            </p>
-            {quote.feasibility && (
-              <div className="flex items-center gap-2 mt-2 text-[11px] text-cyan-300 font-medium">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span>Verified Dossier: {quote.feasibility.parcel.standardLotPlan} &bull; {quote.feasibility.parcel.areaM2} m² &bull; Setbacks for {quote.feasibility.houseStorey === "double" ? "Double Storey" : "Single Storey"}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          onClick={() => setIsFeasibilityOpen(true)}
-          className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs gap-2 px-4 py-2 rounded-xl shadow-lg shadow-cyan-500/20 flex-none"
-        >
-          <Sparkles className="h-4 w-4" />
-          {quote.feasibility ? "Re-Run / Edit Feasibility" : "Run Instant Site Feasibility"}
-        </Button>
-      </div>
+      {/* Site Feasibility Engine (Localhost Option Only, Saved to Side - Hidden in Production) */}
+      <QuoteSiteFeasibilityDevSection
+        quote={quote}
+        site={site}
+        onSiteChange={onSiteChange}
+        onFeasibilityApply={onFeasibilityApply}
+        isDouble={isDouble}
+      />
 
       {/* 2nd Dwelling Selection Switcher Banner on Step 3 */}
       {quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled && (
@@ -1291,41 +1215,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
           </div>
         </div>
       </div>
-
-      {(() => {
-        const isBrownfieldQuote = quote.client.depositType === "brownfield" || site.demolitionAsbestosRequired;
-        const computedAddress = [
-          !isBrownfieldQuote && quote.client.lotNumber
-            ? (quote.client.lotNumber.toLowerCase().startsWith("lot") ? quote.client.lotNumber : `Lot ${quote.client.lotNumber}`)
-            : "",
-          quote.client.siteAddress,
-          quote.client.suburb,
-          !isBrownfieldQuote ? quote.client.estate : "",
-          "QLD",
-          quote.client.postcode,
-        ]
-          .filter(Boolean)
-          .join(", ");
-
-        const resolvedInitialAddress =
-          computedAddress.length > 5
-            ? computedAddress
-            : isBrownfieldQuote
-            ? "14 Waratah Avenue, Graceville, QLD"
-            : "Lot 243, 61 Paradise Road, Flagstone, QLD";
-
-        return (
-          <SiteFeasibilityDrawer
-            open={isFeasibilityOpen}
-            onOpenChange={setIsFeasibilityOpen}
-            initialAddress={resolvedInitialAddress}
-            initialMode={isBrownfieldQuote ? "brownfield_kdrb" : "greenfield"}
-            initialStorey={isDouble ? "double" : "single"}
-            initialHouseDesign={quote.design.designName}
-            onApplyAllowances={handleFeasibilityApply}
-          />
-        );
-      })()}
     </div>
   );
 }
