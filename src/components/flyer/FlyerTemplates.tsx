@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { BedDouble, Bath, Car, Ruler, MapPin, Phone, Mail, Maximize2, Loader2 } from "lucide-react";
-import { getRange, rangeItems, type FlyerData } from "./types";
+import { getRange, rangeItems, getTermsText, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
+import { formatPrice } from "@/lib/pricing";
 
 /**
  * Authentic Hudson Homes house mark emblem.
@@ -173,7 +174,7 @@ function Spec({
   );
 }
 
-export function ContactStrip({ d }: { d: FlyerData }) {
+export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?: boolean }) {
   const name = d.contactName || "Morgan Hales";
   const phone = d.contactPhone || "0417 571 864";
   const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
@@ -197,59 +198,69 @@ export function ContactStrip({ d }: { d: FlyerData }) {
       ? `${window.location.origin}/c/${consultantSlug}`
       : `https://www.hudsonhomeshouselandflyer.dev/c/${consultantSlug}`;
 
+  const termsText = getTermsText(d);
+
   return (
-    <div className="navy-panel w-full flex items-center justify-between gap-[3mm] px-[5mm] py-[2.2mm] rounded-[1.5mm] mt-auto">
-      {/* Left Side: Contact QR Code, NHC Name & Location, plus Phone & Email shifted left next to NHC name */}
-      <div className="flex items-center gap-[3mm] min-w-0">
-        <div className="flex items-center gap-[2mm] flex-none">
-          <QrCode value={contactUrl} size={12} />
-          <div className="flex flex-col justify-center min-w-0">
-            <div className="text-[1.5mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
-              SCAN TO SAVE CONTACT
-            </div>
-            <div className="font-sans font-bold text-[3.2mm] leading-[1.1] text-brand-cream tracking-[0.01em] mt-[0.3mm] whitespace-nowrap">
-              {name}
-            </div>
-            {office && (
-              <div className="mt-[0.3mm] text-[2mm] leading-[1.15] text-brand-cream/80 whitespace-nowrap font-normal">
-                {office}
+    <div className="w-full mt-auto flex flex-col gap-[1mm] pt-[1mm]">
+      <div className="navy-panel w-full flex items-center justify-between gap-[3mm] px-[5mm] py-[2.2mm] rounded-[1.5mm]">
+        {/* Left Side: Contact QR Code, NHC Name & Location, plus Phone & Email shifted left next to NHC name */}
+        <div className="flex items-center gap-[3mm] min-w-0">
+          <div className="flex items-center gap-[2mm] flex-none">
+            <QrCode value={contactUrl} size={12} />
+            <div className="flex flex-col justify-center min-w-0">
+              <div className="text-[1.5mm] font-semibold leading-tight tracking-[0.1em] text-brand-gold uppercase whitespace-nowrap">
+                SCAN TO SAVE CONTACT
               </div>
-            )}
+              <div className="font-sans font-bold text-[3.2mm] leading-[1.1] text-brand-cream tracking-[0.01em] mt-[0.3mm] whitespace-nowrap">
+                {name}
+              </div>
+              {office && (
+                <div className="mt-[0.3mm] text-[2mm] leading-[1.15] text-brand-cream/80 whitespace-nowrap font-normal">
+                  {office}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* NHC Mobile & Email shifted to the left right next to NHC name */}
+          <div className="flex flex-col justify-center gap-[0.6mm] text-[2.7mm] text-brand-cream/90 border-l border-white/20 pl-[3mm] flex-none">
+            <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+              <Phone className="h-[2.7mm] w-[2.7mm] text-brand-gold flex-none" strokeWidth={1.8} />
+              {phone}
+            </span>
+            <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
+              <Mail className="h-[2.7mm] w-[2.7mm] text-brand-gold flex-none" strokeWidth={1.8} />
+              {email}
+            </span>
           </div>
         </div>
 
-        {/* NHC Mobile & Email shifted to the left right next to NHC name */}
-        <div className="flex flex-col justify-center gap-[0.6mm] text-[2.7mm] text-brand-cream/90 border-l border-white/20 pl-[3mm] flex-none">
-          <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
-            <Phone className="h-[2.7mm] w-[2.7mm] text-brand-gold flex-none" strokeWidth={1.8} />
-            {phone}
-          </span>
-          <span className="flex items-center gap-[1.2mm] whitespace-nowrap">
-            <Mail className="h-[2.7mm] w-[2.7mm] text-brand-gold flex-none" strokeWidth={1.8} />
-            {email}
-          </span>
+        {/* Right Side: Scan to View Customer Package PDF Webpage */}
+        <div className="flex flex-none items-center gap-[1.5mm] pl-[1mm]">
+          <div className="text-right text-[1.5mm] font-semibold leading-[1.2] tracking-[0.1em] text-brand-cream/80 uppercase whitespace-nowrap">
+            {targetPackageId ? (
+              <>
+                SCAN TO VIEW
+                <br />
+                PACKAGE FLYER
+              </>
+            ) : (
+              <>
+                SCAN TO VIEW
+                <br />
+                OTHER PACKAGES
+              </>
+            )}
+          </div>
+          <QrCode value={packagesUrl} size={12} />
         </div>
       </div>
 
-      {/* Right Side: Scan to View Customer Package PDF Webpage */}
-      <div className="flex flex-none items-center gap-[1.5mm] pl-[1mm]">
-        <div className="text-right text-[1.5mm] font-semibold leading-[1.2] tracking-[0.1em] text-brand-cream/80 uppercase whitespace-nowrap">
-          {targetPackageId ? (
-            <>
-              SCAN TO VIEW
-              <br />
-              PACKAGE FLYER
-            </>
-          ) : (
-            <>
-              SCAN TO VIEW
-              <br />
-              OTHER PACKAGES
-            </>
-          )}
+      {showTerms && termsText && (
+        <div className="text-[1.38mm] leading-[1.2] text-brand-ink/55 text-justify tracking-[0.005em] px-[0.5mm] pt-[0.2mm]">
+          {termsText}
         </div>
-        <QrCode value={packagesUrl} size={12} />
-      </div>
+      )}
     </div>
   );
 }
@@ -270,7 +281,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
           <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
             <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
             <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {d.price || "$—"}
+              {formatPrice(d.price)}
             </span>
           </div>
         </div>
@@ -333,13 +344,13 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
               <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">LAND ONLY</div>
               <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
-                {d.landPrice || "$—"}
+                {formatPrice(d.landPrice)}
               </div>
             </div>
             <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
               <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">HOUSE ONLY</div>
               <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
-                {d.housePrice || "$—"}
+                {formatPrice(d.housePrice)}
               </div>
             </div>
           </div>
@@ -368,8 +379,8 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
           )}
         </div>
 
-        {/* Floorplan Frame: 136mm height */}
-        <div className="flex h-[136mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
+        {/* Floorplan Frame: 130mm height */}
+        <div className="flex h-[130mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}
@@ -437,7 +448,7 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
           <div className="text-right">
             <div className="text-[2mm] font-bold tracking-[0.2em] text-brand-ink/50">TOTAL PACKAGE PRICE</div>
             <div className="font-display text-[9.5mm] leading-none text-brand-navy">
-              {d.price || "$—"}
+              {formatPrice(d.price)}
             </div>
           </div>
         </div>
@@ -506,7 +517,7 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
 
       {/* Large Floorplan Showcase Frame */}
       <div className="px-[2mm] pt-[3mm]">
-        <div className="flex h-[142mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[2.5mm]">
+        <div className="flex h-[138mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[2.5mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}
@@ -553,7 +564,7 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
           <div className="mt-[2.5mm] rounded-[1.2mm] bg-brand-sand px-[3mm] py-[2mm]">
             <div className="text-[2mm] font-bold tracking-[0.2em] text-brand-ink/50">TOTAL PACKAGE PRICE</div>
             <div className="font-display text-[7mm] leading-none text-brand-navy">
-              {d.price || "$—"}
+              {formatPrice(d.price)}
             </div>
           </div>
         </div>
@@ -580,7 +591,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
           <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
             <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
             <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {d.housePrice || "$—"}
+              {formatPrice(d.housePrice)}
             </span>
           </div>
         </div>
@@ -647,7 +658,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
           <div className="mt-[3mm] rounded-[1.2mm] bg-brand-sand px-[2.2mm] py-[2mm]">
             <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">BUILD PRICE FROM</div>
             <div className="font-display text-[5.5mm] leading-[1.1] text-brand-navy">
-              {d.housePrice || "$—"}
+              {formatPrice(d.housePrice)}
             </div>
             <div className="mt-[0.5mm] text-[1.8mm] leading-[1.2] text-brand-ink/50">
               Fixed price build, inclusions as listed.
@@ -679,7 +690,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
         </div>
 
         {/* Floorplan Frame */}
-        <div className="flex h-[136mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
+        <div className="flex h-[130mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
           {d.floorplanUrl ? (
             <img
               src={d.floorplanUrl}

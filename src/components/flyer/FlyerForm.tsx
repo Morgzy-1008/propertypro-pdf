@@ -50,13 +50,14 @@ function Field({
   value,
   onChange,
   placeholder,
+  onBlur,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  onBlur?: () => void;
 }) {
-
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium tracking-wide text-slate-300">{label}</Label>
@@ -64,6 +65,7 @@ function Field({
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
         className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all"
       />
     </div>
@@ -548,6 +550,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             label="Package price (total)"
             value={data.price}
             onChange={(v) => set("price", v)}
+            onBlur={() => {
+              const num = parseAud(data.price);
+              if (num > 0) set("price", formatAud(num));
+            }}
+            placeholder="e.g. $785,900"
           />
           <Field label="Headline" value={data.headline} onChange={(v) => set("headline", v)} />
         </div>
@@ -556,8 +563,26 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             label="House only price"
             value={data.housePrice}
             onChange={(v) => set("housePrice", v)}
+            onBlur={() => {
+              const num = parseAud(data.housePrice);
+              if (num > 0) set("housePrice", formatAud(num));
+            }}
+            placeholder="e.g. $435,900"
           />
-          <Field label="Land only price" value={data.landPrice} onChange={setLandPrice} />
+          <Field
+            label="Land only price"
+            value={data.landPrice}
+            onChange={setLandPrice}
+            onBlur={() => {
+              const num = parseAud(data.landPrice);
+              if (num > 0) {
+                const formatted = formatAud(num);
+                set("landPrice", formatted);
+                applyPricing(data.designName, data.range, formatted, uplift);
+              }
+            }}
+            placeholder="e.g. $350,000"
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
@@ -919,6 +944,65 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
       <Section title="Consultant (footer + QR code)">
         <ConsultantPicker data={data} set={set} />
+      </Section>
+
+      <Section title="Terms & conditions (footer)">
+        <div className="space-y-2.5">
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => set("termsType", "concise")}
+              className={`rounded-lg border px-2.5 py-2 text-center text-[11px] font-medium transition-all ${
+                (!data.termsType || data.termsType === "concise")
+                  ? "border-brand-gold/60 bg-amber-500/20 text-amber-200 shadow-sm"
+                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              }`}
+            >
+              Concise (Clean)
+            </button>
+            <button
+              type="button"
+              onClick={() => set("termsType", "full")}
+              className={`rounded-lg border px-2.5 py-2 text-center text-[11px] font-medium transition-all ${
+                data.termsType === "full"
+                  ? "border-brand-gold/60 bg-amber-500/20 text-amber-200 shadow-sm"
+                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              }`}
+            >
+              Full Legal
+            </button>
+            <button
+              type="button"
+              onClick={() => set("termsType", "custom")}
+              className={`rounded-lg border px-2.5 py-2 text-center text-[11px] font-medium transition-all ${
+                data.termsType === "custom"
+                  ? "border-brand-gold/60 bg-amber-500/20 text-amber-200 shadow-sm"
+                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              }`}
+            >
+              Custom
+            </button>
+          </div>
+
+          {data.termsType === "custom" ? (
+            <textarea
+              value={data.customTerms ?? ""}
+              onChange={(e) => set("customTerms", e.target.value)}
+              placeholder="Enter custom terms and conditions for this flyer…"
+              rows={3}
+              className="w-full rounded-lg border border-slate-800 bg-slate-950/70 p-2.5 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all outline-none"
+            />
+          ) : (
+            <div className="rounded-lg border border-slate-800/80 bg-slate-950/50 p-2.5 text-[11px] leading-relaxed text-slate-400">
+              <span className="font-semibold text-slate-300">
+                {(!data.termsType || data.termsType === "concise") ? "Concise & Protective (Recommended): " : "Full Legal Text: "}
+              </span>
+              {(!data.termsType || data.termsType === "concise")
+                ? "Compact 2-line disclaimer covering stamp duty exclusion, 450m² / M slab site costs, indicative renders, price variations & builder licence."
+                : "Full 180-word comprehensive marketing legal disclaimer from legacy Hudson Homes flyers."}
+            </div>
+          )}
+        </div>
       </Section>
 
       <FacadeCheckModal

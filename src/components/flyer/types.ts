@@ -143,7 +143,23 @@ export interface FlyerData {
   houseRotation?: number;
   leftSetback?: string | number;
   rightSetback?: string | number;
+  termsType?: TermsType;
+  customTerms?: string;
   rearSetback?: string | number;
+}
+
+export type TermsType = "concise" | "full" | "custom";
+
+export const DEFAULT_TERMS_CONCISE =
+  "Terms & conditions apply. Package price excludes stamp duty, registration and legal fees. Standard site costs apply to a cleared residential site up to 450m² with 1m fall, M-class slab and services to boundary. Facade renders, floorplans and landscaping are indicative only and subject to developer and statutory approvals. Pricing subject to change without notice. © Hudson Homes Pty Ltd ABN 92 623 431 685. Builders Lic: 15078318.";
+
+export const DEFAULT_TERMS_FULL =
+  "Terms and conditions apply. Images are indicative only. Floor plans based on Classic facade and will adjust for alternatives. Standard included site costs are for a cleared residential site up to 450m2, with up to 1 metre fall across the building platform, M class slab and with all services available at site boundaries (excludes battle-axe and rural sites). Home and Land packages are subject to developer design and statutory authorities' approval. Additional allowances may be required for an individual lots or housing estates. Package pricing does not include stamp duty, legal fees or other costs that may be incurred with the purchase of land. Photographs and other images used within marketing material may show fixtures, fittings or finishes which are not supplied by Hudson Homes, or which are only available in some designs or when selected as additional upgrades. Please speak to a Hudson Homes New Home Consultant who is able to provide a building contract that specifically outlines the fixtures, finishes and features that you will receive, and selections from the builder's standard range. Hudson Homes agrees to complete construction of the home on time as specified in the signed HIA agreement (subject to any inclement weather, holiday period closure or other permissible time extensions that are beyond our control). Hudson Homes reserves the right to alter any advertised price without notice. Other promotional offers by Hudson Homes are not applicable unless specified. All plans and images are copyright of Hudson Homes Pty Ltd ABN 92 623 431 685. Builders Lic: 15078318.";
+
+export function getTermsText(d: FlyerData): string {
+  if (d.termsType === "full") return DEFAULT_TERMS_FULL;
+  if (d.termsType === "custom" && d.customTerms?.trim()) return d.customTerms.trim();
+  return DEFAULT_TERMS_CONCISE;
 }
 
 export type PaletteId = "heritage" | "coastal" | "forest" | "slate";
@@ -192,5 +208,7 @@ export const defaultFlyer: FlyerData = {
   facadeName: "",
   palette: "heritage",
   consultantId: "morgan",
+  termsType: "concise",
+  customTerms: "",
 };
 

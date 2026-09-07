@@ -104,7 +104,17 @@ export function formatAud(value: number): string {
   return `$${Math.round(value).toLocaleString("en-AU")}`;
 }
 
-export function parseAud(value: string): number {
+export function parseAud(value: string | number | undefined | null): number {
+  if (value == null) return 0;
   const n = Number(String(value).replace(/[^0-9.]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+export function formatPrice(val: string | number | undefined | null): string {
+  if (val == null) return "$—";
+  const str = String(val).trim();
+  if (!str || str === "$—" || str === "—") return "$—";
+  const num = parseAud(str);
+  if (num > 0) return formatAud(num);
+  return str.startsWith("$") ? str : `$${str}`;
 }
