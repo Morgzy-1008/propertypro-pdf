@@ -25,9 +25,10 @@ import { DivisionSwitcher } from "./DivisionSwitcher";
 
 interface StaffHeaderProfileProps {
   isLight?: boolean;
+  compact?: boolean;
 }
 
-export function StaffHeaderProfile({ isLight = false }: StaffHeaderProfileProps) {
+export function StaffHeaderProfile({ isLight = false, compact = false }: StaffHeaderProfileProps) {
   const navigate = useNavigate();
   const [activeUser, setActiveUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -59,9 +60,9 @@ export function StaffHeaderProfile({ isLight = false }: StaffHeaderProfileProps)
   return (
     <div className="flex items-center gap-2">
       {/* Top Bar State Switcher (QLD ⇄ NSW) */}
-      <DivisionSwitcher isLight={isLight} size="sm" />
+      {!compact && <DivisionSwitcher isLight={isLight} size="sm" />}
       {/* Website Admin Button for Morgan Hales */}
-      {isAdmin && (
+      {!compact && isAdmin && (
         <button
           type="button"
           onClick={() => setIsAdminModalOpen(true)}

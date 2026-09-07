@@ -26,7 +26,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
-import { calculateQuotePricing, getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import {
+  calculateQuotePricing,
+  getEffectiveDesignName,
+  getTierPrice,
+  getStandardAreaBreakdown,
+  calculateModifiedFloorplanPricing,
+  getAutomatedPromotionDiscount,
+} from "@/lib/quoting/quoteEngine";
+import { plansForDesign } from "@/components/flyer/floorplans";
+import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
 import { upsertLeadFromQuote } from "@/lib/crm/crmStorage";
 import {
   createNewBlankQuote,
@@ -122,26 +131,111 @@ export function QuoteBuilder() {
       if (rawPlanBridge) {
         const bridge = JSON.parse(rawPlanBridge);
         if (bridge && (bridge.designName || bridge.design?.designName)) {
-          const dName = bridge.designName || bridge.design?.designName;
-          const totalM2 = Math.round((bridge.totalM2 || bridge.design?.designM2 || 195) * 100) / 100;
-          const bPrice = bridge.basePrice || bridge.design?.basePrice || 0;
-          const fUrl = bridge.floorplanUrl || bridge.design?.floorplanUrl || "";
+          const rawDesignName = bridge.designName || bridge.design?.designName;
+          
+          // 1. Check if the floorplan is one of Hudson's by reading the design
+          const matchedHudson = findHudsonModelByName(rawDesignName);
+          const isHudson = !!matchedHudson;
+          const housingType = matchedHudson ? matchedHudson.housingType : (bridge.housingType || "Single Storey");
+          const canonicalName = matchedHudson ? matchedHudson.row.name : rawDesignName;
+          const stdTotalM2 = matchedHudson ? matchedHudson.row.m2 : (Number(bridge.standardDesignM2) || Number(bridge.totalM2) || 195);
+          
+          // Standard areas from Hudson baseline
+          const stdAreas = matchedHudson
+            ? getStandardAreaBreakdown(canonicalName, housingType, stdTotalM2)
+            : (bridge.standardAreas || getStandardAreaBreakdown(canonicalName, housingType, stdTotalM2));
+            
+          // Official floorplans lookup
+          const plans = plansForDesign(canonicalName);
+          const standardFloorplanUrl = plans[0]?.url || "";
+          const floorplanUrl = bridge.floorplanUrl || standardFloorplanUrl;
+
+          // 2. Determine whether the data table presents different sqm values
+          const roomAreas = bridge.roomAreas || bridge.modifiedAreas || {};
+          const incomingLiving = Number(roomAreas.livingM2 || roomAreas.groundLivingM2) || Number(stdAreas.livingM2 || stdAreas.groundLivingM2 || 135);
+          const incomingGarage = Number(roomAreas.garageM2) || Number(stdAreas.garageM2 || 34);
+          const incomingAlfresco = Number(roomAreas.alfrescoM2) || Number(stdAreas.alfrescoM2 || 12);
+          const incomingPorch = Number(roomAreas.porchM2) || Number(stdAreas.porchM2 || 3);
+          const incomingTotalM2 = Math.round((Number(bridge.modifiedDesignM2 || bridge.totalM2) || (incomingLiving + incomingGarage + incomingAlfresco + incomingPorch)) * 100) / 100;
+
+          // Compare against standard Hudson specs
+          const hasDifferentSqmValues =
+            bridge.isModifiedFloorplan === true ||
+            (matchedHudson !== null && (
+              Math.abs(incomingTotalM2 - stdTotalM2) > 0.1 ||
+              (roomAreas.livingM2 !== undefined && Math.abs(incomingLiving - (stdAreas.livingM2 || stdAreas.groundLivingM2 || 0)) > 0.1) ||
+              (roomAreas.garageM2 !== undefined && Math.abs(incomingGarage - (stdAreas.garageM2 || 0)) > 0.1) ||
+              (roomAreas.alfrescoM2 !== undefined && Math.abs(incomingAlfresco - (stdAreas.alfrescoM2 || 0)) > 0.1) ||
+              (roomAreas.porchM2 !== undefined && Math.abs(incomingPorch - (stdAreas.porchM2 || 0)) > 0.1)
+            ));
 
           setQuote((prev) => {
-            const updatedDesign = {
+            const specTier = prev.design.specTier || "H2";
+            const standardBasePrice = matchedHudson
+              ? getTierPrice(matchedHudson.row, specTier, housingType)
+              : (Number(bridge.standardBasePrice) || Number(bridge.basePrice) || prev.design.basePrice);
+
+            let effectiveM2 = stdTotalM2;
+            let effectiveBasePrice = standardBasePrice;
+            let modifiedAreasObj = undefined;
+            let autoDiscount = 0;
+
+            if (hasDifferentSqmValues) {
+              // Automatically select the modified floorplan with the new values and pricing!
+              const modAreas = {
+                ...stdAreas,
+                ...(bridge.modifiedAreas || {}),
+                livingM2: incomingLiving,
+                garageM2: incomingGarage,
+                alfrescoM2: incomingAlfresco,
+                porchM2: incomingPorch,
+                totalM2: incomingTotalM2,
+              };
+              modifiedAreasObj = modAreas;
+
+              const modPricing = calculateModifiedFloorplanPricing({
+                ...prev.design,
+                housingType,
+                designName: canonicalName,
+                standardDesignM2: stdTotalM2,
+                standardBasePrice,
+                standardAreas: stdAreas,
+                modifiedAreas: modAreas,
+              });
+
+              effectiveM2 = modPricing.modifiedTotalM2;
+              effectiveBasePrice = modPricing.modifiedBasePrice;
+              autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
+            } else {
+              // Standard floorplan
+              autoDiscount = getAutomatedPromotionDiscount(stdTotalM2);
+            }
+
+            const updatedDesign: QuoteDesignSelection = {
               ...prev.design,
-              designName: dName,
-              designM2: totalM2,
-              basePrice: bPrice > 0 ? bPrice : prev.design.basePrice,
-              isModifiedFloorplan: true,
-              floorplanUrl: fUrl || prev.design.floorplanUrl,
-              housingType: bridge.housingType || prev.design.housingType,
+              designName: canonicalName,
+              housingType,
+              designM2: stdTotalM2,
+              standardDesignM2: stdTotalM2,
+              standardBasePrice,
+              standardAreas: stdAreas,
+              isModifiedFloorplan: hasDifferentSqmValues,
+              modifiedDesignM2: hasDifferentSqmValues ? effectiveM2 : 0,
+              modifiedAreas: modifiedAreasObj,
+              basePrice: effectiveBasePrice,
+              promotionsDiscount: autoDiscount,
+              floorplanUrl,
+              beds: plans[0]?.beds || prev.design.beds || "4",
+              baths: plans[0]?.baths || prev.design.baths || "2",
+              cars: plans[0]?.cars || prev.design.cars || "2",
+              widthM: plans[0]?.width || prev.design.widthM || "14.0m",
+              lengthM: plans[0]?.depth || prev.design.lengthM || "22.0m",
               customSpec: {
                 ...prev.design.customSpec,
-                groundLivingM2: bridge.roomAreas?.livingM2 || prev.design.customSpec?.groundLivingM2,
-                garageM2: bridge.roomAreas?.garageM2 || prev.design.customSpec?.garageM2,
-                alfrescoM2: bridge.roomAreas?.alfrescoM2 || prev.design.customSpec?.alfrescoM2,
-                porchM2: bridge.roomAreas?.porchM2 || prev.design.customSpec?.porchM2,
+                groundLivingM2: incomingLiving,
+                garageM2: incomingGarage,
+                alfrescoM2: incomingAlfresco,
+                porchM2: incomingPorch,
               },
             };
 
@@ -170,7 +264,17 @@ export function QuoteBuilder() {
           });
 
           setActiveTab("design");
-          toast.success(`Imported concept plan: ${dName} (${totalM2} m²)!`);
+          if (isHudson && hasDifferentSqmValues) {
+            toast.success(
+              `✨ Recognized Hudson Design: ${canonicalName} (Modified Floorplan: ${incomingTotalM2} m² • Custom Pricing Applied)!`
+            );
+          } else if (isHudson) {
+            toast.success(
+              `✨ Recognized Hudson Design: ${canonicalName} (Standard Floorplan: ${stdTotalM2} m²)!`
+            );
+          } else {
+            toast.success(`Imported concept plan: ${canonicalName} (${incomingTotalM2} m²)!`);
+          }
           localStorage.removeItem("hudson_imported_floorplan_bridge");
           localStorage.removeItem("hudson_draft_quote_from_concept");
         }

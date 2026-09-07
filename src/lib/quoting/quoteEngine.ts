@@ -42,6 +42,25 @@ export function getHousingTypeForDesign(
   return fallbackType || "Single Storey";
 }
 
+export function getTierPrice(
+  model: PriceRow,
+  tier: string = "H2",
+  housingType?: string,
+): number {
+  if (housingType === "Dual Living") {
+    if (tier === "HBS") return (model as any).hbs || model.h1 || 0;
+    if (tier === "H1") return model.h1 || (model as any).hbs || 0;
+    if (tier === "H2") return model.h2 || model.h1 || 0;
+    if (tier === "H3") return (model as any).h3 || model.h2 || 0;
+  }
+  if (tier === "HBS") return (model as any).hbs || model.h1 || 0;
+  if (tier === "SS") return (model as any).ss || model.h1 || 0;
+  if (tier === "H1") return model.h1 || 0;
+  if (tier === "H2") return model.h2 || model.h1 || 0;
+  if (tier === "H3") return (model as any).h3 || model.h2 || 0;
+  return model.h2 || model.h1 || 0;
+}
+
 /**
  * Calculates base price for custom floorplan based on area dimensions and tiered rates.
  */
