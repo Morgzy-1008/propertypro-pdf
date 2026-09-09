@@ -34,27 +34,20 @@ export function Logo({
     <div className={`flex items-center gap-[3mm] ${className}`}>
       {/* Authentic Hudson Homes house mark emblem */}
       <HudsonMark size={size} />
-      {/* Brand text to the right of emblem */}
+      {/* Brand text to the right of emblem - centered, bold, filling space */}
       <div
-        className={`border-l pl-[3mm] flex flex-col justify-center leading-none ${
-          light ? "border-brand-cream/30" : "border-brand-navy/20"
+        className={`border-l pl-[3.5mm] flex items-center justify-center ${
+          light ? "border-brand-cream/40" : "border-slate-300"
         }`}
+        style={{ minHeight: `${size * 0.85}mm` }}
       >
         <div
-          className={`font-sans font-bold tracking-[0.16em] ${
+          className={`font-sans font-extrabold tracking-[0.16em] uppercase leading-tight ${
             light ? "text-white" : "text-brand-navy"
           }`}
-          style={{ fontSize: `${size * 0.42}mm` }}
+          style={{ fontSize: `${size * 0.52}mm` }}
         >
           HUDSON HOMES
-        </div>
-        <div
-          className={`mt-[0.9mm] tracking-[0.28em] font-semibold ${
-            light ? "text-brand-gold" : "text-brand-gold-deep"
-          }`}
-          style={{ fontSize: `${size * 0.17}mm` }}
-        >
-          ZERO SURPRISES
         </div>
       </div>
     </div>

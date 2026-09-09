@@ -12,6 +12,7 @@ import {
   Check,
   RotateCcw,
   FolderOpen,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -81,6 +82,7 @@ export function QuoteBuilder() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [coverVersion, setCoverVersion] = useState<"v1" | "v2">("v2");
 
   // Sync with IndexedDB & localStorage on mount
   useEffect(() => {
@@ -672,10 +674,40 @@ export function QuoteBuilder() {
 
             {activeTab === "pdf_preview" && (
               <div className="space-y-4">
-                <div className="flex items-center justify-between pb-2">
-                  <span className="text-xs text-slate-400">
-                    Live 5-Page Architectural Builders Estimate Preview
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs text-slate-400 font-medium">
+                      Builders Estimate Document Preview
+                    </span>
+
+                    {/* V1 vs V2 Cover Page Comparison Switcher */}
+                    <div className="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Cover Design:</span>
+                      <button
+                        type="button"
+                        onClick={() => setCoverVersion("v1")}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          coverVersion === "v1"
+                            ? "bg-slate-800 text-white shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        V1 Classic
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCoverVersion("v2")}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                          coverVersion === "v2"
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-xs"
+                            : "text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        <Sparkles className="h-3 w-3" /> V2 Modern Luxe (Recommended)
+                      </button>
+                    </div>
+                  </div>
+
                   <Button
                     size="sm"
                     onClick={handleDownloadPdf}
@@ -687,7 +719,7 @@ export function QuoteBuilder() {
                   </Button>
                 </div>
                 <div className="rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950 p-4">
-                  <QuotePdfDocument quote={quote} />
+                  <QuotePdfDocument quote={quote} coverVersion={coverVersion} />
                 </div>
               </div>
             )}
@@ -803,7 +835,7 @@ export function QuoteBuilder() {
           }}
           aria-hidden="true"
         >
-          <QuotePdfDocument quote={quote} />
+          <QuotePdfDocument quote={quote} coverVersion={coverVersion} />
         </div>
       )}
     </div>
