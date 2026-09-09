@@ -950,11 +950,58 @@ export function calculateQuotePricing(
 }
 
 /**
- * Generates an architectural Estimate Reference ID (e.g. MH139)
+ * Generates an architectural Estimate Reference ID based on client initials and a 3-digit sequence starting at 001.
+ * Format: [First letter of First Name][First letter of Last Name][001+]
+ * Example: Steve Slisar -> SS001
+ * If existing quotes for this client prefix exist, it increments: SS001 -> SS002, etc.
+ * If clientName is empty or incomplete, falls back to "CL001".
  */
-export function generateQuoteNumber(): string {
-  const rand = Math.floor(100 + Math.random() * 900);
-  return `MH${rand}`;
+export function generateQuoteNumber(
+  clientName?: string,
+  existingQuotes: { quoteNumber?: string; client?: { estimateNumber?: string } }[] = []
+): string {
+  let prefix = "CL";
+  const trimmed = (clientName || "").trim();
+
+  if (trimmed) {
+    // Remove common titles if present
+    const clean = trimmed.replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "").trim();
+    // Split on spaces and ignore non-alphabetical conjunctions like '&', 'and', 'or'
+    const words = clean
+      .split(/\s+/)
+      .filter((w) => !["&", "and", "or"].includes(w.toLowerCase()) && /^[a-zA-Z]/.test(w));
+
+    if (words.length >= 2) {
+      const firstInitial = words[0][0].toUpperCase();
+      const lastInitial = words[words.length - 1][0].toUpperCase();
+      prefix = `${firstInitial}${lastInitial}`;
+    } else if (words.length === 1 && words[0].length >= 2) {
+      prefix = words[0].slice(0, 2).toUpperCase();
+    } else if (words.length === 1) {
+      prefix = `${words[0][0].toUpperCase()}X`;
+    }
+  }
+
+  // Scan existing quotes to find highest number for this prefix
+  let maxSeq = 0;
+  const pattern = new RegExp(`^${prefix}(\\d+)$`, "i");
+
+  if (Array.isArray(existingQuotes)) {
+    for (const q of existingQuotes) {
+      const num = q.quoteNumber || q.client?.estimateNumber || "";
+      const m = num.match(pattern);
+      if (m) {
+        const val = parseInt(m[1], 10);
+        if (!isNaN(val) && val > maxSeq) {
+          maxSeq = val;
+        }
+      }
+    }
+  }
+
+  const nextSeq = maxSeq + 1;
+  const padded = String(nextSeq).padStart(3, "0");
+  return `${prefix}${padded}`;
 }
 
 export interface CouncilInfo {

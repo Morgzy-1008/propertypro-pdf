@@ -28,6 +28,7 @@ import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import {
   calculateQuotePricing,
+  generateQuoteNumber,
   getEffectiveDesignName,
   getTierPrice,
   getStandardAreaBreakdown,
@@ -333,8 +334,26 @@ export function QuoteBuilder() {
   };
 
   const handleClientChange = (patch: Partial<FullQuote["client"]>) => {
-    const updatedClient = { ...quote.client, ...patch };
     setQuote((prev) => {
+      const updatedClient = { ...prev.client, ...patch };
+      let nextQuoteNumber = prev.quoteNumber;
+
+      if (patch.clientName !== undefined) {
+        const isDefaultQuoteNumber =
+          !prev.quoteNumber ||
+          prev.quoteNumber.startsWith("CL") ||
+          prev.quoteNumber.startsWith("MH") ||
+          prev.status === "draft";
+
+        if (isDefaultQuoteNumber) {
+          const generated = generateQuoteNumber(patch.clientName, savedQuotes);
+          nextQuoteNumber = generated;
+          updatedClient.estimateNumber = generated;
+        }
+      } else if (patch.estimateNumber) {
+        nextQuoteNumber = patch.estimateNumber;
+      }
+
       const updatedPricing = calculateQuotePricing(
         prev.design,
         prev.siteConditions,
@@ -343,6 +362,7 @@ export function QuoteBuilder() {
       );
       const result = {
         ...prev,
+        quoteNumber: nextQuoteNumber,
         client: updatedClient,
         pricing: updatedPricing,
       };

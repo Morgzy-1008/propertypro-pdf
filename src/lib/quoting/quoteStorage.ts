@@ -163,10 +163,8 @@ export function convertCatalogueToLineItems(catalogue: CatalogueItem[]): QuoteSe
   });
 }
 
-export function createNewBlankQuote(): FullQuote {
-  const catalogue = loadCatalogue();
+function getDefaultDesignSelection(): QuoteDesignSelection {
   const rates = loadCustomRates();
-  const lineItems = convertCatalogueToLineItems(catalogue);
 
   const defaultDesign: QuoteDesignSelection = {
     mode: "standard",
@@ -207,17 +205,20 @@ export function createNewBlankQuote(): FullQuote {
       scaffoldingAllowance: rates.doubleScaffoldingAllowance,
     },
   };
+  return defaultDesign;
+}
 
+export function createNewBlankQuote(clientName?: string): FullQuote {
+  const catalogue = loadCatalogue();
+  const lineItems = convertCatalogueToLineItems(catalogue);
+  const defaultDesign = getDefaultDesignSelection();
   const defaultSite: SiteConditions = {
-    soilClass: "Class M",
-    soilCostSqm: 0,
-    soilTotalCost: 0,
+    soilClass: "M-D",
+    fallMeters: 0.5,
     concrete32MpaRequired: false,
     concrete32MpaCost: undefined,
     flexibleConnectionsRequired: false,
     flexibleConnectionsCost: 1800,
-    fallMeters: 0,
-    fallTotalCost: 0,
 
     bushfireReportRequired: false,
     bushfireReportCost: 850,
@@ -234,9 +235,12 @@ export function createNewBlankQuote(): FullQuote {
     cctvSewerReportRequired: false,
     cctvSewerReportCost: 3300,
 
+    bushfireBal: "BAL-LOW",
     floodOverlayRequired: false,
     floodOverlayCost: undefined,
     slabElevationMeters: 0,
+    acousticTier: "Tier 1",
+
     bushfireBalRating: "BAL-LOW",
     bushfireBalCost: 0,
     acousticGlazingRequired: false,
@@ -266,7 +270,8 @@ export function createNewBlankQuote(): FullQuote {
 
   const defaultDeposit = 1650;
   const pricing = calculateQuotePricing(defaultDesign, defaultSite, lineItems, defaultDeposit);
-  const estimateNo = generateQuoteNumber();
+  const allQuotes = loadAllQuotes();
+  const estimateNo = generateQuoteNumber(clientName, allQuotes);
   const activeStaff = getActiveStaffUser();
 
   return {
@@ -276,7 +281,7 @@ export function createNewBlankQuote(): FullQuote {
     updatedAt: new Date().toISOString(),
     status: "draft",
     client: {
-      clientName: "",
+      clientName: clientName || "",
       clientEmail: "",
       clientPhone: "",
       hasClient2: false,

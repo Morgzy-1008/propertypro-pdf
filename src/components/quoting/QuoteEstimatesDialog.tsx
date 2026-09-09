@@ -281,7 +281,7 @@ export function QuoteEstimatesDialog({
   };
 
   const handleDuplicate = (quote: FullQuote) => {
-    const newEstNo = generateQuoteNumber();
+    const newEstNo = generateQuoteNumber(quote.client.clientName, savedQuotes);
     const clone: FullQuote = {
       ...quote,
       id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,

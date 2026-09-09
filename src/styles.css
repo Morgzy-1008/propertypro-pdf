@@ -630,30 +630,30 @@ html.normal-mode,
   color: #0f172a !important;
 }
 
-/* 5. Database Page Normal Mode Overrides */
-.normal-mode table {
+/* 5. Database Page Normal Mode Overrides (Scoped so PDF & Print sheets are not overridden) */
+.normal-mode:not(:has(.quote-pdf-root)) table {
   background-color: #ffffff !important;
 }
 
-.normal-mode table thead tr {
+.normal-mode:not(:has(.quote-pdf-root)) table thead tr {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
 }
 
-.normal-mode table thead th {
+.normal-mode:not(:has(.quote-pdf-root)) table thead th {
   color: #475569 !important;
   border-color: #e2e8f0 !important;
 }
 
-.normal-mode table tbody tr {
+.normal-mode:not(:has(.quote-pdf-root)) table tbody tr {
   border-color: #f1f5f9 !important;
 }
 
-.normal-mode table tbody tr:hover {
+.normal-mode:not(:has(.quote-pdf-root)) table tbody tr:hover {
   background-color: #f8fafc !important;
 }
 
-.normal-mode table td {
+.normal-mode:not(:has(.quote-pdf-root)) table td {
   color: #0f172a !important;
 }
 
@@ -737,5 +737,68 @@ html.normal-mode,
 .normal-mode div[class*="from-emerald-950"] p {
   color: #166534 !important;
 }
+
+/* ========================================================================= */
+/* 10. PDF & Printable Document Protection (Builders Estimate, Flyers, Tender) */
+/* ========================================================================= */
+.quote-pdf-root,
+.quote-page,
+.tender-master-pdf-root,
+.flyer-page {
+  /* Retain full intended styling inside PDF and print templates */
+}
+
+.quote-pdf-root .text-white,
+.quote-page .text-white,
+.tender-master-pdf-root .text-white,
+.flyer-page .text-white {
+  color: #ffffff !important;
+}
+
+.quote-pdf-root .text-amber-400,
+.quote-page .text-amber-400,
+.tender-master-pdf-root .text-amber-400 {
+  color: #fbbf24 !important;
+}
+
+.quote-pdf-root .text-emerald-400,
+.quote-page .text-emerald-400 {
+  color: #34d399 !important;
+}
+
+.quote-pdf-root .text-cyan-400,
+.quote-page .text-cyan-400 {
+  color: #22d3ee !important;
+}
+
+/* Ensure dark total banner rows and guarantee boxes always display solid white and gold text */
+.quote-pdf-root table tr[class*="bg-slate-900"],
+.quote-page table tr[class*="bg-slate-900"],
+.quote-pdf-root table tr[class*="bg-slate-900"] td,
+.quote-page table tr[class*="bg-slate-900"] td {
+  background-color: #0f172a !important;
+}
+
+.quote-pdf-root table tr[class*="bg-slate-900"] td:first-child,
+.quote-page table tr[class*="bg-slate-900"] td:first-child,
+.quote-pdf-root table tr[class*="bg-slate-900"] td.text-white,
+.quote-page table tr[class*="bg-slate-900"] td.text-white {
+  color: #ffffff !important;
+}
+
+.quote-pdf-root table tr[class*="bg-slate-900"] td:last-child,
+.quote-page table tr[class*="bg-slate-900"] td:last-child,
+.quote-pdf-root table tr[class*="bg-slate-900"] td.text-amber-400,
+.quote-page table tr[class*="bg-slate-900"] td.text-amber-400 {
+  color: #fbbf24 !important;
+}
+
+.quote-pdf-root div[class*="bg-slate-900"] h3,
+.quote-page div[class*="bg-slate-900"] h3,
+.quote-pdf-root div[class*="bg-slate-900"] p,
+.quote-page div[class*="bg-slate-900"] p {
+  color: #ffffff !important;
+}
+
 
 

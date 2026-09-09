@@ -4,9 +4,11 @@ import { Logo } from "@/components/flyer/FlyerTemplates";
 import {
   calculateCustomTotalM2,
   calculateModifiedFloorplanPricing,
+  calculateTopographyFallCost,
   getEffectiveDesignM2,
   getEffectiveDesignName,
   getHousingTypeForDesign,
+  getSoilRatePerM2,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import {
@@ -208,11 +210,11 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-2 bg-white">
+    <div className="w-full h-full flex items-center justify-center p-1 bg-white">
       <img
         src={src}
         alt="Selected Floorplan Drawing"
-        className="max-h-[460px] max-w-[690px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        className="max-h-[620px] max-w-[720px] w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
@@ -346,11 +348,11 @@ function QuoteSecondFloorplanViewer({ secondDwelling }: { secondDwelling?: Secon
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center p-2 bg-white">
+    <div className="w-full h-full flex items-center justify-center p-1 bg-white">
       <img
         src={src}
         alt="Secondary Dwelling Floorplan Drawing"
-        className="max-h-[440px] max-w-[670px] w-auto h-auto object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        className="max-h-[580px] max-w-[710px] w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
@@ -371,14 +373,35 @@ interface SpecGroup {
   items: SpecItem[];
 }
 
+function getSpecItemEstimatedHeight(item: SpecItem): number {
+  const desc = (item.description || "").trim();
+  const nameLen = (item.name || "").length;
+  // Extra allowance if title is long and wraps onto 2 lines (> 48 chars)
+  const nameExtra = nameLen > 48 ? 18 : 0;
+
+  if (!desc) {
+    return 36 + nameExtra;
+  }
+  const descLen = desc.length;
+  if (descLen <= 55) return 54 + nameExtra;
+  if (descLen <= 110) return 70 + nameExtra;
+  if (descLen <= 170) return 86 + nameExtra;
+  return 102 + nameExtra;
+}
+
+const SPEC_GROUP_HEADER_HEIGHT = 52;
+// Page 1 budget: Available 1043px - 50px footer - 70px clearance - 125px top headers = ~798px.
+// Setting 750px ensures >= 80px clearance above the customer initial footer.
+const SPEC_PAGE_1_MAX_HEIGHT = 750;
+// Continuation page budget: 1043px - 50px footer - 70px clearance - 70px top header = ~853px.
+// Setting 800px ensures >= 80px clearance above the customer initial footer.
+const SPEC_PAGE_CONT_MAX_HEIGHT = 800;
+
 function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   const pages: SpecGroup[][] = [];
   let currentPage: SpecGroup[] = [];
-  let currentUnits = 0;
+  let currentHeight = 0;
   let isFirstPage = true;
-
-  // Max capacity units per page (first page has summary header, continuation pages have more space)
-  const getMaxUnits = (first: boolean) => (first ? 25 : 32);
 
   for (const group of groups) {
     if (!group.items || group.items.length === 0) continue;
@@ -387,16 +410,28 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
     let isContinued = false;
 
     while (remainingItems.length > 0) {
-      const maxUnits = getMaxUnits(isFirstPage);
-      const spaceLeft = maxUnits - currentUnits;
-      const headerCost = isContinued ? 1.0 : 1.2;
+      const maxPageHeight = isFirstPage ? SPEC_PAGE_1_MAX_HEIGHT : SPEC_PAGE_CONT_MAX_HEIGHT;
+      const spaceLeft = maxPageHeight - currentHeight;
 
-      if (spaceLeft >= headerCost + 1.0 || currentPage.length === 0) {
-        const availableForItemRows = Math.max(1, Math.floor(spaceLeft - headerCost));
-        const itemsToTake = Math.min(remainingItems.length, availableForItemRows);
+      const headerCost = SPEC_GROUP_HEADER_HEIGHT;
+      const firstItemHeight = getSpecItemEstimatedHeight(remainingItems[0]);
 
-        const chunk = remainingItems.slice(0, itemsToTake);
-        remainingItems = remainingItems.slice(itemsToTake);
+      if (spaceLeft >= headerCost + firstItemHeight || currentPage.length === 0) {
+        let chunkHeight = headerCost;
+        let takeCount = 0;
+
+        for (let i = 0; i < remainingItems.length; i++) {
+          const itemH = getSpecItemEstimatedHeight(remainingItems[i]);
+          if (takeCount === 0 || currentHeight + chunkHeight + itemH <= maxPageHeight) {
+            chunkHeight += itemH;
+            takeCount++;
+          } else {
+            break;
+          }
+        }
+
+        const chunk = remainingItems.slice(0, takeCount);
+        remainingItems = remainingItems.slice(takeCount);
 
         currentPage.push({
           label: isContinued ? `${group.label} (Continued)` : group.label,
@@ -404,19 +439,19 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
           items: chunk,
         });
 
-        currentUnits += headerCost + chunk.length * 1.0;
+        currentHeight += chunkHeight;
         isContinued = true;
 
         if (remainingItems.length > 0) {
           pages.push(currentPage);
           currentPage = [];
-          currentUnits = 0;
+          currentHeight = 0;
           isFirstPage = false;
         }
       } else {
         pages.push(currentPage);
         currentPage = [];
-        currentUnits = 0;
+        currentHeight = 0;
         isFirstPage = false;
       }
     }
@@ -500,14 +535,26 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
 
   const totalSiteAndStatutorySubtotal = pricing.siteCostsSubtotal + pricing.councilStatutorySubtotal;
 
+  const isSplit = design.housingType === "Split Level" || (design.customSpec && design.customSpec.storeys === "split");
+  const soilRate = getSoilRatePerM2(siteConditions.soilClass);
+  const calculatedSoilCost =
+    typeof siteConditions.soilTotalCost === "number" && !isNaN(siteConditions.soilTotalCost)
+      ? siteConditions.soilTotalCost
+      : Math.round(soilRate * gfaM2) || 0;
+
+  const calculatedFallCost =
+    typeof siteConditions.fallTotalCost === "number" && !isNaN(siteConditions.fallTotalCost)
+      ? siteConditions.fallTotalCost
+      : calculateTopographyFallCost(Number(siteConditions.fallMeters) || 0, gfaM2, isSplit) || 0;
+
   // Active Site Categories formatted in the exact same table format as Page 5 (only active items)
   const earthworksItems = [
     {
       id: "soil_class",
-      name: `Engineered Slab Footing & Foundation (Soil ${siteConditions.soilClass})`,
-      description: `Engineered slab footing depth & steel mesh reinforcement (${pricing.gfaM2} m² GFA footprint).`,
-      qtyLabel: `${pricing.gfaM2} m² footprint`,
-      amount: siteConditions.soilTotalCost,
+      name: `Engineered Slab Footing & Foundation (Soil ${siteConditions.soilClass || "Class M"})`,
+      description: `Engineered slab footing depth & steel mesh reinforcement (${gfaM2} m² GFA footprint).`,
+      qtyLabel: `${gfaM2} m² footprint`,
+      amount: calculatedSoilCost,
     },
     ...(siteConditions.concrete32MpaRequired
       ? [
@@ -515,7 +562,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             id: "concrete_32mpa",
             name: "32 MPa Concrete Slab Upgrade",
             description: "High-strength concrete mix for marine, coastal saline proximity, or acid sulfate ground.",
-            qtyLabel: `${pricing.gfaM2} m²`,
+            qtyLabel: `${gfaM2} m²`,
             amount: concrete32Cost,
           },
         ]
@@ -531,14 +578,14 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           },
         ]
       : []),
-    ...(siteConditions.fallMeters > 0 || siteConditions.fallTotalCost > 0
+    ...(Number(siteConditions.fallMeters) > 0 || calculatedFallCost > 0
       ? [
           {
             id: "fall_topography",
-            name: `Topography Fall Allowance (${siteConditions.fallMeters}m Fall)`,
+            name: `Topography Fall Allowance (${siteConditions.fallMeters || 0}m Fall)`,
             description: `Standard cut & fill included up to 1.0m fall across building pad, with excess topography engineered fall surcharge.`,
-            qtyLabel: `${siteConditions.fallMeters}m envelope`,
-            amount: siteConditions.fallTotalCost,
+            qtyLabel: `${siteConditions.fallMeters || 0}m envelope`,
+            amount: calculatedFallCost,
           },
         ]
       : []),
@@ -790,28 +837,28 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
   const activeSiteSchedule = [
     {
       label: "1. Site Specific Earthworks, Foundation & Soil Engineering",
-      total: earthworksItems.reduce((s, it) => s + it.amount, 0),
+      total: earthworksItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
       items: earthworksItems,
     },
     ...(overlayReportsAndAllowances.length > 0
       ? [
           {
             label: "2. Site Overlay Reports & Allowances",
-            total: overlayReportsAndAllowances.reduce((s, it) => s + it.amount, 0),
+            total: overlayReportsAndAllowances.reduce((s, it) => s + (Number(it.amount) || 0), 0),
             items: overlayReportsAndAllowances,
           },
         ]
       : []),
     {
       label: "3. Council Approvals & Statutory Applications",
-      total: councilStatutoryItems.reduce((s, it) => s + it.amount, 0),
+      total: councilStatutoryItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
       items: councilStatutoryItems,
     },
     ...(geotechnicalSiteItems.length > 0
       ? [
           {
             label: "4. Geotechnical & Site Allowances",
-            total: geotechnicalSiteItems.reduce((s, it) => s + it.amount, 0),
+            total: geotechnicalSiteItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
             items: geotechnicalSiteItems,
           },
         ]
@@ -1189,11 +1236,20 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
                 )}
 
                 {/* Total Cost Line */}
-                <tr className="border-t-2 border-slate-900 bg-slate-900 text-white font-extrabold text-sm">
-                  <td className="py-3 px-3 uppercase tracking-wider">
+                <tr
+                  className="border-t-2 border-slate-900 bg-slate-900 text-white font-extrabold text-sm"
+                  style={{ backgroundColor: "#0f172a" }}
+                >
+                  <td
+                    className="py-3.5 px-3.5 uppercase tracking-wider text-white font-extrabold text-xs"
+                    style={{ color: "#ffffff", backgroundColor: "#0f172a" }}
+                  >
                     TOTAL ESTIMATED BUILDERS INVESTMENT (INC. GST)
                   </td>
-                  <td className="py-3 px-3 text-right font-mono text-base text-amber-400">
+                  <td
+                    className="py-3.5 px-3.5 text-right font-mono text-base font-black text-amber-400"
+                    style={{ color: "#fbbf24", backgroundColor: "#0f172a" }}
+                  >
                     {formatAud(pricing.grossEstimatedInvestment)}
                   </td>
                 </tr>
@@ -1258,53 +1314,57 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
             </div>
           </div>
 
-          {/* Area & Configuration Pill Bar */}
-          <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-1.5 text-center text-xs flex-none">
-            <div>
-              <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
-              <span className="font-bold text-slate-900 text-xs">{design.beds || 4} Beds</span>
-            </div>
-            <div>
-              <span className="text-slate-500 text-[9px] block">Bathrooms:</span>
-              <span className="font-bold text-slate-900 text-xs">{design.baths || 2} Baths</span>
-            </div>
-            <div>
-              <span className="text-slate-500 text-[9px] block">Garage:</span>
-              <span className="font-bold text-slate-900 text-xs">{design.cars || 2} Cars</span>
-            </div>
-            <div>
-              <span className="text-slate-500 text-[9px] block">GFA Platform:</span>
-              <span className="font-bold text-slate-900 text-xs">{pricing.gfaM2} m²</span>
-            </div>
-          </div>
-
-          {/* Floorplan Room & Zone Sizing Breakdown Bar */}
+          {/* 2-Row Unified Architectural Configuration & Room Sizing Schedule */}
           {(() => {
             const isMod = !!design.isModifiedFloorplan;
             const modCalc = calculateModifiedFloorplanPricing(design);
             return (
               <div
-                className={`border rounded-xl py-1 px-3 mb-2 flex items-center justify-between text-[10px] flex-none ${
+                className={`border rounded-xl p-2.5 mb-2.5 flex-none shadow-xs ${
                   isMod
-                    ? "bg-emerald-50/80 border-emerald-300 text-emerald-950"
-                    : "bg-slate-50 border-slate-200 text-slate-700"
+                    ? "bg-emerald-50/80 border-emerald-300"
+                    : "bg-slate-50 border-slate-200"
                 }`}
               >
-                <div className="font-bold flex items-center gap-1">
-                  <span className={isMod ? "text-emerald-800 uppercase tracking-wide font-extrabold" : "text-slate-700 uppercase tracking-wide"}>
-                    {isMod ? "Modified Area Schedule:" : "Area Schedule:"}
-                  </span>
+                {/* Row 1: Home Specifications & Key Dimensions */}
+                <div className="grid grid-cols-4 gap-2 pb-2 border-b border-slate-200/80 text-center text-xs">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-slate-500 text-[10px] font-medium uppercase tracking-wide">Bedrooms:</span>
+                    <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{design.beds || 4} Beds</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-slate-500 text-[10px] font-medium uppercase tracking-wide">Bathrooms:</span>
+                    <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{design.baths || 2} Baths</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-slate-500 text-[10px] font-medium uppercase tracking-wide">Garage:</span>
+                    <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{design.cars || 2} Cars</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="text-slate-500 text-[10px] font-medium uppercase tracking-wide">GFA Platform:</span>
+                    <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{pricing.gfaM2}&nbsp;m²</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2.5 font-mono text-[9.5px]">
-                  {modCalc.zones.map((z) => (
-                    <span key={z.key}>
-                      <span className="font-sans text-slate-500 text-[8.5px]">{z.label.replace(" Area", "").replace(" (Optional)", "")}: </span>
-                      <span className="font-bold text-slate-900">{z.modifiedM2.toFixed(1)} m²</span>
+
+                {/* Row 2: Room & Zone Area Breakdown (Keeps number and m² together strictly on same line) */}
+                <div className="pt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className={`text-[10px] uppercase font-black tracking-wider ${isMod ? "text-emerald-800" : "text-slate-700"}`}>
+                      {isMod ? "Modified Area Schedule:" : "Area Schedule:"}
                     </span>
-                  ))}
-                  <span className="border-l border-slate-300 pl-2 font-extrabold text-cyan-800">
-                    Total: {modCalc.modifiedTotalM2.toFixed(1)} m²
-                  </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 font-mono text-[11px]">
+                    {modCalc.zones.map((z) => (
+                      <span key={z.key} className="inline-flex items-center gap-1 whitespace-nowrap">
+                        <span className="font-sans text-slate-600 text-[10px] font-semibold">{z.label.replace(" Area", "").replace(" (Optional)", "")}:</span>
+                        <span className="font-bold text-slate-900 whitespace-nowrap">{z.modifiedM2.toFixed(1)}&nbsp;m²</span>
+                      </span>
+                    ))}
+                    <span className="border-l border-slate-300 pl-3 inline-flex items-center gap-1 whitespace-nowrap">
+                      <span className="font-sans text-cyan-900 text-[10.5px] font-black">Total:</span>
+                      <span className="font-black text-cyan-800 whitespace-nowrap text-xs">{modCalc.modifiedTotalM2.toFixed(1)}&nbsp;m²</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -1314,7 +1374,7 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
           <QuoteFacadeViewer design={design} />
 
           {/* 2. Architectural Floorplan Layout Drawing (Maximized to fill the lower page area) */}
-          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[500px] max-h-[550px] overflow-hidden shadow-inner">
+          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[580px] max-h-[640px] overflow-hidden shadow-inner">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>
@@ -1363,47 +1423,57 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
               </div>
             </div>
 
-            {/* Area & Configuration Pill Bar */}
-            <div className="grid grid-cols-4 gap-2 bg-slate-50 border border-slate-200 rounded-xl py-1 px-3 mb-1.5 text-center text-xs flex-none">
-              <div>
-                <span className="text-slate-500 text-[9px] block">Bedrooms:</span>
-                <span className="font-bold text-slate-900 text-xs">{secondDwelling.beds || 2} Beds</span>
+            {/* 2-Row Unified Secondary Residence Specifications & Room Sizing Schedule */}
+            <div className="border rounded-xl p-2.5 mb-2.5 flex-none shadow-xs bg-cyan-50/70 border-cyan-200 text-cyan-950">
+              {/* Row 1: Key Configuration */}
+              <div className="grid grid-cols-4 gap-2 pb-2 border-b border-cyan-200/80 text-center text-xs">
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Bedrooms:</span>
+                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.beds || 2} Beds</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Bathrooms:</span>
+                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.baths || 1} Bath</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Parking:</span>
+                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.cars || 0} Cars</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <span className="text-cyan-900 text-[10px] font-medium uppercase tracking-wide">Dwelling:</span>
+                  <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{secondDwelling.housingType}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-500 text-[9px] block">Bathrooms:</span>
-                <span className="font-bold text-slate-900 text-xs">{secondDwelling.baths || 1} Bath</span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[9px] block">Parking / Garage:</span>
-                <span className="font-bold text-slate-900 text-xs">{secondDwelling.cars || 0} Cars</span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[9px] block">Dwelling Type:</span>
-                <span className="font-bold text-slate-900 text-xs">{secondDwelling.housingType}</span>
-              </div>
-            </div>
 
-            {/* Sizing Schedule */}
-            <div className="border rounded-xl py-1 px-3 mb-2 flex items-center justify-between text-[10px] flex-none bg-cyan-50/70 border-cyan-200 text-cyan-950">
-              <div className="font-bold flex items-center gap-1">
-                <span className="text-cyan-900 uppercase tracking-wide font-extrabold">
-                  Secondary Residence Floor Schedule:
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5 font-mono text-[9.5px]">
-                <span>Living: <strong className="text-slate-900">{(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)} m²</strong></span>
-                <span>Porch/Outdoor: <strong className="text-slate-900">{(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)} m²</strong></span>
-                <span className="border-l border-cyan-300 pl-2 font-extrabold text-cyan-800">
-                  Total GFA: {secondDwelling.designM2.toFixed(1)} m²
-                </span>
+              {/* Row 2: Room & Zone Sizing Schedule */}
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-x-3.5 gap-y-1.5 text-xs">
+                <div className="flex items-center gap-1">
+                  <span className="text-cyan-900 uppercase font-black tracking-wider text-[10px]">
+                    Secondary Residence Floor Schedule:
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px]">
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-sans text-cyan-900 text-[10px] font-semibold">Living:</span>
+                    <strong className="text-slate-900 font-bold whitespace-nowrap">{(secondDwelling.modifiedAreas?.livingM2 || secondDwelling.standardAreas?.livingM2 || Math.round(secondDwelling.designM2 * 0.85)).toFixed(1)}&nbsp;m²</strong>
+                  </span>
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-sans text-cyan-900 text-[10px] font-semibold">Porch / Outdoor:</span>
+                    <strong className="text-slate-900 font-bold whitespace-nowrap">{(secondDwelling.modifiedAreas?.porchM2 || secondDwelling.standardAreas?.porchM2 || Math.round(secondDwelling.designM2 * 0.15)).toFixed(1)}&nbsp;m²</strong>
+                  </span>
+                  <span className="border-l border-cyan-300 pl-3 inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className="font-sans text-cyan-950 text-[10.5px] font-black">Total GFA:</span>
+                    <span className="font-black text-cyan-900 whitespace-nowrap text-xs">{secondDwelling.designM2.toFixed(1)}&nbsp;m²</span>
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* 1. Chosen Facade Render for Secondary Dwelling */}
             <QuoteSecondFacadeViewer secondDwelling={secondDwelling} />
 
-            {/* 2. Floorplan Layout Drawing */}
-            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1.5 bg-white flex items-center justify-center min-h-[400px] max-h-[480px] overflow-hidden shadow-inner">
+            {/* 2. Floorplan Layout Drawing (Maximized) */}
+            <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[520px] max-h-[580px] overflow-hidden shadow-inner">
               <QuoteSecondFloorplanViewer secondDwelling={secondDwelling} />
             </div>
           </div>
@@ -1753,18 +1823,21 @@ export function QuotePdfDocument({ quote }: QuotePdfDocumentProps) {
       <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
         <div className="space-y-5">
           {/* Top Lifetime Structural Guarantee Banner */}
-          <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md text-center space-y-2 border border-slate-800">
-            <div className="text-[11px] font-bold tracking-widest text-amber-400 uppercase">
+          <div
+            className="bg-slate-900 text-white rounded-2xl p-6 shadow-md text-center space-y-2 border border-slate-800"
+            style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
+          >
+            <div className="text-[11px] font-bold tracking-widest text-amber-400 uppercase" style={{ color: "#fbbf24" }}>
               HUDSON HOMES PEACE OF MIND
             </div>
-            <h3 className="text-2xl font-serif italic text-white tracking-wide">
+            <h3 className="text-2xl font-serif italic text-white tracking-wide" style={{ color: "#ffffff" }}>
               Lifetime Structural Integrity Guarantee
             </h3>
-            <p className="text-xs text-slate-300 max-w-xl mx-auto leading-relaxed">
+            <p className="text-xs text-slate-300 max-w-xl mx-auto leading-relaxed" style={{ color: "#cbd5e1" }}>
               Every Hudson home is engineered and constructed to the highest standards of Australian building compliance.
               We proudly back our workmanship with a **Lifetime Structural Integrity Guarantee** for total peace of mind.
             </p>
-            <div className="pt-2 flex items-center justify-center gap-6 text-[10px] font-semibold text-amber-400 uppercase tracking-wider">
+            <div className="pt-2 flex items-center justify-center gap-6 text-[10px] font-semibold text-amber-400 uppercase tracking-wider" style={{ color: "#fbbf24" }}>
               <span>★ 100% Australian Owned</span>
               <span>★ Lifetime Structural Guarantee</span>
               <span>★ ISO 9001 Certified</span>
