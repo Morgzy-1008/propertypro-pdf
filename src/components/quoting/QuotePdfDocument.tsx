@@ -11,6 +11,7 @@ import {
   getSoilRatePerM2,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+import { isLocalhost } from "@/lib/isLocalhost";
 import {
   CheckCircle2,
   Award,
@@ -161,17 +162,15 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   );
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[225px] max-h-[225px] mb-2.5 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white flex items-center justify-center h-[225px] max-h-[225px] mb-2.5 flex-none">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
         }`}
         style={{
           imageRendering: "auto",
-          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
-          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
         }}
       />
       <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
@@ -239,19 +238,15 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
   );
 
   return (
-    <div className="relative w-full h-[245px] max-h-[245px] rounded-2xl overflow-hidden shadow-xl border border-slate-200/90 bg-slate-950 flex items-center justify-center my-3 group">
+    <div className="relative w-full h-[245px] max-h-[245px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-white flex items-center justify-center my-3 group">
       <img
         src={displaySrc}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"}`}
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"}`}
         style={{
-          transform: isDoubleOrSplit ? "scale(0.88)" : "scale(0.94)",
-          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
+          imageRendering: "auto",
         }}
       />
-      {/* Subtle vignette */}
-      <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent pointer-events-none" />
-
       {/* Brand facet accent ribbon at top of imagery with Hudson Logo colors */}
       <div className="absolute top-0 inset-x-0 h-1.5 flex">
         <div className="flex-1 bg-amber-500" />
@@ -387,17 +382,15 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
   );
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-950 flex items-center justify-center h-[190px] max-h-[190px] mb-2 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white flex items-center justify-center h-[190px] max-h-[190px] mb-2 flex-none">
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
         className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
         }`}
         style={{
           imageRendering: "auto",
-          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
-          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
         }}
       />
       <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
@@ -555,8 +548,10 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   return pages.length > 0 ? pages : [[]];
 }
 
-export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumentProps) {
+export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumentProps) {
   const { client, design, siteConditions, lineItems, pricing } = quote;
+  const isLocal = isLocalhost();
+  const activeCoverVersion = isLocal ? (coverVersion || "v1") : "v1";
 
   const validUntilDate = new Date(quote.createdAt);
   validUntilDate.setDate(validUntilDate.getDate() + (client.quoteValidityDays || 14));
@@ -987,7 +982,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE (V1 OR V2)                  */}
       {/* ========================================================================= */}
-      {coverVersion === "v1" ? (
+      {activeCoverVersion === "v1" ? (
         /* ------------------------------------------------------------------------- */
         /* COVER PAGE V1: CLASSIC MINIMAL                                            */
         /* ------------------------------------------------------------------------- */
@@ -1049,6 +1044,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumen
             </div>
             <div className="text-6xl font-serif italic text-cyan-700 tracking-tight leading-none pt-1">
               Builders Estimate
+            </div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 pt-3">
+              Comprehensive Architectural Tender &amp; Site Investment Breakdown
             </div>
           </div>
 

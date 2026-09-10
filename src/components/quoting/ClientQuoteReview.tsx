@@ -108,16 +108,15 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   );
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/86] mb-4">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-900 flex items-center justify-center max-h-80 aspect-[210/86] mb-4">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
         }`}
         style={{
-          transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
-          transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
+          imageRendering: "auto",
         }}
       />
       <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5">

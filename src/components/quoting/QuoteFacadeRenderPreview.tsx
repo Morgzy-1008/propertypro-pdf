@@ -168,12 +168,10 @@ export function QuoteFacadeRenderPreview({
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
             className={`w-full h-full object-cover ${
-              isDoubleOrSplit ? "object-[center_43%]" : "object-[center_46%]"
+              isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
             } transition-all duration-300`}
             style={{
               imageRendering: "auto",
-              transform: isDoubleOrSplit ? "scale(0.84)" : "scale(0.91)",
-              transformOrigin: isDoubleOrSplit ? "center 43%" : "center 46%",
             }}
           />
         ) : (

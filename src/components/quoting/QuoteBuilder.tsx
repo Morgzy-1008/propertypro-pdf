@@ -62,10 +62,12 @@ import { QuoteInclusionsStep } from "./QuoteInclusionsStep";
 import { QuoteAdminCatalogue } from "./QuoteAdminCatalogue";
 import { QuotePdfDocument } from "./QuotePdfDocument";
 import { QuoteEstimatesDialog } from "./QuoteEstimatesDialog";
+import { isLocalhost } from "@/lib/isLocalhost";
 
 type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 
 export function QuoteBuilder() {
+  const isLocal = isLocalhost();
   const [quote, setQuote] = useState<FullQuote>(() => {
     const draft = loadActiveDraftQuote();
     if (draft && (draft.client.clientName || draft.design.designName || draft.pricing?.grossEstimatedInvestment > 0)) {
@@ -82,7 +84,8 @@ export function QuoteBuilder() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [coverVersion, setCoverVersion] = useState<"v1" | "v2">("v2");
+  // Default to v1 classic. In localhost dev, user can toggle to v2.
+  const [coverVersion, setCoverVersion] = useState<"v1" | "v2">("v1");
 
   // Sync with IndexedDB & localStorage on mount
   useEffect(() => {
@@ -680,32 +683,34 @@ export function QuoteBuilder() {
                       Builders Estimate Document Preview
                     </span>
 
-                    {/* V1 vs V2 Cover Page Comparison Switcher */}
-                    <div className="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Cover Design:</span>
-                      <button
-                        type="button"
-                        onClick={() => setCoverVersion("v1")}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          coverVersion === "v1"
-                            ? "bg-slate-800 text-white shadow-xs"
-                            : "text-slate-400 hover:text-slate-200"
-                        }`}
-                      >
-                        V1 Classic
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCoverVersion("v2")}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          coverVersion === "v2"
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-xs"
-                            : "text-slate-400 hover:text-slate-200"
-                        }`}
-                      >
-                        <Sparkles className="h-3 w-3" /> V2 Modern Luxe (Recommended)
-                      </button>
-                    </div>
+                    {/* V1 vs V2 Cover Page Comparison Switcher - ONLY on Localhost / Dev */}
+                    {isLocal && (
+                      <div className="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 px-2">Localhost Cover:</span>
+                        <button
+                          type="button"
+                          onClick={() => setCoverVersion("v1")}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                            coverVersion === "v1"
+                              ? "bg-slate-800 text-white shadow-xs"
+                              : "text-slate-400 hover:text-slate-200"
+                          }`}
+                        >
+                          V1 Classic
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCoverVersion("v2")}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                            coverVersion === "v2"
+                              ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-xs"
+                              : "text-slate-400 hover:text-slate-200"
+                          }`}
+                        >
+                          <Sparkles className="h-3 w-3" /> V2 Modern Luxe (Dev Localhost)
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <Button
@@ -719,7 +724,7 @@ export function QuoteBuilder() {
                   </Button>
                 </div>
                 <div className="rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950 p-4">
-                  <QuotePdfDocument quote={quote} coverVersion={coverVersion} />
+                  <QuotePdfDocument quote={quote} coverVersion={isLocal ? coverVersion : "v1"} />
                 </div>
               </div>
             )}
@@ -835,7 +840,7 @@ export function QuoteBuilder() {
           }}
           aria-hidden="true"
         >
-          <QuotePdfDocument quote={quote} coverVersion={coverVersion} />
+          <QuotePdfDocument quote={quote} coverVersion={isLocal ? coverVersion : "v1"} />
         </div>
       )}
     </div>
