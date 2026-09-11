@@ -1,5 +1,6 @@
-import { CrmLead, CrmStageId, CrmMessage, CrmTask } from "./crmTypes";
+import { CrmLead, CrmStageId, CrmMessage, CrmTask, normalizeConsultantId } from "./crmTypes";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
+import { getActiveStaffUser } from "@/lib/authSession";
 
 const CRM_STORAGE_KEY = "hudson_crm_leads_v3";
 const CRM_MESSAGES_KEY = "hudson_crm_messages_v3";
@@ -52,6 +53,9 @@ export async function saveCrmLead(lead: CrmLead): Promise<CrmLead[]> {
   }
 
   localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(updatedList));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "save", lead: updatedLead } }));
+  }
   return updatedList;
 }
 
@@ -59,12 +63,18 @@ export async function deleteCrmLead(leadId: string): Promise<CrmLead[]> {
   const list = await loadAllCrmLeads();
   const updated = list.filter((l) => l.id !== leadId);
   localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(updated));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "delete", leadId } }));
+  }
   return updated;
 }
 
 export async function clearAllCrmData(): Promise<void> {
   localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify([]));
   localStorage.setItem(CRM_MESSAGES_KEY, JSON.stringify([]));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "clear" } }));
+  }
 }
 
 export async function updateCrmLeadStage(leadId: string, newStage: CrmStageId): Promise<CrmLead[]> {
@@ -92,6 +102,9 @@ export async function updateCrmLeadStage(leadId: string, newStage: CrmStageId): 
   });
 
   localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(updatedList));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "stage_change", leadId, newStage } }));
+  }
   return updatedList;
 }
 
@@ -262,14 +275,32 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
   const searchPhone = (quote.client.clientPhone || "").replace(/\s+/g, "");
   const searchEmail = (quote.client.clientEmail || "").trim().toLowerCase();
 
+  // Resolve assigned consultant ID normalized to Hudson CRM ID schema
+  const staff = typeof window !== "undefined" ? getActiveStaffUser() : null;
+  const rawConsultant =
+    quote.client.consultantId ||
+    staff?.id ||
+    quote.client.consultantEmail ||
+    quote.client.consultantName ||
+    "morgan_hales";
+  const consultantKey = normalizeConsultantId(rawConsultant);
+
   const matchIdx = list.findIndex((l) => {
+    // Exact match on linked quote/estimate number
+    if (quote.quoteNumber && l.linkedQuoteNumber === quote.quoteNumber) return true;
     if (searchEmail && l.email && l.email.toLowerCase() === searchEmail) return true;
     if (searchPhone && l.mobile && l.mobile.replace(/\s+/g, "") === searchPhone) return true;
     return l.clientName.toLowerCase() === searchName;
   });
 
-  const dealVal = quote.totals?.totalPriceIncGst || quote.design.basePrice || 450000;
-  const designName = quote.design.designName ? `${quote.design.designName} (${quote.design.housingType})` : "Custom Design";
+  const dealVal =
+    quote.totals?.totalPriceIncGst ||
+    quote.pricing?.grossEstimatedInvestment ||
+    quote.design.basePrice ||
+    450000;
+  const designName = quote.design.designName
+    ? `${quote.design.designName} (${quote.design.housingType})`
+    : "Custom Design";
 
   if (matchIdx >= 0) {
     // Update existing lead
@@ -279,13 +310,13 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
       id: `act_${Date.now()}`,
       type: "quote",
       title: `Estimate Updated #${quote.quoteNumber || "MH"}`,
-      description: `${designName} total: $${dealVal.toLocaleString()} with ${quote.design.specTier}.`,
+      description: `${designName} total: $${dealVal.toLocaleString()} with ${quote.design.specTier || "Inclusions"}.`,
       timestamp: new Date().toISOString(),
     });
 
     const updated: CrmLead = {
       ...existing,
-      clientName: quote.client.clientName,
+      clientName: quote.client.clientName.trim(),
       mobile: quote.client.clientPhone || existing.mobile,
       email: quote.client.clientEmail || existing.email,
       secondaryCustomerName: quote.client.hasClient2 ? quote.client.client2Name : existing.secondaryCustomerName,
@@ -296,21 +327,25 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
       lotNumber: quote.client.lotNumber || existing.lotNumber,
       preferredDesign: quote.design.designName || existing.preferredDesign,
       facadeName: quote.design.facadeName || existing.facadeName,
-      housingType: quote.design.housingType as any || existing.housingType,
+      housingType: (quote.design.housingType as any) || existing.housingType,
       totalEstimatedDealValue: dealVal,
       linkedQuoteNumber: quote.quoteNumber,
+      assignedConsultantId: consultantKey || existing.assignedConsultantId,
       activities: newActivities,
       updatedAt: new Date().toISOString(),
     };
 
     list[matchIdx] = updated;
     localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(list));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "update", lead: updated } }));
+    }
     return list;
   } else {
     // Create new lead
     const newLead: CrmLead = {
-      id: `lead_quote_${Date.now()}`,
-      clientName: quote.client.clientName,
+      id: `lead_quote_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      clientName: quote.client.clientName.trim(),
       email: quote.client.clientEmail || "",
       mobile: quote.client.clientPhone || "",
       secondaryCustomerName: quote.client.hasClient2 ? quote.client.client2Name : undefined,
@@ -326,8 +361,8 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
       housingType: (quote.design.housingType as any) || "Single Storey",
       totalEstimatedDealValue: dealVal,
       stage: "estimate_presented",
-      assignedConsultantId: quote.client.consultantId || "morgan_hales",
-      leadSource: "Website Inquiry",
+      assignedConsultantId: consultantKey,
+      leadSource: "Quoting System" as any,
       notes: quote.client.notes || `Generated from Hudson Quoting Tool Estimate #${quote.quoteNumber}.`,
       linkedQuoteNumber: quote.quoteNumber,
       isAtpSigned: false,
@@ -337,7 +372,7 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
       clientNotes: [
         {
           id: `cn_${Date.now()}`,
-          author: quote.client.consultantName || "Sales Consultant",
+          author: quote.client.consultantName || staff?.name || "Sales Consultant",
           content: `Initial Builders Estimate #${quote.quoteNumber} created for ${designName}.`,
           createdAt: new Date().toISOString(),
         },
@@ -367,6 +402,9 @@ export async function upsertLeadFromQuote(quote: FullQuote): Promise<CrmLead[]> 
 
     const combined = [newLead, ...list];
     localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(combined));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("hudson_crm_change", { detail: { action: "create", lead: newLead } }));
+    }
     return combined;
   }
 }

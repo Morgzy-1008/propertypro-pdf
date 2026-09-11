@@ -72,9 +72,7 @@ export function CrmWorkspace() {
   const [activeTab, setActiveTab] = useState<"kanban" | "tasks" | "conversations" | "commissions">("kanban");
   const [selectedConsultantId, setSelectedConsultantId] = useState<string>(() => {
     const user = getActiveStaffUser();
-    if (user?.id.includes("adrian") || user?.name.toLowerCase().includes("adrian")) return "adrian";
-    if (user?.id.includes("jesse") || user?.name.toLowerCase().includes("jesse")) return "jesse";
-    return "morgan_hales";
+    return normalizeConsultantId(user?.id || user?.email || user?.name);
   });
   const [userRole, setUserRole] = useState<"nhc" | "viewer">("nhc");
 
@@ -103,11 +101,27 @@ export function CrmWorkspace() {
     refreshData();
     const unsub = onStaffUserChanged((user) => {
       setStaffUser(user);
+      if (user) {
+        setSelectedConsultantId(normalizeConsultantId(user.id || user.email || user.name));
+      }
       if (!canViewRemuneration(user)) {
         setActiveTab((prev) => (prev === "commissions" ? "kanban" : prev));
       }
     });
-    return () => unsub();
+
+    const handleCrmChange = () => {
+      refreshData();
+    };
+    if (typeof window !== "undefined") {
+      window.addEventListener("hudson_crm_change", handleCrmChange);
+    }
+
+    return () => {
+      unsub();
+      if (typeof window !== "undefined") {
+        window.removeEventListener("hudson_crm_change", handleCrmChange);
+      }
+    };
   }, []);
 
   useEffect(() => {

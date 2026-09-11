@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
+import { ALL_STAFF_CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { formatAud } from "@/lib/pricing";
 import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
 import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
@@ -58,8 +58,16 @@ export function QuoteClientDetails({
 }: QuoteClientDetailsProps) {
   const [importingPdf, setImportingPdf] = useState(false);
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
+
   useEffect(() => {
-    loadAllCrmLeads().then(setCrmLeads).catch(() => {});
+    const fetchLeads = () => {
+      loadAllCrmLeads().then(setCrmLeads).catch(() => {});
+    };
+    fetchLeads();
+    if (typeof window !== "undefined") {
+      window.addEventListener("hudson_crm_change", fetchLeads);
+      return () => window.removeEventListener("hudson_crm_change", fetchLeads);
+    }
   }, []);
 
   const handleSelectCrmLead = (leadId: string) => {
@@ -265,14 +273,22 @@ export function QuoteClientDetails({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="border-b border-slate-800/80 pb-4">
-        <h3 className="text-base font-bold text-white flex items-center gap-2">
-          <User className="h-4 w-4 text-emerald-400" />
-          Step 1: Client &amp; Job Information
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">
-          Enter primary client details, secondary applicant information (optional), proposed site address, and initial deposit options.
-        </p>
+      <div className="border-b border-slate-800/80 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h3 className="text-base font-bold text-white flex items-center gap-2">
+            <User className="h-4 w-4 text-emerald-400" />
+            Step 1: Client &amp; Job Information
+          </h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Enter primary client details, secondary applicant information (optional), proposed site address, and initial deposit options.
+          </p>
+        </div>
+        {client.clientName && client.clientName.trim().length >= 2 && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-semibold shadow-xs self-start sm:self-center">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Synced to CRM &bull; {client.consultantName || "Consultant"}</span>
+          </div>
+        )}
       </div>
 
       {/* Select Existing Client & CRM Import Banner */}
@@ -589,7 +605,7 @@ export function QuoteClientDetails({
                 <SelectValue placeholder="Select consultant" />
               </SelectTrigger>
               <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                {CONSULTANTS.map((c) => (
+                {ALL_STAFF_CONSULTANTS.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name} — {c.displayCentre}
                   </SelectItem>

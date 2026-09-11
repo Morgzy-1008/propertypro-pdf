@@ -127,6 +127,38 @@ export function QuoteBuilder() {
     return () => unsub();
   }, []);
 
+  // Automatically sync client to CRM under consultant's login whenever client details are added or updated
+  useEffect(() => {
+    const clientName = quote.client.clientName?.trim();
+    if (!clientName || clientName.length < 2) return;
+
+    const timer = setTimeout(() => {
+      upsertLeadFromQuote(quote).catch((err) => {
+        console.warn("Auto-sync to CRM failed:", err);
+      });
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [
+    quote.client.clientName,
+    quote.client.clientPhone,
+    quote.client.clientEmail,
+    quote.client.siteAddress,
+    quote.client.suburb,
+    quote.client.estate,
+    quote.client.lotNumber,
+    quote.client.hasClient2,
+    quote.client.client2Name,
+    quote.client.client2Phone,
+    quote.client.client2Email,
+    quote.client.consultantId,
+    quote.client.consultantEmail,
+    quote.client.consultantName,
+    quote.design.designName,
+    quote.pricing?.grossEstimatedInvestment,
+    quote.quoteNumber,
+  ]);
+
   // Check for bridged floorplan or siting imports from Foresight Studio
   useEffect(() => {
     try {
