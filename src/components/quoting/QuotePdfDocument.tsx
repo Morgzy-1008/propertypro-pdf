@@ -93,7 +93,7 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
 
   React.useEffect(() => {
-    if (design.isCustomFacade && design.facadeImageUrl) {
+    if (design.facadeImageUrl) {
       setSrc(design.facadeImageUrl);
       return;
     }
@@ -120,7 +120,10 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
         return;
       }
 
-      // 2. Check IndexedDB cache for AI-enhanced render
+      // Set base render immediately for PDF generation
+      setSrc(matched.url);
+
+      // 2. Check IndexedDB cache for AI-enhanced render in background
       getIdbEnhanced(matched.id)
         .then((cached) => {
           if (cached) {
@@ -135,13 +138,9 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
             .then((res) => {
               if (res) setSrc(res);
             })
-            .catch(() => {
-              setSrc(matched!.url);
-            });
+            .catch(() => {});
         })
-        .catch(() => {
-          setSrc(matched.url);
-        });
+        .catch(() => {});
     }
   }, [design.facadeName, design.housingType, design.mode, design.customSpec, design.isCustomFacade, design.facadeImageUrl, design.designName]);
 
@@ -1379,13 +1378,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   <tr className="text-emerald-800 font-semibold bg-emerald-50/80 border-l-4 border-l-emerald-500">
                     <td className="py-2 px-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-emerald-900">{pricing.promotionName}</span>
+                        <span className="font-bold text-emerald-900">{pricing.promotionName || "Managers Discount"}</span>
                         <span className="text-[9px] font-bold uppercase bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded">
                           Special Savings
                         </span>
                       </div>
                       <span className="block text-[10px] text-emerald-700">
-                        Automated builder promotion applied to base house price
+                        Special manager discount allowance applied to contract
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono font-bold text-emerald-800">

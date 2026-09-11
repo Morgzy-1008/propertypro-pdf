@@ -59,6 +59,9 @@ import {
   getAutomatedPromotionDiscount,
   getHousingTypeForDesign,
 } from "@/lib/quoting/quoteEngine";
+import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
+import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
+import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
 import type { InclusionTier, QuoteDesignSelection, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
 
@@ -272,7 +275,7 @@ export function getFacadesForDesignAndHousingType(
   designName?: string,
   housingType: string = "Single Storey",
   division: Division = getActiveDivision()
-): { name: string; uplift: number }[] {
+): { name: string; uplift: number; note?: string; range?: string; url?: string; id?: string }[] {
   const isNsw = division === "NSW";
   const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;
   const isAcreage = isMulberry || housingType === "Acreage" || housingType === "Acreage & Split Level" || housingType === "Ranch & Acreage";
@@ -283,6 +286,34 @@ export function getFacadesForDesignAndHousingType(
       return size >= 33 ? NSW_MULBERRY_FACADES["33-39"] : NSW_MULBERRY_FACADES["22-28"];
     }
     return size >= 33 ? HOUSING_FACADES["Acreage (Large)"] : HOUSING_FACADES["Acreage"];
+  }
+
+  // Check if duplex or dual living design
+  const isDuplex =
+    housingType === "Dual Living" ||
+    housingType === "dual-oc" ||
+    Boolean(
+      designName &&
+        (/ - TD| - SD|\bduplex\b|\bdual\b/i.test(designName) ||
+          ["alabaster", "cayenne", "cayene", "teal", "wisteria", "magnolia", "maize", "raven", "lavender"].some((f) =>
+            designName.toLowerCase().startsWith(f)
+          ))
+    );
+
+  if (isDuplex && designName) {
+    const duplexList = duplexFacadesForDesign(designName);
+    if (duplexList.length > 0) {
+      const isTwoStorey = /two\s*stor|double| - td/i.test(designName) || housingType === "Double Storey";
+      const storey: FacadeStorey = isTwoStorey ? "double" : "single";
+      return duplexList.map((f) => ({
+        name: f.name,
+        uplift: facadePriceForDesign(f.name, storey, designName) ?? 0,
+        note: f.note,
+        range: f.range,
+        url: f.url,
+        id: f.id,
+      }));
+    }
   }
 
   if (housingType === "Split Level") {
@@ -533,11 +564,9 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     }
 
     // For Duplex and Dual Occ plans:
-    // They are already priced with the discount in the base price, so increase the base price
-    // by that discount amount + $5,000 extra buffer (so every design has a $5k buffer).
+    // With base prices reduced across the board, dual living has a $10,000 spare safety net added to base price
     if (housingType === "Dual Living" || model.name.includes(" - TD") || model.name.includes(" - SD")) {
-      const discount = getAutomatedPromotionDiscount(model.m2);
-      return raw + discount + 5000;
+      return raw + 10000;
     }
 
     return raw;
@@ -559,8 +588,10 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       isModifiedFloorplan: false,
       facadeName: defaultFacade.name,
       facadePrice: defaultFacade.uplift,
+      facadeImageUrl: defaultFacade.url || "",
       isCustomFacade: false,
       promotionsDiscount: 0,
+      promotionName: "Managers Discount",
       floorplanUrl: "",
       beds: "",
       baths: "",
@@ -606,7 +637,6 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       effectiveM2 = pricing.modifiedTotalM2;
       effectiveBasePrice = pricing.modifiedBasePrice;
     }
-    const autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
 
     onChange({
       housingType: detectedHousingType,
@@ -620,8 +650,9 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       basePrice: effectiveBasePrice,
       facadeName: design.isCustomFacade ? design.facadeName : chosenFacade.name,
       facadePrice: design.isCustomFacade ? design.facadePrice : chosenFacade.uplift,
-      promotionsDiscount: autoDiscount,
-      promotionName: design.promotionName || "Hudson Special Builder Promotion",
+      facadeImageUrl: design.isCustomFacade ? design.facadeImageUrl : (chosenFacade.url || ""),
+      promotionsDiscount: 0,
+      promotionName: design.promotionName || "Managers Discount",
       floorplanUrl,
       beds: plans[0]?.beds || "4",
       baths: plans[0]?.baths || "2",
@@ -753,13 +784,15 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
         isCustomFacade: true,
         facadeName: "Custom Architectural Facade",
         facadePrice: design.facadePrice || 5000,
+        facadeImageUrl: "",
       });
     } else {
-      const match = suitableFacades.find((f) => f.name === facadeName);
+      const match = suitableFacades.find((f) => f.name === facadeName || f.id === facadeName);
       onChange({
         isCustomFacade: false,
-        facadeName,
+        facadeName: match ? match.name : facadeName,
         facadePrice: match ? match.uplift : 0,
+        facadeImageUrl: match?.url || "",
       });
     }
   };
@@ -776,12 +809,11 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     const updated = { ...customSpec, [field]: val };
     const calculatedBase = calculateCustomFloorplanPrice(updated);
     const totalM2 = calculateCustomTotalM2(updated);
-    const autoDiscount = getAutomatedPromotionDiscount(totalM2);
     onChange({
       customSpec: updated,
       basePrice: calculatedBase,
       designM2: totalM2,
-      promotionsDiscount: autoDiscount,
+      promotionsDiscount: 0,
     });
   };
 
@@ -1665,26 +1697,73 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 </span>
               </div>
 
+              {/* Duplex Elevation / Garage Position Badge */}
+              {(() => {
+                const match = suitableFacades.find(
+                  (f) => f.name.toLowerCase() === (design.facadeName || "").toLowerCase()
+                );
+                if (!match?.note) return null;
+                return (
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-semibold">
+                    <Building2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span>Duplex Elevation: <strong>{match.note}</strong></span>
+                  </div>
+                );
+              })()}
+
               <div className="space-y-1.5">
                 <Label className="text-[11px] text-slate-400">Select Facade from Price List ({suitableFacades.length} available)</Label>
-                <Select
-                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
-                  onValueChange={handleFacadeSelect}
-                >
-                  <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
-                    {suitableFacades.map((f) => (
-                      <SelectItem key={f.name} value={f.name}>
-                        {f.name} {f.uplift === 0 ? "(Standard Included)" : `(+${formatAud(f.uplift)})`}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
-                      + Custom Architectural Facade (Specify Details &amp; Price)
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Select
+                      value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
+                      onValueChange={handleFacadeSelect}
+                    >
+                      <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                        {suitableFacades.map((f, idx) => (
+                          <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
+                            <div className="flex items-center justify-between gap-2 w-full">
+                              <span>{f.name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {f.note ? `${f.note} • ` : ""}
+                                {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                        <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
+                          + Custom Architectural Facade (Specify Details &amp; Price)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <FacadeLibrary
+                    value={design.facadeName || ""}
+                    onSelect={(item) => {
+                      const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
+                      const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
+                      onChange({
+                        isCustomFacade: false,
+                        facadeName: item.name,
+                        facadePrice: uplift,
+                        facadeImageUrl: item.url,
+                      });
+                    }}
+                    storey={isDouble ? "double" : "single"}
+                    designName={design.designName}
+                    designFacades={suitableFacades.filter((f) => f.url).map((f) => ({
+                      id: f.id || f.name,
+                      name: f.name,
+                      range: f.range || f.note || design.housingType,
+                      tags: [f.name.toLowerCase(), "duplex"],
+                      url: f.url!,
+                      originalUrl: f.url,
+                    }))}
+                  />
+                </div>
               </div>
 
               {/* Custom Facade Detailed Editor */}
@@ -1731,34 +1810,42 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
               )}
             </div>
 
-            {/* Builder Promotion / Discount Allowance */}
+            {/* Builder Promotion / Managers Discount Allowance */}
             <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <Tag className="h-3.5 w-3.5 text-emerald-400" />
-                  Builder Promotion / Special Discount
-                </Label>
+                  <Label className="text-xs text-slate-300 font-semibold">
+                    Managers Discount / Promotional Allowance
+                  </Label>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">
+                    $10k Closer Safety Net
+                  </span>
+                </div>
                 <span className="text-xs font-mono font-bold text-emerald-400">
-                  {design.promotionsDiscount > 0 ? `-${formatAud(design.promotionsDiscount)}` : "No Promotion"}
+                  {design.promotionsDiscount > 0 ? `-${formatAud(design.promotionsDiscount)}` : "$0 (Standard)"}
                 </span>
               </div>
 
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-slate-400">Promotion Campaign Title</Label>
+                  <Label className="text-[10px] text-slate-400">Discount Title</Label>
                   <Input
-                    value={design.promotionName || ""}
+                    value={design.promotionName ?? "Managers Discount"}
                     onChange={(e) => onChange({ promotionName: e.target.value })}
-                    placeholder="e.g. Summer Gold Coast Builder Promotion"
-                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100"
+                    placeholder="Managers Discount"
+                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100 font-medium"
                   />
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-slate-400">Promotional Discount Amount ($)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] text-slate-400">Managers Discretionary Discount ($)</Label>
+                    <span className="text-[9px] text-slate-500 font-mono">Autofills $0 &bull; $10k buffer</span>
+                  </div>
                   <Input
                     type="number"
-                    value={design.promotionsDiscount || ""}
+                    value={design.promotionsDiscount ?? 0}
                     onChange={(e) => onChange({ promotionsDiscount: Number(e.target.value) || 0 })}
                     placeholder="0"
                     className="h-8.5 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"

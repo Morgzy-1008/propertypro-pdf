@@ -23,6 +23,7 @@ export function QuoteFacadeRenderPreview({
   showBadge = true,
 }: QuoteFacadeRenderPreviewProps) {
   const [src, setSrc] = useState<string>("");
+  const [renderNote, setRenderNote] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   const facadeName = design.facadeName || (design.designName ? "Classic" : "");
@@ -44,12 +45,14 @@ export function QuoteFacadeRenderPreview({
   useEffect(() => {
     if (!facadeName) {
       setSrc("");
+      setRenderNote("");
       return;
     }
 
     // Custom facade image URL override if provided
     if (design.isCustomFacade && design.facadeImageUrl) {
       setSrc(design.facadeImageUrl);
+      setRenderNote("Custom Elevation");
       return;
     }
 
@@ -60,7 +63,11 @@ export function QuoteFacadeRenderPreview({
     const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
 
     if (matched) {
-      // 1. Check pre-rendered static high-res catalogue
+      if (isMounted) {
+        setRenderNote(matched.range || "");
+      }
+
+      // 1. Check pre-rendered static high-res catalogue first
       if (PRE_RENDERED_FACADES[matched.id]) {
         if (isMounted) {
           setSrc(PRE_RENDERED_FACADES[matched.id]);
@@ -69,7 +76,13 @@ export function QuoteFacadeRenderPreview({
         return;
       }
 
-      // 2. Check IndexedDB cache for AI-enhanced render
+      // Set base render immediately so it displays instantly with zero lag
+      if (isMounted) {
+        setSrc(matched.url);
+        setLoading(false);
+      }
+
+      // 2. Check IndexedDB cache for AI-enhanced render in background
       getIdbEnhanced(matched.id)
         .then((cached) => {
           if (!isMounted) return;
@@ -77,7 +90,6 @@ export function QuoteFacadeRenderPreview({
             const clean = cached.replace("::AI_OUTPAINT_V7_FRESH::", "");
             if (clean.startsWith("data:image/")) {
               setSrc(clean);
-              setLoading(false);
               return;
             }
           }
@@ -87,32 +99,20 @@ export function QuoteFacadeRenderPreview({
             if (!isMounted) return;
             if (remoteB64) {
               setSrc(remoteB64);
-              setLoading(false);
               return;
             }
 
             // 4. Fallback to prepareFacade for enhancement
             prepareFacade(matched!.url, matched!.originalUrl, matched!.id, housingType)
               .then((res) => {
-                if (isMounted) {
-                  setSrc(res || matched!.url);
-                  setLoading(false);
+                if (isMounted && res) {
+                  setSrc(res);
                 }
               })
-              .catch(() => {
-                if (isMounted) {
-                  setSrc(matched!.url);
-                  setLoading(false);
-                }
-              });
+              .catch(() => {});
           });
         })
-        .catch(() => {
-          if (isMounted) {
-            setSrc(matched.url);
-            setLoading(false);
-          }
-        });
+        .catch(() => {});
     } else {
       setLoading(false);
     }
@@ -141,11 +141,16 @@ export function QuoteFacadeRenderPreview({
       {/* Header Bar */}
       {showBadge && (
         <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between flex-wrap gap-2 bg-slate-900/60">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Sparkles className="h-4 w-4 text-cyan-400" />
             <span className="text-xs font-bold uppercase tracking-wider text-slate-100">
               Architectural Facade Render &bull; {design.facadeName || "Classic"}
             </span>
+            {renderNote && (
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-700/60">
+                {renderNote}
+              </span>
+            )}
             <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-800/40">
               {housingType}
             </span>
@@ -195,6 +200,9 @@ export function QuoteFacadeRenderPreview({
           <div className="absolute bottom-3 left-3 bg-slate-950/85 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-lg flex items-center gap-2 pointer-events-none">
             <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
             <span>HD Facade Render &bull; {design.facadeName || "Classic"}</span>
+            {renderNote && (
+              <span className="text-emerald-300 font-sans normal-case">({renderNote})</span>
+            )}
             <span className="text-amber-400 font-mono">
               {design.facadePrice === 0 ? "($0 Included)" : `(+${formatAud(design.facadePrice)})`}
             </span>

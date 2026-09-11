@@ -88,8 +88,8 @@ export function findDesign(name: string, division?: Division): PriceRow | undefi
   return undefined;
 }
 
-/** Current promotion: every listed house price is reduced by $30,000. */
-export const PROMO_DISCOUNT = 30000;
+/** Promotion discount: base prices are now directly discounted in master pricelists with a $10,000 safety net. */
+export const PROMO_DISCOUNT = 0;
 
 export function housePriceFor(name: string, range: RangeId, division?: Division): number | null {
   const row = findDesign(name, division);

@@ -1,5 +1,6 @@
 import { HUDSON_FACADES } from "../../components/flyer/facades.data";
 import { PRE_RENDERED_FACADES } from "../../components/flyer/preRenderedFacades.data";
+import { duplexFacadesForDesign, DUPLEX_FACADES } from "../../components/flyer/duplexFacades.data";
 import type { FacadeItem } from "../../components/flyer/facadeLibrary";
 
 /**
@@ -43,9 +44,12 @@ function resolveWithPreRendered(item: FacadeItem | undefined): FacadeItem | unde
 /**
  * Finds the exact matching facade item for a given design and housing type.
  * Strictly differentiates:
- * 1. Single Storey
- * 2. Narrow Double Storey (Carolinas, Turquoise, Sabel/Sable)
- * 3. Standard Double Storey (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.)
+ * 1. Duplex / Dual Living (Cayenne, Maize, Magnolia, Raven, Teal, Alabaster, Wisteria)
+ * 2. Acreage / Mulberry
+ * 3. Split Level
+ * 4. Narrow Double Storey (Carolinas, Turquoise, Sabel/Sable)
+ * 5. Standard Double Storey (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.)
+ * 6. Single Storey
  */
 export function findFacadeForDesign(
   facadeNameOrId: string,
@@ -60,6 +64,87 @@ export function findFacadeForDesign(
   const rawKey = facadeNameOrId.trim().toLowerCase();
   const baseKey = normalizeFacadeKey(facadeNameOrId);
   const isNarrowDouble = isDouble && isNarrowDoubleStorey(designName);
+
+  // 1. DUPLEX / DUAL OCCUPANCY / DUAL LIVING RESOLUTION (Highest Priority)
+  const isDuplex =
+    housingType === "Dual Living" ||
+    housingType === "dual-oc" ||
+    /duplex|dual[-\s]?occupancy|dual[-\s]?living/i.test(housingType) ||
+    Boolean(
+      designName &&
+        (/ - TD| - SD|\bduplex\b|\bdual\b/i.test(designName) ||
+          ["alabaster", "cayenne", "cayene", "teal", "wisteria", "magnolia", "maize", "raven", "lavender"].some((f) =>
+            designName.toLowerCase().startsWith(f)
+          ))
+    );
+
+  if (isDuplex) {
+    const duplexList = designName ? duplexFacadesForDesign(designName) : [];
+    if (duplexList.length > 0) {
+      // 1. Exact ID check
+      let match = duplexList.find(
+        (f) => f.id.toLowerCase() === rawKey || normalizeFacadeKey(f.id) === baseKey
+      );
+
+      // 2. Exact base name match (e.g. "classic" === "classic")
+      if (!match) {
+        match = duplexList.find((f) => normalizeFacadeKey(f.name) === baseKey);
+      }
+
+      // 3. Name contains baseKey or baseKey contains name
+      if (!match) {
+        match = duplexList.find((f) => {
+          const fn = normalizeFacadeKey(f.name);
+          return fn.includes(baseKey) || baseKey.includes(fn) || f.name.toLowerCase().includes(rawKey);
+        });
+      }
+
+      // 4. Default to first duplex facade for this design if "Classic" or unselected
+      if (!match && (baseKey === "classic" || !facadeNameOrId)) {
+        match = duplexList[0];
+      }
+
+      if (match) {
+        const item: FacadeItem = {
+          id: match.id,
+          name: match.name,
+          range: match.note || match.range || "Duplex",
+          tags: match.tags || ["duplex"],
+          url: match.url,
+          originalUrl: match.url,
+        };
+        return resolveWithPreRendered(item);
+      }
+    }
+
+    // Generic fallback across all duplex families if designName was not matched
+    for (const famList of Object.values(DUPLEX_FACADES)) {
+      const match = famList.find((f) => normalizeFacadeKey(f.name) === baseKey);
+      if (match) {
+        const item: FacadeItem = {
+          id: match.id,
+          name: match.name,
+          range: match.note || match.range || "Duplex",
+          tags: match.tags || ["duplex"],
+          url: match.url,
+          originalUrl: match.url,
+        };
+        return resolveWithPreRendered(item);
+      }
+    }
+
+    const fallbackDuplex = DUPLEX_FACADES.Maize?.[0] || DUPLEX_FACADES.Wisteria?.[0];
+    if (fallbackDuplex) {
+      return resolveWithPreRendered({
+        id: fallbackDuplex.id,
+        name: fallbackDuplex.name,
+        range: fallbackDuplex.note || fallbackDuplex.range || "Duplex",
+        tags: fallbackDuplex.tags || ["duplex"],
+        url: fallbackDuplex.url,
+        originalUrl: fallbackDuplex.url,
+      });
+    }
+  }
 
   // ACREAGE / RANCH / MULBERRY RESOLUTION
   const isMulberry = designName ? /^mulberry\b/i.test(designName) : false;

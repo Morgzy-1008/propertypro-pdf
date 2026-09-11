@@ -183,7 +183,7 @@ function getDefaultDesignSelection(): QuoteDesignSelection {
     cars: "",
     widthM: "",
     lengthM: "",
-    promotionName: "Hudson Special Builder Promotion",
+    promotionName: "Managers Discount",
     promotionsDiscount: 0,
     landscapingSelected: false,
     landscapingLandSize: 450,

@@ -521,24 +521,12 @@ export function getEffectiveDesignM2(design?: QuoteDesignSelection): number {
 }
 
 /**
- * Calculates automated builder promotion discount based on house size in Squares (sq):
- * - <= 42 sq (<= 42.99 sq): $25,000
- * - 43 sq to 52 sq (<= 52.99 sq): $30,000
- * - 53 sq to 62 sq (<= 62.99 sq): $35,000
- * - 63 sq and over: $42,000
+ * Automated promotion discount:
+ * Previously tiered ($25k, $30k, $35k, $42k), now removed and directly discounted from base prices
+ * leaving a $10,000 safety net. Automated promo is now $0, with discretionary 'Managers Discount'.
  */
 export function getAutomatedPromotionDiscount(designM2: number): number {
-  if (!designM2 || designM2 <= 0) return 0;
-  const sq = designM2 * 0.107639;
-  if (sq <= 42.99) {
-    return 25000;
-  } else if (sq <= 52.99) {
-    return 30000;
-  } else if (sq <= 62.99) {
-    return 35000;
-  } else {
-    return 42000;
-  }
+  return 0;
 }
 
 /**
@@ -739,7 +727,7 @@ export function calculateQuotePricing(
   }
 
   const facadePrice = Number(design.facadePrice) || 0;
-  const promotionName = design.promotionName || "Hudson Special Promotion";
+  const promotionName = design.promotionName || "Managers Discount";
   const promotionsDiscount = Number(design.promotionsDiscount) || 0;
 
   // 2nd Dwelling or Granny Flat Calculation
