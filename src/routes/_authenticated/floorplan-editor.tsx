@@ -1,11 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ForesightEditorFrame } from "@/components/floorplan-editor/ForesightEditorFrame";
-import { Logo } from "@/components/flyer/FlyerTemplates";
-import { Home, Layers, Database, FileText, Send, Sliders } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessFloorplanEditor } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/floorplan-editor")({
+  beforeLoad: async () => {
+    const staffUser = getActiveStaffUser();
+    if (!canAccessFloorplanEditor(staffUser)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Foresight Concept Floorplan Editor | Hudson Homes" },

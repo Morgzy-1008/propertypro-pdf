@@ -148,3 +148,79 @@ export function markUserPasswordConfigured(email: string): void {
     }
   } catch {}
 }
+
+/**
+ * Staff with permission to access the Concept Floorplan Editor Portal.
+ * Allowed: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, and Morgan.
+ * Excluded: Christine and Gary.
+ */
+export const FLOORPLAN_EDITOR_ALLOWED_EMAILS = [
+  "morgan.hales@hudsonhomes.com.au",
+  "steve.slisar@hudsonhomes.com.au",
+  "steve.silsar@hudsonhomes.com.au",
+  "aaron.martin@hudsonhomes.com.au",
+  "alyssa.hales@hudsonhomes.com.au",
+  "alyssa.pippig@hudsonhomes.com.au",
+  "alyssa.hales@hudsonhhomes.com.au",
+  "shelley.lay@hudsonhomes.com.au",
+  "jesse.jenkins@hudsonhomes.com.au",
+  "adrian.baxter@hudsonhomes.com.au",
+  "ben.grill@hudsonhomes.com.au",
+];
+
+export function canAccessFloorplanEditor(staffUser?: {
+  id?: string | null;
+  email?: string | null;
+  name?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+
+  const email = normalizeStaffEmail(staffUser.email);
+  const id = (staffUser.id || "").trim().toLowerCase();
+  const name = (staffUser.name || "").trim().toLowerCase();
+
+  // Explicitly excluded: Christine and Gary
+  if (
+    email === "christine.hunt@hudsonhomes.com.au" ||
+    email.includes("christine.hunt") ||
+    id === "christine-hunt" ||
+    name.includes("christine") ||
+    email === "gary.rees@hudsonhomes.com.au" ||
+    email.includes("gary.rees") ||
+    id === "gary-rees" ||
+    name.includes("gary")
+  ) {
+    return false;
+  }
+
+  // Explicitly allowed: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, and Morgan
+  if (
+    email === "morgan.hales@hudsonhomes.com.au" ||
+    id === "morgan-hales" ||
+    name.includes("morgan") ||
+    staffUser.role === "admin"
+  ) {
+    return true;
+  }
+
+  return (
+    FLOORPLAN_EDITOR_ALLOWED_EMAILS.some((e) => normalizeStaffEmail(e) === email) ||
+    id === "steve-slisar" ||
+    id === "steve-silsar" ||
+    id === "aaron-martin" ||
+    id === "alyssa-hales" ||
+    id === "shelley-lay" ||
+    id === "jesse-jenkins" ||
+    id === "adrian-baxter" ||
+    id === "ben-grill" ||
+    name.includes("steve") ||
+    name.includes("aaron") ||
+    name.includes("alyssa") ||
+    name.includes("shelley") ||
+    name.includes("jesse") ||
+    name.includes("adrian") ||
+    name.includes("ben")
+  );
+}
+
