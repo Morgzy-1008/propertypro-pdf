@@ -67,7 +67,8 @@ export async function renderA4PdfDocument(root?: ParentNode) {
 
     // Create an isolated host container positioned offscreen with explicit A4 pixel dimensions
     const host = document.createElement("div");
-    host.style.position = "absolute";
+    host.className = "quote-pdf-root flyer-preview-container tender-master-pdf-root";
+    host.style.position = "fixed";
     host.style.top = "0";
     host.style.left = "0";
     host.style.zIndex = "-99999";
@@ -98,7 +99,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     (clone.style as any).webkitFontSmoothing = "antialiased";
     (clone.style as any).mozOsxFontSmoothing = "grayscale";
 
-    // Ensure all images inside clone retain 100% opacity and high-contrast rendering
+    // Ensure all images inside clone retain 100% opacity and exact loaded source from DOM
     const cloneImages = Array.from(clone.querySelectorAll("img"));
     const origImages = Array.from(originalSheet.querySelectorAll("img"));
 
@@ -108,13 +109,11 @@ export async function renderA4PdfDocument(root?: ParentNode) {
       img.style.imageRendering = "-webkit-optimize-contrast";
 
       const origImg = origImages[i];
-      if (origImg && origImg.src) {
-        let rawSrc = origImg.src;
-        // Strip WordPress thumbnail dimensions (-738x419, etc.) to load 3000px+ master original
-        if (rawSrc.includes("wp-content/uploads")) {
-          rawSrc = rawSrc.replace(/-\d+x\d+(\.(?:jpg|jpeg|png|webp))/gi, "$1");
+      if (origImg) {
+        const loadedSrc = origImg.currentSrc || origImg.src;
+        if (loadedSrc) {
+          img.src = loadedSrc;
         }
-        img.src = rawSrc;
       }
     });
 
@@ -133,6 +132,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
               } else {
                 image.addEventListener("load", () => resolve(), { once: true });
                 image.addEventListener("error", () => resolve(), { once: true });
+                setTimeout(resolve, 3000);
               }
             }),
         ),
@@ -144,7 +144,13 @@ export async function renderA4PdfDocument(root?: ParentNode) {
         scale: 2.4,
         useCORS: true,
         logging: false,
-        windowWidth: 794,
+        x: 0,
+        y: 0,
+        scrollX: 0,
+        scrollY: 0,
+        width: 794,
+        height: 1123,
+        windowWidth: 1440,
         windowHeight: 1123,
         imageTimeout: 15000,
         allowTaint: false,
@@ -174,9 +180,15 @@ export async function renderA4PdfDocument(root?: ParentNode) {
           backgroundColor: "#ffffff",
           scale: 2.0,
           useCORS: false,
-          allowTaint: true,
+          allowTaint: false,
           logging: false,
-          windowWidth: 794,
+          x: 0,
+          y: 0,
+          scrollX: 0,
+          scrollY: 0,
+          width: 794,
+          height: 1123,
+          windowWidth: 1440,
           windowHeight: 1123,
         });
         if (pagesAddedCount > 0) {
