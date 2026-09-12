@@ -40,6 +40,7 @@ import {
   getAcousticCost,
   getBushfireCost,
   getSoilRatePerM2,
+  isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
 import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
@@ -106,10 +107,11 @@ const ACOUSTIC_TIERS = [
 ];
 
 export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApply }: QuoteSiteCostsStepProps) {
-  const isDouble =
-    quote.design.mode === "custom_floorplan"
-      ? quote.design.customSpec.storeys === "double"
-      : quote.design.housingType === "Double Storey";
+  const isDouble = isDoubleStoreyDesign(
+    quote.design.designName,
+    quote.design.housingType,
+    quote.design.customSpec?.storeys,
+  );
 
   const isSplitLevel =
     quote.design.mode === "custom_floorplan"

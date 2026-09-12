@@ -25,10 +25,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
 import {
+  calculateDesignGFA,
   calculateQuotePricing,
   getEffectiveDesignM2,
   getEffectiveDesignName,
   getHousingTypeForDesign,
+  isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
@@ -54,10 +56,11 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   React.useEffect(() => {
     const facadeName = design.facadeName || "Classic";
     const housingType = design.housingType || "Single Storey";
-    const isDouble =
-      design.mode === "custom_floorplan"
-        ? design.customSpec?.storeys === "double"
-        : housingType === "Double Storey" || housingType === "double";
+    const isDouble = isDoubleStoreyDesign(
+      design.designName,
+      housingType,
+      design.customSpec?.storeys,
+    );
 
     // Find matching facade using the comprehensive lookup engine
     const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
@@ -67,7 +70,6 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
         setSrc(PRE_RENDERED_FACADES[matched.id]);
         return;
       }
-
       getIdbEnhanced(matched.id)
         .then((cached) => {
           if (cached) {
@@ -80,6 +82,7 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
           prepareFacade(matched.url, matched.originalUrl, matched.id, housingType)
             .then((res) => {
               if (res) setSrc(res);
+              else setSrc("/facades/classic-facade-single-stry.jpg");
             })
             .catch(() => {
               setSrc(matched.url);
@@ -88,38 +91,29 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
         .catch(() => {
           setSrc(matched.url);
         });
+    } else {
+      setSrc("/facades/classic-facade-single-stry.jpg");
     }
-  }, [design.facadeName, design.housingType, design.mode, design.customSpec]);
+  }, [design.facadeName, design.housingType, design.mode, design.customSpec, design.designName]);
 
   if (!src) return null;
 
-  const isDoubleOrSplit = Boolean(
-    design.housingType === "Double Storey" ||
-    design.housingType === "Split Level" ||
-    (design.housingType && (design.housingType.toLowerCase().includes("double") || design.housingType.toLowerCase().includes("split"))) ||
-    (design.designName && design.designName.toLowerCase().includes("cobalt")) ||
-    (src && (
-      src.toLowerCase().includes("double") ||
-      src.toLowerCase().includes("2-storey") ||
-      src.toLowerCase().includes("-ds-") ||
-      src.toLowerCase().includes("split") ||
-      src.toLowerCase().includes("-cobalt")
-    ))
-  );
-
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-900 flex items-center justify-center max-h-80 aspect-[210/86] mb-4">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/90] mb-4">
+      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
+      <div
+        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+        style={{ backgroundImage: `url(${src})` }}
+      />
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
-        }`}
+        className="relative z-10 w-full h-full object-contain drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
       />
-      <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5">
+      <div className="absolute top-3 left-3 bg-slate-900/90 backdrop-blur-md px-3 py-1.5 rounded-lg text-xs font-bold text-white uppercase tracking-wider border border-white/20 shadow-md flex items-center gap-1.5 z-20">
         <Sparkles className="h-3.5 w-3.5 text-amber-400" />
         <span>Selected Facade: {design.facadeName || "Classic"}</span>
       </div>
@@ -389,7 +383,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
   // Site items for display
   const site = quote.siteConditions;
-  const gfaM2 = quote.design.designM2 || 192;
+  const gfaM2 = quote.pricing?.gfaM2 || calculateDesignGFA(quote.design);
   const concrete32Cost = site.concrete32MpaRequired
     ? (Number(site.concrete32MpaCost) > 0 ? Number(site.concrete32MpaCost) : Math.round(gfaM2 * 14))
     : 0;

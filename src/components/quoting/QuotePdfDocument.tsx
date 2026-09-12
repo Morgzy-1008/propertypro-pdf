@@ -9,6 +9,7 @@ import {
   getEffectiveDesignName,
   getHousingTypeForDesign,
   getSoilRatePerM2,
+  isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { isLocalhost } from "@/lib/isLocalhost";
@@ -93,7 +94,7 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
 
   React.useEffect(() => {
-    if (design.facadeImageUrl) {
+    if (design.isCustomFacade && design.facadeImageUrl) {
       setSrc(design.facadeImageUrl);
       return;
     }
@@ -105,10 +106,11 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
     }
 
     const housingType = getHousingTypeForDesign(design.designName, design.housingType);
-    const isDouble =
-      design.mode === "custom_floorplan"
-        ? design.customSpec?.storeys === "double"
-        : housingType === "Double Storey" || housingType === "double";
+    const isDouble = isDoubleStoreyDesign(
+      design.designName,
+      housingType,
+      design.customSpec?.storeys,
+    );
 
     // Find matching facade using the comprehensive lookup engine
     const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
@@ -146,33 +148,22 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) return null;
 
-  const isDoubleOrSplit = Boolean(
-    design.housingType === "Double Storey" ||
-    design.housingType === "Split Level" ||
-    (design.housingType && (design.housingType.toLowerCase().includes("double") || design.housingType.toLowerCase().includes("split"))) ||
-    (design.designName && design.designName.toLowerCase().includes("cobalt")) ||
-    (src && (
-      src.toLowerCase().includes("double") ||
-      src.toLowerCase().includes("2-storey") ||
-      src.toLowerCase().includes("-ds-") ||
-      src.toLowerCase().includes("split") ||
-      src.toLowerCase().includes("-cobalt")
-    ))
-  );
-
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white flex items-center justify-center h-[225px] max-h-[225px] mb-2.5 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 flex items-center justify-center h-[230px] max-h-[230px] mb-2.5 flex-none">
+      {/* Ambient subtle blurred backdrop to softly fill letterbox margins without black bars */}
+      <div
+        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+        style={{ backgroundImage: `url(${src})` }}
+      />
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
-        }`}
+        className="relative z-10 w-full h-full object-contain drop-shadow-sm"
         style={{
           imageRendering: "auto",
         }}
       />
-      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5 z-20">
         <Sparkles className="h-3 w-3 text-amber-400" />
         <span>Selected Facade: {design.facadeName || "Classic"}</span>
       </div>
@@ -191,10 +182,11 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
 
     const facadeName = design.facadeName || (design.designName ? "Classic" : "Classic");
     const housingType = getHousingTypeForDesign(design.designName, design.housingType);
-    const isDouble =
-      design.mode === "custom_floorplan"
-        ? design.customSpec?.storeys === "double"
-        : housingType === "Double Storey" || housingType === "double";
+    const isDouble = isDoubleStoreyDesign(
+      design.designName,
+      housingType,
+      design.customSpec?.storeys,
+    );
 
     const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
 
@@ -230,24 +222,24 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
   }, [design.facadeName, design.housingType, design.mode, design.customSpec, design.isCustomFacade, design.facadeImageUrl, design.designName]);
 
   const displaySrc = src || "/facades/classic-facade-single-stry.jpg";
-  const isDoubleOrSplit = Boolean(
-    design.housingType === "Double Storey" ||
-    design.housingType === "Split Level" ||
-    (design.designName && design.designName.toLowerCase().includes("cobalt"))
-  );
 
   return (
-    <div className="relative w-full h-[245px] max-h-[245px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-white flex items-center justify-center my-3 group">
+    <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-900 flex items-center justify-center my-3 group">
+      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
+      <div
+        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+        style={{ backgroundImage: `url(${displaySrc})` }}
+      />
       <img
         src={displaySrc}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"}`}
+        className="relative z-10 w-full h-full object-contain drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
       />
       {/* Brand facet accent ribbon at top of imagery with Hudson Logo colors */}
-      <div className="absolute top-0 inset-x-0 h-1.5 flex">
+      <div className="absolute top-0 inset-x-0 h-1.5 flex z-20">
         <div className="flex-1 bg-amber-500" />
         <div className="flex-1 bg-cyan-500" />
         <div className="flex-1 bg-rose-500" />
@@ -256,7 +248,7 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
       </div>
 
       {/* Floating elevation concept pill */}
-      <div className="absolute bottom-3 left-4 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/20 shadow-md flex items-center gap-2">
+      <div className="absolute bottom-3 left-4 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-white/20 shadow-md flex items-center gap-2 z-20">
         <Sparkles className="h-3.5 w-3.5 text-amber-400" />
         <span className="text-[10px] font-bold uppercase tracking-wider text-white">
           {design.designName ? `${design.designName} · ${design.facadeName || "Classic"} Facade` : "Hudson Master Collection · Architectural Facade"}
@@ -318,7 +310,7 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
 
     const facadeName = secondDwelling.facadeName || "Classic";
     const housingType = secondDwelling.housingType || "Single Storey";
-    const isDouble = housingType === "Double Storey" || housingType === "double";
+    const isDouble = isDoubleStoreyDesign(secondDwelling.designName, housingType);
     const normName = facadeName.toLowerCase().replace(/[\s\-_]/g, "");
 
     const matches = HUDSON_FACADES.filter((f) => {
@@ -366,33 +358,22 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
 
   if (!src) return null;
 
-  const isDoubleOrSplit = Boolean(
-    secondDwelling?.housingType === "Double Storey" ||
-    secondDwelling?.housingType === "Split Level" ||
-    (secondDwelling?.housingType && (secondDwelling.housingType.toLowerCase().includes("double") || secondDwelling.housingType.toLowerCase().includes("split"))) ||
-    (secondDwelling?.designName && secondDwelling.designName.toLowerCase().includes("cobalt")) ||
-    (src && (
-      src.toLowerCase().includes("double") ||
-      src.toLowerCase().includes("2-storey") ||
-      src.toLowerCase().includes("-ds-") ||
-      src.toLowerCase().includes("split") ||
-      src.toLowerCase().includes("-cobalt")
-    ))
-  );
-
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-white flex items-center justify-center h-[190px] max-h-[190px] mb-2 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none">
+      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
+      <div
+        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+        style={{ backgroundImage: `url(${src})` }}
+      />
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
-        className={`w-full h-full object-cover ${
-          isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
-        }`}
+        className="relative z-10 w-full h-full object-contain drop-shadow-sm"
         style={{
           imageRendering: "auto",
         }}
       />
-      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5">
+      <div className="absolute top-2 left-2 bg-slate-900/85 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-bold text-white uppercase tracking-wider border border-white/20 shadow-sm flex items-center gap-1.5 z-20">
         <Sparkles className="h-3 w-3 text-amber-400" />
         <span>Selected Facade: {secondDwelling?.facadeName || "Classic"}</span>
       </div>

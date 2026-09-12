@@ -7,6 +7,7 @@ import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
 import { loadEnhancedAsync } from "@/components/flyer/facadeLibrary";
 import { formatAud } from "@/lib/pricing";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+import { isDoubleStoreyDesign } from "@/lib/quoting/quoteEngine";
 import type { QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
 
 interface QuoteFacadeRenderPreviewProps {
@@ -28,10 +29,11 @@ export function QuoteFacadeRenderPreview({
 
   const facadeName = design.facadeName || (design.designName ? "Classic" : "");
   const housingType = design.housingType || "Single Storey";
-  const isDouble =
-    design.mode === "custom_floorplan"
-      ? design.customSpec?.storeys === "double"
-      : housingType === "Double Storey" || housingType === "double";
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    housingType,
+    design.customSpec?.storeys,
+  );
   const isDoubleOrSplit = Boolean(
     isDouble ||
     housingType === "Double Storey" ||
@@ -166,19 +168,24 @@ export function QuoteFacadeRenderPreview({
 
       {/* Image Render Canvas */}
       <div
-        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-900/40 aspect-[210/86] min-h-[220px] max-h-[380px]"
+        className="w-full relative flex items-center justify-center overflow-hidden bg-slate-950 aspect-[210/95] min-h-[220px] max-h-[380px]"
       >
         {src ? (
-          <img
-            src={src}
-            alt={design.facadeName || "Architectural Facade Render"}
-            className={`w-full h-full object-cover ${
-              isDoubleOrSplit ? "object-[center_38%]" : "object-[center_45%]"
-            } transition-all duration-300`}
-            style={{
-              imageRendering: "auto",
-            }}
-          />
+          <>
+            {/* Ambient subtle blurred backdrop */}
+            <div
+              className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
+              style={{ backgroundImage: `url(${src})` }}
+            />
+            <img
+              src={src}
+              alt={design.facadeName || "Architectural Facade Render"}
+              className="relative z-10 w-full h-full object-contain drop-shadow-md transition-all duration-300"
+              style={{
+                imageRendering: "auto",
+              }}
+            />
+          </>
         ) : (
           <div className="text-center py-12 text-slate-400 text-xs flex flex-col items-center gap-2">
             {loading ? (

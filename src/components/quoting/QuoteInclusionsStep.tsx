@@ -36,7 +36,11 @@ import {
 } from "@/components/ui/dialog";
 import { formatAud } from "@/lib/pricing";
 import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
-import { calculateDesignGFA, resolveItemCategory } from "@/lib/quoting/quoteEngine";
+import {
+  calculateDesignGFA,
+  isDoubleStoreyDesign,
+  resolveItemCategory,
+} from "@/lib/quoting/quoteEngine";
 import type {
   CatalogueCategory,
   FullQuote,
@@ -109,10 +113,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddCustomOpen, setIsAddCustomOpen] = useState(false);
 
-  const isDouble =
-    quote.design.mode === "custom_floorplan"
-      ? quote.design.customSpec.storeys === "double"
-      : quote.design.housingType === "Double Storey";
+  const isDouble = isDoubleStoreyDesign(
+    quote.design.designName,
+    quote.design.housingType,
+    quote.design.customSpec?.storeys,
+  );
 
   const gfaM2 = calculateDesignGFA(quote.design);
 
@@ -282,7 +287,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
   const activeTargetStoreys =
     activeDwellingTab === "dwelling2"
-      ? secondDwelling?.housingType === "Double Storey"
+      ? isDoubleStoreyDesign(secondDwelling?.designName, secondDwelling?.housingType)
       : isDouble;
 
   const activeTargetTier =

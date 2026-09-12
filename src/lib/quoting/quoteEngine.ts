@@ -5,11 +5,19 @@ import {
   SINGLE_STOREY_PRICES,
   SPLIT_LEVEL_PRICES,
   DUAL_OC_PRICES,
+  type PriceRow,
 } from "@/lib/pricelist.data";
+import {
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+  NSW_DUAL_OC_PRICES,
+} from "@/lib/pricelist.nsw.data";
 import type {
   CategorySubtotal,
   CatalogueCategory,
   CustomFloorplanSpec,
+  FloorplanAreaBreakdown,
   QuoteDesignSelection,
   QuotePricingSummary,
   QuoteSelectedLineItem,
@@ -27,18 +35,44 @@ export function getHousingTypeForDesign(
 ): "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" {
   if (!designName) return fallbackType || "Single Storey";
   const norm = designName.trim().toLowerCase();
-  if (DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)) {
-    return "Double Storey";
-  }
-  if (SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm)) {
-    return "Split Level";
-  }
-  if (DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+
+  // 1. Dual Living / Duplex detection
+  if (
+    DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    NSW_DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    / - td\b| - sd\b|\bdual[-\s]?oc|\bduplex\b|\bdual living\b/i.test(norm) ||
+    ["alabaster", "cayenne", "cayene", "teal", "wisteria", "magnolia", "maize", "raven", "lavender"].some((f) =>
+      norm.startsWith(f)
+    )
+  ) {
     return "Dual Living";
   }
-  if (SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)) {
+
+  // 2. Double Storey detection
+  if (
+    DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    NSW_DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)
+  ) {
+    return "Double Storey";
+  }
+
+  // 3. Split Level detection
+  if (
+    SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    NSW_SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    /split/i.test(norm)
+  ) {
+    return "Split Level";
+  }
+
+  // 4. Single Storey detection
+  if (
+    SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm) ||
+    NSW_SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)
+  ) {
     return "Single Storey";
   }
+
   return fallbackType || "Single Storey";
 }
 
@@ -202,6 +236,52 @@ export const MODIFIED_SQM_RATES = {
 } as const;
 
 /**
+ * Detects whether a design is a double storey design, including standard Double Storey,
+ * custom double storey, and Two Story duplexes (TD Two Story, SD Two Story).
+ */
+export function isDoubleStoreyDesign(
+  designName?: string,
+  housingType?: string,
+  storeys?: string,
+): boolean {
+  if (housingType === "Double Storey" || storeys === "double") return true;
+  const dn = (designName || "").toLowerCase();
+  const ht = (housingType || "").toLowerCase();
+
+  if (
+    dn.includes("two story") ||
+    dn.includes("two storey") ||
+    dn.includes("2 storey") ||
+    dn.includes("2-storey") ||
+    dn.includes("2stry") ||
+    (dn.includes(" - td") && dn.includes("two")) ||
+    (dn.includes(" - sd") && dn.includes("two"))
+  ) {
+    return true;
+  }
+
+  // Dual Living / Duplex models that are strictly two-storey
+  if (
+    dn.includes("cayene") ||
+    dn.includes("cayenne") ||
+    dn.includes("magnolia") ||
+    dn.includes("maize") ||
+    dn.includes("raven") ||
+    dn.includes("teal 45") ||
+    dn.includes("teal 48") ||
+    dn.includes("wisteria 32")
+  ) {
+    return true;
+  }
+
+  if (ht.includes("double") || ht.includes("two")) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Standard Area Breakdown catalog for Hudson Homes designs.
  */
 export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
@@ -246,7 +326,8 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
 };
 
 /**
- * Returns standard baseline area breakdown for any design.
+ * Returns the standard area breakdown for a given Hudson Homes model.
+ * If model is not explicitly defined, calculates realistic default proportions based on total m2.
  */
 export function getStandardAreaBreakdown(
   designName?: string,
@@ -257,15 +338,27 @@ export function getStandardAreaBreakdown(
     return { ...HUDSON_STANDARD_AREAS[designName] };
   }
 
-  const isDoubleOrSplit =
-    housingType === "Double Storey" ||
-    housingType === "Split Level" ||
-    housingType === "Dual Living";
+  // Check normalized clean name (strip - TD / - SD / Single/Two Story / parentheses)
+  const cleanName = (designName || "")
+    .replace(/\s*-\s*(TD|SD)\s*.*$/i, "")
+    .replace(/\s*\([^)]*\)/g, "")
+    .trim();
 
+  if (cleanName && HUDSON_STANDARD_AREAS[cleanName]) {
+    return { ...HUDSON_STANDARD_AREAS[cleanName] };
+  }
+
+  const altName = cleanName.replace(/Cayene/i, "Cayenne");
+  if (altName && HUDSON_STANDARD_AREAS[altName]) {
+    return { ...HUDSON_STANDARD_AREAS[altName] };
+  }
+
+  const isDouble = isDoubleStoreyDesign(designName, housingType);
+  const isSplit = housingType === "Split Level";
   const tot = totalM2 > 0 ? totalM2 : 200;
 
-  if (isDoubleOrSplit) {
-    const garage = Math.min(36, +(tot * 0.15).toFixed(2));
+  if (isDouble || isSplit) {
+    const garage = Math.min(38, +(tot * 0.15).toFixed(2));
     const alfresco = +(tot * 0.055).toFixed(2);
     const porch = +(tot * 0.025).toFixed(2);
     const balcony = 0;
@@ -333,7 +426,7 @@ export function calculateModifiedFloorplanPricing(
   const isDoubleOrSplit =
     housingType === "Double Storey" ||
     housingType === "Split Level" ||
-    housingType === "Dual Living";
+    isDoubleStoreyDesign(design?.designName, housingType);
 
   const rateConfig = (MODIFIED_SQM_RATES[housingType as keyof typeof MODIFIED_SQM_RATES] ||
     MODIFIED_SQM_RATES["Single Storey"]) as Record<string, number>;
@@ -544,25 +637,48 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
       ).toFixed(2),
     );
   }
+
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    design.housingType,
+    design.customSpec?.storeys,
+  );
+  const isSplit = design.housingType === "Split Level";
+
   if (design.isModifiedFloorplan) {
     const calc = calculateModifiedFloorplanPricing(design);
-    const isDoubleOrSplit =
-      design.housingType === "Double Storey" ||
-      design.housingType === "Split Level" ||
-      design.housingType === "Dual Living";
-    if (isDoubleOrSplit) {
+    if (isDouble || isSplit) {
       const gLiving = calc.zones.find((z) => z.key === "groundLivingM2")?.modifiedM2 || 0;
       const garage = calc.zones.find((z) => z.key === "garageM2")?.modifiedM2 || 0;
       const alfresco = calc.zones.find((z) => z.key === "alfrescoM2")?.modifiedM2 || 0;
       const porch = calc.zones.find((z) => z.key === "porchM2")?.modifiedM2 || 0;
+      if (gLiving > 0 || garage > 0) {
+        return Number((gLiving + garage + alfresco + porch).toFixed(2));
+      }
+    }
+    if (!isDouble) {
+      return Number(calc.modifiedTotalM2.toFixed(2));
+    }
+  }
+
+  const totalM2 = Number(design.designM2) || 192;
+
+  if (isDouble || isSplit) {
+    const stdAreas = getStandardAreaBreakdown(
+      design.designName,
+      design.housingType,
+      totalM2,
+    );
+    const gLiving = stdAreas.groundLivingM2 || 0;
+    const garage = stdAreas.garageM2 || 0;
+    const alfresco = stdAreas.alfrescoM2 || 0;
+    const porch = stdAreas.porchM2 || 0;
+    if (gLiving > 0 || garage > 0) {
       return Number((gLiving + garage + alfresco + porch).toFixed(2));
     }
-    return Number(calc.modifiedTotalM2.toFixed(2));
+    return Number(((totalM2 || 200) * 0.58).toFixed(2));
   }
-  const totalM2 = Number(design.designM2) || 192;
-  if (design.housingType === "Double Storey") {
-    return Number(((totalM2 || 200) * 0.62).toFixed(2));
-  }
+
   return Number((totalM2 || 192).toFixed(2));
 }
 
@@ -710,8 +826,12 @@ export function calculateQuotePricing(
   lineItems: QuoteSelectedLineItem[],
   initialDepositAmount?: number,
 ): QuotePricingSummary {
-  const isDouble = design.housingType === "Double Storey" || design.customSpec.storeys === "double";
-  const isSplit = design.housingType === "Split Level" || design.customSpec.storeys === "split";
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    design.housingType,
+    design.customSpec?.storeys,
+  );
+  const isSplit = design.housingType === "Split Level" || design.customSpec?.storeys === "split";
 
   let baseHousePrice = 0;
   let customFloorplanPrice = 0;
