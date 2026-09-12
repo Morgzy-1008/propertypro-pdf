@@ -148,17 +148,33 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) return null;
 
+  const housingType = getHousingTypeForDesign(design.designName, design.housingType);
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    housingType,
+    design.customSpec?.storeys,
+  );
+  const isDoubleOrSplit = Boolean(
+    isDouble ||
+    housingType === "Split Level" ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("2stry") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("cobalt")
+    ))
+  );
+
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 flex items-center justify-center h-[230px] max-h-[230px] mb-2.5 flex-none">
-      {/* Ambient subtle blurred backdrop to softly fill letterbox margins without black bars */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
-        style={{ backgroundImage: `url(${src})` }}
-      />
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[230px] max-h-[230px] mb-2.5 flex-none">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className="relative z-10 w-full h-full object-contain drop-shadow-sm"
+        loading="eager"
+        crossOrigin="anonymous"
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
         style={{
           imageRendering: "auto",
         }}
@@ -195,6 +211,7 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
         setSrc(PRE_RENDERED_FACADES[matched.id]);
         return;
       }
+      setSrc(matched.url);
       getIdbEnhanced(matched.id)
         .then((cached) => {
           if (cached) {
@@ -223,17 +240,33 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
 
   const displaySrc = src || "/facades/classic-facade-single-stry.jpg";
 
+  const housingType = getHousingTypeForDesign(design.designName, design.housingType);
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    housingType,
+    design.customSpec?.storeys,
+  );
+  const isDoubleOrSplit = Boolean(
+    isDouble ||
+    housingType === "Split Level" ||
+    (displaySrc && (
+      displaySrc.toLowerCase().includes("double") ||
+      displaySrc.toLowerCase().includes("2-storey") ||
+      displaySrc.toLowerCase().includes("-ds-") ||
+      displaySrc.toLowerCase().includes("2stry") ||
+      displaySrc.toLowerCase().includes("split") ||
+      displaySrc.toLowerCase().includes("cobalt")
+    ))
+  );
+
   return (
-    <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-900 flex items-center justify-center my-3 group">
-      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
-        style={{ backgroundImage: `url(${displaySrc})` }}
-      />
+    <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-100 flex items-center justify-center my-3 group">
       <img
         src={displaySrc}
         alt={design.facadeName || "Architectural Facade Render"}
-        className="relative z-10 w-full h-full object-contain drop-shadow-md"
+        loading="eager"
+        crossOrigin="anonymous"
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
         style={{
           imageRendering: "auto",
         }}
@@ -332,6 +365,7 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
         setSrc(PRE_RENDERED_FACADES[matched.id]);
         return;
       }
+      setSrc(matched.url);
 
       getIdbEnhanced(matched.id)
         .then((cached) => {
@@ -358,17 +392,33 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
 
   if (!src) return null;
 
+  const housingType = secondDwelling?.housingType || "Granny Flat";
+  const isDouble = isDoubleStoreyDesign(
+    secondDwelling?.designName || "",
+    housingType,
+    secondDwelling?.customSpec?.storeys,
+  );
+  const isDoubleOrSplit = Boolean(
+    isDouble ||
+    housingType === "Split Level" ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("2stry") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("cobalt")
+    ))
+  );
+
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none">
-      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
-        style={{ backgroundImage: `url(${src})` }}
-      />
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none">
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
-        className="relative z-10 w-full h-full object-contain drop-shadow-sm"
+        loading="eager"
+        crossOrigin="anonymous"
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
         style={{
           imageRendering: "auto",
         }}

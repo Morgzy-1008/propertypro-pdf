@@ -171,21 +171,14 @@ export function QuoteFacadeRenderPreview({
         className="w-full relative flex items-center justify-center overflow-hidden bg-slate-950 aspect-[210/95] min-h-[220px] max-h-[380px]"
       >
         {src ? (
-          <>
-            {/* Ambient subtle blurred backdrop */}
-            <div
-              className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
-              style={{ backgroundImage: `url(${src})` }}
-            />
-            <img
-              src={src}
-              alt={design.facadeName || "Architectural Facade Render"}
-              className="relative z-10 w-full h-full object-contain drop-shadow-md transition-all duration-300"
-              style={{
-                imageRendering: "auto",
-              }}
-            />
-          </>
+          <img
+            src={src}
+            alt={design.facadeName || "Architectural Facade Render"}
+            className={`w-full h-full object-cover transition-all duration-300 ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+            style={{
+              imageRendering: "auto",
+            }}
+          />
         ) : (
           <div className="text-center py-12 text-slate-400 text-xs flex flex-col items-center gap-2">
             {loading ? (

@@ -98,17 +98,31 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
 
   if (!src) return null;
 
+  const housingType = getHousingTypeForDesign(design.designName, design.housingType);
+  const isDouble = isDoubleStoreyDesign(
+    design.designName,
+    housingType,
+    design.customSpec?.storeys,
+  );
+  const isDoubleOrSplit = Boolean(
+    isDouble ||
+    housingType === "Split Level" ||
+    (src && (
+      src.toLowerCase().includes("double") ||
+      src.toLowerCase().includes("2-storey") ||
+      src.toLowerCase().includes("-ds-") ||
+      src.toLowerCase().includes("2stry") ||
+      src.toLowerCase().includes("split") ||
+      src.toLowerCase().includes("cobalt")
+    ))
+  );
+
   return (
     <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/90] mb-4">
-      {/* Ambient subtle blurred backdrop to softly fill letterbox margins */}
-      <div
-        className="absolute inset-0 bg-cover bg-center filter blur-xl opacity-35 scale-110 pointer-events-none"
-        style={{ backgroundImage: `url(${src})` }}
-      />
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className="relative z-10 w-full h-full object-contain drop-shadow-md"
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
         style={{
           imageRendering: "auto",
         }}
