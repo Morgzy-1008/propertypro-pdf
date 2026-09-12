@@ -563,12 +563,6 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
       raw = model.hbs || 0;
     }
 
-    // For Duplex and Dual Occ plans:
-    // With base prices reduced across the board, dual living has a $10,000 spare safety net added to base price
-    if (housingType === "Dual Living" || model.name.includes(" - TD") || model.name.includes(" - SD")) {
-      return raw + 10000;
-    }
-
     return raw;
   };
 

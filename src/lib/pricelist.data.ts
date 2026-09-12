@@ -1,5 +1,9 @@
 // Auto-generated and verified from Hudson Homes QLD Price Lists (Single Storey 28/7/26, Double Storey 13/6/26, Split Level 13/6/26, Dual Living 18/8/26).
-// Retail base prices adjusted with $10k buffer: -$20k for <43sq (-$30k promo + $10k buffer), -$25k for >=43sq (-$35k promo + $10k buffer).
+// Retail base prices adjusted with $10k buffer while removing promotion:
+// - Under 43sq: -$20k (-$30k promo + $10k buffer)
+// - Between 43sq and 53sq: -$25k (-$35k promo + $10k buffer)
+// - 53sq to 62sq: -$30k (-$40k promo + $10k buffer)
+// - 63sq and over: -$37k (-$47k promo + $10k buffer)
 // Dual-Occupancy / Duplex base prices adjusted with +$10k buffer (no promotion built in).
 export interface PriceRow {
   name: string;
@@ -1062,11 +1066,11 @@ export const DOUBLE_STOREY_PRICES: PriceRow[] = [
   {
     "name": "Mahogany 56",
     "m2": 516.33,
-    "hbs": 639900,
-    "ss": 674900,
-    "h1": 713900,
-    "h2": 756900,
-    "h3": 822900
+    "hbs": 634900,
+    "ss": 669900,
+    "h1": 708900,
+    "h2": 751900,
+    "h3": 817900
   },
   {
     "name": "Marigold 26",
@@ -1296,11 +1300,11 @@ export const DOUBLE_STOREY_PRICES: PriceRow[] = [
   {
     "name": "Rose 53",
     "m2": 492.82,
-    "hbs": 640900,
-    "ss": 675900,
-    "h1": 714900,
-    "h2": 757900,
-    "h3": 823900
+    "hbs": 635900,
+    "ss": 670900,
+    "h1": 709900,
+    "h2": 752900,
+    "h3": 818900
   },
   {
     "name": "Ruby 19 (s/g)",
@@ -1512,11 +1516,11 @@ export const DOUBLE_STOREY_PRICES: PriceRow[] = [
   {
     "name": "Violet 64",
     "m2": 586.61,
-    "hbs": 727900,
-    "ss": 763900,
-    "h1": 812900,
-    "h2": 884900,
-    "h3": 976900
+    "hbs": 715900,
+    "ss": 751900,
+    "h1": 800900,
+    "h2": 872900,
+    "h3": 964900
   },
   {
     "name": "Viridian 28",

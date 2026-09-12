@@ -615,8 +615,9 @@ export function getEffectiveDesignM2(design?: QuoteDesignSelection): number {
 
 /**
  * Automated promotion discount:
- * Previously tiered ($25k, $30k, $35k, $42k), now removed and directly discounted from base prices
- * leaving a $10,000 safety net. Automated promo is now $0, with discretionary 'Managers Discount'.
+ * Previously tiered ($30,000 for <43sq, $35,000 for 43-53sq, $40,000 for 53-62sq, $47,000 for 63sq+),
+ * now removed and directly built into base prices with a $10,000 buffer.
+ * Automated promo is now $0, with discretionary 'Managers Discount' for sales consultants.
  */
 export function getAutomatedPromotionDiscount(designM2: number): number {
   return 0;
