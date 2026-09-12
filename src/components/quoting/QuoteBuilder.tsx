@@ -13,7 +13,10 @@ import {
   RotateCcw,
   FolderOpen,
   Sparkles,
+  ExternalLink,
+  MessageSquare,
 } from "lucide-react";
+import { encodeQuoteForClientLink } from "@/lib/quoting/quoteLinkEncoder";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +49,7 @@ import {
   loadActiveDraftQuote,
   saveQuote,
   saveQuoteAsync,
+  saveQuoteToIdb,
   deleteQuote,
   deleteQuoteAsync,
   deleteQuotesAsync,
@@ -53,7 +57,7 @@ import {
 } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
-import type { FullQuote } from "@/lib/quoting/quoteTypes";
+import type { FullQuote, QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
 import { QuoteSummarySidebar } from "./QuoteSummarySidebar";
 import { QuoteClientDetails } from "./QuoteClientDetails";
 import { QuoteDesignStep } from "./QuoteDesignStep";
@@ -266,8 +270,8 @@ export function QuoteBuilder() {
               beds: plans[0]?.beds || prev.design.beds || "4",
               baths: plans[0]?.baths || prev.design.baths || "2",
               cars: plans[0]?.cars || prev.design.cars || "2",
-              widthM: plans[0]?.width || prev.design.widthM || "14.0m",
-              lengthM: plans[0]?.depth || prev.design.lengthM || "22.0m",
+              widthM: plans[0]?.frontage || prev.design.widthM || "14.0m",
+              lengthM: prev.design.lengthM || "22.0m",
               customSpec: {
                 ...prev.design.customSpec,
                 groundLivingM2: incomingLiving,
@@ -499,18 +503,42 @@ export function QuoteBuilder() {
     }
   };
 
+  const [shareUrl, setShareUrl] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    encodeQuoteForClientLink(quote).then((compact) => {
+      if (!active) return;
+      const base = typeof window !== "undefined" ? window.location.origin : "";
+      const url = `${base}/quote/${quote.id}${compact ? `?d=${compact}` : ""}`;
+      setShareUrl(url);
+    });
+    return () => {
+      active = false;
+    };
+  }, [quote]);
+
   const clientShareUrl =
-    typeof window !== "undefined"
+    shareUrl ||
+    (typeof window !== "undefined"
       ? `${window.location.origin}/quote/${quote.id}`
-      : `/quote/${quote.id}`;
+      : `/quote/${quote.id}`);
 
   const handleCopyShareLink = () => {
     saveQuote(quote);
+    saveQuoteToIdb(quote).catch(() => {});
     setSavedQuotes(loadAllQuotes());
     navigator.clipboard.writeText(clientShareUrl);
     setCopied(true);
     toast.success("Client collaboration link copied to clipboard");
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleCopyClientSms = () => {
+    const clientName = quote.client.clientName || "there";
+    const msg = `Hi ${clientName}, here is your interactive Hudson Homes Builders Estimate link:\n${clientShareUrl}\n\nYou can review your design, test alternative floorplan sizes, compare inclusion ranges, and customise options.`;
+    navigator.clipboard.writeText(msg);
+    toast.success("Copied client SMS message to clipboard!");
   };
 
   const [importingPdf, setImportingPdf] = useState(false);
@@ -848,10 +876,32 @@ export function QuoteBuilder() {
               </Button>
             </div>
 
+            <div className="flex items-center gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open(clientShareUrl, "_blank")}
+                className="border-slate-800 bg-slate-900 text-slate-200 hover:text-white text-xs gap-1.5 flex-1 h-8"
+              >
+                <ExternalLink className="h-3.5 w-3.5 text-cyan-400" />
+                Open Client View
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleCopyClientSms}
+                className="border-slate-800 bg-slate-900 text-slate-200 hover:text-white text-xs gap-1.5 flex-1 h-8"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-emerald-400" />
+                Copy Client SMS
+              </Button>
+            </div>
+
             <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-3 text-[11px] text-slate-400 space-y-1">
-              <div>• Real-time price updates for client upgrade toggles.</div>
-              <div>• 14-day validity holding for the Builders Estimate.</div>
-              <div>• Direct submission back to sales consultant ({quote.client.consultantName}).</div>
+              <div>• 100% self-contained link: Works on any client phone, iPad, or computer.</div>
+              <div>• Real-time price updates for client size, inclusion and upgrade selections.</div>
+              <div>• 14-day validity holding for Builders Estimate #{quote.quoteNumber}.</div>
+              <div>• Direct submission back to sales consultant ({quote.client.consultantName || "consultant"}).</div>
             </div>
           </div>
         </DialogContent>

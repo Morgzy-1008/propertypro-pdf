@@ -17,6 +17,7 @@ import {
   Waves,
   Paintbrush,
   Home,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,6 +129,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const [customUnit, setCustomUnit] = useState<UnitType>("fixed");
   const [customRate, setCustomRate] = useState<number | "">("");
   const [customQty, setCustomQty] = useState(1);
+  const [customIsOptional, setCustomIsOptional] = useState(false);
 
   const selectedCount = useMemo(
     () => lineItems.filter((i) => i.isIncluded).length,
@@ -213,6 +215,19 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
     onChange(lineItems.filter((i) => i.id !== id));
   };
 
+  const toggleItemClientSelectable = (id: string) => {
+    onChange(
+      lineItems.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              isClientSelectable: !item.isClientSelectable,
+            }
+          : item,
+      ),
+    );
+  };
+
   const handleAddCustomItem = () => {
     if (!customName.trim()) return;
 
@@ -229,7 +244,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       quantity: qty,
       subtotal: rate * qty,
       isIncluded: true,
-      isClientSelectable: true,
+      isClientSelectable: customIsOptional,
       clientSelected: true,
     };
 
@@ -238,6 +253,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
     setCustomDesc("");
     setCustomRate("");
     setCustomQty(1);
+    setCustomIsOptional(false);
     setIsAddCustomOpen(false);
   };
 
@@ -1311,6 +1327,37 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                             ? "per lm"
                             : item.unitType.replace(/_/g, " ")}
                         </span>
+                        {item.isIncluded && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleItemClientSelectable(item.id);
+                            }}
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all flex items-center gap-1 cursor-pointer ${
+                              item.isClientSelectable
+                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750"
+                            }`}
+                            title={
+                              item.isClientSelectable
+                                ? "Optional: Client can de-select this in their review link"
+                                : "Locked: Mandatory contract specification (client cannot de-select)"
+                            }
+                          >
+                            {item.isClientSelectable ? (
+                              <>
+                                <Sparkles className="h-3 w-3 text-amber-400" />
+                                <span>Optional for Client</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="h-3 w-3 text-slate-400" />
+                                <span>Locked in Quote</span>
+                              </>
+                            )}
+                          </button>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-400 mt-1 leading-snug">
                         {item.description}
@@ -1469,6 +1516,19 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   className="h-9 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
                 />
               </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-900/60">
+              <div>
+                <Label className="text-xs text-slate-200 font-semibold block">Optional Variation for Client</Label>
+                <p className="text-[11px] text-slate-400">Allow client to de-select this upgrade in their review link</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={customIsOptional}
+                onChange={(e) => setCustomIsOptional(e.target.checked)}
+                className="h-4 w-4 accent-amber-500 rounded cursor-pointer"
+              />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

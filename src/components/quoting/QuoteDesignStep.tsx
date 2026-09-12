@@ -1711,35 +1711,11 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 );
               })()}
 
-              <div className="space-y-1.5">
-                <Label className="text-[11px] text-slate-400">Select Facade from Price List ({suitableFacades.length} available)</Label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <Select
-                      value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
-                      onValueChange={handleFacadeSelect}
-                    >
-                      <SelectTrigger className="border-slate-800 bg-slate-900 text-xs text-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
-                        {suitableFacades.map((f, idx) => (
-                          <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
-                            <div className="flex items-center justify-between gap-2 w-full">
-                              <span>{f.name}</span>
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {f.note ? `${f.note} • ` : ""}
-                                {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
-                              </span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                        <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
-                          + Custom Architectural Facade (Specify Details &amp; Price)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <Label className="text-[11px] text-slate-400 font-medium">
+                    Select Facade from Price List ({suitableFacades.length} available)
+                  </Label>
                   <FacadeLibrary
                     value={design.facadeName || ""}
                     onSelect={(item) => {
@@ -1764,6 +1740,30 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                     }))}
                   />
                 </div>
+                <Select
+                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
+                  onValueChange={handleFacadeSelect}
+                >
+                  <SelectTrigger className="w-full border-slate-800 bg-slate-900 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                    {suitableFacades.map((f, idx) => (
+                      <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span>{f.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {f.note ? `${f.note} • ` : ""}
+                            {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
+                      + Custom Architectural Facade (Specify Details &amp; Price)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Custom Facade Detailed Editor */}

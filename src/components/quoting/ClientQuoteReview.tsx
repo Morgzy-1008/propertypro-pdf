@@ -19,6 +19,7 @@ import {
   Palette,
   Trees,
   Car,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -49,6 +50,7 @@ import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data
 import { prepareFacade } from "@/components/flyer/facadeEngine";
 import { getIdbEnhanced } from "@/components/flyer/idbFacadeCache";
 import { HOUSING_FACADES, getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
+import { Logo } from "@/components/flyer/FlyerTemplates";
 
 function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const [src, setSrc] = React.useState<string>("");
@@ -63,7 +65,7 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
     );
 
     // Find matching facade using the comprehensive lookup engine
-    const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName || design.modelName);
+    const matched = findFacadeForDesign(facadeName, isDouble, housingType, design.designName);
 
     if (matched) {
       if (PRE_RENDERED_FACADES[matched.id]) {
@@ -194,11 +196,14 @@ const INCLUSION_TIERS: {
   },
 ];
 
-function getTierPrice(model: PriceRow, tier: InclusionTier): number {
-  if (tier === "H3 Inclusions (2025)") return model.h3 || model.hbs || 0;
-  if (tier === "H2 Inclusions (2025)") return model.h2 || model.hbs || 0;
-  if (tier === "H1 Inclusions (2025)") return model.h1 || model.hbs || 0;
-  return model.hbs || 0;
+function getTierPrice(model: PriceRow, tier: string): number {
+  const norm = (tier || "").toLowerCase();
+  if (norm.includes("h3")) return model.h3 || model.h2 || model.hbs || 0;
+  if (norm.includes("h2")) return model.h2 || model.h1 || model.hbs || 0;
+  if (norm.includes("h1")) return model.h1 || model.hbs || 0;
+  if (norm.includes("ss") || norm.includes("smart style")) return model.ss || model.hbs || 0;
+  if (norm.includes("hbs") || norm.includes("hudson base")) return model.hbs || 0;
+  return model.h2 || model.h1 || 0;
 }
 
 export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
@@ -209,10 +214,15 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   // Extract design family models (e.g. all sizes of Mulberry, Amber, Jasper, etc.)
   const familyModels = useMemo(() => {
     if (quote.design.mode === "custom_floorplan") return [];
-    const baseName = quote.design.designName.split(" ")[0].trim().toLowerCase();
-    const matches = ALL_PRICE_MODELS.filter((m) =>
-      m.name.toLowerCase().startsWith(baseName),
-    );
+    const baseName = quote.design.designName.replace(/\s*\d+.*$/, "").trim().toLowerCase();
+    const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
+    const matches = ALL_PRICE_MODELS.filter((m) => {
+      const mType = getHousingTypeForDesign(m.name);
+      if (mType !== housingType) return false;
+      const mBase = m.name.replace(/\s*\d+.*$/, "").trim().toLowerCase();
+      return mBase === baseName;
+    });
+    matches.sort((a, b) => a.m2 - b.m2);
     return matches.length > 0 ? matches : [
       ALL_PRICE_MODELS.find((m) => m.name === quote.design.designName) || {
         name: quote.design.designName,
@@ -222,7 +232,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
         h3: quote.design.basePrice,
       } as PriceRow,
     ];
-  }, [quote.design.designName, quote.design.mode]);
+  }, [quote.design.designName, quote.design.housingType, quote.design.mode]);
 
   // Current active PriceRow
   const currentModel = useMemo(() => {
@@ -252,6 +262,28 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     const matchedFacade = newFacades.find((f) => f.name.toLowerCase() === (quote.design.facadeName || "").toLowerCase());
     const updatedFacadePrice = matchedFacade ? matchedFacade.uplift : quote.design.facadePrice;
 
+    const oldDesignM2 = quote.design.designM2 || 192;
+    const newDesignM2 = model.m2;
+    const areaRatio = oldDesignM2 > 0 ? newDesignM2 / oldDesignM2 : 1;
+
+    // Adjust any line items that are priced per square metre ($/m²)
+    const updatedLineItems = quote.lineItems.map((item) => {
+      if (item.unitType === "per_m2") {
+        let newQty = item.quantity;
+        if (Math.abs(item.quantity - Math.round(oldDesignM2)) <= 5) {
+          newQty = Math.round(newDesignM2);
+        } else {
+          newQty = Math.max(1, Math.round(item.quantity * areaRatio));
+        }
+        return {
+          ...item,
+          quantity: newQty,
+          subtotal: newQty * item.unitRate,
+        };
+      }
+      return item;
+    });
+
     const updatedDesign = {
       ...quote.design,
       designName: model.name,
@@ -262,20 +294,21 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
       beds: plans[0]?.beds || quote.design.beds,
       baths: plans[0]?.baths || quote.design.baths,
       cars: plans[0]?.cars || quote.design.cars,
-      widthM: plans[0]?.width || quote.design.widthM,
-      lengthM: plans[0]?.depth || quote.design.lengthM,
+      widthM: plans[0]?.frontage || quote.design.widthM,
+      lengthM: quote.design.lengthM,
     };
 
     const updatedPricing = calculateQuotePricing(
       updatedDesign,
       quote.siteConditions,
-      quote.lineItems,
+      updatedLineItems,
       quote.client.depositAmount,
     );
 
     const updated: FullQuote = {
       ...quote,
       design: updatedDesign,
+      lineItems: updatedLineItems,
       pricing: updatedPricing,
       updatedAt: new Date().toISOString(),
     };
@@ -387,7 +420,13 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     toast.success("Your selections have been submitted to your Hudson Homes Sales Consultant!");
   };
 
-  const clientSelectableItems = quote.lineItems.filter((i) => (i.isIncluded || i.clientSelected) && i.unitRate > 0);
+  const lockedItems = quote.lineItems.filter(
+    (i) => (i.isIncluded || i.clientSelected !== false) && !i.isClientSelectable && i.unitRate > 0,
+  );
+
+  const optionalItems = quote.lineItems.filter(
+    (i) => i.isClientSelectable && i.unitRate > 0,
+  );
 
   const clientCombinedNames = [quote.client.clientName, quote.client.hasClient2 && quote.client.client2Name]
     .filter(Boolean)
@@ -752,21 +791,92 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           )}
         </div>
 
-        {/* SECTION 4: OPTIONAL UPGRADES CHECKLIST */}
-        {clientSelectableItems.length > 0 && (
+        {/* SECTION 4A: INCLUDED BUILDER SPECIFICATIONS & VARIATIONS (LOCKED) */}
+        {lockedItems.length > 0 && (
           <div className="space-y-4">
-            <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                Customise Optional Variations &amp; Upgrades
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Select or deselect packages to tailor your home specification to your budget.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-cyan-400" />
+                  Included Builder Specifications &amp; Variations
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Selected by your New Home Consultant and locked into this estimate specification.
+                </p>
+              </div>
+              <span className="font-extrabold text-cyan-400 font-mono text-xs">
+                +{formatAud(lockedItems.reduce((s, i) => s + (i.quantity * i.unitRate), 0))} Included
+              </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {clientSelectableItems.map((item) => {
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {lockedItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 flex flex-col justify-between"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-400 border border-cyan-800/50 flex-none">
+                          <Lock className="h-2.5 w-2.5" /> Locked
+                        </span>
+                        <span className="font-bold text-sm text-white truncate">{item.name}</span>
+                      </div>
+                      {item.description && (
+                        <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
+                          {item.description}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
+                        <span>{item.category}</span>
+                        {item.quantity > 1 && (
+                          <>
+                            <span>·</span>
+                            <span>Qty: {item.quantity}</span>
+                          </>
+                        )}
+                        {item.unitType === "per_m2" && (
+                          <>
+                            <span>·</span>
+                            <span>{item.quantity} m²</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right flex-none">
+                      <span className="text-sm font-bold text-slate-200 font-mono">
+                        {item.unitRate === 0 ? "Included" : `+${formatAud(item.quantity * item.unitRate)}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* SECTION 4B: OPTIONAL UPGRADES CHECKLIST */}
+        {optionalItems.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-base font-bold text-white flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  Customise Optional Variations &amp; Upgrades
+                </h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Select or deselect options marked by your consultant to personalize your home to your budget.
+                </p>
+              </div>
+              <span className="font-extrabold text-emerald-400 font-mono text-xs">
+                +{formatAud(optionalItems.filter(i => i.clientSelected !== false && i.isIncluded).reduce((s, i) => s + (i.quantity * i.unitRate), 0))} Selected
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {optionalItems.map((item) => {
                 const isSelected = item.clientSelected !== false && item.isIncluded;
                 return (
                   <div
@@ -788,16 +898,45 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                             className="h-4 w-4 accent-emerald-500 rounded cursor-pointer"
                           />
                           <span className="font-bold text-sm text-white truncate">{item.name}</span>
+                          <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                            Optional
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-                          {item.description}
-                        </p>
+                        {item.description && (
+                          <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+                            {item.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
+                          <span>{item.category}</span>
+                          {item.quantity > 1 && (
+                            <>
+                              <span>·</span>
+                              <span>Qty: {item.quantity}</span>
+                            </>
+                          )}
+                          {item.unitType === "per_m2" && (
+                            <>
+                              <span>·</span>
+                              <span>{item.quantity} m²</span>
+                            </>
+                          )}
+                        </div>
                       </div>
 
                       <div className="text-right flex-none">
-                        <span className="text-sm font-bold text-emerald-400 font-mono">
+                        <span
+                          className={`text-sm font-bold font-mono ${
+                            isSelected ? "text-emerald-400" : "text-slate-500 line-through"
+                          }`}
+                        >
                           {item.unitRate === 0 ? "Included" : `+${formatAud(item.quantity * item.unitRate)}`}
                         </span>
+                        {!isSelected && (
+                          <span className="block text-[10px] text-slate-500 font-sans mt-0.5">
+                            Deselected ($0)
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
