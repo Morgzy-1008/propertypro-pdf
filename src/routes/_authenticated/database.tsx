@@ -1953,46 +1953,6 @@ function DatabasePage() {
                       <td className={`p-3 whitespace-nowrap ${isLight ? "text-slate-800 font-medium" : "text-slate-200"}`}>{money(p.land_price)}</td>
                       <td className={`p-3 font-bold whitespace-nowrap ${isLight ? "text-amber-700" : "text-amber-300"}`}>{money(p.total_price)}</td>
                       <td className="p-3">
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 accent-amber-400 rounded"
-                          checked={selPkgs.includes(p.id)}
-                          onChange={() => setSelPkgs((prev) => toggle(prev, p.id))}
-                        />
-                      </td>
-                      <td className="p-3">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`rounded px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${
-                            pkgState === "QLD"
-                              ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                              : "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                          }`}>
-                            {pkgState}
-                          </span>
-                          <span className="font-semibold text-slate-100">
-                            {titleCase(p.name || p.design) || "Untitled"}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-400">
-                          {[titleCase(p.facade_name), titleCase(p.range_id)]
-                            .filter(Boolean)
-                            .join(" · ")}
-                          {p.needs_review && (
-                            <span className="ml-2 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30">Price Review</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-3 text-xs text-slate-300">
-                        {lot ? `${titleCase(lot.estate)} · ${titleCase(lot.suburb)}` : "—"}
-                      </td>
-
-                      <td className="p-3 text-xs whitespace-nowrap text-slate-300">
-                        {[p.beds, p.baths, p.cars].filter(Boolean).join(" / ") || "—"}
-                      </td>
-                      <td className="p-3 whitespace-nowrap text-slate-200">{money(p.house_price)}</td>
-                      <td className="p-3 whitespace-nowrap text-slate-200">{money(p.land_price)}</td>
-                      <td className="p-3 font-bold whitespace-nowrap text-amber-300">{money(p.total_price)}</td>
-                      <td className="p-3">
                         <Select
                           value={p.status}
                           onValueChange={(v) => updatePkg(p.id, { status: v as Pkg["status"] })}

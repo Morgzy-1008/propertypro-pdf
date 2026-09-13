@@ -18,6 +18,7 @@ import {
   verifyUserPassword,
 } from "@/lib/userCredentials";
 import { logAccessRequest } from "@/lib/adminAlerts";
+import { ensureStaffSupabaseAuth } from "@/lib/supabaseSync";
 import {
   ShieldCheck,
   Lock,
@@ -65,8 +66,9 @@ function AuthPage() {
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // If user already has an active 24-hr session, redirect directly to /hub
+    // If user already has an active 24-hr session, ensure Supabase auth and redirect directly to /hub
     if (isStaffSessionActive()) {
+      void ensureStaffSupabaseAuth();
       navigate({ to: "/hub", replace: true });
     }
   }, [navigate]);
@@ -124,6 +126,7 @@ function AuthPage() {
       const profile = findStaffProfileByEmail(cleanEmail);
       if (profile) {
         setActiveStaffUser(profile, true);
+        void ensureStaffSupabaseAuth();
         try {
           sessionStorage.setItem(
             "hudson_login_toast",

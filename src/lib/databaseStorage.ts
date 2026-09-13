@@ -164,6 +164,96 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
     });
   });
 
+  // 1b. Seed Alyssa's & QLD consultant lots
+  const ALYSSA_LOTS_DATA = [
+    { estate: "Brookhaven", suburb: "Bahrs Scrub", lot_number: "1487", size: 300, frontage: 10, price: 516000, dev: "Frasers Property" },
+    { estate: "Brookhaven", suburb: "Bahrs Scrub", lot_number: "1493", size: 361, frontage: 13, price: 549998, dev: "Frasers Property" },
+    { estate: "Brookhaven", suburb: "Bahrs Scrub", lot_number: "1496", size: 565, frontage: 15, price: 622000, dev: "Frasers Property" },
+    { estate: "Brookhaven", suburb: "Bahrs Scrub", lot_number: "1485", size: 724, frontage: 18, price: 675000, dev: "Frasers Property" },
+    { estate: "Brookhaven", suburb: "Bahrs Scrub", lot_number: "1481", size: 566, frontage: 10.36, price: 631000, dev: "Frasers Property" },
+    { estate: "Highland Walloon", suburb: "Walloon", lot_number: "264", size: 375, frontage: 12.5, price: 400000, dev: "Highland Walloon" },
+    { estate: "Highland Walloon", suburb: "Walloon", lot_number: "275", size: 400, frontage: 14, price: 424998, dev: "Highland Walloon" },
+    { estate: "Highland Walloon", suburb: "Walloon", lot_number: "282", size: 448, frontage: 14, price: 468000, dev: "Highland Walloon" },
+    { estate: "Highland Walloon", suburb: "Walloon", lot_number: "256", size: 505, frontage: 15, price: 470000, dev: "Highland Walloon" },
+  ];
+
+  ALYSSA_LOTS_DATA.forEach((item) => {
+    const lotKey = `qld-${item.estate.toLowerCase()}-${item.suburb.toLowerCase()}-${item.lot_number}`;
+    const lotId = toValidUuid(lotKey) || generateUuid();
+    if (!lotMap.has(lotKey)) {
+      const newLot: Lot = {
+        id: lotId,
+        estate: item.estate,
+        suburb: item.suburb,
+        state: "QLD",
+        developer: item.dev,
+        developer_contact_name: "Sales Team",
+        developer_contact_phone: "1300 246 700",
+        developer_contact_email: "sales@hudsonhomes.com.au",
+        lot_number: item.lot_number,
+        address: `Lot ${item.lot_number} ${item.estate}, ${item.suburb} QLD`,
+        land_size: item.size,
+        frontage: item.frontage,
+        land_price: item.price,
+        titled: false,
+        registration_date: "2026-08-30",
+        status: "available",
+        exclusive_consultants: null,
+        deadline: null,
+        notes: `Queensland package allotment in ${item.estate}`,
+        updated_at: new Date().toISOString(),
+      };
+      lotMap.set(lotKey, newLot);
+    }
+  });
+
+  // 1c. Seed Alyssa's QLD packages
+  const ALYSSA_PKGS_DATA = [
+    { design: "Orchid 23 (s/g)", estate: "Brookhaven", suburb: "Bahrs Scrub", lotNum: "1487", housePrice: 413900, landPrice: 516000, totalPrice: 929900, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+    { design: "Quartz 23", estate: "Highland Walloon", suburb: "Walloon", lotNum: "275", housePrice: 394900, landPrice: 424998, totalPrice: 819898, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+    { design: "Ivory 23", estate: "Highland Walloon", suburb: "Walloon", lotNum: "264", housePrice: 392900, landPrice: 400000, totalPrice: 792900, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+    { design: "Quartz 21", estate: "Highland Walloon", suburb: "Walloon", lotNum: "264", housePrice: 385100, landPrice: 400000, totalPrice: 785100, beds: "4", baths: "2", cars: "2", size: "199.69", facade: "Classic Plus" },
+    { design: "Ivory 23", estate: "Brookhaven", suburb: "Bahrs Scrub", lotNum: "1493", housePrice: 392900, landPrice: 549998, totalPrice: 942898, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+  ];
+
+  ALYSSA_PKGS_DATA.forEach((ap, idx) => {
+    const lotKey = `qld-${ap.estate.toLowerCase()}-${ap.suburb.toLowerCase()}-${ap.lotNum}`;
+    const matchedLot = lotMap.get(lotKey);
+    const lotId = matchedLot ? matchedLot.id : toValidUuid(lotKey) || generateUuid();
+
+    pkgs.push({
+      id: toValidUuid(`alyssa-pkg-${ap.design.toLowerCase()}-${ap.lotNum}`) || generateUuid(),
+      lot_id: lotId,
+      name: `${ap.design} · ${ap.estate}`,
+      housing_type: "Single Storey",
+      design: ap.design,
+      range_id: "designer",
+      facade_name: ap.facade,
+      house_price: ap.housePrice,
+      land_price: ap.landPrice,
+      total_price: ap.totalPrice,
+      beds: ap.beds,
+      baths: ap.baths,
+      cars: ap.cars,
+      floorplan_size: ap.size,
+      state: "QLD",
+      status: "live",
+      exclusive_consultants: null,
+      flyer_json: {
+        designName: ap.design,
+        estate: ap.estate,
+        suburb: ap.suburb,
+        lotNumber: ap.lotNum,
+        price: `$${ap.totalPrice.toLocaleString()}`,
+        contactName: "Alyssa Hales",
+        contactEmail: "alyssa.hales@hudsonhomes.com.au",
+        contactPhone: "0480 893 290",
+      },
+      needs_review: false,
+      updated_at: new Date().toISOString(),
+    });
+  });
+
   // 2. Seed NSW estates and lots
   const NSW_ESTATES = [
     { estate: "Watagan Park", suburb: "Cooranbong", dev: "Johnson Property Group", price: 420000, size: 512, frontage: 16 },
@@ -238,139 +328,104 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
   return { lots: Array.from(lotMap.values()), packages: pkgs };
 }
 
+let inMemoryLots: Lot[] | null = null;
+let inMemoryPackages: Pkg[] | null = null;
+
+export function sanitizePackageForStorage(p: Pkg): Pkg {
+  let flyer = p.flyer_data || p.flyer_json;
+  if (flyer && typeof flyer === "object") {
+    const copy = { ...(flyer as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(copy)) {
+      if (typeof v === "string" && (v.startsWith("data:") || (v.length > 600 && !v.startsWith("http")))) {
+        delete copy[k];
+      }
+    }
+    flyer = copy;
+  }
+  const facadeUrl = (p as any).facade_url;
+  return {
+    ...p,
+    id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
+    lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
+    facade_name: p.facade_name || null,
+    facade_url: typeof facadeUrl === "string" && facadeUrl.startsWith("data:") ? null : facadeUrl,
+    flyer_data: flyer,
+    flyer_json: null, // do not duplicate flyer_data into flyer_json in local storage
+  } as Pkg;
+}
+
 export function getLocalLots(): Lot[] {
+  if (inMemoryLots && inMemoryLots.length > 0) {
+    return inMemoryLots;
+  }
+  const seed = generateSeedData();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_LOTS);
-    const isInitialized = localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
-        let hasMigration = false;
-        const idReplacements = new Map<string, string>();
-        const migratedLots: Lot[] = parsed.map((lot: Lot) => {
-          if (!lot.id || !isValidUuid(lot.id)) {
-            const newId = toValidUuid(lot.id || `${lot.estate}-${lot.lot_number}`) || generateUuid();
-            if (lot.id) idReplacements.set(lot.id, newId);
-            hasMigration = true;
-            return { ...lot, id: newId };
-          }
-          return lot;
-        });
-
-        if (hasMigration) {
-          try {
-            localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(migratedLots));
-            // Also update any existing packages that referenced old lot IDs
-            const pkgRaw = localStorage.getItem(STORAGE_KEY_PACKAGES);
-            if (pkgRaw) {
-              const pkgs = JSON.parse(pkgRaw);
-              if (Array.isArray(pkgs)) {
-                const updatedPkgs = pkgs.map((p: Pkg) => {
-                  if (p.lot_id && idReplacements.has(p.lot_id)) {
-                    return { ...p, lot_id: idReplacements.get(p.lot_id)! };
-                  }
-                  return p;
-                });
-                localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(updatedPkgs));
-              }
-            }
-          } catch {}
-        }
-        return migratedLots;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const merged = mergeLots(seed.lots, parsed);
+        inMemoryLots = merged;
+        return merged;
       }
     }
   } catch (e) {
     console.warn("[databaseStorage] getLocalLots read error:", e);
   }
-  const seed = generateSeedData();
+  inMemoryLots = seed.lots;
   saveLocalLots(seed.lots);
-  saveLocalPackages(seed.packages);
-  try {
-    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
-  } catch {}
   return seed.lots;
 }
 
 export function saveLocalLots(lots: Lot[]): void {
+  const cleanLots = lots.map((l) => ({
+    ...l,
+    id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
+  }));
+  inMemoryLots = cleanLots;
   try {
-    const cleanLots = lots.map((l) => ({
-      ...l,
-      id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
-    }));
     localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(cleanLots));
     localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
-    console.warn("[databaseStorage] saveLocalLots write error:", e);
+    console.warn("[databaseStorage] saveLocalLots write notice:", e);
   }
-  broadcastDatabaseChange("lots_updated", { count: lots.length });
+  broadcastDatabaseChange("lots_updated", { count: cleanLots.length });
 }
 
 export function getLocalPackages(): Pkg[] {
+  if (inMemoryPackages && inMemoryPackages.length > 0) {
+    return inMemoryPackages;
+  }
+  const seed = generateSeedData();
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PACKAGES);
-    const isInitialized = localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && (parsed.length > 0 || isInitialized)) {
-        let hasMigration = false;
-        const migratedPkgs: Pkg[] = parsed.map((pkg: Pkg) => {
-          let updated = pkg;
-          if (!pkg.id || !isValidUuid(pkg.id)) {
-            hasMigration = true;
-            updated = { ...updated, id: toValidUuid(pkg.id || pkg.name) || generateUuid() };
-          }
-          if (pkg.lot_id && !isValidUuid(pkg.lot_id)) {
-            hasMigration = true;
-            updated = { ...updated, lot_id: toValidUuid(pkg.lot_id) };
-          }
-          return updated;
-        });
-        if (hasMigration) {
-          try {
-            localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(migratedPkgs));
-          } catch {}
-        }
-        return migratedPkgs;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const sanitized: Pkg[] = parsed.map(sanitizePackageForStorage);
+        const merged = mergePackages(seed.packages, sanitized);
+        inMemoryPackages = merged;
+        return merged;
       }
     }
   } catch (e) {
     console.warn("[databaseStorage] getLocalPackages read error:", e);
   }
-  const seed = generateSeedData();
-  saveLocalLots(seed.lots);
+  inMemoryPackages = seed.packages;
   saveLocalPackages(seed.packages);
-  try {
-    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
-  } catch {}
   return seed.packages;
 }
 
 export function saveLocalPackages(packages: Pkg[]): void {
+  const cleanPackages = packages.map(sanitizePackageForStorage);
+  inMemoryPackages = cleanPackages;
   try {
-    const cleanPackages = packages.map((p) => {
-      let flyer = p.flyer_data || p.flyer_json;
-      if (flyer && typeof flyer === "object") {
-        const copy = { ...(flyer as Record<string, unknown>) };
-        for (const [k, v] of Object.entries(copy)) {
-          if (typeof v === "string" && v.startsWith("data:") && v.length > 30000) {
-            delete copy[k];
-          }
-        }
-        flyer = copy;
-      }
-      return {
-        ...p,
-        id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
-        lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
-        flyer_data: flyer,
-      };
-    });
     localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(cleanPackages));
     localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
   } catch (e) {
-    console.warn("[databaseStorage] saveLocalPackages write notice (handled):", e);
+    console.warn("[databaseStorage] saveLocalPackages storage notice (in-memory preserved):", e);
   }
-  broadcastDatabaseChange("packages_updated", { count: packages.length });
+  broadcastDatabaseChange("packages_updated", { count: cleanPackages.length });
 }
 
 export function upsertLocalLot(lot: Lot): Lot[] {

@@ -1,5 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { isStaffSessionActive, getActiveStaffUser } from "@/lib/authSession";
+import { ensureStaffSupabaseAuth } from "@/lib/supabaseSync";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
     if (!isUnlocked && !isStaffSessionActive()) {
       throw redirect({ to: "/auth", replace: true });
     }
+    void ensureStaffSupabaseAuth();
     const staffUser = getActiveStaffUser();
     return { staffUser };
   },
