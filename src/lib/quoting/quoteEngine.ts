@@ -573,6 +573,26 @@ export function calculateModifiedFloorplanPricing(
 }
 
 /**
+ * Shortens and aesthetically beautifies design model names by removing internal price-list codes
+ * like "- TD - (Old Design) Two Story", "- TD - (New Design)", "- TD Single Story", etc.
+ * Example: "Maize 33 - TD - (Old Design) Two Story" -> "Maize 33"
+ */
+export function cleanDesignName(name?: string): string {
+  if (!name) return "";
+  let clean = name;
+  // Remove parenthetical internal design markers e.g. (Old Design), (New Design), (Updated Design)
+  clean = clean.replace(/\s*\((?:Old|New|Updated)\s+Design\)/gi, "");
+  // Remove technical TD / SD / Duplex markers
+  clean = clean.replace(/\s*-\s*T[D|d](?:\s*-\s*)?/gi, " ");
+  clean = clean.replace(/\s*-\s*S[D|d](?:\s*-\s*)?/gi, " ");
+  // Remove trailing "Two Story", "Single Story", "2-Storey", etc.
+  clean = clean.replace(/\s+(?:Two|Single)\s+Stor(?:y|ey)\b/gi, "");
+  // Standardize multiple spaces or leftover hyphens
+  clean = clean.replace(/\s*-\s*$/g, "").replace(/\s{2,}/g, " ").trim();
+  return clean;
+}
+
+/**
  * Returns the customer/consultant facing floorplan design name.
  * If modified floorplan is enabled, appends "Modified" (e.g. "Coral 21 Modified").
  */
@@ -585,12 +605,13 @@ export function getEffectiveDesignName(design?: QuoteDesignSelection): string {
   if (!raw.trim()) {
     return "No Design Selected";
   }
+  const cleaned = cleanDesignName(raw);
   if (design.isModifiedFloorplan) {
-    if (!raw.toLowerCase().includes("modified")) {
-      return `${raw} Modified`;
+    if (!cleaned.toLowerCase().includes("modified")) {
+      return `${cleaned} Modified`;
     }
   }
-  return raw;
+  return cleaned;
 }
 
 /**

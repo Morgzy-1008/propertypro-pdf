@@ -168,13 +168,13 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   );
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[230px] max-h-[230px] mb-2.5 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[300px] max-h-[300px] mb-2 flex-none">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_55%]" : "object-center"}`}
         style={{
           imageRendering: "auto",
         }}
@@ -324,7 +324,7 @@ function QuoteFloorplanViewer({ design }: { design: FullQuote["design"] }) {
       <img
         src={src}
         alt="Selected Floorplan Drawing"
-        className="max-h-[620px] max-w-[720px] w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
+        className="max-h-full max-w-full w-full h-full object-contain block mx-auto my-auto drop-shadow-sm transition-all"
         style={{ imageRendering: "-webkit-optimize-contrast" }}
       />
     </div>
@@ -1569,15 +1569,19 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               <div className="text-[10px] font-bold uppercase tracking-widest text-cyan-700">
                 ARCHITECTURAL ELEVATION &amp; FLOORPLAN SPECIFICATIONS
               </div>
-              <h2 className="text-xl font-extrabold text-slate-900 leading-tight mt-0.5">
-                {design.mode === "standard"
-                  ? `${effectiveDesignName} — ${design.specTier}`
-                  : "Custom Architectural Floorplan"}
-              </h2>
-              <div className="text-[11px] text-slate-600 mt-0.5">
-                Selected Facade: <span className="font-semibold text-slate-900">{design.facadeName || "Classic"}</span>
-                {design.widthM && design.lengthM && (
-                  <span> · Dimensions: {design.widthM}m wide × {design.lengthM}m deep</span>
+              <div className="mt-0.5 flex items-baseline gap-2.5 flex-wrap">
+                <h2 className="text-2xl font-black text-slate-950 tracking-tight leading-tight">
+                  {design.mode === "standard"
+                    ? effectiveDesignName
+                    : "Custom Architectural Floorplan"}
+                </h2>
+                {design.mode === "standard" && (
+                  <>
+                    <span className="text-slate-300 font-light text-lg select-none">―</span>
+                    <span className="text-base font-bold text-cyan-700 tracking-wide">
+                      {design.specTier || "H2 Design Inclusions"}
+                    </span>
+                  </>
                 )}
               </div>
             </div>
@@ -1595,14 +1599,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             const modCalc = calculateModifiedFloorplanPricing(design);
             return (
               <div
-                className={`border rounded-xl p-2.5 mb-2.5 flex-none shadow-xs ${
+                className={`border rounded-xl px-3 py-1.5 mb-2 flex-none shadow-xs ${
                   isMod
                     ? "bg-emerald-50/80 border-emerald-300"
                     : "bg-slate-50 border-slate-200"
                 }`}
               >
                 {/* Row 1: Home Specifications & Key Dimensions */}
-                <div className="grid grid-cols-4 gap-2 pb-2 border-b border-slate-200/80 text-center text-xs">
+                <div className="grid grid-cols-4 gap-2 pb-1.5 border-b border-slate-200/80 text-center text-xs">
                   <div className="flex items-center justify-center gap-1.5">
                     <span className="text-slate-500 text-[10px] font-medium uppercase tracking-wide">Bedrooms:</span>
                     <span className="font-extrabold text-slate-900 text-xs whitespace-nowrap">{design.beds || 4} Beds</span>
@@ -1621,25 +1625,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </div>
                 </div>
 
-                {/* Row 2: Room & Zone Area Breakdown (Keeps number and m² together strictly on same line) */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-xs">
-                  <div className="flex items-center gap-1">
-                    <span className={`text-[10px] uppercase font-black tracking-wider ${isMod ? "text-emerald-800" : "text-slate-700"}`}>
-                      {isMod ? "Modified Area Schedule:" : "Area Schedule:"}
+                {/* Row 2: Room & Zone Area Breakdown */}
+                <div className="pt-1.5 flex flex-wrap items-center justify-start gap-x-4 gap-y-1 text-xs">
+                  {modCalc.zones.map((z) => (
+                    <span key={z.key} className="inline-flex items-center gap-1 whitespace-nowrap font-mono text-[11px]">
+                      <span className="font-sans text-slate-500 text-[10px] font-semibold">{z.label.replace(" Area", "").replace(" (Optional)", "")}:</span>
+                      <span className="font-bold text-slate-900 whitespace-nowrap">{z.modifiedM2.toFixed(1)}&nbsp;m²</span>
                     </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 font-mono text-[11px]">
-                    {modCalc.zones.map((z) => (
-                      <span key={z.key} className="inline-flex items-center gap-1 whitespace-nowrap">
-                        <span className="font-sans text-slate-600 text-[10px] font-semibold">{z.label.replace(" Area", "").replace(" (Optional)", "")}:</span>
-                        <span className="font-bold text-slate-900 whitespace-nowrap">{z.modifiedM2.toFixed(1)}&nbsp;m²</span>
-                      </span>
-                    ))}
-                    <span className="border-l border-slate-300 pl-3 inline-flex items-center gap-1 whitespace-nowrap">
-                      <span className="font-sans text-cyan-900 text-[10.5px] font-black">Total:</span>
-                      <span className="font-black text-cyan-800 whitespace-nowrap text-xs">{modCalc.modifiedTotalM2.toFixed(1)}&nbsp;m²</span>
-                    </span>
-                  </div>
+                  ))}
                 </div>
               </div>
             );
@@ -1648,8 +1641,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* 1. Chosen Facade Render (Towards the top of the page, high quality & enhanced) */}
           <QuoteFacadeViewer design={design} />
 
-          {/* 2. Architectural Floorplan Layout Drawing (Maximized to fill the lower page area) */}
-          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center min-h-[580px] max-h-[640px] overflow-hidden shadow-inner">
+          {/* 2. Architectural Floorplan Layout Drawing (Maximized to fill the lower page area shifted all the way down) */}
+          <div className="flex-1 w-full border border-slate-200 rounded-2xl p-1 bg-white flex items-center justify-center overflow-hidden shadow-inner mt-auto">
             <QuoteFloorplanViewer design={design} />
           </div>
         </div>

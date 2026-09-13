@@ -58,6 +58,7 @@ import {
   getStandardAreaBreakdown,
   getAutomatedPromotionDiscount,
   getHousingTypeForDesign,
+  cleanDesignName,
 } from "@/lib/quoting/quoteEngine";
 import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
@@ -887,7 +888,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   </SelectItem>
                   {models.map((m) => (
                     <SelectItem key={m.name} value={m.name}>
-                      {m.name} — {m.m2} m² ({formatAud(getTierPrice(m, design.specTier))})
+                      {cleanDesignName(m.name)} — {m.m2} m² ({formatAud(getTierPrice(m, design.specTier))})
                     </SelectItem>
                   ))}
                 </SelectContent>
