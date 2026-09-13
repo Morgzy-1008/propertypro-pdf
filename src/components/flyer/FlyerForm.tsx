@@ -219,12 +219,39 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   const [facadeBusy, setFacadeBusy] = useState(false);
   const [reRenderAttempts, setReRenderAttempts] = useState<Record<string, number>>({});
   const MAX_RERENDERS = 2;
-  const [uplift, setUplift] = useState(0);
+  const [uplift, setUplift] = useState<number>(() => {
+    if (!data.facadeId && !data.facadeName) return 0;
+    return facadeUpliftFor(
+      data.facadeId,
+      data.facadeName,
+      storeyFor(data.housingType) ?? undefined,
+      data.designName,
+    );
+  });
+  const [upliftInput, setUpliftInput] = useState<string>(() =>
+    uplift === 0 ? "0" : String(uplift),
+  );
   const [variants, setVariants] = useState<FloorplanRecord[]>(() =>
     plansForDesign(data.designName),
   );
   const [canRevertAi, setCanRevertAi] = useState(false);
   const [facadeCheckOpen, setFacadeCheckOpen] = useState(false);
+
+  useEffect(() => {
+    if (data.facadeId || data.facadeName) {
+      const calculated = facadeUpliftFor(
+        data.facadeId,
+        data.facadeName,
+        storeyFor(data.housingType) ?? undefined,
+        data.designName,
+      );
+      setUplift(calculated);
+      setUpliftInput(calculated === 0 ? "0" : String(calculated));
+    } else {
+      setUplift(0);
+      setUpliftInput("0");
+    }
+  }, [data.facadeId, data.facadeName, data.housingType, data.designName]);
 
   useEffect(() => {
     const checkRevert = async () => {
@@ -306,7 +333,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("showOtherSizes", sizes.length > 0);
 
     // Duplex and Mulberry facades are priced per design, so re-price the facade.
-    const amount = data.facadeId
+    const amount = (data.facadeId || data.facadeName)
       ? facadeUpliftFor(
           data.facadeId,
           data.facadeName,
@@ -315,6 +342,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         )
       : uplift;
     setUplift(amount);
+    setUpliftInput(amount === 0 ? "0" : String(amount));
 
     const costs = data.landscaping
       ? {
@@ -379,6 +407,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
   const setUpliftValue = (amount: number) => {
     setUplift(amount);
+    setUpliftInput(amount === 0 ? "0" : String(amount));
     if (data.facadeId) saveFacadeUplift(data.facadeId, amount);
     applyPricing(data.designName, data.range, data.landPrice, amount);
   };
@@ -395,6 +424,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
     const amount = facadeUpliftFor(item.id, item.name, itemCategory, data.designName);
     setUplift(amount);
+    setUpliftInput(amount === 0 ? "0" : String(amount));
     applyPricing(data.designName, data.range, data.landPrice, amount);
 
     if (forceRefresh) {
@@ -606,6 +636,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   storeyFor(v) ?? undefined,
                 );
                 setUplift(amount);
+                setUpliftInput(amount === 0 ? "0" : String(amount));
                 applyPricing("", data.range, data.landPrice, amount, nextCosts);
               }}
             >
@@ -755,10 +786,20 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
             </Label>
             <Input
               className="h-8 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60"
-              value={uplift ? String(uplift) : ""}
+              value={upliftInput}
               placeholder="0"
               inputMode="numeric"
-              onChange={(e) => setUpliftValue(parseAud(e.target.value))}
+              onChange={(e) => {
+                const val = e.target.value;
+                setUpliftInput(val);
+                const parsed = parseAud(val);
+                setUplift(parsed);
+                if (data.facadeId) saveFacadeUplift(data.facadeId, parsed);
+                applyPricing(data.designName, data.range, data.landPrice, parsed);
+              }}
+              onBlur={() => {
+                setUpliftInput(uplift === 0 ? "0" : String(uplift));
+              }}
             />
             <p className="text-[11px] leading-snug text-slate-500">
               Filled in automatically from the QLD retail facade price list.

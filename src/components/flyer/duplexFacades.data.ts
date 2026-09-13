@@ -686,6 +686,13 @@ export const DUPLEX_FACADES: Record<string, DuplexFacade[]> = {
 
 /** Price-list spellings that differ from the website's design family names. */
 const FAMILY_ALIASES: Record<string, string> = {
+  maize: "Maize",
+  raven: "Raven",
+  magnolia: "Magnolia",
+  teal: "Teal",
+  wisteria: "Wisteria",
+  alabaster: "Alabaster",
+  lavender: "Lavender",
   cayene: "Cayenne",
   cayenne: "Cayenne",
   pavillion: "Pavilion",

@@ -87,12 +87,13 @@ export function facadeUpliftFor(
   storey?: FacadeStorey,
   designName?: string,
 ): number {
-  if (!id) return 0;
-  const override = loadFacadeUplifts()[id];
+  if (!id && !name) return 0;
+  const override = id ? loadFacadeUplifts()[id] : undefined;
   if (override !== undefined) return override;
   if (id === BASE_FACADE_ID) return 0;
+  const resolvedName = name || id.replace(/-/g, " ");
   return (
-    facadePriceForDesign(name ?? id.replace(/-/g, " "), storey ?? "single", designName) ?? 0
+    facadePriceForDesign(resolvedName, storey ?? "single", designName) ?? 0
   );
 }
 

@@ -165,11 +165,13 @@ const ALIASES: Record<string, string> = {
   "modern classical": "modern classical option a",
 };
 
-/** "Chateaux (No Balcony)" / "Deco (Double Garage)" -> "chateaux" / "deco" */
+/** "Chateaux (No Balcony)" / "Chateaux Narrow (Double Storey)" -> "chateaux" */
 export function facadeBaseName(name: string): string {
   const base = name
     .replace(/\(.*?\)/g, "")
     .split(" - ")[0]
+    .replace(/\bnarrow\b/gi, "")
+    .replace(/\s+/g, " ")
     .trim()
     .toLowerCase();
   return ALIASES[base] ?? base;
@@ -195,6 +197,7 @@ export function facadePriceFor(name: string, storey: FacadeStorey): number | nul
   if (directMatch !== undefined) return directMatch;
 
   const base = facadeBaseName(name);
+  if (base === "classic") return 0;
   const exact = FACADE_PRICES[storey]?.[base];
   if (exact !== undefined) return exact;
 
@@ -204,6 +207,14 @@ export function facadePriceFor(name: string, storey: FacadeStorey): number | nul
     const vBase = FACADE_PRICES[s]?.[base];
     if (vBase !== undefined) return vBase;
   }
+
+  // Fallback for duplex premium facades when browsing or selecting outside a design context
+  if (base in DUPLEX_PREMIUM) {
+    return DUPLEX_PREMIUM[base as keyof typeof DUPLEX_PREMIUM];
+  }
+  if (base === "madison" || base === "marina") return 28600;
+  if (base === "vista") return 33600;
+
   return null;
 }
 
@@ -241,8 +252,8 @@ const DUPLEX_FACADE_PRICES: Record<string, Record<string, number>> = {
     serenity: 9800,
   },
   lavender: { bayside: 7100, contemporary: 7100, eden: 9800, infinity: 9800 },
-  teal: { "teal 45 façade": 68900, "teal 45 facade": 68900 },
-  alabaster: {},
+  teal: { ...DUPLEX_PREMIUM, madison: 28600, marina: 28600, vista: 33600, "teal 45 façade": 68900, "teal 45 facade": 68900 },
+  alabaster: { ...DUPLEX_PREMIUM, classic: 0 },
 };
 
 /** Classic Plus on a duplex: single-porch rates for single / double storey. */
