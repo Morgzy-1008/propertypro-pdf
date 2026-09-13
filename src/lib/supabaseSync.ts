@@ -7,6 +7,8 @@ import {
   getLocalPackages,
   saveLocalLots,
   saveLocalPackages,
+  mergeLots,
+  mergePackages,
 } from "@/lib/databaseStorage";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 
@@ -117,6 +119,10 @@ export function formatPackageForSupabase(pkg: Pkg) {
  * Seeds the Supabase cloud database if it currently has 0 rows,
  * ensuring all connected NHCs see the complete set of lots and packages.
  */
+/**
+ * Seeds the Supabase cloud database if it is empty or missing NSW packages,
+ * ensuring all connected NHCs and the website see the complete set of lots and packages across QLD & NSW.
+ */
 export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean; seededPkgs: boolean }> {
   await ensureStaffSupabaseAuth();
   let seededLots = false;
@@ -140,17 +146,26 @@ export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean
       }
     }
 
-    const { count: pkgCount, error: pkgCountErr } = await supabase
+    // Check if Supabase packages table has the NSW packages or is empty
+    const { data: existingPackages, error: pkgErr } = await supabase
       .from("packages")
-      .select("id", { count: "exact", head: true });
+      .select("id, name")
+      .not("name", "like", "Tender Request%");
 
-    if (!pkgCountErr && (pkgCount === 0 || pkgCount === null)) {
-      const localPkgs = getLocalPackages();
-      const seedPkgs = localPkgs.length > 0 ? localPkgs : generateSeedData().packages;
-      const formatted = seedPkgs.map(formatPackageForSupabase);
+    const existingNames = new Set((existingPackages || []).map((p) => p.name?.toLowerCase().trim()));
+    const existingIds = new Set((existingPackages || []).map((p) => p.id));
+
+    const seed = generateSeedData();
+    const missingPkgs = seed.packages.filter(
+      (sp) => !existingIds.has(sp.id) && !existingNames.has((sp.name || "").toLowerCase().trim())
+    );
+
+    if (missingPkgs.length > 0) {
+      console.log(`[supabaseSync] Uploading ${missingPkgs.length} missing packages (including NSW) to Supabase...`);
+      const formatted = missingPkgs.map(formatPackageForSupabase);
       const { error: insertErr } = await supabase.from("packages").upsert(formatted);
       if (!insertErr) {
-        console.log(`[supabaseSync] Successfully seeded ${formatted.length} packages to Supabase server`);
+        console.log(`[supabaseSync] Successfully synced ${formatted.length} packages to Supabase server`);
         seededPkgs = true;
       } else {
         console.warn("[supabaseSync] Package seed warning:", insertErr);
@@ -399,11 +414,17 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     await ensureStaffSupabaseAuth();
     const [lotRes, pkgRes] = await Promise.all([
       supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-      supabase.from("packages").select("*").order("created_at", { ascending: false }),
+      supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }),
     ]);
 
-    if (lotRes.error || pkgRes.error) {
-      console.warn("[supabaseSync] Fetch error:", lotRes.error || pkgRes.error);
+    if (lotRes.error) {
+      console.warn("[supabaseSync] Land lots fetch error:", lotRes.error);
+    }
+    if (pkgRes.error) {
+      console.warn("[supabaseSync] Packages fetch error:", pkgRes.error);
+    }
+
+    if (lotRes.error && pkgRes.error) {
       return null;
     }
 
@@ -426,7 +447,9 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
         text.includes("calderwood") ||
         text.includes("austral") ||
         text.includes("menangle") ||
-        text.includes("leppington")
+        text.includes("leppington") ||
+        text.includes("the gables") ||
+        text.includes("elara")
           ? "NSW"
           : "QLD";
 
@@ -457,7 +480,26 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     const packages: Pkg[] = rawPkgs.map((p) => {
       const lotId = p.lot_id ? String(p.lot_id) : null;
       const matchingLot = lots.find((l) => l.id === lotId);
-      const state = matchingLot?.state || "QLD";
+      let state: "QLD" | "NSW" = matchingLot?.state || "QLD";
+      if (!matchingLot) {
+        const pkgText = `${p.name || ""} ${(p.flyer_data as any)?.estate || ""} ${(p.flyer_data as any)?.suburb || ""}`.toLowerCase();
+        state =
+          pkgText.includes("nsw") ||
+          pkgText.includes("oran park") ||
+          pkgText.includes("watagan") ||
+          pkgText.includes("warnervale") ||
+          pkgText.includes("parramatta") ||
+          pkgText.includes("box hill") ||
+          pkgText.includes("marsden park") ||
+          pkgText.includes("calderwood") ||
+          pkgText.includes("austral") ||
+          pkgText.includes("menangle") ||
+          pkgText.includes("leppington") ||
+          pkgText.includes("the gables") ||
+          pkgText.includes("elara")
+            ? "NSW"
+            : "QLD";
+      }
 
       return {
         id: String(p.id),
@@ -489,3 +531,45 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     return null;
   }
 }
+
+/**
+ * Bidirectional non-destructive sync:
+ * Merges local and remote packages & lots, saving the unified set locally,
+ * and pushing any missing records up to Supabase so all consultants share them.
+ */
+export async function syncLocalPackagesAndLotsToSupabase(): Promise<{ lots: Lot[]; packages: Pkg[] }> {
+  await ensureStaffSupabaseAuth();
+  await seedRemoteDatabaseIfEmpty();
+  const remote = await fetchRemoteLotsAndPackages();
+  const localLots = getLocalLots();
+  const localPkgs = getLocalPackages();
+
+  const mergedLots = mergeLots(localLots, remote?.lots || []);
+  const mergedPkgs = mergePackages(localPkgs, remote?.packages || []);
+
+  saveLocalLots(mergedLots);
+  saveLocalPackages(mergedPkgs);
+
+  // If there are packages in mergedPkgs not in remote, sync them up
+  if (remote?.packages) {
+    const remotePkgIds = new Set(remote.packages.map((p) => p.id));
+    const missingInRemote = mergedPkgs.filter((p) => !remotePkgIds.has(p.id));
+    if (missingInRemote.length > 0) {
+      console.log(`[supabaseSync] Uploading ${missingInRemote.length} missing packages to cloud...`);
+      void syncPackagesBatchToSupabase(missingInRemote);
+    }
+  }
+
+  // If there are lots in mergedLots not in remote, sync them up
+  if (remote?.lots) {
+    const remoteLotIds = new Set(remote.lots.map((l) => l.id));
+    const missingLotsInRemote = mergedLots.filter((l) => !remoteLotIds.has(l.id));
+    if (missingLotsInRemote.length > 0) {
+      console.log(`[supabaseSync] Uploading ${missingLotsInRemote.length} missing lots to cloud...`);
+      void syncLotsBatchToSupabase(missingLotsInRemote);
+    }
+  }
+
+  return { lots: mergedLots, packages: mergedPkgs };
+}
+

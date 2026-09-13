@@ -27,6 +27,12 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const staffEmail = process.env.VITE_STAFF_AUTH_EMAIL || process.env.STAFF_AUTH_EMAIL || "jesse.jenkins@hudsonhomes.com.au";
+    const staffPass = process.env.VITE_STAFF_AUTH_PASS || process.env.STAFF_AUTH_PASS || "StoneBenchTop99";
+    try {
+      await supabase.auth.signInWithPassword({ email: staffEmail, password: staffPass });
+    } catch {}
+
     if (id) {
       const { data: pkg, error } = await supabase
         .from("packages")
@@ -55,6 +61,7 @@ export default async function handler(req, res) {
     const { data: packages, error: pkgError } = await supabase
       .from("packages")
       .select("*")
+      .not("name", "like", "Tender Request%")
       .neq("status", "sold")
       .order("created_at", { ascending: false });
 

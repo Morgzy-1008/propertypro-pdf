@@ -23,6 +23,7 @@ import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
 import { findConsultantByEmail, type Consultant } from "@/components/flyer/consultants";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 import { getLocalLots, upsertLocalPackage, type Pkg } from "@/lib/databaseStorage";
+import { ensureStaffSupabaseAuth, syncPackageToSupabase, syncLotToSupabase } from "@/lib/supabaseSync";
 
 export const Route = createFileRoute("/_authenticated/flyer")({
   head: () => ({
@@ -129,6 +130,7 @@ function Index() {
       return;
     }
     setSaving(true);
+    await ensureStaffSupabaseAuth();
 
     // If the signed-in user is one of the 3 consultants, make sure their details are on the saved package
     const activeEmail = auth.user?.email || staffUser?.email || "";
@@ -166,24 +168,9 @@ function Index() {
             (l) => l.id === candidateLotId || (finalData.lotId && l.id === finalData.lotId),
           );
           if (matchedLot) {
-            const lotPayload = {
-              id: candidateLotId,
-              estate: matchedLot.estate || finalData.estate || "Hudson Estate",
-              suburb: matchedLot.suburb || finalData.suburb || "Queensland",
-              state: matchedLot.state || "QLD",
-              lot_number: matchedLot.lot_number || null,
-              address: matchedLot.address || finalData.address || null,
-              land_size: matchedLot.land_size || (finalData.landSize ? Number(finalData.landSize) : null),
-              frontage: matchedLot.frontage || (finalData.landFrontage ? Number(finalData.landFrontage) : null),
-              land_price: matchedLot.land_price || parseAud(finalData.landPrice) || null,
-              titled: matchedLot.titled ?? false,
-              registration_date: matchedLot.registration_date || null,
-              status: matchedLot.status || "available",
-              notes: matchedLot.notes || null,
-            };
-            const { error: lotInsertErr } = await supabase.from("land_lots").upsert(lotPayload);
-            if (!lotInsertErr) {
-              targetLotId = candidateLotId;
+            const lotSynced = await syncLotToSupabase(matchedLot);
+            if (lotSynced) {
+              targetLotId = matchedLot.id;
             }
           }
         }
@@ -192,45 +179,7 @@ function Index() {
       }
     }
 
-    let savedPkgId: string | null = null;
-    try {
-      const { data: savedPkg, error } = await supabase
-        .from("packages")
-        .insert({
-          lot_id: targetLotId,
-          name: `${finalData.designName || finalData.floorplanName} · ${finalData.estate}`,
-          housing_type: finalData.housingType,
-          design: finalData.designName || finalData.floorplanName,
-          range_id: finalData.range,
-          status: "live",
-          facade_id: finalData.facadeId || null,
-          facade_name: finalData.facadeName || null,
-          facade_url: finalData.facadeUrl || null,
-          house_price: parseAud(finalData.housePrice) || null,
-          land_price: parseAud(finalData.landPrice) || null,
-          total_price: parseAud(finalData.price) || null,
-          beds: finalData.beds,
-          baths: finalData.baths,
-          cars: finalData.cars,
-          floorplan_size: finalData.floorplanSize,
-          flyer_data: JSON.parse(JSON.stringify(finalData)),
-          created_by: auth.user?.id || null,
-          updated_by: auth.user?.id || null,
-        })
-        .select("id")
-        .single();
-
-      if (error) {
-        console.warn("[flyer] Supabase package insert warning:", error);
-      } else if (savedPkg?.id) {
-        savedPkgId = savedPkg.id;
-      }
-    } catch (err) {
-      console.warn("[flyer] Supabase package insert exception:", err);
-    }
-
-    // Always ensure local storage is up-to-date and synced
-    const finalPkgId = savedPkgId || (finalData.packageId && isValidUuid(finalData.packageId) ? finalData.packageId : generateUuid());
+    const finalPkgId = (finalData.packageId && isValidUuid(finalData.packageId)) ? finalData.packageId : generateUuid();
     const localPkg: Pkg = {
       id: finalPkgId,
       lot_id: targetLotId || candidateLotId,
@@ -254,6 +203,13 @@ function Index() {
       updated_at: new Date().toISOString(),
     };
     upsertLocalPackage(localPkg);
+
+    // Sync directly to Supabase cloud and broadcast to all staff in real-time
+    try {
+      await syncPackageToSupabase(localPkg);
+    } catch (err) {
+      console.warn("[flyer] Cloud package sync notice:", err);
+    }
 
     setData((prev) => ({
       ...prev,

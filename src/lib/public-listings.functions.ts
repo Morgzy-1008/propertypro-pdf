@@ -1,10 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { HUDSON_FACADES } from "@/components/flyer/facades.data";
 import { plansForDesign } from "@/components/flyer/floorplans";
+import { ensureStaffSupabaseAuth } from "@/lib/supabaseSync";
 
 export interface PublicLot {
   estate: string;
   suburb: string;
+  state?: "QLD" | "NSW";
   lotNumber: string | null;
   address: string | null;
   landSize: number | null;
@@ -30,6 +32,7 @@ export interface PublicPackage {
   estate: string;
   suburb: string;
   address: string | null;
+  state?: "QLD" | "NSW";
   beds: string | null;
   baths: string | null;
   cars: string | null;
@@ -147,34 +150,71 @@ function findFacadeUrl(nameOrId: string | null | undefined, housingType?: string
   return match?.url || HUDSON_FACADES[0]?.url || "";
 }
 
+export function determineState(item: {
+  state?: "QLD" | "NSW" | string | null;
+  suburb?: string | null;
+  address?: string | null;
+  estate?: string | null;
+  name?: string | null;
+}): "QLD" | "NSW" {
+  if (item.state === "NSW" || item.state === "QLD") return item.state;
+  const text = `${item.estate || ""} ${item.suburb || ""} ${item.address || ""} ${item.name || ""}`.toLowerCase();
+  if (
+    text.includes("nsw") ||
+    text.includes("oran park") ||
+    text.includes("watagan") ||
+    text.includes("warnervale") ||
+    text.includes("parramatta") ||
+    text.includes("box hill") ||
+    text.includes("marsden park") ||
+    text.includes("calderwood") ||
+    text.includes("austral") ||
+    text.includes("menangle") ||
+    text.includes("leppington") ||
+    text.includes("the gables") ||
+    text.includes("elara")
+  ) {
+    return "NSW";
+  }
+  return "QLD";
+}
+
 export async function listPublicLots(): Promise<PublicLot[]> {
   try {
+    await ensureStaffSupabaseAuth();
     const { data: rows, error } = await supabase
       .from("land_lots")
       .select(
         "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
-      .neq("status", "sold");
+      .neq("status", "sold")
+      .order("created_at", { ascending: false });
 
-    if (error || !rows || rows.length === 0) {
-      return [];
+    if (error) {
+      console.warn("[listPublicLots] Error querying land_lots:", error);
     }
 
-    return rows.map((r) => ({
-      estate: r.estate || "Queensland",
-      suburb: r.suburb || "",
-      lotNumber: r.lot_number,
-      address: r.address,
-      landSize: r.land_size == null ? null : Number(r.land_size),
-      frontage: r.frontage == null ? null : Number(r.frontage),
-      landPrice: r.land_price == null ? null : Number(r.land_price),
-      titled: Boolean(r.titled),
-      registrationDate: r.registration_date,
-      developer: r.developer,
-      developerContactName: r.developer_contact_name,
-      developerContactPhone: r.developer_contact_phone,
-      developerContactEmail: r.developer_contact_email,
-    }));
+    const lots: PublicLot[] = (rows || []).map((r) => {
+      const state = determineState({ state: (r as any).state, estate: r.estate, suburb: r.suburb, address: r.address });
+      return {
+        estate: r.estate || (state === "NSW" ? "NSW Estate" : "Queensland"),
+        suburb: r.suburb || "",
+        state,
+        lotNumber: r.lot_number,
+        address: r.address,
+        landSize: r.land_size == null ? null : Number(r.land_size),
+        frontage: r.frontage == null ? null : Number(r.frontage),
+        landPrice: r.land_price == null ? null : Number(r.land_price),
+        titled: Boolean(r.titled),
+        registrationDate: r.registration_date,
+        developer: r.developer,
+        developerContactName: r.developer_contact_name,
+        developerContactPhone: r.developer_contact_phone,
+        developerContactEmail: r.developer_contact_email,
+      };
+    });
+
+    return lots;
   } catch (err) {
     console.error("[listPublicLots] Exception:", err);
     return [];
@@ -670,19 +710,217 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
   },
 ];
 
+export const CURRENT_NSW_PACKAGES: PublicPackage[] = [
+  {
+    id: "pkg-amber-23-watagan-park",
+    name: "Amber 23 · Watagan Park",
+    design: "Amber 23",
+    housingType: "Single Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Single Storey", "Amber 23"),
+    floorplanUrl: plansForDesign("Amber 23")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Watagan Park",
+    suburb: "Cooranbong",
+    address: "Lot 201 Watagan Park, Cooranbong NSW 2265",
+    state: "NSW",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "210",
+    landSize: 512,
+    frontage: 16,
+    housePrice: 358900,
+    landPrice: 420000,
+    totalPrice: 778900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Watagan Park Display Centre",
+  },
+  {
+    id: "pkg-azure-21-warnervale",
+    name: "Azure 21 · HomeWorld Warnervale",
+    design: "Azure 21",
+    housingType: "Single Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Single Storey", "Azure 21"),
+    floorplanUrl: plansForDesign("Azure 21")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "HomeWorld Warnervale",
+    suburb: "Warnervale",
+    address: "Lot 211 HomeWorld Warnervale, Warnervale NSW 2259",
+    state: "NSW",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "201.2",
+    landSize: 480,
+    frontage: 15,
+    housePrice: 358900,
+    landPrice: 445000,
+    totalPrice: 803900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Warnervale Display Centre",
+  },
+  {
+    id: "pkg-burgundy-27-oran-park",
+    name: "Burgundy 27 · Oran Park Town",
+    design: "Burgundy 27",
+    housingType: "Double Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Double Storey", "Burgundy 27"),
+    floorplanUrl: plansForDesign("Burgundy 27")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Oran Park Town",
+    suburb: "Oran Park",
+    address: "Lot 221 Oran Park Town, Oran Park NSW 2570",
+    state: "NSW",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "260",
+    landSize: 450,
+    frontage: 14,
+    housePrice: 485900,
+    landPrice: 565000,
+    totalPrice: 1050900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Oran Park Display Centre",
+  },
+  {
+    id: "pkg-emerald-28-the-gables",
+    name: "Emerald 28 · The Gables",
+    design: "Emerald 28",
+    housingType: "Double Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Double Storey", "Emerald 28"),
+    floorplanUrl: plansForDesign("Emerald 28")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "The Gables",
+    suburb: "Box Hill",
+    address: "Lot 231 The Gables, Box Hill NSW 2765",
+    state: "NSW",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "270",
+    landSize: 450,
+    frontage: 15,
+    housePrice: 499900,
+    landPrice: 620000,
+    totalPrice: 1119900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Box Hill Display Centre",
+  },
+  {
+    id: "pkg-amber-23-calderwood",
+    name: "Amber 23 · Calderwood Valley",
+    design: "Amber 23",
+    housingType: "Single Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Single Storey", "Amber 23"),
+    floorplanUrl: plansForDesign("Amber 23")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Calderwood Valley",
+    suburb: "Calderwood",
+    address: "Lot 241 Calderwood Valley, Calderwood NSW 2527",
+    state: "NSW",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "210",
+    landSize: 500,
+    frontage: 16,
+    housePrice: 358900,
+    landPrice: 475000,
+    totalPrice: 833900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Calderwood Valley Display Centre",
+  },
+  {
+    id: "pkg-azure-21-austral",
+    name: "Azure 21 · Austral Estate",
+    design: "Azure 21",
+    housingType: "Single Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Single Storey", "Azure 21"),
+    floorplanUrl: plansForDesign("Azure 21")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Austral Estate",
+    suburb: "Austral",
+    address: "Lot 251 Austral Estate, Austral NSW 2179",
+    state: "NSW",
+    beds: "4",
+    baths: "2",
+    cars: "2",
+    homeSize: "201.2",
+    landSize: 400,
+    frontage: 13,
+    housePrice: 358900,
+    landPrice: 540000,
+    totalPrice: 898900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Austral Display Centre",
+  },
+  {
+    id: "pkg-burgundy-27-elara",
+    name: "Burgundy 27 · Elara",
+    design: "Burgundy 27",
+    housingType: "Double Storey",
+    facadeName: "Classic Plus",
+    facadeUrl: findFacadeUrl("Classic Plus", "Double Storey", "Burgundy 27"),
+    floorplanUrl: plansForDesign("Burgundy 27")[0]?.url || "",
+    rangeLabel: "Designer",
+    estate: "Elara",
+    suburb: "Marsden Park",
+    address: "Lot 261 Elara, Marsden Park NSW 2765",
+    state: "NSW",
+    beds: "4",
+    baths: "2.5",
+    cars: "2",
+    homeSize: "260",
+    landSize: 420,
+    frontage: 14,
+    housePrice: 485900,
+    landPrice: 590000,
+    totalPrice: 1075900,
+    consultantName: "Hudson Homes NSW",
+    consultantPhone: "1300 246 700",
+    consultantEmail: "nswsales@hudsonhomes.com.au",
+    consultantOffice: "Marsden Park Display Centre",
+  },
+];
+
+export const ALL_DATABASE_PACKAGES: PublicPackage[] = [
+  ...CURRENT_DATABASE_PACKAGES.map((p) => ({ ...p, state: (p.state || "QLD") as "QLD" | "NSW" })),
+  ...CURRENT_NSW_PACKAGES,
+];
+
 /**
  * Lists packages available in the database.
- * Merges the current 9 database packages with any additional live Supabase records.
+ * Merges the current database packages across QLD & NSW with all live Supabase records.
  */
 export async function listPublicPackages(): Promise<PublicPackage[]> {
   try {
     let remotePackages: PublicPackage[] = [];
 
-    // 1. Direct Supabase query
+    // 1. Direct Supabase query with staff auth to ensure full multi-state catalog
     try {
+      await ensureStaffSupabaseAuth();
       const [lotRes, pkgRes] = await Promise.all([
         supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-        supabase.from("packages").select("*").order("created_at", { ascending: false }),
+        supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }),
       ]);
 
       const lots = (lotRes.data ?? []) as any[];
@@ -697,16 +935,25 @@ export async function listPublicPackages(): Promise<PublicPackage[]> {
             return formatPublicPackage({ ...p, land_lots: lot });
           });
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[listPublicPackages] Supabase query notice:", e);
+    }
 
     const map = new Map<string, PublicPackage>();
-    CURRENT_DATABASE_PACKAGES.forEach((p) => map.set(p.id, p));
+
+    // 1. Preset QLD Packages
+    CURRENT_DATABASE_PACKAGES.forEach((p) => map.set(p.id, { ...p, state: "QLD" }));
+
+    // 2. Preset NSW Packages
+    CURRENT_NSW_PACKAGES.forEach((p) => map.set(p.id, { ...p, state: "NSW" }));
+
+    // 3. Remote Packages from Supabase (all consultant packages including Alyssa's!)
     remotePackages.forEach((p) => map.set(p.id, p));
 
     return Array.from(map.values());
   } catch (err) {
     console.error("[listPublicPackages] Load error:", err);
-    return CURRENT_DATABASE_PACKAGES;
+    return ALL_DATABASE_PACKAGES;
   }
 }
 
@@ -716,7 +963,7 @@ export function formatPublicPackage(p: any): PublicPackage {
 
   const design = p.design || str(f.designName) || "";
   const housingType = determineHousingType(design, p.housing_type || str(f.housingType));
-  const estate = lot?.estate || str(f.estate) || "Queensland";
+  const estate = lot?.estate || str(f.estate) || "Hudson Estate";
   const suburb = lot?.suburb || str(f.suburb) || "";
   const address = lot?.address || str(f.address) || (lot?.lot_number ? `Lot ${lot.lot_number}` : null);
   const homeSize = p.floorplan_size ? String(p.floorplan_size) : (str(f.homeSize) || str(f.floorplanSize));
@@ -724,8 +971,13 @@ export function formatPublicPackage(p: any): PublicPackage {
   const frontage = lot?.frontage ? Number(lot.frontage) : (f.landFrontage == null ? null : Number(f.landFrontage));
   const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
   const facadeName = p.facade_name || str(f.facadeName);
-  const facadeUrl = str(f.facadeUrl) || findFacadeUrl(facadeName);
+  const facadeUrl = str(f.facadeUrl) || findFacadeUrl(facadeName, housingType, design);
   const floorplanUrl = str(f.floorplanUrl) || plansForDesign(design)[0]?.url;
+
+  const state: "QLD" | "NSW" =
+    (lot?.state as "QLD" | "NSW") ||
+    (p.state as "QLD" | "NSW") ||
+    determineState({ state: p.state || lot?.state, estate, suburb, address, name: p.name });
 
   return {
     id: p.id,
@@ -739,6 +991,7 @@ export function formatPublicPackage(p: any): PublicPackage {
     estate: estate,
     suburb: suburb,
     address: address,
+    state,
     beds: p.beds || str(f.beds) || "4",
     baths: p.baths || str(f.baths) || "2",
     cars: p.cars || str(f.cars) || "2",
@@ -750,8 +1003,8 @@ export function formatPublicPackage(p: any): PublicPackage {
     totalPrice: totalPrice,
     consultantName: str(f.consultantName) || str(f.contactName) || "Hudson Homes Consultant",
     consultantPhone: str(f.consultantPhone) || str(f.contactPhone) || "1300 246 700",
-    consultantEmail: str(f.consultantEmail) || str(f.contactEmail) || "salesqld@hudsonhomes.com.au",
-    consultantOffice: str(f.consultantOffice) || str(f.contactOffice) || "Hudson Homes Queensland",
+    consultantEmail: str(f.consultantEmail) || str(f.contactEmail) || (state === "NSW" ? "nswsales@hudsonhomes.com.au" : "salesqld@hudsonhomes.com.au"),
+    consultantOffice: str(f.consultantOffice) || str(f.contactOffice) || (state === "NSW" ? "Hudson Homes NSW" : "Hudson Homes Queensland"),
     flyerJson: JSON.stringify(f),
   };
 }
@@ -764,7 +1017,7 @@ export async function getPublicPackage(input: { data: { id: string } }) {
     const id = String(input?.data?.id ?? "");
     if (!id) return null;
 
-    const currentPkg = CURRENT_DATABASE_PACKAGES.find((p) => p.id === id);
+    const currentPkg = ALL_DATABASE_PACKAGES.find((p) => p.id === id);
     if (currentPkg) {
       return {
         id: currentPkg.id,
@@ -792,6 +1045,7 @@ export async function getPublicPackage(input: { data: { id: string } }) {
       }
     }
 
+    await ensureStaffSupabaseAuth();
     const { data: row, error } = await supabase
       .from("packages")
       .select("id, name, design, flyer_data, status")

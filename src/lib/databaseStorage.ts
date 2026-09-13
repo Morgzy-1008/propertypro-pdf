@@ -425,3 +425,91 @@ export function deleteLocalPackage(id: string): Pkg[] {
   saveLocalPackages(updated);
   return updated;
 }
+
+/**
+ * Merges two arrays of lots non-destructively.
+ * Retains all unique lots from both sources, prioritizing newer updates when IDs or keys match.
+ */
+export function mergeLots(existingLots: Lot[], incomingLots: Lot[]): Lot[] {
+  const map = new Map<string, Lot>();
+  const keyMap = new Map<string, string>(); // estate-suburb-lot -> id
+
+  const processLot = (lot: Lot) => {
+    if (!lot) return;
+    const normalizedId = isValidUuid(lot.id) ? lot.id : (toValidUuid(lot.id) || generateUuid());
+    const cleanLot: Lot = {
+      ...lot,
+      id: normalizedId,
+      state: lot.state || getLotState(lot),
+    };
+    const naturalKey = `${(cleanLot.estate || "").toLowerCase()}-${(cleanLot.suburb || "").toLowerCase()}-${cleanLot.lot_number || ""}`;
+
+    // If matching natural key exists with a different ID, merge into the existing ID
+    const existingId = map.has(cleanLot.id) ? cleanLot.id : keyMap.get(naturalKey);
+    if (existingId && map.has(existingId)) {
+      const prev = map.get(existingId)!;
+      // Merge properties non-destructively, favoring incoming if updated_at is newer or non-null
+      const prevTime = prev.updated_at ? new Date(prev.updated_at).getTime() : 0;
+      const currTime = cleanLot.updated_at ? new Date(cleanLot.updated_at).getTime() : 0;
+      if (currTime >= prevTime) {
+        map.set(existingId, { ...prev, ...cleanLot, id: existingId });
+      } else {
+        map.set(existingId, { ...cleanLot, ...prev, id: existingId });
+      }
+    } else {
+      map.set(cleanLot.id, cleanLot);
+      if (cleanLot.lot_number) {
+        keyMap.set(naturalKey, cleanLot.id);
+      }
+    }
+  };
+
+  existingLots.forEach(processLot);
+  incomingLots.forEach(processLot);
+  return Array.from(map.values());
+}
+
+/**
+ * Merges two arrays of packages non-destructively.
+ * Retains all unique packages from all consultants, prioritizing newer updates when IDs match.
+ */
+export function mergePackages(existingPkgs: Pkg[], incomingPkgs: Pkg[]): Pkg[] {
+  const map = new Map<string, Pkg>();
+  const keyMap = new Map<string, string>(); // name/design -> id
+
+  const processPkg = (pkg: Pkg) => {
+    if (!pkg) return;
+    // Don't include raw tender requests in packages catalog
+    if (pkg.name && pkg.name.startsWith("Tender Request:")) return;
+
+    const normalizedId = isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid());
+    const cleanPkg: Pkg = {
+      ...pkg,
+      id: normalizedId,
+      state: pkg.state || "QLD",
+    };
+    const naturalKey = `${(cleanPkg.name || cleanPkg.design || "").toLowerCase().trim()}-${cleanPkg.lot_id || ""}`;
+
+    const existingId = map.has(cleanPkg.id) ? cleanPkg.id : (keyMap.get(naturalKey) || null);
+    if (existingId && map.has(existingId)) {
+      const prev = map.get(existingId)!;
+      const prevTime = prev.updated_at ? new Date(prev.updated_at).getTime() : 0;
+      const currTime = cleanPkg.updated_at ? new Date(cleanPkg.updated_at).getTime() : 0;
+      if (currTime >= prevTime) {
+        map.set(existingId, { ...prev, ...cleanPkg, id: existingId });
+      } else {
+        map.set(existingId, { ...cleanPkg, ...prev, id: existingId });
+      }
+    } else {
+      map.set(cleanPkg.id, cleanPkg);
+      if (cleanPkg.name || cleanPkg.design) {
+        keyMap.set(naturalKey, cleanPkg.id);
+      }
+    }
+  };
+
+  existingPkgs.forEach(processPkg);
+  incomingPkgs.forEach(processPkg);
+  return Array.from(map.values());
+}
+

@@ -2,8 +2,9 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { ListingSheet, PrintBar, paginate } from "@/components/listing/ListingSheet";
 import { QrCode } from "@/components/flyer/QrCode";
-import { listPublicPackages, formatPublicPackage, CURRENT_DATABASE_PACKAGES, type PublicPackage } from "@/lib/public-listings.functions";
+import { listPublicPackages, formatPublicPackage, ALL_DATABASE_PACKAGES, type PublicPackage } from "@/lib/public-listings.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { ensureStaffSupabaseAuth } from "@/lib/supabaseSync";
 import { formatAud } from "@/lib/pricing";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import {
@@ -24,6 +25,7 @@ import {
   Sparkles,
   ExternalLink,
   Loader2,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,16 +33,16 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/browse/packages")({
   head: () => ({
     meta: [
-      { title: "Available House & Land Packages in QLD | Hudson Homes" },
+      { title: "Available House & Land Packages (QLD & NSW) | Hudson Homes" },
       {
         name: "description",
         content:
-          "Explore every Hudson Homes House & Land package available across South East Queensland — fixed pricing, complete inclusions, and direct consultant contacts.",
+          "Explore every Hudson Homes House & Land package available across Queensland and New South Wales — fixed pricing, complete inclusions, and direct consultant contacts.",
       },
-      { property: "og:title", content: "Available House & Land Packages in QLD | Hudson Homes" },
+      { property: "og:title", content: "Available House & Land Packages (QLD & NSW) | Hudson Homes" },
       {
         property: "og:description",
-        content: "Fixed-price House & Land packages available now, organised by estate and design.",
+        content: "Fixed-price House & Land packages available now across QLD and NSW, organised by estate and design.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -67,7 +69,7 @@ type Block =
 function PackagesBrowse() {
   const initialPackages = Route.useLoaderData();
   const [packages, setPackages] = useState<PublicPackage[]>(
-    initialPackages && initialPackages.length > 0 ? initialPackages : CURRENT_DATABASE_PACKAGES
+    initialPackages && initialPackages.length > 0 ? initialPackages : ALL_DATABASE_PACKAGES
   );
   const [loading, setLoading] = useState(false);
   const origin = typeof window === "undefined" ? "" : window.location.origin;
@@ -75,12 +77,12 @@ function PackagesBrowse() {
   const loadPackages = useCallback(async () => {
     try {
       const combinedMap = new Map<string, PublicPackage>();
-      CURRENT_DATABASE_PACKAGES.forEach((p) => combinedMap.set(p.id, p));
+      ALL_DATABASE_PACKAGES.forEach((p) => combinedMap.set(p.id, p));
 
-      // 1. Direct Supabase query matching database.tsx exactly
+      await ensureStaffSupabaseAuth();
       const [lotRes, pkgRes] = await Promise.all([
         supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-        supabase.from("packages").select("*").order("created_at", { ascending: false }),
+        supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }),
       ]);
 
       const lots = (lotRes.data ?? []) as any[];
@@ -108,9 +110,14 @@ function PackagesBrowse() {
 
   const [viewMode, setViewMode] = useState<"grid" | "sheet">("grid");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">("All");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedEstate, setSelectedEstate] = useState<string>("All");
   const [sortOrder, setSortOrder] = useState<"price-asc" | "price-desc" | "name">("price-asc");
+
+  // State package counts
+  const qldCount = useMemo(() => packages.filter((p) => p.state === "QLD").length, [packages]);
+  const nswCount = useMemo(() => packages.filter((p) => p.state === "NSW").length, [packages]);
 
   // Extract unique estates & suburbs
   const uniqueEstates = useMemo(() => {
@@ -129,6 +136,12 @@ function PackagesBrowse() {
   const filteredPackages = useMemo(() => {
     return packages
       .filter((p) => {
+        // State filter (QLD / NSW / All)
+        if (selectedState !== "All") {
+          const pkgState = p.state || "QLD";
+          if (pkgState !== selectedState) return false;
+        }
+
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
@@ -160,7 +173,7 @@ function PackagesBrowse() {
         }
         return a.name.localeCompare(b.name);
       });
-  }, [packages, searchQuery, selectedType, selectedEstate, sortOrder]);
+  }, [packages, selectedState, searchQuery, selectedType, selectedEstate, sortOrder]);
 
   // Group packages for the printable ListingSheet view
   const groups = useMemo(() => {
@@ -197,7 +210,7 @@ function PackagesBrowse() {
             <Logo light size={11} />
             <span className="hidden sm:inline-block h-4 w-px bg-slate-700" />
             <span className="hidden sm:inline-block text-xs font-semibold text-slate-300">
-              South East Queensland Package Gallery
+              All Available Packages · QLD &amp; NSW
             </span>
           </div>
 
@@ -238,16 +251,16 @@ function PackagesBrowse() {
         <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>{packages.length} Fixed-Price House &amp; Land Packages Available</span>
+            <span>{packages.length} Fixed-Price House &amp; Land Packages Available (QLD &amp; NSW)</span>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
-                Queensland House &amp; Land Packages
+                {selectedState === "QLD" ? "Queensland" : selectedState === "NSW" ? "New South Wales" : "Queensland & NSW"} House &amp; Land Packages
               </h1>
               <p className="mt-2 text-sm text-slate-400 max-w-2xl leading-relaxed">
-                Discover complete, turn-key House &amp; Land packages across South East Queensland. Every home features our Zero Surprises guarantee, lifetime structural warranty, and premium inclusions.
+                Discover complete, turn-key House &amp; Land packages across Queensland and New South Wales. Every home features our Zero Surprises guarantee, lifetime structural warranty, and premium inclusions.
               </p>
             </div>
 
@@ -264,8 +277,48 @@ function PackagesBrowse() {
             </div>
           </div>
 
+          {/* State Division Filter Bar */}
+          <div className="flex items-center gap-2 pt-3 flex-wrap">
+            <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1.5 mr-1">
+              <Globe className="h-3.5 w-3.5 text-brand-gold" /> State:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedState("All")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                selectedState === "All"
+                  ? "bg-brand-gold text-slate-950 shadow-md font-bold"
+                  : "bg-slate-900/90 text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-slate-800"
+              }`}
+            >
+              All States ({packages.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedState("QLD")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                selectedState === "QLD"
+                  ? "bg-amber-500 text-slate-950 shadow-md font-bold"
+                  : "bg-slate-900/90 text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-slate-800"
+              }`}
+            >
+              Queensland ({qldCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedState("NSW")}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                selectedState === "NSW"
+                  ? "bg-sky-500 text-slate-950 shadow-md font-bold"
+                  : "bg-slate-900/90 text-slate-400 hover:text-slate-100 hover:bg-slate-800 border border-slate-800"
+              }`}
+            >
+              New South Wales ({nswCount})
+            </button>
+          </div>
+
           {/* Search and Filters Bar */}
-          <div className="mt-6 pt-6 border-t border-slate-800/80 flex flex-col md:flex-row gap-3">
+          <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -359,6 +412,13 @@ function PackagesBrowse() {
 
                         {/* Top Badges */}
                         <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+                          <span className={`px-2.5 py-0.5 rounded-md backdrop-blur-md border text-[10px] font-extrabold uppercase tracking-wider shadow-sm ${
+                            p.state === "NSW"
+                              ? "bg-sky-950/90 border-sky-500/60 text-sky-400"
+                              : "bg-amber-950/90 border-amber-500/60 text-amber-400"
+                          }`}>
+                            {p.state || "QLD"}
+                          </span>
                           <span className="px-2.5 py-0.5 rounded-md bg-slate-950/80 backdrop-blur-md border border-slate-700 text-[10px] font-bold uppercase tracking-wider text-emerald-400 shadow-sm">
                             {p.housingType}
                           </span>

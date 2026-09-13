@@ -69,6 +69,7 @@ import {
   syncPackagesBatchToSupabase,
   deletePackagesBatchFromSupabase,
   fetchRemoteLotsAndPackages,
+  syncLocalPackagesAndLotsToSupabase,
   type SyncPayload,
 } from "@/lib/supabaseSync";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -949,23 +950,15 @@ function DatabasePage() {
     }
 
     try {
-      await ensureStaffSupabaseAuth();
-      await seedRemoteDatabaseIfEmpty();
-      const remote = await fetchRemoteLotsAndPackages();
-      if (remote) {
-        if (remote.lots.length > 0 || localL.length === 0) {
-          setLots(remote.lots);
-          saveLocalLots(remote.lots);
-          setOpenSuburbs((prev) =>
-            prev.length === 0
-              ? Array.from(new Set(remote.lots.map((l) => l.suburb.trim().toLowerCase())))
-              : prev,
-          );
-        }
-        if (remote.packages.length > 0 || localP.length === 0) {
-          setPackages(remote.packages);
-          saveLocalPackages(remote.packages);
-        }
+      const synced = await syncLocalPackagesAndLotsToSupabase();
+      if (synced) {
+        setLots(synced.lots);
+        setPackages(synced.packages);
+        setOpenSuburbs((prev) =>
+          prev.length === 0
+            ? Array.from(new Set(synced.lots.map((l) => l.suburb.trim().toLowerCase())))
+            : prev,
+        );
       }
       setSelLots([]);
       setSelPkgs([]);
