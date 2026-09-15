@@ -224,3 +224,27 @@ export function canAccessFloorplanEditor(staffUser?: {
   );
 }
 
+/**
+ * Access control for Hudson Land Scout (Vacant Land Intelligence & Acquisition).
+ * Strictly restricted to Morgan Hales while under active development.
+ */
+export function canAccessLandScout(staffUser: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+
+  const email = normalizeStaffEmail(staffUser.email || "");
+  const id = (staffUser.id || "").trim().toLowerCase();
+  const name = (staffUser.name || "").trim().toLowerCase();
+
+  return (
+    email === "morgan.hales@hudsonhomes.com.au" ||
+    email.includes("morgan.hales") ||
+    id === "morgan-hales" ||
+    name.includes("morgan hales")
+  );
+}
+

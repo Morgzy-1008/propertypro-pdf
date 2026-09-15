@@ -222,48 +222,50 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 2: Vacant Land Intelligence & Acquisition (Hudson Land Scout) */}
-          <Link
-            to="/land-scout"
-            className={`group relative overflow-hidden rounded-2xl border ${
-              isLight
-                ? "border-slate-200 bg-white shadow-xs hover:border-amber-500/70 hover:shadow-xl hover:-translate-y-1"
-                : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-amber-500/60 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1"
-            } p-6 transition-all duration-300 flex flex-col justify-between`}
-          >
-            <div className="absolute top-0 right-0 h-32 w-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/15 transition-all duration-500" />
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                  <Radar className="h-5 w-5" />
+          {/* Card 2: Vacant Land Intelligence & Acquisition (Hudson Land Scout) - Restricted to Morgan Hales */}
+          {isMorgan && (
+            <Link
+              to="/land-scout"
+              className={`group relative overflow-hidden rounded-2xl border ${
+                isLight
+                  ? "border-slate-200 bg-white shadow-xs hover:border-amber-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-amber-500/60 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1"
+              } p-6 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="absolute top-0 right-0 h-32 w-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/15 transition-all duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Radar className="h-5 w-5" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 shadow-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      Under Development
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-wider uppercase text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      Land Scout AI
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-bold tracking-wider uppercase text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20 flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                    Land Scout AI
-                  </span>
-                  <span className="text-[10px] font-semibold tracking-wider uppercase text-slate-400 bg-slate-800/40 px-2 py-0.5 rounded-full border border-slate-700/50">
-                    Web Aggregator
-                  </span>
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-amber-200"} transition-colors`}>
+                  Vacant Land Intelligence &amp; Acquisition
+                </h2>
+                <p className={`mt-1.5 text-xs ${isLight ? "text-slate-600" : "text-slate-400"} line-clamp-2 leading-relaxed`}>
+                  Live aggregator across REA, Domain, OpenLot &amp; developers. Features AI availability outreach, Land Value Meter, comps equity radar &amp; 1-click package studio handoff.
+                </p>
+              </div>
+              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />
+                  <span>Value Meter &bull; Holds</span>
                 </div>
+                <span className="font-semibold text-amber-500 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Launch Land Scout <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </span>
               </div>
-              <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-amber-200"} transition-colors`}>
-                Vacant Land Intelligence &amp; Acquisition
-              </h2>
-              <p className={`mt-1.5 text-xs ${isLight ? "text-slate-600" : "text-slate-400"} line-clamp-2 leading-relaxed`}>
-                Live aggregator across REA, Domain, OpenLot &amp; developers. Features AI availability outreach, Land Value Meter, comps equity radar &amp; 1-click package studio handoff.
-              </p>
-            </div>
-            <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-              <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />
-                <span>Value Meter &bull; Holds</span>
-              </div>
-              <span className="font-semibold text-amber-500 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                Launch Land Scout <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </span>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           {/* Card 3: House & Land Database */}
           <Link

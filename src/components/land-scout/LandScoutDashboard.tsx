@@ -261,7 +261,11 @@ export function LandScoutDashboard() {
                 <h1 className={`text-base font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
                   Hudson Land Scout
                 </h1>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-brand-gold uppercase">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-1 uppercase">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Under Development
+                </span>
+                <span className="hidden sm:inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-brand-gold uppercase">
                   Vacant Land Intel &amp; Acquisition
                 </span>
               </div>
