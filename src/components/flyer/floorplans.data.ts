@@ -2550,7 +2550,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     cars: "2",
     size: "240.79",
     frontage: "12.47",
-    url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Screenshot-2025-11-17-at-7.59.19-AM.png",
+    url: "/floorplans/WISTERIA 26.png",
     cropBoxes: [{"page":1,"x":0.32422802850356297,"y":0.15197313182199831,"w":0.45961995249406173,"h":0.5239294710327456}],
   },
   {

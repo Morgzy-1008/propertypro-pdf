@@ -127,5 +127,7 @@ export const PRE_RENDERED_FACADES: Record<string, string> = {
   "classic-cobalt": "/facades/classic-cobalt.png",
   "hamptons-cobalt": "/facades/hamptons-cobalt.png",
   "infinity-cobalt": "/facades/infinity-cobalt.png",
-  "vogue-cobalt": "/facades/vogue-cobalt.png"
+  "vogue-cobalt": "/facades/vogue-cobalt.png",
+  "wisteria-classic": "/facades/wisteria-26-classic.jpg",
+  "wisteria-26-classic": "/facades/wisteria-26-classic.jpg"
 };

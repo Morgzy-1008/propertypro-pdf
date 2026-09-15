@@ -899,7 +899,7 @@ export function calculateQuotePricing(
 
   // Landscaping and Driveway Packages
   const landscapingCost = design.landscapingSelected
-    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450))
+    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state))
     : 0;
 
   const exposedDrivewayCost = design.exposedDrivewaySelected

@@ -221,7 +221,7 @@ export const DUPLEX_FACADES: Record<string, DuplexFacade[]> = {
       name: "Classic",
       range: "Dual Occupancy, Double Garage",
       tags: ["classic", "double", "dual", "garage", "occupancy", "wisteria"],
-      url: "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/WISTERIA-Classic-Facade-Dual-Occupancy-Single-Stry.jpg",
+      url: "/facades/wisteria-26-classic.jpg",
       note: "Dual Occupancy, Double Garage",
       only: "",
     },

@@ -79,6 +79,18 @@ export function findFacadeForDesign(
     );
 
   if (isDuplex) {
+    // Specifically resolve Wisteria 26 to its dedicated RHS side entry facade render
+    if (designName && /wisteria\s*26/i.test(designName) && (baseKey === "classic" || !facadeNameOrId || rawKey === "classic")) {
+      return {
+        id: "wisteria-26-classic",
+        name: "Classic",
+        range: "Dual Occupancy, Double Garage (RHS Side Entry)",
+        tags: ["classic", "double", "dual", "garage", "occupancy", "wisteria"],
+        url: "/facades/wisteria-26-classic.jpg",
+        originalUrl: "/facades/wisteria-26-classic.jpg",
+      };
+    }
+
     const duplexList = designName ? duplexFacadesForDesign(designName) : [];
     if (duplexList.length > 0) {
       // 1. Exact ID check

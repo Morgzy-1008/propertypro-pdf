@@ -575,26 +575,27 @@ html.normal-mode,
 .normal-mode [role="dialog"],
 .normal-mode [data-radix-dialog-content],
 .normal-mode [data-radix-popper-content-wrapper] [role="dialog"],
-.normal-mode div[class*="bg-slate-950"],
-.normal-mode div[class*="bg-slate-900"],
-.normal-mode div[class*="bg-black"],
-.normal-mode section[class*="bg-slate-950"],
-.normal-mode section[class*="bg-slate-900"],
-.normal-mode section[class*="bg-black"] {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-800"]:not(button),
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-black"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-slate-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-slate-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-black"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) aside[class*="bg-slate-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) aside[class*="bg-slate-900"] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
 /* Sub-panels and inset cards use subtle slate-50 */
-.normal-mode div[class*="bg-slate-950/60"],
-.normal-mode div[class*="bg-slate-950/70"],
-.normal-mode div[class*="bg-slate-950/80"],
-.normal-mode div[class*="bg-slate-900/40"],
-.normal-mode div[class*="bg-slate-900/50"],
-.normal-mode div[class*="bg-slate-900/60"],
-.normal-mode div[class*="bg-slate-900/80"],
-.normal-mode div[class*="bg-slate-900/90"] {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-950/"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-900/"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-950/"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-900/"] {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -634,21 +635,37 @@ html.normal-mode,
   color: #334155 !important;
 }
 
-/* 3. Global Buttons in Normal Mode */
-.normal-mode button[class*="border-slate-800"],
-.normal-mode button[class*="bg-slate-900"],
-.normal-mode button[class*="bg-slate-950"] {
-  background-color: #ffffff !important;
-  border-color: #e2e8f0 !important;
+/* 3. Global Buttons & Steppers in Normal Mode (No Pitch Black Buttons) */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="border-slate-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="border-slate-700"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-700"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-zinc-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-zinc-900"] {
+  background-color: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
   color: #334155 !important;
 }
 
-.normal-mode button[class*="border-slate-800"]:hover,
-.normal-mode button[class*="bg-slate-900"]:hover,
-.normal-mode button[class*="bg-slate-950"]:hover {
-  background-color: #f8fafc !important;
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="border-slate-800"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="border-slate-700"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-900"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-950"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-800"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-slate-700"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-zinc-800"]:hover,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) button[class*="bg-zinc-900"]:hover {
+  background-color: #e2e8f0 !important;
   color: #0f172a !important;
-  border-color: #cbd5e1 !important;
+  border-color: #94a3b8 !important;
+}
+
+/* Subtle Borders in Normal Mode */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) [class*="border-slate-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) [class*="border-slate-700"] {
+  border-color: #e2e8f0 !important;
 }
 
 /* 4. Dropdowns, Menus & Select Popovers */
@@ -728,50 +745,97 @@ html.normal-mode,
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
 }
 
-/* 8. Hub Greeting Pill Badge */
-.normal-mode span.hub-display-pill,
-.normal-mode span[class*="bg-slate-900"][class*="rounded-full"],
-.normal-mode span[class*="bg-slate-950"][class*="rounded-full"] {
+/* 8. Badges, Pills & Status Tags in Normal Mode */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-slate-800"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-zinc-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-zinc-900"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-black"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span.hub-display-pill {
   background-color: #f1f5f9 !important;
-  border-color: #e2e8f0 !important;
-  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  color: #475569 !important;
 }
 
-/* 9. Portal & Banner Gradient Overrides in Normal Mode */
-.normal-mode div[class*="from-rose-950"] {
+/* 9. Themed Alert & Note Banners in Normal Mode (Zero Dark Muddy Boxes) */
+/* Amber Warning / Notes */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-amber-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-amber-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) p[class*="bg-amber-950"] {
+  background-color: #fef3c7 !important;
+  border-color: #fde68a !important;
+  color: #92400e !important;
+}
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-amber-950"] *,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-amber-950"] *,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) p[class*="bg-amber-950"] * {
+  color: #92400e !important;
+}
+
+/* Emerald Selection / Success */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-emerald-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-emerald-950"] {
+  background-color: #ecfdf5 !important;
+  border-color: #a7f3d0 !important;
+}
+
+/* Cyan Info */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-cyan-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-cyan-950"] {
+  background-color: #ecfeff !important;
+  border-color: #a5f3fc !important;
+}
+
+/* Indigo Specialist */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-indigo-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-indigo-950"] {
+  background-color: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+/* Teal Sanitary / CCTV */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-teal-950"],
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) span[class*="bg-teal-950"] {
+  background-color: #f0fdfa !important;
+  border-color: #99f6e4 !important;
+}
+
+/* Rose Alert */
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-rose-950"] {
   background-image: none !important;
   background-color: #fff1f2 !important;
   border-color: #fecdd3 !important;
 }
-.normal-mode div[class*="from-rose-950"] h4,
-.normal-mode div[class*="from-rose-950"] div {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-rose-950"] h4,
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-rose-950"] div {
   color: #9f1239 !important;
 }
-.normal-mode div[class*="from-rose-950"] p {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-rose-950"] p {
   color: #881337 !important;
 }
 
-.normal-mode div[class*="from-cyan-950"] {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-cyan-950"] {
   background-image: none !important;
   background-color: #f0fdfa !important;
   border-color: #a5f3fc !important;
 }
-.normal-mode div[class*="from-cyan-950"] h4 {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-cyan-950"] h4 {
   color: #0e7490 !important;
 }
-.normal-mode div[class*="from-cyan-950"] p {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-cyan-950"] p {
   color: #155e75 !important;
 }
 
-.normal-mode div[class*="from-emerald-950"] {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-emerald-950"] {
   background-image: none !important;
   background-color: #f0fdf4 !important;
   border-color: #bbf7d0 !important;
 }
-.normal-mode div[class*="from-emerald-950"] h4 {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-emerald-950"] h4 {
   color: #15803d !important;
 }
-.normal-mode div[class*="from-emerald-950"] p {
+.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="from-emerald-950"] p {
   color: #166534 !important;
 }
 

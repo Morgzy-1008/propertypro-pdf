@@ -45,6 +45,7 @@ import {
 import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
 
 interface QuoteSiteCostsStepProps {
   quote: FullQuote;
@@ -107,6 +108,9 @@ const ACOUSTIC_TIERS = [
 ];
 
 export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApply }: QuoteSiteCostsStepProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
+
   const isDouble = isDoubleStoreyDesign(
     quote.design.designName,
     quote.design.housingType,
@@ -324,14 +328,14 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
           </p>
         </div>
 
-        <div className="bg-slate-950 px-4 py-2 rounded-xl border border-slate-800 text-xs flex items-center gap-3 self-start">
+        <div className={`px-4 py-2 rounded-xl border text-xs flex items-center gap-3 self-start ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950 border-slate-800"}`}>
           <div>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Ground Slab GFA:</span>
-            <span className="font-bold text-cyan-400 font-mono">{gfaM2} m²</span>
+            <span className={`font-bold font-mono ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>{gfaM2} m²</span>
           </div>
-          <div className="border-l border-slate-800 pl-3">
+          <div className={`border-l pl-3 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
             <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Total Site Investment:</span>
-            <span className="font-extrabold text-emerald-400 font-mono text-sm">{formatAud(totalSiteAndStatutory)}</span>
+            <span className={`font-extrabold font-mono text-sm ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{formatAud(totalSiteAndStatutory)}</span>
           </div>
         </div>
       </div>
@@ -347,19 +351,23 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
 
       {/* 2nd Dwelling Selection Switcher Banner on Step 3 */}
       {quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled && (
-        <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+        <div className={`border p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md ${
+          isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900/90 border-slate-800"
+        }`}>
           <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 text-cyan-400 flex-none" />
+            <Sparkles className={`h-4 w-4 flex-none ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block">
+              <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
                 Multi-Dwelling Earthworks &amp; Statutory Scoping
               </span>
-              <p className="text-xs font-semibold text-slate-200">
+              <p className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 Site allowances configured below cover the combined build pad for {quote.design.designName || "Main Dwelling"} and {quote.design.secondDwelling?.designName || "2nd Dwelling"}.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-slate-950 p-1.5 rounded-lg border border-slate-800 text-xs font-mono text-cyan-300">
+          <div className={`flex items-center gap-2 p-1.5 rounded-lg border text-xs font-mono ${
+            isLight ? "bg-white border-slate-200 text-cyan-800" : "bg-slate-950 border-slate-800 text-cyan-300"
+          }`}>
             <span>🏠 Dwelling 1 ({quote.design.designName || "Main"} &bull; {gfaM2} m²)</span>
             <span>+</span>
             <span>🏡 Dwelling 2 ({quote.design.secondDwelling?.designName || "Granny Flat"} &bull; {quote.design.secondDwelling?.designM2 || 60} m²)</span>
@@ -368,7 +376,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       )}
 
       {/* Section 1: Soil Classification & Foundation Earthworks */}
-      <div className="space-y-4 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
+      <div className={`space-y-4 p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"}`}>
         <div className="flex items-center justify-between">
           <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-cyan-400" />
@@ -821,31 +829,31 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       </div>
 
       {/* Section 4: Council & Statutory Applications */}
-      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
-        <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-          <Building2 className="h-3.5 w-3.5 text-indigo-400" />
+      <div className={`space-y-3 p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"}`}>
+        <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+          <Building2 className={`h-3.5 w-3.5 ${isLight ? "text-indigo-600" : "text-indigo-400"}`} />
           Council &amp; Statutory Applications
         </Label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Council Jurisdiction */}
-          <div className="space-y-1.5 bg-slate-900/60 p-4 rounded-xl border border-slate-800">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+          <div className={`space-y-1.5 p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
+            <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-700" : "text-slate-300"}`}>
               Council Jurisdiction Fee
             </Label>
             <Select value={site.councilRegion} onValueChange={handleCouncilChange}>
-              <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+              <SelectTrigger className={`text-xs h-9 ${isLight ? "border-slate-300 bg-white text-slate-800" : "border-slate-800 bg-slate-950 text-slate-200"}`}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
-                <div className="px-2 py-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Queensland Councils</div>
+              <SelectContent className={`max-h-72 ${isLight ? "bg-white border-slate-200 text-slate-800" : "border-slate-800 bg-slate-900 text-slate-200"}`}>
+                <div className="px-2 py-1 text-[10px] font-bold text-cyan-600 uppercase tracking-wider">Queensland Councils</div>
                 <SelectItem value="Brisbane City Council">Brisbane City Council (Standard $0)</SelectItem>
                 <SelectItem value="Logan City Council">Logan City Council (+$2,227)</SelectItem>
                 <SelectItem value="Ipswich City Council">Ipswich City Council (+$2,227)</SelectItem>
                 <SelectItem value="Moreton Bay Regional Council">Moreton Bay Regional Council (+$2,227)</SelectItem>
                 <SelectItem value="Gold Coast City Council">Gold Coast City Council (+$2,950)</SelectItem>
                 <SelectItem value="Sunshine Coast Council">Sunshine Coast Council (+$2,950)</SelectItem>
-                <div className="px-2 py-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider mt-1 border-t border-slate-800">New South Wales Councils ($2,000)</div>
+                <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider mt-1 border-t ${isLight ? "text-amber-700 border-slate-200" : "text-amber-400 border-slate-800"}`}>New South Wales Councils ($2,000)</div>
                 <SelectItem value="Blacktown City Council">Blacktown City Council (+$2,000)</SelectItem>
                 <SelectItem value="Camden Council">Camden Council (+$2,000)</SelectItem>
                 <SelectItem value="Campbelltown City Council">Campbelltown City Council (+$2,000)</SelectItem>
@@ -861,12 +869,12 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 <SelectItem value="Cessnock City Council">Cessnock City Council (+$2,000)</SelectItem>
                 <SelectItem value="Wollongong City Council">Wollongong City Council (+$2,000)</SelectItem>
                 <SelectItem value="NSW Local Council (Standard Statutory Fee)">NSW Local Council — Standard ($2,000)</SelectItem>
-                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1 border-t border-slate-800">General Allowances</div>
+                <div className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider mt-1 border-t ${isLight ? "text-slate-500 border-slate-200" : "text-slate-400 border-slate-800"}`}>General Allowances</div>
                 <SelectItem value="Council Fee Allowance (No Location Mentioned)">Council Fee Allowance — No Location ($2,200)</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-[10px] text-slate-400 block pt-1">
-              Statutory plumbing, sewer &amp; archiving fees: <strong className="text-slate-200">{formatAud(site.councilFee)}</strong>
+            <span className={`text-[10px] block pt-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+              Statutory plumbing, sewer &amp; archiving fees: <strong className={isLight ? "text-slate-800" : "text-slate-200"}>{formatAud(site.councilFee)}</strong>
             </span>
           </div>
 
@@ -875,15 +883,19 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ councilDaRequired: !site.councilDaRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.councilDaRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white">Council DA Application</span>
-              {site.councilDaRequired && <Check className="h-4 w-4 text-emerald-400" />}
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Council DA Application</span>
+              {site.councilDaRequired && <Check className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />}
             </div>
-            <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
+            <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               +{formatAud(site.councilDaCost ?? 11000)}
             </span>
           </div>
@@ -893,42 +905,66 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ councilSetbackRelaxationRequired: !site.councilSetbackRelaxationRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.councilSetbackRelaxationRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white">Council Setback Relaxation</span>
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Council Setback Relaxation</span>
               {site.councilSetbackRelaxationRequired ? (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
                   <Check className="h-3 w-3" /> Selected
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-slate-950 text-slate-500 border-slate-800"
+                }`}>
                   Optional
                 </span>
               )}
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleSetbackRelaxationStep(-500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${site.councilSetbackRelaxationRequired ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                site.councilSetbackRelaxationRequired
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.councilSetbackRelaxationCost ?? 2000)}
               </span>
               <button
                 type="button"
                 onClick={() => handleSetbackRelaxationStep(500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $500"
               >
                 <Plus className="h-3 w-3" />
@@ -941,42 +977,66 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ trafficControlRequired: !site.trafficControlRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.trafficControlRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white">Traffic Management Plan</span>
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Traffic Management Plan</span>
               {site.trafficControlRequired ? (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
                   <Check className="h-3 w-3" /> Selected
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-slate-950 text-slate-500 border-slate-800"
+                }`}>
                   Optional
                 </span>
               )}
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleTrafficStep(-2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $2,500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${site.trafficControlRequired ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                site.trafficControlRequired
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.trafficControlCost ?? 10000)}
               </span>
               <button
                 type="button"
                 onClick={() => handleTrafficStep(2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $2,500"
               >
                 <Plus className="h-3 w-3" />
@@ -989,15 +1049,19 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ dualLivingInfrastructureRequired: !site.dualLivingInfrastructureRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.dualLivingInfrastructureRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white">Dual Living Infrastructure Fee</span>
-              {site.dualLivingInfrastructureRequired && <Check className="h-4 w-4 text-emerald-400" />}
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Dual Living Infrastructure Fee</span>
+              {site.dualLivingInfrastructureRequired && <Check className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />}
             </div>
-            <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
+            <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               +{formatAud(site.dualLivingInfrastructureCost ?? 23000)}
             </span>
           </div>
@@ -1005,9 +1069,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       </div>
 
       {/* Section 5: Geotechnical & Site Allowances */}
-      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
-        <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-          <Mountain className="h-3.5 w-3.5 text-amber-400" />
+      <div className={`space-y-3 p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"}`}>
+        <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+          <Mountain className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
           Geotechnical &amp; Site Allowances
         </Label>
 
@@ -1017,49 +1081,77 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ demolitionAsbestosRequired: !site.demolitionAsbestosRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.demolitionAsbestosRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div>
               <div className="flex items-center justify-between">
-                <span className="font-bold text-xs text-white">
+                <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
                   House Demolition &amp; Asbestos Removal
                 </span>
                 {site.demolitionAsbestosRequired ? (
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                    isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                  }`}>
                     <Check className="h-3 w-3" /> Selected
                   </span>
                 ) : (
-                  <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                    isLight
+                      ? "bg-slate-100 text-slate-600 border-slate-300"
+                      : "bg-slate-950 text-slate-500 border-slate-800"
+                  }`}>
                     Optional
                   </span>
                 )}
               </div>
-              <div className="mt-1.5 text-[9.5px] text-amber-400 font-semibold bg-amber-950/40 p-1 rounded border border-amber-800/40">
+              <div className={`mt-1.5 text-[9.5px] font-semibold p-1.5 rounded border ${
+                isLight
+                  ? "bg-amber-50 text-amber-900 border-amber-200"
+                  : "bg-amber-950/40 text-amber-400 border-amber-800/40"
+              }`}>
                 Note: Demolition to be organised by owner
               </div>
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleDemolitionStep(-2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $2,500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${site.demolitionAsbestosRequired ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                site.demolitionAsbestosRequired
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.demolitionAsbestosCost ?? (isDouble ? 40000 : 30000))}
               </span>
               <button
                 type="button"
                 onClick={() => handleDemolitionStep(2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $2,500"
               >
                 <Plus className="h-3 w-3" />
@@ -1072,17 +1164,21 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.screwPieringRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white">
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
                 Screw Piering ({gfaM2} m² GFA)
               </span>
-              {site.screwPieringRequired && <Check className="h-4 w-4 text-emerald-400" />}
+              {site.screwPieringRequired && <Check className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />}
             </div>
-            <span className="font-bold text-xs text-emerald-400 font-mono mt-2 block text-right">
+            <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               +{formatAud(site.screwPieringCost ?? Math.round(gfaM2 * 90))}
             </span>
           </div>
@@ -1096,45 +1192,69 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             }}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               (site.rockExcavationAllowance ?? 0) > 0
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                <Mountain className="h-3.5 w-3.5 text-amber-400" />
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                <Mountain className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 Rock Excavation Allowance
               </span>
               {(site.rockExcavationAllowance ?? 0) > 0 ? (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
                   <Check className="h-3 w-3" /> Selected
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-slate-950 text-slate-500 border-slate-800"
+                }`}>
                   Optional
                 </span>
               )}
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleRockStep(-2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $2,500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${(site.rockExcavationAllowance ?? 0) > 0 ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                (site.rockExcavationAllowance ?? 0) > 0
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.rockExcavationAllowance ?? 0)}
               </span>
               <button
                 type="button"
                 onClick={() => handleRockStep(2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $2,500"
               >
                 <Plus className="h-3 w-3" />
@@ -1151,45 +1271,69 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             }}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               (site.retainingWallAllowance ?? 0) > 0
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                <Hammer className="h-3.5 w-3.5 text-cyan-400" />
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                <Hammer className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                 Retaining Wall Allowance
               </span>
               {(site.retainingWallAllowance ?? 0) > 0 ? (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
                   <Check className="h-3 w-3" /> Selected
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-slate-950 text-slate-500 border-slate-800"
+                }`}>
                   Optional
                 </span>
               )}
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleRetainingStep(-2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $2,500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${(site.retainingWallAllowance ?? 0) > 0 ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                (site.retainingWallAllowance ?? 0) > 0
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.retainingWallAllowance ?? 0)}
               </span>
               <button
                 type="button"
                 onClick={() => handleRetainingStep(2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $2,500"
               >
                 <Plus className="h-3 w-3" />
@@ -1209,45 +1353,69 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             }}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               (site.materialHandlingAllowance ?? 0) > 0
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
-                : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                ? isLight
+                  ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-white flex items-center gap-1.5">
-                <Truck className="h-3.5 w-3.5 text-amber-400" />
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                <Truck className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 Material Handling Allowance
               </span>
               {(site.materialHandlingAllowance ?? 0) > 0 ? (
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold flex items-center gap-1">
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
                   <Check className="h-3 w-3" /> Selected
                 </span>
               ) : (
-                <span className="text-[10px] text-slate-500 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-600 border-slate-300"
+                    : "bg-slate-950 text-slate-500 border-slate-800"
+                }`}>
                   Optional
                 </span>
               )}
             </div>
 
             <div
-              className="flex items-center justify-between gap-1.5 pt-2 mt-2 border-t border-slate-800"
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 type="button"
                 onClick={() => handleMaterialHandlingStep(-2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Decrease $2,500"
               >
                 <Minus className="h-3 w-3" />
               </button>
-              <span className={`font-bold text-xs font-mono ${(site.materialHandlingAllowance ?? 0) > 0 ? "text-emerald-400" : "text-slate-400"}`}>
+              <span className={`font-bold text-xs font-mono ${
+                (site.materialHandlingAllowance ?? 0) > 0
+                  ? (isLight ? "text-emerald-700" : "text-emerald-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
                 {formatAud(site.materialHandlingAllowance ?? 0)}
               </span>
               <button
                 type="button"
                 onClick={() => handleMaterialHandlingStep(2500)}
-                className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300"
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
                 title="Increase $2,500"
               >
                 <Plus className="h-3 w-3" />

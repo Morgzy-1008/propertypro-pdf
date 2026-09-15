@@ -371,15 +371,26 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             effectiveBasePrice = calculateModifiedFloorplanPricing(tempDesign).modifiedBasePrice;
           }
 
+          let newLandscapingCost = design.landscapingCost;
+          if (design.landscapingSelected) {
+            newLandscapingCost = landscapingPriceFor(
+              design.landscapingLandSize || 450,
+              detectedType,
+              design.designName,
+              newDiv
+            );
+          }
+
           onChange({
             standardBasePrice: newBasePrice,
             basePrice: effectiveBasePrice,
             facadePrice: newFacadePrice,
+            ...(design.landscapingSelected ? { landscapingCost: newLandscapingCost } : {}),
           });
         }
       }
     });
-  }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan]);
+  }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan, design.landscapingSelected, design.landscapingLandSize]);
 
   const customSpec = design.customSpec || {
     groundLivingM2: 0,
@@ -1523,7 +1534,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                 onClick={() => {
                   const next = !design.landscapingSelected;
                   const size = design.landscapingLandSize || 450;
-                  const price = next ? landscapingPriceFor(size, design.housingType, design.designName) : 0;
+                  const price = next ? landscapingPriceFor(size, design.housingType, design.designName, division) : 0;
                   onChange({
                     landscapingSelected: next,
                     landscapingLandSize: size,
@@ -1567,7 +1578,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                       value={String(design.landscapingLandSize || 450)}
                       onValueChange={(val) => {
                         const size = Number(val);
-                        const price = landscapingPriceFor(size, design.housingType, design.designName);
+                        const price = landscapingPriceFor(size, design.housingType, design.designName, division);
                         onChange({
                           landscapingSelected: true,
                           landscapingLandSize: size,
@@ -1594,7 +1605,7 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
                   <div className="text-right pl-2">
                     <span className="text-[10px] text-slate-400 block">Package Total:</span>
                     <span className="font-extrabold text-emerald-400 font-mono text-sm block">
-                      +{formatAud(landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName))}
+                      +{formatAud(landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, division))}
                     </span>
                   </div>
                 </div>
