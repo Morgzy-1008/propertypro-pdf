@@ -221,10 +221,12 @@ export function QuoteClientDetails({
     onChange(patch);
 
     if (onSiteChange) {
+      const activeState = merged.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD");
       const detected = detectCouncilFromLocation(
         merged.suburb || "",
         `${merged.siteAddress || ""} ${merged.estate || ""}`,
-        merged.postcode || ""
+        merged.postcode || "",
+        activeState
       );
       onSiteChange({
         councilRegion: detected.region,
@@ -234,6 +236,7 @@ export function QuoteClientDetails({
   };
 
   const handleToggleNoAddressYet = () => {
+    const isNsw = (client.state || getActiveDivision()) === "NSW";
     if (isNoAddressActive) {
       // Clear fields so user can type an address
       onChange({
@@ -246,8 +249,8 @@ export function QuoteClientDetails({
 
       if (onSiteChange) {
         onSiteChange({
-          councilRegion: "Logan City Council",
-          councilFee: 2227,
+          councilRegion: isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Logan City Council",
+          councilFee: isNsw ? 2000 : 2227,
         });
       }
     } else {
@@ -261,15 +264,22 @@ export function QuoteClientDetails({
 
       if (onSiteChange) {
         onSiteChange({
-          councilRegion: "Council Fee Allowance (No Location Mentioned)",
-          councilFee: 2200,
+          councilRegion: isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Council Fee Allowance (No Location Mentioned)",
+          councilFee: isNsw ? 2000 : 2200,
         });
       }
     }
   };
 
-  const currentCouncil = site?.councilRegion || (client.suburb || client.siteAddress ? "Logan City Council" : "Pending Building Location");
-  const currentFee = site?.councilFee ?? 0;
+  const isNswDivision = (client.state || getActiveDivision()) === "NSW";
+  const currentCouncil =
+    site?.councilRegion ||
+    (client.suburb || client.siteAddress
+      ? isNswDivision
+        ? "NSW Local Council (Standard Statutory Fee)"
+        : "Logan City Council"
+      : "Pending Building Location");
+  const currentFee = site?.councilFee ?? (isNswDivision ? 2000 : 0);
 
   return (
     <div className="space-y-6">

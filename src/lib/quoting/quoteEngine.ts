@@ -1140,12 +1140,19 @@ export interface CouncilInfo {
 }
 
 /**
- * Automatically detects the appropriate QLD council and statutory fee from an address, suburb, or postcode.
+ * Automatically detects the appropriate council and statutory fee from an address, suburb, postcode, and optional state.
+ * If NSW is specified or detected, prioritizes NSW councils ($2,000 statutory fee).
+ * If QLD is specified or detected, prioritizes QLD councils.
  * If no location is provided or land is not purchased yet, defaults to $2,200 Council Fee Allowance (No Location Mentioned).
  */
-export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEstate?: string, postcode?: string): CouncilInfo {
+export function detectCouncilFromLocation(
+  suburbOrLocation?: string,
+  addressOrEstate?: string,
+  postcode?: string,
+  state?: string
+): CouncilInfo {
   const suburbClean = (suburbOrLocation || "").toLowerCase().trim();
-  const text = `${suburbOrLocation || ""} ${addressOrEstate || ""} ${postcode || ""}`.toLowerCase().trim();
+  const text = `${suburbOrLocation || ""} ${addressOrEstate || ""} ${postcode || ""} ${state || ""}`.toLowerCase().trim();
   
   if (!text) {
     return { region: "", fee: 0 };
@@ -1157,196 +1164,296 @@ export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEs
     text.includes("tba") ||
     text.includes("land not") ||
     text.includes("no location") ||
-    text.includes("to be advised")
+    text.includes("to be advised") ||
+    text.includes("location tba")
   ) {
+    if (state === "NSW") {
+      return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+    }
     return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
   }
 
-  // Gold Coast City Council ($2,950)
-  const goldCoastKeywords = [
-    "gold coast", "coomera", "pimpama", "ormeau", "helensvale", "hope island", "sanctuary cove",
-    "pacific pines", "oxenford", "gaven", "maudsland", "nerang", "robina", "southport", "surfers paradise",
-    "broadbeach", "mermaid beach", "miami", "burleigh", "palm beach", "currumbin", "tugun", "bilinga",
-    "coolangatta", "varsity lakes", "mudgeeraba", "tallai", "worongary", "carrara", "ashmore", "benowa",
-    "bundall", "molendinar", "arundel", "parkwood", "labrador", "runaway bay", "hollywell", "paradise point",
-    "willow vale", "yatala", "jacobs well", "4208", "4209", "4210", "4211", "4212", "4213", "4214", "4215",
-    "4216", "4217", "4218", "4220", "4221", "4223", "4224", "4225", "4226", "4227", "4228"
-  ];
-  if (goldCoastKeywords.some((k) => text.includes(k))) {
-    return { region: "Gold Coast City Council", fee: 2950 };
-  }
+  const explicitNsw =
+    state === "NSW" ||
+    (postcode && postcode.trim().startsWith("2")) ||
+    text.includes("nsw") ||
+    text.includes("new south wales") ||
+    /\b2\d{3}\b/.test(text);
 
-  // Sunshine Coast / Noosa ($2,950)
-  const sunshineKeywords = [
-    "sunshine coast", "noosa", "maroochydore", "caloundra", "birtinya", "baringa", "nirimba", "aura",
-    "palmview", "harmony", "sippy downs", "buderim", "mooloolaba", "kawana", "pelican waters", "currimundi",
-    "coolum", "peregian", "tewantin", "4551", "4556", "4557", "4558", "4567", "4575"
-  ];
-  if (sunshineKeywords.some((k) => text.includes(k))) {
-    return { region: "Sunshine Coast Council", fee: 2950 };
-  }
+  const explicitQld =
+    state === "QLD" ||
+    (postcode && postcode.trim().startsWith("4")) ||
+    text.includes("qld") ||
+    text.includes("queensland") ||
+    /\b4\d{3}\b/.test(text);
 
-  // Logan City Council ($2,227)
-  const loganKeywords = [
-    "logan", "flagstone", "jimboomba", "yarrabilba", "greenbank", "springwood", "loganholme", "logan central",
-    "park ridge", "browns plains", "crestmead", "marsden", "daisy hill", "shailer park", "rochedale south",
-    "underwood", "slacks creek", "woodridge", "kingston", "beenleigh", "holmview", "bahrs scrub", "windaroo",
-    "eagleby", "mount warren park", "edens landing", "waterford", "waterford west", "bethania", "meadowbrook",
-    "tanah merah", "cornubia", "logan village", "munruben", "new beith", "north maclean", "south maclean",
-    "chambers flat", "stockleigh", "cedar vale", "cedar creek", "undullah", "belivah", "buccan", "tamborine",
-    "glenlogan", "veresdale", "boronia heights", "hillcrest", "forestdale", "heritage park", "regents park",
-    "berrinba", "priestdale", "4114", "4117", "4118", "4119", "4123", "4127", "4128", "4129", "4130", "4131",
-    "4132", "4133", "4207", "4280", "4285"
-  ];
-  if (loganKeywords.some((k) => text.includes(k))) {
-    return { region: "Logan City Council", fee: 2227 };
-  }
+  // Helper function for NSW councils matching
+  const matchNswCouncil = (): CouncilInfo | null => {
+    // Blacktown City Council ($2,000)
+    const blacktownKeywords = [
+      "blacktown", "marsden park", "schofields", "riverstone", "box hill", "the gables", "gables", "rouse hill",
+      "colebee", "stanhope gardens", "the ponds", "glenwood", "kellyville ridge", "mount druitt", "rooty hill",
+      "doonside", "marayong", "quakers hill", "tallawong", "acacia gardens", "bungarribee", "dean park",
+      "glendenning", "hassall grove", "oakhurst", "plumpton", "woodcroft", "2765", "2768", "2763", "2762",
+      "2767", "2769", "2761", "2766", "2770"
+    ];
+    if (blacktownKeywords.some((k) => text.includes(k))) {
+      return { region: "Blacktown City Council", fee: 2000 };
+    }
 
-  // Ipswich City Council ($2,227)
-  const ipswichKeywords = [
-    "ipswich", "ripley", "south ripley", "deebing heights", "redbank plains", "redbank", "springfield",
-    "springfield lakes", "springfield central", "spring mountain", "augustine heights", "brookwater",
-    "bellbird park", "brassall", "karalee", "collingwood park", "goodna", "gailes", "camira", "carole park",
-    "bundamba", "booval", "silkstone", "newtown", "raceview", "flinders view", "yamanto", "churchill",
-    "leichhardt", "one mile", "sadliers crossing", "west ipswich", "coalfalls", "woodend", "tivoli",
-    "north ipswich", "basin pocket", "east ipswich", "north booval", "riverview", "dinmore", "swanbank",
-    "white rock", "goolman", "peak crossing", "willowbank", "ebenezer", "rosewood", "marburg", "walloon",
-    "thagoona", "amberley", "wulkuraka", "4300", "4301", "4303", "4304", "4305", "4306"
-  ];
-  if (ipswichKeywords.some((k) => text.includes(k))) {
-    return { region: "Ipswich City Council", fee: 2227 };
-  }
+    // Camden Council ($2,000)
+    const camdenKeywords = [
+      "camden", "oran park", "gregory hills", "leppington", "gledswood hills", "catherine field", "harrington park",
+      "spring farm", "mount annan", "elderslie", "narellan", "narellan vale", "cobbitty", "bringelly", "rossmore",
+      "currans hill", "kirkham", "grasmere", "bickley vale", "cawdor", "2570", "2567", "2557", "2179"
+    ];
+    if (camdenKeywords.some((k) => text.includes(k))) {
+      return { region: "Camden Council", fee: 2000 };
+    }
 
-  // Moreton Bay Regional Council ($2,227)
-  const moretonKeywords = [
-    "moreton bay", "caboolture", "caboolture south", "morayfield", "north lakes", "mango hill", "strathpine",
-    "redcliffe", "burpengary", "burpengary east", "narangba", "warner", "griffin", "petrie", "kallangur",
-    "murrumba downs", "dakabin", "lawnton", "bray park", "brendale", "cashmere", "eatons hill", "albany creek",
-    "arana hills", "ferny hills", "everton hills", "bribie island", "bongaree", "bellara", "banksia beach",
-    "sandstone point", "ningi", "beachmere", "upper caboolture", "bellmere", "elimbah", "wamuran", "d'aguilar",
-    "woodford", "dayboro", "samford", "samford valley", "clontarf", "scarborough", "margate", "woody point",
-    "newport", "rothwell", "deception bay", "4500", "4501", "4502", "4503", "4504", "4505", "4506", "4507",
-    "4508", "4509", "4510", "4511", "4512", "4520", "4019", "4020", "4021", "4022", "4037", "4053", "4054", "4055"
-  ];
-  if (moretonKeywords.some((k) => text.includes(k))) {
-    return { region: "Moreton Bay Regional Council", fee: 2227 };
-  }
+    // Campbelltown City Council ($2,000)
+    const campbelltownKeywords = [
+      "campbelltown", "macarthur", "menangle park", "glenfield", "ingleburn", "minto", "leumeah", "raby",
+      "st andrews", "rosemeadow", "ambarvale", "bradbury", "englorie park", "blairmount", "eagle vale",
+      "denham court", "2560", "2564", "2565", "2566"
+    ];
+    if (campbelltownKeywords.some((k) => text.includes(k))) {
+      return { region: "Campbelltown City Council", fee: 2000 };
+    }
 
-  // Brisbane City Council ($0 Standard)
-  const brisbaneKeywords = [
-    "brisbane", "chermside", "carindale", "indooroopilly", "sunnybank", "calamvale", "parkinson", "algester",
-    "stretton", "drewvale", "kuraby", "runcorn", "eight mile plains", "mount gravatt", "mansfield", "wishart",
-    "rochedale", "coorparoo", "camp hill", "carina", "cannon hill", "wynnum", "manly", "tingalpa", "belmont",
-    "chandler", "gumdale", "wakerley", "the gap", "ashgrove", "paddington", "milton", "toowong", "taringa",
-    "st lucia", "kenmore", "chapel hill", "brookfield", "pullenvale", "bellbowrie", "moggill", "annerley",
-    "yeronga", "fairfield", "moorooka", "salisbury", "rocklea", "archerfield", "acacia ridge", "coopers plains",
-    "macgregor", "robertson", "tarragindi", "holland park", "greenslopes", "dutton park", "south brisbane",
-    "west end", "highgate hill", "kangaroo point", "east brisbane", "new farm", "teneriffe", "newstead",
-    "fortitude valley", "spring hill", "bowen hills", "herston", "kelvin grove", "red hill", "bardon",
-    "auchenflower", "grange", "wilston", "windsor", "albion", "wooloowin", "lutwyche", "kedron", "stafford",
-    "everton park", "mitchelton", "gaythorne", "enoggera", "keperra", "ferny grove", "bridgeman downs",
-    "mcdowall", "carseldine", "aspley", "zillmere", "geebung", "wavell heights", "nundah", "northgate",
-    "banyo", "virginia", "hendra", "clayfield", "ascot", "hamilton", "pinkenba", "bracken ridge", "bald hills",
-    "fitzgibbon", "taigum", "boondall", "sandgate", "shorncliffe", "brighton", "deagon"
-  ];
-  if (brisbaneKeywords.some((k) => text.includes(k))) {
-    return { region: "Brisbane City Council", fee: 0 };
-  }
+    // City of Penrith ($2,000)
+    const penrithKeywords = [
+      "penrith", "jordan springs", "cadence", "glenmore park", "mulgoa", "orchard hills", "st marys", "kingswood",
+      "cranebrook", "werrington", "jamisontown", "eaglestone", "claremont meadows", "thornton", "emu plains",
+      "2750", "2745", "2747", "2748", "2749"
+    ];
+    if (penrithKeywords.some((k) => text.includes(k))) {
+      return { region: "Penrith City Council", fee: 2000 };
+    }
 
-  // Redland / Scenic Rim / Other SEQ ($2,227)
-  const otherSeqKeywords = ["redland", "capalaba", "cleveland", "victoria point", "scenic rim", "beaudesert", "boonah", "toowoomba", "lockyer"];
-  if (otherSeqKeywords.some((k) => text.includes(k))) {
-    return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
-  }
+    // The Hills Shire Council ($2,000)
+    const hillsKeywords = [
+      "the hills", "hills shire", "castle hill", "baulkham hills", "bella vista", "norwest", "kellyville",
+      "north kellyville", "beaumont hills", "kenthurst", "annangrove", "glenhaven", "dural", "middle dural",
+      "maraylya", "2153", "2154", "2155", "2156", "2158"
+    ];
+    if (hillsKeywords.some((k) => text.includes(k))) {
+      return { region: "The Hills Shire Council", fee: 2000 };
+    }
 
-  // ==========================================
-  // NSW COUNCILS (Standard $2,000 Statutory Fee)
-  // ==========================================
+    // Liverpool City Council ($2,000)
+    const liverpoolKeywords = [
+      "liverpool", "austral", "edmondson park", "hoxton park", "casula", "prestons", "carnes hill", "middleton grange",
+      "cecil hills", "green valley", "moorebank", "chipping norton", "warwick farm", "holsworthy", "wattle grove",
+      "voyager point", "2170", "2171", "2168", "2174"
+    ];
+    if (liverpoolKeywords.some((k) => text.includes(k))) {
+      return { region: "Liverpool City Council", fee: 2000 };
+    }
 
-  // Blacktown City Council ($2,000)
-  const blacktownKeywords = ["blacktown", "marsden park", "schofields", "riverstone", "box hill", "rouse hill", "colebee", "stanhope gardens", "the ponds", "glenwood", "kellyville ridge", "mount druitt", "rooty hill", "doonside", "marayong", "quakers hill", "2765", "2768", "2763", "2762", "2767", "2769", "2761", "2766", "2770"];
-  if (blacktownKeywords.some((k) => text.includes(k))) {
-    return { region: "Blacktown City Council", fee: 2000 };
-  }
+    // City of Parramatta / Cumberland / Fairfield ($2,000)
+    const parramattaKeywords = [
+      "parramatta", "westmead", "northmead", "rydalmere", "dundas", "ermington", "granville", "auburn", "lidcombe",
+      "merrylands", "greystanes", "pemulwuy", "fairfield", "cabramatta", "canley vale", "bossley park", "edensor park",
+      "bonnyrigg", "wetherill park", "smithfield", "2150", "2151", "2152", "2142", "2141", "2160", "2145", "2165",
+      "2166", "2176", "2164"
+    ];
+    if (parramattaKeywords.some((k) => text.includes(k))) {
+      return { region: "City of Parramatta", fee: 2000 };
+    }
 
-  // Camden Council ($2,000)
-  const camdenKeywords = ["camden", "orand park", "oran park", "gregory hills", "leppington", "gledswood hills", "catherine field", "harrington park", "spring farm", "mount annan", "elderslie", "narellan", "narellan vale", "cobbitty", "bringelly", "rossmore", "2570", "2567", "2557", "2179"];
-  if (camdenKeywords.some((k) => text.includes(k))) {
-    return { region: "Camden Council", fee: 2000 };
-  }
+    // Hawkesbury City Council ($2,000)
+    const hawkesburyKeywords = [
+      "hawkesbury", "windsor", "south windsor", "richmond", "north richmond", "pitt town", "glossodia", "kurrajong",
+      "wilberforce", "freemans reach", "2756", "2753", "2754", "2758"
+    ];
+    if (hawkesburyKeywords.some((k) => text.includes(k))) {
+      return { region: "Hawkesbury City Council", fee: 2000 };
+    }
 
-  // Campbelltown City Council ($2,000)
-  const campbelltownKeywords = ["campbelltown", "macarthur", "menangle park", "glenfield", "ingleburn", "minton", "minto", "leumeah", "raby", "st andrews", "rosemeadow", "ambarvale", "bradbury", "englorie park", "blairmount", "2560", "2564", "2565", "2566"];
-  if (campbelltownKeywords.some((k) => text.includes(k))) {
-    return { region: "Campbelltown City Council", fee: 2000 };
-  }
+    // Wollondilly Shire Council ($2,000)
+    const wollondillyKeywords = [
+      "wollondilly", "picton", "tahmoor", "thirlmere", "wilton", "bingara gorge", "bargo", "appin", "douglas park",
+      "silverdale", "warragamba", "the oaks", "oakdale", "2571", "2572", "2573", "2574", "2569"
+    ];
+    if (wollondillyKeywords.some((k) => text.includes(k))) {
+      return { region: "Wollondilly Shire Council", fee: 2000 };
+    }
 
-  // City of Penrith ($2,000)
-  const penrithKeywords = ["penrith", "jordan springs", "cadence", "glenmore park", "mulgoa", "orchard hills", "st marys", "kingswood", "cranebrook", "werrington", "jamisontown", "eaglestone", "claremont meadows", "thornton", "2750", "2745", "2747", "2748", "2749"];
-  if (penrithKeywords.some((k) => text.includes(k))) {
-    return { region: "Penrith City Council", fee: 2000 };
-  }
+    // Central Coast Council ($2,000)
+    const centralCoastKeywords = [
+      "central coast", "gosford", "wyong", "tuggerah", "warnervale", "woongarrah", "hamlyn terrace", "watanobbi",
+      "wadalba", "terrigal", "avoca", "erina", "baview", "bateau bay", "the entrance", "toukley", "budgewoi",
+      "gwandalan", "lake munmorah", "2250", "2251", "2259", "2260", "2261", "2262", "2263"
+    ];
+    if (centralCoastKeywords.some((k) => text.includes(k))) {
+      return { region: "Central Coast Council", fee: 2000 };
+    }
 
-  // The Hills Shire Council ($2,000)
-  const hillsKeywords = ["the hills", "hills shire", "castle hill", "baulkham hills", "bella vista", "norwest", "kellyville", "north kellyville", "beaumont hills", "kenthurst", "annangrove", "glenhaven", "dural", "middle dural", "maraylya", "2153", "2154", "2155", "2156", "2158"];
-  if (hillsKeywords.some((k) => text.includes(k))) {
-    return { region: "The Hills Shire Council", fee: 2000 };
-  }
+    // Lake Macquarie & Newcastle City Council ($2,000)
+    const hunterLakeKeywords = [
+      "lake macquarie", "newcastle", "charlestown", "warners bay", "belmont", "cardiff", "glendale", "cameron park",
+      "edgeworth", "morisset", "cooranbong", "watagan park", "dora creek", "toronto", "merewether", "hamilton",
+      "adamstown", "mayfield", "wallsend", "fletcher", "minmi", "2280", "2281", "2282", "2283", "2284", "2285",
+      "2287", "2289", "2290", "2291", "2292", "2299", "2300", "2304", "2305", "2307", "2308"
+    ];
+    if (hunterLakeKeywords.some((k) => text.includes(k))) {
+      return { region: "Lake Macquarie City Council", fee: 2000 };
+    }
 
-  // Liverpool City Council ($2,000)
-  const liverpoolKeywords = ["liverpool", "austral", "edmondson park", "hoxton park", "casula", "prestons", "carnes hill", "middleton grange", "cecils hills", "cecil hills", "green valley", "moorebank", "chipping norton", "warwick farm", "holsworthy", "wattle grove", "voyager point", "2170", "2171", "2168", "2174"];
-  if (liverpoolKeywords.some((k) => text.includes(k))) {
-    return { region: "Liverpool City Council", fee: 2000 };
-  }
+    // Maitland & Cessnock City Council ($2,000)
+    const maitlandCessnockKeywords = [
+      "maitland", "cessnock", "east maitland", "rutherford", "chisholm", "thornton", "gillieston heights", "lochinvar",
+      "greta", "branxton", "huntlee", "kurri kurri", "bellbird", "neath", "nulkaba", "pokolbin", "lovedale", "2320",
+      "2321", "2322", "2323", "2325", "2326", "2327", "2335"
+    ];
+    if (maitlandCessnockKeywords.some((k) => text.includes(k))) {
+      return { region: "Maitland City Council", fee: 2000 };
+    }
 
-  // City of Parramatta / Cumberland / Fairfield ($2,000)
-  const parramattaKeywords = ["parramatta", "westmead", "northmead", "rydalmere", "dundas", "ermington", "granville", "auburn", "lidcombe", "merrylands", "greystanes", "pemulwuy", "fairfield", "cabramatta", "canley vale", "bossley park", "edensor park", "bonnyrigg", "wetherill park", "smithfield", "2150", "2151", "2152", "2142", "2141", "2160", "2145", "2165", "2166", "2176", "2164"];
-  if (parramattaKeywords.some((k) => text.includes(k))) {
-    return { region: "City of Parramatta", fee: 2000 };
-  }
+    // Wollongong, Shellharbour & Kiama ($2,000)
+    const illawarraKeywords = [
+      "wollongong", "shellharbour", "kiama", "calderwood", "tullimbar", "albion park", "albion park rail",
+      "haywards bay", "horsley", "dapto", "west dapto", "kembla grange", "bulli", "corrimal", "figtree",
+      "unanderra", "flinders", "shell cove", "2500", "2502", "2508", "2515", "2517", "2518", "2519", "2525",
+      "2526", "2527", "2528", "2529", "2530", "2533"
+    ];
+    if (illawarraKeywords.some((k) => text.includes(k))) {
+      return { region: "Wollongong City Council", fee: 2000 };
+    }
 
-  // Hawkesbury City Council ($2,000)
-  const hawkesburyKeywords = ["hawkesbury", "windsor", "south windsor", "richmond", "north richmond", "pitt town", "glossodia", "kurrajong", "wilberforce", "freemans reach", "2756", "2753", "2754", "2758"];
-  if (hawkesburyKeywords.some((k) => text.includes(k))) {
-    return { region: "Hawkesbury City Council", fee: 2000 };
-  }
+    return null;
+  };
 
-  // Wollondilly Shire Council ($2,000)
-  const wollondillyKeywords = ["wollondilly", "picton", "tahmoor", "thirlmere", "wilton", "bingara gorge", "bargo", "appin", "douglas park", "silverdale", "warragamba", "the oaks", "oakdale", "2571", "2572", "2573", "2574", "2569"];
-  if (wollondillyKeywords.some((k) => text.includes(k))) {
-    return { region: "Wollondilly Shire Council", fee: 2000 };
-  }
+  // Helper function for QLD councils matching
+  const matchQldCouncil = (): CouncilInfo | null => {
+    // Gold Coast City Council ($2,950)
+    const goldCoastKeywords = [
+      "gold coast", "coomera", "pimpama", "ormeau", "helensvale", "hope island", "sanctuary cove",
+      "pacific pines", "oxenford", "gaven", "maudsland", "nerang", "robina", "southport", "surfers paradise",
+      "broadbeach", "mermaid beach", "miami", "burleigh", "palm beach", "currumbin", "tugun", "bilinga",
+      "coolangatta", "varsity lakes", "mudgeeraba", "tallai", "worongary", "carrara", "ashmore", "benowa",
+      "bundall", "molendinar", "arundel", "parkwood", "labrador", "runaway bay", "hollywell", "paradise point",
+      "willow vale", "yatala", "jacobs well", "4208", "4209", "4210", "4211", "4212", "4213", "4214", "4215",
+      "4216", "4217", "4218", "4220", "4221", "4223", "4224", "4225", "4226", "4227", "4228"
+    ];
+    if (goldCoastKeywords.some((k) => text.includes(k))) {
+      return { region: "Gold Coast City Council", fee: 2950 };
+    }
 
-  // Central Coast Council ($2,000)
-  const centralCoastKeywords = ["central coast", "gosford", "wyong", "tuggerah", "warnervale", "wongawilli", "woongarrah", "hamlyn terrace", "watanobbi", "wadalba", "terrigal", "avoca", "erina", "baview", "bateau bay", "the entrance", "toukley", "budgewoi", "gwandalan", "lake munmorah", "2250", "2251", "2259", "2260", "2261", "2262", "2263"];
-  if (centralCoastKeywords.some((k) => text.includes(k))) {
-    return { region: "Central Coast Council", fee: 2000 };
-  }
+    // Sunshine Coast / Noosa ($2,950)
+    const sunshineKeywords = [
+      "sunshine coast", "noosa", "maroochydore", "caloundra", "birtinya", "baringa", "nirimba", "aura",
+      "palmview", "harmony", "sippy downs", "buderim", "mooloolaba", "kawana", "pelican waters", "currimundi",
+      "coolum", "peregian", "tewantin", "4551", "4556", "4557", "4558", "4567", "4575"
+    ];
+    if (sunshineKeywords.some((k) => text.includes(k))) {
+      return { region: "Sunshine Coast Council", fee: 2950 };
+    }
 
-  // Lake Macquarie & Newcastle City Council ($2,000)
-  const hunterLakeKeywords = ["lake macquarie", "newcastle", "charlestown", "warners bay", "belmont", "cardiff", "glendale", "cameron park", "edgeworth", "morisset", "cooranbong", "watagan park", "dora creek", "toronto", "merewether", "hamilton", "adamstown", "mayfield", "wallsend", "fletcher", "minmi", "2280", "2281", "2282", "2283", "2284", "2285", "2287", "2289", "2290", "2291", "2292", "2299", "2300", "2304", "2305", "2307", "2308"];
-  if (hunterLakeKeywords.some((k) => text.includes(k))) {
-    return { region: "Lake Macquarie City Council", fee: 2000 };
-  }
+    // Logan City Council ($2,227)
+    const loganKeywords = [
+      "logan", "flagstone", "jimboomba", "yarrabilba", "greenbank", "springwood", "loganholme", "logan central",
+      "park ridge", "browns plains", "crestmead", "marsden", "daisy hill", "shailer park", "rochedale south",
+      "underwood", "slacks creek", "woodridge", "kingston", "beenleigh", "holmview", "bahrs scrub", "windaroo",
+      "eagleby", "mount warren park", "edens landing", "waterford", "waterford west", "bethania", "meadowbrook",
+      "tanah merah", "cornubia", "logan village", "munruben", "new beith", "north maclean", "south maclean",
+      "chambers flat", "stockleigh", "cedar vale", "cedar creek", "undullah", "belivah", "buccan", "tamborine",
+      "glenlogan", "veresdale", "boronia heights", "hillcrest", "forestdale", "heritage park", "regents park",
+      "berrinba", "priestdale", "4114", "4117", "4118", "4119", "4123", "4127", "4128", "4129", "4130", "4131",
+      "4132", "4133", "4207", "4280", "4285"
+    ];
+    if (loganKeywords.some((k) => text.includes(k))) {
+      return { region: "Logan City Council", fee: 2227 };
+    }
 
-  // Maitland & Cessnock City Council ($2,000)
-  const maitlandCessnockKeywords = ["maitland", "cessnock", "east maitland", "rutherford", "chisholm", "thornton", "gillieston heights", "lochinvar", "greta", "branxton", "huntlee", "kurri kurri", "bellbird", "neath", "nulkaba", "pokolbin", "lovedale", "2320", "2321", "2322", "2323", "2325", "2326", "2327", "2335"];
-  if (maitlandCessnockKeywords.some((k) => text.includes(k))) {
-    return { region: "Maitland City Council", fee: 2000 };
-  }
+    // Ipswich City Council ($2,227)
+    const ipswichKeywords = [
+      "ipswich", "ripley", "south ripley", "deebing heights", "redbank plains", "redbank", "springfield",
+      "springfield lakes", "springfield central", "spring mountain", "augustine heights", "brookwater",
+      "bellbird park", "brassall", "karalee", "collingwood park", "goodna", "gailes", "camira", "carole park",
+      "bundamba", "booval", "silkstone", "newtown", "raceview", "flinders view", "yamanto", "churchill",
+      "leichhardt", "one mile", "sadliers crossing", "west ipswich", "coalfalls", "woodend", "tivoli",
+      "north ipswich", "basin pocket", "east ipswich", "north booval", "riverview", "dinmore", "swanbank",
+      "white rock", "goolman", "peak crossing", "willowbank", "ebenezer", "rosewood", "marburg", "walloon",
+      "thagoona", "amberley", "wulkuraka", "4300", "4301", "4303", "4304", "4305", "4306"
+    ];
+    if (ipswichKeywords.some((k) => text.includes(k))) {
+      return { region: "Ipswich City Council", fee: 2227 };
+    }
 
-  // Wollongong, Shellharbour & Kiama ($2,000)
-  const illawarraKeywords = ["wollongong", "shellharbour", "kiama", "calderwood", "tullimbar", "albion park", "albion park rail", "haywards bay", "horsley", "dapto", "west dapto", "kembla grange", "bulli", "corrimal", "figtree", "unanderra", "flinders", "shell cove", "2500", "2502", "2508", "2515", "2517", "2518", "2519", "2525", "2526", "2527", "2528", "2529", "2530", "2533"];
-  if (illawarraKeywords.some((k) => text.includes(k))) {
-    return { region: "Wollongong City Council", fee: 2000 };
-  }
+    // Moreton Bay Regional Council ($2,227)
+    const moretonKeywords = [
+      "moreton bay", "caboolture", "caboolture south", "morayfield", "north lakes", "mango hill", "strathpine",
+      "redcliffe", "burpengary", "burpengary east", "narangba", "warner", "griffin", "petrie", "kallangur",
+      "murrumba downs", "dakabin", "lawnton", "bray park", "brendale", "cashmere", "eatons hill", "albany creek",
+      "arana hills", "ferny hills", "everton hills", "bribie island", "bongaree", "bellara", "banksia beach",
+      "sandstone point", "ningi", "beachmere", "upper caboolture", "bellmere", "elimbah", "wamuran", "d'aguilar",
+      "woodford", "dayboro", "samford", "samford valley", "clontarf", "scarborough", "margate", "woody point",
+      "newport", "rothwell", "deception bay", "4500", "4501", "4502", "4503", "4504", "4505", "4506", "4507",
+      "4508", "4509", "4510", "4511", "4512", "4520", "4019", "4020", "4021", "4022", "4037", "4053", "4054", "4055"
+    ];
+    if (moretonKeywords.some((k) => text.includes(k))) {
+      return { region: "Moreton Bay Regional Council", fee: 2227 };
+    }
 
-  // General NSW Address Fallback ($2,000)
-  if (text.includes("nsw") || text.includes("new south wales") || /\b2\d{3}\b/.test(text)) {
+    // Brisbane City Council ($0 Standard)
+    const brisbaneKeywords = [
+      "brisbane", "chermside", "carindale", "indooroopilly", "sunnybank", "calamvale", "parkinson", "algester",
+      "stretton", "drewvale", "kuraby", "runcorn", "eight mile plains", "mount gravatt", "mansfield", "wishart",
+      "rochedale", "coorparoo", "camp hill", "carina", "cannon hill", "wynnum", "manly", "tingalpa", "belmont",
+      "chandler", "gumdale", "wakerley", "the gap", "ashgrove", "paddington", "milton", "toowong", "taringa",
+      "st lucia", "kenmore", "chapel hill", "brookfield", "pullenvale", "bellbowrie", "moggill", "annerley",
+      "yeronga", "fairfield", "moorooka", "salisbury", "rocklea", "archerfield", "acacia ridge", "coopers plains",
+      "macgregor", "robertson", "tarragindi", "holland park", "greenslopes", "dutton park", "south brisbane",
+      "west end", "highgate hill", "kangaroo point", "east brisbane", "new farm", "teneriffe", "newstead",
+      "fortitude valley", "spring hill", "bowen hills", "herston", "kelvin grove", "red hill", "bardon",
+      "auchenflower", "grange", "wilston", "windsor", "albion", "wooloowin", "lutwyche", "kedron", "stafford",
+      "everton park", "mitchelton", "gaythorne", "enoggera", "keperra", "ferny grove", "bridgeman downs",
+      "mcdowall", "carseldine", "aspley", "zillmere", "geebung", "wavell heights", "nundah", "northgate",
+      "banyo", "virginia", "hendra", "clayfield", "ascot", "hamilton", "pinkenba", "bracken ridge", "bald hills",
+      "fitzgibbon", "taigum", "boondall", "sandgate", "shorncliffe", "brighton", "deagon"
+    ];
+    if (brisbaneKeywords.some((k) => text.includes(k))) {
+      return { region: "Brisbane City Council", fee: 0 };
+    }
+
+    // Redland / Scenic Rim / Other SEQ ($2,227)
+    const otherSeqKeywords = ["redland", "capalaba", "cleveland", "victoria point", "scenic rim", "beaudesert", "boonah", "toowoomba", "lockyer"];
+    if (otherSeqKeywords.some((k) => text.includes(k))) {
+      return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
+    }
+
+    return null;
+  };
+
+  // 1. If explicit NSW job, prioritize NSW councils
+  if (explicitNsw && !explicitQld) {
+    const matched = matchNswCouncil();
+    if (matched) return matched;
     return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
   }
 
-  // If a location is provided but council not matched, flag as unrecognized for consultant review
+  // 2. If explicit QLD job, prioritize QLD councils
+  if (explicitQld && !explicitNsw) {
+    const matched = matchQldCouncil();
+    if (matched) return matched;
+    return { region: "Logan City Council", fee: 2227 };
+  }
+
+  // 3. If state not explicit, check NSW first if address contains NSW indicators
+  const nswCandidate = matchNswCouncil();
+  if (nswCandidate) return nswCandidate;
+
+  const qldCandidate = matchQldCouncil();
+  if (qldCandidate) return qldCandidate;
+
+  // General NSW Address Fallback ($2,000)
+  if (explicitNsw) {
+    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+  }
+
+  // If a location is provided but council not matched, flag as unrecognized
   if (text.length > 2) {
     return { region: "Other / Unlisted Council (Approval Required)", fee: 2200, isUnrecognized: true };
   }
