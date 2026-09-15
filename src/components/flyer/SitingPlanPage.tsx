@@ -53,21 +53,22 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
   useEffect(() => {
     let active = true;
     if (d.floorplanUrl) {
-      scanAndVectorizeFloorplan(d.floorplanUrl, d.designName).then((res) => {
+      scanAndVectorizeFloorplan(d.floorplanUrl, d.designName, d.housingType, d.houseWidthM, d.houseLengthM).then((res) => {
         if (active) setAnalysis(res);
       });
     } else {
-      setAnalysis(generateWallVectorAnalysis(d.designName));
+      setAnalysis(generateWallVectorAnalysis(d.designName, undefined, d.housingType, d.houseWidthM, d.houseLengthM));
     }
     return () => {
       active = false;
     };
-  }, [d.floorplanUrl, d.designName]);
+  }, [d.floorplanUrl, d.designName, d.housingType, d.houseWidthM, d.houseLengthM]);
 
   const siting = useMemo(() => {
     return computeSitingPlan({
       landSizeM2: landAreaM2,
       landFrontageM: frontageM,
+      landDepthM: d.landDepth !== undefined && String(d.landDepth).trim() !== "" ? Number(d.landDepth) : undefined,
       houseAreaM2: floorplanM2,
       designName: d.designName,
       estateName: d.estate,
@@ -81,12 +82,14 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
       customSideSetback: d.sideSetback !== undefined && String(d.sideSetback).trim() !== "" ? Number(d.sideSetback) : undefined,
       customLeftSetback: d.leftSetback !== undefined && String(d.leftSetback).trim() !== "" ? Number(d.leftSetback) : undefined,
       customRightSetback: d.rightSetback !== undefined && String(d.rightSetback).trim() !== "" ? Number(d.rightSetback) : undefined,
+      customRearSetback: d.rearSetback !== undefined && String(d.rearSetback).trim() !== "" ? Number(d.rearSetback) : undefined,
       customBtb: d.isBtb,
       customGarageSide: d.garageSide,
     });
   }, [
     landAreaM2,
     frontageM,
+    d.landDepth,
     floorplanM2,
     d.designName,
     d.estate,
@@ -100,6 +103,7 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
     d.sideSetback,
     d.leftSetback,
     d.rightSetback,
+    d.rearSetback,
     d.isBtb,
     d.garageSide,
     analysis.houseWidthM,
@@ -127,19 +131,19 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
   const lotStartX = (svgViewWidth - lotSvgW) / 2;
   const lotStartY = (svgViewHeight - lotSvgH) / 2;
 
-  // Estate minimum constraints
+  // Estate minimum constraints (for compliance checks and advisory alerts)
   const minSide = d.isBtb ? siting.minBtbSetback : siting.minSideSetback;
   const minFront = siting.minFrontSetback;
   const minRear = siting.minRearSetback;
 
-  // Clamped Setbacks with drag offset (cannot violate estate minimums)
+  // Scaled setbacks with drag offset - unclamped by estate minimums so user-typed overrides shift floorplan to exact position to scale
   const effectiveLeftSetback = Math.max(
-    minSide,
-    Math.min(siting.landFrontage - analysis.houseWidthM - minSide, siting.lhsWallSetback + dragOffsetM.x)
+    0,
+    Math.min(siting.landFrontage - analysis.houseWidthM, siting.lhsWallSetback + dragOffsetM.x)
   );
   const effectiveRearSetback = Math.max(
-    minRear,
-    Math.min(siting.landDepth - analysis.houseLengthM - minFront, siting.rearMasterSetback + dragOffsetM.y)
+    0,
+    Math.min(siting.landDepth - analysis.houseLengthM, siting.rearMasterSetback + dragOffsetM.y)
   );
 
   // House coordinates inside lot SVG
@@ -222,11 +226,15 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
     if (set && (Math.abs(dragOffsetM.x) > 0.02 || Math.abs(dragOffsetM.y) > 0.02)) {
       const finalLeft = Number(effectiveLeftSetback.toFixed(2));
       const finalFront = Number(frontRoomMeasured.toFixed(2));
+      const finalRear = Number(rearLhsMeasured.toFixed(2));
 
       set("leftSetback", finalLeft);
       set("frontSetback", finalFront);
+      set("rearSetback", finalRear);
+      set("garageSetback", Number((finalFront + (analysis.garageStepBackM || 1.20)).toFixed(2)));
+      set("rightSetback", Number((siting.landFrontage - analysis.houseWidthM - finalLeft).toFixed(2)));
       set("isBtb", false);
-      toast.success(`Floorplan positioned: ${finalLeft}m Left, ${finalFront}m Front`);
+      toast.success(`Floorplan positioned: ${finalLeft}m Left, ${finalFront}m Front, ${finalRear}m Rear`);
     }
     setDragOffsetM({ x: 0, y: 0 });
     dragStartRef.current = null;
@@ -240,6 +248,7 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
 
   const applyDimEdit = () => {
     if (!editingDim || !set) return;
+    setDragOffsetM({ x: 0, y: 0 });
     const rawNum = parseFloat(dimInputValue);
     if (isNaN(rawNum) || rawNum < 0) {
       toast.error("Please enter a valid positive number in meters.");
@@ -255,24 +264,30 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
     if (editingDim.field === "front") {
       set("frontSetback", num);
       set("garageSetback", Number((num + (analysis.garageStepBackM || 1.20)).toFixed(2)));
+      set("rearSetback", Number(Math.max(0, siting.landDepth - analysis.houseLengthM - num).toFixed(2)));
       set("isBtb", false);
     } else if (editingDim.field === "garage") {
       set("garageSetback", num);
-      set("frontSetback", Number((num - (analysis.garageStepBackM || 1.20)).toFixed(2)));
+      const calculatedFront = Number((num - (analysis.garageStepBackM || 1.20)).toFixed(2));
+      set("frontSetback", calculatedFront);
+      set("rearSetback", Number(Math.max(0, siting.landDepth - analysis.houseLengthM - calculatedFront).toFixed(2)));
       set("isBtb", false);
     } else if (editingDim.field === "left") {
       set("leftSetback", num);
-      const calculatedRight = Math.max(0.20, Number((siting.landFrontage - analysis.houseWidthM - num).toFixed(2)));
+      const calculatedRight = Number((siting.landFrontage - analysis.houseWidthM - num).toFixed(2));
       set("rightSetback", calculatedRight);
+      set("sideSetback", num);
       set("isBtb", false);
     } else if (editingDim.field === "right") {
       set("rightSetback", num);
-      const calculatedLeft = Math.max(0.20, Number((siting.landFrontage - analysis.houseWidthM - num).toFixed(2)));
+      const calculatedLeft = Number((siting.landFrontage - analysis.houseWidthM - num).toFixed(2));
       set("leftSetback", calculatedLeft);
+      set("sideSetback", num);
       set("isBtb", false);
     } else if (editingDim.field === "rear") {
-      const reqFront = siting.landDepth - analysis.houseLengthM - num;
-      set("frontSetback", Number(reqFront.toFixed(2)));
+      set("rearSetback", num);
+      const reqFront = Number(Math.max(0, siting.landDepth - analysis.houseLengthM - num).toFixed(2));
+      set("frontSetback", reqFront);
       set("garageSetback", Number((reqFront + (analysis.garageStepBackM || 1.20)).toFixed(2)));
       set("isBtb", false);
     }
@@ -815,34 +830,59 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
             </div>
 
             <div className="space-y-[0.8mm] text-[1.95mm]">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+              <div
+                className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm] cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-colors"
+                onClick={() => openDimEditor("front", "Front Room Setback", frontRoomMeasured, minFront)}
+                title="Click to edit Front Room Setback"
+              >
                 <span className="text-brand-ink/70 font-medium">Front Room:</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="font-semibold text-brand-navy flex items-center gap-1">
                   {isOmp ? `${Math.max(0, frontRoomMeasured - 0.45).toFixed(2)} m (OMP)` : `${frontRoomMeasured.toFixed(2)} m`}
+                  <span className="text-[1.5mm] text-amber-500 font-normal">✎</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+              <div
+                className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm] cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-colors"
+                onClick={() => openDimEditor("garage", "Garage Door Setback", garageDoorMeasured, siting.minGarageSetback)}
+                title="Click to edit Garage Door Setback"
+              >
                 <span className="text-brand-ink/70 font-medium">Garage Door:</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="font-semibold text-brand-navy flex items-center gap-1">
                   {isOmp ? `${Math.max(0, garageDoorMeasured - 0.45).toFixed(2)} m (OMP)` : `${garageDoorMeasured.toFixed(2)} m`}
+                  <span className="text-[1.5mm] text-amber-500 font-normal">✎</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+              <div
+                className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm] cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-colors"
+                onClick={() => openDimEditor("left", "LHS Side Setback", lhsMeasured, 0.20)}
+                title="Click to edit LHS Side Setback"
+              >
                 <span className="text-brand-ink/70 font-medium">LHS Wall:</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="font-semibold text-brand-navy flex items-center gap-1">
                   {isOmp ? `${Math.max(0, lhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${lhsMeasured.toFixed(2)} m`}
+                  <span className="text-[1.5mm] text-amber-500 font-normal">✎</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+              <div
+                className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm] cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-colors"
+                onClick={() => openDimEditor("right", "RHS Side Setback", rhsMeasured, 0.20)}
+                title="Click to edit RHS Side Setback"
+              >
                 <span className="text-brand-ink/70 font-medium">RHS Wall:</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="font-semibold text-brand-navy flex items-center gap-1">
                   {d.isBtb ? "0.20m (BTB)" : isOmp ? `${Math.max(0, rhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${rhsMeasured.toFixed(2)} m`}
+                  <span className="text-[1.5mm] text-amber-500 font-normal">✎</span>
                 </span>
               </div>
-              <div className="flex items-center justify-between">
+              <div
+                className="flex items-center justify-between cursor-pointer hover:bg-amber-500/10 rounded px-1 -mx-1 transition-colors"
+                onClick={() => openDimEditor("rear", "Rear Boundary Setback", rearLhsMeasured, minRear)}
+                title="Click to edit Rear Boundary Setback"
+              >
                 <span className="text-brand-ink/70 font-medium">Rear Setback:</span>
-                <span className="font-semibold text-brand-navy">
+                <span className="font-semibold text-brand-navy flex items-center gap-1">
                   {isOmp ? `${Math.max(0, rearLhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${rearLhsMeasured.toFixed(2)} m`}
+                  <span className="text-[1.5mm] text-amber-500 font-normal">✎</span>
                 </span>
               </div>
             </div>
@@ -865,6 +905,115 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
       <div className="mt-auto pt-[1mm]">
         <ContactStrip d={d} />
       </div>
+
+      {/* Dimension Quick Edit Floating Modal */}
+      {editingDim && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setEditingDim(null);
+          }}
+        >
+          <div className="w-full max-w-sm rounded-xl border border-brand-gold/50 bg-slate-900 p-5 shadow-2xl text-slate-100 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-amber-500/15 text-amber-400">
+                  <Ruler className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-100">{editingDim.label}</h3>
+                  <p className="text-[11px] text-slate-400">Position floorplan to exact measurement</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingDim(null)}
+                className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="py-4 space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  Setback Distance (meters)
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseFloat(dimInputValue) || 0;
+                      setDimInputValue(Math.max(0, cur - 0.1).toFixed(2));
+                    }}
+                    className="h-9 px-3 rounded-lg border border-slate-700 bg-slate-800 text-sm font-bold text-slate-200 hover:bg-slate-700 active:scale-95"
+                  >
+                    -0.1m
+                  </button>
+                  <input
+                    type="number"
+                    step="0.05"
+                    autoFocus
+                    value={dimInputValue}
+                    onChange={(e) => setDimInputValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        applyDimEdit();
+                      } else if (e.key === "Escape") {
+                        setEditingDim(null);
+                      }
+                    }}
+                    className="flex-1 h-9 rounded-lg border border-brand-gold/60 bg-slate-950 px-3 text-center text-base font-bold text-amber-300 focus:outline-hidden focus:ring-2 focus:ring-brand-gold"
+                    placeholder="e.g. 3.80"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = parseFloat(dimInputValue) || 0;
+                      setDimInputValue((cur + 0.1).toFixed(2));
+                    }}
+                    className="h-9 px-3 rounded-lg border border-slate-700 bg-slate-800 text-sm font-bold text-slate-200 hover:bg-slate-700 active:scale-95"
+                  >
+                    +0.1m
+                  </button>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-slate-800/60 p-2.5 text-[11px] text-slate-400 space-y-1">
+                <div className="flex justify-between">
+                  <span>Standard Estate Minimum:</span>
+                  <span className="font-semibold text-slate-300">{editingDim.minValue.toFixed(2)}m</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Current Scaled Position:</span>
+                  <span className="font-semibold text-amber-300">{editingDim.currentValue.toFixed(2)}m</span>
+                </div>
+                <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-800">
+                  Floorplan will physically shift to this exact coordinate to scale, regardless of estate guidelines.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingDim(null)}
+                className="flex-1 h-8.5 rounded-lg border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyDimEdit}
+                className="flex-1 h-8.5 rounded-lg bg-brand-gold hover:bg-amber-400 text-slate-950 text-xs font-bold shadow-sm transition-all"
+              >
+                Apply &amp; Position
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

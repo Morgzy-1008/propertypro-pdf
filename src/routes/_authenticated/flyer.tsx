@@ -49,7 +49,16 @@ const A4_WIDTH_PX = 794; // 210mm @ 96dpi
 
 function Index() {
   const [data, setData] = useState<FlyerData>(defaultFlyer);
-  const [template, setTemplate] = useState<TemplateId>("express");
+  const [template, setTemplate] = useState<TemplateId>(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const t = sp.get("template") as TemplateId;
+      if (t && ["express", "siting", "showcase", "house_only"].includes(t)) {
+        return t;
+      }
+    }
+    return "express";
+  });
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const { ref, scale } = useFitScale(A4_WIDTH_PX);

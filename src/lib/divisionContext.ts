@@ -52,3 +52,77 @@ export function onDivisionChanged(listener: (division: Division) => void): () =>
     listeners.delete(listener);
   };
 }
+
+export interface HudsonCompanyInfo {
+  division: Division;
+  isNsw: boolean;
+  companyName: string;
+  abn: string;
+  licenceNumber: string;
+  licenceLabel: string;
+  bankName: string;
+  bsb: string;
+  accountNumber: string;
+  accountNumberRaw: string;
+  headerTitle: string;
+  headOfficeAddress: string;
+  phone: string;
+  website: string;
+}
+
+export function getHudsonCompanyInfo(opts?: {
+  division?: Division;
+  state?: string;
+  postcode?: string;
+  suburb?: string;
+  siteAddress?: string;
+  council?: string;
+  consultantOffice?: string;
+}): HudsonCompanyInfo {
+  const isNsw = Boolean(
+    (opts?.state && opts.state.toUpperCase() === "NSW") ||
+    (opts?.division && opts.division === "NSW") ||
+    (opts?.postcode && opts.postcode.trim().startsWith("2")) ||
+    (opts?.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(opts.suburb)) ||
+    (opts?.council && /nsw|parramatta|blacktown|camden|liverpool|penrith|campbelltown|hills|wollongong|lake macquarie|newcastle|central coast|cessnock|hawkesbury|wollondilly|shellharbour/i.test(opts.council)) ||
+    (opts?.siteAddress && /\bnsw\b/i.test(opts.siteAddress)) ||
+    (opts?.consultantOffice && /nsw|parramatta|marsden/i.test(opts.consultantOffice)) ||
+    (!opts?.state && !opts?.division && !opts?.postcode && !opts?.suburb && getActiveDivision() === "NSW")
+  );
+
+  if (isNsw) {
+    return {
+      division: "NSW",
+      isNsw: true,
+      companyName: "Hudson Homes (NSW) Pty Ltd",
+      abn: "49 163 189 071",
+      licenceNumber: "259372C",
+      licenceLabel: "Licence 259372C",
+      bankName: "Hudson Homes (NSW) Pty Ltd",
+      bsb: "082-778",
+      accountNumber: "77-847-8427",
+      accountNumberRaw: "778478427",
+      headerTitle: "HUDSON HOMES NSW BANK DETAILS",
+      headOfficeAddress: "Level 1, 85 George St, Parramatta NSW 2150",
+      phone: "1300 246 700",
+      website: "www.hudsonhomes.com.au",
+    };
+  }
+
+  return {
+    division: "QLD",
+    isNsw: false,
+    companyName: "Hudson Homes (QLD) Pty Ltd",
+    abn: "92 623 431 685",
+    licenceNumber: "15078318",
+    licenceLabel: "QBCC Licence 15078318",
+    bankName: "Hudson Homes (QLD) Pty Ltd",
+    bsb: "082-778",
+    accountNumber: "74-586-5607",
+    accountNumberRaw: "745865607",
+    headerTitle: "HUDSON HOMES QLD BANK DETAILS",
+    headOfficeAddress: "Level 5, 106 City Road, Beenleigh QLD 4207",
+    phone: "1300 246 700",
+    website: "www.hudsonhomes.com.au",
+  };
+}

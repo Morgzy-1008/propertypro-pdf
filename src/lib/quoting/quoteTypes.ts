@@ -156,6 +156,7 @@ export interface ClientDetails {
   suburb: string;
   estate: string;
   postcode: string;
+  state?: "QLD" | "NSW";
   estimateNumber: string;
   estimateVersion: number;
   // Initial Deposit Options

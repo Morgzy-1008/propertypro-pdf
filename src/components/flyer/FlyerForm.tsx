@@ -383,6 +383,24 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     applyPricing(data.designName, data.range, data.landPrice, uplift, next);
   };
 
+  const setLandFrontage = (v: string) => {
+    set("landFrontage", v);
+    const f = parseFloat(v);
+    const d = parseFloat(String(data.landDepth || ""));
+    if (f > 0 && d > 0) {
+      setLandSize(String(Math.round(f * d)));
+    }
+  };
+
+  const setLandDepth = (v: string) => {
+    set("landDepth", v);
+    const d = parseFloat(v);
+    const f = parseFloat(String(data.landFrontage || ""));
+    if (d > 0 && f > 0) {
+      setLandSize(String(Math.round(f * d)));
+    }
+  };
+
   const toggleLandscaping = (on: boolean) => {
     set("landscaping", on);
     const next = on
@@ -620,12 +638,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
         </div>
         <Field label="Address" value={data.address} onChange={(v) => set("address", v)} />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Field label="Land m²" value={data.landSize} onChange={setLandSize} />
           <Field
             label="Frontage m"
             value={data.landFrontage}
-            onChange={(v) => set("landFrontage", v)}
+            onChange={setLandFrontage}
+          />
+          <Field
+            label="Depth m"
+            value={data.landDepth !== undefined ? String(data.landDepth) : ""}
+            onChange={setLandDepth}
+            placeholder="e.g. 30"
           />
         </div>
       </Section>
@@ -1010,10 +1034,40 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 <Input
                   className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
                   value={data.frontSetback !== undefined ? String(data.frontSetback) : "4.5"}
-                  onChange={(e) => set("frontSetback", e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set("frontSetback", val);
+                    const f = parseFloat(val);
+                    if (!isNaN(f)) {
+                      const d = Number(data.landDepth) > 0 ? Number(data.landDepth) : (Number(data.landSize || 450) / Number(data.landFrontage || 14));
+                      const hLen = data.houseLengthM || 20.15;
+                      set("rearSetback", Number(Math.max(0, d - hLen - f).toFixed(2)));
+                    }
+                  }}
                   placeholder="4.5"
                 />
               </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Rear Setback (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.rearSetback !== undefined ? String(data.rearSetback) : ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    set("rearSetback", val);
+                    const r = parseFloat(val);
+                    if (!isNaN(r)) {
+                      const d = Number(data.landDepth) > 0 ? Number(data.landDepth) : (Number(data.landSize || 450) / Number(data.landFrontage || 14));
+                      const hLen = data.houseLengthM || 20.15;
+                      set("frontSetback", Number(Math.max(0, d - hLen - r).toFixed(2)));
+                    }
+                  }}
+                  placeholder="e.g. 5.35"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[11px] text-slate-400">Garage Setback (m)</Label>
                 <Input
@@ -1023,9 +1077,6 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   placeholder="5.5"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2.5">
               <div className="space-y-1">
                 <Label className="text-[11px] text-slate-400">Side Setback (m)</Label>
                 <Input
@@ -1033,6 +1084,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   value={data.sideSetback !== undefined ? String(data.sideSetback) : "1.0"}
                   onChange={(e) => set("sideSetback", e.target.value)}
                   placeholder="1.0"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Lot Depth (m)</Label>
+                <Input
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.landDepth !== undefined ? String(data.landDepth) : ""}
+                  onChange={(e) => setLandDepth(e.target.value)}
+                  placeholder="e.g. 30"
                 />
               </div>
               <div className="space-y-1">
@@ -1093,12 +1156,20 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               </div>
             </label>
 
-            <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60">
-              <span className="text-amber-300 font-semibold">Calculated Lot Depth: </span>
-              {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
-                ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m`
-                : "32.14m"}
-              <span className="text-slate-500 ml-2">({data.landSize || 450}m² / {data.landFrontage || 14}m)</span>
+            <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60 flex items-center justify-between">
+              <div>
+                <span className="text-amber-300 font-semibold">Active Lot Depth: </span>
+                {data.landDepth && Number(data.landDepth) > 0
+                  ? `${Number(data.landDepth).toFixed(2)}m (specified)`
+                  : data.landSize && data.landFrontage && Number(data.landFrontage) > 0
+                  ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m (calculated)`
+                  : "30.00m"}
+              </div>
+              <span className="text-slate-500 text-[10px]">
+                {data.landDepth && Number(data.landDepth) > 0
+                  ? `${data.landFrontage || 14}m × ${data.landDepth}m = ${Math.round(Number(data.landFrontage || 14) * Number(data.landDepth))}m²`
+                  : `${data.landSize || 450}m² / ${data.landFrontage || 14}m`}
+              </span>
             </div>
           </div>
         </Section>

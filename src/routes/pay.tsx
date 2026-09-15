@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { EftPaymentPortal, type EftPaymentDetails } from "@/components/quoting/EftPaymentPortal";
 import { getQuoteById } from "@/lib/quoting/quoteStorage";
+import { getHudsonCompanyInfo } from "@/lib/divisionContext";
 
 interface PaySearchParams {
   bsb?: string;
@@ -44,24 +45,35 @@ export const Route = createFileRoute("/pay")({
 function PayRoutePage() {
   const search = Route.useSearch();
   let quoteDetails: Partial<EftPaymentDetails> = {};
+  let company = getHudsonCompanyInfo();
 
   if (search.quoteId) {
     const q = getQuoteById(search.quoteId);
     if (q) {
+      company = getHudsonCompanyInfo({
+        state: q.client.state,
+        postcode: q.client.postcode,
+        suburb: q.client.suburb,
+        siteAddress: q.client.siteAddress,
+        consultantOffice: q.client.consultantOffice,
+      });
       const lastName = q.client.clientName.trim().split(/\s+/).pop() || "Client";
       const quoteNum = q.client.estimateNumber || q.quoteNumber || "Quote";
       quoteDetails = {
         amount: q.client.depositAmount || 1650,
         reference: `${lastName}-${quoteNum}`,
         clientName: q.client.clientName,
+        accountName: company.bankName,
+        accountNumber: company.accountNumber,
+        bsb: company.bsb,
       };
     }
   }
 
   const details: EftPaymentDetails = {
-    accountName: search.name || quoteDetails.accountName || "Hudson Homes (QLD) Pty Ltd",
-    bsb: search.bsb || quoteDetails.bsb || "082 778",
-    accountNumber: search.acc || quoteDetails.accountNumber || "74-586-5607",
+    accountName: search.name || quoteDetails.accountName || company.bankName,
+    bsb: search.bsb || quoteDetails.bsb || company.bsb,
+    accountNumber: search.acc || quoteDetails.accountNumber || company.accountNumber,
     reference: search.ref || quoteDetails.reference || "Deposit-Quote",
     amount: search.amt || quoteDetails.amount || 1650,
     bankName: search.bank || quoteDetails.bankName || "National Australia Bank (NAB)",

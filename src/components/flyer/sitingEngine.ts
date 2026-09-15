@@ -257,8 +257,9 @@ export function matchEstatePreset(estateName: string, suburbName: string): Estat
 const HUDSON_EXACT_DIMENSIONS: Record<string, { width: number; length: number; stepOut?: number }> = {
   "Amber 21": { width: 10.55, length: 20.15, stepOut: 0.0 },
   "Amber 23": { width: 11.20, length: 21.00, stepOut: 0.0 },
-  "Amber 26": { width: 11.90, length: 22.40, stepOut: 0.0 },
+  "Amber 26": { width: 11.20, length: 20.15, stepOut: 0.0 },
   "Amber 30": { width: 12.60, length: 24.50, stepOut: 0.0 },
+  "Azure 19": { width: 10.55, length: 18.50, stepOut: 0.0 },
   "Amaranth 23": { width: 10.80, length: 21.20, stepOut: 0.0 },
   "Amaranth 23A": { width: 10.80, length: 21.20, stepOut: 0.0 },
   "Amaranth 23B": { width: 10.80, length: 21.20, stepOut: 0.0 },
@@ -380,6 +381,7 @@ export interface SitingCalculations {
 export function computeSitingPlan({
   landSizeM2,
   landFrontageM,
+  landDepthM,
   houseAreaM2,
   designName = "",
   estateName = "",
@@ -393,11 +395,13 @@ export function computeSitingPlan({
   customSideSetback,
   customLeftSetback,
   customRightSetback,
+  customRearSetback,
   customBtb,
   customGarageSide,
 }: {
   landSizeM2: number;
   landFrontageM: number;
+  landDepthM?: number;
   houseAreaM2: number;
   designName?: string;
   estateName?: string;
@@ -411,6 +415,7 @@ export function computeSitingPlan({
   customSideSetback?: number;
   customLeftSetback?: number;
   customRightSetback?: number;
+  customRearSetback?: number;
   customBtb?: boolean;
   customGarageSide?: "left" | "right";
 }): SitingCalculations {
@@ -424,9 +429,11 @@ export function computeSitingPlan({
     ? ESTATE_PRESETS.find((p) => p.id === "custom")!
     : matchedPreset;
 
-  const frontage = Math.max(6.0, landFrontageM || 14.0);
-  const landArea = Math.max(150, landSizeM2 || 450);
-  const depth = Math.round((landArea / frontage) * 100) / 100;
+  const frontage = Math.max(4.0, landFrontageM || 14.0);
+  const depth = landDepthM && landDepthM > 0
+    ? Math.round(landDepthM * 100) / 100
+    : Math.round(((landSizeM2 || 450) / frontage) * 100) / 100;
+  const landArea = landSizeM2 && landSizeM2 > 0 ? landSizeM2 : Math.round(frontage * depth);
 
   const geometry = getDesignGeometry(designName, houseAreaM2, frontage, housingType);
   const hWidth = houseWidthM && houseWidthM > 0 ? houseWidthM : geometry.houseWidth;
@@ -445,14 +452,16 @@ export function computeSitingPlan({
   let garageFrontSetback = defaultGarageReq;
   let frontRoomSetback = Math.max(preset.frontSetback, Math.round((garageFrontSetback - stepBack) * 100) / 100);
 
-  if (customGarageSetback !== undefined && customGarageSetback >= 0 && customFrontSetback !== undefined && customFrontSetback >= 0) {
-    garageFrontSetback = customGarageSetback;
+  if (customFrontSetback !== undefined && customFrontSetback >= 0) {
     frontRoomSetback = customFrontSetback;
+    garageFrontSetback = customGarageSetback !== undefined && customGarageSetback >= 0
+      ? customGarageSetback
+      : Math.round((frontRoomSetback + stepBack) * 100) / 100;
   } else if (customGarageSetback !== undefined && customGarageSetback >= 0) {
     garageFrontSetback = customGarageSetback;
     frontRoomSetback = Math.round((garageFrontSetback - stepBack) * 100) / 100;
-  } else if (customFrontSetback !== undefined && customFrontSetback >= 0) {
-    frontRoomSetback = customFrontSetback;
+  } else if (customRearSetback !== undefined && customRearSetback >= 0) {
+    frontRoomSetback = Math.max(0, Math.round((depth - hLength - customRearSetback) * 100) / 100);
     garageFrontSetback = Math.round((frontRoomSetback + stepBack) * 100) / 100;
   }
 
@@ -502,7 +511,10 @@ export function computeSitingPlan({
   }
 
   // 3. REAR SETBACKS:
-  const rearMasterSetback = Math.max(0, Math.round((depth - hLength - frontRoomSetback) * 100) / 100);
+  let rearMasterSetback = Math.max(0, Math.round((depth - hLength - frontRoomSetback) * 100) / 100);
+  if (customRearSetback !== undefined && customRearSetback >= 0 && customFrontSetback === undefined) {
+    rearMasterSetback = customRearSetback;
+  }
   const familyRearSetback = Math.round((rearMasterSetback + geometry.alfrescoRecess) * 100) / 100;
 
   // 4. METRICS:

@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { ALL_STAFF_CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { formatAud } from "@/lib/pricing";
+import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
 import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
 import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
@@ -511,7 +512,41 @@ export function QuoteClientDetails({
             <Input
               value={client.suburb}
               onChange={(e) => handleAddressChange({ suburb: e.target.value })}
-              placeholder="e.g. Flagstone / Coomera / Ripley"
+              placeholder="e.g. Flagstone / Coomera / Ripley / Parramatta"
+              className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
+            />
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-1 md:col-span-1">
+            <Label className="text-[11px] text-slate-400">State</Label>
+            <Select
+              value={client.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")}
+              onValueChange={(val: "QLD" | "NSW") => {
+                handleAddressChange({ state: val });
+                setActiveDivision(val);
+              }}
+            >
+              <SelectTrigger className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100">
+                <SelectValue placeholder="State" />
+              </SelectTrigger>
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                <SelectItem value="QLD">QLD</SelectItem>
+                <SelectItem value="NSW">NSW</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5 sm:col-span-1 md:col-span-1">
+            <Label className="text-[11px] text-slate-400">Postcode</Label>
+            <Input
+              value={client.postcode || ""}
+              onChange={(e) => {
+                const pc = e.target.value;
+                const stateGuess = pc.startsWith("2") ? "NSW" : pc.startsWith("4") ? "QLD" : undefined;
+                handleAddressChange({ postcode: pc, ...(stateGuess ? { state: stateGuess } : {}) });
+                if (stateGuess) setActiveDivision(stateGuess);
+              }}
+              placeholder="e.g. 4280 / 2150"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>

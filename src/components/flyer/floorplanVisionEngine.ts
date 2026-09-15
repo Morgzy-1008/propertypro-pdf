@@ -111,6 +111,28 @@ export const HUDSON_CAD_REGISTRY: Record<string, {
     familyRearX: 0.82,
     rhsMainWallX: 1.0,
   },
+  "Amber 26": {
+    width: 11.20,
+    length: 20.15,
+    totalM2: 241.56,
+    garageM2: 35.20,
+    garageDims: "5.9m × 5.7m",
+    alfrescoM2: 14.50,
+    alfrescoDims: "4.8m × 3.0m",
+    porchM2: 3.46,
+    porchDims: "1.8m × 1.5m",
+    livingM2: 188.40,
+    garageStepOutM: 0.0,
+    garageStepBackM: 1.20,
+    garageDoorX1: 0.48,
+    garageDoorX2: 0.96,
+    garageDoorY: 0.94,
+    frontLivingY: 1.0,
+    rearMasterY: 0.0,
+    familyRearY: 0.22,
+    familyRearX: 0.82,
+    rhsMainWallX: 1.0,
+  },
   "Azure 19": {
     width: 10.55,
     length: 18.50,
@@ -179,7 +201,13 @@ export const HUDSON_CAD_REGISTRY: Record<string, {
   },
 };
 
-export function generateWallVectorAnalysis(designName = "", croppedUrl?: string, housingType = ""): WallVectorAnalysis {
+export function generateWallVectorAnalysis(
+  designName = "",
+  croppedUrl?: string,
+  housingType = "",
+  customWidth?: number,
+  customLength?: number
+): WallVectorAnalysis {
   let matchedKey = "Amber 21";
   for (const k of Object.keys(HUDSON_CAD_REGISTRY)) {
     if (designName.toLowerCase().includes(k.toLowerCase())) {
@@ -189,8 +217,8 @@ export function generateWallVectorAnalysis(designName = "", croppedUrl?: string,
   }
 
   const cad = HUDSON_CAD_REGISTRY[matchedKey] || HUDSON_CAD_REGISTRY["Amber 21"];
-  const W = cad.width;
-  const L = cad.length;
+  const W = customWidth && customWidth > 0 ? customWidth : cad.width;
+  const L = customLength && customLength > 0 ? customLength : cad.length;
 
   return {
     croppedUrl,
@@ -219,7 +247,7 @@ export function generateWallVectorAnalysis(designName = "", croppedUrl?: string,
       totalM2: cad.totalM2,
       garageDimensions: cad.garageDims,
       alfrescoDimensions: cad.alfrescoDims,
-      porchDimensions: cad.porchDims,
+      porchDimensions: cad.porchDimensions || cad.porchDims,
     },
     isBtbCapable: cad.garageStepOutM > 0,
     garageStepOutM: cad.garageStepOutM,
@@ -229,13 +257,19 @@ export function generateWallVectorAnalysis(designName = "", croppedUrl?: string,
 
 const scanCache = new Map<string, WallVectorAnalysis>();
 
-export async function scanAndVectorizeFloorplan(imageUrl: string, designName = "", housingType = ""): Promise<WallVectorAnalysis> {
-  const cacheKey = `${imageUrl}_${designName}_${housingType}`;
+export async function scanAndVectorizeFloorplan(
+  imageUrl: string,
+  designName = "",
+  housingType = "",
+  customWidth?: number,
+  customLength?: number
+): Promise<WallVectorAnalysis> {
+  const cacheKey = `${imageUrl}_${designName}_${housingType}_${customWidth || ""}_${customLength || ""}`;
   if (scanCache.has(cacheKey)) {
     return scanCache.get(cacheKey)!;
   }
 
-  const baseAnalysis = generateWallVectorAnalysis(designName, undefined, housingType);
+  const baseAnalysis = generateWallVectorAnalysis(designName, undefined, housingType, customWidth, customLength);
 
   if (typeof window === "undefined" || !imageUrl) {
     return baseAnalysis;

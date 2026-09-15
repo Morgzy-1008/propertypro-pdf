@@ -35,6 +35,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
+import { getHudsonCompanyInfo } from "@/lib/divisionContext";
 import type { FullQuote, InclusionTier } from "@/lib/quoting/quoteTypes";
 import {
   DOUBLE_STOREY_PRICES,
@@ -1403,133 +1404,124 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           </div>
 
           {/* Official NAB Bank Account Details with 1-Tap Copy Buttons */}
-          <div className="border border-slate-800 rounded-xl p-5 bg-slate-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-            <div className="space-y-3 text-xs flex-1">
-              <div className="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center justify-between">
-                <span className="flex items-center gap-1.5">
-                  <Building className="h-3.5 w-3.5" />
-                  {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
-                    ? "HUDSON HOMES NSW BANK DETAILS"
-                    : "HUDSON HOMES QLD BANK DETAILS"}
-                </span>
-                <span className="text-slate-400 font-mono text-[10px]">National Australia Bank</span>
+          {(() => {
+            const company = getHudsonCompanyInfo({
+              state: quote.client.state,
+              postcode: quote.client.postcode,
+              suburb: quote.client.suburb,
+              siteAddress: quote.client.siteAddress,
+              consultantOffice: quote.client.consultantOffice,
+            });
+            return (
+              <div className="border border-slate-800 rounded-xl p-5 bg-slate-950/80 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                <div className="space-y-3 text-xs flex-1">
+                  <div className="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Building className="h-3.5 w-3.5" />
+                      {company.headerTitle}
+                    </span>
+                    <span className="text-slate-400 font-mono text-[10px]">National Australia Bank</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Account Name */}
+                    <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">Account Name:</span>
+                        <span className="font-semibold text-white">
+                          {company.bankName}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(company.bankName, "Account Name")}
+                        className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
+                        title="Copy Account Name"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Bank */}
+                    <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                      <span className="text-slate-500 text-[10px] block">Bank Institution:</span>
+                      <span className="font-semibold text-white">National Australia Bank (NAB)</span>
+                    </div>
+
+                    {/* BSB Number */}
+                    <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">BSB Number:</span>
+                        <span className="font-bold font-mono text-base text-emerald-400 tracking-wider">{company.bsb}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(company.bsb, "BSB Number")}
+                        className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
+                        title="Copy BSB"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Account Number */}
+                    <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">Account Number:</span>
+                        <span className="font-bold font-mono text-base text-white tracking-wider">
+                          {company.accountNumber}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(company.accountNumberRaw, "Account Number")}
+                        className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
+                        title="Copy Account Number"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* EFT Reference */}
+                    <div className="col-span-1 sm:col-span-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
+                      <div>
+                        <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
+                        <span className="font-bold font-mono text-emerald-400 text-sm">
+                          {paymentReference}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(paymentReference, "Payment Reference")}
+                        className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
+                        title="Copy Reference"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Real Dynamic Payment QR Code */}
+                <div className="flex flex-col items-center justify-center p-3 bg-slate-900 border border-slate-800 rounded-xl text-center flex-none">
+                  <PaymentQrCode
+                    accountName={company.bankName}
+                    bsb={company.bsb}
+                    accountNumber={company.accountNumber}
+                    amount={quote.client.depositAmount || 1650}
+                    reference={paymentReference}
+                    size={100}
+                  />
+                  <span className="text-[10px] font-bold text-slate-300 mt-2 uppercase font-mono tracking-wider">
+                    Scan with Banking App
+                  </span>
+                  <span className="text-[9px] text-slate-500 mt-0.5">
+                    Pre-fills BSB, Acc &amp; Ref
+                  </span>
+                </div>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                {/* Account Name */}
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Account Name:</span>
-                    <span className="font-semibold text-white">
-                      {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
-                        ? "Hudson Homes (NSW) Pty Ltd"
-                        : "Hudson Homes (QLD) Pty Ltd"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
-                          ? "Hudson Homes (NSW) Pty Ltd"
-                          : "Hudson Homes (QLD) Pty Ltd",
-                        "Account Name"
-                      )
-                    }
-                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
-                    title="Copy Account Name"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* Bank */}
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-                  <span className="text-slate-500 text-[10px] block">Bank Institution:</span>
-                  <span className="font-semibold text-white">National Australia Bank (NAB)</span>
-                </div>
-
-                {/* BSB Number */}
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">BSB Number:</span>
-                    <span className="font-bold font-mono text-base text-emerald-400 tracking-wider">082 778</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard("082-778", "BSB Number")}
-                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
-                    title="Copy BSB"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* Account Number */}
-                <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                    <span className="font-bold font-mono text-base text-white tracking-wider">
-                      {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
-                        ? "77-847-8427"
-                        : "74-586-5607"}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      copyToClipboard(
-                        quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
-                          ? "778478427"
-                          : "745865607",
-                        "Account Number"
-                      )
-                    }
-                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
-                    title="Copy Account Number"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {/* EFT Reference */}
-                <div className="col-span-1 sm:col-span-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-                  <div>
-                    <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
-                    <span className="font-bold font-mono text-emerald-400 text-sm">
-                      {paymentReference}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(paymentReference, "Payment Reference")}
-                    className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
-                    title="Copy Reference"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Real Dynamic Payment QR Code */}
-            <div className="flex flex-col items-center justify-center p-3 bg-slate-900 border border-slate-800 rounded-xl text-center flex-none">
-              <PaymentQrCode
-                accountName="Hudson Homes (QLD) Pty Ltd"
-                bsb="082 778"
-                accountNumber="74-586-5607"
-                amount={quote.client.depositAmount || 1650}
-                reference={paymentReference}
-                size={100}
-              />
-              <span className="text-[10px] font-bold text-slate-300 mt-2 uppercase font-mono tracking-wider">
-                Scan with Banking App
-              </span>
-              <span className="text-[9px] text-slate-500 mt-0.5">
-                Pre-fills BSB, Acc &amp; Ref
-              </span>
-            </div>
-          </div>
+            );
+          })()}
         </div>
       </main>
     </div>

@@ -3,6 +3,7 @@ import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from 
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { SINGLE_STOREY_PRICES } from "@/lib/pricelist.data";
 import { getActiveStaffUser } from "@/lib/authSession";
+import { getActiveDivision } from "@/lib/divisionContext";
 import type {
   CatalogueItem,
   FullQuote,
@@ -293,6 +294,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
       suburb: "",
       estate: "",
       postcode: "",
+      state: getActiveDivision() === "NSW" ? "NSW" : "QLD",
       estimateNumber: estimateNo,
       estimateVersion: 1,
       depositType: "greenfield",

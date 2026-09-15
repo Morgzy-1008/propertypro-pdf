@@ -1,6 +1,7 @@
 import React from "react";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { formatAud } from "@/lib/pricing";
+import { getHudsonCompanyInfo } from "@/lib/divisionContext";
 import type { TenderSubmission } from "@/lib/tender/tenderTypes";
 import { Check, CheckCircle2, ShieldCheck } from "lucide-react";
 
@@ -19,6 +20,14 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
   const isKdr = atp.feeType === "kdr_duplex_3300";
   const isPackage = atp.feeType === "package_3000";
   const isCustom = atp.isCustomDesignAddon || atp.feeType === "custom_design_800";
+
+  const company = getHudsonCompanyInfo({
+    suburb: land.suburb,
+    state: tender.currentHomeAddress?.state,
+    postcode: tender.currentHomeAddress?.postcode,
+    council: land.council,
+    consultantOffice: consultantDisplayOffice,
+  });
 
   return (
     <div className="quote-page bg-white min-h-[297mm] p-10 flex flex-col justify-between text-slate-900 shadow-2xl print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
@@ -189,9 +198,9 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
           </div>
           <div className="grid grid-cols-3 gap-2 text-[11px] text-slate-700 bg-white p-2 rounded border border-slate-200">
             <div><strong>Bank:</strong> National Australia Bank (NAB)</div>
-            <div><strong>Account Name:</strong> Hudson Homes (QLD) Pty Ltd</div>
-            <div><strong>BSB:</strong> 082 - 778</div>
-            <div><strong>Account No:</strong> 74-586-5607</div>
+            <div><strong>Account Name:</strong> {company.bankName}</div>
+            <div><strong>BSB:</strong> {company.bsb}</div>
+            <div><strong>Account No:</strong> {company.accountNumber}</div>
             <div className="col-span-2"><strong>Remittance Reference:</strong> <span className="font-mono font-bold text-slate-900">{atp.eftReference}</span></div>
           </div>
         </div>
@@ -199,7 +208,7 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
 
       {/* Footer */}
       <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
-        <div>Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C</div>
+        <div>{company.companyName} · ABN: {company.abn} · {company.licenceLabel}</div>
         <div className="flex items-center gap-4">
           <div className="border border-slate-400 px-3 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded">
             CUSTOMER INITIAL

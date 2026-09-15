@@ -13,6 +13,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { isLocalhost } from "@/lib/isLocalhost";
+import { getHudsonCompanyInfo } from "@/lib/divisionContext";
 import {
   CheckCircle2,
   Award,
@@ -998,21 +999,23 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const specPages = paginateSpecGroups(allSpecGroups);
   const totalPages = (hasSecondDwelling ? 4 : 3) + specPages.length + 2;
 
-  const isNswQuote = Boolean(
-    (client.postcode && client.postcode.trim().startsWith("2")) ||
-    (client.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(client.suburb)) ||
-    (siteConditions.councilRegion && /nsw|parramatta|blacktown|camden|liverpool|penrith|campbelltown|hills|wollongong|lake macquarie|newcastle|central coast|cessnock|hawkesbury|wollondilly|shellharbour/i.test(siteConditions.councilRegion)) ||
-    (client.siteAddress && /\bnsw\b/i.test(client.siteAddress)) ||
-    (client.consultantOffice && /nsw|parramatta|marsden/i.test(client.consultantOffice))
-  );
-
-  const bankAccountName = isNswQuote ? "Hudson Homes (NSW) Pty Ltd" : "Hudson Homes (QLD) Pty Ltd";
-  const bankHeaderTitle = isNswQuote ? "HUDSON HOMES NSW BANK DETAILS" : "HUDSON HOMES QLD BANK DETAILS";
-  const bankBsb = "082 778";
-  const bankAccountNumber = isNswQuote ? "77-847-8427" : "74-586-5607";
-  const headOfficeAddress = isNswQuote
-    ? "Level 1, 85 George St, Parramatta NSW 2150"
-    : "Level 5, 106 City Road, Beenleigh QLD 4207";
+  const company = getHudsonCompanyInfo({
+    state: client.state,
+    postcode: client.postcode,
+    suburb: client.suburb,
+    siteAddress: client.siteAddress,
+    council: siteConditions.councilRegion,
+    consultantOffice: client.consultantOffice,
+  });
+  const isNswQuote = company.isNsw;
+  const bankAccountName = company.bankName;
+  const bankHeaderTitle = company.headerTitle;
+  const bankBsb = company.bsb;
+  const bankAccountNumber = company.accountNumber;
+  const headOfficeAddress = company.headOfficeAddress;
+  const footerLicenceLine = company.isNsw
+    ? "Hudson Homes (NSW) Pty Ltd · ABN 49 163 189 071 · Licence 259372C"
+    : "Hudson Homes (QLD) Pty Ltd · ABN 92 623 431 685 · QBCC Licence 15078318";
 
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
@@ -1147,7 +1150,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* Cover Page Footer */}
           <div className="relative z-10 pt-4 flex items-center justify-between text-[10px] text-slate-500">
             <div>
-              Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
+              {footerLicenceLine}
             </div>
             <div className="font-mono">
               Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
@@ -1301,7 +1304,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* Cover Page Footer */}
           <div className="relative z-10 pt-3 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200">
             <div className="font-medium">
-              Hudson Homes Pty Ltd · ABN 49 163 189 071 · Licence 259372C
+              {footerLicenceLine}
             </div>
             <div className="font-mono font-semibold text-slate-700">
               Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
@@ -1554,7 +1557,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         {/* Page 2 Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+            {footerLicenceLine}
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
@@ -1658,7 +1661,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         {/* Page 3 Footer */}
         <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
           <div>
-            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+            {footerLicenceLine}
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
@@ -1758,7 +1761,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {/* Page 4 Footer */}
           <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500 flex-none mt-2">
             <div>
-              Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+              {footerLicenceLine}
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-1.5">
@@ -1892,7 +1895,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             {/* Spec Page Footer */}
             <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
               <div>
-                Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+                {footerLicenceLine}
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1.5">
@@ -2085,7 +2088,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         {/* Inclusions Page Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+            {footerLicenceLine}
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
@@ -2287,7 +2290,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         {/* Final Page Footer */}
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
           <div>
-            Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
+            {footerLicenceLine}
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
