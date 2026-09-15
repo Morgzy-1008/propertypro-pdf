@@ -436,6 +436,22 @@ html.normal-mode,
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
+.normal-mode aside .sticky {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode aside .sticky button {
+  background-color: #f1f5f9 !important;
+  color: #334155 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.normal-mode aside .sticky button:hover {
+  background-color: #fef3c7 !important;
+  color: #92400e !important;
+}
+
 .normal-mode aside label {
   color: #334155 !important;
   font-weight: 600 !important;

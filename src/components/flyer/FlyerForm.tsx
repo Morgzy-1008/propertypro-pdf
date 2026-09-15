@@ -72,9 +72,9 @@ function Field({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <div className="space-y-3.5 pt-1">
+    <div id={id} className="space-y-3.5 pt-1 scroll-mt-14">
       <h3 className="text-[11px] font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400 uppercase">
         {title}
       </h3>
@@ -556,8 +556,65 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   };
 
   return (
-    <div className="space-y-7">
-      <Section title="Location">
+    <div className="space-y-7 relative">
+      {/* Sticky Quick-Jump Navigation Bar */}
+      <div className="sticky -top-5 z-20 -mx-5 -mt-5 mb-3 border-b border-slate-800/80 bg-slate-900/95 px-4 py-2.5 backdrop-blur-xl shadow-md">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-location")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Location
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-package")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Package
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-facade")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Facade
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-costs")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Costs
+          </button>
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-consultant")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Consultant
+          </button>
+          {template === "siting" && (
+            <button
+              type="button"
+              onClick={() => document.getElementById("section-siting")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="px-2.5 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm"
+            >
+              Siting & Setbacks
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => document.getElementById("section-terms")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+          >
+            Terms
+          </button>
+        </div>
+      </div>
+
+      <Section id="section-location" title="Location">
         <div className="grid grid-cols-2 gap-3">
           <Field label="Suburb" value={data.suburb} onChange={(v) => onLocationChange("suburb", v)} />
           <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
@@ -574,7 +631,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       </Section>
 
 
-      <Section title="Package">
+      <Section id="section-package" title="Package">
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="Package price (total)"
@@ -710,7 +767,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </Section>
       </Section>
 
-      <Section title="Facade">
+      <Section id="section-facade" title="Facade">
         <div className="flex gap-2">
           <div className="flex-1">
             <FacadeLibrary
@@ -808,7 +865,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         )}
       </Section>
 
-      <Section title="Additional costs (automated, adjustable)">
+      <Section id="section-costs" title="Additional costs (automated, adjustable)">
         <div className="space-y-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
           <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
             <input
@@ -877,12 +934,12 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
-      <Section title="Consultant (footer + QR code)">
+      <Section id="section-consultant" title="Consultant (footer + QR code)">
         <ConsultantPicker data={data} set={set} />
       </Section>
 
       {template === "siting" && (
-        <Section title="Siting & Setbacks (2-Page + Siting Plan)">
+        <Section id="section-siting" title="Siting & Setbacks (2-Page + Siting Plan)">
           <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
             <div className="space-y-1.5">
               <Label className="text-xs tracking-wide text-muted-foreground">Estate Setback Preset (POD)</Label>
@@ -1047,7 +1104,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </Section>
       )}
 
-      <Section title="Terms & conditions (footer)">
+      <Section id="section-terms" title="Terms & conditions (footer)">
         <div className="space-y-2.5">
           <div className="grid grid-cols-3 gap-1.5">
             <button

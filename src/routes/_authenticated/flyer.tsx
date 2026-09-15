@@ -271,12 +271,12 @@ function Index() {
 
   return (
     <>
-      <div className={`min-h-screen ${mode === "normal" ? "bg-slate-100 text-slate-900" : "bg-slate-950 text-slate-100"} print:hidden relative overflow-hidden flex flex-col font-sans selection:bg-brand-gold/30`}>
+      <div className={`h-screen ${mode === "normal" ? "bg-slate-100 text-slate-900" : "bg-slate-950 text-slate-100"} print:hidden relative overflow-hidden flex flex-col font-sans selection:bg-brand-gold/30`}>
         {/* Ambient Gradient Lights */}
         <div className="ambient-glow-gold h-96 w-96 -top-20 right-10" />
         <div className="ambient-glow-cyan h-96 w-96 top-96 -left-20" />
 
-        <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+        <header className="flex-shrink-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-4 px-6 py-2.5">
             <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
               <HudsonMark className="h-8 w-auto text-brand-gold" />
@@ -376,17 +376,19 @@ function Index() {
           </div>
         </header>
 
-        <main className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[380px_1fr] relative z-10 flex-1">
-          <aside className="h-fit rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-5 shadow-2xl lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto text-slate-200 custom-scrollbar overscroll-contain">
+        <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10 min-h-0">
+          {/* Continuous LHS Toolbar - carries down the entire page height */}
+          <aside className={`w-full lg:w-[420px] xl:w-[450px] flex-shrink-0 h-full overflow-y-auto border-r ${mode === "normal" ? "border-slate-200 bg-white" : "border-slate-800/80 bg-slate-900/90"} backdrop-blur-xl p-5 shadow-2xl text-slate-200 custom-scrollbar overscroll-contain`}>
             <FlyerForm data={data} set={set} template={template} />
           </aside>
 
-          <section ref={ref} className="min-w-0 flex justify-center lg:justify-start">
+          {/* Flyer Preview Viewport - scrolls smoothly without displacing LHS bar */}
+          <section ref={ref} className="flex-1 h-full overflow-y-auto p-6 lg:p-8 flex justify-center custom-scrollbar">
             <div
-              className="flex flex-col items-start gap-6"
+              className="flex flex-col items-center gap-6 pb-16"
               style={{
                 transform: `scale(${scale})`,
-                transformOrigin: "top left",
+                transformOrigin: "top center",
                 height: (template === "showcase" || template === "siting" ? 1123 * 2 + 24 : 1123) * scale,
               }}
             >
