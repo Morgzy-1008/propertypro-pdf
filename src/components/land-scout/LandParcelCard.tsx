@@ -174,104 +174,102 @@ export function LandParcelCard({
         {/* Deal Score & Valuation Meter Pill */}
         <div className="mt-3">
           <div
+            data-testid="deal-score-pill"
             onClick={() => onViewValuation(parcel)}
             className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
               val.dealScoreRating === "strong_buy"
                 ? "bg-emerald-950/20 border-emerald-500/40 hover:bg-emerald-950/30"
-                : val.dealScoreRating === "speculative_buy"
-                ? "bg-cyan-950/20 border-cyan-500/40 hover:bg-cyan-950/30"
-                : "bg-amber-950/20 border-brand-gold/30 hover:bg-amber-950/30"
+                : val.dealScoreRating === "fair_deal"
+                ? "bg-amber-950/20 border-amber-500/40 hover:bg-amber-950/30"
+                : "bg-slate-900 border-slate-700 hover:bg-slate-800"
             }`}
           >
             <div className="flex items-center gap-2">
-              <div
-                className={`h-7 w-7 rounded-lg flex items-center justify-center font-bold text-xs ${
+              <span
+                className={`h-7 w-7 rounded-lg text-xs font-black flex items-center justify-center ${
                   val.dealScoreRating === "strong_buy"
-                    ? "bg-emerald-500/20 text-emerald-400"
-                    : val.dealScoreRating === "speculative_buy"
-                    ? "bg-cyan-500/20 text-cyan-300"
-                    : "bg-amber-500/20 text-amber-300"
+                    ? "bg-emerald-500 text-slate-950"
+                    : val.dealScoreRating === "fair_deal"
+                    ? "bg-amber-400 text-slate-950"
+                    : "bg-slate-700 text-white"
                 }`}
               >
                 {val.dealScorePoints}
-              </div>
+              </span>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-slate-200">
-                    {val.dealScoreRating === "strong_buy" && "🔥 Strong Buy"}
-                    {val.dealScoreRating === "speculative_buy" && "✨ High Spec Yield"}
-                    {val.dealScoreRating === "fair_value" && "✅ Fair Market Value"}
-                    {val.dealScoreRating === "premium" && "⚠️ Premium Lot"}
+                <span className="text-xs font-bold text-white flex items-center gap-1">
+                  {val.dealScoreRating === "strong_buy" && "🔥 Strong Buy"}
+                  {val.dealScoreRating === "fair_deal" && "Fair Value Deal"}
+                  {val.dealScoreRating === "premium_lot" && "⚠️ Premium Lot"}
+                  <span className="text-[10px] font-normal text-slate-400">
+                    ({val.variancePercent >= 0 ? `+${val.variancePercent}%` : `${val.variancePercent}%`} vs median)
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    ({val.priceDeltaPercent <= 0 ? `${Math.abs(val.priceDeltaPercent)}% below median` : `+${val.priceDeltaPercent}% above median`})
-                  </span>
-                </div>
-                <span className="text-[10px] text-emerald-400 block font-medium">
-                  +${(val.projectedGrossEquityMargin / 1000).toFixed(0)}k Projected Finished Equity ({val.projectedEquityMarginPercent}%)
+                </span>
+                <span className="block text-[10px] text-slate-400">
+                  +${Math.round(val.projectedFinishedEquity / 1000)}k Projected Finished Equity ({val.marginOnCompletionPercent}%)
                 </span>
               </div>
             </div>
 
-            <span className="text-[10px] font-semibold text-brand-gold underline underline-offset-2 flex items-center gap-0.5">
-              <Scale className="h-3 w-3" />
-              Comps
+            <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1 hover:text-white">
+              <Scale className="h-3 w-3 text-brand-gold" />
+              <span>Comps</span>
             </span>
           </div>
         </div>
 
         {/* Site Feasibility Strip */}
         <div className="mt-3 flex items-center gap-1.5 flex-wrap text-[10px]">
-          <span className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/80">
+          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700">
             Fall: {parcel.feasibility.fallEstimateM}m ({parcel.feasibility.slopeCategory})
           </span>
-          <span className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-300 border border-slate-700/80">
+          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-200 border border-slate-700">
             {parcel.feasibility.balRating}
           </span>
           {parcel.feasibility.isBtbPermissible && (
-            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-medium">
+            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold">
               BTB Allowed
             </span>
           )}
-          <span className="px-2 py-0.5 rounded-md bg-slate-800/90 text-slate-400 border border-slate-700/80">
-            {parcel.feasibility.soilProfileSummary.slice(0, 24)}…
+          <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+            {parcel.feasibility.soilProfileSummary.slice(0, 28)}…
           </span>
         </div>
 
         {/* Hudson Home Pairing Box */}
         {topDesign && (
-          <div className="mt-3 p-2.5 rounded-xl bg-slate-950/40 border border-slate-800/80 space-y-1">
+          <div className="mt-3 p-2.5 rounded-xl bg-slate-900 border border-slate-700/80 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 text-[11px]">Recommended Hudson Design:</span>
+              <span className="text-slate-300 text-[11px]">Recommended Hudson Design:</span>
               <span className="font-bold text-amber-300">{topDesign.designName}</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-[11px] text-slate-400">
                 {topDesign.beds} Bed · {topDesign.baths} Bath · {topDesign.cars} Car ({topDesign.floorplanM2}m²)
               </span>
-              <span className="font-bold text-slate-200">
+              <span className="font-bold text-white">
                 Turnkey H&amp;L: ${topDesign.estimatedPackagePrice.toLocaleString()}
               </span>
             </div>
-            <p className="text-[10px] text-slate-500 italic">
+            <p className="text-[10px] text-slate-400 italic">
               {topDesign.sitingFitNote}
             </p>
           </div>
         )}
 
         {/* Agent Info Row */}
-        <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+        <div className="mt-3 pt-2.5 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
           <div className="flex items-center gap-1.5 truncate">
-            <User className="h-3 w-3 text-slate-500 flex-none" />
+            <User className="h-3 w-3 text-slate-400 flex-none" />
             <span className="truncate">
-              <strong className="text-slate-300">{parcel.agentName}</strong> ({parcel.agentAgency})
+              <strong className="text-slate-200">{parcel.agentName}</strong> ({parcel.agentAgency})
             </span>
           </div>
           <a
             href={parcel.listingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[11px] text-cyan-400 hover:underline flex-none ml-2"
+            className="flex items-center gap-1 text-[11px] text-cyan-300 hover:underline flex-none ml-2 font-medium"
           >
             <span>Listing</span>
             <ExternalLink className="h-3 w-3" />
@@ -280,12 +278,13 @@ export function LandParcelCard({
       </div>
 
       {/* Card Action Buttons */}
-      <div className="p-4 pt-2 border-t border-slate-800/80 bg-slate-950/60 grid grid-cols-3 gap-2">
+      <div className="p-4 pt-2 border-t border-slate-800 bg-slate-900 grid grid-cols-3 gap-2">
         {/* Action 1: Contact Agent AI Outreach */}
         <button
           type="button"
+          data-testid="outreach-btn"
           onClick={() => onContactAgent(parcel)}
-          className="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/90 text-slate-200 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+          className="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-100 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
           title="Send AI inquiry to agent"
         >
           <Send className="h-3.5 w-3.5 text-amber-400" />
@@ -295,8 +294,9 @@ export function LandParcelCard({
         {/* Action 2: Add to Hudson Database */}
         <button
           type="button"
+          data-testid="save-lot-btn"
           onClick={() => onAddToDatabase(parcel)}
-          className="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/90 text-slate-200 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer"
+          className="px-2.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-100 text-xs font-semibold hover:bg-slate-700 flex items-center justify-center gap-1 transition-all cursor-pointer shadow-xs"
           title="Save to Hudson land database"
         >
           <Database className="h-3.5 w-3.5 text-cyan-400" />
@@ -306,6 +306,7 @@ export function LandParcelCard({
         {/* Action 3: 1-Click Package in Flyer Builder */}
         <button
           type="button"
+          data-testid="package-btn"
           onClick={() => onPackageInFlyer(parcel)}
           className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 text-xs font-bold hover:from-amber-400 hover:to-amber-300 shadow-sm flex items-center justify-center gap-1 transition-all cursor-pointer"
           title="Create House & Land package in Flyer Builder"

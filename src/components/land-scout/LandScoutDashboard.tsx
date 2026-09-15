@@ -21,6 +21,12 @@ import {
   FileText,
   Database,
   ExternalLink,
+  Globe,
+  Loader2,
+  Plus,
+  Key,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import {
   type LandParcel,
@@ -32,12 +38,24 @@ import {
   updateParcelAvailability,
   handoffLotToFlyer,
   syncLotToDatabase,
+  purgeOldTestParcels,
+  clearAllLandParcels,
+  bulkAddOrUpdateParcels,
 } from "@/lib/land-scout/landScoutStorage";
+import {
+  searchDatabaseLotsAsParcels,
+  syncAllDatabaseLots,
+  searchLiveWebForLand,
+  getGeminiApiKey,
+} from "@/lib/land-scout/landScoutWebSearch";
 import { parseNaturalLanguageLandQuery } from "@/lib/land-scout/landScoutAiMatching";
 import { LandParcelCard } from "./LandParcelCard";
 import { LandValuationDrawer } from "./LandValuationDrawer";
 import { AgentOutreachModal } from "./AgentOutreachModal";
 import { LandScoutMapView } from "./LandScoutMapView";
+import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
+import { PriceListImportModal } from "./PriceListImportModal";
+import { AddCustomLotModal } from "./AddCustomLotModal";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
@@ -55,6 +73,13 @@ export function LandScoutDashboard() {
   // View Mode: grid | table | map
   const [viewMode, setViewMode] = useState<"grid" | "table" | "map">("grid");
 
+  // Web Search & Modal States
+  const [isWebSearching, setIsWebSearching] = useState(false);
+  const [searchStatusMsg, setSearchStatusMsg] = useState("");
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
+  const [isPriceListModalOpen, setIsPriceListModalOpen] = useState(false);
+  const [isAddLotModalOpen, setIsAddLotModalOpen] = useState(false);
+
   // Filter & Search State
   const [filterState, setFilterState] = useState<LandScoutFilterState>({
     searchQuery: "",
@@ -65,8 +90,9 @@ export function LandScoutDashboard() {
 
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
 
-  // Load parcels on mount
+  // Load parcels on mount - Purge any old test items first
   useEffect(() => {
+    purgeOldTestParcels();
     setParcels(getLandParcels());
   }, []);
 
@@ -86,6 +112,59 @@ export function LandScoutDashboard() {
       ...(aiParsed.isRegisteredOnly !== undefined ? { isRegisteredOnly: aiParsed.isRegisteredOnly } : {}),
       ...(aiParsed.strongBuysOnly !== undefined ? { strongBuysOnly: aiParsed.strongBuysOnly } : {}),
     }));
+  };
+
+  // Trigger Live Web Search via Google Grounding
+  const handleExecuteLiveWebSearch = async (overrideQuery?: string) => {
+    const query = (overrideQuery ?? filterState.searchQuery).trim();
+    if (!query) {
+      toast.error("Please enter a suburb, estate, or search query (e.g. 'Flagstone' or 'Box Hill').");
+      return;
+    }
+
+    const key = getGeminiApiKey();
+    if (!key) {
+      setIsApiKeyModalOpen(true);
+      return;
+    }
+
+    setIsWebSearching(true);
+    setSearchStatusMsg(`Scanning active land listings for "${query}" across REA, Domain, and OpenLot...`);
+
+    try {
+      const result = await searchLiveWebForLand(query, filterState.state);
+      const updated = getLandParcels();
+      setParcels(updated);
+      toast.success(result.sourceSummary || `Found ${result.parcels.length} lots online!`, {
+        description: `Imported into Land Scout with auto CAD home siting & deal score.`,
+      });
+    } catch (err: any) {
+      console.error("Live web search error:", err);
+      toast.error(err?.message || "Failed to search live web for land.", {
+        description: "Check your Gemini API key or try a different suburb query.",
+      });
+    } finally {
+      setIsWebSearching(false);
+      setSearchStatusMsg("");
+    }
+  };
+
+  // Sync Real Hudson Database Lots
+  const handleSyncDatabaseLots = () => {
+    const synced = syncAllDatabaseLots();
+    setParcels(synced);
+    toast.success(`Synchronized ${synced.length} real lots from Hudson's Database!`, {
+      description: "Includes active inventory across QLD and NSW growth corridors.",
+    });
+  };
+
+  // Clear all parcels
+  const handleClearAll = () => {
+    if (confirm("Are you sure you want to clear loaded land listings?")) {
+      clearAllLandParcels();
+      setParcels([]);
+      toast.info("Cleared land listings.");
+    }
   };
 
   // Reset Filters
@@ -145,7 +224,6 @@ export function LandScoutDashboard() {
         // Text / Prompt Search
         if (filterState.searchQuery) {
           const rawQ = filterState.searchQuery.toLowerCase().trim();
-          // If the raw query directly matches a field (e.g. searching "Peet", "Domain", or "Trailblazer")
           const directMatch =
             p.suburb.toLowerCase().includes(rawQ) ||
             p.estate.toLowerCase().includes(rawQ) ||
@@ -155,9 +233,6 @@ export function LandScoutDashboard() {
             p.agentName.toLowerCase().includes(rawQ);
 
           if (!directMatch) {
-            // If direct match failed, it is likely a natural language prompt (e.g. "Flagstone registered under 350k")
-            // In that case, the structured filters (suburbOrEstate, maxPrice, isRegisteredOnly) already apply.
-            // Check remaining specific keywords (like lot number or street) that aren't stop words or parsed suburb.
             const parsedSuburb = (filterState.suburbOrEstate || "").toLowerCase();
             const tokens = rawQ
               .replace(/[,$/]/g, " ")
@@ -270,14 +345,14 @@ export function LandScoutDashboard() {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Sourcing web listings, verifying availability &amp; instant turnkey packaging
+                Live web scouting, REA / Domain grounding &amp; instant turnkey packaging
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {/* Division Toggle */}
-            <div className="flex rounded-xl border border-slate-800 bg-slate-900 p-1 text-xs font-semibold">
+            <div className="hidden sm:flex rounded-xl border border-slate-800 bg-slate-900 p-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setFilterState((p) => ({ ...p, state: "ALL" }))}
@@ -313,13 +388,65 @@ export function LandScoutDashboard() {
               </button>
             </div>
 
+            {/* Quick Sourcing Actions */}
+            <button
+              type="button"
+              data-testid="sync-db-lots-btn"
+              onClick={handleSyncDatabaseLots}
+              title="Sync lots from Hudson Internal Database"
+              className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Database className="h-3.5 w-3.5" />
+              <span>Sync Hudson DB Lots</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPriceListModalOpen(true)}
+              title="Import developer price list text or table"
+              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <FileText className="h-3.5 w-3.5 text-brand-gold" />
+              <span>Import Price List</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAddLotModalOpen(true)}
+              title="Add a custom or off-market block"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 text-brand-gold" />
+              <span>+ Add Block</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsApiKeyModalOpen(true)}
+              title="Configure Gemini API Key for Live Web Grounding"
+              className="p-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <Key className="h-4 w-4" />
+            </button>
+
+            {parcels.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                title="Clear loaded listings"
+                className="p-1.5 rounded-xl border border-slate-800 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition-colors cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
+
             {/* Back to Hub Button */}
             <button
               type="button"
               onClick={() => navigate({ to: "/hub" })}
-              className="px-3.5 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800/80 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
             >
-              Return to Hub
+              Hub
             </button>
           </div>
         </div>
@@ -336,13 +463,40 @@ export function LandScoutDashboard() {
                 type="text"
                 value={filterState.searchQuery}
                 onChange={(e) => handlePromptSearch(e.target.value)}
-                placeholder="Ask Land Scout AI: e.g. 'Registered 450m² lots in Flagstone under $380k' or '14m frontage in Box Hill'..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-slate-700 bg-slate-950 text-sm text-slate-100 placeholder:text-slate-500 font-medium focus:outline-hidden focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleExecuteLiveWebSearch();
+                  }
+                }}
+                placeholder="Search suburb, estate, or prompt (e.g. 'Flagstone', 'Box Hill under 450k', '14m frontage Ripley')..."
+                className="w-full h-10 pl-10 pr-28 rounded-xl border border-slate-700 bg-slate-950 text-sm text-slate-100 placeholder:text-slate-500 font-medium focus:outline-hidden focus:ring-2 focus:ring-brand-gold/60 focus:border-brand-gold"
               />
-              <span className="absolute right-3 top-2.5 px-2 py-0.5 rounded-md bg-amber-500/10 text-[10px] font-bold text-amber-400 border border-amber-500/20 flex items-center gap-1">
-                <Sparkles className="h-3 w-3" /> AI Parser Active
-              </span>
+              <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                <span className="hidden sm:inline-flex px-2 py-0.5 rounded-md bg-amber-500/10 text-[10px] font-bold text-amber-400 border border-amber-500/20 items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> AI
+                </span>
+              </div>
             </div>
+
+            {/* Live Web Search Button */}
+            <button
+              type="button"
+              disabled={isWebSearching}
+              onClick={() => handleExecuteLiveWebSearch()}
+              className="px-4 py-2 rounded-xl bg-brand-gold text-slate-950 font-bold text-xs hover:bg-amber-400 transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
+            >
+              {isWebSearching ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Searching Web...</span>
+                </>
+              ) : (
+                <>
+                  <Globe className="h-4 w-4" />
+                  <span>Search Live Web</span>
+                </>
+              )}
+            </button>
 
             {/* Filters Drawer Toggle */}
             <button
@@ -350,7 +504,7 @@ export function LandScoutDashboard() {
               onClick={() => setIsFilterDrawerOpen(!isFilterDrawerOpen)}
               className={`px-4 py-2 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                 isFilterDrawerOpen
-                  ? "bg-brand-gold text-slate-950 border-brand-gold shadow-md"
+                  ? "bg-slate-700 text-white border-slate-600 shadow-md"
                   : "bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700"
               }`}
             >
@@ -358,6 +512,14 @@ export function LandScoutDashboard() {
               <span>Filter Specs</span>
             </button>
           </div>
+
+          {/* Web Search In-Progress Notice */}
+          {isWebSearching && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-brand-gold/30 text-xs text-amber-300 flex items-center gap-2.5 animate-pulse">
+              <Loader2 className="h-4 w-4 animate-spin text-brand-gold flex-none" />
+              <span>{searchStatusMsg || "Scanning active land listings across REA, Domain, and OpenLot..."}</span>
+            </div>
+          )}
 
           {/* Quick Filter Chips */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 text-xs">
@@ -413,7 +575,7 @@ export function LandScoutDashboard() {
                   : "bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200"
               }`}
             >
-              🔥 Strong Buys (Hudson Spec Candidates)
+              🔥 Strong Buys (Spec Candidates)
             </button>
 
             <button
@@ -478,22 +640,23 @@ export function LandScoutDashboard() {
                 </label>
                 <input
                   type="text"
-                  value={filterState.suburbOrEstate}
+                  value={filterState.suburbOrEstate || ""}
                   onChange={(e) =>
-                    setFilterState((p) => ({ ...p, suburbOrEstate: e.target.value }))
+                    setFilterState((p) => ({
+                      ...p,
+                      suburbOrEstate: e.target.value,
+                    }))
                   }
-                  placeholder="e.g. Flagstone, Ripley, Box Hill..."
-                  className="w-full h-8 px-2.5 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
+                  placeholder="e.g. Flagstone, Box Hill"
+                  className="w-full h-8 px-3 rounded-lg border border-slate-700 bg-slate-950 text-xs text-white placeholder:text-slate-600 focus:outline-hidden focus:border-brand-gold"
                 />
               </div>
 
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-400">
-                  Max Land Price ($)
+                  Max Land Price
                 </label>
-                <input
-                  type="number"
-                  step="10000"
+                <select
                   value={filterState.maxPrice || ""}
                   onChange={(e) =>
                     setFilterState((p) => ({
@@ -501,18 +664,23 @@ export function LandScoutDashboard() {
                       maxPrice: e.target.value ? Number(e.target.value) : undefined,
                     }))
                   }
-                  placeholder="e.g. 450000"
-                  className="w-full h-8 px-2.5 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
-                />
+                  className="w-full h-8 px-2.5 rounded-lg border border-slate-700 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
+                >
+                  <option value="">Any Price</option>
+                  <option value="350000">Up to $350,000</option>
+                  <option value="400000">Up to $400,000</option>
+                  <option value="450000">Up to $450,000</option>
+                  <option value="550000">Up to $550,000</option>
+                  <option value="650000">Up to $650,000</option>
+                  <option value="800000">Up to $800,000</option>
+                </select>
               </div>
 
               <div className="space-y-1">
                 <label className="text-[11px] font-semibold text-slate-400">
                   Min Land Size (m²)
                 </label>
-                <input
-                  type="number"
-                  step="25"
+                <select
                   value={filterState.minLandSize || ""}
                   onChange={(e) =>
                     setFilterState((p) => ({
@@ -520,13 +688,21 @@ export function LandScoutDashboard() {
                       minLandSize: e.target.value ? Number(e.target.value) : undefined,
                     }))
                   }
-                  placeholder="e.g. 400"
-                  className="w-full h-8 px-2.5 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
-                />
+                  className="w-full h-8 px-2.5 rounded-lg border border-slate-700 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
+                >
+                  <option value="">Any Size</option>
+                  <option value="350">350 m²+</option>
+                  <option value="400">400 m²+</option>
+                  <option value="450">450 m²+</option>
+                  <option value="500">500 m²+</option>
+                  <option value="600">600 m²+</option>
+                </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-slate-400">Sort Lots By</label>
+                <label className="text-[11px] font-semibold text-slate-400">
+                  Sort Intel By
+                </label>
                 <select
                   value={filterState.sortBy}
                   onChange={(e) =>
@@ -535,98 +711,267 @@ export function LandScoutDashboard() {
                       sortBy: e.target.value as any,
                     }))
                   }
-                  className="w-full h-8 px-2.5 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white font-medium focus:outline-hidden focus:border-brand-gold"
+                  className="w-full h-8 px-2.5 rounded-lg border border-slate-700 bg-slate-950 text-xs text-white focus:outline-hidden focus:border-brand-gold"
                 >
-                  <option value="deal_score">🔥 Hudson Deal Score (Best Value)</option>
+                  <option value="deal_score">Deal Score (Best Value)</option>
                   <option value="price_asc">Price: Low to High</option>
                   <option value="price_desc">Price: High to Low</option>
-                  <option value="size_desc">Land Size: Largest First</option>
-                  <option value="frontage_desc">Frontage: Widest First</option>
-                  <option value="newest">Registration: Titled First</option>
+                  <option value="size_desc">Land Size: Largest</option>
+                  <option value="frontage_desc">Frontage: Widest</option>
+                  <option value="newest">Registration Status</option>
                 </select>
               </div>
             </div>
           )}
         </div>
 
-        {/* Intelligence KPIs Banner */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <span className="text-[11px] text-slate-400 block mb-0.5">Discovered Lots</span>
-            <span className="text-xl font-bold text-white">{metrics.total}</span>
-          </div>
+        {/* Aggregate KPI Ribbon (Only visible when parcels exist) */}
+        {parcels.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span className="text-[11px] text-slate-400 block mb-0.5">Matching Parcels</span>
+              <span className="text-xl font-bold text-white">{metrics.total}</span>
+            </div>
 
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <span className="text-[11px] text-slate-400 block mb-0.5">Verified Available</span>
-            <span className="text-xl font-bold text-emerald-400">{metrics.verifiedLive}</span>
-          </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span className="text-[11px] text-slate-400 block mb-0.5">Verified Available</span>
+              <span className="text-xl font-bold text-emerald-400">{metrics.verifiedLive}</span>
+            </div>
 
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <span className="text-[11px] text-slate-400 block mb-0.5">Registered (Immediate)</span>
-            <span className="text-xl font-bold text-cyan-300">{metrics.registered}</span>
-          </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span className="text-[11px] text-slate-400 block mb-0.5">Registered (Immediate)</span>
+              <span className="text-xl font-bold text-cyan-300">{metrics.registered}</span>
+            </div>
 
-          <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
-            <span className="text-[11px] text-slate-400 block mb-0.5">Average $/m²</span>
-            <span className="text-xl font-bold text-amber-300 font-mono">${metrics.avgPricePerM2.toLocaleString()}</span>
-          </div>
+            <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+              <span className="text-[11px] text-slate-400 block mb-0.5">Average $/m²</span>
+              <span className="text-xl font-bold text-amber-300 font-mono">${metrics.avgPricePerM2.toLocaleString()}</span>
+            </div>
 
-          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/15 to-slate-900 border border-brand-gold/40 col-span-2 sm:col-span-1">
-            <span className="text-[11px] text-brand-gold block mb-0.5 font-bold">
-              🔥 Spec Purchase Deals
-            </span>
-            <span className="text-xl font-extrabold text-amber-300">{metrics.strongBuys}</span>
+            <div className="p-3 rounded-xl bg-gradient-to-br from-amber-500/15 to-slate-900 border border-brand-gold/40 col-span-2 sm:col-span-1">
+              <span className="text-[11px] text-brand-gold block mb-0.5 font-bold">
+                🔥 Spec Deals
+              </span>
+              <span className="text-xl font-extrabold text-amber-300">{metrics.strongBuys}</span>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* View Switcher Toolbar */}
-        <div className="flex items-center justify-between gap-4 pt-2">
-          <div className="text-xs text-slate-400">
-            Showing <strong>{filteredParcels.length}</strong> vacant parcels matching active criteria
-          </div>
+        {/* View Switcher Toolbar (When parcels exist) */}
+        {parcels.length > 0 && (
+          <div className="flex items-center justify-between gap-4 pt-1">
+            <div className="text-xs text-slate-400">
+              Showing <strong>{filteredParcels.length}</strong> of <strong>{parcels.length}</strong> loaded parcels
+            </div>
 
-          <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setViewMode("grid")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                viewMode === "grid"
-                  ? "bg-brand-gold text-slate-950 shadow-xs"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Grid Cards</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("table")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                viewMode === "table"
-                  ? "bg-brand-gold text-slate-950 shadow-xs"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <TableIcon className="h-3.5 w-3.5" />
-              <span>Data Table</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("map")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                viewMode === "map"
-                  ? "bg-brand-gold text-slate-950 shadow-xs"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              <MapIcon className="h-3.5 w-3.5" />
-              <span>Satellite &amp; Corridors</span>
-            </button>
+            <div className="flex items-center gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setViewMode("grid")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  viewMode === "grid"
+                    ? "bg-brand-gold text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span>Grid Cards</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("table")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  viewMode === "table"
+                    ? "bg-brand-gold text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <TableIcon className="h-3.5 w-3.5" />
+                <span>Data Table</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("map")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  viewMode === "map"
+                    ? "bg-brand-gold text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <MapIcon className="h-3.5 w-3.5" />
+                <span>Satellite Map</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* LAUNCHPAD / EMPTY STATE: No parcels loaded yet */}
+        {parcels.length === 0 && (
+          <div className="rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-950/90 p-8 sm:p-12 text-center space-y-6 shadow-2xl max-w-4xl mx-auto my-8">
+            <div className="h-16 w-16 mx-auto rounded-2xl bg-amber-500/10 border border-brand-gold/30 flex items-center justify-center text-brand-gold shadow-lg">
+              <Compass className="h-8 w-8" />
+            </div>
+
+            <div className="space-y-2 max-w-xl mx-auto">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Hudson Vacant Land Sourcing Engine
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                Zero test data loaded. Search live portals across Australia, synchronize Hudson’s active database lots, or import a developer price list to begin sourcing.
+              </p>
+            </div>
+
+            {/* Action Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-left pt-2">
+              {/* Card 1: Sync DB Lots */}
+              <button
+                type="button"
+                data-testid="sync-db-lots-card"
+                onClick={handleSyncDatabaseLots}
+                className="w-full text-left p-5 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 hover:bg-emerald-950/30 hover:border-emerald-500/50 transition-all cursor-pointer group space-y-3"
+              >
+                <div className="h-9 w-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <Database className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors">
+                    Sync Hudson DB Lots
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Instantly load real available lots from Hudson's internal database (Flagstone, Lilywood, Box Hill, Austral, etc.).
+                  </p>
+                </div>
+                <div className="text-emerald-400 text-xs font-bold flex items-center gap-1">
+                  Sync Database <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </button>
+
+              {/* Card 2: Live Web Search */}
+              <button
+                type="button"
+                data-testid="live-web-search-card"
+                onClick={() => {
+                  const sub = prompt("Enter suburb or estate to search live web (e.g. Flagstone, Ripley, Box Hill):", "Flagstone");
+                  if (sub) {
+                    setFilterState((p) => ({ ...p, searchQuery: sub }));
+                    handleExecuteLiveWebSearch(sub);
+                  }
+                }}
+                className="w-full text-left p-5 rounded-2xl border border-amber-500/30 bg-amber-950/20 hover:bg-amber-950/30 hover:border-brand-gold/60 transition-all cursor-pointer group space-y-3"
+              >
+                <div className="h-9 w-9 rounded-xl bg-amber-500/20 text-brand-gold flex items-center justify-center">
+                  <Globe className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-brand-gold transition-colors">
+                    Search Live Web
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Search RealEstate, Domain, OpenLot and developer portals via AI Google Grounding.
+                  </p>
+                </div>
+                <div className="text-brand-gold text-xs font-bold flex items-center gap-1">
+                  Start Web Search <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </button>
+
+              {/* Card 3: Import Price List */}
+              <button
+                type="button"
+                data-testid="import-price-list-card"
+                onClick={() => setIsPriceListModalOpen(true)}
+                className="w-full text-left p-5 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 hover:bg-cyan-950/30 hover:border-cyan-500/50 transition-all cursor-pointer group space-y-3"
+              >
+                <div className="h-9 w-9 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <FileText className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors">
+                    Import Price List
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Paste raw text or release tables from developer emails, PDFs, or CSV files.
+                  </p>
+                </div>
+                <div className="text-cyan-400 text-xs font-bold flex items-center gap-1">
+                  Paste Release <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </button>
+            </div>
+
+            {/* Corridor Quick Searches */}
+            <div className="pt-4 border-t border-slate-800/80">
+              <span className="text-[11px] font-semibold text-slate-400 block mb-2">
+                Or pick a priority growth corridor to scan:
+              </span>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {[
+                  "Flagstone",
+                  "Ripley",
+                  "Lilywood",
+                  "Watagan Park",
+                  "Warnervale",
+                  "Box Hill",
+                  "Calderwood",
+                  "Austral",
+                  "Marsden Park",
+                ].map((suburb) => (
+                  <button
+                    key={suburb}
+                    type="button"
+                    onClick={() => {
+                      setFilterState((p) => ({ ...p, searchQuery: suburb }));
+                      handleExecuteLiveWebSearch(suburb);
+                    }}
+                    className="px-3 py-1 rounded-full border border-slate-800 bg-slate-900 text-xs text-slate-300 hover:border-brand-gold hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                  >
+                    <Search className="h-3 w-3 text-brand-gold" />
+                    <span>{suburb}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* EMPTY FILTER STATE: Parcels exist but none match active filters */}
+        {parcels.length > 0 && filteredParcels.length === 0 && (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-10 text-center space-y-4 max-w-xl mx-auto my-8">
+            <div className="h-12 w-12 mx-auto rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
+              <Search className="h-6 w-6" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-white">No loaded parcels match your search</h3>
+              <p className="text-xs text-slate-400">
+                {filterState.searchQuery
+                  ? `No lots in your loaded list match "${filterState.searchQuery}".`
+                  : "Try clearing some of your filters to see more results."}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+              {filterState.searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => handleExecuteLiveWebSearch()}
+                  className="px-4 py-2 rounded-xl bg-brand-gold text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
+                >
+                  <Globe className="h-4 w-4" />
+                  <span>Search Live Web for "{filterState.searchQuery}"</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* VIEW 1: Grid Cards */}
-        {viewMode === "grid" && (
+        {viewMode === "grid" && filteredParcels.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredParcels.map((parcel) => (
               <LandParcelCard
@@ -644,7 +989,7 @@ export function LandScoutDashboard() {
         )}
 
         {/* VIEW 2: Dense Table View */}
-        {viewMode === "table" && (
+        {viewMode === "table" && filteredParcels.length > 0 && (
           <div className="rounded-2xl border border-slate-800 bg-slate-900/90 overflow-x-auto shadow-xl">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
@@ -720,7 +1065,7 @@ export function LandScoutDashboard() {
                         <button
                           type="button"
                           onClick={() => setActiveParcelForOutreach(parcel)}
-                          className="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors"
+                          className="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors cursor-pointer"
                           title="Contact Agent"
                         >
                           <Send className="h-3.5 w-3.5 text-amber-400" />
@@ -728,7 +1073,7 @@ export function LandScoutDashboard() {
                         <button
                           type="button"
                           onClick={() => handlePackageInFlyer(parcel)}
-                          className="px-2.5 py-1 rounded-lg bg-brand-gold text-slate-950 font-bold text-[11px] hover:bg-amber-400 transition-colors"
+                          className="px-2.5 py-1 rounded-lg bg-brand-gold text-slate-950 font-bold text-[11px] hover:bg-amber-400 transition-colors cursor-pointer"
                         >
                           Package
                         </button>
@@ -742,7 +1087,7 @@ export function LandScoutDashboard() {
         )}
 
         {/* VIEW 3: Map & Corridors */}
-        {viewMode === "map" && (
+        {viewMode === "map" && filteredParcels.length > 0 && (
           <LandScoutMapView
             parcels={filteredParcels}
             onPackageInFlyer={handlePackageInFlyer}
@@ -766,6 +1111,35 @@ export function LandScoutDashboard() {
         onOutreachLogged={(updated) => {
           setParcels(getLandParcels());
           setActiveParcelForOutreach(null);
+        }}
+      />
+
+      {/* API Key Modal */}
+      <GeminiApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onKeySaved={() => {
+          if (filterState.searchQuery) {
+            handleExecuteLiveWebSearch();
+          }
+        }}
+      />
+
+      {/* Price List Import Modal */}
+      <PriceListImportModal
+        isOpen={isPriceListModalOpen}
+        onClose={() => setIsPriceListModalOpen(false)}
+        onImportComplete={(imported) => {
+          setParcels(getLandParcels());
+        }}
+      />
+
+      {/* Add Custom Lot Modal */}
+      <AddCustomLotModal
+        isOpen={isAddLotModalOpen}
+        onClose={() => setIsAddLotModalOpen(false)}
+        onLotAdded={(newLot) => {
+          setParcels(getLandParcels());
         }}
       />
     </div>
