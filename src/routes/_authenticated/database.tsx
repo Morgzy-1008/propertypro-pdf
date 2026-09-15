@@ -1180,7 +1180,7 @@ function DatabasePage() {
 
   const filteredPackages = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return packages.filter((p) => {
+    const list = packages.filter((p) => {
       const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
       const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
       if (stateFilter !== "ALL" && pkgState !== stateFilter) return false;
@@ -1190,6 +1190,16 @@ function DatabasePage() {
         .join(" ")
         .toLowerCase()
         .includes(q);
+    });
+
+    // Sort alphabetically by suburb (then design name)
+    return [...list].sort((a, b) => {
+      const lotA = a.lot_id ? lotById.get(a.lot_id) : undefined;
+      const lotB = b.lot_id ? lotById.get(b.lot_id) : undefined;
+      const subA = (lotA?.suburb || "").trim().toLowerCase();
+      const subB = (lotB?.suburb || "").trim().toLowerCase();
+      if (subA !== subB) return subA.localeCompare(subB);
+      return (a.design || a.name || "").localeCompare(b.design || b.name || "");
     });
   }, [packages, query, stateFilter, lotById]);
 

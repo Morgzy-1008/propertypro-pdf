@@ -230,17 +230,6 @@ export function CrmWorkspace() {
             Sync Outlook
           </Button>
 
-          <Link to="/kiosk" target="_blank">
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
-            >
-              <Monitor className="h-3.5 w-3.5 text-cyan-400" />
-              iPad Kiosk
-            </Button>
-          </Link>
-
           <Button
             size="sm"
             onClick={() => setIsNewClientModalOpen(true)}
@@ -273,7 +262,9 @@ export function CrmWorkspace() {
       </div>
 
       {/* Navigation Tabs Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800/80 pb-3">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-3 ${
+        isLight ? "border-slate-200" : "border-slate-800/80"
+      }`}>
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin">
           <button
             type="button"
@@ -281,11 +272,13 @@ export function CrmWorkspace() {
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "kanban"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/80"
             }`}
           >
             <Briefcase className="h-3.5 w-3.5" />
-            Sales Pipeline (12 Buckets)
+            Sales Pipeline (13 Stages)
           </button>
 
           <button
@@ -294,13 +287,17 @@ export function CrmWorkspace() {
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "tasks"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/80"
             }`}
           >
             <CheckSquare className="h-3.5 w-3.5" />
             Tasks &amp; Reminders
             {openTasksCount > 0 && (
-              <span className="bg-amber-950/80 text-amber-300 text-[10px] px-1.5 py-0.2 rounded-full font-mono border border-amber-800/80 font-bold">
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold border ${
+                isLight ? "bg-amber-100 text-amber-800 border-amber-300" : "bg-amber-950/80 text-amber-300 border-amber-800/80"
+              }`}>
                 {openTasksCount}
               </span>
             )}
@@ -312,12 +309,16 @@ export function CrmWorkspace() {
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
               activeTab === "conversations"
                 ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                : isLight
+                ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 : "text-slate-400 hover:text-white hover:bg-slate-900/80"
             }`}
           >
             <MessageSquare className="h-3.5 w-3.5" />
             Conversations &amp; Outlook
-            <span className="bg-amber-950/60 text-amber-300 text-[9px] px-1.5 rounded-full font-mono">
+            <span className={`text-[9px] px-1.5 rounded-full font-mono ${
+              isLight ? "bg-slate-200 text-slate-700" : "bg-amber-950/60 text-amber-300"
+            }`}>
               {messages.length}
             </span>
           </button>
@@ -329,6 +330,8 @@ export function CrmWorkspace() {
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                 activeTab === "commissions"
                   ? "bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
+                  : isLight
+                  ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                   : "text-slate-400 hover:text-white hover:bg-slate-900/80"
               }`}
             >

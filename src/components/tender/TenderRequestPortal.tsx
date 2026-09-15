@@ -2816,7 +2816,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 </div>
 
                 <div className="bg-slate-950/60 p-3 rounded-xl border border-slate-800 space-y-1">
-                  <strong className="text-cyan-200 block text-xs">3. 270-Day Fixed Price Guarantee:</strong>
+                  <strong className="text-cyan-200 block text-xs">3. 270-Day Price Lock Guarantee:</strong>
                   <p className="text-slate-300">
                     Tender remains valid for <strong>270 days (9 months)</strong> from issue date and must be accepted within 10 days of issue with payment of the <strong>{formatAud(tender.atp.tenderAcceptanceFee)} Tender Acceptance Fee</strong>.
                   </p>

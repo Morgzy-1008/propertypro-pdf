@@ -24,7 +24,7 @@ export const Route = createFileRoute("/package/$id")({
       { property: "og:title", content: `${loaderData?.name ?? "House & Land Package"} | Hudson Homes` },
       {
         property: "og:description",
-        content: "Fixed-price House & Land package with full inclusions from Hudson Homes.",
+        content: "Turnkey House & Land package with full inclusions from Hudson Homes.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },

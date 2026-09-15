@@ -219,12 +219,33 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
 
   const handleCouncilChange = (region: string) => {
     let fee = 0;
-    if (region.includes("No Location") || region.includes("Allowance")) {
+    if (region.includes("No Location") || region.includes("Allowance") || region.includes("Other")) {
       fee = 2200;
     } else if (region.includes("Logan") || region.includes("Ipswich") || region.includes("Moreton Bay") || region.includes("Regional")) {
       fee = 2227;
     } else if (region.includes("Gold Coast") || region.includes("Sunshine Coast")) {
       fee = 2950;
+    } else if (
+      region.includes("Blacktown") ||
+      region.includes("Camden") ||
+      region.includes("Campbelltown") ||
+      region.includes("Penrith") ||
+      region.includes("Hills") ||
+      region.includes("Liverpool") ||
+      region.includes("Parramatta") ||
+      region.includes("Hawkesbury") ||
+      region.includes("Wollondilly") ||
+      region.includes("Central Coast") ||
+      region.includes("Lake Macquarie") ||
+      region.includes("Newcastle") ||
+      region.includes("Maitland") ||
+      region.includes("Cessnock") ||
+      region.includes("Wollongong") ||
+      region.includes("Shellharbour") ||
+      region.includes("Kiama") ||
+      region.includes("NSW")
+    ) {
+      fee = 2000;
     } else {
       fee = 0; // Brisbane City Council
     }
@@ -816,13 +837,31 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                <div className="px-2 py-1 text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Queensland Councils</div>
                 <SelectItem value="Brisbane City Council">Brisbane City Council (Standard $0)</SelectItem>
                 <SelectItem value="Logan City Council">Logan City Council (+$2,227)</SelectItem>
                 <SelectItem value="Ipswich City Council">Ipswich City Council (+$2,227)</SelectItem>
                 <SelectItem value="Moreton Bay Regional Council">Moreton Bay Regional Council (+$2,227)</SelectItem>
                 <SelectItem value="Gold Coast City Council">Gold Coast City Council (+$2,950)</SelectItem>
                 <SelectItem value="Sunshine Coast Council">Sunshine Coast Council (+$2,950)</SelectItem>
+                <div className="px-2 py-1 text-[10px] font-bold text-amber-400 uppercase tracking-wider mt-1 border-t border-slate-800">New South Wales Councils ($2,000)</div>
+                <SelectItem value="Blacktown City Council">Blacktown City Council (+$2,000)</SelectItem>
+                <SelectItem value="Camden Council">Camden Council (+$2,000)</SelectItem>
+                <SelectItem value="Campbelltown City Council">Campbelltown City Council (+$2,000)</SelectItem>
+                <SelectItem value="Penrith City Council">Penrith City Council (+$2,000)</SelectItem>
+                <SelectItem value="The Hills Shire Council">The Hills Shire Council (+$2,000)</SelectItem>
+                <SelectItem value="Liverpool City Council">Liverpool City Council (+$2,000)</SelectItem>
+                <SelectItem value="City of Parramatta">City of Parramatta (+$2,000)</SelectItem>
+                <SelectItem value="Hawkesbury City Council">Hawkesbury City Council (+$2,000)</SelectItem>
+                <SelectItem value="Wollondilly Shire Council">Wollondilly Shire Council (+$2,000)</SelectItem>
+                <SelectItem value="Central Coast Council">Central Coast Council (+$2,000)</SelectItem>
+                <SelectItem value="Lake Macquarie City Council">Lake Macquarie City Council (+$2,000)</SelectItem>
+                <SelectItem value="Maitland City Council">Maitland City Council (+$2,000)</SelectItem>
+                <SelectItem value="Cessnock City Council">Cessnock City Council (+$2,000)</SelectItem>
+                <SelectItem value="Wollongong City Council">Wollongong City Council (+$2,000)</SelectItem>
+                <SelectItem value="NSW Local Council (Standard Statutory Fee)">NSW Local Council — Standard ($2,000)</SelectItem>
+                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1 border-t border-slate-800">General Allowances</div>
                 <SelectItem value="Council Fee Allowance (No Location Mentioned)">Council Fee Allowance — No Location ($2,200)</SelectItem>
               </SelectContent>
             </Select>

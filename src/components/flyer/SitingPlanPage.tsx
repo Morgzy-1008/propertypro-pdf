@@ -150,7 +150,8 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
 
   // Key CAD Feature coordinates in SVG space:
   const garageDoorMidX = houseSvgX + (((analysis.garageDoorStart.x + analysis.garageDoorEnd.x) / 2) * scale);
-  const garageDoorY = houseSvgY + (analysis.garageDoorThresholdY * scale);
+  // Align garage door dimension line to start directly on the front wall edge of the garage
+  const garageDoorY = houseSvgY + (Math.max(0, analysis.houseLengthM - (analysis.garageStepBackM || 1.20)) * scale);
 
   const frontLivingWallX = houseSvgX + (analysis.frontLivingWallPoint.x * scale);
   const frontLivingWallY = houseSvgY + (analysis.frontLivingWallPoint.y * scale);
@@ -179,8 +180,14 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
   const behindGarageMeasured = Math.max(0, (lotStartX + lotSvgW - behindGarageWallX) / scale);
   const rearLhsMeasured = Math.max(0, (rearLhsY - lotStartY) / scale);
 
-  // Check site coverage compliance
-  const isCoverageGreen = siting.siteCoveragePercent <= siting.maxSiteCoverage;
+  // Wall vs OMP (450mm eave offset)
+  const isOmp = d.setbackMeasurement === "omp";
+
+  // Check site coverage & POS compliance against customizable thresholds
+  const maxCoverageAllowed = d.maxSiteCoverage !== undefined ? Number(d.maxSiteCoverage) : (siting.maxSiteCoverage || 60);
+  const minPosRequired = d.minPosM2 !== undefined ? Number(d.minPosM2) : 12;
+  const isCoverageGreen = siting.siteCoveragePercent <= maxCoverageAllowed;
+  const isPosGreen = siting.privateOpenSpaceM2 >= minPosRequired;
 
   // 1. DRAGGING HANDLERS (Drag & Move with Estate Constraint Clamping)
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -239,20 +246,19 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
       return;
     }
 
-    // Enforce Estate Minimum Setback
+    // Inform if under standard guideline, but allow typed override directly
     if (rawNum < editingDim.minValue) {
-      toast.warning(`${editingDim.label} cannot be less than the estate minimum of ${editingDim.minValue.toFixed(2)}m.`);
+      toast.info(`Note: ${editingDim.label} is below the standard estate minimum of ${editingDim.minValue.toFixed(2)}m (Custom override applied).`);
     }
-    const num = Math.max(editingDim.minValue, rawNum);
+    const num = rawNum;
 
     if (editingDim.field === "front") {
       set("frontSetback", num);
-      set("garageSetback", Number((num + analysis.garageStepBackM).toFixed(2)));
+      set("garageSetback", Number((num + (analysis.garageStepBackM || 1.20)).toFixed(2)));
       set("isBtb", false);
     } else if (editingDim.field === "garage") {
-      const clampedGarage = Math.max(siting.minGarageSetback, num);
-      set("garageSetback", clampedGarage);
-      set("frontSetback", Number((clampedGarage - analysis.garageStepBackM).toFixed(2)));
+      set("garageSetback", num);
+      set("frontSetback", Number((num - (analysis.garageStepBackM || 1.20)).toFixed(2)));
       set("isBtb", false);
     } else if (editingDim.field === "left") {
       set("leftSetback", num);
@@ -265,9 +271,9 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
       set("leftSetback", calculatedLeft);
       set("isBtb", false);
     } else if (editingDim.field === "rear") {
-      const reqFront = Math.max(minFront, siting.landDepth - analysis.houseLengthM - num);
+      const reqFront = siting.landDepth - analysis.houseLengthM - num;
       set("frontSetback", Number(reqFront.toFixed(2)));
-      set("garageSetback", Number((reqFront + analysis.garageStepBackM).toFixed(2)));
+      set("garageSetback", Number((reqFront + (analysis.garageStepBackM || 1.20)).toFixed(2)));
       set("isBtb", false);
     }
 
@@ -576,8 +582,8 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
                 </text>
               </g>
 
-              {/* E. Wall BEHIND Garage to Right Boundary (When BTB step-out is active) */}
-              {d.isBtb && siting.hasStepOut && (
+              {/* E. Wall BEHIND Garage to Right Boundary (When BTB or step-out is active) */}
+              {(d.isBtb || siting.hasStepOut) && (
                 <g>
                   <line
                     x1={behindGarageWallX}
@@ -691,26 +697,26 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
 
             <div className="space-y-[0.8mm] text-[1.95mm]">
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Design:</span>
-                <span className="font-bold text-brand-navy">{d.designName || "Amber 21"}</span>
+                <span className="text-brand-ink/70 font-medium">Design:</span>
+                <span className="font-semibold text-brand-navy">{d.designName || "Amber 21"}</span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Total Area:</span>
-                <span className="font-bold text-brand-gold-deep font-display">
+                <span className="text-brand-ink/70 font-medium">Total Area:</span>
+                <span className="font-semibold text-brand-navy">
                   {analysis.roomAreas.totalM2 || floorplanM2} m² ({(Number(analysis.roomAreas.totalM2 || floorplanM2) / 9.29).toFixed(1)} sq)
                 </span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">House Width:</span>
+                <span className="text-brand-ink/70 font-medium">House Width:</span>
                 <span className="font-semibold text-brand-navy">{analysis.houseWidthM.toFixed(2)} m</span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">House Length:</span>
+                <span className="text-brand-ink/70 font-medium">House Length:</span>
                 <span className="font-semibold text-brand-navy">{analysis.houseLengthM.toFixed(2)} m</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-brand-ink/60">Layout:</span>
-                <span className="font-semibold text-slate-700">
+                <span className="text-brand-ink/70 font-medium">Layout:</span>
+                <span className="font-semibold text-brand-navy">
                   {d.beds || "4"} Bed • {d.baths || "2"} Bath • {d.cars || "2"} Car
                 </span>
               </div>
@@ -728,26 +734,26 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
 
             <div className="space-y-[0.8mm] text-[1.95mm]">
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Lot Area:</span>
-                <span className="font-bold text-brand-navy">{siting.landArea} m²</span>
+                <span className="text-brand-ink/70 font-medium">Lot Area:</span>
+                <span className="font-semibold text-brand-navy">{siting.landArea} m²</span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Frontage:</span>
-                <span className="font-bold text-brand-navy">{siting.landFrontage.toFixed(2)} m</span>
+                <span className="text-brand-ink/70 font-medium">Frontage:</span>
+                <span className="font-semibold text-brand-navy">{siting.landFrontage.toFixed(2)} m</span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Lot Depth:</span>
-                <span className="font-bold text-brand-navy">{siting.landDepth.toFixed(2)} m</span>
+                <span className="text-brand-ink/70 font-medium">Lot Depth:</span>
+                <span className="font-semibold text-brand-navy">{siting.landDepth.toFixed(2)} m</span>
               </div>
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Coverage:</span>
+                <span className="text-brand-ink/70 font-medium">Coverage:</span>
                 <span className={`font-display text-[2.4mm] font-bold ${isCoverageGreen ? "text-emerald-700" : "text-rose-600"}`}>
                   {siting.siteCoveragePercent}%
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-brand-ink/60">Private Open:</span>
-                <span className="font-bold text-emerald-700 font-display text-[2.4mm]">
+                <span className="text-brand-ink/70 font-medium">Private Open:</span>
+                <span className={`font-display text-[2.4mm] font-bold ${isPosGreen ? "text-emerald-700" : "text-rose-600"}`}>
                   {siting.privateOpenSpaceM2} m²
                 </span>
               </div>
@@ -794,35 +800,50 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
 
           {/* Card 4: CURRENT SETBACKS (Title without "(POD)") */}
           <div className="rounded-[1.5mm] border border-brand-sand/80 bg-white p-[2.3mm] shadow-xs">
-            <div className="flex items-center gap-[1.2mm] border-b border-brand-sand/60 pb-[0.8mm] mb-[1mm]">
-              <Ruler className="h-[2.5mm] w-[2.5mm] text-brand-gold-deep" />
-              <div className="text-[2mm] font-bold tracking-[0.14em] text-brand-navy uppercase">
-                CURRENT SETBACKS
+            <div className="flex items-center justify-between border-b border-brand-sand/60 pb-[0.8mm] mb-[1mm]">
+              <div className="flex items-center gap-[1.2mm]">
+                <Ruler className="h-[2.5mm] w-[2.5mm] text-brand-gold-deep" />
+                <div className="text-[2mm] font-bold tracking-[0.14em] text-brand-navy uppercase">
+                  CURRENT SETBACKS
+                </div>
               </div>
+              <span className={`text-[1.6mm] font-bold px-1 py-0.2 rounded ${
+                isOmp ? "bg-amber-100 text-amber-800 border border-amber-300" : "bg-slate-100 text-slate-700"
+              }`}>
+                {isOmp ? "OMP (450mm Eave)" : "WALL LINE"}
+              </span>
             </div>
 
             <div className="space-y-[0.8mm] text-[1.95mm]">
               <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Front Room:</span>
-                <span className="font-bold text-brand-navy">{frontRoomMeasured.toFixed(2)} m</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">Garage Door:</span>
-                <span className="font-semibold text-brand-navy">{garageDoorMeasured.toFixed(2)} m</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">LHS Wall:</span>
-                <span className="font-semibold text-brand-navy">{lhsMeasured.toFixed(2)} m</span>
-              </div>
-              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
-                <span className="text-brand-ink/60">RHS Wall:</span>
+                <span className="text-brand-ink/70 font-medium">Front Room:</span>
                 <span className="font-semibold text-brand-navy">
-                  {d.isBtb ? "0.20m (BTB)" : `${rhsMeasured.toFixed(2)}m`}
+                  {isOmp ? `${Math.max(0, frontRoomMeasured - 0.45).toFixed(2)} m (OMP)` : `${frontRoomMeasured.toFixed(2)} m`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+                <span className="text-brand-ink/70 font-medium">Garage Door:</span>
+                <span className="font-semibold text-brand-navy">
+                  {isOmp ? `${Math.max(0, garageDoorMeasured - 0.45).toFixed(2)} m (OMP)` : `${garageDoorMeasured.toFixed(2)} m`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+                <span className="text-brand-ink/70 font-medium">LHS Wall:</span>
+                <span className="font-semibold text-brand-navy">
+                  {isOmp ? `${Math.max(0, lhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${lhsMeasured.toFixed(2)} m`}
+                </span>
+              </div>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-[0.3mm]">
+                <span className="text-brand-ink/70 font-medium">RHS Wall:</span>
+                <span className="font-semibold text-brand-navy">
+                  {d.isBtb ? "0.20m (BTB)" : isOmp ? `${Math.max(0, rhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${rhsMeasured.toFixed(2)} m`}
                 </span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-brand-ink/60">Rear Setback:</span>
-                <span className="font-bold text-emerald-700">{rearLhsMeasured.toFixed(2)} m</span>
+                <span className="text-brand-ink/70 font-medium">Rear Setback:</span>
+                <span className="font-semibold text-brand-navy">
+                  {isOmp ? `${Math.max(0, rearLhsMeasured - 0.45).toFixed(2)} m (OMP)` : `${rearLhsMeasured.toFixed(2)} m`}
+                </span>
               </div>
             </div>
           </div>

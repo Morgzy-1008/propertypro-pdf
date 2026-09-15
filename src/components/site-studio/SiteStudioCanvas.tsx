@@ -94,8 +94,8 @@ export function SiteStudioCanvas({
 
   // High-Resolution Esri World Imagery Satellite URL ($0 Free Government & Open Data)
   const satelliteUrl = useMemo(() => {
-    const spanWidthM = 240;
-    const spanHeightM = 160;
+    const spanWidthM = 320;
+    const spanHeightM = 220;
     const dLat = (spanHeightM / 111320) / 2;
     const cosLat = Math.cos((parcel.latitude * Math.PI) / 180);
     const dLon = (spanWidthM / (111320 * (cosLat || 0.88))) / 2;
@@ -105,7 +105,7 @@ export function SiteStudioCanvas({
     const minLat = (parcel.latitude - dLat).toFixed(6);
     const maxLat = (parcel.latitude + dLat).toFixed(6);
 
-    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${minLon},${minLat},${maxLon},${maxLat}&bboxSR=4326&imageSR=4326&size=1600,1000&f=image`;
+    return `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${minLon},${minLat},${maxLon},${maxLat}&bboxSR=4326&imageSR=4326&size=2048,1536&f=image`;
   }, [parcel.latitude, parcel.longitude]);
 
   // Reset View to center
@@ -241,13 +241,13 @@ export function SiteStudioCanvas({
         isLight ? "bg-slate-100" : "bg-[#090D14]"
       }`}
     >
-      {/* 1. Real-World High-Resolution Satellite Basemap (Ambient Backdrop) */}
+      {/* 1. Real-World High-Resolution Satellite Basemap (Seamless Backdrop) */}
       {(basemapMode === "satellite-hybrid" || basemapMode === "esri-aerial") && (
         <div
-          className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-30 transition-opacity duration-300"
+          className="absolute inset-0 bg-cover bg-center pointer-events-none opacity-40 transition-opacity duration-300"
           style={{
             backgroundImage: `url('${satelliteUrl}')`,
-            filter: "brightness(0.65) contrast(1.1)",
+            filter: "brightness(0.7) contrast(1.1)",
           }}
         />
       )}
@@ -260,7 +260,7 @@ export function SiteStudioCanvas({
             ? "linear-gradient(to right, rgba(0,0,0,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.04) 1px, transparent 1px)"
             : "linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
-          opacity: basemapMode === "blueprint-cadastre" ? 1 : 0.35,
+          opacity: basemapMode === "blueprint-cadastre" ? 1 : 0.2,
         }}
       />
 
@@ -271,13 +271,13 @@ export function SiteStudioCanvas({
           transform: `translate(${pan.x}px, ${pan.y}px)`,
         }}
       >
-        {/* Synchronized High-Resolution Satellite Aerial Photography Plate */}
+        {/* Fluid, Full-Viewport Synchronized High-Resolution Satellite Aerial Photography Map */}
         {(basemapMode === "satellite-hybrid" || basemapMode === "esri-aerial") && (
           <div
-            className="absolute pointer-events-none rounded-2xl overflow-hidden shadow-2xl transition-all duration-150 border border-slate-700/60"
+            className="absolute pointer-events-none overflow-hidden transition-all duration-75"
             style={{
-              width: `${240 * pixelsPerMetre}px`,
-              height: `${160 * pixelsPerMetre}px`,
+              width: `${320 * pixelsPerMetre}px`,
+              height: `${220 * pixelsPerMetre}px`,
               left: "50%",
               top: "50%",
               transform: "translate(-50%, -50%)",
@@ -287,16 +287,16 @@ export function SiteStudioCanvas({
             <img
               src={satelliteUrl}
               alt="High-Resolution Satellite Aerial Imagery"
-              className="w-full h-full object-cover select-none filter contrast-105"
+              className="w-full h-full object-cover select-none filter contrast-105 brightness-95"
               loading="eager"
             />
-            {/* Soft border vignette */}
-            <div className="absolute inset-0 ring-1 ring-inset ring-black/40 pointer-events-none" />
+            {/* Subtle soft boundary vignette */}
+            <div className="absolute inset-0 ring-1 ring-inset ring-black/40 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.7)]" />
 
             {/* Satellite Source Watermark */}
-            <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded bg-black/80 backdrop-blur-md text-[9px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+            <div className="fixed bottom-3 right-3 px-2.5 py-1 rounded bg-black/85 backdrop-blur-md text-[9px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 z-30 shadow-lg">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Esri World Imagery &bull; 0.3m HD Aerial</span>
+              <span>Esri World Imagery &bull; Fluid HD Aerial Basemap</span>
             </div>
           </div>
         )}

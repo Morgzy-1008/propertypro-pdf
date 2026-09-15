@@ -1091,7 +1091,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
               &bull; <strong>Variations &amp; Redesigns:</strong> I/We further acknowledge that any substantial variations or redesigns requested after the issue of the initial Tender may incur <strong>additional administration fees</strong>, which will be advised prior to commencement of such work and are payable in addition to the Tender Fee.
             </p>
             <p>
-              &bull; <strong>Fixed Price Guarantee:</strong> Tender is valid for <strong>270 days (9 months)</strong> from issue date and must be accepted within 10 days of issue with payment of the <strong>${atp.tenderAcceptanceFee.toLocaleString()} Tender Acceptance Fee</strong>.
+              &bull; <strong>270-Day Price Lock:</strong> Tender is valid for <strong>270 days (9 months)</strong> from issue date and must be accepted within 10 days of issue with payment of the <strong>${atp.tenderAcceptanceFee.toLocaleString()} Tender Acceptance Fee</strong>.
             </p>
             <p>
               &bull; <strong>5% Building Contract Deposit Crediting:</strong> Once the tender is accepted and the formal Building Contract is prepared, the 5% contract deposit will be credited with both the 1st deposit (Preliminary Tender Fee) and 2nd deposit (Tender Acceptance Fee) already paid.

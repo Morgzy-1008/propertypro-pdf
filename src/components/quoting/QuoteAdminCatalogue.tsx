@@ -593,7 +593,7 @@ export function QuoteAdminCatalogue({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                          <SelectItem value="fixed">Fixed Price ($)</SelectItem>
+                          <SelectItem value="fixed">Lump Sum ($)</SelectItem>
                           <SelectItem value="per_lm">Per Linear Metre ($/lm)</SelectItem>
                           <SelectItem value="per_m2">Per Square Metre ($/m²)</SelectItem>
                           <SelectItem value="custom_qty">Custom Qty</SelectItem>
@@ -796,7 +796,7 @@ export function QuoteAdminCatalogue({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                      <SelectItem value="fixed">Fixed Price ($)</SelectItem>
+                      <SelectItem value="fixed">Lump Sum ($)</SelectItem>
                       <SelectItem value="per_lm">Per Linear Metre ($/lm)</SelectItem>
                       <SelectItem value="per_m2">Per Square Metre ($/m²)</SelectItem>
                       <SelectItem value="custom_qty">Custom Qty</SelectItem>

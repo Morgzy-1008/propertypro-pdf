@@ -1,6 +1,7 @@
 export type CrmStageId =
   | "new_lead"
   | "walk_ins"
+  | "meeting_booked"
   | "concept_plan"
   | "estimate_presented"
   | "tender_requested"
@@ -40,11 +41,20 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
     color: "from-indigo-500/20 to-indigo-600/20 border-indigo-500/40",
     badgeBg: "bg-indigo-950/60 border-indigo-800/60",
     badgeText: "text-indigo-300",
-    description: "Display home walk-ins & iPad kiosk registrations",
+    description: "Display home walk-ins & visitor registrations",
+  },
+  {
+    id: "meeting_booked",
+    label: "3. Meeting Booked",
+    shortLabel: "Meeting Booked",
+    color: "from-sky-500/20 to-sky-600/20 border-sky-500/40",
+    badgeBg: "bg-sky-950/60 border-sky-800/60",
+    badgeText: "text-sky-300",
+    description: "Scheduled consultation meeting with customer",
   },
   {
     id: "concept_plan",
-    label: "3. Concept Plan",
+    label: "4. Concept Plan",
     shortLabel: "Concept Plan",
     color: "from-cyan-500/20 to-cyan-600/20 border-cyan-500/40",
     badgeBg: "bg-cyan-950/60 border-cyan-800/60",
@@ -53,7 +63,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "estimate_presented",
-    label: "4. Estimate Presented",
+    label: "5. Estimate Presented",
     shortLabel: "Estimate Presented",
     color: "from-teal-500/20 to-teal-600/20 border-teal-500/40",
     badgeBg: "bg-teal-950/60 border-teal-800/60",
@@ -62,7 +72,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "tender_requested",
-    label: "5. Tender Requested",
+    label: "6. Tender Requested",
     shortLabel: "Tender Requested",
     color: "from-amber-500/20 to-amber-600/20 border-amber-500/40",
     badgeBg: "bg-amber-950/60 border-amber-800/60",
@@ -71,8 +81,8 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "tender_received",
-    label: "6. Tender Recieved",
-    shortLabel: "Tender Recieved",
+    label: "7. Tender Received",
+    shortLabel: "Tender Received",
     color: "from-orange-500/20 to-orange-600/20 border-orange-500/40",
     badgeBg: "bg-orange-950/60 border-orange-800/60",
     badgeText: "text-orange-300",
@@ -80,7 +90,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "tender_accepted",
-    label: "7. Tender Accepted",
+    label: "8. Tender Accepted",
     shortLabel: "Tender Accepted",
     color: "from-emerald-500/20 to-emerald-600/20 border-emerald-500/40",
     badgeBg: "bg-emerald-950/60 border-emerald-800/60",
@@ -90,7 +100,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "contract_signed",
-    label: "8. Contract Signed",
+    label: "9. Contract Signed",
     shortLabel: "Contract Signed",
     color: "from-yellow-500/20 to-amber-600/20 border-yellow-500/40",
     badgeBg: "bg-yellow-950/60 border-yellow-800/60",
@@ -100,7 +110,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "under_construction",
-    label: "9. Under Construction",
+    label: "10. Under Construction",
     shortLabel: "Under Construction",
     color: "from-emerald-600/20 to-teal-700/20 border-emerald-600/40",
     badgeBg: "bg-emerald-950/60 border-emerald-800/60",
@@ -109,7 +119,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "long_term",
-    label: "10. Long-Term",
+    label: "11. Long-Term",
     shortLabel: "Long-Term",
     color: "from-purple-500/20 to-purple-600/20 border-purple-500/40",
     badgeBg: "bg-purple-950/60 border-purple-800/60",
@@ -118,7 +128,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "no_contact",
-    label: "11. No-Contact",
+    label: "12. No-Contact",
     shortLabel: "No-Contact",
     color: "from-slate-500/20 to-slate-600/20 border-slate-500/40",
     badgeBg: "bg-slate-900 border-slate-700",
@@ -127,7 +137,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
   },
   {
     id: "sale_not_proceeding",
-    label: "12. Sale Not Proceeding",
+    label: "13. Sale Not Proceeding",
     shortLabel: "Sale Not Proceeding",
     color: "from-rose-500/20 to-rose-600/20 border-rose-500/40",
     badgeBg: "bg-rose-950/60 border-rose-800/60",

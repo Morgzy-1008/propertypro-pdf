@@ -47,13 +47,13 @@ export function ForesightEditorFrame() {
   const [isScanningPdf, setIsScanningPdf] = useState(false);
 
   // Form states for bridge
-  const [clientName, setClientName] = useState("Jordan Mitchell");
-  const [designName, setDesignName] = useState("Amber 21");
-  const [modifiedLivingM2, setModifiedLivingM2] = useState("143.5");
-  const [modifiedAlfrescoM2, setModifiedAlfrescoM2] = useState("11.8");
-  const [modifiedGarageM2, setModifiedGarageM2] = useState("34.1");
-  const [modifiedPorchM2, setModifiedPorchM2] = useState("2.84");
-  const [notes, setNotes] = useState("Hudson Homes concept floorplan planning.");
+  const [clientName, setClientName] = useState("");
+  const [designName, setDesignName] = useState("");
+  const [modifiedLivingM2, setModifiedLivingM2] = useState("");
+  const [modifiedAlfrescoM2, setModifiedAlfrescoM2] = useState("");
+  const [modifiedGarageM2, setModifiedGarageM2] = useState("");
+  const [modifiedPorchM2, setModifiedPorchM2] = useState("");
+  const [notes, setNotes] = useState("");
 
   const editorUrl = "https://concept-floor-plan-editor.web.app/";
 
@@ -348,26 +348,8 @@ export function ForesightEditorFrame() {
           ) : null}
         </div>
 
-        {/* Right: Actions (Upload, Quoting, Tender, Window controls, Staff Profile) */}
+        {/* Right: Actions (Quoting, Tender, Window controls, Staff Profile) */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          {/* Upload Plan Button */}
-          <label className="cursor-pointer shrink-0">
-            <input
-              type="file"
-              accept=".pdf,image/*,application/pdf"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileUpload(f);
-              }}
-              disabled={isScanningPdf}
-              className="hidden"
-            />
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-200 transition-colors shadow-xs">
-              <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              <span className="hidden sm:inline">{isScanningPdf ? "Scanning..." : "Upload Plan"}</span>
-            </span>
-          </label>
-
           {/* Send to Quoting Tool */}
           <Button
             size="sm"

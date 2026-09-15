@@ -376,8 +376,8 @@ function Index() {
           </div>
         </header>
 
-        <main className="grid grid-cols-1 gap-8 p-6 lg:grid-cols-[380px_1fr] relative z-10 flex-1">
-          <aside className="h-fit rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-5 shadow-2xl lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto text-slate-200">
+        <main className="grid grid-cols-1 items-start gap-8 p-6 lg:grid-cols-[380px_1fr] relative z-10 flex-1">
+          <aside className="h-fit rounded-2xl border border-slate-800/80 bg-slate-900/80 backdrop-blur-xl p-5 shadow-2xl lg:sticky lg:top-[76px] lg:max-h-[calc(100vh-96px)] lg:overflow-y-auto text-slate-200 custom-scrollbar overscroll-contain">
             <FlyerForm data={data} set={set} template={template} />
           </aside>
 

@@ -1,19 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CrmDisplayKiosk } from "@/components/crm/CrmDisplayKiosk";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/kiosk")({
-  head: () => ({
-    meta: [
-      { title: "Springfield Central Touch Kiosk | Hudson Homes" },
-      {
-        name: "description",
-        content: "Display Home iPad Registration Touch Kiosk.",
-      },
-    ],
-  }),
-  component: KioskPage,
+  component: () => <Navigate to="/crm" replace />,
 });
-
-function KioskPage() {
-  return <CrmDisplayKiosk />;
-}

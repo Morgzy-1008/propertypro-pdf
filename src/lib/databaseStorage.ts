@@ -91,6 +91,12 @@ export function getLotState(lot: { state?: "QLD" | "NSW"; suburb?: string | null
 }
 
 /** Generates a complete default seed dataset of Lots and Packages for both QLD and NSW */
+// Baseline timestamp for seeded demo packages/lots so they don't all say "Just now" on initial load
+const BASE_SEED_DATE = new Date("2025-02-14T08:30:00Z").getTime();
+function getSeedTimestamp(offsetHours = 0): string {
+  return new Date(BASE_SEED_DATE - offsetHours * 3600 * 1000).toISOString();
+}
+
 export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
   const lotMap = new Map<string, Lot>();
   const pkgs: Pkg[] = [];
@@ -126,7 +132,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
         exclusive_consultants: null,
         deadline: null,
         notes: `Standard premium allotment in ${estate}`,
-        updated_at: new Date().toISOString(),
+        updated_at: getSeedTimestamp(idx * 3),
       };
       lotMap.set(lotKey, newLot);
     }
@@ -160,7 +166,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
       exclusive_consultants: null,
       flyer_json: flyerParsed,
       needs_review: false,
-      updated_at: new Date().toISOString(),
+      updated_at: getSeedTimestamp(idx * 4 + 12),
     });
   });
 
@@ -201,7 +207,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
         exclusive_consultants: null,
         deadline: null,
         notes: `Queensland package allotment in ${item.estate}`,
-        updated_at: new Date().toISOString(),
+        updated_at: getSeedTimestamp(24 + (item.size % 10)),
       };
       lotMap.set(lotKey, newLot);
     }
@@ -250,7 +256,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
         contactPhone: "0480 893 290",
       },
       needs_review: false,
-      updated_at: new Date().toISOString(),
+      updated_at: getSeedTimestamp(18 + idx * 5),
     });
   });
 
@@ -291,7 +297,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
         exclusive_consultants: null,
         deadline: null,
         notes: `NSW display release allotment in ${nsw.estate}`,
-        updated_at: new Date().toISOString(),
+        updated_at: getSeedTimestamp(36 + i * 4 + l),
       };
       lotMap.set(lotKey, newLot);
 
@@ -320,7 +326,7 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
         exclusive_consultants: null,
         flyer_json: null,
         needs_review: false,
-        updated_at: new Date().toISOString(),
+        updated_at: getSeedTimestamp(32 + i * 4 + l),
       });
     }
   });

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   ShieldCheck,
   UserCheck,
@@ -16,6 +17,10 @@ import {
   Sparkles,
   RefreshCw,
   X,
+  Activity,
+  User,
+  FileText,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -31,6 +36,12 @@ import {
   type AdminAccessRequest,
   type AdminSystemAlert,
 } from "@/lib/adminAlerts";
+import {
+  getActivityLogs,
+  clearActivityLogs,
+  onActivityLogged,
+  type ActivityLogItem,
+} from "@/lib/activityLog";
 import { KNOWN_STAFF_PROFILES, getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
 
 interface AdminDashboardModalProps {
@@ -39,21 +50,27 @@ interface AdminDashboardModalProps {
 }
 
 export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProps) {
-  const [activeTab, setActiveTab] = useState<"approvals" | "users" | "alerts">("approvals");
+  const [activeTab, setActiveTab] = useState<"approvals" | "users" | "alerts" | "activity">("approvals");
   const [requests, setRequests] = useState<AdminAccessRequest[]>(() => getAllAccessRequests());
   const [alerts, setAlerts] = useState<AdminSystemAlert[]>(() => getAllSystemAlerts());
+  const [activities, setActivities] = useState<ActivityLogItem[]>(() => getActivityLogs());
   const currentUser = getActiveStaffUser();
 
   const refreshData = () => {
     setRequests(getAllAccessRequests());
     setAlerts(getAllSystemAlerts());
+    setActivities(getActivityLogs());
   };
 
   useEffect(() => {
     if (!isOpen) return;
     refreshData();
     const unsub = onAdminAlertsChanged(() => refreshData());
-    return () => unsub();
+    const unsubAct = onActivityLogged(() => refreshData());
+    return () => {
+      unsub();
+      unsubAct();
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -85,8 +102,14 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
     toast.info("System alerts feed cleared.");
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
+  const handleClearActivities = () => {
+    clearActivityLogs();
+    refreshData();
+    toast.info("Website activity log cleared.");
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-150">
       <div
         className="w-full max-w-4xl rounded-3xl border border-slate-800 bg-slate-900/95 backdrop-blur-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
@@ -119,7 +142,7 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
         </div>
 
         {/* Tab Navigation */}
-        <div className="px-6 pt-3 border-b border-slate-800/80 flex items-center gap-2 bg-slate-950/50">
+        <div className="px-6 pt-3 border-b border-slate-800/80 flex items-center gap-2 bg-slate-950/50 flex-wrap">
           <button
             onClick={() => setActiveTab("approvals")}
             className={`px-4 py-2.5 rounded-t-xl text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
@@ -147,6 +170,21 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
           >
             <ShieldCheck className="h-4 w-4" />
             <span>Authorized Logins ({KNOWN_STAFF_PROFILES.length})</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("activity")}
+            className={`px-4 py-2.5 rounded-t-xl text-xs font-semibold flex items-center gap-2 border-b-2 transition-all ${
+              activeTab === "activity"
+                ? "border-emerald-400 text-emerald-300 bg-slate-900/90"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Activity className="h-4 w-4" />
+            <span>Website Activity</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold text-[10px]">
+              {activities.length}
+            </span>
           </button>
 
           <button
@@ -379,6 +417,119 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
               )}
             </div>
           )}
+
+          {/* TAB 4: WEBSITE ACTIVITY FEED */}
+          {activeTab === "activity" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-white">Live Website Activity &amp; Audit Trail</h4>
+                  <p className="text-xs text-slate-400">
+                    Real-time chronological log of staff logins, package edits, lot updates, and quote generations.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={refreshData}
+                    className="h-7 text-xs border-slate-800 bg-slate-900 text-slate-300 hover:text-white"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                  </Button>
+                  {activities.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleClearActivities}
+                      className="h-7 text-xs border-rose-900/50 bg-rose-950/30 text-rose-300 hover:bg-rose-900/50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Clear Feed
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {activities.length === 0 ? (
+                <div className="text-center py-12 border border-slate-800 rounded-2xl bg-slate-950/60 p-8 space-y-2">
+                  <Activity className="h-10 w-10 text-emerald-400 mx-auto opacity-80" />
+                  <h5 className="text-sm font-bold text-slate-200">No Activity Recorded Yet</h5>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    New staff logins and package modifications will automatically stream into this feed.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-[420px] overflow-y-auto pr-1">
+                  {activities.map((item) => {
+                    const timeAgo = Math.max(0, Math.round((Date.now() - new Date(item.timestamp).getTime()) / 60000));
+                    const timeAgoStr =
+                      timeAgo < 1
+                        ? "Just now"
+                        : timeAgo < 60
+                          ? `${timeAgo}m ago`
+                          : timeAgo < 60 * 24
+                            ? `${Math.round(timeAgo / 60)}h ago`
+                            : `${Math.round(timeAgo / (60 * 24))}d ago`;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3.5 rounded-xl border border-slate-800 bg-slate-950/60 flex items-start gap-3 hover:border-slate-700 transition-colors"
+                      >
+                        <div className="mt-0.5">
+                          {item.type === "login" ? (
+                            <div className="h-7 w-7 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 flex items-center justify-center">
+                              <User className="h-3.5 w-3.5" />
+                            </div>
+                          ) : item.type === "package_edit" ? (
+                            <div className="h-7 w-7 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+                              <FileText className="h-3.5 w-3.5" />
+                            </div>
+                          ) : item.type === "lot_edit" ? (
+                            <div className="h-7 w-7 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+                              <Layers className="h-3.5 w-3.5" />
+                            </div>
+                          ) : (
+                            <div className="h-7 w-7 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center">
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-xs text-white">{item.actorName}</span>
+                              {item.actorRole && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+                                  {item.actorRole}
+                                </span>
+                              )}
+                              <span className={`px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase ${
+                                item.type === "login"
+                                  ? "bg-cyan-950 text-cyan-300 border border-cyan-800"
+                                  : item.type === "package_edit"
+                                    ? "bg-amber-950 text-amber-300 border border-amber-800"
+                                    : item.type === "lot_edit"
+                                      ? "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                                      : "bg-purple-950 text-purple-300 border border-purple-800"
+                              }`}>
+                                {item.type.replace("_", " ")}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                              {timeAgoStr} &bull; {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-300 leading-snug">{item.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}
@@ -393,6 +544,7 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

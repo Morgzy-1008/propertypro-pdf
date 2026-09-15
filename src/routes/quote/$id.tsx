@@ -25,7 +25,7 @@ export const Route = createFileRoute("/quote/$id")({
       },
       {
         name: "description",
-        content: "Review and customise your fixed-price building tender quotation from Hudson Homes Queensland.",
+        content: "Review and customise your building tender quotation from Hudson Homes Queensland.",
       },
     ],
   }),

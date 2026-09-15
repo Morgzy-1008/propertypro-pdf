@@ -684,7 +684,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
               {formatPrice(d.housePrice)}
             </div>
             <div className="mt-[0.5mm] text-[1.8mm] leading-[1.2] text-brand-ink/50">
-              Fixed price build, inclusions as listed.
+              Complete turnkey build, inclusions as listed.
             </div>
           </div>
 

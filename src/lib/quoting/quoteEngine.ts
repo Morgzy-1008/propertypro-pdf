@@ -1259,6 +1259,93 @@ export function detectCouncilFromLocation(suburbOrLocation?: string, addressOrEs
     return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
   }
 
+  // ==========================================
+  // NSW COUNCILS (Standard $2,000 Statutory Fee)
+  // ==========================================
+
+  // Blacktown City Council ($2,000)
+  const blacktownKeywords = ["blacktown", "marsden park", "schofields", "riverstone", "box hill", "rouse hill", "colebee", "stanhope gardens", "the ponds", "glenwood", "kellyville ridge", "mount druitt", "rooty hill", "doonside", "marayong", "quakers hill", "2765", "2768", "2763", "2762", "2767", "2769", "2761", "2766", "2770"];
+  if (blacktownKeywords.some((k) => text.includes(k))) {
+    return { region: "Blacktown City Council", fee: 2000 };
+  }
+
+  // Camden Council ($2,000)
+  const camdenKeywords = ["camden", "orand park", "oran park", "gregory hills", "leppington", "gledswood hills", "catherine field", "harrington park", "spring farm", "mount annan", "elderslie", "narellan", "narellan vale", "cobbitty", "bringelly", "rossmore", "2570", "2567", "2557", "2179"];
+  if (camdenKeywords.some((k) => text.includes(k))) {
+    return { region: "Camden Council", fee: 2000 };
+  }
+
+  // Campbelltown City Council ($2,000)
+  const campbelltownKeywords = ["campbelltown", "macarthur", "menangle park", "glenfield", "ingleburn", "minton", "minto", "leumeah", "raby", "st andrews", "rosemeadow", "ambarvale", "bradbury", "englorie park", "blairmount", "2560", "2564", "2565", "2566"];
+  if (campbelltownKeywords.some((k) => text.includes(k))) {
+    return { region: "Campbelltown City Council", fee: 2000 };
+  }
+
+  // City of Penrith ($2,000)
+  const penrithKeywords = ["penrith", "jordan springs", "cadence", "glenmore park", "mulgoa", "orchard hills", "st marys", "kingswood", "cranebrook", "werrington", "jamisontown", "eaglestone", "claremont meadows", "thornton", "2750", "2745", "2747", "2748", "2749"];
+  if (penrithKeywords.some((k) => text.includes(k))) {
+    return { region: "Penrith City Council", fee: 2000 };
+  }
+
+  // The Hills Shire Council ($2,000)
+  const hillsKeywords = ["the hills", "hills shire", "castle hill", "baulkham hills", "bella vista", "norwest", "kellyville", "north kellyville", "beaumont hills", "kenthurst", "annangrove", "glenhaven", "dural", "middle dural", "maraylya", "2153", "2154", "2155", "2156", "2158"];
+  if (hillsKeywords.some((k) => text.includes(k))) {
+    return { region: "The Hills Shire Council", fee: 2000 };
+  }
+
+  // Liverpool City Council ($2,000)
+  const liverpoolKeywords = ["liverpool", "austral", "edmondson park", "hoxton park", "casula", "prestons", "carnes hill", "middleton grange", "cecils hills", "cecil hills", "green valley", "moorebank", "chipping norton", "warwick farm", "holsworthy", "wattle grove", "voyager point", "2170", "2171", "2168", "2174"];
+  if (liverpoolKeywords.some((k) => text.includes(k))) {
+    return { region: "Liverpool City Council", fee: 2000 };
+  }
+
+  // City of Parramatta / Cumberland / Fairfield ($2,000)
+  const parramattaKeywords = ["parramatta", "westmead", "northmead", "rydalmere", "dundas", "ermington", "granville", "auburn", "lidcombe", "merrylands", "greystanes", "pemulwuy", "fairfield", "cabramatta", "canley vale", "bossley park", "edensor park", "bonnyrigg", "wetherill park", "smithfield", "2150", "2151", "2152", "2142", "2141", "2160", "2145", "2165", "2166", "2176", "2164"];
+  if (parramattaKeywords.some((k) => text.includes(k))) {
+    return { region: "City of Parramatta", fee: 2000 };
+  }
+
+  // Hawkesbury City Council ($2,000)
+  const hawkesburyKeywords = ["hawkesbury", "windsor", "south windsor", "richmond", "north richmond", "pitt town", "glossodia", "kurrajong", "wilberforce", "freemans reach", "2756", "2753", "2754", "2758"];
+  if (hawkesburyKeywords.some((k) => text.includes(k))) {
+    return { region: "Hawkesbury City Council", fee: 2000 };
+  }
+
+  // Wollondilly Shire Council ($2,000)
+  const wollondillyKeywords = ["wollondilly", "picton", "tahmoor", "thirlmere", "wilton", "bingara gorge", "bargo", "appin", "douglas park", "silverdale", "warragamba", "the oaks", "oakdale", "2571", "2572", "2573", "2574", "2569"];
+  if (wollondillyKeywords.some((k) => text.includes(k))) {
+    return { region: "Wollondilly Shire Council", fee: 2000 };
+  }
+
+  // Central Coast Council ($2,000)
+  const centralCoastKeywords = ["central coast", "gosford", "wyong", "tuggerah", "warnervale", "wongawilli", "woongarrah", "hamlyn terrace", "watanobbi", "wadalba", "terrigal", "avoca", "erina", "baview", "bateau bay", "the entrance", "toukley", "budgewoi", "gwandalan", "lake munmorah", "2250", "2251", "2259", "2260", "2261", "2262", "2263"];
+  if (centralCoastKeywords.some((k) => text.includes(k))) {
+    return { region: "Central Coast Council", fee: 2000 };
+  }
+
+  // Lake Macquarie & Newcastle City Council ($2,000)
+  const hunterLakeKeywords = ["lake macquarie", "newcastle", "charlestown", "warners bay", "belmont", "cardiff", "glendale", "cameron park", "edgeworth", "morisset", "cooranbong", "watagan park", "dora creek", "toronto", "merewether", "hamilton", "adamstown", "mayfield", "wallsend", "fletcher", "minmi", "2280", "2281", "2282", "2283", "2284", "2285", "2287", "2289", "2290", "2291", "2292", "2299", "2300", "2304", "2305", "2307", "2308"];
+  if (hunterLakeKeywords.some((k) => text.includes(k))) {
+    return { region: "Lake Macquarie City Council", fee: 2000 };
+  }
+
+  // Maitland & Cessnock City Council ($2,000)
+  const maitlandCessnockKeywords = ["maitland", "cessnock", "east maitland", "rutherford", "chisholm", "thornton", "gillieston heights", "lochinvar", "greta", "branxton", "huntlee", "kurri kurri", "bellbird", "neath", "nulkaba", "pokolbin", "lovedale", "2320", "2321", "2322", "2323", "2325", "2326", "2327", "2335"];
+  if (maitlandCessnockKeywords.some((k) => text.includes(k))) {
+    return { region: "Maitland City Council", fee: 2000 };
+  }
+
+  // Wollongong, Shellharbour & Kiama ($2,000)
+  const illawarraKeywords = ["wollongong", "shellharbour", "kiama", "calderwood", "tullimbar", "albion park", "albion park rail", "haywards bay", "horsley", "dapto", "west dapto", "kembla grange", "bulli", "corrimal", "figtree", "unanderra", "flinders", "shell cove", "2500", "2502", "2508", "2515", "2517", "2518", "2519", "2525", "2526", "2527", "2528", "2529", "2530", "2533"];
+  if (illawarraKeywords.some((k) => text.includes(k))) {
+    return { region: "Wollongong City Council", fee: 2000 };
+  }
+
+  // General NSW Address Fallback ($2,000)
+  if (text.includes("nsw") || text.includes("new south wales") || /\b2\d{3}\b/.test(text)) {
+    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+  }
+
   // If a location is provided but council not matched, flag as unrecognized for consultant review
   if (text.length > 2) {
     return { region: "Other / Unlisted Council (Approval Required)", fee: 2200, isUnrecognized: true };

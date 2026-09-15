@@ -133,17 +133,6 @@ function WelcomeHubPage() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
 
-            <Link to="/kiosk" target="_blank">
-              <Button
-                variant="outline"
-                size="sm"
-                className={`hidden sm:flex ${isLight ? "border-cyan-200 bg-cyan-50 text-cyan-900 hover:bg-cyan-100" : "border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50"} text-xs gap-1.5`}
-              >
-                <Monitor className="h-3.5 w-3.5 text-cyan-500" />
-                iPad Kiosk Mode
-              </Button>
-            </Link>
-
             {/* NHC Active Profile Pill (with Website Admin button for Admins) */}
             <StaffHeaderProfile isLight={isLight} />
           </div>

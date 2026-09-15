@@ -435,23 +435,25 @@ export function computeSitingPlan({
 
   const garageSide = customGarageSide || geometry.garageSide;
   const isBtb = customBtb !== undefined ? customBtb : false;
-  const hasStepOut = geometry.hasStepOut;
-  const stepOut = hasStepOut ? geometry.garageStepOut : 0;
+  const hasStepOut = geometry.hasStepOut || isBtb;
+  const stepOut = hasStepOut ? (geometry.garageStepOut > 0 ? geometry.garageStepOut : 0.60) : 0;
   const stepBack = geometry.garageStepBack;
 
   // 1. FRONT SETBACK RULES:
-  // User input overrides estate preset directly
-  // Guarantee garage setback is ALWAYS at least 5.00m by default
-  const minGarageReq = Math.max(preset.garageSetback, 5.00);
-  let garageFrontSetback = minGarageReq;
+  // User typed input directly overrules estate presets without forced clamping
+  const defaultGarageReq = Math.max(preset.garageSetback, 5.00);
+  let garageFrontSetback = defaultGarageReq;
   let frontRoomSetback = Math.max(preset.frontSetback, Math.round((garageFrontSetback - stepBack) * 100) / 100);
 
-  if (customGarageSetback !== undefined && customGarageSetback >= 0) {
-    garageFrontSetback = Math.max(minGarageReq, customGarageSetback);
-    frontRoomSetback = Math.max(preset.frontSetback, Math.round((garageFrontSetback - stepBack) * 100) / 100);
+  if (customGarageSetback !== undefined && customGarageSetback >= 0 && customFrontSetback !== undefined && customFrontSetback >= 0) {
+    garageFrontSetback = customGarageSetback;
+    frontRoomSetback = customFrontSetback;
+  } else if (customGarageSetback !== undefined && customGarageSetback >= 0) {
+    garageFrontSetback = customGarageSetback;
+    frontRoomSetback = Math.round((garageFrontSetback - stepBack) * 100) / 100;
   } else if (customFrontSetback !== undefined && customFrontSetback >= 0) {
     frontRoomSetback = customFrontSetback;
-    garageFrontSetback = Math.max(minGarageReq, Math.round((frontRoomSetback + stepBack) * 100) / 100);
+    garageFrontSetback = Math.round((frontRoomSetback + stepBack) * 100) / 100;
   }
 
   // 2. SIDE SETBACK & BTB RULES (WHEN BTB IS SELECTED, GARAGE WALL IS ALWAYS 200mm / 0.20m):

@@ -73,10 +73,15 @@ type TabId = "client" | "design" | "site" | "inclusions" | "pdf_preview";
 export function QuoteBuilder() {
   const isLocal = isLocalhost();
   const [quote, setQuote] = useState<FullQuote>(() => {
+    // Ensure any prior draft with data is safely stored in Saved Estimates
     const draft = loadActiveDraftQuote();
-    if (draft && (draft.client.clientName || draft.design.designName || draft.pricing?.grossEstimatedInvestment > 0)) {
-      return draft;
+    if (draft && (draft.client.clientName?.trim() || draft.design.designName?.trim() || (draft.pricing?.grossEstimatedInvestment || 0) > 0)) {
+      try {
+        saveQuote(draft);
+        saveQuoteToIdb(draft).catch(() => {});
+      } catch {}
     }
+    // Always start fresh blank estimate on refresh, reopen, or close per requirement 1.e
     return createNewBlankQuote();
   });
 
@@ -478,6 +483,23 @@ export function QuoteBuilder() {
     }
   };
 
+  // Auto-save unsaved estimate to Saved Estimates on unload/close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (quote && (quote.client.clientName?.trim() || quote.design.designName?.trim() || (quote.pricing?.grossEstimatedInvestment || 0) > 0)) {
+        try {
+          saveQuote(quote);
+          saveQuoteToIdb(quote).catch(() => {});
+        } catch {}
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      handleBeforeUnload();
+    };
+  }, [quote]);
+
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
@@ -490,8 +512,23 @@ export function QuoteBuilder() {
         document.querySelector(".quote-pdf-root") ||
         document.body;
 
-      const clientNameSafe = (quote.client.clientName || "HudsonEstimate").replace(/[^a-zA-Z0-9_-]/g, "_");
-      const filename = `Builders-Estimate-${quote.quoteNumber || "MH"}-${clientNameSafe}`;
+      // Requirement 1.a: Format downloaded PDF Name to:
+      // Hudson Estimate_"client 1 first name (& Client 2 first name if applicable)"_"Floorplan Name"_"Inclusion level" h1 h2 or h3
+      const client1First = (quote.client.clientName || "").trim().split(/\s+/)[0] || "Client";
+      const client2First = (quote.client.hasClient2 && quote.client.client2Name)
+        ? quote.client.client2Name.trim().split(/\s+/)[0]
+        : "";
+      const clientPart = client2First ? `${client1First} & ${client2First}` : client1First;
+      const floorplanName = getEffectiveDesignName(quote.design) || "Floorplan";
+
+      const specTier = quote.design.specTier || "";
+      let inclusionCode = "H2";
+      if (specTier.includes("H1") || specTier.toLowerCase().includes("smart")) inclusionCode = "H1";
+      else if (specTier.includes("H2") || specTier.toLowerCase().includes("design")) inclusionCode = "H2";
+      else if (specTier.includes("H3") || specTier.toLowerCase().includes("luxury")) inclusionCode = "H3";
+
+      const rawFilename = `Hudson Estimate_${clientPart}_${floorplanName}_${inclusionCode}`;
+      const filename = rawFilename.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, " ").trim();
 
       await downloadA4Pdf(exportHost, filename);
       toast.success("Builders Estimate PDF downloaded successfully");

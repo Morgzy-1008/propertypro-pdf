@@ -857,8 +857,32 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
+      <Section title="Flyer colour scheme">
+        <div className="grid grid-cols-2 gap-2">
+          {PALETTES.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => set("palette", p.id)}
+              className={`rounded-xl border px-3 py-2.5 text-left text-[11px] leading-tight transition-all ${
+                data.palette === p.id
+                  ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              }`}
+            >
+              <span className="block font-semibold text-slate-200">{p.label}</span>
+              <span className="block text-[10px] opacity-70 mt-0.5">{p.hint}</span>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Consultant (footer + QR code)">
+        <ConsultantPicker data={data} set={set} />
+      </Section>
+
       {template === "siting" && (
-        <Section title="Siting & setbacks (2-Page + Siting Plan)">
+        <Section title="Siting & Setbacks (2-Page + Siting Plan)">
           <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
             <div className="space-y-1.5">
               <Label className="text-xs tracking-wide text-muted-foreground">Estate Setback Preset (POD)</Label>
@@ -885,6 +909,42 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Wall vs OMP Toggle */}
+            <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/70 p-2.5">
+              <div>
+                <span className="text-[11px] font-semibold text-slate-200 block">
+                  Setback Line
+                </span>
+                <span className="text-[10px] text-slate-400 block">
+                  Wall (Brickwork) or OMP (450mm eave offset)
+                </span>
+              </div>
+              <div className="flex rounded-md border border-slate-800 bg-slate-950 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => set("setbackMeasurement", "wall")}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all ${
+                    (!data.setbackMeasurement || data.setbackMeasurement === "wall")
+                      ? "bg-amber-500 text-slate-950 shadow-xs"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  Wall
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set("setbackMeasurement", "omp")}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded transition-all ${
+                    data.setbackMeasurement === "omp"
+                      ? "bg-amber-500 text-slate-950 shadow-xs"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  OMP (450mm)
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
@@ -935,6 +995,30 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               </div>
             </div>
 
+            {/* Changeable Site Coverage & Private Open Space Compliance Thresholds */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-slate-800/80">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Max Coverage (%)</Label>
+                <Input
+                  type="number"
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.maxSiteCoverage !== undefined ? String(data.maxSiteCoverage) : "60"}
+                  onChange={(e) => set("maxSiteCoverage", Number(e.target.value) || 60)}
+                  placeholder="60"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Min POS (m²)</Label>
+                <Input
+                  type="number"
+                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                  value={data.minPosM2 !== undefined ? String(data.minPosM2) : "12"}
+                  onChange={(e) => set("minPosM2", Number(e.target.value) || 12)}
+                  placeholder="12"
+                />
+              </div>
+            </div>
+
             <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
               <input
                 type="checkbox"
@@ -962,30 +1046,6 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           </div>
         </Section>
       )}
-
-      <Section title="Flyer colour scheme">
-        <div className="grid grid-cols-2 gap-2">
-          {PALETTES.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => set("palette", p.id)}
-              className={`rounded-xl border px-3 py-2.5 text-left text-[11px] leading-tight transition-all ${
-                data.palette === p.id
-                  ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-              }`}
-            >
-              <span className="block font-semibold text-slate-200">{p.label}</span>
-              <span className="block text-[10px] opacity-70 mt-0.5">{p.hint}</span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Consultant (footer + QR code)">
-        <ConsultantPicker data={data} set={set} />
-      </Section>
 
       <Section title="Terms & conditions (footer)">
         <div className="space-y-2.5">

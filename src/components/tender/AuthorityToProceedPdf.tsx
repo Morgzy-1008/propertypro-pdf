@@ -102,7 +102,7 @@ export function AuthorityToProceedPdf({ tender }: AuthorityToProceedPdfProps) {
                 For Registered / Unregistered Land:
               </h4>
               <p className="text-[10px] text-slate-600 mt-0.5 leading-snug">
-                Must be accepted within 10 days of issue. Valid for <strong>270 days (9 months)</strong> from date of issue (&ldquo;Fixed Price Guarantee Date&rdquo;). Upon acceptance, a non-refundable Tender Acceptance Fee of <strong>$4,400 (inc. GST)</strong> is payable, credited towards my/our Building Deposit.
+                Must be accepted within 10 days of issue. Valid for <strong>270 days (9 months)</strong> from date of issue (&ldquo;Tender Validity Date&rdquo;). Upon acceptance, a non-refundable Tender Acceptance Fee of <strong>$4,400 (inc. GST)</strong> is payable, credited towards my/our Building Deposit.
               </p>
             </div>
 

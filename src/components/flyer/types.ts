@@ -146,6 +146,9 @@ export interface FlyerData {
   termsType?: TermsType;
   customTerms?: string;
   rearSetback?: string | number;
+  setbackMeasurement?: "wall" | "omp";
+  maxSiteCoverage?: number;
+  minPosM2?: number;
 }
 
 export type TermsType = "concise" | "full" | "custom";

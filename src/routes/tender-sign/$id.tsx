@@ -511,7 +511,7 @@ function RemoteTenderSignPage() {
               3. <strong>Site Investigation Authority:</strong> I/We hereby request that a formal Tender document be produced for the construction of my/our new Hudson Home. I/we authorize Hudson Homes to conduct all necessary site inspections, contour surveys, soil test boreholes, and council planning assessments.
             </p>
             <p>
-              4. <strong>270-Day Fixed Price Guarantee:</strong> The tender price provided by Hudson Homes will remain fixed for a period of <strong>270 days (9 months)</strong> from the date of tender issuance.
+              4. <strong>270-Day Price Lock Guarantee:</strong> The tender price provided by Hudson Homes will remain held for a period of <strong>270 days (9 months)</strong> from the date of tender issuance.
             </p>
             <p>
               5. <strong>Tender Acceptance Fee:</strong> Upon presentation of the completed Tender document, an Acceptance Fee of <strong>$4,400</strong> (or <strong>$6,600</strong> for Knock-Down Rebuild / Dual Occupancy) is payable within 10 days to proceed with architectural working drawings and engineering.

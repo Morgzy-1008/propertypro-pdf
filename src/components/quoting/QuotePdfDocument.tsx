@@ -490,26 +490,24 @@ interface SpecGroup {
 function getSpecItemEstimatedHeight(item: SpecItem): number {
   const desc = (item.description || "").trim();
   const nameLen = (item.name || "").length;
-  // Extra allowance if title is long and wraps onto 2 lines (> 48 chars)
-  const nameExtra = nameLen > 48 ? 18 : 0;
+  // Extra allowance if title is long and wraps onto 2 lines (> 55 chars)
+  const nameExtra = nameLen > 55 ? 12 : 0;
 
   if (!desc) {
-    return 36 + nameExtra;
+    return 28 + nameExtra;
   }
   const descLen = desc.length;
-  if (descLen <= 55) return 54 + nameExtra;
-  if (descLen <= 110) return 70 + nameExtra;
-  if (descLen <= 170) return 86 + nameExtra;
-  return 102 + nameExtra;
+  if (descLen <= 60) return 40 + nameExtra;
+  if (descLen <= 120) return 54 + nameExtra;
+  if (descLen <= 180) return 68 + nameExtra;
+  return 82 + nameExtra;
 }
 
-const SPEC_GROUP_HEADER_HEIGHT = 52;
-// Page 1 budget: Available 1043px - 50px footer - 70px clearance - 125px top headers = ~798px.
-// Setting 750px ensures >= 80px clearance above the customer initial footer.
-const SPEC_PAGE_1_MAX_HEIGHT = 750;
-// Continuation page budget: 1043px - 50px footer - 70px clearance - 70px top header = ~853px.
-// Setting 800px ensures >= 80px clearance above the customer initial footer.
-const SPEC_PAGE_CONT_MAX_HEIGHT = 800;
+const SPEC_GROUP_HEADER_HEIGHT = 44;
+// Page 1 budget: calibrated for comfortable packing without spilling into excess blank pages
+const SPEC_PAGE_1_MAX_HEIGHT = 820;
+// Continuation page budget
+const SPEC_PAGE_CONT_MAX_HEIGHT = 860;
 
 function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   const pages: SpecGroup[][] = [];
@@ -950,11 +948,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       : []),
   ];
 
+  const combinedEarthworksAndGeotech = [...earthworksItems, ...geotechnicalSiteItems];
+
   const activeSiteSchedule = [
     {
-      label: "1. Site Specific Earthworks, Foundation & Soil Engineering",
-      total: earthworksItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
-      items: earthworksItems,
+      label: "1. Site Earthworks, Foundation & Geotechnical Allowances",
+      total: combinedEarthworksAndGeotech.reduce((s, it) => s + (Number(it.amount) || 0), 0),
+      items: combinedEarthworksAndGeotech,
     },
     ...(overlayReportsAndAllowances.length > 0
       ? [
@@ -970,15 +970,6 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       total: councilStatutoryItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
       items: councilStatutoryItems,
     },
-    ...(geotechnicalSiteItems.length > 0
-      ? [
-          {
-            label: "4. Geotechnical & Site Allowances",
-            total: geotechnicalSiteItems.reduce((s, it) => s + (Number(it.amount) || 0), 0),
-            items: geotechnicalSiteItems,
-          },
-        ]
-      : []),
   ];
 
   const totalVariationsAmount = (pricing.categorySubtotals || []).reduce((s, c) => s + c.amount, 0);
@@ -1006,6 +997,22 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
   const specPages = paginateSpecGroups(allSpecGroups);
   const totalPages = (hasSecondDwelling ? 4 : 3) + specPages.length + 2;
+
+  const isNswQuote = Boolean(
+    (client.postcode && client.postcode.trim().startsWith("2")) ||
+    (client.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(client.suburb)) ||
+    (siteConditions.councilRegion && /nsw|parramatta|blacktown|camden|liverpool|penrith|campbelltown|hills|wollongong|lake macquarie|newcastle|central coast|cessnock|hawkesbury|wollondilly|shellharbour/i.test(siteConditions.councilRegion)) ||
+    (client.siteAddress && /\bnsw\b/i.test(client.siteAddress)) ||
+    (client.consultantOffice && /nsw|parramatta|marsden/i.test(client.consultantOffice))
+  );
+
+  const bankAccountName = isNswQuote ? "Hudson Homes (NSW) Pty Ltd" : "Hudson Homes (QLD) Pty Ltd";
+  const bankHeaderTitle = isNswQuote ? "HUDSON HOMES NSW BANK DETAILS" : "HUDSON HOMES QLD BANK DETAILS";
+  const bankBsb = "082 778";
+  const bankAccountNumber = isNswQuote ? "77-847-8427" : "74-586-5607";
+  const headOfficeAddress = isNswQuote
+    ? "Level 1, 85 George St, Parramatta NSW 2150"
+    : "Level 5, 106 City Road, Beenleigh QLD 4207";
 
   return (
     <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
@@ -1550,8 +1557,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
             </div>
             <div className="font-mono">Page 2 of {totalPages}</div>
           </div>
@@ -1653,8 +1661,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
             </div>
             <div className="font-mono">Page 3 of {totalPages}</div>
           </div>
@@ -1752,8 +1761,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
             </div>
             <div className="flex items-center gap-4">
-              <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-                CUSTOMER INITIAL
+              <div className="flex items-center gap-1.5">
+                <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+                <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
               </div>
               <div className="font-mono">Page 4 of {totalPages}</div>
             </div>
@@ -1885,8 +1895,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
               </div>
               <div className="flex items-center gap-4">
-                <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-                  CUSTOMER INITIAL
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+                  <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
                 </div>
                 <div className="font-mono">
                   Page {pageNumber} of {totalPages}
@@ -2077,8 +2088,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
             </div>
             <div className="font-mono">Page {(hasSecondDwelling ? 4 : 3) + specPages.length + 1} of {totalPages}</div>
           </div>
@@ -2171,13 +2183,13 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             <div className="space-y-2.5 text-xs flex-1">
               <div className="font-bold text-cyan-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Building className="h-4 w-4 text-cyan-700" />
-                HUDSON HOMES QLD BANK DETAILS
+                {bankHeaderTitle}
               </div>
 
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Name:</span>
-                  <span className="font-bold text-slate-900">Hudson Homes (QLD) Pty Ltd</span>
+                  <span className="font-bold text-slate-900">{bankAccountName}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Bank:</span>
@@ -2185,11 +2197,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">BSB Number:</span>
-                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">082 778</span>
+                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">{bankBsb}</span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">74-586-5607</span>
+                  <span className="font-extrabold text-slate-900 font-mono text-sm tracking-wider">{bankAccountNumber}</span>
                 </div>
               </div>
 
@@ -2207,9 +2219,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             {/* Dynamic Payment QR Code Box */}
             <div className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl text-center flex-none shadow-xs">
               <PaymentQrCode
-                accountName="Hudson Homes (QLD) Pty Ltd"
-                bsb="082 778"
-                accountNumber="74-586-5607"
+                accountName={bankAccountName}
+                bsb={bankBsb}
+                accountNumber={bankAccountNumber}
                 amount={pricing.initialDepositAmount || 1650}
                 reference={client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
                 size={95}
@@ -2264,8 +2276,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
 
               <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[9px] text-slate-500 space-y-0.5">
-                <div className="font-bold text-slate-700">Hudson Homes Pty Ltd</div>
-                <div>Level 5, 106 City Road, Beenleigh QLD 4207</div>
+                <div className="font-bold text-slate-700">{bankAccountName}</div>
+                <div>{headOfficeAddress}</div>
                 <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
               </div>
             </div>
@@ -2278,8 +2290,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder&apos;s Licence: 259372C
           </div>
           <div className="flex items-center gap-4">
-            <div className="border border-slate-400 px-3 py-1 text-[9px] font-bold uppercase text-slate-600 rounded">
-              CUSTOMER INITIAL
+            <div className="flex items-center gap-1.5">
+              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-wider">Initial:</span>
+              <div className="border border-slate-400 w-12 h-6 rounded bg-white" />
             </div>
             <div className="font-mono">Page {totalPages} of {totalPages}</div>
           </div>

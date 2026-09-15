@@ -42,7 +42,7 @@ export const Route = createFileRoute("/browse/packages")({
       { property: "og:title", content: "Available House & Land Packages (QLD & NSW) | Hudson Homes" },
       {
         property: "og:description",
-        content: "Fixed-price House & Land packages available now across QLD and NSW, organised by estate and design.",
+        content: "Complete House & Land packages available now across QLD and NSW, organised by estate and design.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -113,7 +113,7 @@ function PackagesBrowse() {
   const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">("All");
   const [selectedType, setSelectedType] = useState<string>("All");
   const [selectedEstate, setSelectedEstate] = useState<string>("All");
-  const [sortOrder, setSortOrder] = useState<"price-asc" | "price-desc" | "name">("price-asc");
+  const [sortOrder, setSortOrder] = useState<"suburb" | "price-asc" | "price-desc" | "name">("suburb");
 
   // State package counts
   const qldCount = useMemo(() => packages.filter((p) => p.state === "QLD").length, [packages]);
@@ -165,6 +165,12 @@ function PackagesBrowse() {
         return true;
       })
       .sort((a, b) => {
+        if (sortOrder === "suburb") {
+          const subA = (a.suburb || "").trim().toLowerCase();
+          const subB = (b.suburb || "").trim().toLowerCase();
+          if (subA !== subB) return subA.localeCompare(subB);
+          return (a.name || "").localeCompare(b.name || "");
+        }
         if (sortOrder === "price-asc") {
           return (a.totalPrice ?? 0) - (b.totalPrice ?? 0);
         }
@@ -251,7 +257,7 @@ function PackagesBrowse() {
         <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-4">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>{packages.length} Fixed-Price House &amp; Land Packages Available (QLD &amp; NSW)</span>
+            <span>{packages.length} Turnkey House &amp; Land Packages Available (QLD &amp; NSW)</span>
           </div>
 
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -266,7 +272,7 @@ function PackagesBrowse() {
 
             <div className="flex items-center gap-3 text-xs text-slate-400">
               <span className="flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Fixed Price
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Turnkey Package
               </span>
               <span className="flex items-center gap-1">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Full Inclusions
@@ -349,6 +355,7 @@ function PackagesBrowse() {
                 onChange={(e) => setSortOrder(e.target.value as any)}
                 className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
               >
+                <option value="suburb">Suburb: A to Z</option>
                 <option value="price-asc">Price: Low to High</option>
                 <option value="price-desc">Price: High to Low</option>
                 <option value="name">Design: A to Z</option>

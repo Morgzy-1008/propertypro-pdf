@@ -420,11 +420,17 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
     toast.success("Your selections have been submitted to your Hudson Homes Sales Consultant!");
   };
 
-  const lockedItems = quote.lineItems.filter(
-    (i) => (i.isIncluded || i.clientSelected !== false) && !i.isClientSelectable && i.unitRate > 0,
+  // Requirement 1.i: Only show variations that the NHC actually selected for the quote
+  // Filter out unselected master catalogue variations
+  const nhcSelectedItems = quote.lineItems.filter(
+    (i) => i.isIncluded === true || (i.clientSelected !== undefined && i.clientSelected !== false)
   );
 
-  const optionalItems = quote.lineItems.filter(
+  const lockedItems = nhcSelectedItems.filter(
+    (i) => !i.isClientSelectable && i.unitRate > 0,
+  );
+
+  const optionalItems = nhcSelectedItems.filter(
     (i) => i.isClientSelectable && i.unitRate > 0,
   );
 
@@ -1392,7 +1398,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               <div className="flex items-center gap-1.5">✓ Registered Contour Survey</div>
               <div className="flex items-center gap-1.5">✓ Developer Covenant Compliance Check</div>
               <div className="flex items-center gap-1.5">✓ In-house Architectural Drafting (Plans &amp; Elevations)</div>
-              <div className="flex items-center gap-1.5 sm:col-span-2">✓ Formal Fixed Tender Pricing by Senior Estimator</div>
+              <div className="flex items-center gap-1.5 sm:col-span-2">✓ Formal Tender Pricing by Senior Estimator</div>
             </div>
           </div>
 
@@ -1402,7 +1408,9 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               <div className="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
                   <Building className="h-3.5 w-3.5" />
-                  HUDSON HOMES QLD BANK DETAILS
+                  {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
+                    ? "HUDSON HOMES NSW BANK DETAILS"
+                    : "HUDSON HOMES QLD BANK DETAILS"}
                 </span>
                 <span className="text-slate-400 font-mono text-[10px]">National Australia Bank</span>
               </div>
@@ -1412,11 +1420,22 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                   <div>
                     <span className="text-slate-500 text-[10px] block">Account Name:</span>
-                    <span className="font-semibold text-white">Hudson Homes (QLD) Pty Ltd</span>
+                    <span className="font-semibold text-white">
+                      {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
+                        ? "Hudson Homes (NSW) Pty Ltd"
+                        : "Hudson Homes (QLD) Pty Ltd"}
+                    </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => copyToClipboard("Hudson Homes (QLD) Pty Ltd", "Account Name")}
+                    onClick={() =>
+                      copyToClipboard(
+                        quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
+                          ? "Hudson Homes (NSW) Pty Ltd"
+                          : "Hudson Homes (QLD) Pty Ltd",
+                        "Account Name"
+                      )
+                    }
                     className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
                     title="Copy Account Name"
                   >
@@ -1450,11 +1469,22 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                   <div>
                     <span className="text-slate-500 text-[10px] block">Account Number:</span>
-                    <span className="font-bold font-mono text-base text-white tracking-wider">74-586-5607</span>
+                    <span className="font-bold font-mono text-base text-white tracking-wider">
+                      {quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
+                        ? "77-847-8427"
+                        : "74-586-5607"}
+                    </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => copyToClipboard("745865607", "Account Number")}
+                    onClick={() =>
+                      copyToClipboard(
+                        quote.client.postcode?.startsWith("2") || quote.client.suburb?.toLowerCase().includes("nsw")
+                          ? "778478427"
+                          : "745865607",
+                        "Account Number"
+                      )
+                    }
                     className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800"
                     title="Copy Account Number"
                   >

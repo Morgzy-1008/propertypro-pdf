@@ -560,7 +560,11 @@ html.normal-mode,
 .normal-mode [data-radix-dialog-content],
 .normal-mode [data-radix-popper-content-wrapper] [role="dialog"],
 .normal-mode div[class*="bg-slate-950"],
-.normal-mode div[class*="bg-slate-900"] {
+.normal-mode div[class*="bg-slate-900"],
+.normal-mode div[class*="bg-black"],
+.normal-mode section[class*="bg-slate-950"],
+.normal-mode section[class*="bg-slate-900"],
+.normal-mode section[class*="bg-black"] {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -569,12 +573,30 @@ html.normal-mode,
 /* Sub-panels and inset cards use subtle slate-50 */
 .normal-mode div[class*="bg-slate-950/60"],
 .normal-mode div[class*="bg-slate-950/70"],
+.normal-mode div[class*="bg-slate-950/80"],
 .normal-mode div[class*="bg-slate-900/40"],
 .normal-mode div[class*="bg-slate-900/50"],
-.normal-mode div[class*="bg-slate-900/60"] {
+.normal-mode div[class*="bg-slate-900/60"],
+.normal-mode div[class*="bg-slate-900/80"],
+.normal-mode div[class*="bg-slate-900/90"] {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
+}
+
+/* Form Inputs, Textareas & Select Triggers */
+.normal-mode input,
+.normal-mode textarea,
+.normal-mode select,
+.normal-mode button[role="combobox"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.normal-mode input::placeholder,
+.normal-mode textarea::placeholder {
+  color: #94a3b8 !important;
 }
 
 /* 2. Text Colors */
@@ -583,8 +605,7 @@ html.normal-mode,
 .normal-mode h3,
 .normal-mode h4,
 .normal-mode .text-slate-100,
-.normal-mode .text-slate-200,
-.normal-mode .text-white {
+.normal-mode .text-slate-200 {
   color: #0f172a !important;
 }
 

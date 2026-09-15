@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Sparkles,
   MousePointer,
+  AlertTriangle,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,13 +40,14 @@ export interface ExtractedAreaSchedule {
   balconyM2?: number;
   totalM2?: number;
   matchedLines?: string[];
+  unassignedItems?: { label: string; sqm: number; originalLine: string }[];
 }
 
 export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
   if (!text) return null;
 
   const lines = text.split(/\r?\n/);
-  const result: ExtractedAreaSchedule = { matchedLines: [] };
+  const result: ExtractedAreaSchedule = { matchedLines: [], unassignedItems: [] };
 
   for (const line of lines) {
     const cleanLine = line.trim();
@@ -66,19 +68,34 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     const val = extractNum(cleanLine);
     if (val === null) continue;
 
+    // 1. Lower Ground Living (charged at Ground Floor Living rate per requirement 1.c)
     if (
+      lower.includes("lower ground") ||
+      lower.includes("lower floor") ||
+      lower.includes("lower living") ||
+      lower.includes("lower level")
+    ) {
+      result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
+      result.matchedLines?.push(cleanLine);
+    } else if (
       lower.includes("ground living") ||
       lower.includes("ground floor living") ||
-      lower.includes("lower living") ||
       lower.includes("ground floor area")
     ) {
-      result.groundLivingM2 = val;
+      // For split-level designs with both lower ground and ground living:
+      if (result.groundLivingM2 && result.groundLivingM2 > 0) {
+        // Upper/split ground living charged at first floor rate per 1.c
+        result.firstLivingM2 = (result.firstLivingM2 || 0) + val;
+      } else {
+        result.groundLivingM2 = val;
+      }
       result.matchedLines?.push(cleanLine);
     } else if (
       lower.includes("first living") ||
       lower.includes("first floor living") ||
       lower.includes("upper living") ||
-      lower.includes("first floor area")
+      lower.includes("first floor area") ||
+      lower.includes("upper floor")
     ) {
       result.firstLivingM2 = val;
       result.matchedLines?.push(cleanLine);
@@ -95,7 +112,6 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       }
     } else if (
       lower.includes("garage") ||
-      lower.includes("workshop") ||
       lower.includes("carport") ||
       lower.includes("garage/workshop") ||
       lower.includes("garage / workshop")
@@ -131,6 +147,31 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     ) {
       result.totalM2 = val;
       result.matchedLines?.push(cleanLine);
+    } else {
+      // Ambiguous / custom area row (e.g. multi-generation dwelling, studio, annex)
+      const isLikelyAreaRow =
+        lower.includes("m²") ||
+        lower.includes("sqm") ||
+        lower.includes("m2") ||
+        lower.includes("dwelling") ||
+        lower.includes("unit") ||
+        lower.includes("suite") ||
+        lower.includes("studio") ||
+        lower.includes("flat") ||
+        lower.includes("room") ||
+        lower.includes("annex") ||
+        lower.includes("generation") ||
+        lower.includes("mezzanine") ||
+        lower.includes("workshop");
+
+      if (isLikelyAreaRow && val > 2 && val < 500) {
+        const cleanLabel = cleanLine.replace(/[\d.,]+(\s*(m²|sqm|m2))?/gi, "").trim() || cleanLine;
+        result.unassignedItems?.push({
+          label: cleanLabel,
+          sqm: val,
+          originalLine: cleanLine,
+        });
+      }
     }
   }
 
@@ -602,7 +643,7 @@ export function ModifiedFloorplanModal({
   };
 
 
-    const handleAutoCrop = () => {
+  const handleAutoCrop = () => {
     const baseCanvas = baseCanvasRef.current;
     if (!baseCanvas) return;
 
@@ -614,34 +655,63 @@ export function ModifiedFloorplanModal({
     const imgData = ctx.getImageData(0, 0, w, h);
     const data = imgData.data;
 
-    let minX = w, maxX = 0, minY = h, maxY = 0;
-    const threshold = 230;
+    // Disregard outer 4% margins where border boxes, headers, or edge lines sit
+    const marginX = Math.round(w * 0.04);
+    const marginY = Math.round(h * 0.04);
 
-    for (let y = 0; y < h; y += 2) {
-      for (let x = 0; x < w; x += 2) {
+    // Divide canvas into 40x40 analysis grid to detect continuous floorplan linework
+    const GRID_X = 40;
+    const GRID_Y = 40;
+    const cellW = w / GRID_X;
+    const cellH = h / GRID_Y;
+    const densityGrid: number[][] = Array.from({ length: GRID_Y }, () => Array(GRID_X).fill(0));
+
+    const threshold = 220;
+    // Step by 3 pixels for speed and high precision
+    for (let y = marginY; y < h - marginY; y += 3) {
+      const gy = Math.min(GRID_Y - 1, Math.floor(y / cellH));
+      for (let x = marginX; x < w - marginX; x += 3) {
+        const gx = Math.min(GRID_X - 1, Math.floor(x / cellW));
         const idx = (y * w + x) * 4;
         const alpha = data[idx + 3];
         const r = data[idx];
         const g = data[idx + 1];
         const b = data[idx + 2];
-        if (alpha > 50 && (r < threshold || g < threshold || b < threshold)) {
-          if (x < minX) minX = x;
-          if (x > maxX) maxX = x;
-          if (y < minY) minY = y;
-          if (y > maxY) maxY = y;
+        if (alpha > 80 && (r < threshold || g < threshold || b < threshold)) {
+          densityGrid[gy][gx]++;
         }
       }
     }
 
-    if (minX >= maxX || minY >= maxY) {
+    // A cell has active linework if it contains >= 8 dark pixels
+    const activeThreshold = 8;
+    // Exclude title block zone (bottom-right 28% width, bottom 20% height where title blocks live)
+    let minGX = GRID_X, maxGX = 0, minGY = GRID_Y, maxGY = 0;
+
+    for (let gy = 1; gy < GRID_Y - 1; gy++) {
+      for (let gx = 1; gx < GRID_X - 1; gx++) {
+        const isTitleBlockZone = gx >= Math.floor(GRID_X * 0.68) && gy >= Math.floor(GRID_Y * 0.80);
+        if (isTitleBlockZone) continue;
+
+        if (densityGrid[gy][gx] >= activeThreshold) {
+          if (gx < minGX) minGX = gx;
+          if (gx > maxGX) maxGX = gx;
+          if (gy < minGY) minGY = gy;
+          if (gy > maxGY) maxGY = gy;
+        }
+      }
+    }
+
+    if (minGX >= maxGX || minGY >= maxGY) {
       toast.error("Could not auto-detect floorplan boundaries. Please click manually on the page.");
       return;
     }
 
-    const pMinX = Math.max(0, (minX - 6) / w);
-    const pMaxX = Math.min(1, (maxX + 6) / w);
-    const pMinY = Math.max(0, (minY - 6) / h);
-    const pMaxY = Math.min(1, (maxY + 6) / h);
+    // Expand bounding box by 1 cell buffer for clean wall margins and dimensions
+    const pMinX = Math.max(0.02, ((minGX - 0.5) * cellW) / w);
+    const pMaxX = Math.min(0.98, ((maxGX + 1.5) * cellW) / w);
+    const pMinY = Math.max(0.02, ((minGY - 0.5) * cellH) / h);
+    const pMaxY = Math.min(0.98, ((maxGY + 1.5) * cellH) / h);
 
     const autoPoints: Point[] = [
       { x: pMinX, y: pMinY },
@@ -652,7 +722,7 @@ export function ModifiedFloorplanModal({
 
     setActivePoints(autoPoints);
     setIsClosed(true);
-    toast.success("✨ Floorplan auto-cropped! Click 'Apply Cropped Floorplan' or adjust points.");
+    toast.success("✨ Floorplan auto-cropped (excluding title blocks & borders)! Adjust points as needed.");
   };
 
   const handleResetPoints = () => {
@@ -660,6 +730,47 @@ export function ModifiedFloorplanModal({
     setIsClosed(false);
     setIsNearStart(false);
     toast.info("Reverted to full image. Click anywhere to draw custom crop.");
+  };
+
+  const handleAssignCategory = (
+    idx: number,
+    category: "groundLivingM2" | "firstLivingM2" | "garageM2" | "alfrescoM2" | "balconyM2" | "exclude"
+  ) => {
+    if (!detectedAreas || !detectedAreas.unassignedItems) return;
+    const targetItem = detectedAreas.unassignedItems[idx];
+    if (!targetItem) return;
+
+    const remaining = detectedAreas.unassignedItems.filter((_, i) => i !== idx);
+    const updated: ExtractedAreaSchedule = { ...detectedAreas, unassignedItems: remaining };
+
+    if (category !== "exclude") {
+      updated[category] = Number(((updated[category] || 0) + targetItem.sqm).toFixed(2));
+    }
+
+    const livingSum = (updated.livingM2 || 0) + (updated.groundLivingM2 || 0) + (updated.firstLivingM2 || 0);
+    const compSum =
+      livingSum +
+      (updated.garageM2 || 0) +
+      (updated.alfrescoM2 || 0) +
+      (updated.porchM2 || 0) +
+      (updated.balconyM2 || 0);
+    updated.totalM2 = Number(compSum.toFixed(2));
+
+    setDetectedAreas(updated);
+    onExtractedAreas?.(updated);
+    const catLabel =
+      category === "groundLivingM2"
+        ? "Ground Floor Living"
+        : category === "firstLivingM2"
+        ? "First Floor Living"
+        : category === "garageM2"
+        ? "Garage"
+        : category === "alfrescoM2"
+        ? "Alfresco"
+        : category === "balconyM2"
+        ? "Balcony"
+        : "Excluded";
+    toast.success(`Assigned ${targetItem.sqm} m² (${targetItem.label}) to ${catLabel}!`);
   };
 
   const cropPolygonRegion = (): string | null => {
@@ -877,6 +988,88 @@ export function ModifiedFloorplanModal({
             <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-950 px-2 py-0.5 rounded border border-emerald-700">
               Auto-Calculated
             </span>
+          </div>
+        )}
+
+        {/* Requirement 1.c: Prompt User for Ambiguous / Custom Area Types */}
+        {detectedAreas?.unassignedItems && detectedAreas.unassignedItems.length > 0 && (
+          <div className="p-3 rounded-xl bg-amber-950/50 border border-amber-500/50 text-xs text-amber-200 space-y-2 flex-none mt-2 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-400 flex-none" />
+              <span className="font-bold text-white text-xs">
+                Custom / Uncategorized Area Detected in Plan Schedule
+              </span>
+              <span className="text-[10px] text-amber-300 font-bold bg-amber-900/80 px-2 py-0.5 rounded border border-amber-600">
+                Action Required
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">
+              We identified custom area rows in your floorplan size chart. Select which pricing category each area should be calculated under (e.g. multi-generation dwelling or lower ground level living is calculated at ground floor living rate):
+            </p>
+            <div className="space-y-2 pt-1">
+              {detectedAreas.unassignedItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-900 border border-amber-500/30"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-amber-300 font-mono text-xs">{item.label}:</span>
+                    <span className="text-white font-mono font-bold bg-slate-800 px-2 py-0.5 rounded">{item.sqm} m²</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => handleAssignCategory(idx, "groundLivingM2")}
+                      className="h-6 text-[10.5px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 shadow-xs"
+                    >
+                      Ground Living ($1,480/m²)
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => handleAssignCategory(idx, "firstLivingM2")}
+                      className="h-6 text-[10.5px] bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-2.5 shadow-xs"
+                    >
+                      First Living ($1,780/m²)
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => handleAssignCategory(idx, "garageM2")}
+                      className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
+                    >
+                      Garage ($1,300/m²)
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => handleAssignCategory(idx, "alfrescoM2")}
+                      className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
+                    >
+                      Alfresco/Porch ($870/m²)
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={() => handleAssignCategory(idx, "balconyM2")}
+                      className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
+                    >
+                      Balcony ($2,000/m²)
+                    </Button>
+                    <Button
+                      size="sm"
+                      type="button"
+                      variant="ghost"
+                      onClick={() => handleAssignCategory(idx, "exclude")}
+                      className="h-6 text-[10px] text-slate-400 hover:text-white px-2"
+                    >
+                      Exclude
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
