@@ -21,6 +21,7 @@ import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_authenticated/floorplan-editor'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
+import { Route as AuthenticatedLandScoutRouteImport } from './routes/_authenticated/land-scout'
 import { Route as AuthenticatedQuoteBuilderRouteImport } from './routes/_authenticated/quote-builder'
 import { Route as AuthenticatedSiteStudioRouteImport } from './routes/_authenticated/site-studio'
 import { Route as AuthenticatedTenderRequestRouteImport } from './routes/_authenticated/tender-request'
@@ -92,6 +93,11 @@ const AuthenticatedHubRoute = AuthenticatedHubRouteImport.update({
   path: '/hub',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLandScoutRoute = AuthenticatedLandScoutRouteImport.update({
+  id: '/land-scout',
+  path: '/land-scout',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedQuoteBuilderRoute =
   AuthenticatedQuoteBuilderRouteImport.update({
     id: '/quote-builder',
@@ -157,6 +163,7 @@ export interface FileRoutesByFullPath {
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
+  '/land-scout': typeof AuthenticatedLandScoutRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/site-studio': typeof AuthenticatedSiteStudioRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
@@ -180,6 +187,7 @@ export interface FileRoutesByTo {
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
+  '/land-scout': typeof AuthenticatedLandScoutRoute
   '/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/site-studio': typeof AuthenticatedSiteStudioRoute
   '/tender-request': typeof AuthenticatedTenderRequestRoute
@@ -205,6 +213,7 @@ export interface FileRoutesById {
   '/_authenticated/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
+  '/_authenticated/land-scout': typeof AuthenticatedLandScoutRoute
   '/_authenticated/quote-builder': typeof AuthenticatedQuoteBuilderRoute
   '/_authenticated/site-studio': typeof AuthenticatedSiteStudioRoute
   '/_authenticated/tender-request': typeof AuthenticatedTenderRequestRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/floorplan-editor'
     | '/flyer'
     | '/hub'
+    | '/land-scout'
     | '/quote-builder'
     | '/site-studio'
     | '/tender-request'
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/floorplan-editor'
     | '/flyer'
     | '/hub'
+    | '/land-scout'
     | '/quote-builder'
     | '/site-studio'
     | '/tender-request'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '/_authenticated/floorplan-editor'
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
+    | '/_authenticated/land-scout'
     | '/_authenticated/quote-builder'
     | '/_authenticated/site-studio'
     | '/_authenticated/tender-request'
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHubRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/land-scout': {
+      id: '/_authenticated/land-scout'
+      path: '/land-scout'
+      fullPath: '/land-scout'
+      preLoaderRoute: typeof AuthenticatedLandScoutRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/quote-builder': {
       id: '/_authenticated/quote-builder'
       path: '/quote-builder'
@@ -471,6 +490,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedFloorplanEditorRoute: typeof AuthenticatedFloorplanEditorRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
+  AuthenticatedLandScoutRoute: typeof AuthenticatedLandScoutRoute
   AuthenticatedQuoteBuilderRoute: typeof AuthenticatedQuoteBuilderRoute
   AuthenticatedSiteStudioRoute: typeof AuthenticatedSiteStudioRoute
   AuthenticatedTenderRequestRoute: typeof AuthenticatedTenderRequestRoute
@@ -482,6 +502,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedFloorplanEditorRoute: AuthenticatedFloorplanEditorRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
+  AuthenticatedLandScoutRoute: AuthenticatedLandScoutRoute,
   AuthenticatedQuoteBuilderRoute: AuthenticatedQuoteBuilderRoute,
   AuthenticatedSiteStudioRoute: AuthenticatedSiteStudioRoute,
   AuthenticatedTenderRequestRoute: AuthenticatedTenderRequestRoute,
