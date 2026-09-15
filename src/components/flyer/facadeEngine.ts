@@ -405,9 +405,12 @@ export async function callGeminiOutpaint(
   }
 
   // 2. Direct client-side fallback
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey =
+    (typeof window !== "undefined"
+      ? localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key")
+      : "") || import.meta.env.VITE_GEMINI_API_KEY;
   if (!apiKey) {
-    console.warn("[Gemini AI] VITE_GEMINI_API_KEY is not configured.");
+    console.warn("[Gemini AI] Gemini API key is not configured in localStorage or env.");
     return null;
   }
 

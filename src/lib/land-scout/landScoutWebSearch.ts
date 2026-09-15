@@ -19,6 +19,67 @@ export function saveGeminiApiKey(key: string): void {
   localStorage.setItem("hudson_gemini_api_key", key.trim());
 }
 
+export function clearGeminiApiKey(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("hudson_gemini_api_key");
+  localStorage.removeItem("gemini_api_key");
+}
+
+/**
+ * Validates a Gemini API key by making a lightweight test call to Google's API.
+ */
+export async function validateGeminiApiKey(key: string): Promise<{ valid: boolean; error?: string }> {
+  const trimmed = key.trim();
+  if (!trimmed) return { valid: false, error: "API key cannot be empty." };
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(trimmed)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: "Ping" }] }],
+        }),
+      }
+    );
+
+    if (!res.ok) {
+      const errText = await res.text();
+      let parsedMsg = "";
+      try {
+        const json = JSON.parse(errText);
+        parsedMsg = json.error?.message || "";
+      } catch {}
+
+      if (
+        res.status === 401 ||
+        res.status === 403 ||
+        parsedMsg.includes("service account") ||
+        parsedMsg.includes("ACCOUNT_STATE_INVALID") ||
+        parsedMsg.includes("API key not valid")
+      ) {
+        if (parsedMsg.includes("bound service account") || parsedMsg.includes("ACCOUNT_STATE_INVALID")) {
+          return {
+            valid: false,
+            error: "The service account bound to this API key has been deleted or disabled in Google Cloud Console. Please create a new active key at Google AI Studio.",
+          };
+        }
+        return {
+          valid: false,
+          error: "Invalid or unauthorized API key. Please verify your Google AI Studio key.",
+        };
+      }
+
+      return { valid: false, error: parsedMsg || `Google API returned status ${res.status}` };
+    }
+
+    return { valid: true };
+  } catch (e: any) {
+    return { valid: false, error: e.message || "Network connection failed while verifying API key." };
+  }
+}
+
 /**
  * Searches Hudson's internal database lots and converts them into LandParcel format.
  */
@@ -196,13 +257,13 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash"];
+  const models = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
   let lastError: Error | null = null;
 
   for (const model of models) {
     try {
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -215,7 +276,34 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
 
       if (!res.ok) {
         const errText = await res.text();
-        throw new Error(`Gemini API returned HTTP ${res.status}: ${errText}`);
+        let parsedMessage = "";
+        try {
+          const parsedJson = JSON.parse(errText);
+          parsedMessage = parsedJson.error?.message || "";
+        } catch {}
+
+        if (
+          res.status === 401 ||
+          res.status === 403 ||
+          parsedMessage.includes("service account") ||
+          parsedMessage.includes("ACCOUNT_STATE_INVALID") ||
+          parsedMessage.includes("API key not valid") ||
+          parsedMessage.includes("UNAUTHENTICATED")
+        ) {
+          clearGeminiApiKey();
+          const userFriendlyMsg =
+            parsedMessage.includes("bound service account") || parsedMessage.includes("ACCOUNT_STATE_INVALID")
+              ? "The configured Gemini API key is bound to a deleted or disabled Google Cloud service account. Please provide an active Gemini API key from Google AI Studio."
+              : `Gemini API authentication failed: ${parsedMessage || "API key invalid"}. Please update your API key.`;
+
+          const authErr = new Error(userFriendlyMsg);
+          (authErr as any).isAuthError = true;
+          (authErr as any).statusCode = res.status;
+          throw authErr;
+        }
+
+        lastError = new Error(`Gemini API (${model}) returned HTTP ${res.status}: ${parsedMessage || errText}`);
+        continue;
       }
 
       const json = await res.json();
@@ -318,6 +406,9 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
         sourceSummary: parsed.summary || `Found ${hydratedParcels.length} active lots online.`,
       };
     } catch (err: any) {
+      if (err?.isAuthError) {
+        throw err;
+      }
       lastError = err;
       console.warn(`[searchLiveWebForLand] Model ${model} failed:`, err);
     }

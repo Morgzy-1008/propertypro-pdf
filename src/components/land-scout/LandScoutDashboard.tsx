@@ -140,9 +140,42 @@ export function LandScoutDashboard() {
       });
     } catch (err: any) {
       console.error("Live web search error:", err);
-      toast.error(err?.message || "Failed to search live web for land.", {
-        description: "Check your Gemini API key or try a different suburb query.",
-      });
+      const isAuth =
+        err?.isAuthError ||
+        err?.message?.includes("service account") ||
+        err?.message?.includes("ACCOUNT_STATE_INVALID") ||
+        err?.message?.includes("401") ||
+        err?.message?.includes("API key not valid") ||
+        err?.message?.includes("UNAUTHENTICATED");
+
+      if (isAuth) {
+        setIsApiKeyModalOpen(true);
+        // Fallback to searching internal Hudson database lots so the user is never stuck
+        const internalLots = searchDatabaseLotsAsParcels(query);
+        if (internalLots.length > 0) {
+          bulkAddOrUpdateParcels(internalLots);
+          setParcels(getLandParcels());
+          toast.warning("Gemini API Key Disabled or Invalid", {
+            description: `${err.message || "Key rejected by Google."} Displaying ${internalLots.length} matching lots from Hudson's database instead.`,
+            action: {
+              label: "Update Key",
+              onClick: () => setIsApiKeyModalOpen(true),
+            },
+          });
+        } else {
+          toast.error("Gemini API Key Disabled or Invalid", {
+            description: err.message || "Your Gemini API key was rejected by Google. Please enter an active API key.",
+            action: {
+              label: "Update Key",
+              onClick: () => setIsApiKeyModalOpen(true),
+            },
+          });
+        }
+      } else {
+        toast.error(err?.message || "Failed to search live web for land.", {
+          description: "Check your Gemini API key or try a different suburb query.",
+        });
+      }
     } finally {
       setIsWebSearching(false);
       setSearchStatusMsg("");
