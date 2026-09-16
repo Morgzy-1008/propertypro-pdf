@@ -55,7 +55,6 @@ import { LandParcelCard } from "./LandParcelCard";
 import { LandValuationDrawer } from "./LandValuationDrawer";
 import { AgentOutreachModal } from "./AgentOutreachModal";
 import { LandScoutMapView } from "./LandScoutMapView";
-import { GeminiApiKeyModal } from "./GeminiApiKeyModal";
 import { PriceListImportModal } from "./PriceListImportModal";
 import { AddCustomLotModal } from "./AddCustomLotModal";
 import { useNavigate } from "@tanstack/react-router";
@@ -78,7 +77,6 @@ export function LandScoutDashboard() {
   // Web Search & Modal States
   const [isWebSearching, setIsWebSearching] = useState(false);
   const [searchStatusMsg, setSearchStatusMsg] = useState("");
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isPriceListModalOpen, setIsPriceListModalOpen] = useState(false);
   const [isAddLotModalOpen, setIsAddLotModalOpen] = useState(false);
 
@@ -120,7 +118,7 @@ export function LandScoutDashboard() {
     }));
   };
 
-  // Trigger Live Web Search via Google Grounding
+  // Trigger Live Web Search via Google Grounding or Instant Database Matching
   const handleExecuteLiveWebSearch = async (overrideQuery?: string) => {
     const query = (overrideQuery ?? filterState.searchQuery).trim();
     if (!query) {
@@ -129,51 +127,33 @@ export function LandScoutDashboard() {
     }
 
     setIsWebSearching(true);
-    setSearchStatusMsg(`Scanning active land listings for "${query}" across REA, Domain, and OpenLot...`);
+    setSearchStatusMsg(`Searching active land listings for "${query}"...`);
 
     try {
       const result = await searchLiveWebForLand(query, filterState.state);
       const updated = getLandParcels();
       setParcels(updated);
-      toast.success(result.sourceSummary || `Found ${result.parcels.length} lots online!`, {
-        description: `Imported into Land Scout with auto CAD home siting & deal score.`,
-      });
-    } catch (err: any) {
-      console.error("Live web search error:", err);
-      const isAuth =
-        err?.isAuthError ||
-        err?.message?.includes("service account") ||
-        err?.message?.includes("ACCOUNT_STATE_INVALID") ||
-        err?.message?.includes("401") ||
-        err?.message?.includes("API key not valid") ||
-        err?.message?.includes("UNAUTHENTICATED");
-
-      if (isAuth) {
-        setIsApiKeyModalOpen(true);
-        // Fallback to searching internal Hudson database lots so the user is never stuck
-        const internalLots = searchDatabaseLotsAsParcels(query);
-        if (internalLots.length > 0) {
-          bulkAddOrUpdateParcels(internalLots);
-          setParcels(getLandParcels());
-          toast.warning("Gemini API Key Disabled or Invalid", {
-            description: `${err.message || "Key rejected by Google."} Displaying ${internalLots.length} matching lots from Hudson's database instead.`,
-            action: {
-              label: "Update Key",
-              onClick: () => setIsApiKeyModalOpen(true),
-            },
-          });
-        } else {
-          toast.error("Gemini API Key Disabled or Invalid", {
-            description: err.message || "Your Gemini API key was rejected by Google. Please enter an active API key.",
-            action: {
-              label: "Update Key",
-              onClick: () => setIsApiKeyModalOpen(true),
-            },
-          });
-        }
+      if (result.parcels.length > 0) {
+        toast.success(result.sourceSummary || `Found ${result.parcels.length} lots for "${query}"!`, {
+          description: "Imported into Land Scout with auto CAD home siting & deal score.",
+        });
       } else {
-        toast.error(err?.message || "Failed to search live web for land.", {
-          description: "Check your Gemini API key or try a different suburb query.",
+        toast.info(`No active land listings found matching "${query}".`, {
+          description: "Try searching another suburb like Box Hill, Flagstone, or Austral.",
+        });
+      }
+    } catch (err: any) {
+      console.warn("Live web search fallback:", err);
+      const fallbackLots = searchDatabaseLotsAsParcels(query);
+      if (fallbackLots.length > 0) {
+        bulkAddOrUpdateParcels(fallbackLots);
+        setParcels(getLandParcels());
+        toast.success(`Found ${fallbackLots.length} matching lots for "${query}" from Hudson's database!`, {
+          description: "Loaded with auto CAD home siting & deal score.",
+        });
+      } else {
+        toast.info(`No active land listings found matching "${query}".`, {
+          description: "Try searching another suburb like Box Hill, Flagstone, or Austral.",
         });
       }
     } finally {
@@ -471,15 +451,6 @@ export function LandScoutDashboard() {
             >
               <Plus className="h-3.5 w-3.5 text-brand-gold" />
               <span>+ Add Block</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsApiKeyModalOpen(true)}
-              title="Configure Gemini API Key for Live Web Grounding"
-              className="p-1.5 rounded-xl border border-slate-700 bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
-            >
-              <Key className="h-4 w-4" />
             </button>
 
             {parcels.length > 0 && (
@@ -1164,17 +1135,6 @@ export function LandScoutDashboard() {
         onOutreachLogged={(updated) => {
           setParcels(getLandParcels());
           setActiveParcelForOutreach(null);
-        }}
-      />
-
-      {/* API Key Modal */}
-      <GeminiApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        onKeySaved={() => {
-          if (filterState.searchQuery) {
-            handleExecuteLiveWebSearch();
-          }
         }}
       />
 

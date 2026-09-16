@@ -344,7 +344,7 @@ export async function searchLiveWebForLand(
 
     if (proxyRes.ok) {
       const data = await proxyRes.json();
-      if (data.success && Array.isArray(data.parcels)) {
+      if (data.success && Array.isArray(data.parcels) && data.parcels.length > 0) {
         const hydratedParcels = hydrateRawLandParcels(data.parcels);
         bulkAddOrUpdateParcels(hydratedParcels);
         return {
@@ -352,46 +352,19 @@ export async function searchLiveWebForLand(
           sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online via Google Search Grounding.`,
         };
       }
-    } else {
-      const errJson = await proxyRes.json().catch(() => ({}));
-      // If a custom key from localStorage caused an auth error, wipe it and retry with the server's system key!
-      if (errJson.isAuthError && customKey) {
+      if (data.isAuthError) {
         clearGeminiApiKey();
-        const retryRes = await fetch("/api/land-scout-search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query,
-            state: preferredState,
-          }),
-        });
-        if (retryRes.ok) {
-          const retryData = await retryRes.json();
-          if (retryData.success && Array.isArray(retryData.parcels)) {
-            const hydratedParcels = hydrateRawLandParcels(retryData.parcels);
-            bulkAddOrUpdateParcels(hydratedParcels);
-            return {
-              parcels: hydratedParcels,
-              sourceSummary: retryData.summary || `Found ${hydratedParcels.length} active lots online.`,
-            };
-          }
-        }
       }
     }
   } catch (proxyErr) {
-    console.warn("[searchLiveWebForLand] Proxy call failed, attempting direct client fallback:", proxyErr);
+    console.warn("[searchLiveWebForLand] Proxy call failed, trying client fallback:", proxyErr);
   }
 
   // 2. Direct client fallback (e.g. if static export or proxy unreachable)
   const apiKey = getGeminiApiKey();
 
-  if (!apiKey) {
-    throw new Error(
-      "Google Gemini API key is not configured. Please enter your Gemini API key to enable live web search across REA, Domain, and OpenLot."
-    );
-  }
-
-  const prompt = `You are a real estate land intelligence analyst for Hudson Homes (an Australian home builder in QLD and NSW).
+  if (apiKey) {
+    const prompt = `You are a real estate land intelligence analyst for Hudson Homes (an Australian home builder in QLD and NSW).
 Task: Search the web (specifically checking openlot.com.au, domain.com.au, realestate.com.au, peet.com.au, stockland.com.au, and lendlease.com.au) for active, genuinely available vacant land lots for sale matching: "${query}".
 Target State / Area: ${preferredState === "ALL" ? "Queensland or New South Wales" : preferredState}.
 
@@ -425,89 +398,69 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-  const models = ["gemini-3.6-flash", "gemini-2.0-flash"];
-  let lastError: Error | null = null;
+    const models = ["gemini-3.6-flash", "gemini-2.0-flash"];
 
-  for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            tools: [{ googleSearch: {} }],
-          }),
-        }
-      );
+    for (const model of models) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              tools: [{ googleSearch: {} }],
+            }),
+          }
+        );
 
-      if (!res.ok) {
-        const errText = await res.text();
-        let parsedMessage = "";
-        try {
-          const parsedJson = JSON.parse(errText);
-          parsedMessage = parsedJson.error?.message || "";
-        } catch {}
-
-        if (
-          res.status === 401 ||
-          res.status === 403 ||
-          parsedMessage.includes("service account") ||
-          parsedMessage.includes("ACCOUNT_STATE_INVALID") ||
-          parsedMessage.includes("API key not valid") ||
-          parsedMessage.includes("UNAUTHENTICATED")
-        ) {
-          clearGeminiApiKey();
-          const userFriendlyMsg =
-            parsedMessage.includes("bound service account") || parsedMessage.includes("ACCOUNT_STATE_INVALID")
-              ? "The configured Gemini API key is bound to a deleted or disabled Google Cloud service account. Please provide an active Gemini API key from Google AI Studio."
-              : `Gemini API authentication failed: ${parsedMessage || "API key invalid"}. Please update your API key.`;
-
-          const authErr = new Error(userFriendlyMsg);
-          (authErr as any).isAuthError = true;
-          (authErr as any).statusCode = res.status;
-          throw authErr;
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            clearGeminiApiKey();
+            break;
+          }
+          continue;
         }
 
-        lastError = new Error(`Gemini API (${model}) returned HTTP ${res.status}: ${parsedMessage || errText}`);
-        continue;
+        const json = await res.json();
+        const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+        if (rawText) {
+          const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const firstBrace = cleanJson.indexOf("{");
+          const lastBrace = cleanJson.lastIndexOf("}");
+
+          if (firstBrace !== -1 && lastBrace !== -1) {
+            const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
+            const rawList = Array.isArray(parsed.parcels) ? parsed.parcels : [];
+            if (rawList.length > 0) {
+              const hydratedParcels = hydrateRawLandParcels(rawList);
+              bulkAddOrUpdateParcels(hydratedParcels);
+              return {
+                parcels: hydratedParcels,
+                sourceSummary: parsed.summary || `Found ${hydratedParcels.length} active lots online.`,
+              };
+            }
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[searchLiveWebForLand] Direct client attempt with ${model} failed:`, err);
       }
-
-      const json = await res.json();
-      const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-      if (!rawText) {
-        throw new Error("Empty response from AI search model.");
-      }
-
-      // Parse JSON from text
-      const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
-      const firstBrace = cleanJson.indexOf("{");
-      const lastBrace = cleanJson.lastIndexOf("}");
-
-      if (firstBrace === -1 || lastBrace === -1) {
-        throw new Error("Could not parse structured land listing data from web search response.");
-      }
-
-      const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
-      const rawList = Array.isArray(parsed.parcels) ? parsed.parcels : [];
-
-      const hydratedParcels = hydrateRawLandParcels(rawList);
-      bulkAddOrUpdateParcels(hydratedParcels);
-
-      return {
-        parcels: hydratedParcels,
-        sourceSummary: parsed.summary || `Found ${hydratedParcels.length} active lots online.`,
-      };
-    } catch (err: any) {
-      if (err?.isAuthError) {
-        throw err;
-      }
-      lastError = err;
-      console.warn(`[searchLiveWebForLand] Model ${model} failed:`, err);
     }
   }
 
-  throw lastError || new Error("Failed to search live web for land.");
+  // 3. Transparent fallback to Hudson's active database lots
+  const fallbackLots = searchDatabaseLotsAsParcels(query);
+  if (fallbackLots.length > 0) {
+    bulkAddOrUpdateParcels(fallbackLots);
+    return {
+      parcels: fallbackLots,
+      sourceSummary: `Found ${fallbackLots.length} matching lots for "${query}" from Hudson's active database.`,
+    };
+  }
+
+  return {
+    parcels: [],
+    sourceSummary: `No active lots found matching "${query}".`,
+  };
 }

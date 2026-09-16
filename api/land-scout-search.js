@@ -43,9 +43,11 @@ export default async function handler(req, res) {
   }
 
   if (!key) {
-    return res.status(401).json({
-      error: "Google Gemini API key is not configured on server or in request.",
+    return res.status(200).json({
+      success: false,
       isAuthError: true,
+      parcels: [],
+      summary: "Google Gemini API key not configured on server.",
     });
   }
 
@@ -105,22 +107,13 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
         parsedMsg = json.error?.message || "";
       } catch {}
 
-      if (
-        upstream.status === 401 ||
-        upstream.status === 403 ||
-        parsedMsg.includes("service account") ||
-        parsedMsg.includes("ACCOUNT_STATE_INVALID") ||
-        parsedMsg.includes("API key not valid") ||
-        parsedMsg.includes("UNAUTHENTICATED")
-      ) {
-        return res.status(401).json({
-          error: parsedMsg || "Unauthorized API key.",
-          isAuthError: true,
-        });
-      }
+      console.warn(`[land-scout-search] Gemini API upstream returned ${upstream.status}: ${parsedMsg || errText}`);
 
-      return res.status(upstream.status).json({
-        error: parsedMsg || `Google API error (status ${upstream.status})`,
+      return res.status(200).json({
+        success: false,
+        isAuthError: upstream.status === 401 || upstream.status === 403,
+        parcels: [],
+        summary: parsedMsg || "Live web search unavailable.",
       });
     }
 
@@ -128,7 +121,11 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
     const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (!rawText) {
-      return res.status(502).json({ error: "Empty response from Gemini web search." });
+      return res.status(200).json({
+        success: false,
+        parcels: [],
+        summary: "Empty response from Gemini web search.",
+      });
     }
 
     const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -136,7 +133,11 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
     const lastBrace = cleanJson.lastIndexOf("}");
 
     if (firstBrace === -1 || lastBrace === -1) {
-      return res.status(502).json({ error: "Invalid structured JSON response from web search." });
+      return res.status(200).json({
+        success: false,
+        parcels: [],
+        summary: "Invalid structured JSON response from web search.",
+      });
     }
 
     const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
@@ -146,8 +147,10 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
       parcels: Array.isArray(parsed.parcels) ? parsed.parcels : [],
     });
   } catch (err) {
-    return res.status(500).json({
-      error: err.message || "Internal server error during Land Scout web search.",
+    return res.status(200).json({
+      success: false,
+      parcels: [],
+      summary: err.message || "Error during live web search.",
     });
   }
 }
