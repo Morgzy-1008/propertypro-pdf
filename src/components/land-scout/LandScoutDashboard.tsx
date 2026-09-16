@@ -122,12 +122,6 @@ export function LandScoutDashboard() {
       return;
     }
 
-    const key = getGeminiApiKey();
-    if (!key) {
-      setIsApiKeyModalOpen(true);
-      return;
-    }
-
     setIsWebSearching(true);
     setSearchStatusMsg(`Scanning active land listings for "${query}" across REA, Domain, and OpenLot...`);
 
@@ -261,6 +255,8 @@ export function LandScoutDashboard() {
             p.suburb.toLowerCase().includes(rawQ) ||
             p.estate.toLowerCase().includes(rawQ) ||
             p.streetAddress.toLowerCase().includes(rawQ) ||
+            `${p.suburb} ${p.state}`.toLowerCase().includes(rawQ) ||
+            `${p.streetAddress} ${p.state}`.toLowerCase().includes(rawQ) ||
             p.lotNumber.toLowerCase().includes(rawQ) ||
             p.sourcePortal.toLowerCase().includes(rawQ) ||
             p.agentName.toLowerCase().includes(rawQ);
@@ -273,13 +269,31 @@ export function LandScoutDashboard() {
               .filter(
                 (t) =>
                   t.length > 2 &&
-                  !["under", "over", "with", "from", "lots", "land", "registered", "available", "deal", "beds", "frontage", "blocks"].includes(t) &&
+                  ![
+                    "under",
+                    "over",
+                    "with",
+                    "from",
+                    "lots",
+                    "land",
+                    "registered",
+                    "available",
+                    "deal",
+                    "beds",
+                    "frontage",
+                    "blocks",
+                    "nsw",
+                    "qld",
+                    "vic",
+                    "act",
+                    "australia",
+                  ].includes(t) &&
                   !t.match(/^\d+k?$/) &&
                   (!parsedSuburb || !parsedSuburb.includes(t))
               );
 
             if (tokens.length > 0) {
-              const haystack = `${p.suburb} ${p.estate} ${p.streetAddress} ${p.lotNumber} ${p.sourcePortal} ${p.agentName}`.toLowerCase();
+              const haystack = `${p.suburb} ${p.estate} ${p.streetAddress} ${p.lotNumber} ${p.state} ${p.postcode} ${p.council} ${p.sourcePortal} ${p.agentName}`.toLowerCase();
               const allTokensMatch = tokens.every((t) => haystack.includes(t));
               if (!allTokensMatch) return false;
             }

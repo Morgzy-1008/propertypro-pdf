@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { Key, ShieldCheck, ExternalLink, X, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw } from "lucide-react";
-import { getGeminiApiKey, saveGeminiApiKey, clearGeminiApiKey, validateGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
+import { Key, ShieldCheck, ExternalLink, X, CheckCircle2, AlertCircle, Loader2, Trash2, RefreshCw, Sparkles } from "lucide-react";
+import {
+  getGeminiApiKey,
+  saveGeminiApiKey,
+  clearGeminiApiKey,
+  validateGeminiApiKey,
+  hasSystemSavedApiKey,
+  getSystemSavedApiKey,
+} from "@/lib/land-scout/landScoutWebSearch";
 import { toast } from "sonner";
 
 interface GeminiApiKeyModalProps {
@@ -13,10 +20,15 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
   const [apiKey, setApiKey] = useState("");
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; error?: string } | null>(null);
+  const isSystemAvailable = hasSystemSavedApiKey();
 
   useEffect(() => {
     if (isOpen) {
-      setApiKey(getGeminiApiKey());
+      const customKey =
+        typeof window !== "undefined"
+          ? (localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key") || "").trim()
+          : "";
+      setApiKey(customKey);
       setValidationResult(null);
     }
   }, [isOpen]);
@@ -25,18 +37,17 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
 
   const handleTestKey = async () => {
     const trimmed = apiKey.trim();
-    if (!trimmed) {
-      toast.error("Please enter a Gemini API key to test.");
-      return;
-    }
-
     setIsValidating(true);
     setValidationResult(null);
     try {
-      const res = await validateGeminiApiKey(trimmed);
+      const res = await validateGeminiApiKey(trimmed || undefined);
       setValidationResult(res);
       if (res.valid) {
-        toast.success("API key verified active with Google Gemini!");
+        toast.success(
+          trimmed
+            ? "Custom API key verified active with Google Gemini!"
+            : "Hudson System AI Key verified active!"
+        );
       } else {
         toast.error("API key verification failed: " + (res.error || "Invalid key"));
       }
@@ -48,10 +59,19 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
     }
   };
 
+  const handleUseSystemKey = () => {
+    clearGeminiApiKey();
+    setApiKey("");
+    setValidationResult({ valid: true });
+    toast.success("Switched to Hudson System AI Key!");
+    onKeySaved(getSystemSavedApiKey());
+    onClose();
+  };
+
   const handleSave = async (bypassValidation = false) => {
     const trimmed = apiKey.trim();
     if (!trimmed) {
-      toast.error("Please enter a valid Gemini API key.");
+      handleUseSystemKey();
       return;
     }
 
@@ -85,7 +105,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
     clearGeminiApiKey();
     setApiKey("");
     setValidationResult(null);
-    toast.info("Gemini API key cleared from browser storage.");
+    toast.info("Custom API key cleared. Reverted to Hudson System AI Key.");
   };
 
   const isServiceAccountError =
@@ -115,6 +135,34 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
         </div>
 
         <div className="space-y-3.5 text-xs text-slate-300 leading-relaxed">
+          {/* Active System Key Notice */}
+          {isSystemAvailable && (
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-300 font-semibold text-xs">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <span>Hudson System AI Key Active (No Setup Needed)</span>
+                </div>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Ready
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-normal">
+                Your workspace is already equipped with an authorized Google Gemini API key running via the backend search service. You do not need to provide an API key.
+              </p>
+              <div className="pt-0.5">
+                <button
+                  type="button"
+                  onClick={handleUseSystemKey}
+                  className="px-3 py-1.5 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 border border-emerald-500/40 text-emerald-800 dark:text-emerald-200 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  Use System Saved Key
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2">
             <div className="flex items-start gap-2">
               <ShieldCheck className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
@@ -130,7 +178,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold text-slate-300">
-                Google Gemini API Key
+                Custom Google Gemini API Key <span className="text-slate-500 font-normal">(Optional Override)</span>
               </label>
               {apiKey && (
                 <button
@@ -138,7 +186,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
                   onClick={handleClear}
                   className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 transition-colors cursor-pointer"
                 >
-                  <Trash2 className="h-3 w-3" /> Clear Key
+                  <Trash2 className="h-3 w-3" /> Clear Custom Key
                 </button>
               )}
             </div>
@@ -149,7 +197,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
                 setApiKey(e.target.value);
                 setValidationResult(null);
               }}
-              placeholder="AIzaSy..."
+              placeholder={isSystemAvailable ? "Leave empty to use Hudson System Key..." : "AIzaSy..."}
               className="w-full h-10 px-3.5 rounded-xl border border-slate-700 bg-slate-950 text-sm font-mono text-white placeholder:text-slate-600 focus:outline-hidden focus:border-brand-gold focus:ring-1 focus:ring-brand-gold"
             />
             <div className="text-[11px] text-slate-500 flex items-center justify-between pt-0.5">
@@ -199,7 +247,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
                   <ol className="list-decimal pl-4 space-y-0.5 text-slate-300">
                     <li>Open <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-brand-gold underline font-medium">Google AI Studio</a>.</li>
                     <li>Click <strong>Create API Key</strong> in a new or personal project (not tied to an expired GCP service account).</li>
-                    <li>Copy and paste your new key above.</li>
+                    <li>Copy and paste your new key above, or click <strong>Use System Saved Key</strong>.</li>
                   </ol>
                 </div>
               )}
@@ -211,7 +259,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
           <button
             type="button"
             onClick={handleTestKey}
-            disabled={isValidating || !apiKey.trim()}
+            disabled={isValidating}
             className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 hover:text-white transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
           >
             {isValidating ? (
@@ -222,7 +270,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
             ) : (
               <>
                 <RefreshCw className="h-3.5 w-3.5" />
-                <span>Test Key</span>
+                <span>Test {apiKey.trim() ? "Custom Key" : "System Key"}</span>
               </>
             )}
           </button>
@@ -238,7 +286,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
             <button
               type="button"
               onClick={() => handleSave(false)}
-              disabled={isValidating || !apiKey.trim()}
+              disabled={isValidating}
               className="px-5 py-2 rounded-xl bg-brand-gold text-slate-950 text-xs font-bold hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-md disabled:opacity-50 cursor-pointer"
             >
               {isValidating ? (
@@ -249,7 +297,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
               ) : (
                 <>
                   <CheckCircle2 className="h-4 w-4" />
-                  <span>Save &amp; Activate</span>
+                  <span>{apiKey.trim() ? "Save & Activate" : "Confirm System Key"}</span>
                 </>
               )}
             </button>

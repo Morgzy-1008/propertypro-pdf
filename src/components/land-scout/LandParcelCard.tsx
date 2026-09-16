@@ -179,7 +179,7 @@ export function LandParcelCard({
             className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${
               val.dealScoreRating === "strong_buy"
                 ? "bg-emerald-950/20 border-emerald-500/40 hover:bg-emerald-950/30"
-                : val.dealScoreRating === "fair_deal"
+                : val.dealScoreRating === "speculative_buy" || val.dealScoreRating === "fair_value"
                 ? "bg-amber-950/20 border-amber-500/40 hover:bg-amber-950/30"
                 : "bg-slate-900 border-slate-700 hover:bg-slate-800"
             }`}
@@ -189,7 +189,7 @@ export function LandParcelCard({
                 className={`h-7 w-7 rounded-lg text-xs font-black flex items-center justify-center ${
                   val.dealScoreRating === "strong_buy"
                     ? "bg-emerald-500 text-slate-950"
-                    : val.dealScoreRating === "fair_deal"
+                    : val.dealScoreRating === "speculative_buy" || val.dealScoreRating === "fair_value"
                     ? "bg-amber-400 text-slate-950"
                     : "bg-slate-700 text-white"
                 }`}
@@ -199,14 +199,15 @@ export function LandParcelCard({
               <div>
                 <span className="text-xs font-bold text-white flex items-center gap-1">
                   {val.dealScoreRating === "strong_buy" && "🔥 Strong Buy"}
-                  {val.dealScoreRating === "fair_deal" && "Fair Value Deal"}
-                  {val.dealScoreRating === "premium_lot" && "⚠️ Premium Lot"}
+                  {val.dealScoreRating === "speculative_buy" && "✨ Speculative Buy"}
+                  {val.dealScoreRating === "fair_value" && "Fair Value Deal"}
+                  {val.dealScoreRating === "premium" && "⚠️ Premium Lot"}
                   <span className="text-[10px] font-normal text-slate-400">
-                    ({val.variancePercent >= 0 ? `+${val.variancePercent}%` : `${val.variancePercent}%`} vs median)
+                    ({val.priceDeltaPercent >= 0 ? `+${val.priceDeltaPercent}%` : `${val.priceDeltaPercent}%`} vs median)
                   </span>
                 </span>
                 <span className="block text-[10px] text-slate-400">
-                  +${Math.round(val.projectedFinishedEquity / 1000)}k Projected Finished Equity ({val.marginOnCompletionPercent}%)
+                  +${Math.round((val.projectedGrossEquityMargin || 0) / 1000)}k Projected Finished Equity ({val.projectedEquityMarginPercent || 0}%)
                 </span>
               </div>
             </div>

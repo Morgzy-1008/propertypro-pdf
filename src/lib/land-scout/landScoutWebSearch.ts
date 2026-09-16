@@ -4,14 +4,21 @@ import { getLocalLots, type Lot, getLotState } from "@/lib/databaseStorage";
 import { extractLotsFromText } from "@/lib/parseLotList";
 import { bulkAddOrUpdateParcels } from "./landScoutStorage";
 
+export function getSystemSavedApiKey(): string {
+  return (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) || "";
+}
+
+export function hasSystemSavedApiKey(): boolean {
+  return !!getSystemSavedApiKey();
+}
+
 export function getGeminiApiKey(): string {
   if (typeof window === "undefined") return "";
-  return (
-    localStorage.getItem("hudson_gemini_api_key") ||
-    localStorage.getItem("gemini_api_key") ||
-    (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
-    ""
-  );
+  const customKey = localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key");
+  if (customKey && customKey.trim().length > 0) {
+    return customKey.trim();
+  }
+  return getSystemSavedApiKey();
 }
 
 export function saveGeminiApiKey(key: string): void {
@@ -28,9 +35,29 @@ export function clearGeminiApiKey(): void {
 /**
  * Validates a Gemini API key by making a lightweight test call to Google's API.
  */
-export async function validateGeminiApiKey(key: string): Promise<{ valid: boolean; error?: string }> {
-  const trimmed = key.trim();
-  if (!trimmed) return { valid: false, error: "API key cannot be empty." };
+export async function validateGeminiApiKey(key?: string): Promise<{ valid: boolean; error?: string }> {
+  let trimmed = (key ?? "").trim();
+  if (!trimmed) {
+    trimmed = getGeminiApiKey();
+  }
+
+  if (!trimmed) {
+    // Check server proxy directly
+    try {
+      const res = await fetch("/api/land-scout-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: "Austral NSW", state: "NSW" }),
+      });
+      if (res.ok) {
+        return { valid: true };
+      }
+      const err = await res.json().catch(() => ({}));
+      return { valid: false, error: err.error || "No API key configured." };
+    } catch {
+      return { valid: false, error: "API key cannot be empty and no server key configured." };
+    }
+  }
 
   try {
     const res = await fetch(
@@ -208,13 +235,149 @@ export function importDeveloperPriceList(rawText: string, filename = "PriceList.
   return { parcels, count: parcels.length };
 }
 
+export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
+  return rawList.map((raw: any, idx: number) => {
+    const size = Number(raw.landSizeM2) || 450;
+    const frontage = Number(raw.frontageM) || 14.0;
+    const depth = Number(raw.depthM) || Math.round((size / frontage) * 10) / 10;
+    const price = Number(raw.price) || 350000;
+    const state = (raw.state === "NSW" ? "NSW" : "QLD") as "QLD" | "NSW";
+    const isRegistered = raw.isRegistered ?? true;
+
+    const matchingDesigns = findMatchingHudsonDesigns(frontage, depth, price, true);
+    const suggestedDesign = matchingDesigns[0]?.designName || "Amber 26";
+    const valuation = calculateLandValuationMetrics({
+      price,
+      landSizeM2: size,
+      frontageM: frontage,
+      suburb: raw.suburb || "Queensland",
+      state,
+      isRegistered,
+    });
+
+    return {
+      id: `web-${Date.now()}-${idx}`,
+      lotNumber: String(raw.lotNumber || `Lot ${idx + 1}`).replace(/^Lot\s*/i, ""),
+      streetAddress: raw.streetAddress || `${raw.suburb || "Queensland"}`,
+      suburb: raw.suburb || "Queensland",
+      estate: raw.estate || raw.suburb || "",
+      state,
+      postcode: raw.postcode || (state === "NSW" ? "2000" : "4000"),
+      council: raw.council || (state === "NSW" ? "Local Council" : "Logan City Council"),
+      landSizeM2: size,
+      frontageM: frontage,
+      depthM: depth,
+      price,
+      pricePerM2: Math.round(price / size),
+      isRegistered,
+      expectedRegistrationDate: raw.expectedRegistrationDate || (isRegistered ? "Registered" : "Pending"),
+      zoning: "Low Density Residential",
+      availabilityStatus: "verified_available" as AvailabilityStatus,
+      lastVerifiedAt: new Date().toISOString(),
+      sourcePortal: (raw.sourcePortal as any) || "OpenLot",
+      listingUrl: raw.listingUrl || "",
+      agentName: raw.agentName || "Listing Agent",
+      agentAgency: raw.agentAgency || "Estate Land Sales",
+      agentPhone: raw.agentPhone || "1300 246 700",
+      agentEmail: raw.agentEmail || "sales@hudsonhomes.com.au",
+      lat: state === "NSW" ? -33.8688 : -27.8184,
+      lng: state === "NSW" ? 151.2093 : 152.9621,
+      feasibility: {
+        fallEstimateM: 0.6,
+        slopeCategory: "flat",
+        balRating: "BAL-LOW",
+        floodRisk: "none",
+        easementNotes: "Standard residential covenants and building envelope.",
+        isBtbPermissible: true,
+        soilProfileSummary: "M Class reactive soil profile.",
+        councilLga: raw.council || (state === "NSW" ? "Local Government Area" : "Logan City Council"),
+      },
+      matchingDesigns,
+      suggestedDesign,
+      valuation,
+      outreachHistory: [
+        {
+          id: `outreach-${Date.now()}-${idx}`,
+          timestamp: new Date().toISOString(),
+          consultantName: "Morgan Hales",
+          channel: "email",
+          inquiryType: "availability_check",
+          notes: `Discovered via live web search on ${raw.sourcePortal || "Web"}. Availability confirmed.`,
+          status: "sent",
+        },
+      ],
+    };
+  });
+}
+
 /**
  * Searches the live web using Google Grounding via Gemini for real active vacant land listings.
+ * First queries the server proxy (/api/land-scout-search) which uses the system-saved Gemini key.
+ * Falls back cleanly to direct client call if running statically.
  */
 export async function searchLiveWebForLand(
   query: string,
   preferredState: "QLD" | "NSW" | "ALL" = "ALL"
 ): Promise<{ parcels: LandParcel[]; sourceSummary: string }> {
+  const customKey =
+    typeof window !== "undefined"
+      ? (localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key") || "").trim()
+      : "";
+
+  // 1. Primary path: Use the server-side proxy route.
+  // This utilizes the active system-configured Gemini key in the background with zero user setup.
+  try {
+    const proxyRes = await fetch("/api/land-scout-search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        query,
+        state: preferredState,
+        apiKey: customKey || undefined,
+      }),
+    });
+
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      if (data.success && Array.isArray(data.parcels)) {
+        const hydratedParcels = hydrateRawLandParcels(data.parcels);
+        bulkAddOrUpdateParcels(hydratedParcels);
+        return {
+          parcels: hydratedParcels,
+          sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online via Google Search Grounding.`,
+        };
+      }
+    } else {
+      const errJson = await proxyRes.json().catch(() => ({}));
+      // If a custom key from localStorage caused an auth error, wipe it and retry with the server's system key!
+      if (errJson.isAuthError && customKey) {
+        clearGeminiApiKey();
+        const retryRes = await fetch("/api/land-scout-search", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query,
+            state: preferredState,
+          }),
+        });
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          if (retryData.success && Array.isArray(retryData.parcels)) {
+            const hydratedParcels = hydrateRawLandParcels(retryData.parcels);
+            bulkAddOrUpdateParcels(hydratedParcels);
+            return {
+              parcels: hydratedParcels,
+              sourceSummary: retryData.summary || `Found ${hydratedParcels.length} active lots online.`,
+            };
+          }
+        }
+      }
+    }
+  } catch (proxyErr) {
+    console.warn("[searchLiveWebForLand] Proxy call failed, attempting direct client fallback:", proxyErr);
+  }
+
+  // 2. Direct client fallback (e.g. if static export or proxy unreachable)
   const apiKey = getGeminiApiKey();
 
   if (!apiKey) {
@@ -325,80 +488,7 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
       const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
       const rawList = Array.isArray(parsed.parcels) ? parsed.parcels : [];
 
-      const hydratedParcels: LandParcel[] = rawList.map((raw: any, idx: number) => {
-        const size = Number(raw.landSizeM2) || 450;
-        const frontage = Number(raw.frontageM) || 14.0;
-        const depth = Number(raw.depthM) || Math.round((size / frontage) * 10) / 10;
-        const price = Number(raw.price) || 350000;
-        const state = (raw.state === "NSW" ? "NSW" : "QLD") as "QLD" | "NSW";
-        const isRegistered = raw.isRegistered ?? true;
-
-        const matchingDesigns = findMatchingHudsonDesigns(frontage, depth, price, true);
-        const suggestedDesign = matchingDesigns[0]?.designName || "Amber 26";
-        const valuation = calculateLandValuationMetrics({
-          price,
-          landSizeM2: size,
-          frontageM: frontage,
-          suburb: raw.suburb || "Queensland",
-          state,
-          isRegistered,
-        });
-
-        return {
-          id: `web-${Date.now()}-${idx}`,
-          lotNumber: String(raw.lotNumber || `Lot ${idx + 1}`).replace(/^Lot\s*/i, ""),
-          streetAddress: raw.streetAddress || `${raw.suburb || "Queensland"}`,
-          suburb: raw.suburb || "Queensland",
-          estate: raw.estate || raw.suburb || "",
-          state,
-          postcode: raw.postcode || (state === "NSW" ? "2000" : "4000"),
-          council: raw.council || (state === "NSW" ? "Local Council" : "Logan City Council"),
-          landSizeM2: size,
-          frontageM: frontage,
-          depthM: depth,
-          price,
-          pricePerM2: Math.round(price / size),
-          isRegistered,
-          expectedRegistrationDate: raw.expectedRegistrationDate || (isRegistered ? "Registered" : "Pending"),
-          zoning: "Low Density Residential",
-          availabilityStatus: "verified_available" as AvailabilityStatus,
-          lastVerifiedAt: new Date().toISOString(),
-          sourcePortal: (raw.sourcePortal as any) || "OpenLot",
-          listingUrl: raw.listingUrl || "",
-          agentName: raw.agentName || "Listing Agent",
-          agentAgency: raw.agentAgency || "Estate Land Sales",
-          agentPhone: raw.agentPhone || "1300 246 700",
-          agentEmail: raw.agentEmail || "sales@hudsonhomes.com.au",
-          lat: state === "NSW" ? -33.8688 : -27.8184,
-          lng: state === "NSW" ? 151.2093 : 152.9621,
-          feasibility: {
-            fallEstimateM: 0.6,
-            slopeCategory: "flat",
-            balRating: "BAL-LOW",
-            floodRisk: "none",
-            easementNotes: "Standard residential covenants and building envelope.",
-            isBtbPermissible: true,
-            soilProfileSummary: "M Class reactive soil profile.",
-            councilLga: raw.council || (state === "NSW" ? "Local Government Area" : "Logan City Council"),
-          },
-          matchingDesigns,
-          suggestedDesign,
-          valuation,
-          outreachHistory: [
-            {
-              id: `outreach-${Date.now()}-${idx}`,
-              timestamp: new Date().toISOString(),
-              consultantName: "Morgan Hales",
-              channel: "email",
-              inquiryType: "availability_check",
-              notes: `Discovered via live web search on ${raw.sourcePortal || "Web"}. Availability confirmed.`,
-              status: "sent",
-            },
-          ],
-        };
-      });
-
-      // Save to local store
+      const hydratedParcels = hydrateRawLandParcels(rawList);
       bulkAddOrUpdateParcels(hydratedParcels);
 
       return {
