@@ -24,7 +24,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Query parameter is required." });
   }
 
-  let key = clientKey || process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  // Prioritize server-configured system key first so client localStorage cannot override with broken keys
+  let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!key) {
     try {
       if (fs.existsSync(".env")) {
@@ -35,6 +36,10 @@ export default async function handler(req, res) {
         }
       }
     } catch {}
+  }
+  // Only use clientKey if no server key is present
+  if (!key && clientKey && typeof clientKey === "string" && clientKey.trim().length > 10) {
+    key = clientKey.trim();
   }
 
   if (!key) {

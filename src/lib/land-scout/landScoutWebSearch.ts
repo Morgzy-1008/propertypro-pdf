@@ -13,12 +13,17 @@ export function hasSystemSavedApiKey(): boolean {
 }
 
 export function getGeminiApiKey(): string {
+  // Always prioritize the active, verified system key
+  const sys = getSystemSavedApiKey();
+  if (sys && sys.trim().length > 0) {
+    return sys.trim();
+  }
   if (typeof window === "undefined") return "";
   const customKey = localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key");
   if (customKey && customKey.trim().length > 0) {
     return customKey.trim();
   }
-  return getSystemSavedApiKey();
+  return "";
 }
 
 export function saveGeminiApiKey(key: string): void {
@@ -333,7 +338,7 @@ export async function searchLiveWebForLand(
       body: JSON.stringify({
         query,
         state: preferredState,
-        apiKey: customKey || undefined,
+        apiKey: hasSystemSavedApiKey() ? undefined : (customKey || undefined),
       }),
     });
 
@@ -420,7 +425,7 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-  const models = ["gemini-3.6-flash", "gemini-2.5-flash", "gemini-2.0-flash"];
+  const models = ["gemini-3.6-flash", "gemini-2.0-flash"];
   let lastError: Error | null = null;
 
   for (const model of models) {

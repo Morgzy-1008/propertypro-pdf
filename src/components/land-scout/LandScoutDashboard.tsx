@@ -47,6 +47,8 @@ import {
   syncAllDatabaseLots,
   searchLiveWebForLand,
   getGeminiApiKey,
+  hasSystemSavedApiKey,
+  clearGeminiApiKey,
 } from "@/lib/land-scout/landScoutWebSearch";
 import { parseNaturalLanguageLandQuery } from "@/lib/land-scout/landScoutAiMatching";
 import { LandParcelCard } from "./LandParcelCard";
@@ -92,6 +94,10 @@ export function LandScoutDashboard() {
 
   // Load parcels on mount - Purge any old test items first
   useEffect(() => {
+    // If system key is present, proactively purge any stale custom keys so the system key is used cleanly
+    if (hasSystemSavedApiKey()) {
+      clearGeminiApiKey();
+    }
     purgeOldTestParcels();
     setParcels(getLandParcels());
   }, []);
