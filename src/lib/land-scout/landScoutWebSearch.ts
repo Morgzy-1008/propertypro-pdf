@@ -332,15 +332,20 @@ export async function searchLiveWebForLand(
   // 1. Primary path: Use the server-side proxy route.
   // This utilizes the active system-configured Gemini key in the background with zero user setup.
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
     const proxyRes = await fetch("/api/land-scout-search", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         query,
         state: preferredState,
         apiKey: hasSystemSavedApiKey() ? undefined : (customKey || undefined),
       }),
     });
+    clearTimeout(timeoutId);
 
     if (proxyRes.ok) {
       const data = await proxyRes.json();
@@ -357,7 +362,7 @@ export async function searchLiveWebForLand(
       }
     }
   } catch (proxyErr) {
-    console.warn("[searchLiveWebForLand] Proxy call failed, trying client fallback:", proxyErr);
+    console.warn("[searchLiveWebForLand] Proxy call failed or timed out, trying client fallback:", proxyErr);
   }
 
   // 2. Direct client fallback (e.g. if static export or proxy unreachable)
@@ -398,21 +403,26 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-    const models = ["gemini-3.6-flash", "gemini-2.0-flash"];
+    const models = ["gemini-2.0-flash"];
 
     for (const model of models) {
       try {
+        const clientController = new AbortController();
+        const clientTimeout = setTimeout(() => clientController.abort(), 6000);
+
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            signal: clientController.signal,
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               tools: [{ googleSearch: {} }],
             }),
           }
         );
+        clearTimeout(clientTimeout);
 
         if (!res.ok) {
           if (res.status === 401 || res.status === 403) {

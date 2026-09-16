@@ -90,14 +90,15 @@ export function bulkAddOrUpdateParcels(incoming: LandParcel[]): LandParcel[] {
 
   try {
     const existing = getLandParcels();
-    const map = new Map<string, LandParcel>();
+    const idMap = new Map<string, LandParcel>();
+    const dedupToId = new Map<string, string>();
 
     // Key existing items
     for (const p of existing) {
+      idMap.set(p.id, p);
       const dedupKey = `${(p.estate || p.suburb || "").toLowerCase()}__${(p.lotNumber || "").toLowerCase()}`;
-      map.set(p.id, p);
       if (p.lotNumber) {
-        map.set(dedupKey, p);
+        dedupToId.set(dedupKey, p.id);
       }
     }
 
@@ -105,22 +106,26 @@ export function bulkAddOrUpdateParcels(incoming: LandParcel[]): LandParcel[] {
     for (const item of incoming) {
       if (isTestParcel(item.id)) continue;
       const dedupKey = `${(item.estate || item.suburb || "").toLowerCase()}__${(item.lotNumber || "").toLowerCase()}`;
+      const existingId = (item.lotNumber && dedupToId.get(dedupKey)) || (idMap.has(item.id) ? item.id : undefined);
 
-      const prev = map.get(item.id) || (item.lotNumber ? map.get(dedupKey) : undefined);
-      if (prev) {
-        // Update existing record
+      if (existingId && idMap.has(existingId)) {
+        const prev = idMap.get(existingId)!;
         const merged: LandParcel = {
           ...prev,
           ...item,
+          id: existingId,
           outreachHistory: prev.outreachHistory?.length ? prev.outreachHistory : item.outreachHistory,
         };
-        map.set(prev.id, merged);
+        idMap.set(existingId, merged);
       } else {
-        map.set(item.id, item);
+        idMap.set(item.id, item);
+        if (item.lotNumber) {
+          dedupToId.set(dedupKey, item.id);
+        }
       }
     }
 
-    const updatedList = Array.from(new Set(map.values()));
+    const updatedList = Array.from(idMap.values());
     localStorage.setItem(STORAGE_KEY_LAND_SCOUT, JSON.stringify(updatedList));
     return updatedList;
   } catch (e) {
