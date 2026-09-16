@@ -600,10 +600,33 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const totalAreaM2 = getEffectiveDesignM2(design);
   const effectiveDesignName = getEffectiveDesignName(design);
 
+  const company = getHudsonCompanyInfo({
+    state: client.state,
+    postcode: client.postcode,
+    suburb: client.suburb,
+    siteAddress: client.siteAddress,
+    council: siteConditions.councilRegion,
+    consultantOffice: client.consultantOffice,
+  });
+  const isNswQuote = company.isNsw;
+  const quoteState: "NSW" | "QLD" =
+    client.state === "NSW" || client.state === "QLD"
+      ? client.state
+      : isNswQuote
+        ? "NSW"
+        : "QLD";
+  const quoteStateFull = quoteState === "NSW" ? "New South Wales" : "Queensland";
+  const cleanSuburb = (client.suburb || "").trim().replace(/\s+(?:QLD|NSW)$/i, "");
+
   const siteAddressFull =
-    [client.lotNumber, client.siteAddress, client.suburb, `QLD ${client.postcode || ""}`]
+    [
+      client.lotNumber,
+      client.siteAddress,
+      cleanSuburb,
+      client.postcode ? `${quoteState} ${client.postcode}` : quoteState,
+    ]
       .filter(Boolean)
-      .join(", ") || "Proposed Site Address TBA, Queensland";
+      .join(", ") || `Proposed Site Address TBA, ${quoteStateFull}`;
 
   const clientCombinedNames = [client.clientName, client.hasClient2 && client.client2Name]
     .filter(Boolean)
@@ -999,15 +1022,6 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const specPages = paginateSpecGroups(allSpecGroups);
   const totalPages = (hasSecondDwelling ? 4 : 3) + specPages.length + 2;
 
-  const company = getHudsonCompanyInfo({
-    state: client.state,
-    postcode: client.postcode,
-    suburb: client.suburb,
-    siteAddress: client.siteAddress,
-    council: siteConditions.councilRegion,
-    consultantOffice: client.consultantOffice,
-  });
-  const isNswQuote = company.isNsw;
   const bankAccountName = company.bankName;
   const bankHeaderTitle = company.headerTitle;
   const bankBsb = company.bsb;
@@ -1114,7 +1128,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   {client.siteAddress || "Site Address TBA"}
                 </div>
                 <div className="text-xs text-slate-600">
-                  {[client.lotNumber, client.suburb, "QLD", client.postcode].filter(Boolean).join(" ")}
+                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
                 </div>
               </div>
             </div>
@@ -1266,7 +1280,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   {client.siteAddress || "Site Address TBA"}
                 </div>
                 <div className="text-xs text-slate-600 mt-0.5">
-                  {[client.lotNumber, client.suburb, "QLD", client.postcode].filter(Boolean).join(" ")}
+                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
                 </div>
               </div>
             </div>

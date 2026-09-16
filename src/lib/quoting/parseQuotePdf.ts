@@ -96,7 +96,7 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
     text.match(/Proposed\s*Site\s*Address:[\s\t\r\n]+([^\r\n\t]+)/i);
   if (addrMatch && addrMatch[1]) {
     const rawAddr = addrMatch[1].trim();
-    if (!rawAddr.toLowerCase().includes("address tba") && rawAddr !== "QLD") {
+    if (!rawAddr.toLowerCase().includes("address tba") && rawAddr !== "QLD" && rawAddr !== "NSW") {
       siteAddress = rawAddr;
       const lotM = siteAddress.match(/Lot\s*(\d+[A-Za-z]?)/i);
       if (lotM) {
@@ -106,8 +106,9 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
   }
 
   // Suburb & Postcode
-  const suburbMatch = text.match(/(?:QLD|Queensland)[\s,]+([A-Za-z\s]+)\s*(\d{4})?/i) ||
-    text.match(/([A-Za-z\s]+)\s+QLD\s*(\d{4})?/i);
+  const suburbMatch =
+    text.match(/(?:QLD|NSW|Queensland|New South Wales)[\s,]+([A-Za-z\s]+)\s*(\d{4})?/i) ||
+    text.match(/([A-Za-z\s]+)\s+(?:QLD|NSW)\s*(\d{4})?/i);
   if (suburbMatch && suburbMatch[1]) {
     const candidate = suburbMatch[1].trim();
     if (candidate.length > 2 && candidate.length < 30 && !candidate.toLowerCase().includes("pty")) {

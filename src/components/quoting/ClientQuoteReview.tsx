@@ -474,6 +474,14 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
   const variationsTotal = quote.pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0);
 
+  const quoteCompany = getHudsonCompanyInfo({
+    state: quote.client.state,
+    postcode: quote.client.postcode,
+    suburb: quote.client.suburb,
+    siteAddress: quote.client.siteAddress,
+  });
+  const quoteStateFull = quoteCompany.isNsw ? "New South Wales" : "Queensland";
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 relative overflow-hidden flex flex-col">
       {/* Header */}
@@ -506,7 +514,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
           <p className="mt-2 text-sm text-slate-400 max-w-2xl leading-relaxed">
             Review and personalize your new home quotation for{" "}
             <span className="text-slate-200 font-semibold">
-              {[quote.client.lotNumber, quote.client.siteAddress, quote.client.suburb].filter(Boolean).join(", ") || "your proposed Queensland building site"}
+              {[quote.client.lotNumber, quote.client.siteAddress, quote.client.suburb].filter(Boolean).join(", ") || `your proposed ${quoteStateFull} building site`}
             </span>
             . You can explore different floorplan sizes, switch facades, and customize inclusion tiers below with instant pricing updates.
           </p>
