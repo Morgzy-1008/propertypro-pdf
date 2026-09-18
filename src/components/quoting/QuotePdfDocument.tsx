@@ -1032,7 +1032,10 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
     : "Hudson Homes (QLD) Pty Ltd · ABN 92 623 431 685 · QBCC Licence 15078318";
 
   return (
-    <div className="quote-pdf-root text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0">
+    <div
+      className="quote-pdf-root light normal-mode text-slate-900 font-sans space-y-12 max-w-[210mm] mx-auto print:space-y-0"
+      style={{ colorScheme: "light" }}
+    >
       {/* ========================================================================= */}
       {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE (V1 OR V2)                  */}
       {/* ========================================================================= */}

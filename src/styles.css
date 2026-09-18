@@ -531,37 +531,37 @@ html.normal-mode,
   color: #0f172a !important;
 }
 
-.normal-mode .text-slate-300,
-.normal-mode .text-slate-400 {
+.normal-mode .text-slate-300:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode .text-slate-400:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #475569 !important;
 }
 
 /* Hub Portal Cards in Normal Mode */
-.normal-mode div.grid.grid-cols-1 > a > div,
-.normal-mode div.grid.grid-cols-1 > div > div {
+.normal-mode div.grid.grid-cols-1:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) > a > div,
+.normal-mode div.grid.grid-cols-1:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) > div > div {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
   box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
-.normal-mode div.grid.grid-cols-1 > a > div:hover,
-.normal-mode div.grid.grid-cols-1 > div > div:hover {
+.normal-mode div.grid.grid-cols-1:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) > a > div:hover,
+.normal-mode div.grid.grid-cols-1:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) > div > div:hover {
   border-color: #cbd5e1 !important;
   box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.09) !important;
   transform: translateY(-2px);
 }
 
-.normal-mode div.grid.grid-cols-1 h2,
-.normal-mode div.grid.grid-cols-1 h3 {
+.normal-mode div.grid.grid-cols-1 h2:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div.grid.grid-cols-1 h3:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #0f172a !important;
 }
 
-.normal-mode div.grid.grid-cols-1 p {
+.normal-mode div.grid.grid-cols-1 p:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #475569 !important;
 }
 
-.normal-mode div.grid.grid-cols-1 span {
+.normal-mode div.grid.grid-cols-1 span:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #334155 !important;
 }
 
@@ -617,21 +617,21 @@ html.normal-mode,
 }
 
 /* 2. Text Colors */
-.normal-mode h1,
-.normal-mode h2,
-.normal-mode h3,
-.normal-mode h4,
-.normal-mode .text-slate-100,
-.normal-mode .text-slate-200 {
+.normal-mode h1:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode h2:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode h3:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode h4:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode .text-slate-100:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode .text-slate-200:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #0f172a !important;
 }
 
-.normal-mode .text-slate-400,
-.normal-mode .text-slate-500 {
+.normal-mode .text-slate-400:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode .text-slate-500:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #64748b !important;
 }
 
-.normal-mode label {
+.normal-mode label:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #334155 !important;
 }
 
@@ -842,11 +842,28 @@ html.normal-mode,
 /* ========================================================================= */
 /* 10. PDF & Printable Document Protection (Builders Estimate, Flyers, Tender) */
 /* ========================================================================= */
-.quote-pdf-root,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page),
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) * {
+  color-scheme: light !important;
+  --background: oklch(1 0 0) !important;
+  --foreground: oklch(0.129 0.042 264.695) !important;
+  --card: oklch(1 0 0) !important;
+  --card-foreground: oklch(0.129 0.042 264.695) !important;
+  --muted: oklch(0.968 0.007 247.896) !important;
+  --muted-foreground: oklch(0.554 0.046 257.417) !important;
+  --border: oklch(0.929 0.013 255.508) !important;
+  --input: oklch(0.929 0.013 255.508) !important;
+  --ring: oklch(0.704 0.04 256.788) !important;
+  --color-background: var(--background) !important;
+  --color-foreground: var(--foreground) !important;
+  --color-border: var(--border) !important;
+}
+
 .quote-page,
 .tender-master-pdf-root,
 .flyer-page {
-  /* Retain full intended styling inside PDF and print templates */
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 .quote-pdf-root .text-white,

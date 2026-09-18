@@ -820,7 +820,10 @@ export function QuoteBuilder() {
                     {downloading ? "Creating PDF…" : "Export Builders Estimate PDF"}
                   </Button>
                 </div>
-                <div className="rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950 p-4">
+                <div
+                  className="rounded-xl overflow-hidden border border-slate-700/50 bg-slate-950 p-4 light normal-mode"
+                  style={{ colorScheme: "light" }}
+                >
                   <QuotePdfDocument quote={quote} coverVersion={isLocal ? coverVersion : "v1"} />
                 </div>
               </div>
@@ -948,6 +951,7 @@ export function QuoteBuilder() {
       {activeTab !== "pdf_preview" && (
         <div
           id="quote-pdf-export-container"
+          className="light normal-mode"
           style={{
             position: "fixed",
             left: "-9999px",
@@ -956,6 +960,7 @@ export function QuoteBuilder() {
             opacity: 0,
             pointerEvents: "none",
             zIndex: -9999,
+            colorScheme: "light",
           }}
           aria-hidden="true"
         >

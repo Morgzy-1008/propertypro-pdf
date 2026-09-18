@@ -67,7 +67,7 @@ export async function renderA4PdfDocument(root?: ParentNode) {
 
     // Create an isolated host container positioned offscreen with explicit A4 pixel dimensions
     const host = document.createElement("div");
-    host.className = "quote-pdf-root flyer-preview-container tender-master-pdf-root";
+    host.className = "quote-pdf-root flyer-preview-container tender-master-pdf-root light normal-mode";
     host.style.position = "fixed";
     host.style.top = "0";
     host.style.left = "0";
@@ -79,12 +79,22 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     host.style.height = "1123px";
     host.style.overflow = "hidden";
     host.style.background = "#ffffff";
+    host.style.colorScheme = "light";
+    host.style.setProperty("--color-border", "#e2e8f0");
+    host.style.setProperty("--border", "oklch(0.929 0.013 255.508)");
+    host.style.setProperty("--color-foreground", "#0f172a");
+    host.style.setProperty("--foreground", "oklch(0.129 0.042 264.695)");
+    host.style.setProperty("--color-background", "#ffffff");
+    host.style.setProperty("--background", "oklch(1 0 0)");
     host.style.boxSizing = "border-box";
     host.style.fontFamily = "'Barlow', 'Plus Jakarta Sans', Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     (host.style as any).webkitFontSmoothing = "antialiased";
     (host.style as any).mozOsxFontSmoothing = "grayscale";
 
     const clone = originalSheet.cloneNode(true) as HTMLElement;
+    clone.classList.remove("dark", "night-mode");
+    clone.classList.add("light", "normal-mode");
+    clone.style.colorScheme = "light";
     clone.style.transform = "none";
     clone.style.opacity = "1";
     clone.style.boxSizing = "border-box";
