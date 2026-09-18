@@ -22,9 +22,6 @@ import {
   Bell,
   UserCheck,
   Compass,
-  Radar,
-  MapPin,
-  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
@@ -222,52 +219,7 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 2: Vacant Land Intelligence & Acquisition (Hudson Land Scout) - Restricted to Morgan Hales */}
-          {isMorgan && (
-            <Link
-              to="/land-scout"
-              className={`group relative overflow-hidden rounded-2xl border ${
-                isLight
-                  ? "border-slate-200 bg-white shadow-xs hover:border-amber-500/70 hover:shadow-xl hover:-translate-y-1"
-                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-amber-500/60 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1"
-              } p-6 transition-all duration-300 flex flex-col justify-between`}
-            >
-              <div className="absolute top-0 right-0 h-32 w-32 bg-amber-500/5 rounded-full blur-3xl group-hover:bg-amber-500/15 transition-all duration-500" />
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                    <Radar className="h-5 w-5" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold tracking-wider uppercase text-amber-400 bg-amber-500/15 px-2.5 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1 shadow-xs">
-                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                      Under Development
-                    </span>
-                    <span className="text-[10px] font-semibold tracking-wider uppercase text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                      Land Scout AI
-                    </span>
-                  </div>
-                </div>
-                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-amber-200"} transition-colors`}>
-                  Vacant Land Intelligence &amp; Acquisition
-                </h2>
-                <p className={`mt-1.5 text-xs ${isLight ? "text-slate-600" : "text-slate-400"} line-clamp-2 leading-relaxed`}>
-                  Live aggregator across REA, Domain, OpenLot &amp; developers. Features AI availability outreach, Land Value Meter, comps equity radar &amp; 1-click package studio handoff.
-                </p>
-              </div>
-              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-amber-500" />
-                  <span>Value Meter &bull; Holds</span>
-                </div>
-                <span className="font-semibold text-amber-500 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                  Launch Land Scout <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </span>
-              </div>
-            </Link>
-          )}
-
-          {/* Card 3: House & Land Database */}
+          {/* Card 2: House & Land Database */}
           <Link
             to="/database"
             className={`group relative overflow-hidden rounded-2xl border ${
@@ -335,7 +287,43 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 4: Submit Your Tender Request (Restricted to Morgan Hales) */}
+          {/* Card 4: Concept Floorplan Editor (Allowed Staff: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, Morgan) */}
+          {hasFloorplanAccess && (
+            <Link
+              to="/floorplan-editor"
+              className={`group relative overflow-hidden rounded-2xl border ${
+                isLight
+                  ? "border-slate-200 bg-white shadow-xs hover:border-blue-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1"
+              } p-6 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="absolute top-0 right-0 h-32 w-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/15 transition-all duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/30 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Sliders className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-blue-600 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
+                    Concept Studio
+                  </span>
+                </div>
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-blue-700" : "text-white group-hover:text-blue-200"} transition-colors`}>
+                  Concept Floorplan Editor
+                </h2>
+              </div>
+              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
+                  <span>Connected Web App</span>
+                </div>
+                <span className="font-semibold text-blue-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Launch Editor <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Link>
+          )}
+
+          {/* Card 5: Submit Your Tender Request (Restricted to Morgan Hales) */}
           {isMorgan && (
             <Link
               to="/tender-request"
@@ -377,145 +365,88 @@ function WelcomeHubPage() {
             </Link>
           )}
 
-          {/* Card 5: Concept Floorplan Editor (Allowed Staff: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, Morgan) */}
-          {hasFloorplanAccess && (
+          {/* Card 6: Hudson Horizon CRM (Restricted to Morgan Hales) */}
+          {isMorgan && (
             <Link
-              to="/floorplan-editor"
+              to="/crm"
               className={`group relative overflow-hidden rounded-2xl border ${
                 isLight
-                  ? "border-slate-200 bg-white shadow-xs hover:border-blue-500/70 hover:shadow-xl hover:-translate-y-1"
-                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-blue-500/60 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1"
+                  ? "border-slate-200 bg-white shadow-xs hover:border-purple-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-purple-500/60 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1"
               } p-6 transition-all duration-300 flex flex-col justify-between`}
             >
-              <div className="absolute top-0 right-0 h-32 w-32 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/15 transition-all duration-500" />
+              <div className="absolute top-0 right-0 h-32 w-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/15 transition-all duration-500" />
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/10 border border-blue-500/30 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                    <Sliders className="h-5 w-5" />
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Users className="h-5 w-5" />
                   </div>
-                  <span className="text-[10px] font-semibold tracking-wider uppercase text-blue-600 bg-blue-500/10 px-2.5 py-0.5 rounded-full border border-blue-500/20">
-                    Concept Studio
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-purple-400 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1 shadow-xs">
+                      <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
+                      Under Development
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                      Builder CRM
+                    </span>
+                  </div>
                 </div>
-                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-blue-700" : "text-white group-hover:text-blue-200"} transition-colors`}>
-                  Concept Floorplan Editor
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-purple-700" : "text-white group-hover:text-purple-200"} transition-colors`}>
+                  Hudson Horizon CRM
                 </h2>
               </div>
               <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
                 <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                  <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Connected Web App</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-purple-500" />
+                  <span>Client Pipeline &amp; Deals</span>
                 </div>
-                <span className="font-semibold text-blue-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                  Launch Editor <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </span>
               </div>
             </Link>
           )}
 
-          {/* Cards 6 & 7: Restricted to Morgan Hales (CRM, Site Studio) */}
+          {/* Card 7: Hudson Site Studio (Archistar Replacement - Restricted to Morgan Hales) */}
           {isMorgan && (
-            <>
-              {/* Card 6: Hudson Horizon CRM */}
-              <Link
-                to="/crm"
-                className={`group relative overflow-hidden rounded-2xl border ${
-                  isLight
-                    ? "border-slate-200 bg-white shadow-xs hover:border-purple-500/70 hover:shadow-xl hover:-translate-y-1"
-                    : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-purple-500/60 hover:shadow-2xl hover:shadow-purple-500/10 hover:-translate-y-1"
-                } p-6 transition-all duration-300 flex flex-col justify-between`}
-              >
-                <div className="absolute top-0 right-0 h-32 w-32 bg-purple-500/5 rounded-full blur-3xl group-hover:bg-purple-500/15 transition-all duration-500" />
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30 flex items-center justify-center text-purple-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                      <Users className="h-5 w-5" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-purple-400 bg-purple-500/15 px-2.5 py-0.5 rounded-full border border-purple-500/30 flex items-center gap-1 shadow-xs">
-                        <span className="h-1.5 w-1.5 rounded-full bg-purple-400 animate-pulse" />
-                        Under Development
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wider uppercase text-purple-600 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
-                        Builder CRM
-                      </span>
-                    </div>
+            <Link
+              to="/site-studio"
+              className={`group relative overflow-hidden rounded-2xl border ${
+                isLight
+                  ? "border-slate-200 bg-white shadow-xs hover:border-emerald-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1"
+              } p-6 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-brand-gold/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Compass className="h-5 w-5" />
                   </div>
-                  <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-purple-700" : "text-white group-hover:text-purple-200"} transition-colors`}>
-                    Hudson Horizon CRM
-                  </h2>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1 shadow-xs">
+                      <Sparkles className="h-3 w-3 text-emerald-400" />
+                      Archistar Replacement
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-wider uppercase text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full border border-brand-gold/20">
+                      Siting Studio
+                    </span>
+                  </div>
                 </div>
-                <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-                  <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                    <CheckCircle2 className="h-3.5 w-3.5 text-purple-500" />
-                    <span>Client Pipeline &amp; Deals</span>
-                  </div>
-                  <span className="font-semibold text-purple-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                    Open CRM <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                  </span>
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-300"} transition-colors`}>
+                  Hudson Site Studio
+                </h2>
+              </div>
+              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>1:200 Cadastre Siting</span>
                 </div>
-              </Link>
-
-              {/* Card 7: Hudson Site Studio (Archistar Replacement) */}
-              <Link
-                to="/site-studio"
-                className={`group relative overflow-hidden rounded-2xl border ${
-                  isLight
-                    ? "border-slate-200 bg-white shadow-xs hover:border-emerald-500/70 hover:shadow-xl hover:-translate-y-1"
-                    : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1"
-                } p-6 transition-all duration-300 flex flex-col justify-between md:col-span-2 lg:col-span-3`}
-              >
-                <div className="absolute top-0 right-0 h-44 w-44 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-all duration-500" />
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-brand-gold/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                      <Compass className="h-5 w-5" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-400 bg-emerald-500/15 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1 shadow-xs">
-                        <Sparkles className="h-3 w-3 text-emerald-400" />
-                        Archistar Replacement
-                      </span>
-                      <span className="text-[10px] font-semibold tracking-wider uppercase text-brand-gold bg-brand-gold/10 px-2 py-0.5 rounded-full border border-brand-gold/20">
-                        Siting Studio
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-1">
-                    <h2 className={`text-xl font-bold ${isLight ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-300"} transition-colors`}>
-                      Hudson Site Studio
-                    </h2>
-                    <span className="text-xs text-amber-500 font-semibold font-mono">1:200 &amp; 1:100 Siting Engine • QLD QSpatial &amp; NSW DCDB</span>
-                  </div>
-                  <p className={`mt-2 text-xs ${isLight ? "text-slate-600" : "text-slate-400"} max-w-3xl leading-relaxed`}>
-                    Official cadastral boundary bearings and dimensions, high-res satellite hybrid imagery, interactive floorplan placement with Wall Setbacks &amp; 450mm eaves, live site coverage %, winter solar ingress analysis, and 1-click A3 Siting Plan PDF generation with direct Tender Request attachment.
-                  </p>
-                </div>
-                <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex flex-wrap items-center justify-between gap-2 text-xs`}>
-                  <div className={`flex flex-wrap items-center gap-3 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Cadastre Boundary Bearings</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Google Satellite Hybrid</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>Hudson 450mm Eaves</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                      <span>1-Click Tender Handoff</span>
-                    </div>
-                  </div>
-                  <span className="font-black text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                    Launch Site Studio <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                  </span>
-                </div>
-              </Link>
-            </>
+                <span className="font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Launch Site Studio <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Link>
           )}
         </div>
       </main>
