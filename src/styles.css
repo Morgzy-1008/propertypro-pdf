@@ -570,32 +570,32 @@ html.normal-mode,
    ========================================================================== */
 
 /* 1. Universal Panel and Card Backgrounds */
-.normal-mode main div.rounded-2xl.border,
-.normal-mode main div.rounded-xl.border,
+.normal-mode main div.rounded-2xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode main div.rounded-xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
 .normal-mode [role="dialog"],
 .normal-mode [data-radix-dialog-content],
 .normal-mode [data-radix-popper-content-wrapper] [role="dialog"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-950"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-900"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-800"]:not(button),
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-950"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-900"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-black"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-slate-950"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-slate-900"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) section[class*="bg-black"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) aside[class*="bg-slate-950"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) aside[class*="bg-slate-900"] {
+.normal-mode div[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-slate-800"]:not(button):not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-zinc-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-zinc-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode section[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode section[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode section[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode aside[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode aside[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
 /* Sub-panels and inset cards use subtle slate-50 */
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-950/"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-slate-900/"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-950/"],
-.normal-mode:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *)) div[class*="bg-zinc-900/"] {
+.normal-mode div[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-zinc-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode div[class*="bg-zinc-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -872,33 +872,60 @@ html.normal-mode,
   color: #22d3ee !important;
 }
 
-/* Ensure dark total banner rows and guarantee boxes always display solid white and gold text */
-.quote-pdf-root table tr[class*="bg-slate-900"],
-.quote-page table tr[class*="bg-slate-900"],
-.quote-pdf-root table tr[class*="bg-slate-900"] td,
-.quote-page table tr[class*="bg-slate-900"] td {
+/* Ensure dark total banner rows and guarantee boxes always display solid navy background, white/gold text */
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"],
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"] td {
   background-color: #0f172a !important;
 }
 
-.quote-pdf-root table tr[class*="bg-slate-900"] td:first-child,
-.quote-page table tr[class*="bg-slate-900"] td:first-child,
-.quote-pdf-root table tr[class*="bg-slate-900"] td.text-white,
-.quote-page table tr[class*="bg-slate-900"] td.text-white {
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"] td:first-child,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"] td.text-white {
   color: #ffffff !important;
 }
 
-.quote-pdf-root table tr[class*="bg-slate-900"] td:last-child,
-.quote-page table tr[class*="bg-slate-900"] td:last-child,
-.quote-pdf-root table tr[class*="bg-slate-900"] td.text-amber-400,
-.quote-page table tr[class*="bg-slate-900"] td.text-amber-400 {
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"] td:last-child,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) table tr[class*="bg-slate-900"] td.text-amber-400 {
   color: #fbbf24 !important;
 }
 
-.quote-pdf-root div[class*="bg-slate-900"] h3,
-.quote-page div[class*="bg-slate-900"] h3,
-.quote-pdf-root div[class*="bg-slate-900"] p,
-.quote-page div[class*="bg-slate-900"] p {
+/* Lifetime Structural Guarantee Banner & Dark Highlight Boxes */
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"],
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-950"],
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"],
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-950"] {
+  background-color: #0f172a !important;
   color: #ffffff !important;
+  border-color: #1e293b !important;
+}
+
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner h3,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] h3,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner h3,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] h3 {
+  color: #ffffff !important;
+}
+
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner p,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] p,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner p,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] p {
+  color: #cbd5e1 !important;
+}
+
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner strong,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] strong,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner strong,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] strong {
+  color: #ffffff !important;
+}
+
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner .text-amber-400,
+:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] .text-amber-400,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) .lifetime-guarantee-banner .text-amber-400,
+.normal-mode :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page) div[class*="bg-slate-900"] .text-amber-400 {
+  color: #fbbf24 !important;
 }
 
 

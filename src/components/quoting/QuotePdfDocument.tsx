@@ -2117,33 +2117,38 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       {/* ========================================================================= */}
       {/* FINAL PAGE: LIFETIME GUARANTEE, DEPOSIT & OFFICIAL NAB BANK TRANSFER      */}
       {/* ========================================================================= */}
-      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
-        <div className="space-y-5">
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-8 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm]">
+        <div className="space-y-3.5">
           {/* Top Lifetime Structural Guarantee Banner */}
           <div
-            className="bg-slate-900 text-white rounded-2xl p-6 shadow-md text-center space-y-2 border border-slate-800"
-            style={{ backgroundColor: "#0f172a", color: "#ffffff" }}
+            className="lifetime-guarantee-banner bg-slate-900 text-white rounded-2xl p-5 shadow-md text-center space-y-2 border border-slate-800"
+            style={{ backgroundColor: "#0f172a", color: "#ffffff", borderColor: "#1e293b" }}
           >
             <div className="text-[11px] font-bold tracking-widest text-amber-400 uppercase" style={{ color: "#fbbf24" }}>
               HUDSON HOMES PEACE OF MIND
             </div>
-            <h3 className="text-2xl font-serif italic text-white tracking-wide" style={{ color: "#ffffff" }}>
+            <h3 className="text-xl font-serif italic text-white tracking-wide" style={{ color: "#ffffff" }}>
               Lifetime Structural Integrity Guarantee
             </h3>
-            <p className="text-xs text-slate-300 max-w-xl mx-auto leading-relaxed" style={{ color: "#cbd5e1" }}>
+            <p className="text-xs text-slate-200 max-w-xl mx-auto leading-relaxed" style={{ color: "#e2e8f0" }}>
               Every Hudson home is engineered and constructed to the highest standards of Australian building compliance.
-              We proudly back our workmanship with a **Lifetime Structural Integrity Guarantee** for total peace of mind.
+              We proudly back our workmanship with a{" "}
+              <strong className="font-bold text-white" style={{ color: "#ffffff" }}>
+                Lifetime Structural Integrity Guarantee
+              </strong>{" "}
+              covering foundation slabs, footings, structural framing, and load-bearing masonry for total peace of mind.
             </p>
-            <div className="pt-2 flex items-center justify-center gap-6 text-[10px] font-semibold text-amber-400 uppercase tracking-wider" style={{ color: "#fbbf24" }}>
+            <div className="pt-1 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[10px] font-semibold text-amber-400 uppercase tracking-wider" style={{ color: "#fbbf24" }}>
               <span>★ 100% Australian Owned</span>
               <span>★ Lifetime Structural Guarantee</span>
-              <span>★ ISO 9001 Certified</span>
+              <span>★ ISO 9001 Quality Certified</span>
               <span>★ 12-Month Defect Period</span>
+              <span>★ AS 2870 &amp; AS 1684 Compliant</span>
             </div>
           </div>
 
           {/* Initial Deposit Allocation Box */}
-          <div className="border border-emerald-500/40 rounded-2xl p-5 bg-emerald-50/30 space-y-3">
+          <div className="border border-emerald-500/40 rounded-2xl p-4 bg-emerald-50/30 space-y-2.5">
             <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
               <div>
                 <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
@@ -2196,8 +2201,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           </div>
 
           {/* NAB Direct Transfer Banking Box with Real Dynamic QR Code */}
-          <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50 flex items-center justify-between gap-6 shadow-sm">
-            <div className="space-y-2.5 text-xs flex-1">
+          <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 flex items-center justify-between gap-5 shadow-sm">
+            <div className="space-y-2 text-xs flex-1">
               <div className="font-bold text-cyan-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                 <Building className="h-4 w-4 text-cyan-700" />
                 {bankHeaderTitle}
@@ -2234,28 +2239,28 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             </div>
 
             {/* Dynamic Payment QR Code Box */}
-            <div className="flex flex-col items-center justify-center p-3 bg-white border border-slate-200 rounded-xl text-center flex-none shadow-xs">
+            <div className="flex flex-col items-center justify-center p-2.5 bg-white border border-slate-200 rounded-xl text-center flex-none shadow-xs">
               <PaymentQrCode
                 accountName={bankAccountName}
                 bsb={bankBsb}
                 accountNumber={bankAccountNumber}
                 amount={pricing.initialDepositAmount || 1650}
                 reference={client.clientName ? `${client.clientName.split(" ").pop()}-${quote.quoteNumber || "MH678"}` : `Client-${quote.quoteNumber || "MH678"}`}
-                size={95}
+                size={90}
               />
-              <span className="text-[9px] font-bold text-slate-700 mt-1.5 uppercase font-mono tracking-wider">
+              <span className="text-[9px] font-bold text-slate-700 mt-1 uppercase font-mono tracking-wider">
                 Scan to view banking details
               </span>
             </div>
           </div>
 
           {/* Customer & Consultant Authorization Signatures */}
-          <div className="grid grid-cols-2 gap-8 pt-2">
-            <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-6 pt-1">
+            <div className="space-y-3">
               <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
                 CLIENT 1 SIGNATURE:
               </div>
-              <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+              <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
                 {/* Space for physical or digital signing */}
               </div>
               <div className="text-xs">
@@ -2264,11 +2269,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
 
               {client.hasClient2 && (
-                <div className="pt-2 space-y-4">
+                <div className="pt-1.5 space-y-3">
                   <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
                     CLIENT 2 SIGNATURE:
                   </div>
-                  <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+                  <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
                     {/* Space for Client 2 signature */}
                   </div>
                   <div className="text-xs">
@@ -2279,11 +2284,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               )}
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="text-[10px] font-bold uppercase text-slate-600 tracking-wider">
                 AUTHORISED NEW HOME CONSULTANT:
               </div>
-              <div className="border-b-2 border-slate-900 h-10 flex items-end pb-1 text-slate-400 italic text-xs">
+              <div className="border-b-2 border-slate-900 h-8 flex items-end pb-1 text-slate-400 italic text-xs">
                 {/* Space for consultant signing */}
               </div>
               <div className="text-xs">
@@ -2292,7 +2297,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <span className="text-[10px] text-slate-500 block">Date: {formattedCreatedDate}</span>
               </div>
 
-              <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-[9px] text-slate-500 space-y-0.5">
+              <div className="bg-slate-50 p-2 rounded-xl border border-slate-200 text-[9px] text-slate-500 space-y-0.5">
                 <div className="font-bold text-slate-700">{bankAccountName}</div>
                 <div>{headOfficeAddress}</div>
                 <div>Phone: 1300 246 200 · Fax: 1300 246 300 · www.hudsonhomes.com.au</div>
@@ -2302,7 +2307,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
         </div>
 
         {/* Final Page Footer */}
-        <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+        <div className="border-t border-slate-200 pt-3 flex items-center justify-between text-[10px] text-slate-500">
           <div>
             {footerLicenceLine}
           </div>

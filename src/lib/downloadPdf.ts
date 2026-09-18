@@ -117,6 +117,22 @@ export async function renderA4PdfDocument(root?: ParentNode) {
       }
     });
 
+    // Ensure dark guarantee banner and highlight elements retain authoritative dark navy styling
+    const darkElements = Array.from(
+      clone.querySelectorAll<HTMLElement>(".lifetime-guarantee-banner, [class*='bg-slate-900'], [class*='bg-slate-950']")
+    );
+    darkElements.forEach((el) => {
+      el.style.setProperty("background-color", "#0f172a", "important");
+      el.style.setProperty("color", "#ffffff", "important");
+      el.style.setProperty("border-color", "#1e293b", "important");
+      const h3 = el.querySelector("h3");
+      if (h3) (h3 as HTMLElement).style.setProperty("color", "#ffffff", "important");
+      const p = el.querySelector("p");
+      if (p) (p as HTMLElement).style.setProperty("color", "#cbd5e1", "important");
+      const strongs = el.querySelectorAll("strong");
+      strongs.forEach((s) => (s as HTMLElement).style.setProperty("color", "#ffffff", "important"));
+    });
+
     host.appendChild(clone);
     document.body.appendChild(host);
 
