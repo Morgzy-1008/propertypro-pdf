@@ -15,6 +15,7 @@ import {
   Sparkles,
   ExternalLink,
   MessageSquare,
+  Database,
 } from "lucide-react";
 import { encodeQuoteForClientLink } from "@/lib/quoting/quoteLinkEncoder";
 import { toast } from "sonner";
@@ -680,6 +681,21 @@ export function QuoteBuilder() {
             }`}>
               {savedQuotes.length}
             </span>
+          </Button>
+
+          {/* Databuild Rates & Admin Catalogue Open Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAdminOpen(true)}
+            className={`text-xs gap-1.5 font-bold ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
+                : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <Database className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+            Databuild &amp; Rates
           </Button>
 
           <Button
