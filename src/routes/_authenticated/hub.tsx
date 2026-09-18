@@ -22,6 +22,7 @@ import {
   Bell,
   UserCheck,
   Compass,
+  Cpu,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
@@ -444,6 +445,51 @@ function WelcomeHubPage() {
                 </div>
                 <span className="font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform inline-flex items-center">
                   Launch Site Studio <ArrowRight className="ml-1 h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Link>
+          )}
+
+          {/* Card 8: Quoting Tool v2 (Auto-Pricing Engine - Beta, Restricted to Morgan Hales) */}
+          {isMorgan && (
+            <Link
+              to="/quote-builder-v2"
+              className={`group relative overflow-hidden rounded-2xl border ${
+                isLight
+                  ? "border-slate-200 bg-white shadow-xs hover:border-cyan-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-cyan-500/60 hover:shadow-2xl hover:shadow-cyan-500/10 hover:-translate-y-1"
+              } p-6 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="absolute top-0 right-0 h-32 w-32 bg-cyan-500/5 rounded-full blur-3xl group-hover:bg-cyan-500/15 transition-all duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Cpu className="h-5 w-5" />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold tracking-wider uppercase text-cyan-400 bg-cyan-500/15 px-2.5 py-0.5 rounded-full border border-cyan-500/30 flex items-center gap-1 shadow-xs">
+                      <Sparkles className="h-3 w-3 text-cyan-400" />
+                      Engine v2 Beta
+                    </span>
+                    <span className="text-[10px] font-semibold tracking-wider uppercase text-cyan-600 dark:text-cyan-300 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/20">
+                      Auto-Pricing
+                    </span>
+                  </div>
+                </div>
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-cyan-700" : "text-white group-hover:text-cyan-300"} transition-colors`}>
+                  Quoting Tool v2
+                </h2>
+                <p className={`text-xs mt-1.5 line-clamp-2 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                  Autonomous floorplan recognition, Databuild recipe delta auto-costing &amp; lot overlay site pricing.
+                </p>
+              </div>
+              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-cyan-500" />
+                  <span>AI Vision • Databuild Sync</span>
+                </div>
+                <span className="font-semibold text-cyan-500 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Launch Engine v2 <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </span>
               </div>
             </Link>
