@@ -32,9 +32,12 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { useTheme } from "@/lib/theme";
 
 export function ForesightEditorFrame() {
   const navigate = useNavigate();
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [iframeKey, setIframeKey] = useState(0);
   const [isExportQuoteOpen, setIsExportQuoteOpen] = useState(false);
   const [isExportTenderOpen, setIsExportTenderOpen] = useState(false);
@@ -299,23 +302,27 @@ export function ForesightEditorFrame() {
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-950 text-slate-100 font-sans overflow-hidden select-none">
       {/* 1 SINGLE SLEEK HUDSON HOMES TAB */}
-      <header className="h-[52px] bg-slate-900 border-b border-slate-800 px-3 sm:px-4 flex items-center justify-between gap-2 flex-none z-30 shadow-md">
+      <header className={`h-[52px] border-b px-3 sm:px-4 flex items-center justify-between gap-2 flex-none z-30 shadow-md ${
+        isLight ? "bg-white/95 border-slate-200" : "bg-slate-900 border-slate-800"
+      }`}>
         {/* Left: Hub Return + Logo + Title + Dynamic Plan Badge */}
         <div className="flex items-center gap-2.5 min-w-0">
           <Link
             to="/hub"
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-xs font-semibold shrink-0"
+            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg transition-colors text-xs font-semibold shrink-0 ${
+              isLight ? "text-slate-700 hover:text-slate-950 hover:bg-slate-100" : "text-slate-300 hover:text-white hover:bg-slate-800"
+            }`}
             title="Return to Hudson Hub"
           >
-            <Home className="h-4 w-4 text-amber-400" />
+            <Home className={`h-4 w-4 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
             <span className="hidden md:inline">Hub</span>
           </Link>
 
-          <div className="h-4 w-px bg-slate-800 shrink-0" />
+          <div className={`h-4 w-px ${isLight ? "bg-slate-300" : "bg-slate-800"} shrink-0`} />
 
           <div className="flex items-center gap-2 shrink-0">
-            <Logo light={true} size={7} className="shrink-0" />
-            <span className="text-xs font-bold text-slate-200 hidden md:inline tracking-wide">
+            <Logo light={!isLight} size={7} className="shrink-0" />
+            <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-slate-200"} hidden md:inline tracking-wide`}>
               Floorplan Editor
             </span>
           </div>
@@ -325,25 +332,39 @@ export function ForesightEditorFrame() {
             <button
               type="button"
               onClick={() => setIsExportQuoteOpen(true)}
-              className="cursor-pointer hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800 transition-all text-[11px] shrink-0"
+              className={`cursor-pointer hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition-all text-[11px] shrink-0 ${
+                isLight
+                  ? "bg-slate-100 border-slate-300 hover:border-amber-600 hover:bg-slate-200"
+                  : "bg-slate-800/80 border-slate-700 hover:border-amber-500/50 hover:bg-slate-800"
+              }`}
               title="Click to view area details and pricing"
             >
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-semibold text-white">{matchedHudson.row.name}</span>
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{matchedHudson.row.name}</span>
               {hasAreaDifferences ? (
-                <span className="text-amber-300 font-bold bg-amber-950/60 border border-amber-800/60 px-1.5 py-0.5 rounded text-[10px]">
+                <span className={`font-bold px-1.5 py-0.5 rounded text-[10px] border ${
+                  isLight
+                    ? "text-amber-900 bg-amber-100 border-amber-300"
+                    : "text-amber-300 bg-amber-950/60 border-amber-800/60"
+                }`}>
                   Modified ({curTotalM2} m²)
                 </span>
               ) : (
-                <span className="text-emerald-300 font-semibold bg-emerald-950/60 border border-emerald-800/60 px-1.5 py-0.5 rounded text-[10px]">
+                <span className={`font-semibold px-1.5 py-0.5 rounded text-[10px] border ${
+                  isLight
+                    ? "text-emerald-900 bg-emerald-100 border-emerald-300"
+                    : "text-emerald-300 bg-emerald-950/60 border-emerald-800/60"
+                }`}>
                   Standard ({standardTotalM2} m²)
                 </span>
               )}
             </button>
           ) : detectedPlan ? (
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-[11px] shrink-0">
-              <Sparkles className="h-3 w-3 text-cyan-400" />
-              <span className="text-white font-semibold">{detectedPlan.matchedDesignName}</span>
+            <div className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] shrink-0 ${
+              isLight ? "bg-slate-100 border-slate-300" : "bg-slate-800/80 border-slate-700"
+            }`}>
+              <Sparkles className={`h-3 w-3 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+              <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{detectedPlan.matchedDesignName}</span>
             </div>
           ) : null}
         </div>
@@ -370,14 +391,18 @@ export function ForesightEditorFrame() {
             <span className="hidden md:inline">Send to Tender</span>
           </Button>
 
-          <div className="h-4 w-px bg-slate-800 mx-0.5 hidden sm:block shrink-0" />
+          <div className={`h-4 w-px ${isLight ? "bg-slate-300" : "bg-slate-800"} mx-0.5 hidden sm:block shrink-0`} />
 
           {/* Fullscreen Toggle */}
           <Button
             variant="ghost"
             size="sm"
             onClick={handleToggleFullscreen}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
+            className={`h-8 w-8 p-0 shrink-0 ${
+              isLight
+                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
             title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -388,10 +413,14 @@ export function ForesightEditorFrame() {
             variant="ghost"
             size="sm"
             onClick={handleOpenExternal}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
+            className={`h-8 w-8 p-0 shrink-0 ${
+              isLight
+                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
             title="Open in external browser window"
           >
-            <ExternalLink className="h-3.5 w-3.5 text-cyan-400" />
+            <ExternalLink className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
           </Button>
 
           {/* Reload iframe */}
@@ -399,7 +428,11 @@ export function ForesightEditorFrame() {
             variant="ghost"
             size="sm"
             onClick={handleRefresh}
-            className="h-8 w-8 p-0 text-slate-400 hover:text-white hover:bg-slate-800 shrink-0"
+            className={`h-8 w-8 p-0 shrink-0 ${
+              isLight
+                ? "text-slate-600 hover:text-slate-950 hover:bg-slate-100"
+                : "text-slate-400 hover:text-white hover:bg-slate-800"
+            }`}
             title="Reload Editor"
           >
             <RefreshCw className="h-3.5 w-3.5" />
@@ -407,7 +440,7 @@ export function ForesightEditorFrame() {
 
           {/* Staff Header Profile (Compact) */}
           <div className="pl-1 hidden sm:block shrink-0">
-            <StaffHeaderProfile isLight={false} compact={true} />
+            <StaffHeaderProfile isLight={isLight} compact={true} />
           </div>
         </div>
       </header>

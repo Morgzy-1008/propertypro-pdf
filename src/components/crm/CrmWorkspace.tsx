@@ -193,17 +193,17 @@ export function CrmWorkspace() {
   return (
     <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-6 font-sans`}>
       {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-5">
+      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"} pb-5`}>
         <div>
           <div className="flex items-center gap-2.5">
             <span className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs px-2.5 py-1 rounded-md tracking-wider uppercase">
               Hudson Horizon CRM
             </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            <h1 className={`text-xl sm:text-2xl font-black ${isLight ? "text-slate-900" : "text-white"} tracking-tight`}>
               Sales Pipeline &amp; Client Hub
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className={`text-xs ${isLight ? "text-slate-600" : "text-slate-400"} mt-1`}>
             Complete residential builder CRM with 12 pipeline milestones, tasks reminder engine, omnichannel conversations, and Outlook integration.
           </p>
         </div>
@@ -214,9 +214,13 @@ export function CrmWorkspace() {
             variant="outline"
             size="sm"
             onClick={() => setIsHoneyImportModalOpen(true)}
-            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-semibold"
+            className={`text-xs gap-1.5 font-semibold ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
           >
-            <FileSpreadsheet className="h-3.5 w-3.5 text-amber-400" />
+            <FileSpreadsheet className={`h-3.5 w-3.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
             Import from Honey
           </Button>
 
@@ -224,9 +228,13 @@ export function CrmWorkspace() {
             variant="outline"
             size="sm"
             onClick={handleTriggerSync}
-            className="border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5 font-semibold"
+            className={`text-xs gap-1.5 font-semibold ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:text-slate-950 shadow-xs"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
           >
-            <RefreshCw className="h-3.5 w-3.5 text-cyan-400" />
+            <RefreshCw className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
             Sync Outlook
           </Button>
 
@@ -243,21 +251,21 @@ export function CrmWorkspace() {
 
       {/* KPI Performance Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Active Pipeline</span>
-          <span className="text-lg font-black text-amber-400">{formatAud(totalPipelineVal)}</span>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Total Active Pipeline</span>
+          <span className={`text-lg font-black ${isLight ? "text-amber-800" : "text-amber-400"}`}>{formatAud(totalPipelineVal)}</span>
         </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Active Deals in Pipeline</span>
-          <span className="text-lg font-black text-cyan-400">{leads.length} Clients</span>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Active Deals in Pipeline</span>
+          <span className={`text-lg font-black ${isLight ? "text-cyan-800" : "text-cyan-400"}`}>{leads.length} Clients</span>
         </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Open Follow-up Tasks</span>
-          <span className="text-lg font-black text-emerald-400">{openTasksCount} Tasks</span>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Open Follow-up Tasks</span>
+          <span className={`text-lg font-black ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>{openTasksCount} Tasks</span>
         </div>
-        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800"}`}>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Outlook 365 Sync</span>
-          <span className="text-lg font-black text-purple-400">{outlookSyncState.count} Emails Captured</span>
+        <div className={`p-3.5 rounded-xl border ${isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-900/60 border-slate-800"}`}>
+          <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Outlook 365 Sync</span>
+          <span className={`text-lg font-black ${isLight ? "text-purple-800" : "text-purple-400"}`}>{outlookSyncState.count} Emails Captured</span>
         </div>
       </div>
 
