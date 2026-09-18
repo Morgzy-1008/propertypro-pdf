@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "PropertyProFacadeCacheDB";
-const DB_VERSION = 10; // Upgraded to v10 to clear all old mirrored/blurred renders fresh
+const DB_VERSION = 11; // Upgraded to v11 to flush stale off-center renders fresh
 const STORE_NAME = "enhanced_facades";
 
 function openDB(): Promise<IDBDatabase> {
