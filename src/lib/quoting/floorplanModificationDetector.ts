@@ -8,6 +8,7 @@ import {
   HUDSON_STANDARD_AREAS,
 } from "@/lib/quoting/quoteEngine";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
+import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
 import type {
   DetectedAreaDelta,
   DetectedInclusionUpgrade,
@@ -27,8 +28,8 @@ export const DATABUILD_RECIPE_RATES = {
   wet_area_m2: 2350,
   porch_m2: 850,
   structural_beam_ds: 1850,
-  ceiling_2590_living_m2: 24, // lump sum ~3650
-  ceiling_2740_living_m2: 46, // lump sum ~6850
+  ceiling_2590_living_m2: 24, // lump sum ~$3,650
+  ceiling_2740_living_m2: 46, // lump sum ~$6,850
 };
 
 /**
@@ -202,13 +203,71 @@ export function isMarkedByOwner(textSnippet: string): boolean {
 }
 
 /**
- * Calls Gemini Multimodal Vision API (gemini-3.6-flash) to inspect the 2D floorplan drawing.
+ * Returns the baseline floorplan image URL for any Hudson design.
+ */
+export function getBaselineFloorplanImageUrl(designName: string): string {
+  const clean = (designName || "")
+    .toLowerCase()
+    .replace(/classic|brochure|rh|sh/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Handle Ember/Amber synonym
+  const normalized = clean.replace(/\bember\b/i, "amber");
+
+  if (normalized && LOCAL_FLOORPLAN_MAP[normalized]) {
+    return LOCAL_FLOORPLAN_MAP[normalized];
+  }
+
+  for (const [key, url] of Object.entries(LOCAL_FLOORPLAN_MAP)) {
+    if (normalized && (key === normalized || key.startsWith(normalized) || normalized.startsWith(key))) {
+      return url;
+    }
+  }
+
+  // Fallback to Amber 21 benchmark
+  return "/floorplans/AMBER 21.png";
+}
+
+/**
+ * Helper to fetch a local image or PDF and convert it to Base64
+ */
+async function fetchImageAsBase64(url: string): Promise<{ mimeType: string; base64: string } | null> {
+  if (typeof window === "undefined" || !url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const mimeType = blob.type || (url.endsWith(".pdf") ? "application/pdf" : "image/png");
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const str = String(reader.result);
+        resolve(str.includes(",") ? str.split(",")[1] : str);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+    return { mimeType, base64 };
+  } catch (err) {
+    console.warn("Failed to fetch baseline floorplan image:", url, err);
+    return null;
+  }
+}
+
+/**
+ * Calls Gemini Multimodal Vision API (gemini-3.6-flash) using Dual-Image Visual Diffing.
+ * Compares Image 1 (Official Baseline Blueprint) vs Image 2 (Candidate Modified Plan).
+ * Even if NO dimensions are written, it compares the visual perimeter to detect push-outs!
  */
 async function callGeminiFloorplanAnalysis(
   dataUrl: string,
   rawText: string,
   suggestedDesign: string,
-  fileName: string
+  housingType: string,
+  fileName: string,
+  cadSpec: any,
+  stdAreas: any
 ): Promise<{
   detectedModelName: string;
   confidence: number;
@@ -218,6 +277,7 @@ async function callGeminiFloorplanAnalysis(
   areaModifications: Array<{
     zone: "living" | "alfresco" | "garage" | "wet_area" | "porch";
     deltaM2: number;
+    estimatedLinearExtensionM?: number;
     reason: string;
   }>;
   detectedInclusions: Array<{
@@ -242,45 +302,55 @@ async function callGeminiFloorplanAnalysis(
     const cleanB64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
     const mimeType = dataUrl.includes(";") ? dataUrl.split(";")[0].replace("data:", "") : "image/png";
 
-    const prompt = `You are a Senior Estimator and Architectural Surveyor at Hudson Homes.
-Your role is to inspect this floorplan blueprint/mark-up and compare it to Hudson Homes standard baseline designs.
+    // 1. Fetch the Official Baseline Blueprint image for side-by-side visual diffing
+    const baselineUrl = getBaselineFloorplanImageUrl(suggestedDesign);
+    const baselineImg = await fetchImageAsBase64(baselineUrl);
+    const hasBaseline = !!baselineImg && !!baselineImg.base64;
 
-BENCHMARK HOUSE DESIGN (Calibrated Model: Amber 21 Classic):
-- Model Name: Amber 21 Classic (Single Storey)
-- Standard Total Area: 192.24 m² (20.69 sq)
-- Standard Living Area: 147.56 m²
-- Standard Double Garage: 32.89 m² (5.5m × 5.5m)
-- Standard Alfresco: 9.54 m² (2.6m × 3.6m)
-- Standard Porch: 2.25 m² (1.4m × 1.5m)
-- Standard Overall Dimensions: 10.55m Width × 20.27m Length
-- Standard Room Sizes:
-  - Family: 5.9m × 3.5m
-  - Dining: 5.9m × 2.7m
-  - Kitchen: 4.4m × 2.7m (Standard 20mm stone island bench, laminate ends, walk-in pantry)
-  - Bed 1: 4.0m × 3.6m (with Ensuite & Walk-in Robe)
-  - Bed 2: 3.0m × 3.0m
-  - Bed 3: 3.2m × 3.0m
-  - Bed 4: 3.2m × 3.0m
-  - Main Bathroom: single vanity, bathtub, shower, separate WC
-  - Laundry: single metal tub & linen
+    const standardTotalM2 = cadSpec?.totalM2 || 192.24;
+    const standardLivingM2 = stdAreas?.livingM2 || cadSpec?.livingM2 || 147.56;
+    const standardAlfrescoM2 = stdAreas?.alfrescoM2 || cadSpec?.alfrescoM2 || 9.54;
+    const standardGarageM2 = stdAreas?.garageM2 || cadSpec?.garageM2 || 32.89;
+    const standardPorchM2 = stdAreas?.porchM2 || cadSpec?.porchM2 || 2.25;
 
-OTHER HUDSON HOMES MODELS IN OUR CATALOGUE:
-- Amber 21, Amber 23, Amber 26, Amber 30
-- Jasper 24, Jasper 26, Onyx 28, Coral 23, Coral 26, Pearl 34, Ruby 28, Emerald 36, Sapphire 38, Azure 19, Azure 21, Azure 23, Azure 25, Carmine 17, Carmine 19, Carmine 21, Carmine 23, Cobalt 22, Cobalt 26, Cobalt 30, Cobalt 36, Charcoal 24, Alabaster 31, Alabaster 36, Alabaster 40.
+    const prompt = `You are a Senior Architectural Estimator and Surveyor at Hudson Homes.
+Your task is to inspect this floorplan blueprint and compare it against the official Hudson Homes baseline design.
 
-CRITICAL ARCHITECTURAL RULES (ZERO HALLUCINATIONS):
-1. RECOGNIZE THE BASE DESIGN:
-   - Read the title block, notes, dimensions schedule, or drawing geometry.
-   - If it is Amber 21 Classic or Amber 21, identify it as "Amber 21".
-   - If it is another Hudson design, name that exact design.
-   - User selected candidate: "${suggestedDesign || 'Amber 21'}".
+${
+  hasBaseline
+    ? `YOU ARE COMPARING TWO BLUEPRINT IMAGES:
+- IMAGE 1 (First image): THE OFFICIAL STANDARD BASELINE BLUEPRINT for "${suggestedDesign}" (${housingType}, standard total area: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m² [standard size ${cadSpec?.alfrescoDims || '2.6m deep × 3.6m wide'}], garage: ${standardGarageM2} m² [standard size ${cadSpec?.garageDims || '5.5m × 5.5m'}], porch: ${standardPorchM2} m²; overall width: ${cadSpec?.width || 10.55}m, length: ${cadSpec?.length || 20.27}m).
+- IMAGE 2 (Second image): THE UPLOADED CANDIDATE / MODIFIED FLOORPLAN.`
+    : `YOU ARE INSPECTING THE UPLOADED FLOORPLAN:
+- Baseline Design: "${suggestedDesign}" (${housingType}, total: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m² [${cadSpec?.alfrescoDims || '2.6m deep × 3.6m wide'}], garage: ${standardGarageM2} m², width: ${cadSpec?.width || 10.55}m, length: ${cadSpec?.length || 20.27}m).`
+}
 
-2. UNMODIFIED STANDARD PLANS (ZERO FAKE DELTAS):
-   - If this floorplan is the standard brochure or has standard dimensions (e.g. Family 5.9x3.5, Alfresco 2.6x3.6, Garage 5.5x5.5, Living 147.56 m²), then:
-     isModified: false
-     areaModifications: []
-     detectedInclusions: []
-   - DO NOT fabricate area extensions (do NOT invent living extensions) if none are marked or dimensioned larger.
+CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
+1. VISUAL PUSH-OUT RECOGNITION (EVEN IF NO NUMERICAL DIMENSIONS ARE WRITTEN):
+   - Estimators and clients frequently draw an extended alfresco, extended living room, or widened garage WITHOUT writing any numbers or dimensions on the extension!
+   - You MUST visually inspect the wall alignments, external perimeters, slab footprints, and room boundaries between Image 1 (Baseline) and Image 2 (Candidate):
+     a) ALFRESCO EXTENSION:
+        - Check if the Alfresco in Image 2 extends further back (deeper into the rear yard) or wider across the rear of the home than the standard Alfresco in Image 1.
+        - Notice if the alfresco boundary extends beyond the living room rear wall alignment, or if the covered slab covers more area.
+        - If the Alfresco is visually extended:
+          * Set zone: "alfresco"
+          * Estimate the linear push-out distance in meters (e.g. +1.2m, +1.5m, +2.0m, +2.5m, +3.0m) using the known house scale (overall width ${cadSpec?.width || 10.55}m, baseline alfresco width ~3.6m).
+          * Calculate the square meterage increase (deltaM2, e.g. 5.4 m², 7.2 m², 9.0 m², 12.0 m²).
+          * State clearly in "reason" that an extended alfresco slab/perimeter was detected.
+     b) LIVING / FAMILY / DINING EXTENSION:
+        - Check if the rear or side external wall of the living zone has been pushed out compared to Image 1.
+        - If extended, calculate deltaM2 and note the estimated push-out distance.
+     c) GARAGE EXTENSION:
+        - Check if the garage footprint is visibly widened (e.g. workshop bay or triple garage) or lengthened compared to Image 1.
+     d) PORCH OR BATHROOM EXTENSIONS:
+        - Check for any other extended internal or outdoor slabs.
+
+2. UNMODIFIED STANDARD PLANS (ZERO FALSE POSITIVES):
+   - If Image 2 is visually identical to Image 1 in all perimeters, walls, and footprints, with no push-outs and no markups:
+     * isModified: false
+     * areaModifications: []
+     * detectedInclusions: []
+     * analysisNotes: "Standard brochure blueprint matching baseline specifications exactly."
 
 3. 2D DRAWING VS 3D FINISHES (NEVER GUESS WATERFALL ENDS):
    - You are viewing a 2D floorplan.
@@ -298,20 +368,14 @@ CRITICAL ARCHITECTURAL RULES (ZERO HALLUCINATIONS):
    - If 2590mm (8ft 6in) is specified, standard upgrade is $3,650.
    - If 2740mm (9ft) is specified, standard upgrade is $6,850.
 
-6. SPATIAL ROOM EXTENSIONS:
-   - Report an areaModification ONLY when:
-     a) Room dimensions explicitly differ from baseline (e.g. Family is dimensioned 7.1 x 3.5 instead of 5.9 x 3.5 -> 4.2 m² extension).
-     b) A revision cloud or arrow clearly writes "+1200mm living push out" or "Alfresco extended 2.0m".
-     c) Calculate the exact delta in m².
-
-7. BESPOKE / CUSTOM NON-CATALOG ITEMS:
+6. BESPOKE / CUSTOM NON-CATALOG ITEMS:
    - If the user marked or drew a custom item not in standard catalog (e.g. recessed gas fireplace, built-in study cabinetry, raked ceiling, extra cavity sliding door):
      - Estimate realistic trade Material cost and Trade Labor cost in AUD.
      - Add Hudson's standard 20% builder margin:
        unitPrice = Math.round((materials + labor) * 1.20)
      - Set isCustomItem: true
 
-Uploaded File Name: "${fileName}"
+Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
 
 Return ONLY valid JSON matching this schema:
@@ -325,6 +389,7 @@ Return ONLY valid JSON matching this schema:
     {
       "zone": "living" | "alfresco" | "garage" | "wet_area" | "porch",
       "deltaM2": number,
+      "estimatedLinearExtensionM": number,
       "reason": string
     }
   ],
@@ -346,24 +411,32 @@ Return ONLY valid JSON matching this schema:
   ]
 }`;
 
+    const parts: any[] = [{ text: prompt }];
+
+    // If we have the baseline blueprint image, send it as Image 1
+    if (hasBaseline) {
+      parts.push({
+        inlineData: {
+          mimeType: baselineImg.mimeType,
+          data: baselineImg.base64,
+        },
+      });
+    }
+
+    // Send the uploaded candidate floorplan as Image 2
+    parts.push({
+      inlineData: {
+        mimeType,
+        data: cleanB64,
+      },
+    });
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
     const resp = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType,
-                  data: cleanB64,
-                },
-              },
-            ],
-          },
-        ],
+        contents: [{ parts }],
         generationConfig: {
           temperature: 0.1,
           responseMimeType: "application/json",
@@ -425,6 +498,11 @@ export async function analyzeModifiedFloorplanFile(
   let detectedModelName = activeDesignName && activeDesignName !== "UNSELECTED" ? activeDesignName : "";
   let housingType = activeHousingType || "Single Storey";
 
+  // Handle Ember/Amber spelling
+  if (/ember\s*21/i.test(detectedModelName) || /ember\s*21/i.test(file.name) || /ember\s*21/i.test(rawText)) {
+    detectedModelName = "Amber 21";
+  }
+
   if (!detectedModelName) {
     const textMatched = detectFloorplanFromText(rawText, file.name);
     if (textMatched) {
@@ -436,7 +514,6 @@ export async function analyzeModifiedFloorplanFile(
         detectedModelName = matched.row.name;
         housingType = matched.housingType;
       } else {
-        // Look for Amber 21 explicitly in text
         if (/amber\s*21/i.test(rawText) || /amber\s*21/i.test(file.name)) {
           detectedModelName = "Amber 21";
           housingType = "Single Storey";
@@ -453,19 +530,6 @@ export async function analyzeModifiedFloorplanFile(
     detectedModelName = "Amber 21";
   }
 
-  // 3. Attempt Multimodal Gemini Vision AI Analysis
-  let geminiResult: Awaited<ReturnType<typeof callGeminiFloorplanAnalysis>> = null;
-  if (dataUrl) {
-    geminiResult = await callGeminiFloorplanAnalysis(dataUrl, rawText, detectedModelName, file.name);
-  }
-
-  if (geminiResult && geminiResult.detectedModelName) {
-    // Normalise AI model name
-    let aiModel = geminiResult.detectedModelName.replace(/Classic/i, "").trim();
-    if (/amber\s*21/i.test(aiModel)) aiModel = "Amber 21";
-    if (aiModel) detectedModelName = aiModel;
-  }
-
   // Baseline CAD & Dimensions Lookup
   const cadSpec = HUDSON_CAD_REGISTRY[detectedModelName] || {
     totalM2: 192.24,
@@ -475,6 +539,8 @@ export async function analyzeModifiedFloorplanFile(
     porchM2: 2.25,
     width: 10.55,
     length: 20.27,
+    alfrescoDims: "2.6m × 3.6m",
+    garageDims: "5.5m × 5.5m",
   };
 
   const isDoubleStorey =
@@ -489,12 +555,32 @@ export async function analyzeModifiedFloorplanFile(
   const standardGarageM2 = Number(stdAreas.garageM2 || cadSpec.garageM2);
   const standardPorchM2 = Number(stdAreas.porchM2 || cadSpec.porchM2);
 
+  // 3. Attempt Multimodal Gemini Vision AI Analysis with Dual-Image Diffing
+  let geminiResult: Awaited<ReturnType<typeof callGeminiFloorplanAnalysis>> = null;
+  if (dataUrl) {
+    geminiResult = await callGeminiFloorplanAnalysis(
+      dataUrl,
+      rawText,
+      detectedModelName,
+      housingType,
+      file.name,
+      cadSpec,
+      stdAreas
+    );
+  }
+
+  if (geminiResult && geminiResult.detectedModelName) {
+    let aiModel = geminiResult.detectedModelName.replace(/Classic/i, "").trim();
+    if (/amber\s*21/i.test(aiModel) || /ember\s*21/i.test(aiModel)) aiModel = "Amber 21";
+    if (aiModel) detectedModelName = aiModel;
+  }
+
   const areaDeltas: DetectedAreaDelta[] = [];
   const inclusionUpgrades: DetectedInclusionUpgrade[] = [];
 
   if (geminiResult) {
     // ----------------------------------------------------
-    // GEMINI VISION PIPELINE (AI Powered with 0-Hallucination Guard)
+    // GEMINI VISION PIPELINE (Dual-Image Diffing with Visual Push-Out Detection)
     // ----------------------------------------------------
     if (geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
       for (const mod of geminiResult.areaModifications) {
@@ -559,7 +645,6 @@ export async function analyzeModifiedFloorplanFile(
 
     if (geminiResult.detectedInclusions && geminiResult.detectedInclusions.length > 0) {
       for (const inc of geminiResult.detectedInclusions) {
-        // If marked By Owner, price is $0
         const isOwner = !!inc.isByOwner;
         const qty = inc.quantity || 1;
         let finalUnitPrice = isOwner ? 0 : inc.unitPrice || 0;
@@ -624,7 +709,6 @@ export async function analyzeModifiedFloorplanFile(
 
   // ----------------------------------------------------
   // DETERMINISTIC PARSER FALLBACK (Offline / Non-AI Mode)
-  // Strict Zero-Hallucination Rules
   // ----------------------------------------------------
   const lowerText = rawText.toLowerCase();
   const fileNameLower = file.name.toLowerCase();
@@ -643,7 +727,7 @@ export async function analyzeModifiedFloorplanFile(
       const w = parseFloat(familyMatch[1]);
       const l = parseFloat(familyMatch[2]);
       const actualLivingM2 = w * l;
-      const standardFamM2 = 5.9 * 3.5; // 20.65
+      const standardFamM2 = 5.9 * 3.5;
       const famDiff = actualLivingM2 - standardFamM2;
       if (Math.abs(famDiff) > 0.4) {
         livingDelta = Math.round(famDiff * 100) / 100;
@@ -656,7 +740,7 @@ export async function analyzeModifiedFloorplanFile(
       const w = parseFloat(alfMatch[1]);
       const l = parseFloat(alfMatch[2]);
       const actualAlfM2 = w * l;
-      const standardAlfM2 = 2.6 * 3.6; // 9.36
+      const standardAlfM2 = 2.6 * 3.6;
       const alfDiff = actualAlfM2 - standardAlfM2;
       if (Math.abs(alfDiff) > 0.4) {
         alfrescoDelta = Math.round(alfDiff * 100) / 100;
@@ -685,21 +769,20 @@ export async function analyzeModifiedFloorplanFile(
     if (Math.abs(diff) > 0.3) {
       livingDelta = Math.round(diff * 100) / 100;
     } else {
-      // Confirmed identical to brochure
       livingDelta = 0;
     }
   }
 
   // Explicit keyword annotations
   if (livingDelta === 0) {
-    if (lowerText.includes("living ext +") || lowerText.includes("living extended")) {
-      const numMatch = lowerText.match(/living\s*(?:ext|extended)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
+    if (lowerText.includes("living ext +") || lowerText.includes("living extended") || lowerText.includes("family ext")) {
+      const numMatch = lowerText.match(/(?:living|family)\s*(?:ext|extended)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
       livingDelta = numMatch ? parseFloat(numMatch[1]) : 7.2;
     }
   }
 
   if (alfrescoDelta === 0) {
-    if (lowerText.includes("alfresco ext +") || lowerText.includes("grand alfresco")) {
+    if (lowerText.includes("alfresco ext") || lowerText.includes("grand alfresco") || lowerText.includes("extended alfresco") || fileNameLower.includes("alfresco")) {
       const numMatch = lowerText.match(/alfresco\s*(?:ext|extended)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
       alfrescoDelta = numMatch ? parseFloat(numMatch[1]) : 8.0;
     }
@@ -797,10 +880,8 @@ export async function analyzeModifiedFloorplanFile(
       continue;
     }
 
-    // Match keywords strictly
     const matchedKw = rule.triggerKeywords.find((kw) => fullSearchText.includes(kw));
     if (matchedKw) {
-      // Check if marked "by owner" specifically on the line or immediate sentence containing this matched keyword
       const lines = fullSearchText.split(/[\r\n]+/);
       const matchedLine = lines.find((l) => l.includes(matchedKw)) || "";
       const isOwner = isMarkedByOwner(matchedLine);

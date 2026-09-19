@@ -340,7 +340,11 @@ export function ModifiedPlanReviewModal({
                           {inc.description}
                         </p>
                         {inc.customBreakdown && (
-                          <p className="text-[10px] font-mono text-blue-300/90 bg-blue-950/30 px-2 py-1 rounded border border-blue-900/40">
+                          <p className={`text-[10px] font-mono px-2.5 py-1.5 rounded-lg border ${
+                            isLight
+                              ? "bg-blue-50 text-blue-900 border-blue-200"
+                              : "bg-blue-950/40 text-blue-300 border-blue-800/50"
+                          }`}>
                             Materials: {formatAud(inc.customBreakdown.materials)} + Trade Labor: {formatAud(inc.customBreakdown.labor)} + 20% Builder Margin: {formatAud(inc.customBreakdown.marginCost)}
                           </p>
                         )}
