@@ -164,11 +164,19 @@ export function ModifiedPlanReviewModal({
               </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                {localAnalysis.baseDesignName} ({localAnalysis.housingType})
-              </span>
-              <p className="text-[11px] font-mono mt-1 text-slate-400">
+            <div className="text-right flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5">
+                {localAnalysis.detectionSource === "gemini_vision" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                    <Sparkles className="h-3 w-3 text-purple-400" />
+                    Gemini AI Vision
+                  </span>
+                )}
+                <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
+                  {localAnalysis.baseDesignName} ({localAnalysis.housingType})
+                </span>
+              </div>
+              <p className="text-[11px] font-mono text-slate-400">
                 Standard: {localAnalysis.standardTotalM2} m² &rarr; Modified:{" "}
                 <span className="text-cyan-400 font-bold">{localAnalysis.modifiedTotalM2} m²</span> (
                 {localAnalysis.netDeltaM2 > 0 ? `+${localAnalysis.netDeltaM2}` : localAnalysis.netDeltaM2} m²)
@@ -176,6 +184,27 @@ export function ModifiedPlanReviewModal({
             </div>
           </div>
         </DialogHeader>
+
+        {localAnalysis.geminiNotes && (
+          <div className="mt-3 px-3.5 py-2.5 rounded-xl bg-purple-950/30 border border-purple-800/40 text-[11px] text-purple-200 flex items-start gap-2">
+            <Sparkles className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
+            <p className="leading-relaxed">
+              <strong className="font-semibold text-purple-300">AI Architectural Assessment:</strong> {localAnalysis.geminiNotes}
+            </p>
+          </div>
+        )}
+
+        {localAnalysis.areaDeltas.length === 0 && localAnalysis.inclusionUpgrades.length === 0 && (
+          <div className="my-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 flex items-center gap-3">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            <div>
+              <p className="text-xs font-bold">Standard Baseline Verified — Zero False Positives</p>
+              <p className="text-[11px] text-emerald-400/80 mt-0.5">
+                This floorplan matches the standard {localAnalysis.baseDesignName} brochure specifications. Zero living extensions, zero waterfall ends, and zero unverified upgrades were found ($0.00 tender adjustment).
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6 my-4">
           {/* Section 1: Spatial Area Modifications */}
@@ -289,21 +318,42 @@ export function ModifiedPlanReviewModal({
                         className="h-4 w-4 mt-1 rounded border-slate-700 text-cyan-500 focus:ring-cyan-400"
                       />
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-xs font-bold ${inc.accepted ? "text-white" : "text-slate-500 line-through"}`}>
                             {inc.name}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
                             {Math.round(inc.confidence * 100)}% Confidence
                           </span>
+                          {inc.isByOwner && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                              By Owner / Excluded from Contract ($0)
+                            </span>
+                          )}
+                          {inc.isCustomItem && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                              Custom Item (+20% Builder Margin)
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-slate-400 leading-relaxed">
                           {inc.description}
                         </p>
-                        <div className="flex items-center gap-2 text-[10px]">
+                        {inc.customBreakdown && (
+                          <p className="text-[10px] font-mono text-blue-300/90 bg-blue-950/30 px-2 py-1 rounded border border-blue-900/40">
+                            Materials: {formatAud(inc.customBreakdown.materials)} + Trade Labor: {formatAud(inc.customBreakdown.labor)} + 20% Builder Margin: {formatAud(inc.customBreakdown.marginCost)}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-2 text-[10px] flex-wrap">
                           <span className="text-slate-500">Brochure Baseline: {inc.baseline}</span>
                           <span className="text-cyan-500">&bull;</span>
                           <span className="text-cyan-400">Detected: {inc.detected}</span>
+                          {inc.reason && (
+                            <>
+                              <span className="text-slate-500">&bull;</span>
+                              <span className="text-slate-400 italic">Source: {inc.reason}</span>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

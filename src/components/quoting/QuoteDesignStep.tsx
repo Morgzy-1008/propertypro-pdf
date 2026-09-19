@@ -854,9 +854,15 @@ export function QuoteDesignStep({
       );
       setPendingAnalysis(analysis);
       setIsReviewModalOpen(true);
-      toast.success(
-        `✨ Scanned floorplan: matched ${analysis.baseDesignName} (+${analysis.netDeltaM2} m² delta) with ${analysis.inclusionUpgrades.length} fixture upgrades.`
-      );
+      if (analysis.netDeltaM2 === 0 && analysis.inclusionUpgrades.length === 0) {
+        toast.success(
+          `✨ Scanned floorplan: verified standard ${analysis.baseDesignName} (0.0 m² delta, $0.00 adjustment).`
+        );
+      } else {
+        toast.success(
+          `✨ Scanned floorplan: matched ${analysis.baseDesignName} (${analysis.netDeltaM2 >= 0 ? `+${analysis.netDeltaM2}` : analysis.netDeltaM2} m² delta) with ${analysis.inclusionUpgrades.length} upgrades.`
+        );
+      }
     } catch (err) {
       console.error("Floorplan analysis failed:", err);
       toast.error("Could not parse floorplan file. Please try a different PDF or image.");

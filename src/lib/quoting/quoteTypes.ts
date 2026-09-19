@@ -327,6 +327,15 @@ export interface DetectedInclusionUpgrade {
   subtotal: number;
   accepted: boolean;
   confidence: number;
+  isByOwner?: boolean; // E.g. "by owner" / "client to supply" -> $0 tender impact
+  isCustomItem?: boolean; // Bespoke item estimated with materials + labor + 20% builder margin
+  customBreakdown?: {
+    materials: number;
+    labor: number;
+    marginPercent: number; // 20%
+    marginCost: number;
+  };
+  reason?: string;
 }
 
 export interface PlanModificationAnalysis {
@@ -342,4 +351,7 @@ export interface PlanModificationAnalysis {
   netTotalCost: number;
   floorplanDataUrl?: string;
   fileName?: string;
+  detectionSource?: "gemini_vision" | "deterministic" | "hybrid";
+  geminiNotes?: string;
+  ceilingHeightM?: number;
 }

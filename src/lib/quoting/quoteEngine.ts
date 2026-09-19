@@ -293,7 +293,7 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Azure 21": { livingM2: 148.28, garageM2: 34.73, alfrescoM2: 11.23, porchM2: 2.84, totalM2: 197.08 },
   "Azure 23": { livingM2: 158.40, garageM2: 34.90, alfrescoM2: 12.50, porchM2: 2.91, totalM2: 208.71 },
   "Azure 25": { livingM2: 178.60, garageM2: 35.20, alfrescoM2: 16.40, porchM2: 3.25, totalM2: 233.45 },
-  "Amber 21": { livingM2: 143.50, garageM2: 34.10, alfrescoM2: 11.80, porchM2: 2.84, totalM2: 192.24 },
+  "Amber 21": { livingM2: 147.56, garageM2: 32.89, alfrescoM2: 9.54, porchM2: 2.25, totalM2: 192.24 },
   "Amber 23": { livingM2: 160.20, garageM2: 34.60, alfrescoM2: 12.80, porchM2: 3.03, totalM2: 210.63 },
   "Amber 26": { livingM2: 188.40, garageM2: 35.20, alfrescoM2: 14.50, porchM2: 3.46, totalM2: 241.56 },
   "Amber 30": { groundLivingM2: 112.50, firstLivingM2: 118.20, garageM2: 34.80, alfrescoM2: 14.10, porchM2: 3.36, balconyM2: 0, totalM2: 282.96 },
