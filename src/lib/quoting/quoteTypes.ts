@@ -130,7 +130,11 @@ export interface SiteConditions {
   screwPieringCost?: number; // auto-calculated at $90 × GFA m²
   demolitionAsbestosRequired?: boolean;
   demolitionAsbestosType?: "single" | "double" | "custom";
-  demolitionAsbestosCost?: number; // SS default $30,000, DS default $40,000 (editable)
+  demolitionAsbestosCost?: number; // SS default $32,500 (clad), DS default $40,000 (clad), +$2k for brick
+  existingDwellingStoreys?: "single" | "double";
+  existingDwellingMaterial?: "cladding" | "brick";
+  postDemoContourSoilTestRequired?: boolean;
+  postDemoContourSoilTestCost?: number; // default $2,200
   rockExcavationAllowance?: number; // default $2,500 (increments of $2,500)
   retainingWallAllowance?: number; // increments of $2,500
   materialHandlingRequired?: boolean;
@@ -218,7 +222,7 @@ export interface SecondDwellingSelection {
 }
 
 export interface QuoteDesignSelection {
-  mode: "standard" | "custom_floorplan";
+  mode: "standard" | "modified" | "custom_floorplan";
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   designName: string;
   designM2: number;
@@ -297,4 +301,45 @@ export interface FullQuote {
   pricing: QuotePricingSummary;
   clientNotes?: string;
   feasibility?: SiteFeasibilityDossier;
+}
+
+export interface DetectedAreaDelta {
+  zoneKey: string;
+  zoneLabel: string;
+  standardM2: number;
+  modifiedM2: number;
+  deltaM2: number;
+  recipeId: string;
+  unitRate: number; // $/m²
+  subtotal: number;
+  accepted: boolean;
+}
+
+export interface DetectedInclusionUpgrade {
+  id: string;
+  category: CatalogueCategory;
+  name: string;
+  description: string;
+  baseline: string;
+  detected: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  accepted: boolean;
+  confidence: number;
+}
+
+export interface PlanModificationAnalysis {
+  baseDesignName: string;
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  standardTotalM2: number;
+  modifiedTotalM2: number;
+  netDeltaM2: number;
+  areaDeltas: DetectedAreaDelta[];
+  inclusionUpgrades: DetectedInclusionUpgrade[];
+  totalAreaCost: number;
+  totalInclusionsCost: number;
+  netTotalCost: number;
+  floorplanDataUrl?: string;
+  fileName?: string;
 }

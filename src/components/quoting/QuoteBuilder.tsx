@@ -58,7 +58,7 @@ import {
 } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
-import type { FullQuote, QuoteDesignSelection } from "@/lib/quoting/quoteTypes";
+import type { FullQuote, QuoteDesignSelection, QuoteSelectedLineItem } from "@/lib/quoting/quoteTypes";
 import { QuoteSummarySidebar } from "./QuoteSummarySidebar";
 import { QuoteClientDetails } from "./QuoteClientDetails";
 import { QuoteDesignStep } from "./QuoteDesignStep";
@@ -456,6 +456,30 @@ export function QuoteBuilder() {
     updateQuote({ lineItems: items });
   };
 
+  const handleAddInclusionLineItems = (newItems: QuoteSelectedLineItem[]) => {
+    setQuote((prev) => {
+      const existingMap = new Map(prev.lineItems.map((item) => [item.id, item]));
+      for (const item of newItems) {
+        existingMap.set(item.id, item);
+      }
+      const updatedLineItems = Array.from(existingMap.values());
+      const updatedPricing = calculateQuotePricing(
+        prev.design,
+        prev.siteConditions,
+        updatedLineItems,
+        prev.client.depositAmount,
+        prev.secondDwellingLineItems
+      );
+      const result = {
+        ...prev,
+        lineItems: updatedLineItems,
+        pricing: updatedPricing,
+      };
+      saveQuote(result);
+      return result;
+    });
+  };
+
   const handleSaveQuote = async () => {
     setSaving(true);
     try {
@@ -803,7 +827,11 @@ export function QuoteBuilder() {
             )}
 
             {activeTab === "design" && (
-              <QuoteDesignStep design={quote.design} onChange={handleDesignChange} />
+              <QuoteDesignStep
+                design={quote.design}
+                onChange={handleDesignChange}
+                onAddInclusionLineItems={handleAddInclusionLineItems}
+              />
             )}
 
             {activeTab === "site" && (

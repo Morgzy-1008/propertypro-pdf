@@ -946,10 +946,18 @@ export function calculateQuotePricing(
 
   // Geotechnical & Site Allowances
   const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 90)) : 0;
+  const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
+  const isBrick = site.existingDwellingMaterial === "brick";
+  const defaultDemoCost = (existingIsDouble ? 40000 : 32500) + (isBrick ? 2000 : 0);
+
   const demolitionAsbestosCost = site.demolitionAsbestosRequired
-    ? (Number(site.demolitionAsbestosCost) !== undefined && !isNaN(Number(site.demolitionAsbestosCost))
+    ? (Number(site.demolitionAsbestosCost) !== undefined && !isNaN(Number(site.demolitionAsbestosCost)) && Number(site.demolitionAsbestosCost) > 0
         ? Number(site.demolitionAsbestosCost)
-        : (isDouble ? 40000 : 30000))
+        : defaultDemoCost)
+    : 0;
+
+  const postDemoContourCost = (site.demolitionAsbestosRequired && site.postDemoContourSoilTestRequired)
+    ? (Number(site.postDemoContourSoilTestCost) || 2200)
     : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
@@ -973,6 +981,7 @@ export function calculateQuotePricing(
     trafficCost +
     screwPieringCost +
     demolitionAsbestosCost +
+    postDemoContourCost +
     rockCost +
     retainingCost +
     materialHandlingCost +

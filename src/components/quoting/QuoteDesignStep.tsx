@@ -21,6 +21,8 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ModifiedFloorplanModal } from "./ModifiedFloorplanModal";
+import { ModifiedPlanReviewModal } from "./ModifiedPlanReviewModal";
+import { analyzeModifiedFloorplanFile } from "@/lib/quoting/floorplanModificationDetector";
 import {
   Select,
   SelectContent,
@@ -64,11 +66,20 @@ import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
-import type { InclusionTier, QuoteDesignSelection, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
+import type {
+  InclusionTier,
+  QuoteDesignSelection,
+  SecondDwellingSelection,
+  QuoteSelectedLineItem,
+  PlanModificationAnalysis,
+  DetectedAreaDelta,
+  FloorplanAreaBreakdown,
+} from "@/lib/quoting/quoteTypes";
 
 interface QuoteDesignStepProps {
   design: QuoteDesignSelection;
   onChange: (patch: Partial<QuoteDesignSelection>) => void;
+  onAddInclusionLineItems?: (items: QuoteSelectedLineItem[]) => void;
 }
 
 export function getHousingTypePrices(division: Division = getActiveDivision()): Record<string, PriceRow[]> {
@@ -336,11 +347,20 @@ export function getFacadesForDesignAndHousingType(
   return isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
 }
 
-export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
+export function QuoteDesignStep({
+  design,
+  onChange,
+  onAddInclusionLineItems,
+}: QuoteDesignStepProps) {
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isAnalyzingModifiedFile, setIsAnalyzingModifiedFile] = useState(false);
+  const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
+  const [isDraggingDropzone, setIsDraggingDropzone] = useState(false);
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modifiedFileInputRef = useRef<HTMLInputElement>(null);
 
   const housingTypePrices = getHousingTypePrices(division);
   const effectiveHousingType = getHousingTypeForDesign(design.designName, design.housingType);
@@ -823,6 +843,150 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
     });
   };
 
+  const handleProcessModifiedFile = async (file: File) => {
+    setIsAnalyzingModifiedFile(true);
+    try {
+      const analysis = await analyzeModifiedFloorplanFile(
+        file,
+        design.designName,
+        design.housingType,
+        design.specTier
+      );
+      setPendingAnalysis(analysis);
+      setIsReviewModalOpen(true);
+      toast.success(
+        `✨ Scanned floorplan: matched ${analysis.baseDesignName} (+${analysis.netDeltaM2} m² delta) with ${analysis.inclusionUpgrades.length} fixture upgrades.`
+      );
+    } catch (err) {
+      console.error("Floorplan analysis failed:", err);
+      toast.error("Could not parse floorplan file. Please try a different PDF or image.");
+    } finally {
+      setIsAnalyzingModifiedFile(false);
+    }
+  };
+
+  const handleOpenReviewModal = () => {
+    if (pendingAnalysis) {
+      setIsReviewModalOpen(true);
+      return;
+    }
+    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
+    const modM2 = design.modifiedDesignM2 || design.designM2 || stdM2;
+    const netDelta = Math.round((modM2 - stdM2) * 100) / 100;
+    const modCalc = calculateModifiedFloorplanPricing(design);
+
+    const syntheticDeltas: DetectedAreaDelta[] = modCalc.zones
+      .filter((z) => z.deltaM2 !== 0)
+      .map((z) => ({
+        zoneKey: z.key,
+        zoneLabel: z.label,
+        standardM2: z.standardM2,
+        modifiedM2: z.modifiedM2,
+        deltaM2: z.deltaM2,
+        recipeId: `recipe_${z.key}`,
+        unitRate: z.ratePerM2,
+        subtotal: z.costAdjustment,
+        accepted: true,
+      }));
+
+    const synthetic: PlanModificationAnalysis = {
+      baseDesignName: design.designName || "Selected Home Design",
+      housingType: design.housingType,
+      standardTotalM2: stdM2,
+      modifiedTotalM2: modM2,
+      netDeltaM2: netDelta,
+      areaDeltas: syntheticDeltas,
+      inclusionUpgrades: [],
+      totalAreaCost: modCalc.totalCostAdjustment,
+      totalInclusionsCost: 0,
+      netTotalCost: modCalc.totalCostAdjustment,
+      floorplanDataUrl: design.floorplanUrl,
+      fileName: "Current Modified Design",
+    };
+
+    setPendingAnalysis(synthetic);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleApplyModifiedPlan = (approved: PlanModificationAnalysis) => {
+    const stdM2 = approved.standardTotalM2;
+    const stdAreas = getStandardAreaBreakdown(approved.baseDesignName, approved.housingType, stdM2);
+
+    const updatedModifiedAreas: Partial<FloorplanAreaBreakdown> = {
+      ...stdAreas,
+      ...(design.modifiedAreas || {}),
+    };
+
+    for (const delta of approved.areaDeltas) {
+      if (delta.accepted) {
+        (updatedModifiedAreas as any)[delta.zoneKey] = delta.modifiedM2;
+      }
+    }
+
+    const effectiveHousingType = approved.housingType;
+    const modelName = approved.baseDesignName;
+    const divModels = housingTypePrices[effectiveHousingType] || SINGLE_STOREY_PRICES;
+    const matchedModel = divModels.find((m) => m.name === modelName) || currentModel;
+    const stdPrice = matchedModel
+      ? getTierPrice(matchedModel, design.specTier, effectiveHousingType)
+      : design.standardBasePrice || design.basePrice;
+
+    const tempDesign: QuoteDesignSelection = {
+      ...design,
+      mode: "modified",
+      housingType: effectiveHousingType,
+      designName: modelName,
+      standardDesignM2: stdM2,
+      standardBasePrice: stdPrice,
+      isModifiedFloorplan: true,
+      standardAreas: stdAreas,
+      modifiedAreas: updatedModifiedAreas,
+    };
+
+    const modCalc = calculateModifiedFloorplanPricing(tempDesign);
+    const autoDiscount = getAutomatedPromotionDiscount(approved.modifiedTotalM2);
+
+    onChange({
+      mode: "modified",
+      housingType: effectiveHousingType,
+      designName: modelName,
+      designM2: matchedModel?.m2 || stdM2,
+      standardDesignM2: stdM2,
+      standardBasePrice: stdPrice,
+      isModifiedFloorplan: true,
+      standardAreas: stdAreas,
+      modifiedAreas: updatedModifiedAreas,
+      modifiedDesignM2: approved.modifiedTotalM2,
+      basePrice: modCalc.modifiedBasePrice,
+      promotionsDiscount: autoDiscount,
+      ...(approved.floorplanDataUrl ? { floorplanUrl: approved.floorplanDataUrl } : {}),
+    });
+
+    if (onAddInclusionLineItems) {
+      const acceptedUpgrades = approved.inclusionUpgrades.filter((u) => u.accepted);
+      if (acceptedUpgrades.length > 0) {
+        const lineItemsToAdd: QuoteSelectedLineItem[] = acceptedUpgrades.map((u) => ({
+          id: `mod_${u.id}`,
+          catalogueItemId: u.id,
+          category: u.category,
+          name: u.name,
+          description: u.description,
+          unitType: "item",
+          unitRate: u.unitPrice,
+          quantity: u.quantity,
+          subtotal: u.subtotal,
+          isIncluded: false,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `Detected from modified floorplan (${approved.fileName || "Plan"}): ${u.detected}`,
+        }));
+        onAddInclusionLineItems(lineItemsToAdd);
+      }
+    }
+
+    setPendingAnalysis(approved);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header & Mode Switcher */}
@@ -835,35 +999,152 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             </h3>
           </div>
           <p className="text-xs text-slate-400 mt-0.5">
-            Select a Hudson home design and tailored inclusions, or calculate custom floorplan dimensions.
+            Select a Hudson home design, upload a modified floorplan, or calculate custom floorplan dimensions.
           </p>
         </div>
 
-        {/* 2 Design Mode Tabs */}
+        {/* 3 Design Mode Tabs: Standard Design | Modified Design | Custom Design (m²) */}
         <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start">
           {[
             { id: "standard", label: "Standard Design" },
-            { id: "custom_floorplan", label: "Custom Floorplan (m²)" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => onChange({ mode: tab.id as any })}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                design.mode === tab.id
-                  ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md font-bold"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: "modified", label: "Modified Design" },
+            { id: "custom_floorplan", label: "Custom Design (m²)" },
+          ].map((tab) => {
+            const isActive =
+              tab.id === "modified"
+                ? design.mode === "modified" || (design.mode === "standard" && design.isModifiedFloorplan)
+                : design.mode === tab.id && (!design.isModifiedFloorplan || tab.id !== "standard");
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  if (tab.id === "modified") {
+                    onChange({ mode: "modified", isModifiedFloorplan: true });
+                    if (!design.modifiedDesignM2 && design.designM2) {
+                      handleToggleModifiedFloorplan(true);
+                    }
+                  } else if (tab.id === "standard") {
+                    onChange({ mode: "standard", isModifiedFloorplan: false });
+                    if (design.isModifiedFloorplan) {
+                      handleToggleModifiedFloorplan(false);
+                    }
+                  } else {
+                    onChange({ mode: "custom_floorplan", isModifiedFloorplan: false });
+                  }
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md font-bold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* MODE 1: STANDARD HUDSON DESIGN */}
-      {design.mode === "standard" && (
+      {/* MODE 1 & 2: STANDARD OR MODIFIED HUDSON DESIGN */}
+      {(design.mode === "standard" || design.mode === "modified") && (
         <div className="space-y-6">
+          {/* Modified Design Floorplan Vision Ingestion Dropzone */}
+          {(design.mode === "modified" || design.isModifiedFloorplan) && (
+            <div className="rounded-2xl border-2 border-dashed border-cyan-500/50 bg-gradient-to-br from-cyan-950/30 via-slate-900/60 to-slate-950 p-5 transition-all hover:border-cyan-400/80 shadow-lg shadow-cyan-950/20">
+              <input
+                type="file"
+                ref={modifiedFileInputRef}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleProcessModifiedFile(file);
+                }}
+                accept=".pdf,image/png,image/jpeg,image/jpg"
+                className="hidden"
+                id="modified-floorplan-input"
+              />
+
+              {isAnalyzingModifiedFile ? (
+                <div className="flex flex-col items-center justify-center py-6 space-y-3">
+                  <div className="h-12 w-12 rounded-full border-4 border-cyan-500/30 border-t-cyan-400 animate-spin flex items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-cyan-300 animate-pulse" />
+                  </div>
+                  <div className="text-center">
+                    <h4 className="text-sm font-bold text-cyan-300">Scanning &amp; Scaling Modified Floorplan...</h4>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Aligning against Hudson master plans, calculating room push-outs, and identifying inclusion upgrades.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => modifiedFileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDraggingDropzone(true);
+                  }}
+                  onDragLeave={() => setIsDraggingDropzone(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDraggingDropzone(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleProcessModifiedFile(file);
+                  }}
+                  className={`cursor-pointer flex flex-col items-center justify-center text-center py-4 px-2 rounded-xl transition-all ${
+                    isDraggingDropzone ? "bg-cyan-500/15 ring-2 ring-cyan-400" : "hover:bg-cyan-500/5"
+                  }`}
+                >
+                  <div className="h-12 w-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-md shadow-cyan-500/10 mb-2.5">
+                    <Upload className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-white flex items-center justify-center gap-2">
+                    <span>Upload Modified Floorplan</span>
+                    <span className="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded font-mono font-medium">
+                      PDF / PNG / JPG
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-400 mt-1 max-w-lg">
+                    Drop modified plan here or click to browse. The engine scales the plan and calculates internal dimensions <strong>without needing a printed dimensions graph</strong>.
+                  </p>
+                </div>
+              )}
+
+              {/* Active Recognition & Review Bar */}
+              {(design.isModifiedFloorplan || pendingAnalysis) && !isAnalyzingModifiedFile && (
+                <div className="mt-3 pt-3 border-t border-cyan-500/20 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap text-slate-200">
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold text-[11px]">
+                      <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                      {design.designName ? `${design.designName} Modified` : "Modified Floorplan Active"}
+                    </span>
+                    <span className="text-slate-400">&bull;</span>
+                    <span className="text-emerald-400 font-mono font-bold">
+                      {design.modifiedDesignM2 || design.designM2} m²
+                    </span>
+                    {design.standardDesignM2 && design.standardDesignM2 > 0 && (
+                      <span className="text-slate-400">
+                        (Std: {design.standardDesignM2} m² &bull; Δ{" "}
+                        {(((design.modifiedDesignM2 || design.designM2) - design.standardDesignM2)).toFixed(1)} m²)
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={handleOpenReviewModal}
+                      className="text-xs font-bold gap-1.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md shadow-cyan-600/20"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-cyan-200" />
+                      Review Discrepancies &amp; Upgrades
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Housing Type & Model Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
@@ -2136,6 +2417,14 @@ export function QuoteDesignStep({ design, onChange }: QuoteDesignStepProps) {
             },
           });
         }}
+      />
+
+      {/* Automated Modified Floorplan Recognition & Discrepancies Review Modal */}
+      <ModifiedPlanReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        analysis={pendingAnalysis}
+        onApply={handleApplyModifiedPlan}
       />
     </div>
   );

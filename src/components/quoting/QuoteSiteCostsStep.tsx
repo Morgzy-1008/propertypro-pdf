@@ -177,6 +177,16 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
 
+  const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
+  const isBrick = site.existingDwellingMaterial === "brick";
+  const defaultDemoCost = (existingIsDouble ? 40000 : 32500) + (isBrick ? 2000 : 0);
+  const demolitionCost = site.demolitionAsbestosRequired
+    ? (site.demolitionAsbestosCost ?? defaultDemoCost)
+    : 0;
+  const postDemoCost = (site.demolitionAsbestosRequired && (site.postDemoContourSoilTestRequired ?? true))
+    ? (site.postDemoContourSoilTestCost ?? 2200)
+    : 0;
+
   const totalSiteAndStatutory =
     soilTotalCost +
     concrete32Cost +
@@ -189,6 +199,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     trafficCost +
     dualLivingCost +
     screwPieringCost +
+    demolitionCost +
+    postDemoCost +
     rockCost +
     retainingCost +
     sedimentCost;
@@ -272,7 +284,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   };
 
   const handleDemolitionStep = (delta: number) => {
-    const defaultCost = isDouble ? 40000 : 30000;
+    const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
+    const isBrick = site.existingDwellingMaterial === "brick";
+    const defaultCost = (existingIsDouble ? 40000 : 32500) + (isBrick ? 2000 : 0);
     const current = site.demolitionAsbestosCost ?? defaultCost;
     const next = Math.max(0, current + delta);
     onSiteChange({
@@ -1106,10 +1120,9 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </Label>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* House Demolition Allowance & Asbestos Removal (SS $30,000 / DS $40,000) */}
+          {/* House Demolition Allowance & Asbestos Removal (SS $32,500 / DS $40,000, Brick +$2k) */}
           <div
-            onClick={() => onSiteChange({ demolitionAsbestosRequired: !site.demolitionAsbestosRequired })}
-            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+            className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
               site.demolitionAsbestosRequired
                 ? isLight
                   ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/40 shadow-sm"
@@ -1120,9 +1133,12 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             }`}
           >
             <div>
-              <div className="flex items-center justify-between">
+              <div
+                onClick={() => onSiteChange({ demolitionAsbestosRequired: !site.demolitionAsbestosRequired })}
+                className="flex items-center justify-between cursor-pointer"
+              >
                 <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
-                  House Demolition &amp; Asbestos Removal
+                  Existing House Demolition (KDRB)
                 </span>
                 {site.demolitionAsbestosRequired ? (
                   <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
@@ -1140,13 +1156,105 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                   </span>
                 )}
               </div>
-              <div className={`mt-1.5 text-[9.5px] font-semibold p-1.5 rounded border ${
-                isLight
-                  ? "bg-amber-50 text-amber-900 border-amber-200"
-                  : "bg-amber-950/40 text-amber-400 border-amber-800/40"
-              }`}>
-                Note: Demolition to be organised by owner
-              </div>
+
+              {site.demolitionAsbestosRequired && (
+                <div className="mt-2 space-y-2 pt-2 border-t border-slate-800/60" onClick={(e) => e.stopPropagation()}>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div>
+                      <span className="text-slate-400 block mb-1 font-medium">Existing Structure:</span>
+                      <div className={`flex rounded border p-0.5 ${isLight ? "border-slate-300 bg-slate-100" : "border-slate-700 bg-slate-950"}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isBrick = site.existingDwellingMaterial === "brick";
+                            onSiteChange({
+                              existingDwellingStoreys: "single",
+                              demolitionAsbestosCost: 32500 + (isBrick ? 2000 : 0),
+                            });
+                          }}
+                          className={`flex-1 py-1 rounded text-center font-bold text-[10px] transition-all ${
+                            site.existingDwellingStoreys !== "double"
+                              ? "bg-emerald-500 text-slate-950 shadow-xs"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          Single ($32.5k)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const isBrick = site.existingDwellingMaterial === "brick";
+                            onSiteChange({
+                              existingDwellingStoreys: "double",
+                              demolitionAsbestosCost: 40000 + (isBrick ? 2000 : 0),
+                            });
+                          }}
+                          className={`flex-1 py-1 rounded text-center font-bold text-[10px] transition-all ${
+                            site.existingDwellingStoreys === "double"
+                              ? "bg-emerald-500 text-slate-950 shadow-xs"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          Double ($40k)
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-slate-400 block mb-1 font-medium">Material:</span>
+                      <div className={`flex rounded border p-0.5 ${isLight ? "border-slate-300 bg-slate-100" : "border-slate-700 bg-slate-950"}`}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const base = site.existingDwellingStoreys === "double" ? 40000 : 32500;
+                            onSiteChange({
+                              existingDwellingMaterial: "cladding",
+                              demolitionAsbestosCost: base,
+                            });
+                          }}
+                          className={`flex-1 py-1 rounded text-center font-bold text-[10px] transition-all ${
+                            site.existingDwellingMaterial !== "brick"
+                              ? "bg-emerald-500 text-slate-950 shadow-xs"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          Clad (Std)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const base = site.existingDwellingStoreys === "double" ? 40000 : 32500;
+                            onSiteChange({
+                              existingDwellingMaterial: "brick",
+                              demolitionAsbestosCost: base + 2000,
+                            });
+                          }}
+                          className={`flex-1 py-1 rounded text-center font-bold text-[10px] transition-all ${
+                            site.existingDwellingMaterial === "brick"
+                              ? "bg-emerald-500 text-slate-950 shadow-xs"
+                              : "text-slate-400 hover:text-white"
+                          }`}
+                        >
+                          Brick (+$2k)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-[11px]">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={site.postDemoContourSoilTestRequired ?? true}
+                        onChange={(e) => onSiteChange({ postDemoContourSoilTestRequired: e.target.checked })}
+                        className="rounded border-slate-700 text-emerald-500 focus:ring-emerald-400"
+                      />
+                      <span className={isLight ? "text-slate-700" : "text-slate-300"}>Post-Demo Contour &amp; Soil Test</span>
+                    </label>
+                    <span className="font-mono text-emerald-500 font-bold">+$2,200</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div
@@ -1172,7 +1280,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                   ? (isLight ? "text-emerald-700" : "text-emerald-400")
                   : (isLight ? "text-slate-700" : "text-slate-400")
               }`}>
-                {formatAud(site.demolitionAsbestosCost ?? (isDouble ? 40000 : 30000))}
+                {formatAud(site.demolitionAsbestosCost ?? (((site.existingDwellingStoreys === "double" || isDouble) ? 40000 : 32500) + (site.existingDwellingMaterial === "brick" ? 2000 : 0)))}
               </span>
               <button
                 type="button"
