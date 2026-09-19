@@ -351,7 +351,8 @@ export interface PlanModificationAnalysis {
   netTotalCost: number;
   floorplanDataUrl?: string;
   fileName?: string;
-  detectionSource?: "gemini_vision" | "deterministic" | "hybrid";
+  detectionSource?: "gemini_vision" | "deterministic" | "hybrid" | "canvas_vision";
   geminiNotes?: string;
+  canvasNotes?: string;
   ceilingHeightM?: number;
 }

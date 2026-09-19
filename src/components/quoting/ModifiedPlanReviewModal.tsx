@@ -172,6 +172,12 @@ export function ModifiedPlanReviewModal({
                     Gemini AI Vision
                   </span>
                 )}
+                {localAnalysis.detectionSource === "canvas_vision" && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                    <Layers className="h-3 w-3 text-cyan-400" />
+                    Architectural Vision Diff
+                  </span>
+                )}
                 <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
                   {localAnalysis.baseDesignName} ({localAnalysis.housingType})
                 </span>
@@ -185,11 +191,14 @@ export function ModifiedPlanReviewModal({
           </div>
         </DialogHeader>
 
-        {localAnalysis.geminiNotes && (
+        {(localAnalysis.geminiNotes || localAnalysis.canvasNotes) && (
           <div className="mt-3 px-3.5 py-2.5 rounded-xl bg-purple-950/30 border border-purple-800/40 text-[11px] text-purple-200 flex items-start gap-2">
             <Sparkles className="h-4 w-4 text-purple-400 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              <strong className="font-semibold text-purple-300">AI Architectural Assessment:</strong> {localAnalysis.geminiNotes}
+              <strong className="font-semibold text-purple-300">
+                {localAnalysis.detectionSource === "canvas_vision" ? "Architectural Assessment:" : "AI Architectural Assessment:"}
+              </strong>{" "}
+              {localAnalysis.geminiNotes || localAnalysis.canvasNotes}
             </p>
           </div>
         )}
