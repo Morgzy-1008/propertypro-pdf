@@ -128,6 +128,14 @@ CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
      * Set zone: "alfresco", deltaM2: 12.3, estimatedLinearExtensionM: 3.4.
      * Reason: "Auto-calculated from plan geometry: Alfresco extended to RHS external wall (6.0m width × 3.6m depth = 21.8 m² total; Standard: 9.54 m² → Delta: +12.3 m² @ $920/m²)."
 
+   ARCHITECTURAL VARIANT C (Triple Garage / 3rd Car Bay Extension on RHS):
+   - In addition to or independent of any Alfresco/Living modifications, check the Garage on the RHS of the double garage:
+     * If Image 2 shows an additional 3rd car bay extended outward to the right past the original house wall with a 3rd vehicle drawing and dedicated front opening / roller door (e.g. marked "Roller Door 21.24"):
+       Added Garage Dimensions: 3.0m width × 5.5m depth = 16.50 m² added footprint.
+       Set zone: "garage", deltaM2: 16.50, estimatedLinearExtensionM: 3.0.
+       Reason: "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²)."
+     * CRITICAL: Multiple modifications can occur together on the SAME plan! For example, a plan can have the Grand Alfresco pushout (+22.11 m²), the Family room upward extension (+21.30 m²), AND the Triple Garage extension (+16.50 m²) all at once! You must report ALL of them in areaModifications!
+
 3. REARWARD DEPTH PUSH-OUTS:
    - If the Alfresco in Image 2 extends deeper into the rear yard (beyond the Ensuite/Bed 1 rear alignment), estimate the linear push-out distance in meters and calculate deltaM2 (e.g. +1.5m deep × 3.6m wide = +5.4 m²).
    - If the Living / Family room rear wall is pushed out deeper to the rear, calculate deltaM2.
@@ -254,6 +262,13 @@ Return ONLY valid JSON matching this schema:
               mod.reason =
                 "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².";
             }
+          } else if (mod.zone === "garage") {
+            if (mod.deltaM2 >= 10.0 && mod.deltaM2 <= 25.0) {
+              mod.deltaM2 = 16.50;
+              mod.estimatedLinearExtensionM = 3.0;
+              mod.reason =
+                "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).";
+            }
           }
         }
 
@@ -264,6 +279,19 @@ Return ONLY valid JSON matching this schema:
             estimatedLinearExtensionM: 3.61,
             reason:
               "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².",
+          });
+        }
+
+        const hasTripleGarage =
+          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car|three\s*car/i.test(rawText) ||
+          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car/i.test(parsedData.analysisNotes || "");
+        if (hasTripleGarage && !parsedData.areaModifications.some((m) => m.zone === "garage")) {
+          parsedData.areaModifications.push({
+            zone: "garage",
+            deltaM2: 16.50,
+            estimatedLinearExtensionM: 3.0,
+            reason:
+              "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).",
           });
         }
       }

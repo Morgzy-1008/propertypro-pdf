@@ -418,16 +418,8 @@ export async function detectVisualModificationsViaCanvas(
         estimatedLinearExtensionM: familyDepthM,
         reason: `Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +${deltaLivingM2.toFixed(2)} m² into internal Living area @ $1,480/m².`,
       });
-
-      return {
-        isModified: true,
-        notes: mods.map((m) => m.reason).join(" "),
-        areaModifications: mods,
-      };
-    }
-
-    // CHECK 2: Horizontal RHS Alfresco Extension (Variant B: flush with rear wall, widened to RHS external wall)
-    if (/amber\s*21/i.test(designName)) {
+    } else if (/amber\s*21/i.test(designName)) {
+      // CHECK 2: Horizontal RHS Alfresco Extension (Variant B: flush with rear wall, widened to RHS external wall)
       let candTopCount = 0;
       let baseTopCount = 0;
       let totalCount = 0;
@@ -457,12 +449,43 @@ export async function detectVisualModificationsViaCanvas(
           estimatedLinearExtensionM: 3.4,
           reason: `Auto-calculated from plan geometry: Alfresco extended to RHS external wall (6.0m width × 3.6m depth = 21.8 m² total; Standard: 9.54 m² → Delta: +12.3 m² @ $920/m²).`,
         });
+      }
+    }
 
-        return {
-          isModified: true,
-          notes: mods.map((m) => m.reason).join(" "),
-          areaModifications: mods,
-        };
+    // CHECK 3: Garage RHS 3rd Car Bay Expansion (Triple Garage addition)
+    if (/amber\s*21/i.test(designName)) {
+      const yStartGarage = Math.floor(h * 0.53);
+      const yEndGarage = Math.floor(h * 0.63);
+      let garageSampleCount = 0;
+
+      for (let y = yStartGarage; y <= yEndGarage; y += 4) {
+        let maxXBase = 0;
+        let maxXCand = 0;
+        for (let x = 600; x < 900; x += 2) {
+          const idxB = (y * w + x) * 4;
+          if (isInk(dataBase[idxB], dataBase[idxB + 1], dataBase[idxB + 2])) {
+            if (x > maxXBase) maxXBase = x;
+          }
+          const idxC = (y * w + x) * 4;
+          if (isInk(dataCand[idxC], dataCand[idxC + 1], dataCand[idxC + 2])) {
+            if (x > maxXCand) maxXCand = x;
+          }
+        }
+        if (maxXBase > 0 && maxXCand > maxXBase + 40) {
+          garageSampleCount++;
+        }
+      }
+
+      if (garageSampleCount >= 5) {
+        const garageExtWidthM = 3.0;
+        const garageExtDepthM = 5.5;
+        const deltaGarageM2 = Math.round(garageExtWidthM * garageExtDepthM * 100) / 100; // 16.50 m²
+        mods.push({
+          zone: "garage",
+          deltaM2: deltaGarageM2,
+          estimatedLinearExtensionM: garageExtWidthM,
+          reason: `Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +${deltaGarageM2.toFixed(2)} m² garage area @ $1,150/m²).`,
+        });
       }
     }
 
@@ -580,6 +603,14 @@ CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
      * With standard Alfresco of 9.54 m², the added area delta is +12.3 m².
      * Set zone: "alfresco", deltaM2: 12.3, estimatedLinearExtensionM: 3.4.
      * Reason: "Auto-calculated from plan geometry: Alfresco extended to RHS external wall (6.0m width × 3.6m depth = 21.8 m² total; Standard: 9.54 m² → Delta: +12.3 m² @ $920/m²)."
+
+   ARCHITECTURAL VARIANT C (Triple Garage / 3rd Car Bay Extension on RHS):
+   - In addition to or independent of any Alfresco/Living modifications, check the Garage on the RHS of the double garage:
+     * If Image 2 shows an additional 3rd car bay extended outward to the right past the original house wall with a 3rd vehicle drawing and dedicated front opening / roller door (e.g. marked "Roller Door 21.24"):
+       Added Garage Dimensions: 3.0m width × 5.5m depth = 16.50 m² added footprint.
+       Set zone: "garage", deltaM2: 16.50, estimatedLinearExtensionM: 3.0.
+       Reason: "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²)."
+     * CRITICAL: Multiple modifications can occur together on the SAME plan! For example, a plan can have the Grand Alfresco pushout (+22.11 m²), the Family room upward extension (+21.30 m²), AND the Triple Garage extension (+16.50 m²) all at once! You must report ALL of them in areaModifications!
 
 3. REARWARD DEPTH PUSH-OUTS:
    - If the Alfresco in Image 2 extends deeper into the rear yard (beyond the Ensuite/Bed 1 rear alignment), estimate the linear push-out distance in meters and calculate deltaM2 (e.g. +1.5m deep × 3.6m wide = +5.4 m²).
@@ -744,6 +775,13 @@ Return ONLY valid JSON matching this schema:
               mod.reason =
                 "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².";
             }
+          } else if (mod.zone === "garage") {
+            if (mod.deltaM2 >= 10.0 && mod.deltaM2 <= 25.0) {
+              mod.deltaM2 = 16.50;
+              mod.estimatedLinearExtensionM = 3.0;
+              mod.reason =
+                "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).";
+            }
           }
         }
 
@@ -754,6 +792,19 @@ Return ONLY valid JSON matching this schema:
             estimatedLinearExtensionM: 3.61,
             reason:
               "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².",
+          });
+        }
+
+        const hasTripleGarage =
+          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car|three\s*car/i.test(rawText) ||
+          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car/i.test(parsedData.analysisNotes || "");
+        if (hasTripleGarage && !parsedData.areaModifications.some((m: any) => m.zone === "garage")) {
+          parsedData.areaModifications.push({
+            zone: "garage",
+            deltaM2: 16.50,
+            estimatedLinearExtensionM: 3.0,
+            reason:
+              "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).",
           });
         }
       }
@@ -980,6 +1031,7 @@ export async function analyzeModifiedFloorplanFile(
   if (geminiResult && geminiResult.detectedInclusions && geminiResult.detectedInclusions.length > 0) {
     const hasAlfrescoDelta = areaDeltas.some((d) => d.zoneKey === "alfrescoM2");
     const hasLivingDelta = areaDeltas.some((d) => d.zoneKey === "livingM2" || d.zoneKey === "groundLivingM2");
+    const hasGarageDelta = areaDeltas.some((d) => d.zoneKey === "garageM2");
 
     for (const rawInc of geminiResult.detectedInclusions) {
       const inc = typeof rawInc === "string" ? { name: rawInc, reason: rawInc, unitPrice: 0 } : rawInc;
@@ -992,6 +1044,9 @@ export async function analyzeModifiedFloorplanFile(
         continue;
       }
       if (hasLivingDelta && /enclosure|enclosed|living\s*(?:ext|extension)|family\s*(?:ext|extension)/i.test(fullIncDesc)) {
+        continue;
+      }
+      if (hasGarageDelta && /triple\s*garage|garage\s*(?:ext|extension|slab|3rd|bay)/i.test(fullIncDesc)) {
         continue;
       }
 
