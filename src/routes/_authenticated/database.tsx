@@ -14,6 +14,10 @@ import {
   Pencil,
   ChevronDown,
   ChevronRight,
+  ArrowLeftRight,
+  AlertTriangle,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -584,8 +588,83 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
   };
 
+  // Swap lot number and land size for an individual row
+  const swapRowLotAndSize = (index: number) => {
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const oldLot = r.lot_number || "";
+        const oldSize = r.land_size;
+        const newLot = oldSize != null ? String(oldSize) : "";
+        const parsedSize = parseFloat(oldLot.replace(/[^0-9.]/g, ""));
+        const newSize = !isNaN(parsedSize) && parsedSize > 0 ? parsedSize : null;
+        return {
+          ...r,
+          lot_number: newLot,
+          land_size: newSize,
+        };
+      })
+    );
+    toast.info(`Swapped Lot # and Size for row ${index + 1}`);
+  };
+
+  // Swap lot number and land size across ALL rows (e.g. inverted column table)
+  const swapAllRowsLotAndSize = () => {
+    setRows((prev) =>
+      prev.map((r) => {
+        const oldLot = r.lot_number || "";
+        const oldSize = r.land_size;
+        const newLot = oldSize != null ? String(oldSize) : "";
+        const parsedSize = parseFloat(oldLot.replace(/[^0-9.]/g, ""));
+        const newSize = !isNaN(parsedSize) && parsedSize > 0 ? parsedSize : null;
+        return {
+          ...r,
+          lot_number: newLot,
+          land_size: newSize,
+        };
+      })
+    );
+    toast.success("Swapped Lot # and Land Size across all rows");
+  };
+
+  // Propagate stage to all rows
+  const applyStageToAll = () => {
+    const val = stage.trim();
+    if (!val) {
+      toast.error("Please enter a stage first (e.g. Stage 4)");
+      return;
+    }
+    setRows((prev) => prev.map((r) => ({ ...r, stage: val })));
+    toast.success(`Applied '${val}' to all ${rows.length} lots`);
+  };
+
+  // Filter selection to available lots only
+  const selectAvailableOnly = () => {
+    setPicked(rows.map((r) => r.status === "available" || !r.status));
+    toast.info("Selected available lots only");
+  };
+
+  // Anomaly detection: check if a row might have swapped Lot and Size
+  const isSuspiciousInversion = (r: ParsedLot) => {
+    const lotNum = parseInt(r.lot_number || "", 10);
+    if (r.land_size != null && r.land_size > 0 && r.land_size < 80 && !isNaN(lotNum) && lotNum >= 150) {
+      return true;
+    }
+    if (r.land_size != null && r.land_size > 5000) {
+      return true;
+    }
+    return false;
+  };
+
   const selected = rows.filter((r, i) => picked[i] && !isDupe(r) && (r.lot_number || r.land_price));
   const dupeCount = rows.filter(isDupe).length;
+
+  const validSizes = rows.map((r) => r.land_size).filter((s): s is number => typeof s === "number" && s > 0);
+  const avgSize = validSizes.length ? Math.round(validSizes.reduce((a, b) => a + b, 0) / validSizes.length) : null;
+
+  const validPrices = rows.map((r) => r.land_price).filter((p): p is number => typeof p === "number" && p > 0);
+  const avgPrice = validPrices.length ? Math.round(validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : null;
+  const suspiciousCount = rows.filter(isSuspiciousInversion).length;
 
   const importAll = async () => {
     if (!estate.trim() || !suburb.trim()) {
@@ -634,7 +713,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     } catch (err) {
       console.warn("[database] syncLotsBatchToSupabase warning:", err);
     }
-if (developer.trim()) {
+    if (developer.trim()) {
       await rememberDeveloper({
         name: developer,
         contact_name: contactName,
@@ -663,21 +742,20 @@ if (developer.trim()) {
           <Upload className="h-3.5 w-3.5 text-amber-400" /> Import price list
         </Button>
       </DialogTrigger>
-      <DialogContent className={`max-h-[85vh] overflow-y-auto sm:max-w-4xl backdrop-blur-2xl shadow-2xl ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"}`}>
+      <DialogContent className={`max-h-[88vh] overflow-y-auto sm:max-w-4xl backdrop-blur-2xl shadow-2xl ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"}`}>
         <DialogHeader>
-          <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>Import Developer Price List</DialogTitle>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>
+              Import Developer Price List
+            </DialogTitle>
+          </div>
+          <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+            Upload a developer&rsquo;s PDF, CSV, image, or paste table text. Every lot, stage, size (m²), frontage, and price is extracted automatically with AI precision.
+          </p>
         </DialogHeader>
-        <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot, stage, size, and price is extracted automatically.
-        </p>
-        <DialogHeader>
-          <DialogTitle className="text-white font-bold tracking-wide">Import Developer Price List</DialogTitle>
-        </DialogHeader>
-        <p className="text-xs text-slate-400">
-          Upload a developer&rsquo;s PDF, CSV, spreadsheet, or screenshot &mdash; or paste table text directly. Every lot, stage, size, and price is extracted automatically.
-        </p>
 
-        <div className="flex gap-2 border-b border-slate-800 pb-2 text-xs">
+        <div className="flex gap-2 border-b border-slate-800/40 pb-2 text-xs">
           <Button
             size="sm"
             variant={mode === "file" ? "default" : "outline"}
@@ -721,8 +799,9 @@ if (developer.trim()) {
         )}
 
         {busy && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Reading price list…
+          <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md p-2.5">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+            <span>Scanning developer price list with Gemini 3.6 Flash & verifying columns…</span>
           </div>
         )}
 
@@ -736,7 +815,19 @@ if (developer.trim()) {
             <Input placeholder="e.g. Flagstone" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Stage / Release</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-muted-foreground">Stage / Release</Label>
+              {rows.length > 0 && stage.trim() && (
+                <button
+                  type="button"
+                  onClick={applyStageToAll}
+                  className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium"
+                  title="Copy this stage name to all rows below"
+                >
+                  Apply to all
+                </button>
+              )}
+            </div>
             <Input placeholder="e.g. Stage 4" value={stage} onChange={(e) => setStage(e.target.value)} />
           </div>
           <div className="space-y-1.5">
@@ -758,25 +849,56 @@ if (developer.trim()) {
         </div>
 
         {rows.length > 0 && (
-          <>
+          <div className="space-y-2 pt-2">
+            {/* Intelligence & Quality Strip */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded border bg-muted/40 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1 font-semibold text-emerald-500">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {rows.length} lots extracted
+                </span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground">{selected.length} selected</span>
+                {avgSize && (
+                  <>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground">Avg Size: <strong className="text-foreground">{avgSize} m²</strong></span>
+                  </>
+                )}
+                {avgPrice && (
+                  <>
+                    <span className="text-muted-foreground">·</span>
+                    <span className="text-muted-foreground">Avg Price: <strong className="text-foreground">{formatAud(avgPrice)}</strong></span>
+                  </>
+                )}
+                {suspiciousCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-amber-500 font-medium px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">
+                    <AlertTriangle className="h-3 w-3" /> {suspiciousCount} potential Lot/Size swap
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <Button size="sm" variant="ghost" onClick={selectAvailableOnly} className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground">
+                  Available Only
+                </Button>
+                <Button size="sm" variant="ghost" onClick={swapAllRowsLotAndSize} className="h-6 text-[11px] px-2 text-amber-400 hover:text-amber-300 gap-1" title="Swap Lot Number and Size columns for every row">
+                  <ArrowLeftRight className="h-3 w-3" /> Swap All Lot # & Size
+                </Button>
+                <Button size="sm" variant="outline" onClick={addEmptyRow} className="h-6 text-[11px] px-2 gap-1">
+                  <Plus className="h-3 w-3" /> Add Row
+                </Button>
+              </div>
+            </div>
+
             {dupeCount > 0 && (
               <p className="text-xs text-orange-700">
                 {dupeCount} lot{dupeCount === 1 ? " is" : "s are"} already in the database and will be skipped.
               </p>
             )}
 
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Lots to Import ({rows.length} {rows.length === 1 ? "lot" : "lots"})
-              </span>
-              <Button size="sm" variant="outline" onClick={addEmptyRow} className="h-6 text-xs gap-1">
-                <Plus className="h-3 w-3" /> Add Lot
-              </Button>
-            </div>
-
-            <div className="max-h-[38vh] overflow-y-auto rounded border">
+            <div className="max-h-[40vh] overflow-y-auto rounded border">
               <table className="w-full text-xs">
-                <thead className="bg-muted/60 text-left text-muted-foreground">
+                <thead className="bg-muted/70 sticky top-0 text-left text-muted-foreground z-10">
                   <tr>
                     <th className="p-2 w-8">
                       <input
@@ -784,23 +906,28 @@ if (developer.trim()) {
                         className="h-3.5 w-3.5"
                         checked={allOn}
                         onChange={(e) => setPicked(rows.map(() => e.target.checked))}
+                        title="Select/Deselect All"
                       />
                     </th>
                     <th className="p-2 w-20">Lot #</th>
                     <th className="p-2 w-20">Stage</th>
-                    <th className="p-2 w-20">Size (m²)</th>
-                    <th className="p-2 w-20">Frontage</th>
+                    <th className="p-2 w-24">Size (m²)</th>
+                    <th className="p-2 w-20">Frontage (m)</th>
                     <th className="p-2 w-28">Price ($)</th>
                     <th className="p-2 w-28">Registration</th>
                     <th className="p-2 w-24">Status</th>
-                    <th className="p-2 w-8"></th>
+                    <th className="p-2 w-14 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
                   {rows.map((r, i) => {
                     const dupe = isDupe(r);
+                    const suspicious = isSuspiciousInversion(r);
                     return (
-                      <tr key={i} className={dupe ? "bg-muted/40 text-muted-foreground" : ""}>
+                      <tr
+                        key={i}
+                        className={`${dupe ? "bg-muted/40 text-muted-foreground" : ""} ${suspicious ? "bg-amber-500/5" : ""}`}
+                      >
                         <td className="p-2">
                           <input
                             type="checkbox"
@@ -814,7 +941,7 @@ if (developer.trim()) {
                         </td>
                         <td className="p-1">
                           <input
-                            className="w-full rounded border px-1.5 py-0.5 text-xs font-medium"
+                            className={`w-full rounded border px-1.5 py-0.5 text-xs font-medium ${suspicious ? "border-amber-400 bg-amber-500/10" : ""}`}
                             placeholder="101"
                             value={r.lot_number || ""}
                             onChange={(e) => updateRow(i, { lot_number: e.target.value })}
@@ -831,7 +958,7 @@ if (developer.trim()) {
                         <td className="p-1">
                           <input
                             type="number"
-                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            className={`w-full rounded border px-1.5 py-0.5 text-xs ${suspicious ? "border-amber-400 bg-amber-500/10" : ""}`}
                             placeholder="450"
                             value={r.land_size ?? ""}
                             onChange={(e) => updateRow(i, { land_size: e.target.value ? parseFloat(e.target.value) : null })}
@@ -880,14 +1007,24 @@ if (developer.trim()) {
                           </select>
                         </td>
                         <td className="p-1 text-center">
-                          <button
-                            type="button"
-                            onClick={() => removeRow(i)}
-                            className="text-muted-foreground hover:text-destructive"
-                            title="Remove row"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => swapRowLotAndSize(i)}
+                              className="text-amber-400 hover:text-amber-300 p-0.5"
+                              title="Swap Lot # and Size for this row"
+                            >
+                              <ArrowLeftRight className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => removeRow(i)}
+                              className="text-muted-foreground hover:text-destructive p-0.5"
+                              title="Remove row"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -896,11 +1033,11 @@ if (developer.trim()) {
               </table>
             </div>
 
-            <Button onClick={importAll} disabled={busy || !selected.length}>
+            <Button onClick={importAll} disabled={busy || !selected.length} className="w-full sm:w-auto">
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Import {selected.length} lot
               {selected.length === 1 ? "" : "s"} to Database
             </Button>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>
