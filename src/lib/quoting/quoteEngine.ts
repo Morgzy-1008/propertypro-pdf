@@ -296,6 +296,10 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Amber 21": { livingM2: 147.56, garageM2: 32.89, alfrescoM2: 9.54, porchM2: 2.25, totalM2: 192.24 },
   "Amber 23": { livingM2: 160.20, garageM2: 34.60, alfrescoM2: 12.80, porchM2: 3.03, totalM2: 210.63 },
   "Amber 26": { livingM2: 188.40, garageM2: 35.20, alfrescoM2: 14.50, porchM2: 3.46, totalM2: 241.56 },
+  "Cedar 26": { livingM2: 195.34, garageM2: 33.52, alfrescoM2: 9.63, porchM2: 3.86, totalM2: 242.35 },
+  "Cedar 28": { livingM2: 210.50, garageM2: 33.52, alfrescoM2: 11.20, porchM2: 4.10, totalM2: 259.32 },
+  "Cedar 31": { livingM2: 235.80, garageM2: 35.10, alfrescoM2: 13.50, porchM2: 4.50, totalM2: 288.90 },
+  "Cedar 34": { livingM2: 258.40, garageM2: 35.20, alfrescoM2: 15.60, porchM2: 4.80, totalM2: 314.00 },
   "Amber 30": { groundLivingM2: 112.50, firstLivingM2: 118.20, garageM2: 34.80, alfrescoM2: 14.10, porchM2: 3.36, balconyM2: 0, totalM2: 282.96 },
   "Alabaster 31": { groundLivingM2: 110.80, firstLivingM2: 119.50, garageM2: 35.20, alfrescoM2: 15.80, porchM2: 3.56, balconyM2: 0, totalM2: 284.86 },
   "Alabaster 36": { groundLivingM2: 130.40, firstLivingM2: 142.60, garageM2: 36.10, alfrescoM2: 17.50, porchM2: 4.06, balconyM2: 0, totalM2: 330.66 },
@@ -1146,6 +1150,7 @@ export function generateQuoteNumber(
 export interface CouncilInfo {
   region: string;
   fee: number;
+  isUnrecognized?: boolean;
 }
 
 /**

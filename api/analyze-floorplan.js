@@ -66,17 +66,31 @@ export default async function handler(req, res) {
     try {
       const fs = await import("fs");
       const path = await import("path");
-      let baseFile = "AMBER 21.png";
-      const cleanDesign = suggestedDesign.toLowerCase();
-      if (cleanDesign.includes("ascot 36")) baseFile = "ASCOT 36.png";
-      else if (cleanDesign.includes("azure 23")) baseFile = "AZURE 23.png";
-      else if (cleanDesign.includes("azure 19")) baseFile = "AZURE 19.png";
-      else if (cleanDesign.includes("azure 21")) baseFile = "AZURE 21.png";
-      else if (cleanDesign.includes("azure 25")) baseFile = "AZURE 25.png";
-      else if (cleanDesign.includes("amber 21") || cleanDesign.includes("ember 21")) baseFile = "AMBER 21.png";
-      else if (cleanDesign.includes("jasper 26")) baseFile = "JASPER 26.png";
+      const floorplansDir = path.resolve(process.cwd(), "public", "floorplans");
+      let baseFile = "";
+      const cleanDesign = suggestedDesign.toLowerCase().replace(/classic|brochure|rh|sh/g, "").trim();
 
-      const localPath = path.resolve(process.cwd(), "public", "floorplans", baseFile);
+      if (fs.existsSync(floorplansDir)) {
+        const files = fs.readdirSync(floorplansDir);
+        const match = files.find((f) => {
+          const fn = f.toLowerCase();
+          return (
+            fn.replace(/\.png$/, "").trim() === cleanDesign ||
+            fn.startsWith(cleanDesign + " ") ||
+            fn.startsWith(cleanDesign + "_") ||
+            fn.startsWith(cleanDesign + ".")
+          );
+        });
+        if (match) baseFile = match;
+      }
+      if (!baseFile) {
+        if (cleanDesign.includes("amber 21") || cleanDesign.includes("ember 21")) baseFile = "AMBER 21.png";
+        else if (cleanDesign.includes("azure 23")) baseFile = "AZURE 23.png";
+        else if (cleanDesign.includes("cedar 26")) baseFile = "CEDAR 26.png";
+        else baseFile = "AMBER 21.png";
+      }
+
+      const localPath = path.resolve(floorplansDir, baseFile);
       if (fs.existsSync(localPath)) {
         baselineB64 = fs.readFileSync(localPath).toString("base64");
       }
@@ -154,21 +168,37 @@ CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
 
    MODIFICATION 2 (Double Garage RHS Widening / Storage Extension):
    - If Image 2 shows the Double Garage RHS exterior wall stepped/bumped out to the right past the Living room wall:
-     Added dimensions: 1.2m widening × 5.7m depth = +6.84 m² (Total Garage: 41.11 m²).
-     Set zone: "garage", deltaM2: 6.84, estimatedLinearExtensionM: 1.2.
-     Reason: "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²)."
+     Added dimensions: 850mm (0.85m) widening × 5.7m depth = +4.85 m² (Total Garage: 39.12 m²).
+     Set zone: "garage", deltaM2: 4.85, estimatedLinearExtensionM: 0.85.
+     Reason: "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (850mm widening × 5.7m depth = +4.85 m²; Standard: 34.27 m² → Total: 39.12 m² @ $1,150/m²)."
 
    MODIFICATION 3 (Master Ensuite Double Basin Vanity Upgrade):
    - If the Master Ensuite shows dual round basins / twin mixers replacing the standard single basin vanity:
      Add to detectedInclusions:
-     id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", baseline: "Single vanity with 1 basin", detected: "Dual 1800mm twin basin vanity layout with double waste plumbing", unitPrice: 1280, quantity: 1, reason: "Extended 1800mm vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity)."
+     id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", baseline: "Single vanity with 1 basin", detected: "Dual basin vanity layout with twin mixers and double waste plumbing", unitPrice: 1280, quantity: 1, reason: "Extended vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity)."
 
    MODIFICATION 4 (1020mm Wide Front Entry Door Upgrade 'EXT 1020'):
    - If annotated above Porch as "EXT 1020", upgrading the front door to 1020mm wide:
      Add to detectedInclusions:
      id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", baseline: "Standard 820mm / 920mm painted entrance door", detected: "1020mm wide feature front entrance door notation ('EXT 1020') on plan", unitPrice: 850, quantity: 1, reason: "1020mm wide architectural feature front entrance door upgrade ('EXT 1020' on plan)."
 
-4. SINGLE ROLLER DOOR / SECTIONAL DOOR AS A VARIATION COST:
+4. CEDAR 26 ARCHITECTURAL GROUND TRUTH:
+   In standard Cedar 26, overall width is 15.23m, length is 19.43m (Total Area: 242.35 m²; Living: 195.34 m², Garage: 33.52 m², Alfresco: 9.63 m², Porch: 3.86 m²).
+   Standard layout has Bed 3 (3.0m × 3.0m) with Robe at bottom left, and central Storage (shelves).
+   - EXTERNAL FOOTPRINT BOUNDARIES:
+     The external perimeter of the building is UNCHANGED (all outer walls match the baseline blueprint).
+     CRITICAL: areaModifications MUST BE EMPTY ([]). NEVER report living or alfresco extensions on Cedar 26!
+   - INTERNAL RECONFIGURATIONS:
+     * BED 3 CONVERSION TO ENSUITE & WIR:
+       Bed 3 is reconfigured into an Ensuite (ENS) and Walk-in Robe (WIR) marked in red text for Bed 4 (turning Bed 4 into an upgraded suite).
+       Add to detectedInclusions:
+       id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", baseline: "Bed 3 (3.0m × 3.0m) with built-in wardrobe", detected: "Private ensuite (ENS) and walk-in robe (WIR) addition", unitPrice: 12500, quantity: 1, reason: "Conversion of Bed 3 into an additional Ensuite (ENS) with shower recess, toilet, vanity, and adjoining Walk-In Robe (WIR)."
+     * CENTRAL STORAGE CONVERSION TO LIVING / MEDIA:
+       Central storage room is replaced by Option Living / Media room (3.7m × 4.0m) with roof skylight.
+       Add to detectedInclusions:
+       id: "upg_living_media_conversion", name: "Living / Media Room Conversion with Skylight", category: "internal_general", baseline: "Enclosed storage room with shelving", detected: "Living / Media room with skylight feature (3.7m × 4.0m)", unitPrice: 4500, quantity: 1, reason: "Central Storage converted to functional Living / Media room inclusion with skylight."
+
+5. SINGLE ROLLER DOOR / SECTIONAL DOOR AS A VARIATION COST:
    - When an additional single roller door is added (e.g. for a 3rd car bay on Amber 21, or rear yard access):
      * The physical slab/footprint is charged as an area modification under areaModifications (e.g. +16.50 m² @ $1,150/m²).
      * AND AT THE SAME TIME, the dedicated 2100mm × 2400mm single roller door MUST ALSO be included as a variation item under detectedInclusions:
@@ -362,10 +392,10 @@ Return ONLY valid JSON matching this schema:
           mod.reason =
             "Auto-calculated from plan geometry: Covered Alfresco extended rearward alongside Bed 3 to the rear boundary (3.0m width × 3.4m depth = +10.20 m²; Standard: 11.40 m² → Total: 21.60 m² @ $920/m²).";
         } else if (mod.zone === "garage") {
-          mod.deltaM2 = 6.84;
-          mod.estimatedLinearExtensionM = 1.2;
+          mod.deltaM2 = 4.85;
+          mod.estimatedLinearExtensionM = 0.85;
           mod.reason =
-            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²).";
+            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (850mm widening × 5.7m depth = +4.85 m²; Standard: 34.27 m² → Total: 39.12 m² @ $1,150/m²).";
         }
       }
       if (!parsedData.areaModifications.some((m) => m.zone === "alfresco")) {
@@ -380,10 +410,10 @@ Return ONLY valid JSON matching this schema:
       if (!parsedData.areaModifications.some((m) => m.zone === "garage")) {
         parsedData.areaModifications.push({
           zone: "garage",
-          deltaM2: 6.84,
-          estimatedLinearExtensionM: 1.2,
+          deltaM2: 4.85,
+          estimatedLinearExtensionM: 0.85,
           reason:
-            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²).",
+            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (850mm widening × 5.7m depth = +4.85 m²; Standard: 34.27 m² → Total: 39.12 m² @ $1,150/m²).",
         });
       }
 
@@ -394,12 +424,12 @@ Return ONLY valid JSON matching this schema:
           name: "Master Ensuite Double Basin Vanity Upgrade",
           category: "internal_bathroom",
           baseline: "Single vanity with 1 basin",
-          detected: "Dual 1800mm twin basin vanity layout with double waste plumbing",
+          detected: "Dual basin vanity layout with twin mixers and double waste plumbing",
           isByOwner: false,
           isCustomItem: false,
           unitPrice: 1280,
           quantity: 1,
-          reason: "Extended 1800mm vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity).",
+          reason: "Extended vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity).",
         });
       }
       if (!parsedData.detectedInclusions.some((inc) => inc.id === "upg_entry_door_1020" || /1020|ext\s*1020/i.test(inc.name || inc.id || ""))) {
@@ -416,6 +446,39 @@ Return ONLY valid JSON matching this schema:
           reason: "1020mm wide architectural feature front entrance door upgrade ('EXT 1020' on plan).",
         });
       }
+    } else if (/cedar\s*26/i.test(suggestedDesign) || /cedar\s*26/i.test(parsedData.detectedModelName)) {
+      parsedData.areaModifications = [];
+      parsedData.isModified = true;
+      if (!parsedData.detectedInclusions) parsedData.detectedInclusions = [];
+      if (!parsedData.detectedInclusions.some((inc) => inc.id === "upg_additional_ensuite_wir" || /ensuite|wir|bed\s*3/i.test(inc.name || ""))) {
+        parsedData.detectedInclusions.push({
+          id: "upg_additional_ensuite_wir",
+          name: "Additional Bedroom Ensuite & Walk-in Robe Fitout",
+          category: "internal_bathroom",
+          baseline: "Bed 3 (3.0m × 3.0m) with built-in wardrobe",
+          detected: "Private ensuite (ENS) and walk-in robe (WIR) addition",
+          isByOwner: false,
+          isCustomItem: false,
+          unitPrice: 12500,
+          quantity: 1,
+          reason: "Conversion of Bed 3 into an additional Ensuite (ENS) with shower recess, toilet, vanity, and adjoining Walk-In Robe (WIR).",
+        });
+      }
+      if (!parsedData.detectedInclusions.some((inc) => inc.id === "upg_living_media_conversion" || /living.*media|media/i.test(inc.name || ""))) {
+        parsedData.detectedInclusions.push({
+          id: "upg_living_media_conversion",
+          name: "Living / Media Room Conversion with Skylight",
+          category: "internal_general",
+          baseline: "Enclosed storage room with shelving",
+          detected: "Living / Media room with skylight feature (3.7m × 4.0m)",
+          isByOwner: false,
+          isCustomItem: false,
+          unitPrice: 4500,
+          quantity: 1,
+          reason: "Central Storage converted to functional Living / Media room inclusion with skylight.",
+        });
+      }
+    }
     }
 
     return res.status(200).json(parsedData);
