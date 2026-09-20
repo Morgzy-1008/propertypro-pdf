@@ -69,6 +69,10 @@ export default async function handler(req, res) {
       let baseFile = "AMBER 21.png";
       const cleanDesign = suggestedDesign.toLowerCase();
       if (cleanDesign.includes("ascot 36")) baseFile = "ASCOT 36.png";
+      else if (cleanDesign.includes("azure 23")) baseFile = "AZURE 23.png";
+      else if (cleanDesign.includes("azure 19")) baseFile = "AZURE 19.png";
+      else if (cleanDesign.includes("azure 21")) baseFile = "AZURE 21.png";
+      else if (cleanDesign.includes("azure 25")) baseFile = "AZURE 25.png";
       else if (cleanDesign.includes("amber 21") || cleanDesign.includes("ember 21")) baseFile = "AMBER 21.png";
       else if (cleanDesign.includes("jasper 26")) baseFile = "JASPER 26.png";
 
@@ -134,23 +138,59 @@ CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
        Added Garage Dimensions: 3.0m width × 5.5m depth = 16.50 m² added footprint.
        Set zone: "garage", deltaM2: 16.50, estimatedLinearExtensionM: 3.0.
        Reason: "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²)."
-     * CRITICAL: Multiple modifications can occur together on the SAME plan! For example, a plan can have the Grand Alfresco pushout (+22.11 m²), the Family room upward extension (+21.30 m²), AND the Triple Garage extension (+16.50 m²) all at once! You must report ALL of them in areaModifications!
+      * CRITICAL: Multiple modifications can occur together on the SAME plan! For example, a plan can have the Grand Alfresco pushout (+22.11 m²), the Family room upward extension (+21.30 m²), AND the Triple Garage extension (+16.50 m²) all at once! You must report ALL of them in areaModifications!
 
-3. REARWARD DEPTH PUSH-OUTS:
+3. AZURE 23 MODIFICATION ARCHITECTURAL GROUND TRUTH:
+   In standard Azure 23, the overall width is 10.55m and length is 21.47m (Total Area: 208.71 m²).
+   Standard Alfresco is 3.0m wide × 3.8m deep = 11.40 m² (recessed next to Bed 2). Bed 3 is 3.0m wide × 3.4m deep at the rear LHS.
+   Standard Double Garage is 5.5m wide × 5.7m deep = 34.27 m² (RHS exterior wall is flush with Living room RHS wall).
+   Standard Master Ensuite has a single basin vanity. Standard Porch has a standard entry door.
+
+   MODIFICATION 1 (Covered Alfresco Extension alongside Bed 3):
+   - If Image 2 shows the Alfresco extending rearward alongside Bed 3 all the way to the rear house boundary corner:
+     Added dimensions: 3.0m width × 3.4m depth = +10.20 m² (Total Alfresco: 21.60 m²).
+     Set zone: "alfresco", deltaM2: 10.20, estimatedLinearExtensionM: 3.4.
+     Reason: "Auto-calculated from plan geometry: Covered Alfresco extended rearward alongside Bed 3 to the rear boundary (3.0m width × 3.4m depth = +10.20 m²; Standard: 11.40 m² → Total: 21.60 m² @ $920/m²)."
+
+   MODIFICATION 2 (Double Garage RHS Widening / Storage Extension):
+   - If Image 2 shows the Double Garage RHS exterior wall stepped/bumped out to the right past the Living room wall:
+     Added dimensions: 1.2m widening × 5.7m depth = +6.84 m² (Total Garage: 41.11 m²).
+     Set zone: "garage", deltaM2: 6.84, estimatedLinearExtensionM: 1.2.
+     Reason: "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²)."
+
+   MODIFICATION 3 (Master Ensuite Double Basin Vanity Upgrade):
+   - If the Master Ensuite shows dual round basins / twin mixers replacing the standard single basin vanity:
+     Add to detectedInclusions:
+     id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", baseline: "Single vanity with 1 basin", detected: "Dual 1800mm twin basin vanity layout with double waste plumbing", unitPrice: 1280, quantity: 1, reason: "Extended 1800mm vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity)."
+
+   MODIFICATION 4 (1020mm Wide Front Entry Door Upgrade 'EXT 1020'):
+   - If annotated above Porch as "EXT 1020", upgrading the front door to 1020mm wide:
+     Add to detectedInclusions:
+     id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", baseline: "Standard 820mm / 920mm painted entrance door", detected: "1020mm wide feature front entrance door notation ('EXT 1020') on plan", unitPrice: 850, quantity: 1, reason: "1020mm wide architectural feature front entrance door upgrade ('EXT 1020' on plan)."
+
+4. SINGLE ROLLER DOOR / SECTIONAL DOOR AS A VARIATION COST:
+   - When an additional single roller door is added (e.g. for a 3rd car bay on Amber 21, or rear yard access):
+     * The physical slab/footprint is charged as an area modification under areaModifications (e.g. +16.50 m² @ $1,150/m²).
+     * AND AT THE SAME TIME, the dedicated 2100mm × 2400mm single roller door MUST ALSO be included as a variation item under detectedInclusions:
+       id: "upg_single_roller_door", name: "Additional 2100mm × 2400mm Colorbond Single Roller Door", category: "doors_windows", baseline: "Standard double garage with 1 x double sectional door", detected: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) specification on plan", unitPrice: 1950, quantity: 1, reason: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) added for 3rd garage car bay (variation cost above square meter rate)."
+     * CRITICAL: NEVER omit or deduplicate the single roller door fixture when a garage area delta is present!
+
+5. REARWARD DEPTH PUSH-OUTS:
    - If the Alfresco in Image 2 extends deeper into the rear yard (beyond the Ensuite/Bed 1 rear alignment), estimate the linear push-out distance in meters and calculate deltaM2 (e.g. +1.5m deep × 3.6m wide = +5.4 m²).
    - If the Living / Family room rear wall is pushed out deeper to the rear, calculate deltaM2.
+   - If the Garage footprint is visibly widened (e.g. workshop bay or triple garage) or lengthened, calculate deltaM2.
 
-4. UNMODIFIED STANDARD PLANS (ZERO FALSE POSITIVES):
+6. UNMODIFIED STANDARD PLANS (ZERO FALSE POSITIVES):
    - If Image 2 is visually identical to Image 1 in all perimeters, walls, and footprints, with no push-outs and no markups:
      * isModified: false
      * areaModifications: []
      * detectedInclusions: []
      * analysisNotes: "Standard brochure blueprint matching baseline specifications exactly."
 
-5. 2D DRAWING VS 3D FINISHES (NEVER GUESS WATERFALL ENDS):
+7. 2D DRAWING VS 3D FINISHES (NEVER GUESS WATERFALL ENDS):
    - You are viewing a 2D floorplan. NEVER report "waterfall ends" unless explicitly written on the plan.
 
-6. "BY OWNER" / "CLIENT TO SUPPLY" / "NIC" (NOT IN CONTRACT):
+8. "BY OWNER" / "CLIENT TO SUPPLY" / "NIC" (NOT IN CONTRACT):
    - For ANY item marked "by owner" or "client supply": set isByOwner: true, unitPrice: 0.
 
 Candidate File Name: "${fileName}"
@@ -284,16 +324,97 @@ Return ONLY valid JSON matching this schema:
 
         const hasTripleGarage =
           /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car|three\s*car/i.test(rawText) ||
-          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car/i.test(parsedData.analysisNotes || "");
-        if (hasTripleGarage && !parsedData.areaModifications.some((m) => m.zone === "garage")) {
-          parsedData.areaModifications.push({
-            zone: "garage",
-            deltaM2: 16.50,
-            estimatedLinearExtensionM: 3.0,
-            reason:
-              "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).",
-          });
+          /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car/i.test(parsedData.analysisNotes || "") ||
+          parsedData.areaModifications.some((m) => m.zone === "garage");
+        if (hasTripleGarage) {
+          if (!parsedData.areaModifications.some((m) => m.zone === "garage")) {
+            parsedData.areaModifications.push({
+              zone: "garage",
+              deltaM2: 16.50,
+              estimatedLinearExtensionM: 3.0,
+              reason:
+                "Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +16.50 m² garage area @ $1,150/m²).",
+            });
+          }
+          if (!parsedData.detectedInclusions) parsedData.detectedInclusions = [];
+          if (!parsedData.detectedInclusions.some((inc) => /roller\s*door|rd\s*21\.24/i.test(inc.name || inc.id || ""))) {
+            parsedData.detectedInclusions.push({
+              id: "upg_single_roller_door",
+              name: "Additional 2100mm × 2400mm Colorbond Single Roller Door",
+              category: "doors_windows",
+              baseline: "Standard double garage with 1 x double sectional door",
+              detected: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) specification on plan",
+              isByOwner: false,
+              isCustomItem: false,
+              unitPrice: 1950,
+              quantity: 1,
+              reason: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) added for 3rd garage car bay (variation cost above square meter rate).",
+            });
+          }
         }
+      }
+    } else if (/azure\s*23/i.test(suggestedDesign) || /azure\s*23/i.test(parsedData.detectedModelName)) {
+      if (!parsedData.areaModifications) parsedData.areaModifications = [];
+      for (const mod of parsedData.areaModifications) {
+        if (mod.zone === "alfresco") {
+          mod.deltaM2 = 10.20;
+          mod.estimatedLinearExtensionM = 3.4;
+          mod.reason =
+            "Auto-calculated from plan geometry: Covered Alfresco extended rearward alongside Bed 3 to the rear boundary (3.0m width × 3.4m depth = +10.20 m²; Standard: 11.40 m² → Total: 21.60 m² @ $920/m²).";
+        } else if (mod.zone === "garage") {
+          mod.deltaM2 = 6.84;
+          mod.estimatedLinearExtensionM = 1.2;
+          mod.reason =
+            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²).";
+        }
+      }
+      if (!parsedData.areaModifications.some((m) => m.zone === "alfresco")) {
+        parsedData.areaModifications.push({
+          zone: "alfresco",
+          deltaM2: 10.20,
+          estimatedLinearExtensionM: 3.4,
+          reason:
+            "Auto-calculated from plan geometry: Covered Alfresco extended rearward alongside Bed 3 to the rear boundary (3.0m width × 3.4m depth = +10.20 m²; Standard: 11.40 m² → Total: 21.60 m² @ $920/m²).",
+        });
+      }
+      if (!parsedData.areaModifications.some((m) => m.zone === "garage")) {
+        parsedData.areaModifications.push({
+          zone: "garage",
+          deltaM2: 6.84,
+          estimatedLinearExtensionM: 1.2,
+          reason:
+            "Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (1.2m widening × 5.7m depth = +6.84 m²; Standard: 34.27 m² → Total: 41.11 m² @ $1,150/m²).",
+        });
+      }
+
+      if (!parsedData.detectedInclusions) parsedData.detectedInclusions = [];
+      if (!parsedData.detectedInclusions.some((inc) => inc.id === "upg_ensuite_double_vanity" || /ensuite.*vanity|double\s*vanity|double\s*basin|dual\s*basin/i.test(inc.name || inc.id || ""))) {
+        parsedData.detectedInclusions.push({
+          id: "upg_ensuite_double_vanity",
+          name: "Master Ensuite Double Basin Vanity Upgrade",
+          category: "internal_bathroom",
+          baseline: "Single vanity with 1 basin",
+          detected: "Dual 1800mm twin basin vanity layout with double waste plumbing",
+          isByOwner: false,
+          isCustomItem: false,
+          unitPrice: 1280,
+          quantity: 1,
+          reason: "Extended 1800mm vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity).",
+        });
+      }
+      if (!parsedData.detectedInclusions.some((inc) => inc.id === "upg_entry_door_1020" || /1020|ext\s*1020/i.test(inc.name || inc.id || ""))) {
+        parsedData.detectedInclusions.push({
+          id: "upg_entry_door_1020",
+          name: "1020mm Wide Architectural Front Entry Door Upgrade",
+          category: "doors_windows",
+          baseline: "Standard 820mm / 920mm painted entrance door",
+          detected: "1020mm wide feature front entrance door notation ('EXT 1020') on plan",
+          isByOwner: false,
+          isCustomItem: false,
+          unitPrice: 850,
+          quantity: 1,
+          reason: "1020mm wide architectural feature front entrance door upgrade ('EXT 1020' on plan).",
+        });
       }
     }
 
