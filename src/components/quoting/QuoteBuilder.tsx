@@ -458,7 +458,9 @@ export function QuoteBuilder() {
 
   const handleAddInclusionLineItems = (newItems: QuoteSelectedLineItem[]) => {
     setQuote((prev) => {
-      const existingMap = new Map(prev.lineItems.map((item) => [item.id, item]));
+      // Filter out any previous floorplan-detected line items (those starting with "mod_") so scanning a new plan replaces cleanly
+      const filtered = prev.lineItems.filter((item) => !item.id.startsWith("mod_"));
+      const existingMap = new Map(filtered.map((item) => [item.id, item]));
       for (const item of newItems) {
         existingMap.set(item.id, item);
       }
