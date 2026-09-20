@@ -19,6 +19,8 @@ export default async function handler(req, res) {
   try {
     const {
       candidateImageBase64,
+      baselineImageBase64,
+      baselineMimeType = "image/png",
       suggestedDesign = "Amber 21",
       housingType = "Single Storey",
       fileName = "Plan.pdf",
@@ -26,6 +28,7 @@ export default async function handler(req, res) {
       stdAreas = {},
       rawText = "",
       apiKey: userKey,
+      identifyOnly = false,
     } = req.body || {};
 
     if (!candidateImageBase64) {
@@ -52,7 +55,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: "Gemini API key is not configured on server or in request." });
     }
 
-    // Clean base64
+    // Clean candidate base64
     const cleanCandB64 = candidateImageBase64.includes(",")
       ? candidateImageBase64.split(",")[1]
       : candidateImageBase64;
@@ -60,41 +63,96 @@ export default async function handler(req, res) {
       ? candidateImageBase64.split(";")[0].replace("data:", "")
       : "image/png";
 
-    // Read baseline blueprint from disk if available
+    // ----------------------------------------------------
+    // MODE 1: IDENTIFY ONLY (Title Block & Sheet Header Recognition)
+    // ----------------------------------------------------
+    if (identifyOnly) {
+      const identifyPrompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
+Return ONLY valid JSON:
+{
+  "designName": string,
+  "housingType": "Single Storey" | "Double Storey",
+  "totalM2": number
+}`;
+
+      const identifyUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(key)}`;
+      const identifyResp = await fetch(identifyUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: identifyPrompt },
+                {
+                  inlineData: {
+                    mimeType: candMimeType,
+                    data: cleanCandB64,
+                  },
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+          },
+        }),
+      });
+
+      if (!identifyResp.ok) {
+        const errTxt = await identifyResp.text();
+        return res.status(identifyResp.status).json({ error: `Gemini API error during identification`, details: errTxt });
+      }
+
+      const idJson = await identifyResp.json();
+      const idText = idJson?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!idText) return res.status(500).json({ error: "Empty identification response from Gemini" });
+      const parsedId = JSON.parse(idText);
+      return res.status(200).json(parsedId);
+    }
+
+    // ----------------------------------------------------
+    // MODE 2: DUAL-IMAGE COMPREHENSIVE ARCHITECTURAL VISUAL DIFFING
+    // ----------------------------------------------------
     let baselineB64 = "";
-    let baselineMime = "image/png";
-    try {
-      const fs = await import("fs");
-      const path = await import("path");
-      const floorplansDir = path.resolve(process.cwd(), "public", "floorplans");
-      let baseFile = "";
-      const cleanDesign = suggestedDesign.toLowerCase().replace(/classic|brochure|rh|sh/g, "").trim();
+    let baselineMime = baselineMimeType || "image/png";
 
-      if (fs.existsSync(floorplansDir)) {
-        const files = fs.readdirSync(floorplansDir);
-        const match = files.find((f) => {
-          const fn = f.toLowerCase();
-          return (
-            fn.replace(/\.png$/, "").trim() === cleanDesign ||
-            fn.startsWith(cleanDesign + " ") ||
-            fn.startsWith(cleanDesign + "_") ||
-            fn.startsWith(cleanDesign + ".")
-          );
-        });
-        if (match) baseFile = match;
-      }
-      if (!baseFile) {
-        if (cleanDesign.includes("amber 21") || cleanDesign.includes("ember 21")) baseFile = "AMBER 21.png";
-        else if (cleanDesign.includes("azure 23")) baseFile = "AZURE 23.png";
-        else if (cleanDesign.includes("cedar 26")) baseFile = "CEDAR 26.png";
-        else baseFile = "AMBER 21.png";
-      }
+    if (baselineImageBase64) {
+      baselineB64 = baselineImageBase64.includes(",")
+        ? baselineImageBase64.split(",")[1]
+        : baselineImageBase64;
+    } else {
+      // Try local filesystem if available (e.g. dev environment)
+      try {
+        const fs = await import("fs");
+        const path = await import("path");
+        const floorplansDir = path.resolve(process.cwd(), "public", "floorplans");
+        let baseFile = "";
+        const cleanDesign = suggestedDesign.toLowerCase().replace(/classic|brochure|rh|sh/g, "").trim();
 
-      const localPath = path.resolve(floorplansDir, baseFile);
-      if (fs.existsSync(localPath)) {
-        baselineB64 = fs.readFileSync(localPath).toString("base64");
-      }
-    } catch {}
+        if (fs.existsSync(floorplansDir)) {
+          const files = fs.readdirSync(floorplansDir);
+          const match = files.find((f) => {
+            const fn = f.toLowerCase();
+            return (
+              fn.replace(/\.png$/, "").trim() === cleanDesign ||
+              fn.startsWith(cleanDesign + " ") ||
+              fn.startsWith(cleanDesign + "_") ||
+              fn.startsWith(cleanDesign + ".")
+            );
+          });
+          if (match) baseFile = match;
+        }
+
+        if (baseFile) {
+          const localPath = path.resolve(floorplansDir, baseFile);
+          if (fs.existsSync(localPath)) {
+            baselineB64 = fs.readFileSync(localPath).toString("base64");
+          }
+        }
+      } catch {}
+    }
 
     const standardTotalM2 = cadSpec?.totalM2 || 192.24;
     const standardLivingM2 = stdAreas?.livingM2 || cadSpec?.livingM2 || 147.56;
@@ -102,27 +160,28 @@ export default async function handler(req, res) {
     const standardGarageM2 = stdAreas?.garageM2 || cadSpec?.garageM2 || 32.89;
     const standardPorchM2 = stdAreas?.porchM2 || cadSpec?.porchM2 || 2.25;
 
-    const prompt = `You are a Senior Architectural Estimator and Surveyor at Hudson Homes.
-Your task is to inspect this candidate floorplan blueprint and compare it against the official Hudson Homes baseline design.
+    const prompt = `You are a Senior Architectural Estimator and Building Surveyor at Hudson Homes.
+Your objective is to perform a 100% comprehensive architectural discrepancy and modification analysis comparing the official Hudson Homes standard baseline blueprint against the uploaded candidate / modified floorplan drawing.
 
 ${
   baselineB64
-    ? `YOU ARE COMPARING TWO BLUEPRINT IMAGES:
-- IMAGE 1 (First image): THE OFFICIAL STANDARD BASELINE BLUEPRINT for "${suggestedDesign}" (${housingType}, standard total area: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m² [standard size 2.6m deep × 3.6m wide], garage: ${standardGarageM2} m² [5.5m × 5.5m], porch: ${standardPorchM2} m²; overall width: ${cadSpec?.width || 10.55}m, length: ${cadSpec?.length || 20.27}m).
-- IMAGE 2 (Second image): THE UPLOADED CANDIDATE / MODIFIED FLOORPLAN.`
-    : `YOU ARE INSPECTING THE UPLOADED FLOORPLAN:
-- Baseline Design: "${suggestedDesign}" (${housingType}, total: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m² [2.6m deep × 3.6m wide], garage: ${standardGarageM2} m², width: ${cadSpec?.width || 10.55}m, length: ${cadSpec?.length || 20.27}m).`
+    ? `YOU ARE COMPARING TWO BLUEPRINT DRAWINGS:
+- IMAGE 1 (Standard Baseline): The official brochure blueprint for "${suggestedDesign}" (${housingType}, standard total area: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m², garage: ${standardGarageM2} m², porch: ${standardPorchM2} m²; overall width: ${cadSpec?.width || 10.55}m, length: ${cadSpec?.length || 20.27}m).
+- IMAGE 2 (Candidate Drawing): The uploaded candidate / modified floorplan drawing.`
+    : `YOU ARE INSPECTING THE UPLOADED CANDIDATE FLOORPLAN:
+- Baseline Design Reference: "${suggestedDesign}" (${housingType}, total: ${standardTotalM2} m²; living: ${standardLivingM2} m², alfresco: ${standardAlfrescoM2} m², garage: ${standardGarageM2} m², porch: ${standardPorchM2} m²).`
 }
 
 UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
 
 1. HOME DESIGN MODEL IDENTIFICATION:
    - Carefully inspect the drawing sheet, title block, or brochure header in Image 2.
-   - Return the true home design model name in "detectedModelName" (e.g. "Burgundy 27", "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", etc.).
+   - Return the true home design model name in "detectedModelName" (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", etc.).
    - Return "housingType" ("Single Storey" or "Double Storey").
 
 2. SPATIAL & FOOTPRINT PERIMETER COMPARISON (EXTERNAL WALLS & SLAB):
    - Compare the outer external building perimeter of Image 2 against Image 1:
+     * Check Ground Floor and First Floor perimeters.
      * Check Alfresco rear and side outer boundaries.
      * Check Garage exterior side and front boundaries.
      * Check Family / Living room rear and side exterior walls.
@@ -142,8 +201,31 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
        - For rear alfresco extensions pushing into the backyard, calculate the added covered area over standard.
        - Provide the exact geometric reasoning and dimensions.
 
-3. INTERNAL LAYOUT RECONFIGURATIONS & CONVERSIONS:
-   - Compare the internal room layout, dividing walls, doors, and plumbing fixtures between Image 1 and Image 2:
+3. INTERNAL LAYOUT RECONFIGURATIONS, JOINERY, CEILINGS & DESIGN MARKUPS:
+   - Scan EVERY room on Ground Floor and First Floor.
+   - Compare internal walls, robes, fixtures, ceiling annotations, and balconies between Image 1 and Image 2:
+     * Robe / Wardrobe Reconfigurations:
+       - Check every bedroom's wardrobe. Did any built-in sliding robe change to a Walk-In Robe ("WIR") or vice versa?
+       - If Bed 3 robe changed to WIR, report it!
+       - If Bed 4 robe changed to WIR, report it!
+       - For layout joinery reconfigurations without a mandatory surcharge, provide unitPrice: 0 (or custom joinery allowance) so the estimator can see the AI recognized it at $0.
+     * Ceiling Height Upgrades & Annotations:
+       - Inspect any text or red annotations specifying ceiling heights (e.g. "2740mm Ceilings GF", "2590mm Ceilings", "Raked Ceilings").
+       - If "2740mm Ceilings GF" is noted, report:
+         * name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade"
+         * category: "internal_general"
+         * baseline: "Standard 2440mm ceiling height"
+         * detected: "2740mm Ceilings GF annotation on plan"
+         * unitPrice: 6850
+         * ceilingHeightM: 2.74
+     * Balcony / Architectural Additions:
+       - Check if a Balcony has been added on First Floor over Porch or facade.
+       - If a Balcony is drawn or marked "Balcony" in Image 2 that was not in Image 1, report it!
+         * name: "Front Architectural Feature Balcony"
+         * category: "structural"
+         * baseline: "Standard facade without upper balcony (0.00 m²)"
+         * detected: "Upper floor feature balcony added over porch"
+         * unitPrice: 0
      * Room Conversions & Reconfigurations:
        - Bedroom converted into a private Ensuite (ENS) and Walk-in Robe (WIR) -> category: "internal_bathroom", approximate trade cost: $12,500.
        - Enclosed storage room or study converted to Option Living / Media room (e.g. with roof skylight) -> category: "internal_general", approximate trade cost: $4,500.
@@ -153,10 +235,11 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
        - Master Ensuite vanity upgraded to Double Basin Vanity -> category: "internal_bathroom", approximate trade cost: $1,280.
          IMPORTANT: Use a broad architectural description (e.g. "Master Ensuite Double Basin Vanity Upgrade" - extended vanity cabinet with dual undermount basins and twin flick mixers) without asserting an unmeasured width unless clearly dimensioned on the plan.
        - Feature front entrance door upgraded to 1020mm wide ("EXT 1020") -> category: "doors_windows", approximate trade cost: $850.
-       - Dedicated single roller door (2100mm × 2400mm / "Roller Door 21.24") added for 3rd garage car bay or rear yard access -> category: "doors_windows", approximate trade cost: $1,950. (Always reported as an inclusion variation item above the square meter rate).
-     * Markups and Red Annotations:
-       - Inspect any colored lines (red pen, red text, revision stamps) or "Option" labels indicating client custom selections.
-       - Report each distinct modification under detectedInclusions.
+       - Dedicated single roller door (2100mm × 2400mm / "Roller Door 21.24") added for 3rd garage car bay or rear yard access -> category: "doors_windows", approximate trade cost: $1,950.
+     * Colored Markups & Red Annotations:
+       - Inspect ANY red boxes, red pointer lines, or red text on Image 2 (e.g., red boxes around "WIR", red box around "2740mm Ceilings GF", red box/line around "Balcony").
+       - EVERY redline markup or text change on the plan MUST be reported as an item in detectedInclusions so the estimator has 100% visibility of all changes!
+       - If an item does not have a standard contract price, assign unitPrice: 0.
 
 4. ACCURACY AND ZERO HALLUCINATIONS:
    - Report ONLY modifications that actually exist on Image 2!
@@ -246,7 +329,7 @@ Return ONLY valid JSON matching this schema:
 
     const parsedData = JSON.parse(candidateText);
 
-    // Universal catalog normalization and semantic deduplication
+    // Catalog normalization and deduplication
     const FIXTURE_UPGRADE_MAP = {
       upg_additional_ensuite_wir: {
         id: "upg_additional_ensuite_wir",
@@ -293,6 +376,24 @@ Return ONLY valid JSON matching this schema:
         unitPrice: 1950,
         description: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) added for 3rd garage car bay (variation cost above square meter rate).",
       },
+      upg_ceiling_2740: {
+        id: "upg_ceiling_2740",
+        name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade",
+        category: "internal_general",
+        baseline: "Standard 2440mm ceiling height",
+        detected: "2740mm Ceilings GF annotation on plan",
+        unitPrice: 6850,
+        description: "Increased ceiling height to 2740mm on Ground Floor living zones.",
+      },
+      upg_front_balcony: {
+        id: "upg_front_balcony",
+        name: "Front Architectural Feature Balcony",
+        category: "structural",
+        baseline: "Standard facade without upper balcony (0.00 m²)",
+        detected: "Upper floor feature balcony added over porch",
+        unitPrice: 0,
+        description: "Upper floor feature balcony added above front entry porch.",
+      },
     };
 
     if (parsedData.detectedInclusions && Array.isArray(parsedData.detectedInclusions)) {
@@ -311,6 +412,10 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_entry_door_1020;
           } else if (/double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_double_vanity;
+          } else if (/2740|9ft|ground\s*floor\s*ceiling|gf\s*ceiling/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_ceiling_2740;
+          } else if (/balcony|upper\s*balcony|porch\s*balcony/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_front_balcony;
           } else if (/ensuite.*wir|wir.*ensuite|bed.*ensuite|additional.*ensuite|ensuite.*fitout/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_additional_ensuite_wir;
           } else if (/living.*media|media.*room|storage.*conversion|media.*skylight/i.test(lowerText)) {
@@ -328,11 +433,14 @@ Return ONLY valid JSON matching this schema:
               detected: matchedRule.detected,
               isByOwner: isOwner,
               isCustomItem: false,
-              unitPrice: isOwner ? 0 : matchedRule.unitPrice,
+              unitPrice: isOwner ? 0 : (inc.unitPrice !== undefined ? inc.unitPrice : matchedRule.unitPrice),
               quantity: inc.quantity || 1,
               reason: inc.reason || matchedRule.description,
             }
-          : inc;
+          : {
+              ...inc,
+              unitPrice: isOwner ? 0 : (inc.unitPrice ?? 0),
+            };
 
         let semanticKey = finalItem.id || finalItem.name.toLowerCase().trim();
         if (/ensuite.*wir|wir.*ensuite|additional.*ensuite|bed.*ensuite/i.test(lowerText)) {
@@ -345,6 +453,14 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_roller_door";
         } else if (/1020|ext\s*1020/i.test(lowerText)) {
           semanticKey = "sem_entry_door_1020";
+        } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
+          semanticKey = "sem_ceiling_2740";
+        } else if (/balcony/i.test(lowerText)) {
+          semanticKey = "sem_front_balcony";
+        } else if (/bed\s*3.*wir/i.test(lowerText)) {
+          semanticKey = "sem_bed3_wir";
+        } else if (/bed\s*4.*wir/i.test(lowerText)) {
+          semanticKey = "sem_bed4_wir";
         }
 
         if (!seenSemanticKeys.has(semanticKey)) {

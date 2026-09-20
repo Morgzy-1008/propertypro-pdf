@@ -334,9 +334,18 @@ export function ModifiedPlanReviewModal({
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
                             {Math.round(inc.confidence * 100)}% Confidence
                           </span>
-                          {inc.isByOwner && (
+                          {inc.isByOwner ? (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
                               By Owner / Excluded from Contract ($0)
+                            </span>
+                          ) : inc.unitPrice === 0 ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                              <Check className="h-3 w-3" />
+                              Design / Layout Variation ($0)
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                              Billable Upgrade
                             </span>
                           )}
                           {inc.isCustomItem && (
