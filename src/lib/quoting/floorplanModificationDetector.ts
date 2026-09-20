@@ -404,13 +404,19 @@ export async function detectVisualModificationsViaCanvas(
         reason: `Auto-calculated from plan geometry: Grand Alfresco extended 3.0m into backyard across full 10.55m house width (10.55m width × 3.0m depth = ${totalAlfrescoM2.toFixed(2)} m² total; Standard: ${standardAlfrescoM2} m² → Delta: +${deltaAlfrescoM2.toFixed(2)} m² @ $920/m²).`,
       });
 
-      // Original recessed Alfresco footprint enclosed into internal Family room
-      const deltaLivingM2 = standardAlfrescoM2; // 9.54 m²
+      // Family room extended upwards to the rear alignment of Ensuite/WIR
+      // The Family room extends across its full 5.90m width and 3.61m depth, absorbing BOTH:
+      // 1) The former Alfresco space (2.64m × 3.61m = 9.54 m²)
+      // 2) The outdoor notch to the RHS of the Alfresco (3.26m × 3.61m = 11.76 m²)
+      // Total added internal living area: 5.90m × 3.61m = 21.30 m²
+      const familyWidthM = 5.90;
+      const familyDepthM = 3.61;
+      const deltaLivingM2 = Math.round(familyWidthM * familyDepthM * 100) / 100; // 21.30 m²
       mods.push({
         zone: "living",
         deltaM2: deltaLivingM2,
-        estimatedLinearExtensionM: 2.6,
-        reason: `Auto-calculated from plan geometry: Original recessed Alfresco footprint enclosed with external brickwork and absorbed into internal Family room (+${deltaLivingM2.toFixed(2)} m² living area @ $1,480/m²).`,
+        estimatedLinearExtensionM: familyDepthM,
+        reason: `Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +${deltaLivingM2.toFixed(2)} m² into internal Living area @ $1,480/m².`,
       });
 
       return {
@@ -560,9 +566,12 @@ CRITICAL ARCHITECTURAL VISUAL DIFFING RULES (ZERO HALLUCINATIONS):
        Total New Alfresco Area: 10.55m width × 3.0m depth = 31.65 m².
        Delta Alfresco: 31.65 m² - 9.54 m² = +22.11 m² (set zone: "alfresco", deltaM2: 22.11, estimatedLinearExtensionM: 3.0).
        Reason: "Auto-calculated from plan geometry: Grand Alfresco extended 3.0m into backyard across full 10.55m house width (10.55m width × 3.0m depth = 31.65 m² total; Standard: 9.54 m² → Delta: +22.11 m² @ $920/m²)."
-     * The original 9.54 m² recessed Alfresco footprint has been enclosed with external brick walls and absorbed into the internal Living / Family room (labeled "Family"):
-       Zone: "living", deltaM2: 9.54, estimatedLinearExtensionM: 2.6.
-       Reason: "Auto-calculated from plan geometry: Original recessed Alfresco footprint enclosed with external brickwork and absorbed into internal Family room (+9.54 m² living area @ $1,480/m²)."
+     * The Family room was extended UPWARDS across its full 5.90m room width and 3.61m depth to align with the rear of the house (Ensuite/WIR), absorbing BOTH:
+       1) The former Alfresco space (2.64m × 3.61m = 9.54 m²)
+       2) The outdoor notch to the RHS of the Alfresco (3.26m × 3.61m = 11.76 m²)
+       Total added Living Area: 5.90m width × 3.61m depth = 21.30 m².
+       Set zone: "living", deltaM2: 21.30, estimatedLinearExtensionM: 3.61.
+       Reason: "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m²."
      * CRITICAL: Do NOT add duplicate inclusion upgrades for the slab or roof if area deltas are added!
 
    ARCHITECTURAL VARIANT B (Horizontal RHS Alfresco Extension):
@@ -729,11 +738,11 @@ Return ONLY valid JSON matching this schema:
                 "Auto-calculated from plan geometry: Alfresco extended to RHS external wall (6.0m width × 3.6m depth = 21.8 m² total; Standard: 9.54 m² → Delta: +12.3 m² @ $920/m²).";
             }
           } else if (mod.zone === "living") {
-            if (mod.deltaM2 >= 5.0 && mod.deltaM2 <= 16.0) {
-              mod.deltaM2 = 9.54;
-              mod.estimatedLinearExtensionM = 2.6;
+            if (mod.deltaM2 >= 5.0 && mod.deltaM2 <= 26.0) {
+              mod.deltaM2 = 21.30;
+              mod.estimatedLinearExtensionM = 3.61;
               mod.reason =
-                "Auto-calculated from plan geometry: Original recessed Alfresco footprint enclosed with external brickwork and absorbed into internal Family room (+9.54 m² living area @ $1,480/m²).";
+                "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².";
             }
           }
         }
@@ -741,10 +750,10 @@ Return ONLY valid JSON matching this schema:
         if (hasRearPushout && !parsedData.areaModifications.some((m: any) => m.zone === "living")) {
           parsedData.areaModifications.push({
             zone: "living",
-            deltaM2: 9.54,
-            estimatedLinearExtensionM: 2.6,
+            deltaM2: 21.30,
+            estimatedLinearExtensionM: 3.61,
             reason:
-              "Auto-calculated from plan geometry: Original recessed Alfresco footprint enclosed with external brickwork and absorbed into internal Family room (+9.54 m² living area @ $1,480/m²).",
+              "Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +21.30 m² into internal Living area @ $1,480/m².",
           });
         }
       }
