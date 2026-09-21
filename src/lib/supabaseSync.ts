@@ -10,6 +10,8 @@ import {
   mergeLots,
   mergePackages,
   sanitizePackageForStorage,
+  getDeletedLotIds,
+  getDeletedPkgIds,
 } from "@/lib/databaseStorage";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 
@@ -163,10 +165,14 @@ export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean
 
     const existingNames = new Set((existingPackages || []).map((p) => p.name?.toLowerCase().trim()));
     const existingIds = new Set((existingPackages || []).map((p) => p.id));
+    const deletedPkgIds = getDeletedPkgIds();
 
     const seed = generateSeedData();
     const missingPkgs = seed.packages.filter(
-      (sp) => !existingIds.has(sp.id) && !existingNames.has((sp.name || "").toLowerCase().trim())
+      (sp) =>
+        !existingIds.has(sp.id) &&
+        !existingNames.has((sp.name || "").toLowerCase().trim()) &&
+        !deletedPkgIds.has(sp.id)
     );
 
     if (missingPkgs.length > 0) {
@@ -553,10 +559,39 @@ export async function syncLocalPackagesAndLotsToSupabase(): Promise<{ lots: Lot[
   const remote = await fetchRemoteLotsAndPackages();
   const localLots = getLocalLots();
   const localPkgs = getLocalPackages();
-  const seed = generateSeedData();
 
-  const mergedLots = mergeLots(mergeLots(seed.lots, localLots), remote?.lots || []);
-  const mergedPkgs = mergePackages(mergePackages(seed.packages, localPkgs), remote?.packages || []);
+  const isInit = typeof window !== "undefined" && localStorage.getItem("hudson_qld_database_initialized_v3") === "true";
+  const seed = isInit ? { lots: [], packages: [] } : generateSeedData();
+
+  const deletedLotIds = getDeletedLotIds();
+  const deletedPkgIds = getDeletedPkgIds();
+
+  // 1. Prune remote database if it still contains items deleted locally
+  if (remote?.lots) {
+    const remoteLotsToDelete = remote.lots.filter((l) => deletedLotIds.has(l.id));
+    if (remoteLotsToDelete.length > 0) {
+      console.log(`[supabaseSync] Pruning ${remoteLotsToDelete.length} deleted lots from Supabase cloud...`);
+      void deleteLotsBatchFromSupabase(remoteLotsToDelete.map((l) => l.id));
+    }
+  }
+  if (remote?.packages) {
+    const remotePkgsToDelete = remote.packages.filter((p) => deletedPkgIds.has(p.id));
+    if (remotePkgsToDelete.length > 0) {
+      console.log(`[supabaseSync] Pruning ${remotePkgsToDelete.length} deleted packages from Supabase cloud...`);
+      void deletePackagesBatchFromSupabase(remotePkgsToDelete.map((p) => p.id));
+    }
+  }
+
+  // 2. Filter remote data against tombstones
+  const cleanRemoteLots = (remote?.lots || []).filter((l) => !deletedLotIds.has(l.id));
+  const cleanRemotePkgs = (remote?.packages || []).filter((p) => !deletedPkgIds.has(p.id));
+
+  // 3. Merge: if initialized, do NOT re-inject seed data
+  const baseLots = isInit ? localLots : mergeLots(seed.lots, localLots);
+  const basePkgs = isInit ? localPkgs : mergePackages(seed.packages, localPkgs);
+
+  const mergedLots = mergeLots(baseLots, cleanRemoteLots).filter((l) => !deletedLotIds.has(l.id));
+  const mergedPkgs = mergePackages(basePkgs, cleanRemotePkgs).filter((p) => !deletedPkgIds.has(p.id));
 
   saveLocalLots(mergedLots);
   saveLocalPackages(mergedPkgs);
@@ -564,7 +599,7 @@ export async function syncLocalPackagesAndLotsToSupabase(): Promise<{ lots: Lot[
   // If there are packages in mergedPkgs not in remote, sync them up
   if (remote?.packages) {
     const remotePkgIds = new Set(remote.packages.map((p) => p.id));
-    const missingInRemote = mergedPkgs.filter((p) => !remotePkgIds.has(p.id));
+    const missingInRemote = mergedPkgs.filter((p) => !remotePkgIds.has(p.id) && !deletedPkgIds.has(p.id));
     if (missingInRemote.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingInRemote.length} missing packages to cloud...`);
       void syncPackagesBatchToSupabase(missingInRemote);
@@ -574,7 +609,7 @@ export async function syncLocalPackagesAndLotsToSupabase(): Promise<{ lots: Lot[
   // If there are lots in mergedLots not in remote, sync them up
   if (remote?.lots) {
     const remoteLotIds = new Set(remote.lots.map((l) => l.id));
-    const missingLotsInRemote = mergedLots.filter((l) => !remoteLotIds.has(l.id));
+    const missingLotsInRemote = mergedLots.filter((l) => !remoteLotIds.has(l.id) && !deletedLotIds.has(l.id));
     if (missingLotsInRemote.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingLotsInRemote.length} missing lots to cloud...`);
       void syncLotsBatchToSupabase(missingLotsInRemote);

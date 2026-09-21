@@ -52,6 +52,73 @@ export interface Pkg {
 const STORAGE_KEY_LOTS = "hudson_qld_database_lots_v3";
 const STORAGE_KEY_PACKAGES = "hudson_qld_database_packages_v3";
 const STORAGE_KEY_INITIALIZED = "hudson_qld_database_initialized_v3";
+export const STORAGE_KEY_DELETED_LOT_IDS = "hudson_deleted_lot_ids_v3";
+export const STORAGE_KEY_DELETED_PKG_IDS = "hudson_deleted_pkg_ids_v3";
+
+export function getDeletedLotIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_LOT_IDS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed.map(String));
+    }
+  } catch {}
+  return new Set();
+}
+
+export function recordDeletedLotIds(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  const set = getDeletedLotIds();
+  for (const id of ids) {
+    if (id) {
+      set.add(id);
+      const norm = toValidUuid(id);
+      if (norm) set.add(norm);
+    }
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY_DELETED_LOT_IDS, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+export function clearDeletedLotId(id: string): void {
+  if (typeof window === "undefined") return;
+  const set = getDeletedLotIds();
+  set.delete(id);
+  const norm = toValidUuid(id);
+  if (norm) set.delete(norm);
+  try {
+    localStorage.setItem(STORAGE_KEY_DELETED_LOT_IDS, JSON.stringify(Array.from(set)));
+  } catch {}
+}
+
+export function getDeletedPkgIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_DELETED_PKG_IDS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return new Set(parsed.map(String));
+    }
+  } catch {}
+  return new Set();
+}
+
+export function recordDeletedPkgIds(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  const set = getDeletedPkgIds();
+  for (const id of ids) {
+    if (id) {
+      set.add(id);
+      const norm = toValidUuid(id);
+      if (norm) set.add(norm);
+    }
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY_DELETED_PKG_IDS, JSON.stringify(Array.from(set)));
+  } catch {}
+}
 
 export const DB_SYNC_CHANNEL_NAME = "hudson_qld_database_sync";
 
@@ -361,37 +428,56 @@ export function sanitizePackageForStorage(p: Pkg): Pkg {
 }
 
 export function getLocalLots(): Lot[] {
-  if (inMemoryLots && inMemoryLots.length > 0) {
-    return inMemoryLots;
+  const deletedIds = getDeletedLotIds();
+  if (inMemoryLots !== null) {
+    return inMemoryLots.filter((l) => !deletedIds.has(l.id));
   }
-  const seed = generateSeedData();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_LOTS);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const merged = mergeLots(seed.lots, parsed);
-        inMemoryLots = merged;
-        return merged;
+    const isInit = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_LOTS) : null;
+    if (isInit || raw !== null) {
+      if (raw !== null) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const cleanLots = parsed
+            .filter((l: Lot) => l && l.id && !deletedIds.has(l.id))
+            .map((l: Lot) => ({
+              ...l,
+              id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
+            }));
+          inMemoryLots = cleanLots;
+          return cleanLots;
+        }
+      } else {
+        inMemoryLots = [];
+        return [];
       }
     }
   } catch (e) {
     console.warn("[databaseStorage] getLocalLots read error:", e);
   }
-  inMemoryLots = seed.lots;
-  saveLocalLots(seed.lots);
-  return seed.lots;
+  // Only use seed data if the database was NEVER initialized before
+  const seed = generateSeedData();
+  const cleanSeed = seed.lots.filter((l) => !deletedIds.has(l.id));
+  inMemoryLots = cleanSeed;
+  saveLocalLots(cleanSeed);
+  return cleanSeed;
 }
 
 export function saveLocalLots(lots: Lot[]): void {
-  const cleanLots = lots.map((l) => ({
-    ...l,
-    id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
-  }));
+  const deletedIds = getDeletedLotIds();
+  const cleanLots = lots
+    .filter((l) => l && l.id && !deletedIds.has(l.id))
+    .map((l) => ({
+      ...l,
+      id: isValidUuid(l.id) ? l.id : (toValidUuid(l.id) || generateUuid()),
+    }));
   inMemoryLots = cleanLots;
   try {
-    localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(cleanLots));
-    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_LOTS, JSON.stringify(cleanLots));
+      localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+    }
   } catch (e) {
     console.warn("[databaseStorage] saveLocalLots write notice:", e);
   }
@@ -399,35 +485,49 @@ export function saveLocalLots(lots: Lot[]): void {
 }
 
 export function getLocalPackages(): Pkg[] {
-  if (inMemoryPackages && inMemoryPackages.length > 0) {
-    return inMemoryPackages;
+  const deletedIds = getDeletedPkgIds();
+  if (inMemoryPackages !== null) {
+    return inMemoryPackages.filter((p) => !deletedIds.has(p.id));
   }
-  const seed = generateSeedData();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_PACKAGES);
-    if (raw !== null) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const sanitized: Pkg[] = parsed.map(sanitizePackageForStorage);
-        const merged = mergePackages(seed.packages, sanitized);
-        inMemoryPackages = merged;
-        return merged;
+    const isInit = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
+    const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_PACKAGES) : null;
+    if (isInit || raw !== null) {
+      if (raw !== null) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          const sanitized: Pkg[] = parsed
+            .filter((p: Pkg) => p && p.id && !deletedIds.has(p.id))
+            .map(sanitizePackageForStorage);
+          inMemoryPackages = sanitized;
+          return sanitized;
+        }
+      } else {
+        inMemoryPackages = [];
+        return [];
       }
     }
   } catch (e) {
     console.warn("[databaseStorage] getLocalPackages read error:", e);
   }
-  inMemoryPackages = seed.packages;
-  saveLocalPackages(seed.packages);
-  return seed.packages;
+  const seed = generateSeedData();
+  const cleanSeed = seed.packages.filter((p) => !deletedIds.has(p.id));
+  inMemoryPackages = cleanSeed;
+  saveLocalPackages(cleanSeed);
+  return cleanSeed;
 }
 
 export function saveLocalPackages(packages: Pkg[]): void {
-  const cleanPackages = packages.map(sanitizePackageForStorage);
+  const deletedIds = getDeletedPkgIds();
+  const cleanPackages = packages
+    .filter((p) => p && p.id && !deletedIds.has(p.id))
+    .map(sanitizePackageForStorage);
   inMemoryPackages = cleanPackages;
   try {
-    localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(cleanPackages));
-    localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY_PACKAGES, JSON.stringify(cleanPackages));
+      localStorage.setItem(STORAGE_KEY_INITIALIZED, "true");
+    }
   } catch (e) {
     console.warn("[databaseStorage] saveLocalPackages storage notice (in-memory preserved):", e);
   }
@@ -435,9 +535,12 @@ export function saveLocalPackages(packages: Pkg[]): void {
 }
 
 export function upsertLocalLot(lot: Lot): Lot[] {
+  const normalizedId = isValidUuid(lot.id) ? lot.id : (toValidUuid(lot.id) || generateUuid());
+  clearDeletedLotId(normalizedId);
+  clearDeletedLotId(lot.id);
   const normalizedLot: Lot = {
     ...lot,
-    id: isValidUuid(lot.id) ? lot.id : (toValidUuid(lot.id) || generateUuid()),
+    id: normalizedId,
   };
   const current = getLocalLots();
   const idx = current.findIndex((l) => l.id === normalizedLot.id);
@@ -453,17 +556,32 @@ export function upsertLocalLot(lot: Lot): Lot[] {
 }
 
 export function deleteLocalLot(id: string): Lot[] {
-  const current = getLocalLots();
+  recordDeletedLotIds([id]);
   const normalizedId = isValidUuid(id) ? id : (toValidUuid(id) || id);
+  const current = getLocalLots();
   const updated = current.filter((l) => l.id !== id && l.id !== normalizedId);
   saveLocalLots(updated);
   return updated;
 }
 
+export function deleteLocalLotsBatch(ids: string[]): Lot[] {
+  recordDeletedLotIds(ids);
+  const idSet = new Set(ids);
+  ids.forEach((id) => {
+    const norm = toValidUuid(id);
+    if (norm) idSet.add(norm);
+  });
+  const current = getLocalLots();
+  const updated = current.filter((l) => !idSet.has(l.id));
+  saveLocalLots(updated);
+  return updated;
+}
+
 export function upsertLocalPackage(pkg: Pkg): Pkg[] {
+  const normalizedId = isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid());
   const normalizedPkg: Pkg = {
     ...pkg,
-    id: isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid()),
+    id: normalizedId,
     lot_id: pkg.lot_id ? (isValidUuid(pkg.lot_id) ? pkg.lot_id : toValidUuid(pkg.lot_id)) : null,
   };
   const current = getLocalPackages();
@@ -480,9 +598,23 @@ export function upsertLocalPackage(pkg: Pkg): Pkg[] {
 }
 
 export function deleteLocalPackage(id: string): Pkg[] {
-  const current = getLocalPackages();
+  recordDeletedPkgIds([id]);
   const normalizedId = isValidUuid(id) ? id : (toValidUuid(id) || id);
+  const current = getLocalPackages();
   const updated = current.filter((p) => p.id !== id && p.id !== normalizedId);
+  saveLocalPackages(updated);
+  return updated;
+}
+
+export function deleteLocalPackagesBatch(ids: string[]): Pkg[] {
+  recordDeletedPkgIds(ids);
+  const idSet = new Set(ids);
+  ids.forEach((id) => {
+    const norm = toValidUuid(id);
+    if (norm) idSet.add(norm);
+  });
+  const current = getLocalPackages();
+  const updated = current.filter((p) => !idSet.has(p.id));
   saveLocalPackages(updated);
   return updated;
 }
@@ -490,14 +622,19 @@ export function deleteLocalPackage(id: string): Pkg[] {
 /**
  * Merges two arrays of lots non-destructively.
  * Retains all unique lots from both sources, prioritizing newer updates when IDs or keys match.
+ * STRICTLY excludes any tombstoned / deleted lots.
  */
 export function mergeLots(existingLots: Lot[], incomingLots: Lot[]): Lot[] {
+  const deletedIds = getDeletedLotIds();
   const map = new Map<string, Lot>();
   const keyMap = new Map<string, string>(); // estate-suburb-lot -> id
 
   const processLot = (lot: Lot) => {
     if (!lot) return;
     const normalizedId = isValidUuid(lot.id) ? lot.id : (toValidUuid(lot.id) || generateUuid());
+    if (deletedIds.has(lot.id) || deletedIds.has(normalizedId)) {
+      return; // Do NOT resurrect deleted lots
+    }
     const cleanLot: Lot = {
       ...lot,
       id: normalizedId,
@@ -533,8 +670,10 @@ export function mergeLots(existingLots: Lot[], incomingLots: Lot[]): Lot[] {
 /**
  * Merges two arrays of packages non-destructively.
  * Retains all unique packages from all consultants, prioritizing newer updates when IDs match.
+ * STRICTLY excludes any tombstoned / deleted packages.
  */
 export function mergePackages(existingPkgs: Pkg[], incomingPkgs: Pkg[]): Pkg[] {
+  const deletedIds = getDeletedPkgIds();
   const map = new Map<string, Pkg>();
   const keyMap = new Map<string, string>(); // name/design -> id
 
@@ -544,6 +683,9 @@ export function mergePackages(existingPkgs: Pkg[], incomingPkgs: Pkg[]): Pkg[] {
     if (pkg.name && pkg.name.startsWith("Tender Request:")) return;
 
     const normalizedId = isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid());
+    if (deletedIds.has(pkg.id) || deletedIds.has(normalizedId)) {
+      return; // Do NOT resurrect deleted packages
+    }
     const cleanPkg: Pkg = {
       ...pkg,
       id: normalizedId,
@@ -572,5 +714,14 @@ export function mergePackages(existingPkgs: Pkg[], incomingPkgs: Pkg[]): Pkg[] {
   existingPkgs.forEach(processPkg);
   incomingPkgs.forEach(processPkg);
   return Array.from(map.values());
+}
+
+/**
+ * Extracts a normalized stage string from lot notes (e.g. "Stage 4 · Standard lot" -> "Stage 4")
+ */
+export function extractLotStage(lot: { notes?: string | null }): string {
+  if (!lot?.notes) return "";
+  const match = lot.notes.match(/Stage\s*([A-Za-z0-9\.\-]+)/i);
+  return match ? `Stage ${match[1].trim()}` : "";
 }
 

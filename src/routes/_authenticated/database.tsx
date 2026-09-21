@@ -52,8 +52,13 @@ import {
   saveLocalPackages,
   upsertLocalLot,
   deleteLocalLot,
+  deleteLocalLotsBatch,
   upsertLocalPackage,
   deleteLocalPackage,
+  deleteLocalPackagesBatch,
+  getDeletedLotIds,
+  getDeletedPkgIds,
+  extractLotStage,
   getLotState,
   DB_SYNC_CHANNEL_NAME,
   broadcastDatabaseChange,
@@ -458,157 +463,312 @@ if (form.developer.trim()) {
 const dupeKey = (estate: string, suburb: string, lotNumber: string | null | undefined) =>
   `${estate.trim().toLowerCase()}|${suburb.trim().toLowerCase()}|${(lotNumber ?? "").trim().toLowerCase()}`;
 
-/** Upload a developer price list (PDF, image, CSV, TXT) or paste raw text and auto-create every lot. */
+interface UploadedDoc {
+  id: string;
+  name: string;
+  estate: string;
+  suburb: string;
+  stage: string;
+  developer: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+  lotCount: number;
+  status: "processing" | "done" | "error";
+  error?: string;
+}
+
+interface BatchLotRow extends ParsedLot {
+  rowId: string;
+  docId: string;
+  docName: string;
+  estate: string;
+  suburb: string;
+  stage: string;
+  developer: string;
+  contactName: string;
+  contactPhone: string;
+  contactEmail: string;
+}
+
+/** Upload one or multiple developer price lists (PDF, image, CSV, TXT) or paste raw text and auto-create every lot. */
 function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existingLots: Lot[] }) {
   const { mode: themeMode } = useTheme();
   const isLight = themeMode === "normal";
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [busyMessage, setBusyMessage] = useState("");
   const [mode, setMode] = useState<"file" | "paste">("file");
   const [pastedText, setPastedText] = useState("");
-  const [estate, setEstate] = useState("");
-  const [suburb, setSuburb] = useState("");
-  const [stage, setStage] = useState("");
-  const [developer, setDeveloper] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [rows, setRows] = useState<ParsedLot[]>([]);
-  const [picked, setPicked] = useState<boolean[]>([]);
+  const [docs, setDocs] = useState<UploadedDoc[]>([]);
+  const [rows, setRows] = useState<BatchLotRow[]>([]);
+  const [picked, setPicked] = useState<Record<string, boolean>>({});
+  const [activeDocFilter, setActiveDocFilter] = useState<string>("ALL");
+
+  // Quick batch inputs for checked rows
+  const [batchEstate, setBatchEstate] = useState("");
+  const [batchStage, setBatchStage] = useState("");
 
   const existingKeys = useMemo(
     () => new Set(existingLots.map((l) => dupeKey(l.estate, l.suburb, l.lot_number))),
     [existingLots],
   );
 
-  const isDupe = (r: ParsedLot) =>
-    Boolean(r.lot_number) && existingKeys.has(dupeKey(estate, suburb, r.lot_number));
+  const isDupe = (r: BatchLotRow) =>
+    Boolean(r.lot_number) && existingKeys.has(dupeKey(r.estate, r.suburb, r.lot_number));
 
-  // Pull saved contacts whenever the developer name changes.
-  useEffect(() => {
-    const name = developer.trim();
-    if (!name) return;
-    let cancelled = false;
-    void listDevelopers().then((devs) => {
-      if (cancelled) return;
-      const match = devs.find((d) => devKey(d.name) === devKey(name));
-      if (!match) return;
-      setContactName((v) => v || match.contact_name || "");
-      setContactPhone((v) => v || match.contact_phone || "");
-      setContactEmail((v) => v || match.contact_email || "");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [developer]);
+  const resetForm = () => {
+    setDocs([]);
+    setRows([]);
+    setPicked({});
+    setPastedText("");
+    setActiveDocFilter("ALL");
+    setBatchEstate("");
+    setBatchStage("");
+  };
 
-  const applyParsedResult = (json: { estate?: string; suburb?: string; stage?: string; developer?: string; lots: ParsedLot[] }) => {
-    if (json.estate && !estate) setEstate(json.estate);
-    if (json.suburb && !suburb) setSuburb(json.suburb);
-    if (json.stage && !stage) setStage(json.stage);
-    if (json.developer && !developer) setDeveloper(json.developer);
-    const lots = json.lots ?? [];
-    if (lots.length > 0) {
-      setRows(lots);
-      setPicked(lots.map(() => true));
-      toast.success(`Found ${lots.length} lots — tick the ones to import`);
+  const processSingleFile = async (file: File): Promise<{ doc: UploadedDoc; lots: BatchLotRow[] }> => {
+    const docId = generateUuid();
+    const isTextFile = /\.csv$/i.test(file.name) || /\.txt$/i.test(file.name) || /\.tsv$/i.test(file.name);
+    let json: { estate?: string; suburb?: string; stage?: string; developer?: string; lots: ParsedLot[] };
+
+    if (isTextFile) {
+      const text = await file.text();
+      json = extractLotsFromText(text, file.name);
     } else {
-      setRows([
-        {
-          lot_number: "",
-          stage: json.stage || stage || "",
-          land_size: null,
-          frontage: null,
-          land_price: null,
-          titled: false,
-          registration_date: "",
-          status: "available",
-        },
-      ]);
-      setPicked([true]);
-      toast.info("Document loaded — enter lot details below or paste price list text");
-    }
-  };
-
-  const handleFile = async (file: File) => {
-    setBusy(true);
-    try {
-      const isTextFile = /\.csv$/i.test(file.name) || /\.txt$/i.test(file.name) || /\.tsv$/i.test(file.name);
-      if (isTextFile) {
-        const text = await file.text();
-        const json = extractLotsFromText(text, file.name);
-        applyParsedResult(json);
-      } else {
-        const doc = await pdfDocumentToPagesAndText(file);
-        const json = await parseDeveloperPriceList(doc);
-        applyParsedResult(json);
+      try {
+        const docPages = await pdfDocumentToPagesAndText(file);
+        json = await parseDeveloperPriceList(docPages);
+      } catch (err) {
+        console.warn("[ImportDialog] PDF parse error, using text fallback:", err);
+        json = extractLotsFromText("", file.name);
       }
-    } catch (err) {
-      console.warn("[ImportDialog] File parsing error:", err);
-      // Fallback: extract from filename so user is never blocked
-      const meta = extractLotsFromText("", file.name);
-      applyParsedResult(meta);
-    } finally {
-      setBusy(false);
     }
-  };
 
-  const handleParseText = () => {
-    if (!pastedText.trim()) {
-      toast.error("Please paste price list text or table rows first");
-      return;
-    }
-    const json = extractLotsFromText(pastedText, "");
-    applyParsedResult(json);
-  };
+    const docEstate = json.estate || "Hudson Estate";
+    const docSuburb = json.suburb || "Queensland";
+    const docStage = json.stage || "";
+    const docDeveloper = json.developer || "";
 
-  const addEmptyRow = () => {
-    setRows((prev) => [
-      ...prev,
+    const doc: UploadedDoc = {
+      id: docId,
+      name: file.name,
+      estate: docEstate,
+      suburb: docSuburb,
+      stage: docStage,
+      developer: docDeveloper,
+      contactName: "",
+      contactPhone: "",
+      contactEmail: "",
+      lotCount: json.lots.length,
+      status: "done",
+    };
+
+    const parsedLots = json.lots.length > 0 ? json.lots : [
       {
         lot_number: "",
-        stage: stage || "",
+        stage: docStage,
         land_size: null,
         frontage: null,
         land_price: null,
         titled: false,
         registration_date: "",
-        status: "available",
-      },
-    ]);
-    setPicked((prev) => [...prev, true]);
+        status: "available" as const,
+      }
+    ];
+
+    const lotRows: BatchLotRow[] = parsedLots.map((l) => ({
+      ...l,
+      rowId: generateUuid(),
+      docId,
+      docName: file.name,
+      estate: docEstate,
+      suburb: docSuburb,
+      stage: l.stage || docStage,
+      developer: docDeveloper,
+      contactName: "",
+      contactPhone: "",
+      contactEmail: "",
+    }));
+
+    return { doc, lots: lotRows };
   };
 
-  const removeRow = (index: number) => {
-    setRows((prev) => prev.filter((_, i) => i !== index));
-    setPicked((prev) => prev.filter((_, i) => i !== index));
+  const handleFiles = async (files: FileList | File[]) => {
+    if (!files.length) return;
+    setBusy(true);
+    const newDocs: UploadedDoc[] = [];
+    const newLots: BatchLotRow[] = [];
+    const newPicked: Record<string, boolean> = { ...picked };
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setBusyMessage(`Scanning price list (${i + 1}/${files.length}): ${file.name}…`);
+      try {
+        const res = await processSingleFile(file);
+        newDocs.push(res.doc);
+        newLots.push(...res.lots);
+        res.lots.forEach((l) => {
+          newPicked[l.rowId] = true;
+        });
+      } catch (e) {
+        console.error("Failed to parse file:", file.name, e);
+        toast.error(`Could not parse ${file.name}`);
+      }
+    }
+
+    setDocs((prev) => [...prev, ...newDocs]);
+    setRows((prev) => [...prev, ...newLots]);
+    setPicked(newPicked);
+    setBusy(false);
+    setBusyMessage("");
+    toast.success(`Loaded ${newDocs.length} price list${newDocs.length === 1 ? "" : "s"} with ${newLots.length} lots`);
   };
 
-  const updateRow = (index: number, patch: Partial<ParsedLot>) => {
-    setRows((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  const handleParsePastedText = () => {
+    if (!pastedText.trim()) {
+      toast.error("Please paste price list text or table rows first");
+      return;
+    }
+    setBusy(true);
+    setBusyMessage("Parsing pasted price list text…");
+    try {
+      const docId = generateUuid();
+      const json = extractLotsFromText(pastedText, "Pasted Price List");
+      const docEstate = json.estate || "Hudson Estate";
+      const docSuburb = json.suburb || "Queensland";
+      const docStage = json.stage || "";
+      const docDeveloper = json.developer || "";
+
+      const doc: UploadedDoc = {
+        id: docId,
+        name: "Pasted Price List",
+        estate: docEstate,
+        suburb: docSuburb,
+        stage: docStage,
+        developer: docDeveloper,
+        contactName: "",
+        contactPhone: "",
+        contactEmail: "",
+        lotCount: json.lots.length,
+        status: "done",
+      };
+
+      const lotRows: BatchLotRow[] = (json.lots.length > 0 ? json.lots : [
+        {
+          lot_number: "",
+          stage: docStage,
+          land_size: null,
+          frontage: null,
+          land_price: null,
+          titled: false,
+          registration_date: "",
+          status: "available" as const,
+        }
+      ]).map((l) => ({
+        ...l,
+        rowId: generateUuid(),
+        docId,
+        docName: "Pasted Price List",
+        estate: docEstate,
+        suburb: docSuburb,
+        stage: l.stage || docStage,
+        developer: docDeveloper,
+        contactName: "",
+        contactPhone: "",
+        contactEmail: "",
+      }));
+
+      const newPicked = { ...picked };
+      lotRows.forEach((r) => { newPicked[r.rowId] = true; });
+
+      setDocs((prev) => [...prev, doc]);
+      setRows((prev) => [...prev, ...lotRows]);
+      setPicked(newPicked);
+      setPastedText("");
+      toast.success(`Extracted ${lotRows.length} lots from pasted text`);
+    } finally {
+      setBusy(false);
+      setBusyMessage("");
+    }
   };
 
-  // Swap lot number and land size for an individual row
-  const swapRowLotAndSize = (index: number) => {
+  const applyDocEstateStage = (docId: string) => {
+    const doc = docs.find((d) => d.id === docId);
+    if (!doc) return;
     setRows((prev) =>
-      prev.map((r, i) => {
-        if (i !== index) return r;
+      prev.map((r) =>
+        r.docId === docId
+          ? {
+              ...r,
+              estate: doc.estate.trim(),
+              suburb: doc.suburb.trim(),
+              stage: doc.stage.trim(),
+              developer: doc.developer.trim(),
+            }
+          : r
+      )
+    );
+    toast.success(`Updated all lots for "${doc.name}" to ${doc.estate} · ${doc.stage || "Stage"}`);
+  };
+
+  const removeDoc = (docId: string) => {
+    setDocs((prev) => prev.filter((d) => d.id !== docId));
+    setRows((prev) => prev.filter((r) => r.docId !== docId));
+    if (activeDocFilter === docId) setActiveDocFilter("ALL");
+  };
+
+  const updateDoc = (docId: string, patch: Partial<UploadedDoc>) => {
+    setDocs((prev) => prev.map((d) => (d.id === docId ? { ...d, ...patch } : d)));
+  };
+
+  const updateRow = (rowId: string, patch: Partial<BatchLotRow>) => {
+    setRows((prev) => prev.map((r) => (r.rowId === rowId ? { ...r, ...patch } : r)));
+  };
+
+  const removeRow = (rowId: string) => {
+    setRows((prev) => prev.filter((r) => r.rowId !== rowId));
+  };
+
+  const addEmptyRow = () => {
+    const defaultDoc = docs[0];
+    const newRow: BatchLotRow = {
+      rowId: generateUuid(),
+      docId: defaultDoc?.id || "manual",
+      docName: defaultDoc?.name || "Manual Entry",
+      estate: defaultDoc?.estate || "Hudson Estate",
+      suburb: defaultDoc?.suburb || "Queensland",
+      stage: defaultDoc?.stage || "",
+      developer: defaultDoc?.developer || "",
+      contactName: "",
+      contactPhone: "",
+      contactEmail: "",
+      lot_number: "",
+      land_size: null,
+      frontage: null,
+      land_price: null,
+      titled: false,
+      registration_date: "",
+      status: "available",
+    };
+    setRows((prev) => [...prev, newRow]);
+    setPicked((prev) => ({ ...prev, [newRow.rowId]: true }));
+  };
+
+  const swapRowLotAndSize = (rowId: string) => {
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.rowId !== rowId) return r;
         const oldLot = r.lot_number || "";
         const oldSize = r.land_size;
         const newLot = oldSize != null ? String(oldSize) : "";
         const parsedSize = parseFloat(oldLot.replace(/[^0-9.]/g, ""));
         const newSize = !isNaN(parsedSize) && parsedSize > 0 ? parsedSize : null;
-        return {
-          ...r,
-          lot_number: newLot,
-          land_size: newSize,
-        };
+        return { ...r, lot_number: newLot, land_size: newSize };
       })
     );
-    toast.info(`Swapped Lot # and Size for row ${index + 1}`);
   };
 
-  // Swap lot number and land size across ALL rows (e.g. inverted column table)
   const swapAllRowsLotAndSize = () => {
     setRows((prev) =>
       prev.map((r) => {
@@ -617,35 +777,41 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
         const newLot = oldSize != null ? String(oldSize) : "";
         const parsedSize = parseFloat(oldLot.replace(/[^0-9.]/g, ""));
         const newSize = !isNaN(parsedSize) && parsedSize > 0 ? parsedSize : null;
-        return {
-          ...r,
-          lot_number: newLot,
-          land_size: newSize,
-        };
+        return { ...r, lot_number: newLot, land_size: newSize };
       })
     );
     toast.success("Swapped Lot # and Land Size across all rows");
   };
 
-  // Propagate stage to all rows
-  const applyStageToAll = () => {
-    const val = stage.trim();
+  const applyBatchEstateToSelected = () => {
+    const val = batchEstate.trim();
     if (!val) {
-      toast.error("Please enter a stage first (e.g. Stage 4)");
+      toast.error("Please enter an estate name first");
       return;
     }
-    setRows((prev) => prev.map((r) => ({ ...r, stage: val })));
-    toast.success(`Applied '${val}' to all ${rows.length} lots`);
+    const selectedIds = new Set(filteredRows.filter((r) => picked[r.rowId]).map((r) => r.rowId));
+    setRows((prev) =>
+      prev.map((r) => (selectedIds.has(r.rowId) ? { ...r, estate: val } : r))
+    );
+    toast.success(`Updated estate to "${val}" for ${selectedIds.size} lots`);
+    setBatchEstate("");
   };
 
-  // Filter selection to available lots only
-  const selectAvailableOnly = () => {
-    setPicked(rows.map((r) => r.status === "available" || !r.status));
-    toast.info("Selected available lots only");
+  const applyBatchStageToSelected = () => {
+    const val = batchStage.trim();
+    if (!val) {
+      toast.error("Please enter a stage (e.g. Stage 3)");
+      return;
+    }
+    const selectedIds = new Set(filteredRows.filter((r) => picked[r.rowId]).map((r) => r.rowId));
+    setRows((prev) =>
+      prev.map((r) => (selectedIds.has(r.rowId) ? { ...r, stage: val } : r))
+    );
+    toast.success(`Updated stage to "${val}" for ${selectedIds.size} lots`);
+    setBatchStage("");
   };
 
-  // Anomaly detection: check if a row might have swapped Lot and Size
-  const isSuspiciousInversion = (r: ParsedLot) => {
+  const isSuspiciousInversion = (r: BatchLotRow) => {
     const lotNum = parseInt(r.lot_number || "", 10);
     if (r.land_size != null && r.land_size > 0 && r.land_size < 80 && !isNaN(lotNum) && lotNum >= 150) {
       return true;
@@ -656,39 +822,56 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
     return false;
   };
 
-  const selected = rows.filter((r, i) => picked[i] && !isDupe(r) && (r.lot_number || r.land_price));
-  const dupeCount = rows.filter(isDupe).length;
+  const filteredRows = useMemo(() => {
+    if (activeDocFilter === "ALL") return rows;
+    return rows.filter((r) => r.docId === activeDocFilter);
+  }, [rows, activeDocFilter]);
 
+  const selectedRows = useMemo(() => {
+    return rows.filter((r) => picked[r.rowId] && !isDupe(r) && (r.lot_number || r.land_price));
+  }, [rows, picked, existingKeys]);
+
+  const dupeCount = rows.filter(isDupe).length;
   const validSizes = rows.map((r) => r.land_size).filter((s): s is number => typeof s === "number" && s > 0);
   const avgSize = validSizes.length ? Math.round(validSizes.reduce((a, b) => a + b, 0) / validSizes.length) : null;
-
   const validPrices = rows.map((r) => r.land_price).filter((p): p is number => typeof p === "number" && p > 0);
   const avgPrice = validPrices.length ? Math.round(validPrices.reduce((a, b) => a + b, 0) / validPrices.length) : null;
   const suspiciousCount = rows.filter(isSuspiciousInversion).length;
 
+  const allFilteredChecked =
+    filteredRows.length > 0 &&
+    filteredRows.every((r) => isDupe(r) || picked[r.rowId]);
+
+  const toggleAllFiltered = (checked: boolean) => {
+    const next = { ...picked };
+    filteredRows.forEach((r) => {
+      if (!isDupe(r)) next[r.rowId] = checked;
+    });
+    setPicked(next);
+  };
+
   const importAll = async () => {
-    if (!estate.trim() || !suburb.trim()) {
-      toast.error("Estate and suburb are required");
+    if (!selectedRows.length) {
+      toast.error("No valid lots selected to import");
       return;
     }
-    if (!selected.length) {
-      toast.error("No valid lots selected (enter at least lot number or price)");
-      return;
-    }
+
     setBusy(true);
-    const newLotPayloads = selected.map((r, idx) => {
-      const rowStage = (r.stage || stage || "").trim();
+    setBusyMessage(`Importing ${selectedRows.length} lots across ${docs.length || 1} price lists…`);
+
+    const newLots: Lot[] = selectedRows.map((r) => {
+      const rowStage = (r.stage || "").trim();
       const stagePrefix = rowStage ? (rowStage.toLowerCase().startsWith("stage") ? rowStage : `Stage ${rowStage}`) : null;
       const combinedNotes = [stagePrefix, r.notes].filter(Boolean).join(" · ") || null;
 
       return {
         id: generateUuid(),
-        estate: estate.trim(),
-        suburb: suburb.trim(),
-        developer: developer.trim(),
-        developer_contact_name: contactName || null,
-        developer_contact_phone: contactPhone || null,
-        developer_contact_email: contactEmail || null,
+        estate: r.estate.trim() || "Hudson Estate",
+        suburb: r.suburb.trim() || "Queensland",
+        developer: r.developer?.trim() || null,
+        developer_contact_name: r.contactName?.trim() || null,
+        developer_contact_phone: r.contactPhone?.trim() || null,
+        developer_contact_email: r.contactEmail?.trim() || null,
         lot_number: r.lot_number ? String(r.lot_number).trim() : null,
         address: r.address ? String(r.address).trim() : null,
         land_size: r.land_size ? Number(r.land_size) : null,
@@ -704,160 +887,232 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
       };
     });
 
-    // Save all to localStorage immediately
-    const existing = getLocalLots();
-    saveLocalLots([...newLotPayloads, ...existing]);
+    const currentLots = getLocalLots();
+    saveLocalLots([...newLots, ...currentLots]);
 
     try {
-      await syncLotsBatchToSupabase(newLotPayloads);
+      await syncLotsBatchToSupabase(newLots);
     } catch (err) {
-      console.warn("[database] syncLotsBatchToSupabase warning:", err);
+      console.warn("[ImportDialog] syncLotsBatchToSupabase notice:", err);
     }
-    if (developer.trim()) {
-      await rememberDeveloper({
-        name: developer,
-        contact_name: contactName,
-        contact_phone: contactPhone,
-        contact_email: contactEmail,
-      });
+
+    for (const d of docs) {
+      if (d.developer?.trim()) {
+        void rememberDeveloper({
+          name: d.developer.trim(),
+          contact_name: d.contactName,
+          contact_phone: d.contactPhone,
+          contact_email: d.contactEmail,
+        });
+      }
     }
+
     setBusy(false);
-    
+    setBusyMessage("");
     toast.success(
-      `${selected.length} lots imported${dupeCount ? ` · ${dupeCount} duplicate${dupeCount === 1 ? "" : "s"} skipped` : ""}`,
+      `Successfully imported ${newLots.length} lots across ${docs.length || 1} price lists!${
+        dupeCount ? ` (${dupeCount} duplicates skipped)` : ""
+      }`
     );
-    setRows([]);
-    setPicked([]);
-    setPastedText("");
+    resetForm();
     setOpen(false);
     onSaved();
   };
 
-  const allOn = rows.length > 0 && rows.every((r, i) => isDupe(r) || picked[i]);
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
+        <Button
+          size="sm"
+          variant="outline"
+          className={`text-xs gap-1.5 ${
+            isLight
+              ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs"
+              : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
+          }`}
+        >
           <Upload className="h-3.5 w-3.5 text-amber-400" /> Import price list
         </Button>
       </DialogTrigger>
-      <DialogContent className={`max-h-[88vh] overflow-y-auto sm:max-w-4xl backdrop-blur-2xl shadow-2xl ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"}`}>
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto sm:max-w-5xl backdrop-blur-2xl shadow-2xl ${
+          isLight ? "border-slate-200 bg-white text-slate-900 shadow-xl" : "border-slate-800 bg-slate-950/95 text-slate-100"
+        }`}
+      >
         <DialogHeader>
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-amber-400" />
             <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>
-              Import Developer Price List
+              Bulk Import Developer Price Lists (Multi-Estate &amp; Multi-Stage)
             </DialogTitle>
           </div>
           <p className={`text-xs ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            Upload a developer&rsquo;s PDF, CSV, image, or paste table text. Every lot, stage, size (m²), frontage, and price is extracted automatically with AI precision.
+            Upload one or multiple price lists (PDF, CSV, TSV, images) concurrently. Assign different estates and stages per document or bulk-edit all lots before importing.
           </p>
         </DialogHeader>
 
+        {/* Input Mode Selector */}
         <div className="flex gap-2 border-b border-slate-800/40 pb-2 text-xs">
           <Button
             size="sm"
             variant={mode === "file" ? "default" : "outline"}
             onClick={() => setMode("file")}
-            className={`h-7 text-xs ${mode === "file" ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40" : "border-slate-800 bg-slate-900/60 text-slate-400"}`}
+            className={`h-7 text-xs ${
+              mode === "file"
+                ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40"
+                : "border-slate-800 bg-slate-900/60 text-slate-400"
+            }`}
           >
-            Upload Document (PDF / CSV / Image)
+            Upload Files (Multi-PDF / CSV / Image)
           </Button>
           <Button
             size="sm"
             variant={mode === "paste" ? "default" : "outline"}
             onClick={() => setMode("paste")}
-            className={`h-7 text-xs ${mode === "paste" ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40" : "border-slate-800 bg-slate-900/60 text-slate-400"}`}
+            className={`h-7 text-xs ${
+              mode === "paste"
+                ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 border border-brand-gold/40"
+                : "border-slate-800 bg-slate-900/60 text-slate-400"
+            }`}
           >
-            Paste Text / Table
+            Paste Table Text
           </Button>
         </div>
 
         {mode === "file" ? (
-          <Input
-            type="file"
-            accept="application/pdf,image/*,.csv,.txt,.tsv"
-            disabled={busy}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handleFile(f);
-            }}
-          />
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Select one or multiple price list files (PDF, CSV, TXT, TSV, Images):</Label>
+            <Input
+              type="file"
+              multiple
+              accept="application/pdf,image/*,.csv,.txt,.tsv"
+              disabled={busy}
+              onChange={(e) => {
+                if (e.target.files) void handleFiles(e.target.files);
+              }}
+            />
+          </div>
         ) : (
           <div className="space-y-2">
             <textarea
               className="w-full min-h-[90px] rounded-md border p-2 text-xs font-mono"
-              placeholder="Paste table lines, tab-delimited text, or developer price list text here (e.g. Stage 4  Lot 101  450m2  14m  $385,000  Available  Nov 2026)"
+              placeholder="Paste price list table rows here (e.g. Stage 4  Lot 101  450m2  14m  $385,000  Available  Nov 2026)"
               value={pastedText}
               onChange={(e) => setPastedText(e.target.value)}
             />
-            <Button size="sm" onClick={handleParseText} disabled={busy || !pastedText.trim()}>
+            <Button size="sm" onClick={handleParsePastedText} disabled={busy || !pastedText.trim()}>
               Parse Pasted Text
             </Button>
           </div>
         )}
 
         {busy && (
-          <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md p-2.5">
-            <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-            <span>Scanning developer price list with Gemini 3.6 Flash & verifying columns…</span>
+          <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md p-3">
+            <Loader2 className="h-4 w-4 animate-spin text-amber-400 shrink-0" />
+            <span>{busyMessage || "Scanning price lists with Gemini 3.6 Flash & verifying columns…"}</span>
           </div>
         )}
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Estate *</Label>
-            <Input placeholder="e.g. Aurora" value={estate} onChange={(e) => setEstate(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Suburb *</Label>
-            <Input placeholder="e.g. Flagstone" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
+        {/* Uploaded Documents List & Per-Document Estate/Stage Controls */}
+        {docs.length > 0 && (
+          <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">Stage / Release</Label>
-              {rows.length > 0 && stage.trim() && (
-                <button
-                  type="button"
-                  onClick={applyStageToAll}
-                  className="text-[10px] text-amber-400 hover:text-amber-300 underline font-medium"
-                  title="Copy this stage name to all rows below"
-                >
-                  Apply to all
-                </button>
-              )}
+              <span className="text-xs font-bold text-slate-300">
+                Uploaded Price Lists ({docs.length}) — Configure Estate &amp; Stage per file:
+              </span>
             </div>
-            <Input placeholder="e.g. Stage 4" value={stage} onChange={(e) => setStage(e.target.value)} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {docs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`p-3 rounded-xl border ${
+                    isLight ? "border-slate-200 bg-slate-50/80 shadow-xs" : "border-slate-800 bg-slate-900/60 shadow-md"
+                  } space-y-2 text-xs`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold truncate max-w-[240px]" title={doc.name}>
+                      📄 {doc.name}
+                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        {rows.filter((r) => r.docId === doc.id).length} lots
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeDoc(doc.id)}
+                        className="text-slate-400 hover:text-rose-400 p-0.5"
+                        title="Remove document and its lots"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Estate</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="Estate name"
+                        value={doc.estate}
+                        onChange={(e) => updateDoc(doc.id, { estate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Suburb</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="Suburb"
+                        value={doc.suburb}
+                        onChange={(e) => updateDoc(doc.id, { suburb: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Stage / Release</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="e.g. Stage 4"
+                        value={doc.stage}
+                        onChange={(e) => updateDoc(doc.id, { stage: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-muted-foreground">Developer</Label>
+                      <Input
+                        className="h-7 text-xs"
+                        placeholder="Developer"
+                        value={doc.developer}
+                        onChange={(e) => updateDoc(doc.id, { developer: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[10px] w-full mt-1 border-slate-700 font-medium"
+                    onClick={() => applyDocEstateStage(doc.id)}
+                  >
+                    Apply Estate &amp; Stage to this file's lots
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Developer</Label>
-            <Input placeholder="e.g. Peet" value={developer} onChange={(e) => setDeveloper(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Developer contact</Label>
-            <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Contact phone</Label>
-            <Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
-          </div>
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-xs text-muted-foreground">Contact email</Label>
-            <Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
-          </div>
-        </div>
+        )}
 
+        {/* Lots Review Table */}
         {rows.length > 0 && (
           <div className="space-y-2 pt-2">
-            {/* Intelligence & Quality Strip */}
+            {/* Intelligence & Summary Strip */}
             <div className="flex flex-wrap items-center justify-between gap-2 p-2 rounded border bg-muted/40 text-xs">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1 font-semibold text-emerald-500">
-                  <CheckCircle2 className="h-3.5 w-3.5" /> {rows.length} lots extracted
+                  <CheckCircle2 className="h-3.5 w-3.5" /> {rows.length} total lots extracted
                 </span>
                 <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground">{selected.length} selected</span>
+                <span className="text-muted-foreground font-semibold text-foreground">
+                  {selectedRows.length} selected for import
+                </span>
                 {avgSize && (
                   <>
                     <span className="text-muted-foreground">·</span>
@@ -877,91 +1132,193 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <Button size="sm" variant="ghost" onClick={selectAvailableOnly} className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const next: Record<string, boolean> = {};
+                    rows.forEach((r) => { next[r.rowId] = r.status === "available" || !r.status; });
+                    setPicked(next);
+                  }}
+                  className="h-6 text-[11px] px-2 text-muted-foreground hover:text-foreground"
+                >
                   Available Only
                 </Button>
-                <Button size="sm" variant="ghost" onClick={swapAllRowsLotAndSize} className="h-6 text-[11px] px-2 text-amber-400 hover:text-amber-300 gap-1" title="Swap Lot Number and Size columns for every row">
-                  <ArrowLeftRight className="h-3 w-3" /> Swap All Lot # & Size
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={swapAllRowsLotAndSize}
+                  className="h-6 text-[11px] px-2 text-amber-400 hover:text-amber-300 gap-1"
+                  title="Swap Lot Number and Size columns for every row"
+                >
+                  <ArrowLeftRight className="h-3 w-3" /> Swap All Lot # &amp; Size
                 </Button>
                 <Button size="sm" variant="outline" onClick={addEmptyRow} className="h-6 text-[11px] px-2 gap-1">
-                  <Plus className="h-3 w-3" /> Add Row
+                  <Plus className="h-3 w-3" /> Add Blank Row
                 </Button>
               </div>
             </div>
 
+            {/* Document Filter Tabs (if > 1 doc) */}
+            {docs.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <span className="text-muted-foreground mr-1 text-[11px]">View by file:</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveDocFilter("ALL")}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                    activeDocFilter === "ALL"
+                      ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                      : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                  }`}
+                >
+                  All Files ({rows.length})
+                </button>
+                {docs.map((d) => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => setActiveDocFilter(d.id)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all truncate max-w-[180px] ${
+                      activeDocFilter === d.id
+                        ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                        : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                    }`}
+                    title={d.name}
+                  >
+                    {d.name} ({rows.filter((r) => r.docId === d.id).length})
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Bulk Estate & Stage updates for checked rows */}
+            <div className="flex flex-wrap items-center gap-2 p-2 rounded-lg border bg-slate-900/40 text-xs">
+              <span className="text-muted-foreground text-[11px]">Bulk edit checked lots:</span>
+              <Input
+                placeholder="New Estate Name"
+                className="h-7 w-[140px] text-xs"
+                value={batchEstate}
+                onChange={(e) => setBatchEstate(e.target.value)}
+              />
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={applyBatchEstateToSelected}>
+                Apply Estate
+              </Button>
+              <Input
+                placeholder="New Stage (e.g. Stage 3)"
+                className="h-7 w-[140px] text-xs"
+                value={batchStage}
+                onChange={(e) => setBatchStage(e.target.value)}
+              />
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={applyBatchStageToSelected}>
+                Apply Stage
+              </Button>
+            </div>
+
             {dupeCount > 0 && (
-              <p className="text-xs text-orange-700">
+              <p className="text-xs text-orange-400">
                 {dupeCount} lot{dupeCount === 1 ? " is" : "s are"} already in the database and will be skipped.
               </p>
             )}
 
-            <div className="max-h-[40vh] overflow-y-auto rounded border">
+            {/* Interactive Lots Table */}
+            <div className="max-h-[42vh] overflow-y-auto rounded-xl border">
               <table className="w-full text-xs">
                 <thead className="bg-muted/70 sticky top-0 text-left text-muted-foreground z-10">
                   <tr>
                     <th className="p-2 w-8">
                       <input
                         type="checkbox"
-                        className="h-3.5 w-3.5"
-                        checked={allOn}
-                        onChange={(e) => setPicked(rows.map(() => e.target.checked))}
-                        title="Select/Deselect All"
+                        className="h-3.5 w-3.5 cursor-pointer"
+                        checked={allFilteredChecked}
+                        onChange={(e) => toggleAllFiltered(e.target.checked)}
+                        title="Select/Deselect All Filtered"
                       />
                     </th>
-                    <th className="p-2 w-20">Lot #</th>
+                    <th className="p-2 w-24">Document</th>
+                    <th className="p-2 w-24">Estate</th>
+                    <th className="p-2 w-24">Suburb</th>
                     <th className="p-2 w-20">Stage</th>
-                    <th className="p-2 w-24">Size (m²)</th>
-                    <th className="p-2 w-20">Frontage (m)</th>
-                    <th className="p-2 w-28">Price ($)</th>
-                    <th className="p-2 w-28">Registration</th>
-                    <th className="p-2 w-24">Status</th>
-                    <th className="p-2 w-14 text-center">Actions</th>
+                    <th className="p-2 w-16">Lot #</th>
+                    <th className="p-2 w-20">Size (m²)</th>
+                    <th className="p-2 w-16">Frontage</th>
+                    <th className="p-2 w-24">Price ($)</th>
+                    <th className="p-2 w-24">Registration</th>
+                    <th className="p-2 w-20">Status</th>
+                    <th className="p-2 w-12 text-center">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {rows.map((r, i) => {
+                  {filteredRows.map((r) => {
                     const dupe = isDupe(r);
                     const suspicious = isSuspiciousInversion(r);
                     return (
                       <tr
-                        key={i}
-                        className={`${dupe ? "bg-muted/40 text-muted-foreground" : ""} ${suspicious ? "bg-amber-500/5" : ""}`}
+                        key={r.rowId}
+                        className={`${dupe ? "bg-muted/40 text-muted-foreground" : ""} ${
+                          suspicious ? "bg-amber-500/5" : ""
+                        }`}
                       >
                         <td className="p-2">
                           <input
                             type="checkbox"
-                            className="h-3.5 w-3.5"
+                            className="h-3.5 w-3.5 cursor-pointer"
                             disabled={dupe}
-                            checked={!dupe && Boolean(picked[i])}
+                            checked={!dupe && Boolean(picked[r.rowId])}
                             onChange={(e) =>
-                              setPicked((p) => p.map((v, idx) => (idx === i ? e.target.checked : v)))
+                              setPicked((prev) => ({ ...prev, [r.rowId]: e.target.checked }))
                             }
                           />
                         </td>
                         <td className="p-1">
+                          <span className="inline-block truncate max-w-[90px] text-[10px] text-muted-foreground" title={r.docName}>
+                            {r.docName}
+                          </span>
+                        </td>
+                        <td className="p-1">
                           <input
-                            className={`w-full rounded border px-1.5 py-0.5 text-xs font-medium ${suspicious ? "border-amber-400 bg-amber-500/10" : ""}`}
-                            placeholder="101"
-                            value={r.lot_number || ""}
-                            onChange={(e) => updateRow(i, { lot_number: e.target.value })}
+                            className="w-full rounded border px-1.5 py-0.5 text-xs font-semibold"
+                            value={r.estate}
+                            onChange={(e) => updateRow(r.rowId, { estate: e.target.value })}
                           />
                         </td>
                         <td className="p-1">
                           <input
                             className="w-full rounded border px-1.5 py-0.5 text-xs"
-                            placeholder={stage || "4"}
+                            value={r.suburb}
+                            onChange={(e) => updateRow(r.rowId, { suburb: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            placeholder="Stage 4"
                             value={r.stage || ""}
-                            onChange={(e) => updateRow(i, { stage: e.target.value })}
+                            onChange={(e) => updateRow(r.rowId, { stage: e.target.value })}
+                          />
+                        </td>
+                        <td className="p-1">
+                          <input
+                            className={`w-full rounded border px-1.5 py-0.5 text-xs font-medium ${
+                              suspicious ? "border-amber-400 bg-amber-500/10" : ""
+                            }`}
+                            placeholder="101"
+                            value={r.lot_number || ""}
+                            onChange={(e) => updateRow(r.rowId, { lot_number: e.target.value })}
                           />
                         </td>
                         <td className="p-1">
                           <input
                             type="number"
-                            className={`w-full rounded border px-1.5 py-0.5 text-xs ${suspicious ? "border-amber-400 bg-amber-500/10" : ""}`}
+                            className={`w-full rounded border px-1.5 py-0.5 text-xs ${
+                              suspicious ? "border-amber-400 bg-amber-500/10" : ""
+                            }`}
                             placeholder="450"
                             value={r.land_size ?? ""}
-                            onChange={(e) => updateRow(i, { land_size: e.target.value ? parseFloat(e.target.value) : null })}
+                            onChange={(e) =>
+                              updateRow(r.rowId, { land_size: e.target.value ? parseFloat(e.target.value) : null })
+                            }
                           />
                         </td>
                         <td className="p-1">
@@ -969,18 +1326,22 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                             type="number"
                             step="0.1"
                             className="w-full rounded border px-1.5 py-0.5 text-xs"
-                            placeholder="14.0"
+                            placeholder="14"
                             value={r.frontage ?? ""}
-                            onChange={(e) => updateRow(i, { frontage: e.target.value ? parseFloat(e.target.value) : null })}
+                            onChange={(e) =>
+                              updateRow(r.rowId, { frontage: e.target.value ? parseFloat(e.target.value) : null })
+                            }
                           />
                         </td>
                         <td className="p-1">
                           <input
                             type="number"
-                            className="w-full rounded border px-1.5 py-0.5 text-xs"
+                            className="w-full rounded border px-1.5 py-0.5 text-xs font-semibold"
                             placeholder="385000"
                             value={r.land_price ?? ""}
-                            onChange={(e) => updateRow(i, { land_price: e.target.value ? parseInt(e.target.value, 10) : null })}
+                            onChange={(e) =>
+                              updateRow(r.rowId, { land_price: e.target.value ? parseInt(e.target.value, 10) : null })
+                            }
                           />
                         </td>
                         <td className="p-1">
@@ -991,7 +1352,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                             onChange={(e) => {
                               const v = e.target.value;
                               const isReg = /registered|titled/i.test(v);
-                              updateRow(i, { titled: isReg, registration_date: isReg ? null : v });
+                              updateRow(r.rowId, { titled: isReg, registration_date: isReg ? null : v });
                             }}
                           />
                         </td>
@@ -999,7 +1360,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                           <select
                             className="w-full rounded border px-1 py-0.5 text-xs bg-background"
                             value={r.status || "available"}
-                            onChange={(e) => updateRow(i, { status: e.target.value as any })}
+                            onChange={(e) => updateRow(r.rowId, { status: e.target.value as any })}
                           >
                             <option value="available">Available</option>
                             <option value="on_hold">On Hold</option>
@@ -1010,7 +1371,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                           <div className="flex items-center justify-center gap-1">
                             <button
                               type="button"
-                              onClick={() => swapRowLotAndSize(i)}
+                              onClick={() => swapRowLotAndSize(r.rowId)}
                               className="text-amber-400 hover:text-amber-300 p-0.5"
                               title="Swap Lot # and Size for this row"
                             >
@@ -1018,7 +1379,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
                             </button>
                             <button
                               type="button"
-                              onClick={() => removeRow(i)}
+                              onClick={() => removeRow(r.rowId)}
                               className="text-muted-foreground hover:text-destructive p-0.5"
                               title="Remove row"
                             >
@@ -1033,9 +1394,17 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
               </table>
             </div>
 
-            <Button onClick={importAll} disabled={busy || !selected.length} className="w-full sm:w-auto">
-              {busy && <Loader2 className="h-4 w-4 animate-spin" />} Import {selected.length} lot
-              {selected.length === 1 ? "" : "s"} to Database
+            <Button
+              onClick={importAll}
+              disabled={busy || !selectedRows.length}
+              className="w-full sm:w-auto font-semibold gap-2"
+            >
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              )}
+              Import All {selectedRows.length} Lots across {docs.length || 1} Price Lists to Database
             </Button>
           </div>
         )}
@@ -1061,6 +1430,10 @@ function DatabasePage() {
   const [selPkgs, setSelPkgs] = useState<string[]>([]);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkRegDate, setBulkRegDate] = useState("");
+  const [bulkEstate, setBulkEstate] = useState("");
+  const [bulkStage, setBulkStage] = useState("");
+  const [bulkPrice, setBulkPrice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [openSuburbs, setOpenSuburbs] = useState<string[]>(() => {
     const local = getLocalLots();
     return Array.from(new Set(local.map((l) => l.suburb.trim().toLowerCase())));
@@ -1153,18 +1526,12 @@ function DatabasePage() {
           return next;
         });
       } else if (mutation.action === "lot_deleted") {
-        setLots((prev) => {
-          const next = prev.filter((l) => l.id !== mutation.id);
-          saveLocalLots(next);
-          return next;
-        });
+        deleteLocalLot(mutation.id);
+        setLots((prev) => prev.filter((l) => l.id !== mutation.id));
       } else if (mutation.action === "lots_bulk_deleted") {
-        setLots((prev) => {
-          const set = new Set(mutation.ids);
-          const next = prev.filter((l) => !set.has(l.id));
-          saveLocalLots(next);
-          return next;
-        });
+        deleteLocalLotsBatch(mutation.ids);
+        const set = new Set(mutation.ids);
+        setLots((prev) => prev.filter((l) => !set.has(l.id)));
       } else if (mutation.action === "package_updated") {
         setPackages((prev) => {
           const exists = prev.some((p) => p.id === mutation.package.id);
@@ -1182,25 +1549,23 @@ function DatabasePage() {
           return next;
         });
       } else if (mutation.action === "package_deleted") {
-        setPackages((prev) => {
-          const next = prev.filter((p) => p.id !== mutation.id);
-          saveLocalPackages(next);
-          return next;
-        });
+        deleteLocalPackage(mutation.id);
+        setPackages((prev) => prev.filter((p) => p.id !== mutation.id));
       } else if (mutation.action === "packages_bulk_deleted") {
-        setPackages((prev) => {
-          const set = new Set(mutation.ids);
-          const next = prev.filter((p) => !set.has(p.id));
-          saveLocalPackages(next);
-          return next;
-        });
+        deleteLocalPackagesBatch(mutation.ids);
+        const set = new Set(mutation.ids);
+        setPackages((prev) => prev.filter((p) => !set.has(p.id)));
       } else if (mutation.action === "database_full_sync" || mutation.action === "lots_imported") {
         void fetchRemoteLotsAndPackages().then((remote) => {
           if (remote) {
-            setLots(remote.lots);
-            saveLocalLots(remote.lots);
-            setPackages(remote.packages);
-            saveLocalPackages(remote.packages);
+            const delLots = getDeletedLotIds();
+            const delPkgs = getDeletedPkgIds();
+            const cleanLots = remote.lots.filter((l) => !delLots.has(l.id));
+            const cleanPkgs = remote.packages.filter((p) => !delPkgs.has(p.id));
+            setLots(cleanLots);
+            saveLocalLots(cleanLots);
+            setPackages(cleanPkgs);
+            saveLocalPackages(cleanPkgs);
           }
         });
       }
@@ -1341,6 +1706,7 @@ function DatabasePage() {
   }, [packages, query, stateFilter, lotById]);
 
   const updateLot = async (id: string, patch: Partial<Lot>) => {
+    setIsSaving(true);
     setLots((prev) => {
       const existing = prev.find((l) => l.id === id) || getLocalLots().find((l) => l.id === id);
       if (!existing) return prev;
@@ -1350,9 +1716,11 @@ function DatabasePage() {
       void syncLotToSupabase(updatedLot);
       return next;
     });
+    setTimeout(() => setIsSaving(false), 800);
   };
 
   const updatePkg = async (id: string, patch: Partial<Pkg>) => {
+    setIsSaving(true);
     setPackages((prev) => {
       const existing = prev.find((p) => p.id === id) || getLocalPackages().find((p) => p.id === id);
       if (!existing) return prev;
@@ -1362,19 +1730,30 @@ function DatabasePage() {
       void syncPackageToSupabase(updatedPkg);
       return next;
     });
+    setTimeout(() => setIsSaving(false), 800);
   };
 
   const removeLot = async (id: string) => {
     deleteLocalLot(id);
     setLots((prev) => prev.filter((l) => l.id !== id));
-    void deleteLotFromSupabase(id);
+    setSelLots((prev) => prev.filter((x) => x !== id));
+    try {
+      await deleteLotFromSupabase(id);
+    } catch (err) {
+      console.warn("[database] deleteLotFromSupabase warning:", err);
+    }
     toast.success("Lot removed");
   };
 
   const removePkg = async (id: string) => {
     deleteLocalPackage(id);
     setPackages((prev) => prev.filter((p) => p.id !== id));
-    void deletePackageFromSupabase(id);
+    setSelPkgs((prev) => prev.filter((x) => x !== id));
+    try {
+      await deletePackageFromSupabase(id);
+    } catch (err) {
+      console.warn("[database] deletePackageFromSupabase warning:", err);
+    }
     toast.success("Package removed");
   };
 
@@ -1388,6 +1767,7 @@ function DatabasePage() {
   ) => {
     if (!selLots.length) return;
     setBulkBusy(true);
+    setIsSaving(true);
     const selSet = new Set(selLots);
     setLots((prev) => {
       const updatedList: Lot[] = [];
@@ -1406,23 +1786,109 @@ function DatabasePage() {
       return next;
     });
     setBulkBusy(false);
+    setTimeout(() => setIsSaving(false), 800);
     toast.success(`${selLots.length} lots ${label}`);
+  };
+
+  const applyBulkEstate = async () => {
+    const est = bulkEstate.trim();
+    if (!est) {
+      toast.error("Please enter an estate name");
+      return;
+    }
+    await bulkLots({ estate: est }, `moved to ${est}`);
+    setBulkEstate("");
+  };
+
+  const applyBulkStage = async () => {
+    const stg = bulkStage.trim();
+    if (!stg) {
+      toast.error("Please enter a stage (e.g. Stage 4)");
+      return;
+    }
+    const stagePrefix = stg.toLowerCase().startsWith("stage") ? stg : `Stage ${stg}`;
+    setBulkBusy(true);
+    setIsSaving(true);
+    const selSet = new Set(selLots);
+    setLots((prev) => {
+      const updatedList: Lot[] = [];
+      const next = prev.map((l) => {
+        if (selSet.has(l.id)) {
+          const cleanNotes = l.notes ? l.notes.replace(/Stage\s*[A-Za-z0-9\.\-]+(\s*·\s*)?/i, "").trim() : "";
+          const combinedNotes = [stagePrefix, cleanNotes].filter(Boolean).join(" · ") || null;
+          const updated = { ...l, notes: combinedNotes, updated_at: new Date().toISOString() };
+          updatedList.push(updated);
+          return updated;
+        }
+        return l;
+      });
+      saveLocalLots(next);
+      if (updatedList.length) {
+        void syncLotsBatchToSupabase(updatedList);
+      }
+      return next;
+    });
+    setBulkBusy(false);
+    setTimeout(() => setIsSaving(false), 800);
+    toast.success(`${selLots.length} lots set to ${stagePrefix}`);
+    setBulkStage("");
+  };
+
+  const applyBulkPrice = async () => {
+    const raw = bulkPrice.trim();
+    if (!raw) {
+      toast.error("Enter price adjustment (e.g. +10000, -5000, or 450000)");
+      return;
+    }
+    const isDelta = raw.startsWith("+") || raw.startsWith("-");
+    const val = parseFloat(raw.replace(/[^0-9.\-+]/g, ""));
+    if (isNaN(val)) {
+      toast.error("Invalid price number");
+      return;
+    }
+    setBulkBusy(true);
+    setIsSaving(true);
+    const selSet = new Set(selLots);
+    setLots((prev) => {
+      const updatedList: Lot[] = [];
+      const next = prev.map((l) => {
+        if (selSet.has(l.id)) {
+          const currentP = l.land_price || 0;
+          const newP = isDelta ? Math.max(0, currentP + val) : Math.max(0, val);
+          const updated = { ...l, land_price: newP, updated_at: new Date().toISOString() };
+          updatedList.push(updated);
+          return updated;
+        }
+        return l;
+      });
+      saveLocalLots(next);
+      if (updatedList.length) {
+        void syncLotsBatchToSupabase(updatedList);
+      }
+      return next;
+    });
+    setBulkBusy(false);
+    setTimeout(() => setIsSaving(false), 800);
+    toast.success(`${selLots.length} lots updated with price adjustment`);
+    setBulkPrice("");
   };
 
   const bulkDeleteLots = async () => {
     if (!selLots.length) return;
-    if (!window.confirm(`Delete ${selLots.length} land lots? This cannot be undone.`)) return;
+    const count = selLots.length;
+    if (!window.confirm(`Delete ${count} land lots? This cannot be undone.`)) return;
     setBulkBusy(true);
-    const selSet = new Set(selLots);
-    setLots((prev) => {
-      const next = prev.filter((l) => !selSet.has(l.id));
-      saveLocalLots(next);
-      return next;
-    });
-    void deleteLotsBatchFromSupabase(selLots);
+    const toDelete = [...selLots];
+    deleteLocalLotsBatch(toDelete);
+    setLots((prev) => prev.filter((l) => !toDelete.includes(l.id)));
     setSelLots([]);
+    try {
+      await deleteLotsBatchFromSupabase(toDelete);
+    } catch (err) {
+      console.warn("[database] deleteLotsBatchFromSupabase warning:", err);
+    }
     setBulkBusy(false);
-    toast.success(`Deleted ${selLots.length} lots`);
+    toast.success(`Deleted ${count} lots`);
   };
 
   const bulkPkgs = async (patch: Partial<Pkg>, label: string) => {
@@ -1451,18 +1917,20 @@ function DatabasePage() {
 
   const bulkDeletePkgs = async () => {
     if (!selPkgs.length) return;
-    if (!window.confirm(`Delete ${selPkgs.length} packages? This cannot be undone.`)) return;
+    const count = selPkgs.length;
+    if (!window.confirm(`Delete ${count} packages? This cannot be undone.`)) return;
     setBulkBusy(true);
-    const selSet = new Set(selPkgs);
-    setPackages((prev) => {
-      const next = prev.filter((p) => !selSet.has(p.id));
-      saveLocalPackages(next);
-      return next;
-    });
-    void deletePackagesBatchFromSupabase(selPkgs);
+    const toDelete = [...selPkgs];
+    deleteLocalPackagesBatch(toDelete);
+    setPackages((prev) => prev.filter((p) => !toDelete.includes(p.id)));
     setSelPkgs([]);
+    try {
+      await deletePackagesBatchFromSupabase(toDelete);
+    } catch (err) {
+      console.warn("[database] deletePackagesBatchFromSupabase warning:", err);
+    }
     setBulkBusy(false);
-    toast.success(`Deleted ${selPkgs.length} packages`);
+    toast.success(`Deleted ${count} packages`);
   };
 
 
@@ -1501,6 +1969,24 @@ function DatabasePage() {
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            <div
+              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                isSaving
+                  ? isLight
+                    ? "border-amber-300 bg-amber-50 text-amber-800 shadow-xs"
+                    : "border-amber-500/30 bg-amber-500/15 text-amber-300 shadow-sm"
+                  : isLight
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 shadow-xs"
+                    : "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 shadow-sm"
+              }`}
+            >
+              <span
+                className={`h-2 w-2 rounded-full ${
+                  isSaving ? "bg-amber-500 animate-spin" : "bg-emerald-500 animate-pulse"
+                }`}
+              />
+              <span>{isSaving ? "Auto-saving to Cloud…" : "Cloud Synced (Auto-save Active)"}</span>
+            </div>
             <ThemeToggle />
             <Link to="/hub">
               <Button variant="ghost" size="sm" className={`text-xs ${isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"} border border-transparent`}>
@@ -1648,62 +2134,133 @@ function DatabasePage() {
         </div>
 
         {tab === "lots" && selLots.length > 0 && (
-          <div className={`flex flex-wrap items-center gap-2.5 rounded-xl p-3 text-sm ${isLight ? "border border-cyan-200 bg-cyan-50/70 text-slate-800 shadow-xs" : "border border-cyan-500/30 bg-slate-900/90 backdrop-blur-xl shadow-xl"}`}>
-            <span className="font-semibold text-cyan-300">{selLots.length} lots selected</span>
+          <div className={`flex flex-wrap items-center gap-2 rounded-xl p-3 text-xs shadow-xl transition-all ${
+            isLight ? "border border-cyan-200 bg-cyan-50/90 text-slate-800 shadow-xs" : "border border-cyan-500/30 bg-slate-900/95 backdrop-blur-xl"
+          }`}>
+            <span className="font-bold text-cyan-400 text-xs shrink-0 flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse" />
+              {selLots.length} lot{selLots.length === 1 ? "" : "s"} selected:
+            </span>
+
+            {/* Bulk Estate */}
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="New Estate"
+                className={`h-7.5 w-[125px] text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/80 text-slate-200"}`}
+                value={bulkEstate}
+                onChange={(e) => setBulkEstate(e.target.value)}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7.5 text-xs px-2"
+                disabled={bulkBusy || !bulkEstate.trim()}
+                onClick={applyBulkEstate}
+              >
+                Change Estate
+              </Button>
+            </div>
+
+            {/* Bulk Stage */}
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="Stage (e.g. 4)"
+                className={`h-7.5 w-[110px] text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/80 text-slate-200"}`}
+                value={bulkStage}
+                onChange={(e) => setBulkStage(e.target.value)}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7.5 text-xs px-2"
+                disabled={bulkBusy || !bulkStage.trim()}
+                onClick={applyBulkStage}
+              >
+                Set Stage
+              </Button>
+            </div>
+
+            {/* Bulk Status */}
             <Select
               onValueChange={(v) => void bulkLots({ status: v as Lot["status"] }, `set to ${v}`)}
             >
-              <SelectTrigger className="h-8 w-[150px] border-slate-800 bg-slate-950/80 text-xs text-slate-200">
+              <SelectTrigger className={`h-7.5 w-[130px] text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/80 text-slate-200"}`}>
                 <SelectValue placeholder="Set status" />
               </SelectTrigger>
               <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                 {LOT_STATUS.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">
+                  <SelectItem key={s} value={s} className="capitalize text-xs">
                     {statusLabel(s)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              className="h-8 w-[170px] border-slate-800 bg-slate-950/80 text-xs text-slate-200"
-              value={bulkRegDate}
-              onChange={(e) => setBulkRegDate(e.target.value)}
-            />
+
+            {/* Bulk Expected Registration */}
+            <div className="flex items-center gap-1">
+              <Input
+                type="date"
+                className={`h-7.5 w-[145px] text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/80 text-slate-200"}`}
+                value={bulkRegDate}
+                onChange={(e) => setBulkRegDate(e.target.value)}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7.5 text-xs px-2"
+                disabled={bulkBusy || !bulkRegDate}
+                onClick={() =>
+                  void bulkLots(
+                    { registration_date: bulkRegDate, titled: false },
+                    "registration updated",
+                  )
+                }
+              >
+                Set Reg
+              </Button>
+            </div>
+
             <Button
               size="sm"
               variant="outline"
-              className="border-slate-800 bg-slate-950/80 text-xs text-slate-300 hover:text-white"
-              disabled={bulkBusy || !bulkRegDate}
-              onClick={() =>
-                void bulkLots(
-                  { registration_date: bulkRegDate, titled: false },
-                  "registration updated",
-                )
-              }
-            >
-              Set expected registration
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-slate-800 bg-slate-950/80 text-xs text-slate-300 hover:text-white"
+              className="h-7.5 text-xs px-2"
               disabled={bulkBusy}
               onClick={() => void bulkLots({ titled: true, registration_date: null }, "registered")}
             >
               Mark registered
             </Button>
-            <Button size="sm" variant="ghost" className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setSelLots([])}>
+
+            {/* Price Adjustment */}
+            <div className="flex items-center gap-1">
+              <Input
+                placeholder="±$ or New Price"
+                className={`h-7.5 w-[115px] text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/80 text-slate-200"}`}
+                value={bulkPrice}
+                onChange={(e) => setBulkPrice(e.target.value)}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7.5 text-xs px-2"
+                disabled={bulkBusy || !bulkPrice.trim()}
+                onClick={applyBulkPrice}
+              >
+                Adjust Price
+              </Button>
+            </div>
+
+            <Button size="sm" variant="ghost" className="h-7.5 text-xs text-slate-400 hover:text-slate-200 px-2" onClick={() => setSelLots([])}>
               Clear
             </Button>
+
             <Button
               size="sm"
               variant="destructive"
-              className="ml-auto text-xs"
+              className="h-7.5 text-xs ml-auto font-semibold gap-1 px-2.5"
               disabled={bulkBusy}
               onClick={() => void bulkDeleteLots()}
             >
-              <Trash2 className="h-3.5 w-3.5" /> Delete selected
+              <Trash2 className="h-3.5 w-3.5" /> Delete Selected ({selLots.length})
             </Button>
           </div>
         )}
@@ -1841,21 +2398,130 @@ function DatabasePage() {
                         </td>
                       </tr>
                       {isOpen(group.key) &&
-                        group.estates.map(({ estate, lots: groupLots }) => (
-                          <Fragment key={estate}>
-                            <tr className={isLight ? "bg-slate-100/70 border-b border-slate-200" : "bg-slate-950/60 border-b border-slate-800/60"}>
-                              <td
-                                colSpan={11}
-                                className={`px-3.5 py-2 pl-9 text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}
-                              >
-                                {titleCase(estate)}{" "}
-                                <span className={`ml-1 font-normal ${isLight ? "text-slate-500" : "text-slate-500"} normal-case`}>
-                                  {groupLots.length} lot{groupLots.length === 1 ? "" : "s"}
-                                </span>
-                              </td>
-                            </tr>
+                        group.estates.map(({ estate, lots: groupLots }) => {
+                          const allEstateSelected =
+                            groupLots.length > 0 && groupLots.every((l) => selLots.includes(l.id));
+                          const someEstateSelected =
+                            groupLots.some((l) => selLots.includes(l.id));
+                          const toggleEstateSelection = () => {
+                            if (allEstateSelected) {
+                              const estateIds = new Set(groupLots.map((l) => l.id));
+                              setSelLots((prev) => prev.filter((id) => !estateIds.has(id)));
+                            } else {
+                              const estateIds = groupLots.map((l) => l.id);
+                              setSelLots((prev) => Array.from(new Set([...prev, ...estateIds])));
+                            }
+                          };
 
-                        {groupLots.map((l: Lot) => (
+                          // Group lots within this estate by Stage
+                          const stageMap = new Map<string, Lot[]>();
+                          for (const l of groupLots) {
+                            const stg = extractLotStage(l) || "All Lots / Unassigned Stage";
+                            const arr = stageMap.get(stg) || [];
+                            arr.push(l);
+                            stageMap.set(stg, arr);
+                          }
+                          const stageEntries = Array.from(stageMap.entries());
+
+                          return (
+                            <Fragment key={estate}>
+                              {/* Estate Header Banner with Select Estate Checkbox & Button */}
+                              <tr className={isLight ? "bg-slate-100/90 border-b border-slate-200" : "bg-slate-950/80 border-b border-slate-800/80"}>
+                                <td
+                                  colSpan={11}
+                                  className={`px-3.5 py-2 pl-7 text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <input
+                                        type="checkbox"
+                                        className="h-3.5 w-3.5 accent-cyan-400 rounded cursor-pointer"
+                                        checked={allEstateSelected}
+                                        ref={(el) => {
+                                          if (el) el.indeterminate = !allEstateSelected && someEstateSelected;
+                                        }}
+                                        onChange={toggleEstateSelection}
+                                        title={`Select all lots in ${titleCase(estate)}`}
+                                      />
+                                      <span className="font-bold text-xs tracking-wide">
+                                        {titleCase(estate)}
+                                      </span>
+                                      <span className={`ml-1 font-normal ${isLight ? "text-slate-500" : "text-slate-400"} text-[11px] normal-case`}>
+                                        ({groupLots.length} lot{groupLots.length === 1 ? "" : "s"} · {stageEntries.length} stage{stageEntries.length === 1 ? "" : "s"})
+                                      </span>
+                                      <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={toggleEstateSelection}
+                                        className={`h-5.5 text-[10px] px-2 font-medium shadow-xs ${
+                                          allEstateSelected
+                                            ? "border-cyan-500/50 bg-cyan-500/20 text-cyan-300"
+                                            : isLight
+                                              ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                                              : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800"
+                                        }`}
+                                      >
+                                        {allEstateSelected ? "Deselect Estate" : `Select Estate (${groupLots.length})`}
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+
+                              {/* Stage Sub-headers & Lots */}
+                              {stageEntries.map(([stageName, stageLots]) => {
+                                const allStageSelected =
+                                  stageLots.length > 0 && stageLots.every((l) => selLots.includes(l.id));
+                                const someStageSelected =
+                                  stageLots.some((l) => selLots.includes(l.id));
+                                const toggleStageSelection = () => {
+                                  if (allStageSelected) {
+                                    const stageIds = new Set(stageLots.map((l) => l.id));
+                                    setSelLots((prev) => prev.filter((id) => !stageIds.has(id)));
+                                  } else {
+                                    const stageIds = stageLots.map((l) => l.id);
+                                    setSelLots((prev) => Array.from(new Set([...prev, ...stageIds])));
+                                  }
+                                };
+
+                                return (
+                                  <Fragment key={stageName}>
+                                    {(stageEntries.length > 1 || stageName.toLowerCase().includes("stage")) && (
+                                      <tr className={isLight ? "bg-slate-50/90 border-b border-slate-200/80" : "bg-slate-900/50 border-b border-slate-800/60"}>
+                                        <td colSpan={11} className="px-3.5 py-1.5 pl-12 text-xs">
+                                          <div className="flex items-center gap-2.5">
+                                            <input
+                                              type="checkbox"
+                                              className="h-3 w-3 accent-cyan-400 rounded cursor-pointer"
+                                              checked={allStageSelected}
+                                              ref={(el) => {
+                                                if (el) el.indeterminate = !allStageSelected && someStageSelected;
+                                              }}
+                                              onChange={toggleStageSelection}
+                                              title={`Select all lots in ${stageName}`}
+                                            />
+                                            <span className={`font-semibold text-[11px] ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>
+                                              {stageName}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">
+                                              ({stageLots.length} lot{stageLots.length === 1 ? "" : "s"})
+                                            </span>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={toggleStageSelection}
+                                              className="h-5 text-[10px] px-1.5 font-medium text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 hover:bg-cyan-500/10"
+                                            >
+                                              {allStageSelected ? "Deselect Stage" : `Select Stage (${stageLots.length})`}
+                                            </Button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    )}
+
+                                    {stageLots.map((l: Lot) => (
 
                   <tr key={l.id} className={`align-top transition-colors border-b ${isLight ? "hover:bg-slate-50/80 border-slate-200 bg-white" : "hover:bg-slate-800/40 border-slate-800/50"}`}>
                     <td className="p-3">
@@ -2005,10 +2671,14 @@ function DatabasePage() {
                           </Button>
                         </div>
                       </td>
-                     </tr>
+                      </tr>
                         ))}
                       </Fragment>
-                    ))}
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
                 </tbody>
               ))}
             </Fragment>
