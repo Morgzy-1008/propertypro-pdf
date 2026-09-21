@@ -67,8 +67,20 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     baseline: "Standard bedroom with built-in wardrobe",
     detected: "Private ensuite (ENS) and walk-in robe (WIR) addition",
     unitPrice: 12500,
-    confidence: 0.95,
-    triggerKeywords: ["ens", "additional ensuite", "2nd ensuite", "guest ensuite", "bed 4 ensuite", "bed 3 ensuite"],
+    triggerKeywords: [
+      "additional ensuite",
+      "2nd ensuite",
+      "second ensuite",
+      "guest ensuite",
+      "bed 2 ensuite",
+      "bed 3 ensuite",
+      "bed 4 ensuite",
+      "bed 5 ensuite",
+      "opt ensuite",
+      "optional ensuite",
+      "added ensuite",
+      "ensuite to bed",
+    ],
   },
   {
     id: "upg_living_media_conversion",
@@ -243,9 +255,15 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     description: "Upper floor architectural feature balcony added over front entry porch.",
     baseline: "Standard facade without upper balcony (0.00 m²)",
     detected: "Upper floor feature balcony added over porch",
-    unitPrice: 0,
-    confidence: 0.98,
-    triggerKeywords: ["balcony", "upper balcony", "front balcony"],
+    triggerKeywords: [
+      "added balcony",
+      "feature balcony",
+      "balcony option",
+      "optional balcony",
+      "opt balcony",
+      "first floor balcony",
+      "upper floor balcony",
+    ],
   },
 ];
 
@@ -757,77 +775,61 @@ ${
 
 UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
 
-1. HOME DESIGN MODEL IDENTIFICATION:
-   - Carefully inspect the drawing sheet, title block, or brochure header in Image 2.
-   - Return the true home design model name in "detectedModelName" (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", etc.).
-   - Return "housingType" ("Single Storey" or "Double Storey").
+1. HOME DESIGN MODEL & STOREY CLASSIFICATION:
+   - Ground truth baseline design: "${suggestedDesign}" (${housingType}).
+   - Confirm whether the candidate drawing in Image 2 is "${suggestedDesign}" or states another specific Hudson model in its title block.
+   - Return "detectedModelName": "${suggestedDesign}".
+   - Return "housingType": "${housingType}".
 
-2. SPATIAL & FOOTPRINT PERIMETER COMPARISON (EXTERNAL WALLS & SLAB):
+2. STRICT BASELINE INCLUSION IMMUNITY (ZERO FALSE UPGRADES):
+   - EVERYTHING shown on the official standard baseline blueprint (Image 1) is a 100% STANDARD INCLUDED FEATURE ($0).
+   - Standard baseline structural elements NEVER incur an upgrade charge:
+     * Master Bedroom (Bed 1) private Ensuite (shower, vanity, toilet) is STANDARD INCLUDED ($0).
+     * Master Bedroom (Bed 1) Walk-In Robe (WIR) or built-in wardrobe is STANDARD INCLUDED ($0).
+     * Standard built-in sliding wardrobes in secondary bedrooms are STANDARD INCLUDED ($0).
+     * Standard Kitchen island bench, pantry (WIP/cupboard), cooktop, and sink are STANDARD INCLUDED ($0).
+     * Standard Garage (double or single sectional door) is STANDARD INCLUDED ($0).
+     * Standard Covered Alfresco slab/roof and front Porch are STANDARD INCLUDED ($0).
+     * Indicative furniture, cars, and landscaping are excluded from building contracts.
+   - An ensuite, bathroom, or robe can ONLY be reported as an added inclusion IF:
+     * A secondary bedroom (e.g. Bed 2, 3, 4, 5) or guest suite has a NEW additional ensuite added that is NOT present in Image 1, OR
+     * An explicit markup / annotation (e.g. "OPT ENSUITE", "ADDITIONAL ENSUITE", "CONVERT BED 3 TO WIR") is present on Image 2.
+   - NEVER charge for a master ensuite or master WIR!
+
+3. SINGLE STOREY STRUCTURAL INVARIANTS:
+   - If housingType is "Single Storey":
+     * The building has ONLY ONE LEVEL (Ground Floor).
+     * Upper floor balconies, upper floor living extensions, and second-storey structural support beams are PHYSICALLY IMPOSSIBLE.
+     * NEVER detect or report balconies or upper floor features on a Single Storey home!
+
+4. SPATIAL & FOOTPRINT PERIMETER COMPARISON (EXTERNAL WALLS & SLAB):
    - Compare the outer external building perimeter of Image 2 against Image 1:
-     * Check Ground Floor and First Floor perimeters.
-     * Check Alfresco rear and side outer boundaries.
-     * Check Garage exterior side and front boundaries.
-     * Check Family / Living room rear and side exterior walls.
-     * Check Porch / Entry exterior boundaries.
+     * Check exterior living/family room walls.
+     * Check rear alfresco boundaries.
+     * Check garage exterior boundaries.
+     * Check front porch boundaries.
    - IF ALL EXTERNAL WALLS AND SLAB BOUNDARIES IN IMAGE 2 MATCH IMAGE 1:
-     * The building envelope has NOT expanded outward into the yard or side setback.
+     * The building envelope has NOT expanded outward.
      * Set externalFootprintChanged: false.
      * Set areaModifications: [].
      * CRITICAL: NEVER report living or alfresco area extensions if the outer exterior building walls have not moved!
    - IF ANY EXTERNAL WALL IS VISIBLY PUSHED OUT, EXTENDED, OR ENLARGED:
      * Set externalFootprintChanged: true.
      * Add to areaModifications with the zone ("alfresco" | "living" | "garage" | "porch").
-     * Calculate deltaM2 based on physical dimensions:
-       - Use printed dimension annotations if present on the plan (e.g. 3.0m width × 3.4m depth = +10.20 m²).
-       - For garage widening (e.g. storage bumpout or workshop bay), state the linear widening width in meters (e.g. 0.85m widening × 5.7m depth = +4.85 m²).
-       - For 3rd car bay garage additions on the RHS, calculate the added footprint (e.g. 3.0m width × 5.5m depth = +16.50 m²).
-       - For rear alfresco extensions pushing into the backyard, calculate the added covered area over standard.
-       - Provide the exact geometric reasoning and dimensions.
+     * Calculate deltaM2 based on physical dimensions (printed dimension annotations or slab widening).
 
-3. INTERNAL LAYOUT RECONFIGURATIONS, JOINERY, CEILINGS & DESIGN MARKUPS:
-   - Scan EVERY room on Ground Floor and First Floor.
-   - Compare internal walls, robes, fixtures, ceiling annotations, and balconies between Image 1 and Image 2:
-     * Robe / Wardrobe Reconfigurations:
-       - Check every bedroom's wardrobe. Did any built-in sliding robe change to a Walk-In Robe ("WIR") or vice versa?
-       - If Bed 3 robe changed to WIR, report it!
-       - If Bed 4 robe changed to WIR, report it!
-       - For layout joinery reconfigurations without a mandatory surcharge, provide unitPrice: 0 (or custom joinery allowance) so the estimator can see the AI recognized it at $0.
-     * Ceiling Height Upgrades & Annotations:
-       - Inspect any text or red annotations specifying ceiling heights (e.g. "2740mm Ceilings GF", "2590mm Ceilings", "Raked Ceilings").
-       - If "2740mm Ceilings GF" is noted, report:
-         * name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade"
-         * category: "internal_general"
-         * baseline: "Standard 2440mm ceiling height"
-         * detected: "2740mm Ceilings GF annotation on plan"
-         * unitPrice: 6850
-         * ceilingHeightM: 2.74
-     * Balcony / Architectural Additions:
-       - Check if a Balcony has been added on First Floor over Porch or facade.
-       - If a Balcony is drawn or marked "Balcony" in Image 2 that was not in Image 1, report it!
-         * name: "Front Architectural Feature Balcony"
-         * category: "structural"
-         * baseline: "Standard facade without upper balcony (0.00 m²)"
-         * detected: "Upper floor feature balcony added over porch"
-         * unitPrice: 0
-     * Room Conversions & Reconfigurations:
-       - Bedroom converted into a private Ensuite (ENS) and Walk-in Robe (WIR) -> category: "internal_bathroom", approximate trade cost: $12,500.
-       - Enclosed storage room or study converted to Option Living / Media room (e.g. with roof skylight) -> category: "internal_general", approximate trade cost: $4,500.
-       - Powder room or additional WC added -> category: "internal_bathroom", approximate trade cost: $4,800.
-       - Raked / vaulted ceiling notation -> category: "internal_general", approximate trade cost: $4,200.
-     * Fixture Upgrades & Additions:
-       - Master Ensuite vanity upgraded to Double Basin Vanity -> category: "internal_bathroom", approximate trade cost: $1,280.
-         IMPORTANT: Use a broad architectural description (e.g. "Master Ensuite Double Basin Vanity Upgrade" - extended vanity cabinet with dual undermount basins and twin flick mixers) without asserting an unmeasured width unless clearly dimensioned on the plan.
-       - Feature front entrance door upgraded to 1020mm wide ("EXT 1020") -> category: "doors_windows", approximate trade cost: $850.
-       - Dedicated single roller door (2100mm × 2400mm / "Roller Door 21.24") added for 3rd garage car bay or rear yard access -> category: "doors_windows", approximate trade cost: $1,950.
-     * Colored Markups & Red Annotations:
-       - Inspect ANY red boxes, red pointer lines, or red text on Image 2 (e.g., red boxes around "WIR", red box around "2740mm Ceilings GF", red box/line around "Balcony").
-       - EVERY redline markup or text change on the plan MUST be reported as an item in detectedInclusions so the estimator has 100% visibility of all changes!
-       - If an item does not have a standard contract price, assign unitPrice: 0.
-
-4. ACCURACY AND ZERO HALLUCINATIONS:
-   - Report ONLY modifications that actually exist on Image 2!
-   - NEVER invent variations from other designs.
-   - If Image 2 is visually identical to Image 1: isModified: false, areaModifications: [], detectedInclusions: [].
+5. GENUINE DESIGN MARKUPS, CEILINGS, & REDLINES:
+   - Report ONLY explicit modifications and redline markups that actually exist on Image 2:
+     * Ceiling Height Upgrades: if an annotation notes "2740mm Ceilings GF" or "2590mm Ceilings", report the ceiling upgrade.
+     * Door Upgrades: if an annotation notes "EXT 1020" or wide stacker doors, report it.
+     * Additional Garage Roller Door: if a dedicated roller door (e.g. "Roller Door 21.24") is specified for a 3rd car bay or rear yard access, report it.
+     * Secondary Bedroom Robe Reconfigurations: if Bed 3 or Bed 4 built-in sliding robe was changed to a WIR, report it.
+   - If Image 2 is visually identical to Image 1:
+     * isModified: false
+     * externalFootprintChanged: false
+     * areaModifications: []
+     * detectedInclusions: []
+   - NEVER invent or guess variations. If a feature is not clearly drawn or annotated on Image 2, DO NOT REPORT IT.
    - For ANY item marked "by owner", "client supply", or "NIC" (not in contract): set isByOwner: true, unitPrice: 0.
 
 Candidate File Name: "${fileName}"
@@ -953,6 +955,52 @@ Return ONLY valid JSON matching this schema:
       for (const rawInc of parsedData.detectedInclusions) {
         const inc: any = typeof rawInc === "string" ? { name: rawInc, reason: rawInc, unitPrice: 0 } : rawInc;
         const lowerText = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
+        const isDouble = housingType === "Double Storey" || /double|two\s*stor/i.test(suggestedDesign);
+
+        // 1. Discard standard inclusions from baseline (master ensuite, robes, kitchen island, etc.)
+        const isStandardBaseline =
+          /standard\s*(?:master|suite|bedroom|ensuite|robe|wir|island|pantry|allocation|inclusion|layout|plan|feature|open\s*joinery)/i.test(lowerText) ||
+          /standard\s*(?:facade|single|tub|sliding|door|garage|alfresco|porch)/i.test(lowerText) ||
+          (inc.unitPrice === 0 && !inc.isCustomItem && /standard/i.test(inc.reason || "")) ||
+          /standard\s*brochure/i.test(lowerText);
+
+        const isBed1OrMasterEnsuiteWir =
+          /bed\s*1\s*(?:ensuite|wir)|master\s*(?:ensuite|wir|suite|robe)|main\s*(?:ensuite|wir)|bed\s*1.*wir|ensuite\s*to\s*bed\s*1/i.test(lowerText) ||
+          ((/ensuite/i.test(lowerText) || /wir/i.test(lowerText)) &&
+            !/bed\s*[2-5]|second|2nd|guest|opt|optional|additional|added|conversion/i.test(lowerText) &&
+            !/double\s*vanity|dual\s*basin/i.test(lowerText));
+
+        const isStandardIsland =
+          /island\s*bench|kitchen\s*island/i.test(lowerText) &&
+          !/waterfall|40mm|stone\s*ends|mitred/i.test(lowerText);
+
+        const isStandardGarage =
+          /double\s*garage|std\s*garage|2\s*car\s*garage/i.test(lowerText) &&
+          !/ext|extension|widened|widening|3rd\s*car|triple|roller\s*door/i.test(lowerText);
+
+        const isStandardAlfrescoPorch =
+          /standard\s*(?:alfresco|porch)|entry\s*porch|covered\s*alfresco/i.test(lowerText) &&
+          !/ext|extension|push-out|extended|enclos/i.test(lowerText);
+
+        if (
+          (isStandardBaseline && !/upgrade|additional|added|extended|push-out|markup|custom/i.test(lowerText)) ||
+          isBed1OrMasterEnsuiteWir ||
+          isStandardIsland ||
+          isStandardGarage ||
+          isStandardAlfrescoPorch
+        ) {
+          continue; // Standard brochure inclusion - immune from extra charges!
+        }
+
+        // 2. Single Storey Invariants: No balconies or upper floor features
+        if (!isDouble && /balcony|upper\s*floor|first\s*floor|structural\s*beam/i.test(lowerText)) {
+          continue;
+        }
+
+        // 3. Discard pseudo-inclusions like model change
+        if (/model\s*(?:design\s*)?change|model\s*swap/i.test(lowerText)) {
+          continue;
+        }
 
         let matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === inc.id);
         if (!matchedRule) {
@@ -964,11 +1012,11 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_double_vanity");
           } else if (/2740|9ft|ground\s*floor\s*ceiling|gf\s*ceiling/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ceiling_2740");
-          } else if (/balcony|upper\s*balcony|porch\s*balcony/i.test(lowerText)) {
+          } else if (isDouble && /balcony|upper\s*balcony|porch\s*balcony/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_front_balcony");
-          } else if (/ensuite.*wir|wir.*ensuite|bed.*ensuite|additional.*ensuite|ensuite.*fitout/i.test(lowerText)) {
+          } else if (/additional\s*ensuite|2nd\s*ensuite|second\s*ensuite|guest\s*ensuite|bed\s*[2-5]\s*ensuite|opt\s*ensuite/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_additional_ensuite_wir");
-          } else if (/living.*media|media.*room|storage.*conversion|media.*skylight/i.test(lowerText)) {
+          } else if (/storage\s*conversion|study\s*conversion|convert.*media/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_living_media_conversion");
           }
         }
@@ -1064,10 +1112,11 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // 2. Identify Base Design Model (Universal Dynamic Resolution)
-  // Priority 1: Detect model from the uploaded file's content (raw text / embedded fonts) and filename FIRST
+  // Stage 1: Lock the base design model with strict deterministic priority.
   let detectedModelName = "";
   let housingType = "Single Storey";
 
+  // Priority 1: Explicit text or filename match from embedded PDF fonts / file name
   const textMatched = detectFloorplanFromText(rawText, file.name);
   if (textMatched) {
     detectedModelName = textMatched.matchedDesignName;
@@ -1080,7 +1129,7 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Priority 1.5: If filename and rawText had no recognizable Hudson model, scan the sheet header/title block from image!
+  // Priority 1.5: If filename and rawText had no recognizable Hudson model, scan the sheet header/title block from image
   if (!detectedModelName && dataUrl) {
     const visualModel = await identifyDesignModelFromImage(dataUrl);
     if (visualModel && visualModel.designName) {
@@ -1095,7 +1144,7 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Priority 2: If the uploaded file had no recognized model, fall back to activeDesignName from UI
+  // Priority 2: If the uploaded file had no recognized model, fall back to activeDesignName from Step 2
   if (!detectedModelName && activeDesignName && activeDesignName !== "UNSELECTED") {
     detectedModelName = activeDesignName;
     housingType = activeHousingType || getHousingTypeForDesign(activeDesignName) || "Single Storey";
@@ -1106,10 +1155,11 @@ export async function analyzeModifiedFloorplanFile(
     detectedModelName = "Amber 21";
   }
 
-  // Priority 3: Fallback default benchmark if still unidentified
+  // ZERO-HALLUCINATION ENFORCEMENT: Never silently guess or default to Amber 21!
   if (!detectedModelName) {
-    detectedModelName = "Amber 21";
-    housingType = "Single Storey";
+    throw new Error(
+      "Unable to automatically identify the Hudson Homes design model from this plan. Please select your base model in Step 2 before uploading."
+    );
   }
 
   // Dynamically extract brochure table specs if printed on plan
@@ -1144,18 +1194,32 @@ export async function analyzeModifiedFloorplanFile(
   const tableWidthM = extractDim(/overall\s*width\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
   const tableLengthM = extractDim(/overall\s*length\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
 
-  // Baseline CAD & Dimensions Lookup
-  const cadSpec = { ...(HUDSON_CAD_REGISTRY[detectedModelName] || {
-    totalM2: tableTotalM2 || 192.24,
-    livingM2: tableLivingM2 || 147.56,
-    alfrescoM2: tableAlfrescoM2 || 9.54,
-    garageM2: tableGarageM2 || 32.89,
-    porchM2: tablePorchM2 || 2.25,
-    width: tableWidthM || 10.55,
-    length: tableLengthM || 20.27,
-    alfrescoDims: "2.6m × 3.6m",
-    garageDims: "5.5m × 5.5m",
-  }) };
+  // Baseline CAD & Dimensions Lookup (Calibrated dynamically for the locked base model)
+  const verifiedModel = findHudsonModelByName(detectedModelName);
+  const stdAreasLookup = getStandardAreaBreakdown(
+    detectedModelName,
+    housingType,
+    verifiedModel?.row.m2 || 190
+  );
+  const fallbackLiving =
+    stdAreasLookup.livingM2 ||
+    (stdAreasLookup.groundLivingM2 && stdAreasLookup.firstLivingM2
+      ? stdAreasLookup.groundLivingM2 + stdAreasLookup.firstLivingM2
+      : 140);
+
+  const cadSpec = {
+    ...(HUDSON_CAD_REGISTRY[detectedModelName] || {
+      totalM2: tableTotalM2 || verifiedModel?.row.m2 || stdAreasLookup.totalM2 || 190,
+      livingM2: tableLivingM2 || fallbackLiving,
+      alfrescoM2: tableAlfrescoM2 || stdAreasLookup.alfrescoM2 || 10,
+      garageM2: tableGarageM2 || stdAreasLookup.garageM2 || 33,
+      porchM2: tablePorchM2 || stdAreasLookup.porchM2 || 2.5,
+      width: tableWidthM || 10.55,
+      length: tableLengthM || 20.27,
+      alfrescoDims: "2.6m × 3.6m",
+      garageDims: "5.5m × 5.5m",
+    }),
+  };
 
   if (tableTotalM2) cadSpec.totalM2 = tableTotalM2;
   if (tableLivingM2) cadSpec.livingM2 = tableLivingM2;
@@ -1201,19 +1265,8 @@ export async function analyzeModifiedFloorplanFile(
       : Promise.resolve(null),
   ]);
 
-  if (geminiResult && geminiResult.detectedModelName) {
-    let aiModel = geminiResult.detectedModelName.replace(/Classic/i, "").trim();
-    if (/amber\s*21/i.test(aiModel) || /ember\s*21/i.test(aiModel)) aiModel = "Amber 21";
-    if (aiModel) {
-      const verified = findHudsonModelByName(aiModel);
-      if (verified) {
-        detectedModelName = verified.row.name;
-        housingType = verified.housingType;
-      } else {
-        detectedModelName = aiModel;
-      }
-    }
-  }
+  // STAGE 2 LOCK: detectedModelName and housingType were locked in Stage 1.
+  // Stage 2 discrepancy diffing must NEVER override the base design model!
 
   const areaDeltas: DetectedAreaDelta[] = [];
   const inclusionUpgrades: DetectedInclusionUpgrade[] = [];
@@ -1635,12 +1688,24 @@ export async function analyzeModifiedFloorplanFile(
       continue;
     }
 
+    // Invariant: Balconies cannot exist on Single Storey
+    if (rule.id === "upg_front_balcony" && !isDoubleStorey) {
+      continue;
+    }
+
     const matchedKw = rule.triggerKeywords.find((kw) => fullSearchText.includes(kw));
     if (matchedKw) {
       const lines = fullSearchText.split(/[\r\n]+/);
       const matchedLine = lines.find((l) => l.includes(matchedKw)) || "";
       const isOwner = isMarkedByOwner(matchedLine);
       const price = isOwner ? 0 : rule.unitPrice;
+
+      // Invariant: Additional ensuite only triggers on secondary bedrooms or explicit additions
+      if (rule.id === "upg_additional_ensuite_wir") {
+        if (!/bed\s*[2-5]|second|2nd|guest|opt|optional|added/i.test(matchedLine)) {
+          continue;
+        }
+      }
 
       inclusionUpgrades.push({
         id: rule.id,
