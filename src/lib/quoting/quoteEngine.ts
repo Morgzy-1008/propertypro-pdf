@@ -244,18 +244,28 @@ export function isDoubleStoreyDesign(
   housingType?: string,
   storeys?: string,
 ): boolean {
-  if (housingType === "Double Storey" || storeys === "double") return true;
+  if (
+    housingType === "Double Storey" ||
+    storeys === "double" ||
+    storeys === "2" ||
+    storeys === "two"
+  ) {
+    return true;
+  }
   const dn = (designName || "").toLowerCase();
   const ht = (housingType || "").toLowerCase();
 
   if (
     dn.includes("two story") ||
     dn.includes("two storey") ||
+    dn.includes("2 story") ||
     dn.includes("2 storey") ||
     dn.includes("2-storey") ||
     dn.includes("2stry") ||
-    (dn.includes(" - td") && dn.includes("two")) ||
-    (dn.includes(" - sd") && dn.includes("two"))
+    dn.includes(" - td") ||
+    dn.includes("double storey") ||
+    dn.includes("double-storey") ||
+    (dn.includes(" - sd") && (dn.includes("two") || dn.includes("2")))
   ) {
     return true;
   }
@@ -274,7 +284,12 @@ export function isDoubleStoreyDesign(
     return true;
   }
 
-  if (ht.includes("double") || ht.includes("two")) {
+  if (
+    ht.includes("double") ||
+    ht.includes("two") ||
+    ((ht.includes("duplex") || ht.includes("dual")) &&
+      (dn.includes("two") || dn.includes("2") || storeys === "double" || storeys === "2"))
+  ) {
     return true;
   }
 

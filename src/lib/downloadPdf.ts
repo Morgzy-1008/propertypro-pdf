@@ -54,6 +54,24 @@ export async function renderA4PdfDocument(root?: ParentNode) {
 
   if (!sheets.length) throw new Error("No PDF printable pages found (.quote-page or .flyer-page)");
 
+  // 1. Ensure Barlow, Plus Jakarta Sans, and Inter fonts are 100% loaded into memory before capture
+  if (typeof document !== "undefined" && document.fonts) {
+    try {
+      await Promise.allSettled([
+        document.fonts.load("400 12px Barlow"),
+        document.fonts.load("600 12px Barlow"),
+        document.fonts.load("700 14px Barlow"),
+        document.fonts.load("800 18px Barlow"),
+        document.fonts.load("400 12px 'Plus Jakarta Sans'"),
+        document.fonts.load("600 12px 'Plus Jakarta Sans'"),
+        document.fonts.load("700 14px 'Plus Jakarta Sans'"),
+        document.fonts.ready,
+      ]);
+    } catch (fontErr) {
+      console.warn("Font pre-warming notice:", fontErr);
+    }
+  }
+
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
     import("html2canvas-pro"),
     import("jspdf"),
@@ -80,6 +98,8 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     host.style.overflow = "hidden";
     host.style.background = "#ffffff";
     host.style.colorScheme = "light";
+    host.style.display = "block";
+    host.style.visibility = "visible";
     host.style.setProperty("--color-border", "#e2e8f0");
     host.style.setProperty("--border", "oklch(0.929 0.013 255.508)");
     host.style.setProperty("--color-foreground", "#0f172a");
@@ -147,22 +167,29 @@ export async function renderA4PdfDocument(root?: ParentNode) {
     document.body.appendChild(host);
 
     try {
-      // Wait for fonts and all images to settle
+      // Wait for fonts, images, and layout engine to fully decode & paint
       await Promise.all([
         document.fonts ? document.fonts.ready : Promise.resolve(),
-        ...cloneImages.map(
-          (image) =>
-            new Promise<void>((resolve) => {
-              if (image.complete && image.naturalWidth > 0) {
-                resolve();
-              } else {
+        ...cloneImages.map(async (image) => {
+          if (!image.src) return;
+          try {
+            if ("decode" in image) {
+              await image.decode();
+            } else if (!image.complete) {
+              await new Promise<void>((resolve) => {
                 image.addEventListener("load", () => resolve(), { once: true });
                 image.addEventListener("error", () => resolve(), { once: true });
                 setTimeout(resolve, 3000);
-              }
-            }),
-        ),
+              });
+            }
+          } catch {
+            // decode error handled gracefully
+          }
+        }),
       ]);
+
+      // Double requestAnimationFrame to guarantee layout, CSS reflow, and SVG transforms are 100% computed
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
       // Render canvas at 2.4x scale (approx 250-300 DPI studio print resolution)
       const canvas = await html2canvas(clone, {

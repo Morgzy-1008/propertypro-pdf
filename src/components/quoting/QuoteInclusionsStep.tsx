@@ -329,6 +329,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
         quote.design.modifiedAreas?.firstLivingM2 ||
         Math.round(effectiveDesignM2 * 0.45);
 
+  const dwellingPrefix = hasSecondDwelling
+    ? `[${activeDwellingTab === "dwelling2" ? "Dwelling 2" : "Dwelling 1"}] `
+    : "";
+
   const upsertPopularItem = (
     idSuffix: string,
     patch: {
@@ -343,9 +347,6 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   ) => {
     // Prefix ID with dwelling if 2nd dwelling is selected to maintain distinct line items
     const id = hasSecondDwelling ? `${idSuffix}_${activeDwellingTab}` : idSuffix;
-    const dwellingPrefix = hasSecondDwelling
-      ? `[${activeDwellingTab === "dwelling2" ? "Dwelling 2" : "Dwelling 1"}] `
-      : "";
 
     const existing = lineItems.find((i) => i.id === id || i.catalogueItemId === id);
     if (existing) {
@@ -400,8 +401,95 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const ceiling2740H1Item = lineItems.find((i) => i.id === `pop_ceiling_2740_h1${pfx}`);
   const ceiling2740H2Item = lineItems.find((i) => i.id === `pop_ceiling_2740_h2${pfx}`);
   const ceiling3000H2Item = lineItems.find((i) => i.id === `pop_ceiling_3000_h2${pfx}`);
-  const ceilingGfDsItem = lineItems.find((i) => i.id === `pop_ceiling_gf_ds${pfx}`);
-  const ceilingFfDsItem = lineItems.find((i) => i.id === `pop_ceiling_ff_ds${pfx}`);
+
+  // Ground Floor Double Storey / Duplex Ceilings
+  const ceilingGf2590Item = lineItems.find((i) => i.id === `pop_ceiling_gf_2590${pfx}`);
+  const ceilingGf2740Item = lineItems.find(
+    (i) => i.id === `pop_ceiling_gf_2740${pfx}` || i.id === `pop_ceiling_gf_ds${pfx}`,
+  );
+  const ceilingGf3000Item = lineItems.find((i) => i.id === `pop_ceiling_gf_3000${pfx}`);
+
+  // First Floor Double Storey / Duplex Ceilings
+  const ceilingFf2590Item = lineItems.find(
+    (i) => i.id === `pop_ceiling_ff_2590${pfx}` || i.id === `pop_ceiling_ff_ds${pfx}`,
+  );
+  const ceilingFf2740Item = lineItems.find((i) => i.id === `pop_ceiling_ff_2740${pfx}`);
+  const ceilingFf3000Item = lineItems.find((i) => i.id === `pop_ceiling_ff_3000${pfx}`);
+
+  const selectCeilingOption = (
+    targetIdSuffix: string,
+    mutuallyExclusiveSuffixes: string[],
+    patch: {
+      quantity: number;
+      unitRate: number;
+      name: string;
+      description?: string;
+      unitType?: UnitType;
+      category?: CatalogueCategory;
+    },
+  ) => {
+    const fullTargetId = `${targetIdSuffix}${pfx}`;
+    const fullExclusiveIds = mutuallyExclusiveSuffixes.map((s) => `${s}${pfx}`);
+    const isCurrentlyIncluded = lineItems.some(
+      (i) => (i.id === fullTargetId || i.catalogueItemId === fullTargetId) && i.isIncluded,
+    );
+    const nextIncluded = !isCurrentlyIncluded;
+
+    const updated = lineItems.map((item) => {
+      if (item.id === fullTargetId || item.catalogueItemId === fullTargetId) {
+        return {
+          ...item,
+          isIncluded: nextIncluded,
+          clientSelected: nextIncluded,
+          quantity: patch.quantity,
+          unitRate: patch.unitRate,
+          subtotal: patch.quantity * patch.unitRate,
+          dwellingId: activeDwellingTab,
+          dwellingName: activeTargetName,
+          name: `${dwellingPrefix}${patch.name}`,
+          ...(patch.description ? { description: patch.description } : {}),
+          ...(patch.category ? { category: patch.category } : {}),
+        };
+      }
+      if (nextIncluded && fullExclusiveIds.includes(item.id)) {
+        return {
+          ...item,
+          isIncluded: false,
+          clientSelected: false,
+          subtotal: 0,
+        };
+      }
+      return item;
+    });
+
+    if (nextIncluded && !lineItems.some((i) => i.id === fullTargetId || i.catalogueItemId === fullTargetId)) {
+      const newItem: QuoteSelectedLineItem = {
+        id: fullTargetId,
+        catalogueItemId: fullTargetId,
+        category: patch.category || "structural",
+        name: `${dwellingPrefix}${patch.name}`,
+        description: patch.description || "",
+        unitType: patch.unitType || "per_m2",
+        unitRate: patch.unitRate,
+        quantity: patch.quantity,
+        subtotal: patch.quantity * patch.unitRate,
+        isIncluded: true,
+        isClientSelectable: true,
+        clientSelected: true,
+        dwellingId: activeDwellingTab,
+        dwellingName: activeTargetName,
+      };
+      const cleaned = updated.map((it) =>
+        fullExclusiveIds.includes(it.id)
+          ? { ...it, isIncluded: false, clientSelected: false, subtotal: 0 }
+          : it,
+      );
+      onChange([newItem, ...cleaned]);
+    } else {
+      onChange(updated);
+    }
+  };
+
   const laundryItem = lineItems.find((i) => i.id === `pop_laundry_fitout${pfx}`);
   const tilesItem = lineItems.find((i) => i.id === `pop_tiles_ftc${pfx}`);
   const door1020Item = lineItems.find((i) => i.id === `pop_door_1020${pfx}`);
@@ -778,256 +866,491 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Structural &amp; Ceilings (Inc. +$3 Joinery)
             </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {/* Single Storey H1 Options */}
-              {(!activeTargetStoreys && !isTargetH2 && !isTargetH3) || isTargetH1 ? (
-                <>
-                  {/* H1 2590mm ($51/m2 = $48 + $3 joinery) */}
-                  <div
-                    onClick={() => {
-                      const next = !ceiling2590H1Item?.isIncluded;
-                      upsertPopularItem("pop_ceiling_2590_h1", {
-                        isIncluded: next,
-                        quantity: activeTargetM2,
-                        unitRate: 51,
-                        name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceiling2590H1Item?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery)</span>
+            {!activeTargetStoreys ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {/* Single Storey H1 Options */}
+                {isTargetH1 ? (
+                  <>
+                    {/* H1 2590mm ($51/m2 = $48 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_2590_h1",
+                          ["pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
+                          {
+                            quantity: activeTargetM2,
+                            unitRate: 51,
+                            name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling2590H1Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery)</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 51)}
+                      </span>
                     </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 51)}
-                    </span>
-                  </div>
 
-                  {/* H1 2740mm ($76/m2 = $73 + $3 joinery) */}
-                  <div
-                    onClick={() => {
-                      const next = !ceiling2740H1Item?.isIncluded;
-                      upsertPopularItem("pop_ceiling_2740_h1", {
-                        isIncluded: next,
-                        quantity: activeTargetM2,
-                        unitRate: 76,
-                        name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceiling2740H1Item?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                    {/* H1 2740mm ($76/m2 = $73 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_2740_h1",
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
+                          {
+                            quantity: activeTargetM2,
+                            unitRate: 76,
+                            name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling2740H1Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
+                      </span>
                     </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* H2 2740mm ($58/m2 = $55 + $3 joinery) */}
-                  <div
-                    onClick={() => {
-                      const next = !ceiling2740H2Item?.isIncluded;
-                      upsertPopularItem("pop_ceiling_2740_h2", {
-                        isIncluded: next,
-                        quantity: activeTargetM2,
-                        unitRate: 58,
-                        name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceiling2740H2Item?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery)</span>
+                  </>
+                ) : (
+                  <>
+                    {/* H2 2740mm ($58/m2 = $55 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_2740_h2",
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_3000_h2"],
+                          {
+                            quantity: activeTargetM2,
+                            unitRate: 58,
+                            name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling2740H2Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery)</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 58)}
+                      </span>
                     </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 58)}
-                    </span>
-                  </div>
 
-                  {/* H2 3000mm ($76/m2 = $73 + $3 joinery) */}
-                  <div
-                    onClick={() => {
-                      const next = !ceiling3000H2Item?.isIncluded;
-                      upsertPopularItem("pop_ceiling_3000_h2", {
-                        isIncluded: next,
-                        quantity: activeTargetM2,
-                        unitRate: 76,
-                        name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceiling3000H2Item?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                    {/* H2 3000mm ($76/m2 = $73 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_3000_h2",
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_2740_h2"],
+                          {
+                            quantity: activeTargetM2,
+                            unitRate: 76,
+                            name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling3000H2Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
+                      </span>
                     </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
-                    </span>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
 
-              {/* Double Storey Specific Options */}
-              {activeTargetStoreys && (
-                <>
-                  <div
-                    onClick={() => {
-                      const next = !ceilingGfDsItem?.isIncluded;
-                      upsertPopularItem("pop_ceiling_gf_ds", {
-                        isIncluded: next,
-                        quantity: gfM2,
-                        unitRate: 58,
-                        name: "Ground Floor Ceiling Height Upgrade (to 2,740mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceilingGfDsItem?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">GF Ceiling (to 2,740mm)</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$58 per sqm &bull; {gfM2} m² GF</span>
-                    </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceilingGfDsItem?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * 58)}
-                    </span>
-                  </div>
-
-                  <div
-                    onClick={() => {
-                      const next = !ceilingFfDsItem?.isIncluded;
-                      upsertPopularItem("pop_ceiling_ff_ds", {
-                        isIncluded: next,
-                        quantity: ffM2,
-                        unitRate: 51,
-                        name: "First Floor Ceiling Height Upgrade (to 2,590mm)",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                      ceilingFfDsItem?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                    }`}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">FF Ceiling (to 2,590mm)</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$51 per sqm &bull; {ffM2} m² FF</span>
-                    </div>
-                    <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                      {ceilingFfDsItem?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * 51)}
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {/* Raked Ceilings */}
-              <div
-                onClick={() => {
-                  const next = !rakedItem?.isIncluded;
-                  const sqm = rakedItem?.quantity || 35;
-                  upsertPopularItem("pop_raked_entertainment", {
-                    isIncluded: next,
-                    quantity: sqm,
-                    unitRate: 310,
-                    name: "Raked / Cathedral Ceilings to Entertainment Space",
-                    category: "structural",
-                    unitType: "per_m2",
-                  });
-                }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                  rakedItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Raked / Cathedral Ceiling</span>
-                  <span className="text-[10px] text-slate-400 font-mono">$310 per sqm</span>
-                </div>
-
+                {/* Raked Ceilings */}
                 <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={() => {
+                    const next = !rakedItem?.isIncluded;
+                    const sqm = rakedItem?.quantity || 35;
+                    upsertPopularItem("pop_raked_entertainment", {
+                      isIncluded: next,
+                      quantity: sqm,
+                      unitRate: 310,
+                      name: "Raked / Cathedral Ceilings to Entertainment Space",
+                      category: "structural",
+                      unitType: "per_m2",
+                    });
+                  }}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                    rakedItem?.isIncluded
+                      ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                      : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                  }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = rakedItem?.quantity || 35;
-                      const next = Math.max(5, cur - 5);
-                      upsertPopularItem("pop_raked_entertainment", {
-                        isIncluded: true,
-                        quantity: next,
-                        unitRate: 310,
-                        name: "Raked / Cathedral Ceilings to Entertainment Space",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-xs text-white block truncate">Raked / Cathedral Ceiling</span>
+                    <span className="text-[10px] text-slate-400 font-mono">$310 per sqm</span>
+                  </div>
+
+                  <div
+                    className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
-                    {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = rakedItem?.quantity || 35;
-                      const next = cur + 5;
-                      upsertPopularItem("pop_raked_entertainment", {
-                        isIncluded: true,
-                        quantity: next,
-                        unitRate: 310,
-                        name: "Raked / Cathedral Ceilings to Entertainment Space",
-                        category: "structural",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = rakedItem?.quantity || 35;
+                        const next = Math.max(5, cur - 5);
+                        upsertPopularItem("pop_raked_entertainment", {
+                          isIncluded: true,
+                          quantity: next,
+                          unitRate: 310,
+                          name: "Raked / Cathedral Ceilings to Entertainment Space",
+                          category: "structural",
+                          unitType: "per_m2",
+                        });
+                      }}
+                      className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                      {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = rakedItem?.quantity || 35;
+                        const next = cur + 5;
+                        upsertPopularItem("pop_raked_entertainment", {
+                          isIncluded: true,
+                          quantity: next,
+                          unitRate: 310,
+                          name: "Raked / Cathedral Ceilings to Entertainment Space",
+                          category: "structural",
+                          unitType: "per_m2",
+                        });
+                      }}
+                      className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Double Storey & 2-Storey Duplex Separate GF and FF Ceiling Height Options */
+              <div className="space-y-3">
+                {/* 1. Ground Floor Ceilings */}
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wide">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Ground Floor Ceilings (GF Living: {gfM2} m²)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Base: {isTargetH3 ? "2,740mm standard" : isTargetH2 ? "2,590mm standard" : "2,440mm standard"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* GF 2590mm */}
+                    <div
+                      onClick={() =>
+                        selectCeilingOption(
+                          "pop_ceiling_gf_2590",
+                          ["pop_ceiling_gf_2740", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
+                          {
+                            quantity: gfM2,
+                            unitRate: 51,
+                            name: "Ground Floor Ceiling Height Upgrade (to 2,590mm)",
+                            description: "Ground floor raised to 2,590mm (8'6\") framing throughout including 2,340mm internal doors.",
+                          },
+                        )
+                      }
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingGf2590Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">GF to 2,590mm (8'6")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {gfM2} m² GF</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingGf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * 51)}
+                      </span>
+                    </div>
+
+                    {/* GF 2740mm */}
+                    <div
+                      onClick={() => {
+                        const rate = isTargetH1 ? 76 : 58;
+                        selectCeilingOption(
+                          "pop_ceiling_gf_2740",
+                          ["pop_ceiling_gf_2590", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
+                          {
+                            quantity: gfM2,
+                            unitRate: rate,
+                            name: "Ground Floor Ceiling Height Upgrade (to 2,740mm)",
+                            description: "Ground floor raised to 2,740mm (9'0\") framing throughout including 2,340mm internal doors.",
+                          },
+                        );
+                      }}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingGf2740Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">GF to 2,740mm (9'0")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ${isTargetH1 ? 76 : 58}/m² • {gfM2} m² GF
+                        </span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingGf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * (isTargetH1 ? 76 : 58))}
+                      </span>
+                    </div>
+
+                    {/* GF 3000mm */}
+                    <div
+                      onClick={() => {
+                        const rate = isTargetH1 ? 104 : isTargetH3 ? 68 : 76;
+                        selectCeilingOption(
+                          "pop_ceiling_gf_3000",
+                          ["pop_ceiling_gf_2590", "pop_ceiling_gf_2740", "pop_ceiling_gf_ds"],
+                          {
+                            quantity: gfM2,
+                            unitRate: rate,
+                            name: "Ground Floor Ceiling Height Upgrade (to 3,000mm)",
+                            description: "Ground floor luxury 3,000mm (10'0\") framing throughout including 2,340mm internal doors.",
+                          },
+                        );
+                      }}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingGf3000Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          ${isTargetH1 ? 104 : isTargetH3 ? 68 : 76}/m² • {gfM2} m² GF
+                        </span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * (isTargetH1 ? 104 : isTargetH3 ? 68 : 76))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2. First Floor Ceilings */}
+                <div className="rounded-xl border border-purple-500/20 bg-purple-950/15 p-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wide">
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> First Floor Ceilings (FF Living: {ffM2} m²)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Base: 2,440mm standard upper floor
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* FF 2590mm */}
+                    <div
+                      onClick={() =>
+                        selectCeilingOption(
+                          "pop_ceiling_ff_2590",
+                          ["pop_ceiling_ff_2740", "pop_ceiling_ff_3000", "pop_ceiling_ff_ds"],
+                          {
+                            quantity: ffM2,
+                            unitRate: 51,
+                            name: "First Floor Ceiling Height Upgrade (to 2,590mm)",
+                            description: "First floor raised to 2,590mm (8'6\") framing throughout upper living areas.",
+                          },
+                        )
+                      }
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingFf2590Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">FF to 2,590mm (8'6")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {ffM2} m² FF</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingFf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * 51)}
+                      </span>
+                    </div>
+
+                    {/* FF 2740mm */}
+                    <div
+                      onClick={() => {
+                        const rate = isTargetH1 ? 76 : 58;
+                        selectCeilingOption(
+                          "pop_ceiling_ff_2740",
+                          ["pop_ceiling_ff_2590", "pop_ceiling_ff_3000", "pop_ceiling_ff_ds"],
+                          {
+                            quantity: ffM2,
+                            unitRate: rate,
+                            name: "First Floor Ceiling Height Upgrade (to 2,740mm)",
+                            description: "First floor raised to 2,740mm (9'0\") framing throughout upper living areas.",
+                          },
+                        );
+                      }}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingFf2740Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">FF to 2,740mm (9'0")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 76 : 58}/m² • {ffM2} m² FF</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingFf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * (isTargetH1 ? 76 : 58))}
+                      </span>
+                    </div>
+
+                    {/* FF 3000mm */}
+                    <div
+                      onClick={() => {
+                        const rate = isTargetH1 ? 104 : 76;
+                        selectCeilingOption(
+                          "pop_ceiling_ff_3000",
+                          ["pop_ceiling_ff_2590", "pop_ceiling_ff_2740", "pop_ceiling_ff_ds"],
+                          {
+                            quantity: ffM2,
+                            unitRate: rate,
+                            name: "First Floor Ceiling Height Upgrade (to 3,000mm)",
+                            description: "First floor luxury 3,000mm (10'0\") framing throughout upper living areas.",
+                          },
+                        );
+                      }}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                        ceilingFf3000Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">FF to 3,000mm (10'0")</span>
+                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 104 : 76}/m² • {ffM2} m² FF</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceilingFf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * (isTargetH1 ? 104 : 76))}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Raked Ceilings */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                  <div
+                    onClick={() => {
+                      const next = !rakedItem?.isIncluded;
+                      const sqm = rakedItem?.quantity || 35;
+                      upsertPopularItem("pop_raked_entertainment", {
+                        isIncluded: next,
+                        quantity: sqm,
+                        unitRate: 310,
+                        name: "Raked / Cathedral Ceilings to Entertainment Space",
+                        category: "structural",
+                        unitType: "per_m2",
+                      });
+                    }}
+                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      rakedItem?.isIncluded
+                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <span className="font-bold text-xs text-white block truncate">Raked / Cathedral Ceiling</span>
+                      <span className="text-[10px] text-slate-400 font-mono">$310 per sqm</span>
+                    </div>
+
+                    <div
+                      className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = rakedItem?.quantity || 35;
+                          const next = Math.max(5, cur - 5);
+                          upsertPopularItem("pop_raked_entertainment", {
+                            isIncluded: true,
+                            quantity: next,
+                            unitRate: 310,
+                            name: "Raked / Cathedral Ceilings to Entertainment Space",
+                            category: "structural",
+                            unitType: "per_m2",
+                          });
+                        }}
+                        className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                        {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = rakedItem?.quantity || 35;
+                          const next = cur + 5;
+                          upsertPopularItem("pop_raked_entertainment", {
+                            isIncluded: true,
+                            quantity: next,
+                            unitRate: 310,
+                            name: "Raked / Cathedral Ceilings to Entertainment Space",
+                            category: "structural",
+                            unitType: "per_m2",
+                          });
+                        }}
+                        className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* CATEGORY 3: DOORS & WINDOWS */}

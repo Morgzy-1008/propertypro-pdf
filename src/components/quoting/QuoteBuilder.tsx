@@ -533,9 +533,25 @@ export function QuoteBuilder() {
   const handleDownloadPdf = async () => {
     setDownloading(true);
     try {
-      if (document.fonts) {
-        await document.fonts.ready;
+      if (typeof document !== "undefined" && document.fonts) {
+        try {
+          await Promise.allSettled([
+            document.fonts.load("400 12px Barlow"),
+            document.fonts.load("600 12px Barlow"),
+            document.fonts.load("700 14px Barlow"),
+            document.fonts.load("800 18px Barlow"),
+            document.fonts.load("400 12px 'Plus Jakarta Sans'"),
+            document.fonts.load("600 12px 'Plus Jakarta Sans'"),
+            document.fonts.load("700 14px 'Plus Jakarta Sans'"),
+            document.fonts.ready,
+          ]);
+        } catch {}
       }
+
+      // Allow microtask tick and animation frames so hidden or active export container settles
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
       const exportHost =
         document.querySelector(".quote-pdf-root:not(#quote-pdf-export-container)") ||
         document.getElementById("quote-pdf-export-container") ||
@@ -1042,6 +1058,8 @@ export function QuoteBuilder() {
             pointerEvents: "none",
             zIndex: -9999,
             colorScheme: "light",
+            fontFamily: "'Barlow', 'Plus Jakarta Sans', Inter, sans-serif",
+            boxSizing: "border-box",
           }}
           aria-hidden="true"
         >
