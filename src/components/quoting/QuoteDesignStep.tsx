@@ -328,6 +328,12 @@ export function getFacadesForDesignAndHousingType(
     }
   }
 
+  // Cinnamon is front-to-rear tri-level split with no dedicated facades yet - treat as standard double storey
+  const isCinnamon = designName ? /cinnamon/i.test(designName) : false;
+  if (isCinnamon) {
+    return isNsw ? NSW_DOUBLE_STOREY_FACADES : HOUSING_FACADES["Double Storey"];
+  }
+
   if (housingType === "Split Level") {
     return isNsw ? NSW_SPLIT_DESIGN_FACADES : HOUSING_FACADES["Split Level"];
   }
@@ -426,10 +432,11 @@ export function QuoteDesignStep({
     scaffoldingAllowance: 8500,
   };
 
+  const isCinnamon = Boolean(design.designName && /cinnamon/i.test(design.designName));
   const isDouble =
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"
-      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double";
+      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double" || isCinnamon;
 
   const standardPlans = design.designName ? plansForDesign(design.designName) : [];
   const standardFloorplanUrl = standardPlans[0]?.url || "";
@@ -1983,7 +1990,7 @@ export function QuoteDesignStep({
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
                   <PenTool className="h-3.5 w-3.5 text-cyan-400" />
-                  Architectural Facade ({design.housingType} Range)
+                  Architectural Facade ({isCinnamon ? "Double Storey" : design.housingType} Range)
                 </Label>
                 <span className="text-xs font-mono font-bold text-amber-400">
                   {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}

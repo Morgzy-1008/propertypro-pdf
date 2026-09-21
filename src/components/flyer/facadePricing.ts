@@ -315,6 +315,10 @@ export function facadePriceForDesign(
     return table[base] ?? FACADE_PRICES.acreage[base] ?? facadePriceFor(name, "acreage");
   }
 
+  if (family === "cinnamon") {
+    return facadePriceFor(name, "double");
+  }
+
   if (storey === "split") {
     return FACADE_PRICES.split[base] ?? facadePriceFor(name, "split");
   }

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   User,
   Home,
@@ -16,6 +16,8 @@ import {
   ExternalLink,
   MessageSquare,
   Database,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { encodeQuoteForClientLink } from "@/lib/quoting/quoteLinkEncoder";
 import { toast } from "sonner";
@@ -653,13 +655,28 @@ export function QuoteBuilder() {
     }
   };
 
+  const stepTabsRef = useRef<HTMLDivElement>(null);
+
   const tabs = [
-    { id: "client", label: "1. Client & Job", icon: User },
-    { id: "design", label: "2. House Design", icon: Home },
-    { id: "site", label: "3. Site & Earthworks", icon: Compass },
-    { id: "inclusions", label: "4. Variations & Upgrades", icon: PackageCheck },
-    { id: "pdf_preview", label: "5. Builders Estimate PDF", icon: FileText },
+    { id: "client" as const, label: "1. Client & Job", shortLabel: "Client & Job", icon: User },
+    { id: "design" as const, label: "2. House Design", shortLabel: "House Design", icon: Home },
+    { id: "site" as const, label: "3. Site & Earthworks", shortLabel: "Site & Earthworks", icon: Compass },
+    { id: "inclusions" as const, label: "4. Variations & Upgrades", shortLabel: "Variations & Upgrades", icon: PackageCheck },
+    { id: "pdf_preview" as const, label: "5. Builders Estimate PDF", shortLabel: "Estimate PDF", icon: FileText },
   ];
+
+  const currentTabIndex = tabs.findIndex((t) => t.id === activeTab);
+  const prevTab = currentTabIndex > 0 ? tabs[currentTabIndex - 1] : null;
+  const nextTab = currentTabIndex < tabs.length - 1 ? tabs[currentTabIndex + 1] : null;
+
+  const handleNavigateTab = (targetId: TabId) => {
+    setActiveTab(targetId);
+    if (stepTabsRef.current) {
+      stepTabsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   return (
     <div className="space-y-6 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 pb-20">
@@ -798,7 +815,7 @@ export function QuoteBuilder() {
         {/* Left Column: Multi-Step Navigation & Tab Content */}
         <div className="space-y-6 min-w-0">
           {/* Step Selector Tabs */}
-          <div className={`flex items-center gap-1.5 overflow-x-auto pb-2 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"} scrollbar-thin`}>
+          <div ref={stepTabsRef} className={`flex items-center gap-1.5 overflow-x-auto pb-2 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"} scrollbar-thin`}>
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -925,6 +942,73 @@ export function QuoteBuilder() {
                 </div>
               </div>
             )}
+
+            {/* Bottom Step Navigation Bar across all Quoting Steps */}
+            <div className={`mt-8 pt-6 border-t ${
+              isLight ? "border-slate-200" : "border-slate-800"
+            } flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4`}>
+              <div>
+                {prevTab ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleNavigateTab(prevTab.id)}
+                    className={`w-full sm:w-auto text-xs font-bold gap-2 py-5 px-5 rounded-xl transition-all shadow-xs ${
+                      isLight
+                        ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950"
+                        : "border-slate-800 bg-slate-900/90 text-slate-300 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <ChevronLeft className="h-4 w-4 text-slate-400" />
+                    <span>Previous: <span className={isLight ? "text-slate-600 font-semibold" : "text-slate-400 font-semibold"}>{prevTab.shortLabel}</span></span>
+                  </Button>
+                ) : (
+                  <div className="hidden sm:block" />
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {nextTab ? (
+                  <Button
+                    type="button"
+                    onClick={() => handleNavigateTab(nextTab.id)}
+                    className={`w-full sm:w-auto text-xs font-bold gap-2 py-5 px-6 rounded-xl transition-all shadow-md ${
+                      isLight
+                        ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-700 hover:to-teal-800 shadow-emerald-700/20"
+                        : "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/20"
+                    }`}
+                  >
+                    <span>Next: {nextTab.label}</span>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsShareOpen(true)}
+                      className={`flex-1 sm:flex-none text-xs gap-1.5 font-bold py-5 px-4 rounded-xl ${
+                        isLight
+                          ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                          : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800"
+                      }`}
+                    >
+                      <Share2 className="h-4 w-4 text-cyan-400" />
+                      Share Client Link
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleDownloadPdf}
+                      disabled={downloading}
+                      className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-2 py-5 px-6 rounded-xl shadow-md shadow-emerald-500/20"
+                    >
+                      <Download className="h-4 w-4" />
+                      {downloading ? "Creating PDF…" : "Download Estimate PDF"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
 
