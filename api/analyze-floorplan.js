@@ -63,11 +63,43 @@ export default async function handler(req, res) {
       ? candidateImageBase64.split(";")[0].replace("data:", "")
       : "image/png";
 
+async function callGeminiWithFallback(apiKey, body) {
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-3.6-flash"];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return { ok: true, text, model };
+        }
+      } else {
+        const errTxt = await resp.text();
+        lastError = `Model ${model} returned HTTP ${resp.status}: ${errTxt}`;
+        console.warn(`[analyze-floorplan] ${model} failed (${resp.status}), falling back to next model...`);
+      }
+    } catch (err) {
+      lastError = err.message;
+      console.warn(`[analyze-floorplan] Network error calling ${model}:`, err.message);
+    }
+  }
+
+  return { ok: false, error: lastError || "All Gemini models failed to respond" };
+}
+
     // ----------------------------------------------------
     // MODE 1: IDENTIFY ONLY (Title Block & Sheet Header Recognition)
     // ----------------------------------------------------
     if (identifyOnly) {
-      const identifyPrompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
+      const identifyPrompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29", "Turquoise 31"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
 Return ONLY valid JSON:
 {
   "designName": string,
@@ -75,40 +107,31 @@ Return ONLY valid JSON:
   "totalM2": number
 }`;
 
-      const identifyUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(key)}`;
-      const identifyResp = await fetch(identifyUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: identifyPrompt },
-                {
-                  inlineData: {
-                    mimeType: candMimeType,
-                    data: cleanCandB64,
-                  },
+      const geminiRes = await callGeminiWithFallback(key, {
+        contents: [
+          {
+            parts: [
+              { text: identifyPrompt },
+              {
+                inlineData: {
+                  mimeType: candMimeType,
+                  data: cleanCandB64,
                 },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: "application/json",
+              },
+            ],
           },
-        }),
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
       });
 
-      if (!identifyResp.ok) {
-        const errTxt = await identifyResp.text();
-        return res.status(identifyResp.status).json({ error: `Gemini API error during identification`, details: errTxt });
+      if (!geminiRes.ok) {
+        return res.status(502).json({ error: "Gemini API error during identification", details: geminiRes.error });
       }
 
-      const idJson = await identifyResp.json();
-      const idText = idJson?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!idText) return res.status(500).json({ error: "Empty identification response from Gemini" });
-      const parsedId = JSON.parse(idText);
+      const parsedId = JSON.parse(geminiRes.text);
       return res.status(200).json(parsedId);
     }
 
@@ -273,31 +296,19 @@ Return ONLY valid JSON matching this schema:
       },
     });
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(key)}`;
-    const resp = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          temperature: 0.1,
-          responseMimeType: "application/json",
-        },
-      }),
+    const geminiRes = await callGeminiWithFallback(key, {
+      contents: [{ parts }],
+      generationConfig: {
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
     });
 
-    if (!resp.ok) {
-      const errTxt = await resp.text();
-      return res.status(resp.status).json({ error: `Gemini API error: ${resp.statusText}`, details: errTxt });
+    if (!geminiRes.ok) {
+      return res.status(502).json({ error: "Gemini API error during visual diffing", details: geminiRes.error });
     }
 
-    const json = await resp.json();
-    const candidateText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!candidateText) {
-      return res.status(500).json({ error: "Empty response from Gemini API" });
-    }
-
-    const parsedData = JSON.parse(candidateText);
+    const parsedData = JSON.parse(geminiRes.text);
 
     // Catalog normalization and deduplication
     const FIXTURE_UPGRADE_MAP = {

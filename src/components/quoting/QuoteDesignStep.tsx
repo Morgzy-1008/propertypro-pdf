@@ -870,9 +870,10 @@ export function QuoteDesignStep({
           `✨ Scanned floorplan: matched ${analysis.baseDesignName} (${analysis.netDeltaM2 >= 0 ? `+${analysis.netDeltaM2}` : analysis.netDeltaM2} m² delta) with ${analysis.inclusionUpgrades.length} upgrades.`
         );
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Floorplan analysis failed:", err);
-      toast.error("Could not parse floorplan file. Please try a different PDF or image.");
+      const errMsg = err?.message || "Could not parse floorplan file. Please try a different PDF or image.";
+      toast.error(errMsg.length > 160 ? errMsg.slice(0, 160) + "..." : errMsg);
     } finally {
       setIsAnalyzingModifiedFile(false);
     }

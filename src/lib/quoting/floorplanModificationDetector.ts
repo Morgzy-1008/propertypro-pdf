@@ -1,4 +1,4 @@
-import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+import { pdfDocumentToPagesAndText, compressImageDataUrl } from "@/lib/pdfPages";
 import { findHudsonModelByName, detectFloorplanFromText } from "@/lib/floorplan/floorplanDetector";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
@@ -341,6 +341,35 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
 }
 
 /**
+ * Robust helper to call Gemini API directly in browser with multi-model fallback.
+ */
+async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-3.6-flash"];
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        const json = await resp.json();
+        const candidateText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText) {
+          return JSON.parse(candidateText);
+        }
+      } else {
+        console.warn(`[Gemini client] ${model} returned HTTP ${resp.status}, trying fallback model...`);
+      }
+    } catch (e: any) {
+      console.warn(`[Gemini client] Error calling ${model}:`, e.message);
+    }
+  }
+  return null;
+}
+
+/**
  * Scans the candidate floorplan image sheet / title block to identify the true Hudson Homes design.
  */
 export async function identifyDesignModelFromImage(
@@ -353,28 +382,19 @@ export async function identifyDesignModelFromImage(
   if (apiKey) {
     try {
       const cleanB64 = candidateDataUrl.includes(",") ? candidateDataUrl.split(",")[1] : candidateDataUrl;
-      const mimeType = candidateDataUrl.includes(";") ? candidateDataUrl.split(";")[0].replace("data:", "") : "image/png";
-      const prompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
+      const mimeType = candidateDataUrl.includes(";") ? candidateDataUrl.split(";")[0].replace("data:", "") : "image/jpeg";
+      const prompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29", "Turquoise 31"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
 Return ONLY valid JSON:
 {
   "designName": string,
   "housingType": "Single Storey" | "Double Storey",
   "totalM2": number
 }`;
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: cleanB64 } }] }],
-          generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
-        }),
+      const parsed = await callGeminiClientWithFallback(apiKey, {
+        contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: cleanB64 } }] }],
+        generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
       });
-      if (resp.ok) {
-        const json = await resp.json();
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (text) return JSON.parse(text);
-      }
+      if (parsed) return parsed;
     } catch (err) {
       console.warn("Direct image model identification failed, falling back to proxy:", err);
     }
@@ -389,6 +409,7 @@ Return ONLY valid JSON:
         body: JSON.stringify({
           candidateImageBase64: candidateDataUrl,
           identifyOnly: true,
+          apiKey: apiKey || undefined,
         }),
       });
       if (proxyResp.ok) {
@@ -821,27 +842,15 @@ Return ONLY valid JSON matching this schema:
           },
         });
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              temperature: 0.1,
-              responseMimeType: "application/json",
-            },
-          }),
+        const parsed = await callGeminiClientWithFallback(apiKey, {
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: 0.1,
+            responseMimeType: "application/json",
+          },
         });
-
-        if (resp.ok) {
-          const json = await resp.json();
-          const candidateText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (candidateText) {
-            parsedData = JSON.parse(candidateText);
-          }
-        } else {
-          console.warn("Direct Gemini Vision HTTP error:", resp.status, resp.statusText);
+        if (parsed) {
+          parsedData = parsed;
         }
       } catch (clientErr) {
         console.warn("Direct Gemini call error, attempting proxy fallback:", clientErr);
@@ -864,6 +873,7 @@ Return ONLY valid JSON matching this schema:
             cadSpec,
             stdAreas,
             rawText,
+            apiKey: apiKey || undefined,
           }),
         });
         if (proxyResp.ok) {
@@ -1031,19 +1041,21 @@ export async function analyzeModifiedFloorplanFile(
     try {
       const parsed = await pdfDocumentToPagesAndText(file);
       rawText = parsed.rawText || "";
-      dataUrl = parsed.pages[0] || ""; // First page rendered as crisp PNG data URL
-    } catch (err) {
+      dataUrl = parsed.compositeFloorplanDataUrl || parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+    } catch (err: any) {
       console.warn("PDF parsing error:", err);
+      throw new Error(`PDF reading error: ${err.message || "Failed to parse PDF document. Please verify the file is not password-protected."}`);
     }
   } else if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt")) {
     rawText = await file.text();
   } else {
-    // Image file
-    dataUrl = await new Promise<string>((resolve) => {
+    // Image file: automatically compress and normalize resolution to ensure fast processing
+    const rawDataUrl = await new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => resolve((e.target?.result as string) || "");
       reader.readAsDataURL(file);
     });
+    dataUrl = await compressImageDataUrl(rawDataUrl, 1800, 1800, 0.88);
   }
 
   // 2. Identify Base Design Model (Universal Dynamic Resolution)
@@ -1067,7 +1079,7 @@ export async function analyzeModifiedFloorplanFile(
   // Priority 1.5: If filename and rawText had no recognizable Hudson model, scan the sheet header/title block from image
   if (!detectedModelName && dataUrl) {
     const visualModel = await identifyDesignModelFromImage(dataUrl);
-    if (visualModel && visualModel.designName) {
+    if (visualModel && visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
       const verified = findHudsonModelByName(visualModel.designName);
       if (verified) {
         detectedModelName = verified.row.name;
@@ -1080,7 +1092,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // Priority 2: If the uploaded file had no recognized model, fall back to activeDesignName from Step 2
-  if (!detectedModelName && activeDesignName && activeDesignName !== "UNSELECTED") {
+  if ((!detectedModelName || detectedModelName.toLowerCase() === "unknown") && activeDesignName && activeDesignName !== "UNSELECTED") {
     detectedModelName = activeDesignName;
     housingType = activeHousingType || getHousingTypeForDesign(activeDesignName) || "Single Storey";
   }
@@ -1091,9 +1103,9 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // ZERO-HALLUCINATION ENFORCEMENT: Never silently guess or default to Amber 21!
-  if (!detectedModelName) {
+  if (!detectedModelName || detectedModelName.toLowerCase() === "unknown") {
     throw new Error(
-      "Unable to automatically identify the Hudson Homes design model from this plan. Please select your base model in Step 2 before uploading."
+      "Unable to automatically identify the Hudson Homes design model from this plan's title block. Please select your base model in Step 2 before uploading."
     );
   }
 
@@ -1578,45 +1590,43 @@ export async function analyzeModifiedFloorplanFile(
   let garageDelta = 0;
   let wetAreaDelta = 0;
 
-  // 1. Room Dimension Parsing (Benchmark: Amber 21)
-  if (detectedModelName === "Amber 21") {
-    // Amber 21 standard: Family 5.9 x 3.5 = 20.65 m²
-    const familyMatch = rawText.match(/Family\s*[\r\n\t]*(\d+\.\d+)\s*x\s*(\d+\.\d+)/i);
-    if (familyMatch) {
-      const w = parseFloat(familyMatch[1]);
-      const l = parseFloat(familyMatch[2]);
-      const actualLivingM2 = w * l;
-      const standardFamM2 = 5.9 * 3.5;
-      const famDiff = actualLivingM2 - standardFamM2;
-      if (Math.abs(famDiff) > 0.4) {
-        livingDelta = Math.round(famDiff * 100) / 100;
-      }
+  // 1. Universal Room Dimension Parsing across any Hudson Home Design
+  // A. Alfresco dimensions (e.g. "Alfresco 7.5 x 4.0" vs standard 4.5 x 3.0 or 2.6 x 3.6)
+  const alfMatch = rawText.match(/Alfresco\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (alfMatch) {
+    const w = parseFloat(alfMatch[1]);
+    const l = parseFloat(alfMatch[2]);
+    const actualAlfM2 = w * l;
+    const stdAlf = standardAlfrescoM2 || 10;
+    const alfDiff = actualAlfM2 - stdAlf;
+    if (Math.abs(alfDiff) > 0.4) {
+      alfrescoDelta = Math.round(alfDiff * 100) / 100;
     }
+  }
 
-    // Amber 21 standard: Alfresco 2.6 x 3.6 = 9.36 m²
-    const alfMatch = rawText.match(/Alfresco\s*[\r\n\t]*(\d+\.\d+)\s*x\s*(\d+\.\d+)/i);
-    if (alfMatch) {
-      const w = parseFloat(alfMatch[1]);
-      const l = parseFloat(alfMatch[2]);
-      const actualAlfM2 = w * l;
-      const standardAlfM2 = 2.6 * 3.6;
-      const alfDiff = actualAlfM2 - standardAlfM2;
-      if (Math.abs(alfDiff) > 0.4) {
-        alfrescoDelta = Math.round(alfDiff * 100) / 100;
-      }
+  // B. Garage dimensions (e.g. "Garage 5.7 x 5.7" vs "5.5 x 5.5")
+  const garMatch = rawText.match(/Garage\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (garMatch) {
+    const w = parseFloat(garMatch[1]);
+    const l = parseFloat(garMatch[2]);
+    const actualGarM2 = w * l;
+    const stdGar = standardGarageM2 || 33;
+    const garDiff = actualGarM2 - stdGar;
+    if (Math.abs(garDiff) > 0.5) {
+      garageDelta = Math.round(garDiff * 100) / 100;
     }
+  }
 
-    // Amber 21 standard: Garage 5.5 x 5.5 = 30.25 m²
-    const garMatch = rawText.match(/Garage\s*[\r\n\t]*(\d+\.\d+)\s*x\s*(\d+\.\d+)/i);
-    if (garMatch) {
-      const w = parseFloat(garMatch[1]);
-      const l = parseFloat(garMatch[2]);
-      const actualGarM2 = w * l;
-      const standardGarM2 = 5.5 * 5.5;
-      const garDiff = actualGarM2 - standardGarM2;
-      if (Math.abs(garDiff) > 0.5) {
-        garageDelta = Math.round(garDiff * 100) / 100;
-      }
+  // C. Living / Family Room dimensions
+  const familyMatch = rawText.match(/(?:Family|Living)\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  if (familyMatch) {
+    const w = parseFloat(familyMatch[1]);
+    const l = parseFloat(familyMatch[2]);
+    const actualLivingM2 = w * l;
+    const stdFam = standardLivingM2 ? (isDoubleStorey ? standardLivingM2 * 0.35 : standardLivingM2 * 0.25) : 20.65;
+    const famDiff = actualLivingM2 - stdFam;
+    if (famDiff > 1.0) {
+      livingDelta = Math.round(famDiff * 100) / 100;
     }
   }
 
