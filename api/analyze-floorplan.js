@@ -186,17 +186,22 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - If the home is "Single Storey", there is physically NO upper floor, NO first floor living, NO upper balcony, and NO upper structural beam.
    - NEVER report balconies or upper floor beams for a Single Storey design!
 
-3. STRICT DISCREPANCY & REDLINE REQUIREMENT:
-   - If Image 2 is visually identical to Image 1 (or is the standard brochure plan with no architectural modifications), you MUST return:
-     * "isModified": false
-     * "externalFootprintChanged": false
-     * "areaModifications": []
-     * "detectedInclusions": []
-   - NEVER invent or hallucinate upgrades that do not exist on Image 2!
+3. THOROUGH ROOM-BY-ROOM AUDIT & COMPARISON (DO NOT ASSUME IDENTICAL):
+   - You MUST conduct a meticulous room-by-room, door-by-door, and dimension-by-dimension audit comparing Image 2 against Image 1.
+   - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
+   - Check every room label and printed dimension on Image 2 against Image 1:
+     * Outdoor Alfresco: Check the printed dimensions (e.g. 7.5x4.0 vs standard 4.5x3.0). If the Alfresco slab or roof is larger, report "alfresco" area extension with exact deltaM2!
+     * Front Entry Door: Check if Image 2 marks "EXT 1200" (1200mm door) or "EXT 1020" (1020mm door).
+     * Alfresco Doors: Check if a wide multi-panel sliding or stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard sliding doors.
+     * Ground Floor Bathroom: Check if the ground floor powder room has been converted to a full bathroom with a shower recess, or if a guest suite is added.
+     * Secondary Bedrooms (Bed 2, Bed 3, Bed 4): Check if Bed 4 or Bed 3 has been upgraded with its own private Ensuite (ENS) and Walk-in Robe (WIR).
+     * Garage: Check if the garage is widened or extended (e.g. 5.7x5.7 vs 5.5x5.5, or triple garage addition).
+     * Ceilings: Check if high ceilings are annotated (e.g. "2740mm Ceilings GF").
+   - If and ONLY if Image 2 is truly an unmodified standard brochure copy with identical dimensions and zero alterations, set isModified: false, areaModifications: [], detectedInclusions: [].
 
 4. SPATIAL & FOOTPRINT PERIMETER COMPARISON:
-   - If external walls have NOT moved: externalFootprintChanged: false, areaModifications: [].
-   - If external walls HAVE visibly moved outward (e.g. rear alfresco pushout, living extension, garage widening):
+   - If external walls have NOT moved and room dimensions match Image 1: externalFootprintChanged: false, areaModifications: [].
+   - If external walls or outdoor slabs HAVE visibly moved outward (e.g. rear alfresco pushout, living extension, garage widening):
      * Set externalFootprintChanged: true.
      * Add to areaModifications with zone, deltaM2, and dimensions.
 
@@ -204,7 +209,10 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - "2740mm Ceilings GF" -> category: "internal_general", unitPrice: 6850, ceilingHeightM: 2.74
    - Extended kitchen island with 40mm waterfall stone ends -> category: "internal_kitchen", unitPrice: 1950
    - Master Ensuite Double Basin Vanity -> category: "internal_bathroom", unitPrice: 1280
+   - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> category: "doors_windows", unitPrice: 1250
    - 1020mm Wide Front Entry Door ("EXT 1020") -> category: "doors_windows", unitPrice: 850
+   - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36") -> category: "doors_windows", unitPrice: 1850
+   - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> category: "internal_bathroom", unitPrice: 7800
    - Additional 21.24 single roller door (for 3rd car bay or rear yard access) -> category: "doors_windows", unitPrice: 1950
    - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> category: "internal_bathroom", unitPrice: 12500
    - For any items marked "by owner" / "NIC", set isByOwner: true, unitPrice: 0.
@@ -320,6 +328,15 @@ Return ONLY valid JSON matching this schema:
         unitPrice: 1280,
         description: "Extended vanity cabinet with dual undermount basins and twin flick mixers (replaces standard single vanity).",
       },
+      upg_entry_door_1200: {
+        id: "upg_entry_door_1200",
+        name: "1200mm Grand Architectural Front Entry Door Upgrade",
+        category: "doors_windows",
+        baseline: "Standard 820mm / 920mm painted entrance door",
+        detected: "1200mm wide feature front entrance door notation ('EXT 1200') on plan",
+        unitPrice: 1250,
+        description: "1200mm wide architectural feature front entrance door upgrade ('EXT 1200' on plan).",
+      },
       upg_entry_door_1020: {
         id: "upg_entry_door_1020",
         name: "1020mm Wide Architectural Front Entry Door Upgrade",
@@ -328,6 +345,24 @@ Return ONLY valid JSON matching this schema:
         detected: "1020mm wide feature front entrance door notation ('EXT 1020') on plan",
         unitPrice: 850,
         description: "1020mm wide architectural feature front entrance door upgrade ('EXT 1020' on plan).",
+      },
+      upg_alfresco_stacker_door: {
+        id: "upg_alfresco_stacker_door",
+        name: "3-Panel Aluminum Stacker Sliding Door to Alfresco",
+        category: "doors_windows",
+        baseline: "Standard 2-panel sliding glass door",
+        detected: "Multi-panel stacking sliding door system ('STACKER' / 'STACKER SLM')",
+        unitPrice: 1850,
+        description: "Multi-panel stacking sliding door upgrade to covered alfresco.",
+      },
+      upg_gf_bathroom_addition: {
+        id: "upg_gf_bathroom_addition",
+        name: "Ground Floor Full Bathroom Addition / Conversion",
+        category: "internal_bathroom",
+        baseline: "Standard powder room (toilet and basin only)",
+        detected: "Full Ground Floor Bathroom with shower recess, vanity, and toilet",
+        unitPrice: 7800,
+        description: "Conversion of powder room or addition of full Ground Floor Bathroom with shower recess, vanity, and toilet.",
       },
       upg_single_roller_door: {
         id: "upg_single_roller_door",
@@ -421,8 +456,14 @@ Return ONLY valid JSON matching this schema:
         if (!matchedRule) {
           if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_single_roller_door;
-          } else if (/ext\s*1020|1020\s*door|1020mm\s*door|1020\s*entry/i.test(lowerText)) {
+          } else if (/ext\s*1200|1200\s*door|1200mm\s*door|1200\s*entry|1200\s*front/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_entry_door_1200;
+          } else if (/ext\s*1020|1020\s*door|1020mm\s*door|1020\s*entry|1020\s*front/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_entry_door_1020;
+          } else if (/stacker|stacking/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_alfresco_stacker_door;
+          } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_gf_bathroom_addition;
           } else if (/double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_double_vanity;
           } else if (/2740|9ft|ground\s*floor\s*ceiling|gf\s*ceiling/i.test(lowerText)) {
@@ -456,7 +497,13 @@ Return ONLY valid JSON matching this schema:
             };
 
         let semanticKey = finalItem.id || finalItem.name.toLowerCase().trim();
-        if (/ensuite.*wir|wir.*ensuite|additional.*ensuite|bed.*ensuite/i.test(lowerText)) {
+        if (/bed\s*4.*(?:ensuite|wir)|bed\s*4/i.test(lowerText)) {
+          semanticKey = "sem_bed4_wir";
+        } else if (/bed\s*3.*(?:ensuite|wir)|bed\s*3/i.test(lowerText)) {
+          semanticKey = "sem_bed3_wir";
+        } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(lowerText)) {
+          semanticKey = "sem_gf_bathroom";
+        } else if (/ensuite.*wir|wir.*ensuite|additional.*ensuite|bed.*ensuite/i.test(lowerText)) {
           semanticKey = "sem_ensuite_wir";
         } else if (/living.*media|media.*room|storage.*conversion|media.*skylight/i.test(lowerText)) {
           semanticKey = "sem_living_media";
@@ -464,16 +511,16 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_double_vanity";
         } else if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
           semanticKey = "sem_roller_door";
+        } else if (/1200|ext\s*1200/i.test(lowerText)) {
+          semanticKey = "sem_entry_door_1200";
         } else if (/1020|ext\s*1020/i.test(lowerText)) {
           semanticKey = "sem_entry_door_1020";
+        } else if (/stacker|stacking/i.test(lowerText)) {
+          semanticKey = "sem_stacker_door";
         } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
           semanticKey = "sem_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {
           semanticKey = "sem_front_balcony";
-        } else if (/bed\s*3.*wir/i.test(lowerText)) {
-          semanticKey = "sem_bed3_wir";
-        } else if (/bed\s*4.*wir/i.test(lowerText)) {
-          semanticKey = "sem_bed4_wir";
         }
 
         if (!seenSemanticKeys.has(semanticKey)) {

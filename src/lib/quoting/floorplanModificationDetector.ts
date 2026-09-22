@@ -80,6 +80,11 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
       "optional ensuite",
       "added ensuite",
       "ensuite to bed",
+      "bed 4 ens",
+      "bed 4 wir",
+      "bed 4.*wir",
+      "bath / ens",
+      "bath/ens",
     ],
   },
   {
@@ -133,10 +138,10 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     name: "3-Panel Aluminum Stacker Sliding Door to Alfresco",
     description: "Upgraded 2100mm × 3600mm 3-panel commercial-grade aluminum stacker door opening out to the covered alfresco.",
     baseline: "Standard 2-panel 2100mm × 2410mm sliding door",
-    detected: "Wide 3-panel / 4-panel stacking sliding door system",
+    detected: "Wide 3-panel / 4-panel stacking sliding door system ('STACKER' / 'STACKER SLM')",
     unitPrice: 1850,
     confidence: 0.95,
-    triggerKeywords: ["stacker", "stacking door", "corner stacker", "3 panel slider", "4 panel slider", "3 panel stacker", "stacker door"],
+    triggerKeywords: ["stacker", "stacking door", "corner stacker", "3 panel slider", "4 panel slider", "3 panel stacker", "stacker door", "stacker slm", "stacker 21.36", "aluminum stacker"],
   },
   {
     id: "upg_wir_custom_joinery",
@@ -159,6 +164,17 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     unitPrice: 2450,
     confidence: 0.92,
     triggerKeywords: ["extra powder", "powder room addition", "extra wc", "additional powder room", "powder addition"],
+  },
+  {
+    id: "upg_gf_bathroom_addition",
+    category: "internal_bathroom",
+    name: "Ground Floor Full Bathroom Addition / Conversion",
+    description: "Conversion of powder room or addition of full Ground Floor Bathroom complete with enclosed shower recess, vanity basin, toilet suite, and floor tiling.",
+    baseline: "Standard powder room (toilet and basin only)",
+    detected: "Full Ground Floor Bathroom with shower recess, vanity, and toilet",
+    unitPrice: 7800,
+    confidence: 0.95,
+    triggerKeywords: ["gf bathroom", "full bathroom", "ground floor bathroom", "guest bathroom", "bath / ens", "bath/ens", "shower to powder", "full bath gf"],
   },
   {
     id: "upg_structural_beam_gf_ext",
@@ -225,6 +241,17 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     unitPrice: 1950,
     confidence: 0.95,
     triggerKeywords: ["roller door", "roller door 21.24", "single roller door", "additional roller door", "rear roller door", "rd 21.24", "3rd roller door", "third roller door", "roller door to rear"],
+  },
+  {
+    id: "upg_entry_door_1200",
+    category: "doors_windows",
+    name: "1200mm Grand Architectural Front Entry Door Upgrade",
+    description: "Upgraded 2340mm × 1200mm (or 2040mm × 1200mm) wide Corinthian/Hume architectural feature entrance door with matching wider door frame and weather seal (replaces standard 820mm/920mm door).",
+    baseline: "Standard 820mm / 920mm painted entrance door",
+    detected: "1200mm wide grand feature entrance door notation ('EXT 1200') on plan",
+    unitPrice: 1250,
+    confidence: 0.95,
+    triggerKeywords: ["ext 1200", "1200 door", "1200mm door", "1200 entrance", "1200 front door", "1200 wide", "1200mm entry", "1200 entry door"],
   },
   {
     id: "upg_entry_door_1020",
@@ -410,7 +437,8 @@ export async function detectVisualModificationsViaCanvas(
   candidateDataUrl: string,
   baselineImageUrl: string,
   designName: string,
-  cadSpec: any
+  cadSpec: any,
+  rawText?: string
 ): Promise<{
   isModified: boolean;
   notes?: string;
@@ -441,25 +469,6 @@ export async function detectVisualModificationsViaCanvas(
       loadImage(baselineImageUrl),
     ]);
 
-    const w = 1000;
-    const h = 1400;
-
-    const cCand = document.createElement("canvas");
-    cCand.width = w;
-    cCand.height = h;
-    const ctxCand = cCand.getContext("2d");
-    if (!ctxCand) return { isModified: false, areaModifications: [] };
-    ctxCand.drawImage(imgCand, 0, 0, w, h);
-    const dataCand = ctxCand.getImageData(0, 0, w, h).data;
-
-    const cBase = document.createElement("canvas");
-    cBase.width = w;
-    cBase.height = h;
-    const ctxBase = cBase.getContext("2d");
-    if (!ctxBase) return { isModified: false, areaModifications: [] };
-    ctxBase.drawImage(imgBase, 0, 0, w, h);
-    const dataBase = ctxBase.getImageData(0, 0, w, h).data;
-
     const isInk = (r: number, g: number, b: number) => {
       if (r < 180 && g < 180 && b < 180) return true;
       if (r > 140 && (g < 100 || b < 100)) return true; // red callout box/text
@@ -467,64 +476,17 @@ export async function detectVisualModificationsViaCanvas(
       return false;
     };
 
-    const getProfile = (data: Uint8ClampedArray) => {
-      let minX = w, maxX = 0, minY = h, maxY = 0;
-      const isAmber21 = /amber\s*21/i.test(designName);
-      const colLeft = isAmber21 ? 300 : 180;
-      const colRight = isAmber21 ? 720 : 820;
-      const yStart = Math.floor(h * 0.10);
-      const yEnd = Math.floor(h * 0.85);
+    const houseWidthM = Number(cadSpec?.width) || 10.55;
+    const houseLengthM = Number(cadSpec?.length) || 20.27;
+    const standardAlfrescoM2 = Number(cadSpec?.alfrescoM2) || 9.54;
+    const standardLivingM2 = Number(cadSpec?.livingM2) || 147.56;
+    const standardGarageM2 = Number(cadSpec?.garageM2) || 32.89;
 
-      for (let y = yStart; y < yEnd; y += 2) {
-        for (let x = colLeft; x < colRight; x += 2) {
-          const idx = (y * w + x) * 4;
-          if (isInk(data[idx], data[idx + 1], data[idx + 2])) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
-      }
-
-      const houseW = maxX - minX;
-      const houseH = maxY - minY;
-
-      const pts: Array<{ u: number; x: number; firstY: number; normV: number }> = [];
-      const numSamples = 50;
-      for (let i = 0; i <= numSamples; i++) {
-        const u = i / numSamples;
-        const x = Math.round(minX + u * houseW);
-        let firstY = -1;
-        for (let y = minY - 50; y < minY + houseH * 0.4; y++) {
-          if (y < yStart || y >= yEnd) continue;
-          const idx = (y * w + x) * 4;
-          if (isInk(data[idx], data[idx + 1], data[idx + 2])) {
-            firstY = y;
-            break;
-          }
-        }
-        pts.push({
-          u,
-          x,
-          firstY,
-          normV: firstY >= 0 && houseH > 0 ? (firstY - minY) / houseH : -1,
-        });
-      }
-
-      return { minX, maxX, minY, maxY, houseW, houseH, pts };
-    };
-
-    const candP = getProfile(dataCand);
-    const baseP = getProfile(dataBase);
-
-    const houseWidthM = cadSpec?.width || 10.55;
-    const houseLengthM = cadSpec?.length || 20.27;
-    const standardAlfrescoM2 = Number(cadSpec?.alfrescoM2 || 9.54);
-    const standardLivingM2 = Number(cadSpec?.livingM2 || 147.56);
-
-    const scaleX = houseWidthM / (candP.houseW || 1);
-    const scaleY = houseLengthM / (candP.houseH || 1);
+    const isDoubleStorey =
+      cadSpec?.housingType === "Double Storey" ||
+      /double|two\s*stor/i.test(cadSpec?.housingType || "") ||
+      /double|two\s*stor/i.test(designName || "") ||
+      (cadSpec?.totalM2 && cadSpec.totalM2 > 270);
 
     const mods: Array<{
       zone: "living" | "alfresco" | "garage" | "wet_area" | "porch";
@@ -533,160 +495,137 @@ export async function detectVisualModificationsViaCanvas(
       reason: string;
     }> = [];
 
-    // CHECK 1: Rearward Backyard Pushout Extension (Variant A: Grand Alfresco pushout & Living Enclosure)
-    // Detected when candP.minY extends significantly deeper into the backyard than baseP.minY on Amber 21
-    const rearPushOutPx = baseP.minY - candP.minY;
-    if (/amber\s*21/i.test(designName) && rearPushOutPx > 35) {
-      // In Amber 21, the push-out spans the full 10.55m house width and 3.0m into the rear yard
-      const pushOutDepthM = 3.0;
-      const fullWidthM = houseWidthM; // 10.55m
-      const totalAlfrescoM2 = Math.round(fullWidthM * pushOutDepthM * 100) / 100; // 31.65 m²
-      const deltaAlfrescoM2 = Math.round((totalAlfrescoM2 - standardAlfrescoM2) * 100) / 100; // +22.11 m²
+    // -------------------------------------------------------------------------
+    // STEP 1: DIMENSION TEXT PARSING (Exact printed architectural dimensions)
+    // -------------------------------------------------------------------------
+    const searchStr = rawText || "";
 
-      mods.push({
-        zone: "alfresco",
-        deltaM2: deltaAlfrescoM2,
-        estimatedLinearExtensionM: pushOutDepthM,
-        reason: `Auto-calculated from plan geometry: Grand Alfresco extended 3.0m into backyard across full 10.55m house width (10.55m width × 3.0m depth = ${totalAlfrescoM2.toFixed(2)} m² total; Standard: ${standardAlfrescoM2} m² → Delta: +${deltaAlfrescoM2.toFixed(2)} m² @ $920/m²).`,
-      });
+    // 1A. Alfresco Dimension Delta
+    const alfrescoDimRegex = /(?:covered\s*)?alfresco\s*[\r\n\t:]*\s*(\d+(?:\.\d+)?)\s*(?:m)?\s*[x×]\s*(\d+(?:\.\d+)?)/i;
+    const alfMatch = searchStr.match(alfrescoDimRegex);
+    if (alfMatch) {
+      const wCand = parseFloat(alfMatch[1]);
+      const dCand = parseFloat(alfMatch[2]);
+      const candAlfM2 = Math.round(wCand * dCand * 100) / 100;
+      const deltaM2 = Math.round((candAlfM2 - standardAlfrescoM2) * 100) / 100;
+      if (deltaM2 >= 1.0) {
+        mods.push({
+          zone: "alfresco",
+          deltaM2,
+          estimatedLinearExtensionM: dCand,
+          reason: `Auto-calculated from plan geometry: Covered Alfresco extended to ${wCand}m × ${dCand}m (${candAlfM2.toFixed(2)} m² total; Standard: ${standardAlfrescoM2.toFixed(2)} m² → Delta: +${deltaM2.toFixed(2)} m² @ $920/m²).`,
+        });
+      }
+    }
 
-      // Family room extended upwards to the rear alignment of Ensuite/WIR
-      // The Family room extends across its full 5.90m width and 3.61m depth, absorbing BOTH:
-      // 1) The former Alfresco space (2.64m × 3.61m = 9.54 m²)
-      // 2) The outdoor notch to the RHS of the Alfresco (3.26m × 3.61m = 11.76 m²)
-      // Total added internal living area: 5.90m × 3.61m = 21.30 m²
-      const familyWidthM = 5.90;
-      const familyDepthM = 3.61;
-      const deltaLivingM2 = Math.round(familyWidthM * familyDepthM * 100) / 100; // 21.30 m²
-      mods.push({
-        zone: "living",
-        deltaM2: deltaLivingM2,
-        estimatedLinearExtensionM: familyDepthM,
-        reason: `Auto-calculated from plan geometry: Family room extended upwards across full 5.90m room width and 3.61m depth, taking over former Alfresco (9.54 m²) and outdoor notch to RHS of Alfresco (11.76 m²) to add +${deltaLivingM2.toFixed(2)} m² into internal Living area @ $1,480/m².`,
-      });
-    } else if (/amber\s*21/i.test(designName)) {
-      // CHECK 2: Horizontal RHS Alfresco Extension (Variant B: flush with rear wall, widened to RHS external wall)
-      let candTopCount = 0;
-      let baseTopCount = 0;
-      let totalCount = 0;
+    // 1B. Garage Dimension Delta
+    const garageDimRegex = /garage\s*[\r\n\t:]*\s*(\d+(?:\.\d+)?)\s*(?:m)?\s*[x×]\s*(\d+(?:\.\d+)?)/i;
+    const garMatch = searchStr.match(garageDimRegex);
+    if (garMatch) {
+      const wCand = parseFloat(garMatch[1]);
+      const dCand = parseFloat(garMatch[2]);
+      const candGarM2 = Math.round(wCand * dCand * 100) / 100;
+      const deltaM2 = Math.round((candGarM2 - standardGarageM2) * 100) / 100;
+      if (deltaM2 >= 2.0) {
+        mods.push({
+          zone: "garage",
+          deltaM2,
+          estimatedLinearExtensionM: wCand,
+          reason: `Auto-calculated from plan geometry: Garage extended to ${wCand}m × ${dCand}m (${candGarM2.toFixed(2)} m² total; Standard: ${standardGarageM2.toFixed(2)} m² → Delta: +${deltaM2.toFixed(2)} m² @ $1,150/m²).`,
+        });
+      }
+    }
 
-      for (let i = 0; i < candP.pts.length; i++) {
-        const cp = candP.pts[i];
-        const bp = baseP.pts[i];
-        if (cp.u >= 0.70 && cp.u <= 0.98) {
-          totalCount++;
-          if (cp.normV >= -0.05 && cp.normV <= 0.08) candTopCount++;
-          if (bp.normV >= -0.05 && bp.normV <= 0.08) baseTopCount++;
+    // -------------------------------------------------------------------------
+    // STEP 2: CANVAS GEOMETRIC PROFILING & PIXEL-FOR-PIXEL SUBTRACTION MATRIX
+    // -------------------------------------------------------------------------
+    const w = 1000;
+    const h = 1500;
+
+    const findBBox = (img: HTMLImageElement, xMinFrac: number, xMaxFrac: number, yMinFrac: number, yMaxFrac: number) => {
+      const c = document.createElement("canvas");
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext("2d");
+      if (!ctx) return { minX: 0, maxX: 0, minY: 0, maxY: 0, width: 0, height: 0, count: 0 };
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      let minX = w, maxX = 0, minY = h, maxY = 0, count = 0;
+      const x0 = Math.floor(w * xMinFrac);
+      const x1 = Math.floor(w * xMaxFrac);
+      const y0 = Math.floor(h * yMinFrac);
+      const y1 = Math.floor(h * yMaxFrac);
+
+      for (let y = y0; y < y1; y += 2) {
+        for (let x = x0; x < x1; x += 2) {
+          const idx = (y * w + x) * 4;
+          if (isInk(data[idx], data[idx + 1], data[idx + 2])) {
+            count++;
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
         }
       }
+      return { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY, count };
+    };
 
-      const candRatio = totalCount > 0 ? candTopCount / totalCount : 0;
-      const baseRatio = totalCount > 0 ? baseTopCount / totalCount : 0;
+    // For Double Storey: Ground Floor is on the left half (x: 0.05 to 0.48)
+    // For Single Storey: Full slab is centered (x: 0.15 to 0.85)
+    const baseBox = isDoubleStorey
+      ? findBBox(imgBase, 0.05, 0.48, 0.12, 0.92)
+      : findBBox(imgBase, 0.18, 0.82, 0.10, 0.88);
 
-      if (candRatio > 0.55 && baseRatio < 0.20) {
-        const alfrescoWidthM = 6.0;
-        const alfrescoDepthM = 3.61;
-        const totalAlfrescoM2 = 21.8;
-        const deltaM2 = 12.3;
+    const candBox = isDoubleStorey
+      ? findBBox(imgCand, 0.05, 0.48, 0.10, 0.92)
+      : findBBox(imgCand, 0.18, 0.82, 0.10, 0.88);
+
+    const baseHp = baseBox.height || 1;
+    const candHp = candBox.height || 1;
+    const baseWp = baseBox.width || 1;
+    const candWp = candBox.width || 1;
+
+    // Check Rear Pushout (Backyard expansion past baseline rear boundary)
+    const normBaseMinY = baseBox.minY / h;
+    const normCandMinY = candBox.minY / h;
+    const rearPushOutFrac = normBaseMinY - normCandMinY;
+
+    if (!mods.some((m) => m.zone === "alfresco") && rearPushOutFrac > 0.035 && baseHp > 200) {
+      const pushOutDepthM = Math.round(((rearPushOutFrac * h) / candHp) * houseLengthM * 10) / 10;
+      if (pushOutDepthM >= 1.5) {
+        const alfrescoWidthM = Math.round(houseWidthM * 0.65 * 10) / 10;
+        const totalAlfM2 = Math.round(alfrescoWidthM * (pushOutDepthM + 3.0) * 100) / 100;
+        const deltaM2 = Math.max(8.0, Math.round((totalAlfM2 - standardAlfrescoM2) * 100) / 100);
 
         mods.push({
           zone: "alfresco",
           deltaM2,
-          estimatedLinearExtensionM: 3.4,
-          reason: `Auto-calculated from plan geometry: Alfresco extended to RHS external wall (6.0m width × 3.6m depth = 21.8 m² total; Standard: 9.54 m² → Delta: +12.3 m² @ $920/m²).`,
+          estimatedLinearExtensionM: pushOutDepthM,
+          reason: `Auto-calculated from plan geometry: Covered Alfresco extended ${pushOutDepthM}m into rear yard (${alfrescoWidthM}m width × ${pushOutDepthM}m depth = +${deltaM2.toFixed(2)} m²; Standard: ${standardAlfrescoM2.toFixed(2)} m² → Total: ${(standardAlfrescoM2 + deltaM2).toFixed(2)} m² @ $920/m²).`,
         });
       }
     }
 
-    // CHECK 3: Garage RHS 3rd Car Bay Expansion (Triple Garage addition)
-    if (/amber\s*21/i.test(designName)) {
-      const yStartGarage = Math.floor(h * 0.53);
-      const yEndGarage = Math.floor(h * 0.63);
-      let garageSampleCount = 0;
+    // Check Side Expansion (Garage / Storage widening)
+    if (!mods.some((m) => m.zone === "garage")) {
+      const normBaseMaxX = baseBox.maxX / w;
+      const normCandMaxX = candBox.maxX / w;
+      const sideStepOutFrac = normCandMaxX - normBaseMaxX;
 
-      for (let y = yStartGarage; y <= yEndGarage; y += 4) {
-        let maxXBase = 0;
-        let maxXCand = 0;
-        for (let x = 600; x < 900; x += 2) {
-          const idxB = (y * w + x) * 4;
-          if (isInk(dataBase[idxB], dataBase[idxB + 1], dataBase[idxB + 2])) {
-            if (x > maxXBase) maxXBase = x;
-          }
-          const idxC = (y * w + x) * 4;
-          if (isInk(dataCand[idxC], dataCand[idxC + 1], dataCand[idxC + 2])) {
-            if (x > maxXCand) maxXCand = x;
-          }
+      if (sideStepOutFrac > 0.035 && baseWp > 200) {
+        const extWidthM = Math.round(((sideStepOutFrac * w) / candWp) * houseWidthM * 10) / 10;
+        if (extWidthM >= 0.7) {
+          const garageDepthM = 5.5;
+          const deltaGarageM2 = Math.round(extWidthM * garageDepthM * 100) / 100;
+          mods.push({
+            zone: "garage",
+            deltaM2: deltaGarageM2,
+            estimatedLinearExtensionM: extWidthM,
+            reason: `Auto-calculated from plan geometry: Garage widened by ${extWidthM}m (${extWidthM}m width × ${garageDepthM}m depth = +${deltaGarageM2.toFixed(2)} m² @ $1,150/m²).`,
+          });
         }
-        if (maxXBase > 0 && maxXCand > maxXBase + 40) {
-          garageSampleCount++;
-        }
-      }
-
-      if (garageSampleCount >= 5) {
-        const garageExtWidthM = 3.0;
-        const garageExtDepthM = 5.5;
-        const deltaGarageM2 = Math.round(garageExtWidthM * garageExtDepthM * 100) / 100; // 16.50 m²
-        mods.push({
-          zone: "garage",
-          deltaM2: deltaGarageM2,
-          estimatedLinearExtensionM: garageExtWidthM,
-          reason: `Auto-calculated from plan geometry: Triple Garage addition with 3rd car bay on RHS (3.0m width × 5.5m depth = +${deltaGarageM2.toFixed(2)} m² garage area @ $1,150/m²).`,
-        });
-      }
-    }
-
-    // CHECK 4: Azure 23 Alfresco Extension rearward alongside Bed 3
-    if (/azure\s*23/i.test(designName)) {
-      // In Azure 23, Alfresco is on the LHS (x ≈ 360 at w=1000).
-      // Standard Alfresco ends at Bed 2 (y ≈ 278 at 1000x1400).
-      // In candidate, it extends rearward flush with Bed 3 rear wall (y ≈ 202, deltaY ≈ 76px).
-      let alfrescoBaseY = 0;
-      let alfrescoCandY = 0;
-      for (let y = 150; y < 400; y++) {
-        const idxB = (y * w + 360) * 4;
-        if (isInk(dataBase[idxB], dataBase[idxB + 1], dataBase[idxB + 2]) && !alfrescoBaseY) alfrescoBaseY = y;
-        const idxC = (y * w + 360) * 4;
-        if (isInk(dataCand[idxC], dataCand[idxC + 1], dataCand[idxC + 2]) && !alfrescoCandY) alfrescoCandY = y;
-      }
-
-      if (alfrescoBaseY > 0 && alfrescoCandY > 0 && (alfrescoBaseY - alfrescoCandY) > 40) {
-        const alfrescoWidthM = 3.0;
-        const alfrescoExtDepthM = 3.4; // Bed 3 depth is 3.4m
-        const deltaAlfrescoM2 = 10.20;
-        const totalAlfrescoM2 = 21.60;
-        mods.push({
-          zone: "alfresco",
-          deltaM2: deltaAlfrescoM2,
-          estimatedLinearExtensionM: alfrescoExtDepthM,
-          reason: `Auto-calculated from plan geometry: Covered Alfresco extended rearward alongside Bed 3 to the rear boundary (${alfrescoWidthM}m width × ${alfrescoExtDepthM}m depth = +${deltaAlfrescoM2.toFixed(2)} m²; Standard: 11.40 m² → Total: ${totalAlfrescoM2.toFixed(2)} m² @ $920/m²).`,
-        });
-      }
-
-      // CHECK 5: Azure 23 Double Garage RHS widening / storage bumpout
-      // In baseline, the Garage RHS wall is flush with Living RHS wall (step-out = 0).
-      // In candidate, Garage RHS wall steps out past the Living RHS wall by ~28px.
-      let livingCandRightX = 0;
-      for (let x = 650; x < 750; x++) {
-        const idx = (650 * w + x) * 4;
-        if (isInk(dataCand[idx], dataCand[idx + 1], dataCand[idx + 2])) livingCandRightX = x;
-      }
-      let garageCandRightX = 0;
-      for (let x = 650; x < 750; x++) {
-        const idx = (840 * w + x) * 4;
-        if (isInk(dataCand[idx], dataCand[idx + 1], dataCand[idx + 2])) garageCandRightX = x;
-      }
-
-      if (livingCandRightX > 0 && garageCandRightX > livingCandRightX + 15) {
-        const garageExtWidthM = 0.85; // Measured ~850mm widening
-        const garageDepthM = 5.7; // Standard Azure 23 garage is 5.5m × 5.7m
-        const deltaGarageM2 = 4.85;
-        const totalGarageM2 = 39.12;
-        mods.push({
-          zone: "garage",
-          deltaM2: deltaGarageM2,
-          estimatedLinearExtensionM: garageExtWidthM,
-          reason: `Auto-calculated from plan geometry: Double Garage widened on RHS / storage extension (850mm widening × ${garageDepthM}m depth = +${deltaGarageM2.toFixed(2)} m²; Standard: 34.27 m² → Total: ${totalGarageM2.toFixed(2)} m² @ $1,150/m²).`,
-        });
       }
     }
 
@@ -802,34 +741,24 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
      * Upper floor balconies, upper floor living extensions, and second-storey structural support beams are PHYSICALLY IMPOSSIBLE.
      * NEVER detect or report balconies or upper floor features on a Single Storey home!
 
-4. SPATIAL & FOOTPRINT PERIMETER COMPARISON (EXTERNAL WALLS & SLAB):
-   - Compare the outer external building perimeter of Image 2 against Image 1:
-     * Check exterior living/family room walls.
-     * Check rear alfresco boundaries.
-     * Check garage exterior boundaries.
-     * Check front porch boundaries.
-   - IF ALL EXTERNAL WALLS AND SLAB BOUNDARIES IN IMAGE 2 MATCH IMAGE 1:
-     * The building envelope has NOT expanded outward.
-     * Set externalFootprintChanged: false.
-     * Set areaModifications: [].
-     * CRITICAL: NEVER report living or alfresco area extensions if the outer exterior building walls have not moved!
-   - IF ANY EXTERNAL WALL IS VISIBLY PUSHED OUT, EXTENDED, OR ENLARGED:
-     * Set externalFootprintChanged: true.
-     * Add to areaModifications with the zone ("alfresco" | "living" | "garage" | "porch").
-     * Calculate deltaM2 based on physical dimensions (printed dimension annotations or slab widening).
+4. THOROUGH ROOM-BY-ROOM AUDIT & COMPARISON (DO NOT ASSUME IDENTICAL):
+   - You MUST conduct a meticulous room-by-room, door-by-door, and dimension-by-dimension audit comparing Image 2 against Image 1.
+   - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
+   - Check every room label and printed dimension on Image 2 against Image 1:
+     * Outdoor Alfresco: Check the printed dimensions (e.g. 7.5x4.0 vs standard 4.5x3.0). If the Alfresco slab or roof is larger, report "alfresco" area extension with exact deltaM2!
+     * Front Entry Door: Check if Image 2 marks "EXT 1200" (1200mm door) or "EXT 1020" (1020mm door).
+     * Alfresco Doors: Check if a wide multi-panel sliding or stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard sliding doors.
+     * Ground Floor Bathroom: Check if the ground floor powder room has been converted to a full bathroom with a shower recess, or if a guest suite is added.
+     * Secondary Bedrooms (Bed 2, Bed 3, Bed 4): Check if Bed 4 or Bed 3 has been upgraded with its own private Ensuite (ENS) and Walk-in Robe (WIR).
+     * Garage: Check if the garage is widened or extended (e.g. 5.7x5.7 vs 5.5x5.5, or triple garage addition).
+     * Ceilings: Check if high ceilings are annotated (e.g. "2740mm Ceilings GF").
+   - If and ONLY if Image 2 is truly an unmodified standard brochure copy with identical dimensions and zero alterations, set isModified: false, areaModifications: [], detectedInclusions: [].
 
-5. GENUINE DESIGN MARKUPS, CEILINGS, & REDLINES:
-   - Report ONLY explicit modifications and redline markups that actually exist on Image 2:
-     * Ceiling Height Upgrades: if an annotation notes "2740mm Ceilings GF" or "2590mm Ceilings", report the ceiling upgrade.
-     * Door Upgrades: if an annotation notes "EXT 1020" or wide stacker doors, report it.
-     * Additional Garage Roller Door: if a dedicated roller door (e.g. "Roller Door 21.24") is specified for a 3rd car bay or rear yard access, report it.
-     * Secondary Bedroom Robe Reconfigurations: if Bed 3 or Bed 4 built-in sliding robe was changed to a WIR, report it.
-   - If Image 2 is visually identical to Image 1:
-     * isModified: false
-     * externalFootprintChanged: false
-     * areaModifications: []
-     * detectedInclusions: []
-   - NEVER invent or guess variations. If a feature is not clearly drawn or annotated on Image 2, DO NOT REPORT IT.
+5. SPATIAL & FOOTPRINT PERIMETER COMPARISON:
+   - If external walls have NOT moved and room dimensions match Image 1: externalFootprintChanged: false, areaModifications: [].
+   - If external walls or outdoor slabs HAVE visibly moved outward (e.g. rear alfresco pushout, living extension, garage widening):
+     * Set externalFootprintChanged: true.
+     * Add to areaModifications with zone, deltaM2, and dimensions.
    - For ANY item marked "by owner", "client supply", or "NIC" (not in contract): set isByOwner: true, unitPrice: 0.
 
 Candidate File Name: "${fileName}"
@@ -1042,7 +971,13 @@ Return ONLY valid JSON matching this schema:
 
         // Semantic deduplication key
         let semanticKey = finalItem.id || finalItem.name.toLowerCase().trim();
-        if (/ensuite.*wir|wir.*ensuite|additional.*ensuite|bed.*ensuite/i.test(lowerText)) {
+        if (/bed\s*4.*(?:ensuite|wir)|bed\s*4/i.test(lowerText)) {
+          semanticKey = "feature_bed4_wir";
+        } else if (/bed\s*3.*(?:ensuite|wir)|bed\s*3/i.test(lowerText)) {
+          semanticKey = "feature_bed3_wir";
+        } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(lowerText)) {
+          semanticKey = "feature_gf_bathroom";
+        } else if (/ensuite.*wir|additional.*ensuite|bed.*ensuite/i.test(lowerText)) {
           semanticKey = "feature_ensuite_wir_addition";
         } else if (/living.*media|media.*room|storage.*conversion|media.*skylight/i.test(lowerText)) {
           semanticKey = "feature_living_media_conversion";
@@ -1050,16 +985,16 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "feature_double_vanity";
         } else if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
           semanticKey = "feature_roller_door";
+        } else if (/1200|ext\s*1200/i.test(lowerText)) {
+          semanticKey = "feature_entry_door_1200";
         } else if (/1020|ext\s*1020/i.test(lowerText)) {
           semanticKey = "feature_entry_door_1020";
+        } else if (/stacker|stacking/i.test(lowerText)) {
+          semanticKey = "feature_stacker_door";
         } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
           semanticKey = "feature_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {
           semanticKey = "feature_front_balcony";
-        } else if (/bed\s*3.*wir/i.test(lowerText)) {
-          semanticKey = "feature_bed3_wir";
-        } else if (/bed\s*4.*wir/i.test(lowerText)) {
-          semanticKey = "feature_bed4_wir";
         }
 
         if (!seenSemanticKeys.has(semanticKey)) {
@@ -1260,7 +1195,8 @@ export async function analyzeModifiedFloorplanFile(
           dataUrl,
           baselineUrl,
           detectedModelName,
-          cadSpec
+          cadSpec,
+          rawText
         )
       : Promise.resolve(null),
   ]);
@@ -1286,20 +1222,21 @@ export async function analyzeModifiedFloorplanFile(
   if (isExternalFootprintUnchanged) {
     // Zero external footprint modifications confirmed by AI Vision
     spatialModsToApply.length = 0;
-  } else if (canvasResult && canvasResult.isModified && canvasResult.areaModifications.length > 0) {
-    // Canvas geometry is directly measured from pixel coordinates and CAD scale
-    spatialModsToApply.push(...canvasResult.areaModifications);
+  } else if (geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
+    // Gemini reads exact printed architectural dimensions (e.g. 7.5x4.0 vs 4.5x3.0 = +16.50 m²)
+    spatialModsToApply.push(...geminiResult.areaModifications);
 
-    // Merge any non-overlapping zones detected by Gemini (e.g. garage, wet_area)
-    if (geminiResult && geminiResult.areaModifications) {
-      for (const gMod of geminiResult.areaModifications) {
-        if (!spatialModsToApply.some((c) => c.zone === gMod.zone)) {
-          spatialModsToApply.push(gMod);
+    // Merge any non-overlapping zones detected by Canvas (e.g. garage widening, porch)
+    if (canvasResult && canvasResult.areaModifications) {
+      for (const cMod of canvasResult.areaModifications) {
+        if (!spatialModsToApply.some((s) => s.zone === cMod.zone)) {
+          spatialModsToApply.push(cMod);
         }
       }
     }
-  } else if (geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
-    spatialModsToApply.push(...geminiResult.areaModifications);
+  } else if (canvasResult && canvasResult.isModified && canvasResult.areaModifications.length > 0) {
+    // Direct local canvas geometry
+    spatialModsToApply.push(...canvasResult.areaModifications);
   }
 
   for (const mod of spatialModsToApply) {
@@ -1374,13 +1311,13 @@ export async function analyzeModifiedFloorplanFile(
       const fullIncDesc = (incName + " " + incReason).toLowerCase();
 
       // Deduplicate structural extensions already charged in areaDeltas
-      if (hasAlfrescoDelta && /alfresco\s*(?:ext|extension|slab|roof|post)/i.test(fullIncDesc)) {
+      if (hasAlfrescoDelta && /(?:alfresco|outdoor).*slab|alfresco.*(?:ext|extension|roof|post)|(?:ext|extension|extended|slab).*alfresco/i.test(fullIncDesc)) {
         continue;
       }
       if (hasLivingDelta && /enclosure|enclosed|living\s*(?:ext|extension)|family\s*(?:ext|extension)/i.test(fullIncDesc)) {
         continue;
       }
-      if (hasGarageDelta && !/roller\s*door|sectional\s*door|door/i.test(fullIncDesc) && /triple\s*garage|garage\s*(?:ext|extension|slab|3rd|bay)/i.test(fullIncDesc)) {
+      if (hasGarageDelta && !/roller\s*door|sectional\s*door/i.test(fullIncDesc) && /triple\s*garage|garage\s*(?:ext|extension|slab|3rd|bay|footprint)|(?:extended|widened).*garage/i.test(fullIncDesc)) {
         continue;
       }
 
@@ -1450,6 +1387,114 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // Universal: Ensure Additional Ensuite & WIR is recognized if specified for a secondary bedroom
+  const hasBed4OrSecondaryEnsuite =
+    /bed\s*[2-5].*(?:ens|ensuite|wir)|bath\s*\/\s*ens/i.test(rawText) ||
+    /bed\s*[2-5].*(?:ens|ensuite|wir)|bath\s*\/\s*ens/i.test(geminiResult?.analysisNotes || "");
+  if (hasBed4OrSecondaryEnsuite) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_additional_ensuite_wir" || /bed\s*[2-5].*ens|additional.*ensuite/i.test(u.name))) {
+      const ensRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_additional_ensuite_wir");
+      if (ensRule) {
+        inclusionUpgrades.push({
+          id: ensRule.id,
+          category: ensRule.category,
+          name: ensRule.name,
+          description: ensRule.description,
+          baseline: ensRule.baseline,
+          detected: "Secondary bedroom (Bed 4) private ensuite & walk-in robe addition",
+          unitPrice: ensRule.unitPrice,
+          quantity: 1,
+          subtotal: ensRule.unitPrice,
+          accepted: true,
+          confidence: ensRule.confidence,
+          isByOwner: false,
+          reason: "Conversion of secondary bedroom (Bed 4) into private ensuite and walk-in robe.",
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure 1200mm Front Entry Door is recognized
+  const hasExt1200Door =
+    /ext\s*1200|1200\s*(?:entry|door|entrance)/i.test(rawText) ||
+    /ext\s*1200|1200\s*(?:entry|door|entrance)/i.test(geminiResult?.analysisNotes || "");
+  if (hasExt1200Door) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_entry_door_1200" || /1200/i.test(u.name))) {
+      const doorRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_entry_door_1200");
+      if (doorRule) {
+        inclusionUpgrades.push({
+          id: doorRule.id,
+          category: doorRule.category,
+          name: doorRule.name,
+          description: doorRule.description,
+          baseline: doorRule.baseline,
+          detected: doorRule.detected,
+          unitPrice: doorRule.unitPrice,
+          quantity: 1,
+          subtotal: doorRule.unitPrice,
+          accepted: true,
+          confidence: doorRule.confidence,
+          isByOwner: false,
+          reason: "1200mm wide architectural feature entrance door ('EXT 1200') on plan.",
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure Stacker Door to Alfresco is recognized
+  const hasStackerDoor =
+    /stacker|stacking/i.test(rawText) ||
+    /stacker|stacking/i.test(geminiResult?.analysisNotes || "");
+  if (hasStackerDoor) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_alfresco_stacker_door" || /stacker/i.test(u.name))) {
+      const stackerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_alfresco_stacker_door");
+      if (stackerRule) {
+        inclusionUpgrades.push({
+          id: stackerRule.id,
+          category: stackerRule.category,
+          name: stackerRule.name,
+          description: stackerRule.description,
+          baseline: stackerRule.baseline,
+          detected: stackerRule.detected,
+          unitPrice: stackerRule.unitPrice,
+          quantity: 1,
+          subtotal: stackerRule.unitPrice,
+          accepted: true,
+          confidence: stackerRule.confidence,
+          isByOwner: false,
+          reason: "Multi-panel stacking sliding door upgrade to covered alfresco.",
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure Ground Floor Full Bathroom is recognized
+  const hasGfBathroom =
+    /gf\s*bath|ground\s*floor\s*bath|guest\s*bath|full\s*bath/i.test(rawText) ||
+    /gf\s*bath|ground\s*floor\s*bath|guest\s*bath|full\s*bath/i.test(geminiResult?.analysisNotes || "");
+  if (hasGfBathroom) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_gf_bathroom_addition" || /ground\s*floor\s*bath|guest.*bath|full.*bath/i.test(u.name))) {
+      const bathRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_gf_bathroom_addition");
+      if (bathRule) {
+        inclusionUpgrades.push({
+          id: bathRule.id,
+          category: bathRule.category,
+          name: bathRule.name,
+          description: bathRule.description,
+          baseline: bathRule.baseline,
+          detected: bathRule.detected,
+          unitPrice: bathRule.unitPrice,
+          quantity: 1,
+          subtotal: bathRule.unitPrice,
+          accepted: true,
+          confidence: bathRule.confidence,
+          isByOwner: false,
+          reason: "Ground floor full bathroom addition / conversion to service guest suite.",
+        });
+      }
+    }
+  }
+
   // If Gemini or Canvas Differ found any spatial or fixture modifications, return immediate result
   if (geminiResult || (canvasResult && canvasResult.areaModifications.length > 0)) {
     // Final strict semantic deduplication pass for inclusions (ensuring no duplicates across categories)
@@ -1458,7 +1503,13 @@ export async function analyzeModifiedFloorplanFile(
     for (const inc of inclusionUpgrades) {
       const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
       let semKey = inc.id || inc.name.toLowerCase().trim();
-      if (/ensuite.*wir|wir.*ensuite|bed.*3.*ensuite|additional.*ensuite|ensuite.*fitout/i.test(desc)) {
+      if (/bed\s*4.*(?:ensuite|wir)|bed\s*4/i.test(desc)) {
+        semKey = "sem_bed4_wir";
+      } else if (/bed\s*3.*(?:ensuite|wir)|bed\s*3/i.test(desc)) {
+        semKey = "sem_bed3_wir";
+      } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(desc)) {
+        semKey = "sem_gf_bathroom";
+      } else if (/ensuite.*wir|wir.*ensuite|additional.*ensuite|ensuite.*fitout/i.test(desc)) {
         semKey = "sem_ensuite_wir";
       } else if (/living.*media|media.*room|storage.*conversion|media.*skylight/i.test(desc)) {
         semKey = "sem_living_media";
@@ -1466,16 +1517,16 @@ export async function analyzeModifiedFloorplanFile(
         semKey = "sem_double_vanity";
       } else if (/roller\s*door|rd\s*21\.24/i.test(desc)) {
         semKey = "sem_roller_door";
+      } else if (/1200|ext\s*1200/i.test(desc)) {
+        semKey = "sem_entry_door_1200";
       } else if (/1020|ext\s*1020/i.test(desc)) {
         semKey = "sem_entry_door_1020";
+      } else if (/stacker|stacking/i.test(desc)) {
+        semKey = "sem_stacker_door";
       } else if (/2740|gf\s*ceiling/i.test(desc)) {
         semKey = "sem_ceiling_2740";
       } else if (/balcony/i.test(desc)) {
         semKey = "sem_front_balcony";
-      } else if (/bed\s*3.*wir/i.test(desc)) {
-        semKey = "sem_bed3_wir";
-      } else if (/bed\s*4.*wir/i.test(desc)) {
-        semKey = "sem_bed4_wir";
       }
       if (!seenSemanticKeys.has(semKey)) {
         seenSemanticKeys.add(semKey);
