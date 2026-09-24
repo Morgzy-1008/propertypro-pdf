@@ -163,6 +163,7 @@ const ALIASES: Record<string, string> = {
   pavilion: "pavillion",
   "modern farmhouse": "modern farmhouse option b",
   "modern classical": "modern classical option a",
+  moderna: "modena",
 };
 
 /** "Chateaux (No Balcony)" / "Chateaux Narrow (Double Storey)" -> "chateaux" */
@@ -226,6 +227,7 @@ const DUPLEX_PREMIUM = {
   cranbrook: 96400,
   mayfield: 113800,
   modena: 86100,
+  moderna: 86100,
   woodlands: 105600,
 };
 
@@ -238,10 +240,14 @@ const DUPLEX_FACADE_PRICES: Record<string, Record<string, number>> = {
   cayene: { ...DUPLEX_PREMIUM, madison: 28600, marina: 28600, vista: 33600 },
   raven: { ...DUPLEX_PREMIUM, madison: 28600, marina: 28600, vista: 33600 },
   wisteria: {
+    classic: 0,
+    "classic plus": 4700,
+    crest: 7100,
+    serenity: 9800,
+    madison: 28600,
     avoca: 7100,
     bayside: 7100,
     breeze: 7100,
-    crest: 7100,
     executive: 7100,
     harmony: 7100,
     banksia: 9800,
@@ -249,7 +255,6 @@ const DUPLEX_FACADE_PRICES: Record<string, Record<string, number>> = {
     eden: 9800,
     infinity: 9800,
     majestic: 9800,
-    serenity: 9800,
   },
   lavender: { bayside: 7100, contemporary: 7100, eden: 9800, infinity: 9800 },
   teal: { ...DUPLEX_PREMIUM, madison: 28600, marina: 28600, vista: 33600, "teal 45 façade": 68900, "teal 45 facade": 68900 },
