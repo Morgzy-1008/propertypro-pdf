@@ -22,12 +22,16 @@ import {
   Undo2,
   PackageCheck,
   CheckCircle2,
+  BookmarkPlus,
+  Lightbulb,
 } from "lucide-react";
 import { formatAud } from "@/lib/pricing";
+import { saveLearnedFeature } from "@/lib/quoting/featureMemoryRegistry";
 import type {
   PlanModificationAnalysis,
   DetectedAreaDelta,
   DetectedInclusionUpgrade,
+  UnconfirmedFeatureCandidate,
 } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 
@@ -47,10 +51,49 @@ export function ModifiedPlanReviewModal({
   isLight = false,
 }: ModifiedPlanReviewModalProps) {
   const [localAnalysis, setLocalAnalysis] = useState<PlanModificationAnalysis | null>(analysis);
+  const [unconfirmedItems, setUnconfirmedItems] = useState<UnconfirmedFeatureCandidate[]>(analysis?.unconfirmedFeatures || []);
+  const [learningForm, setLearningForm] = useState<Record<string, { name: string; category: any; price: number }>>({});
 
   useEffect(() => {
     setLocalAnalysis(analysis);
+    setUnconfirmedItems(analysis?.unconfirmedFeatures || []);
   }, [analysis]);
+
+  const handleConfirmFeature = (rawSnippet: string, triggerPhrase: string) => {
+    const formData = learningForm[triggerPhrase] || {
+      name: triggerPhrase,
+      category: "internal_general",
+      price: 450,
+    };
+
+    const saved = saveLearnedFeature(
+      triggerPhrase,
+      formData.name,
+      formData.category,
+      formData.price,
+      `NHC custom markup confirmed in review modal`
+    );
+
+    const newUpgrade: DetectedInclusionUpgrade = {
+      id: saved.id,
+      category: saved.category,
+      name: saved.canonicalName,
+      description: saved.description,
+      baseline: "Standard brochure inclusion",
+      detected: `Confirmed NHC markup '${triggerPhrase}'`,
+      unitPrice: saved.defaultUnitPrice,
+      quantity: 1,
+      subtotal: saved.defaultUnitPrice,
+      accepted: true,
+      confidence: 1.0,
+      isByOwner: false,
+    };
+
+    const updatedInclusions = [...(localAnalysis?.inclusionUpgrades || []), newUpgrade];
+    recalculateTotals(localAnalysis?.areaDeltas || [], updatedInclusions);
+    setUnconfirmedItems((prev) => prev.filter((u) => u.triggerPhrase !== triggerPhrase));
+    toast.success(`✨ Saved and remembered '${saved.canonicalName}' ($${saved.defaultUnitPrice}) for all future estimates!`);
+  };
 
   if (!localAnalysis) return null;
 
@@ -289,6 +332,87 @@ export function ModifiedPlanReviewModal({
               </div>
             )}
           </div>
+
+          {/* Interactive Learning Card for Unconfirmed NHC Features */}
+          {unconfirmedItems.length > 0 && (
+            <div className="p-4 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-200 space-y-3">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="h-5 w-5 text-amber-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-amber-300">
+                    {unconfirmedItems.length} Unconfirmed NHC Feature(s) Detected (Zero Guessing)
+                  </p>
+                  <p className="text-[11px] text-amber-400/80">
+                    Confirm the definition and price once. The engine will remember this for all future estimates.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                {unconfirmedItems.map((item) => {
+                  const currentForm = learningForm[item.triggerPhrase] || {
+                    name: item.triggerPhrase,
+                    category: item.suggestedCategory || "internal_general",
+                    price: item.suggestedPrice || 450,
+                  };
+
+                  return (
+                    <div
+                      key={item.triggerPhrase}
+                      className="p-3 rounded-lg bg-slate-950/80 border border-amber-500/30 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded">
+                            {item.triggerPhrase}
+                          </span>
+                          <span className="text-[10px] text-slate-400">Found on floorplan</span>
+                        </div>
+                        <Input
+                          type="text"
+                          value={currentForm.name}
+                          placeholder="Feature Canonical Name"
+                          onChange={(e) =>
+                            setLearningForm({
+                              ...learningForm,
+                              [item.triggerPhrase]: { ...currentForm, name: e.target.value },
+                            })
+                          }
+                          className="h-8 text-xs bg-slate-900 border-slate-700 text-slate-200"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end md:self-auto">
+                        <div className="relative w-24">
+                          <span className="absolute left-2 top-2 text-[11px] text-slate-500">$</span>
+                          <Input
+                            type="number"
+                            value={currentForm.price}
+                            onChange={(e) =>
+                              setLearningForm({
+                                ...learningForm,
+                                [item.triggerPhrase]: { ...currentForm, price: Number(e.target.value) },
+                              })
+                            }
+                            className="h-8 pl-5 pr-1 text-xs font-mono bg-slate-900 border-slate-700 text-slate-200"
+                          />
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() => handleConfirmFeature(item.rawSnippet, item.triggerPhrase)}
+                          className="h-8 text-xs bg-amber-600 hover:bg-amber-500 text-white font-medium"
+                        >
+                          <BookmarkPlus className="h-3.5 w-3.5 mr-1" />
+                          Confirm &amp; Remember
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Section 2: Detected Inclusions & Fixture Upgrades */}
           <div>

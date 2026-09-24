@@ -9,6 +9,22 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
 import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
+import {
+  calculateScaleCalibration,
+  evaluateVanityDimensions,
+  evaluateShowerDimensions,
+} from "./scaleCalibrationEngine";
+import {
+  parsePresightOpeningTags,
+  diffOpeningsAgainstMaster,
+} from "./presightCodeParser";
+import {
+  getLearnedFeatures,
+  matchLearnedFeature,
+  detectUnconfirmedFeatures,
+  type UnconfirmedFeatureCandidate,
+} from "./featureMemoryRegistry";
+import { evaluateZoneBoundaryShift } from "./wetAreaDifferentialCalculator";
 import type {
   DetectedAreaDelta,
   DetectedInclusionUpgrade,
@@ -1550,6 +1566,46 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // 1. Presight Opening Tags & Master Schedule diffing
+  const presightTags = parsePresightOpeningTags(rawText);
+  const tierCode: "H1" | "H2" | "H3" = specTier?.includes("H3") ? "H3" : specTier?.includes("H1") ? "H1" : "H2";
+  const openingUpgrades = diffOpeningsAgainstMaster(presightTags, detectedModelName, tierCode);
+  for (const upg of openingUpgrades) {
+    if (!inclusionUpgrades.some((u) => u.id === upg.id || u.name.toLowerCase() === upg.name.toLowerCase())) {
+      inclusionUpgrades.push(upg);
+    }
+  }
+
+  // 2. Previously Learned Features from Persistent Memory
+  const learnedList = getLearnedFeatures();
+  for (const feat of learnedList) {
+    if (rawText.toLowerCase().includes(feat.triggerPhrase.toLowerCase())) {
+      if (!inclusionUpgrades.some((u) => u.id === feat.id || u.name.toLowerCase() === feat.canonicalName.toLowerCase())) {
+        inclusionUpgrades.push({
+          id: feat.id,
+          category: feat.category,
+          name: feat.canonicalName,
+          description: feat.description,
+          baseline: "Standard brochure inclusion",
+          detected: `NHC markup '${feat.triggerPhrase}' matched from learning memory`,
+          unitPrice: feat.defaultUnitPrice,
+          quantity: 1,
+          subtotal: feat.defaultUnitPrice,
+          accepted: true,
+          confidence: 0.98,
+          isByOwner: false,
+          reason: feat.description,
+        });
+      }
+    }
+  }
+
+  // 3. Detect unconfirmed NHC features that need user confirmation rather than guessing
+  const unconfirmedFeatures = detectUnconfirmedFeatures(
+    rawText,
+    FIXTURE_UPGRADE_RULES.flatMap((r) => r.triggerKeywords)
+  );
+
   // If Gemini or Canvas Differ found any spatial or fixture modifications, return immediate result
   if (geminiResult || (canvasResult && canvasResult.areaModifications.length > 0)) {
     // Final strict semantic deduplication pass for inclusions (ensuring no duplicates across categories)
@@ -1609,6 +1665,7 @@ export async function analyzeModifiedFloorplanFile(
       netDeltaM2: Math.round(netDeltaM2 * 100) / 100,
       areaDeltas,
       inclusionUpgrades: finalInclusions,
+      unconfirmedFeatures,
       totalAreaCost,
       totalInclusionsCost,
       netTotalCost: totalAreaCost + totalInclusionsCost,

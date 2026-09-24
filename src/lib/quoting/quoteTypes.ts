@@ -338,6 +338,14 @@ export interface DetectedInclusionUpgrade {
   reason?: string;
 }
 
+export interface UnconfirmedFeatureCandidate {
+  rawSnippet: string;
+  triggerPhrase: string;
+  locationHint?: string;
+  suggestedCategory?: CatalogueCategory;
+  suggestedPrice?: number;
+}
+
 export interface PlanModificationAnalysis {
   baseDesignName: string;
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
@@ -346,6 +354,7 @@ export interface PlanModificationAnalysis {
   netDeltaM2: number;
   areaDeltas: DetectedAreaDelta[];
   inclusionUpgrades: DetectedInclusionUpgrade[];
+  unconfirmedFeatures?: UnconfirmedFeatureCandidate[];
   totalAreaCost: number;
   totalInclusionsCost: number;
   netTotalCost: number;
