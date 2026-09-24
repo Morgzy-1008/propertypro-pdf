@@ -67,6 +67,22 @@ export const MASTER_OPENING_SCHEDULES: Record<string, {
       D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
     },
   },
+  "Coral 21": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W3: { code: "W3", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W4: { code: "W4", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W5: { code: "W5", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W6: { code: "W6", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W7: { code: "W7", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "Garage Internal Access", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
+    },
+  },
 };
 
 /**
