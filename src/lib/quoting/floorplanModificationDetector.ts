@@ -344,7 +344,7 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
 async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-3.6-flash"];
+  const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.7-flash"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -765,15 +765,17 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
 4. THOROUGH ROOM-BY-ROOM AUDIT & COMPARISON (DO NOT ASSUME IDENTICAL):
    - You MUST conduct a meticulous room-by-room, door-by-door, and dimension-by-dimension audit comparing Image 2 against Image 1.
    - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
-   - Check every room label and printed dimension on Image 2 against Image 1:
-     * Outdoor Alfresco: Check the printed dimensions (e.g. 7.5x4.0 vs standard 4.5x3.0). If the Alfresco slab or roof is larger, report "alfresco" area extension with exact deltaM2!
+   - CRITICAL NOTE ON MARGIN TABLES: Draftsmen and clients often modify wall lines, push out alfrescos, or step out garage walls WITHOUT updating the printed schedule table in the margin (which often still shows the original brochure numbers). DO NOT RELY ON THE PRINTED TABLE TO DECIDE IF WALLS MOVED! You must inspect the actual drawn wall lines and room boundaries in Image 2 vs Image 1.
+   - Check every room label, wall line, and dimension on Image 2 against Image 1:
+     * Outdoor Alfresco: Check printed dimensions (e.g. 7.5x4.0 vs 4.5x3.0) OR if the slab/roofline visibly extends further rearward or northward along adjacent bedrooms past the standard baseline boundary. If larger, report "alfresco" area extension with calculated deltaM2!
+     * Garage: Check if the garage is widened or stepped outward (e.g. right wall stepped out beyond living wall line, 5.7x5.7 vs 5.5x5.5, or 3rd car bay / triple garage addition). Report "garage" area extension!
      * Front Entry Door: Check if Image 2 marks "EXT 1200" (1200mm door) or "EXT 1020" (1020mm door).
+     * Master Ensuite: Check if the vanity has dual basins / twin mixers (double vanity upgrade) replacing the standard single basin.
      * Alfresco Doors: Check if a wide multi-panel sliding or stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard sliding doors.
      * Ground Floor Bathroom: Check if the ground floor powder room has been converted to a full bathroom with a shower recess, or if a guest suite is added.
      * Secondary Bedrooms (Bed 2, Bed 3, Bed 4): Check if Bed 4 or Bed 3 has been upgraded with its own private Ensuite (ENS) and Walk-in Robe (WIR).
-     * Garage: Check if the garage is widened or extended (e.g. 5.7x5.7 vs 5.5x5.5, or triple garage addition).
      * Ceilings: Check if high ceilings are annotated (e.g. "2740mm Ceilings GF").
-   - If and ONLY if Image 2 is truly an unmodified standard brochure copy with identical dimensions and zero alterations, set isModified: false, areaModifications: [], detectedInclusions: [].
+   - If and ONLY if Image 2 is truly an unmodified standard brochure copy with identical dimensions, flush walls, and zero alterations, set isModified: false, areaModifications: [], detectedInclusions: [].
 
 5. SPATIAL & FOOTPRINT PERIMETER COMPARISON:
    - If external walls have NOT moved and room dimensions match Image 1: externalFootprintChanged: false, areaModifications: [].
@@ -781,6 +783,18 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
      * Set externalFootprintChanged: true.
      * Add to areaModifications with zone, deltaM2, and dimensions.
    - For ANY item marked "by owner", "client supply", or "NIC" (not in contract): set isByOwner: true, unitPrice: 0.
+
+6. VERIFIED FIXTURE UPGRADES & MODIFICATIONS (Include in detectedInclusions if present):
+   - "2740mm Ceilings GF" -> id: "upg_ceiling_2740", name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade", category: "internal_general", unitPrice: 6850
+   - Extended kitchen island with 40mm waterfall stone ends -> id: "upg_kitchen_island_waterfall", name: "Extended Island Benchtop with 40mm Waterfall Stone Ends", category: "internal_kitchen", unitPrice: 1950
+   - Master Ensuite Double Basin Vanity -> id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", unitPrice: 1280
+   - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> id: "upg_entry_door_1200", name: "1200mm Grand Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 1250
+   - 1020mm Wide Front Entry Door ("EXT 1020") -> id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 850
+   - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36") -> id: "upg_alfresco_stacker_door", name: "3-Panel Aluminum Stacker Sliding Door to Alfresco", category: "doors_windows", unitPrice: 1850
+   - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> id: "upg_gf_bathroom_addition", name: "Ground Floor Full Bathroom Addition / Conversion", category: "internal_bathroom", unitPrice: 7800
+   - Additional 21.24 single roller door (for 3rd car bay or rear yard access) -> id: "upg_single_roller_door", name: "Additional 2100mm × 2400mm Colorbond Single Roller Door", category: "doors_windows", unitPrice: 1950
+   - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
+   - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -970,7 +984,7 @@ Return ONLY valid JSON matching this schema:
               detected: matchedRule.detected,
               isByOwner: isOwner,
               isCustomItem: false,
-              unitPrice: isOwner ? 0 : (inc.unitPrice !== undefined ? inc.unitPrice : matchedRule.unitPrice),
+              unitPrice: isOwner ? 0 : (matchedRule.unitPrice !== undefined ? matchedRule.unitPrice : (inc.unitPrice ?? 0)),
               quantity: inc.quantity || 1,
               reason: inc.reason || matchedRule.description,
             }
@@ -1110,14 +1124,14 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // Dynamically extract brochure table specs if printed on plan
-  const extractM2 = (pattern: RegExp) => {
+  const extractM2 = (pattern: RegExp, maxNormal = 600) => {
     const m = rawText.match(pattern);
     if (!m) return undefined;
     const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
     let val = parseFloat(rawNum);
     if (isNaN(val) || val <= 0) return undefined;
-    // Auto-normalize if decimal dot was dropped by PDF glyph encoding (e.g. 20871 -> 208.71, 3427 -> 34.27)
-    if (val > 1000 && val < 100000) {
+    // Auto-normalize if decimal dot was dropped by PDF glyph encoding (e.g. 20871 -> 208.71, 954 -> 9.54, 3427 -> 34.27)
+    if (val > maxNormal && val < 100000) {
       val = val / 100;
     }
     return Math.round(val * 100) / 100;
@@ -1133,11 +1147,11 @@ export async function analyzeModifiedFloorplanFile(
     }
     return Math.round(val * 100) / 100;
   };
-  const tableLivingM2 = extractM2(/living\s*(?:area)?\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
-  const tableGarageM2 = extractM2(/garage\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
-  const tableAlfrescoM2 = extractM2(/alfresco\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
-  const tablePorchM2 = extractM2(/porch\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
-  const tableTotalM2 = extractM2(/total\s*(?:area)?\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
+  const tableLivingM2 = extractM2(/living\s*(?:area)?\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i, 350);
+  const tableGarageM2 = extractM2(/garage\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i, 60);
+  const tableAlfrescoM2 = extractM2(/alfresco\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i, 40);
+  const tablePorchM2 = extractM2(/porch\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i, 15);
+  const tableTotalM2 = extractM2(/total\s*(?:area)?\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i, 600);
   const tableWidthM = extractDim(/overall\s*width\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
   const tableLengthM = extractDim(/overall\s*length\s*[:\s]+(\d+(?:[.\u00B7\u2022]\d+)?)\s*m/i);
 
@@ -1228,8 +1242,9 @@ export async function analyzeModifiedFloorplanFile(
   }> = [];
 
   const isExternalFootprintUnchanged =
-    (geminiResult && (geminiResult as any).externalFootprintChanged === false) ||
-    (geminiResult && geminiResult.isModified && geminiResult.areaModifications?.length === 0);
+    geminiResult &&
+    (geminiResult as any).externalFootprintChanged === false &&
+    (!geminiResult.areaModifications || geminiResult.areaModifications.length === 0);
 
   if (isExternalFootprintUnchanged) {
     // Zero external footprint modifications confirmed by AI Vision
@@ -1335,7 +1350,8 @@ export async function analyzeModifiedFloorplanFile(
 
       const isOwner = !!inc.isByOwner;
       const qty = inc.quantity || 1;
-      let finalUnitPrice = isOwner ? 0 : inc.unitPrice || 0;
+      const matchedCatalogRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === inc.id);
+      let finalUnitPrice = isOwner ? 0 : (matchedCatalogRule?.unitPrice !== undefined ? matchedCatalogRule.unitPrice : (inc.unitPrice || 0));
 
       let customBreakdown: DetectedInclusionUpgrade["customBreakdown"] = undefined;
       if (!isOwner && inc.isCustomItem && (inc.materials || inc.labor)) {
@@ -1502,6 +1518,33 @@ export async function analyzeModifiedFloorplanFile(
           confidence: bathRule.confidence,
           isByOwner: false,
           reason: "Ground floor full bathroom addition / conversion to service guest suite.",
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure Master Ensuite Double Basin Vanity is recognized
+  const hasDoubleVanity =
+    /double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(rawText) ||
+    /double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(geminiResult?.analysisNotes || "");
+  if (hasDoubleVanity) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_ensuite_double_vanity" || /double\s*vanity|dual\s*basin/i.test(u.name))) {
+      const vanityRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_double_vanity");
+      if (vanityRule) {
+        inclusionUpgrades.push({
+          id: vanityRule.id,
+          category: vanityRule.category,
+          name: vanityRule.name,
+          description: vanityRule.description,
+          baseline: vanityRule.baseline,
+          detected: vanityRule.detected,
+          unitPrice: vanityRule.unitPrice,
+          quantity: 1,
+          subtotal: vanityRule.unitPrice,
+          accepted: true,
+          confidence: vanityRule.confidence,
+          isByOwner: false,
+          reason: "Master Ensuite vanity upgraded from standard single basin to dual basin / twin mixer layout.",
         });
       }
     }
