@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { type StaffProfile } from "@/lib/authSession";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
+import { generateHudsonKnowledgeResponse } from "@/lib/hubKnowledgeEngine";
 
 const HUDSON_KNOWLEDGE_INSTRUCTION = `
 You are the Hudson Homes Personal AI Assistant (Hudson Copilot).
@@ -237,13 +238,18 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
         console.warn("[HubAiAssistant] Serverless proxy fetch error, falling back to direct client call:", networkErr);
       }
 
-      // If serverless endpoint returned an error or failed (e.g. 502/500), fall back directly to Gemini API
+      // If serverless endpoint returned an error or failed (e.g. 502/500), try direct Gemini API
       if (!data && apiKey) {
-        data = await queryGeminiDirect(trimmed, historyPayload, apiKey, staffUser);
+        try {
+          data = await queryGeminiDirect(trimmed, historyPayload, apiKey, staffUser);
+        } catch (directErr) {
+          console.warn("[HubAiAssistant] Direct Gemini call failed, activating built-in Knowledge Engine:", directErr);
+        }
       }
 
+      // If still no response (e.g. Gemini key disabled/invalid or network issue), seamlessly use Knowledge Engine
       if (!data) {
-        throw new Error("Unable to obtain response from Hudson AI service.");
+        data = generateHudsonKnowledgeResponse(trimmed, staffUser);
       }
 
       // Enforce 95% confidence threshold check
