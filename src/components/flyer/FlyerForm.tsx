@@ -166,24 +166,38 @@ function ConsultantPicker({ data, set }: { data: FlyerData; set: Setter }) {
 
   return (
     <div className="space-y-2">
-      {CONSULTANTS.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          onClick={() => choose(c.id)}
-          className={`w-full rounded-xl border p-3 text-left text-xs leading-tight transition-all ${
-            data.consultantId === c.id
-              ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/15 to-brand-gold/10 text-amber-200 shadow-md shadow-brand-gold/5"
-              : "border-slate-800/80 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-          }`}
-        >
-          <span className="block font-semibold text-slate-200">{c.name}</span>
-          <span className="block text-[11px] opacity-75 mt-0.5">
-            {c.phone} · {c.email}
-          </span>
-          <span className="mt-1 block text-[10px] uppercase tracking-wider text-brand-gold font-medium">{c.displayCentre}</span>
-        </button>
-      ))}
+      {CONSULTANTS.map((c) => {
+        const isSelected =
+          data.consultantId === c.id ||
+          (data.contactEmail && data.contactEmail.toLowerCase() === c.email.toLowerCase()) ||
+          (data.contactName && data.contactName.toLowerCase() === c.name.toLowerCase());
+
+        return (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => choose(c.id)}
+            className={`w-full rounded-xl border p-3 text-left text-xs leading-tight transition-all ${
+              isSelected
+                ? "border-brand-gold/70 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-md shadow-brand-gold/10 ring-1 ring-brand-gold/50"
+                : "border-slate-800/80 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className="block font-semibold text-slate-200">{c.name}</span>
+              {isSelected && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-gold/20 text-brand-gold border border-brand-gold/40 uppercase tracking-wider">
+                  Active
+                </span>
+              )}
+            </div>
+            <span className="block text-[11px] opacity-75 mt-0.5">
+              {c.phone} · {c.email}
+            </span>
+            <span className="mt-1 block text-[10px] uppercase tracking-wider text-brand-gold font-medium">{c.displayCentre}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -573,6 +587,19 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     }
   };
 
+  /** Smoothly scrolls the sidebar to the target section WITHOUT scrolling the window or displacing the top task bar */
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const aside = el.closest("aside") || document.querySelector("aside");
+    if (aside) {
+      const asideRect = aside.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const targetTop = elRect.top - asideRect.top + aside.scrollTop - 48;
+      aside.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="space-y-7 relative">
       {/* Sticky Quick-Jump Navigation Bar */}
@@ -580,35 +607,35 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
           <button
             type="button"
-            onClick={() => document.getElementById("section-location")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-location")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Location
           </button>
           <button
             type="button"
-            onClick={() => document.getElementById("section-package")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-package")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Package
           </button>
           <button
             type="button"
-            onClick={() => document.getElementById("section-facade")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-facade")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Facade
           </button>
           <button
             type="button"
-            onClick={() => document.getElementById("section-costs")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-costs")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Costs
           </button>
           <button
             type="button"
-            onClick={() => document.getElementById("section-consultant")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-consultant")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Consultant
@@ -616,7 +643,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           {template === "siting" && (
             <button
               type="button"
-              onClick={() => document.getElementById("section-siting")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              onClick={() => scrollToSection("section-siting")}
               className="px-2.5 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm"
             >
               Siting & Setbacks
@@ -624,7 +651,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           )}
           <button
             type="button"
-            onClick={() => document.getElementById("section-terms")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => scrollToSection("section-terms")}
             className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
           >
             Terms

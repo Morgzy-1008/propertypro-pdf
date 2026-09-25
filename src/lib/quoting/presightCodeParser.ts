@@ -10,7 +10,7 @@ import type { DetectedInclusionUpgrade } from "./quoteTypes";
 export interface PresightOpeningTag {
   rawTag: string;
   category: "window" | "door" | "special";
-  typeCode: "SW" | "AWN" | "FP" | "STACKER" | "CSD" | "EXT_DOOR" | "ROLLER_DOOR" | "UNKNOWN";
+  typeCode: "SW" | "AWN" | "FP" | "PW" | "SD" | "STACKER" | "CSD" | "EXT_DOOR" | "EXT_GARAGE_DOOR" | "ROLLER_DOOR" | "UNKNOWN";
   heightMm: number;
   widthMm: number;
   isObscure: boolean;
@@ -83,6 +83,23 @@ export const MASTER_OPENING_SCHEDULES: Record<string, {
       D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
     },
   },
+  "Azure 25": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W3: { code: "W3", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W4: { code: "W4", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W5: { code: "W5", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W6: { code: "W6", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W7: { code: "W7", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W8: { code: "W8", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "Garage Internal Access", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
+    },
+  },
 };
 
 /**
@@ -123,7 +140,37 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 3. Fixed Pane Windows: FP06.18, FP12.18, etc.
+  // 3. Picture / Splashback Windows: PW06.30, PW 06.24, PW0630, etc.
+  const pwRegex = /\bPW\s*(\d{2})\.?(\d{2})\b/gi;
+  while ((match = pwRegex.exec(rawText)) !== null) {
+    const h = parseInt(match[1], 10) * 100;
+    const w = parseInt(match[2], 10) * 100;
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "window",
+      typeCode: "PW",
+      heightMm: h,
+      widthMm: w,
+      isObscure: false,
+    });
+  }
+
+  // 4. Sliding Glass Doors: SD 21.27, SD 21.24, SD2127, etc.
+  const sdRegex = /\bSD\s*(\d{2})\.?(\d{2})\b/gi;
+  while ((match = sdRegex.exec(rawText)) !== null) {
+    const h = parseInt(match[1], 10) * 100;
+    const w = parseInt(match[2], 10) * 100;
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "door",
+      typeCode: "SD",
+      heightMm: h,
+      widthMm: w,
+      isObscure: false,
+    });
+  }
+
+  // 5. Fixed Pane Windows: FP06.18, FP12.18, etc.
   const fpRegex = /\bFP\s*(\d{2})\.?(\d{2})\b/gi;
   while ((match = fpRegex.exec(rawText)) !== null) {
     const h = parseInt(match[1], 10) * 100;
@@ -138,7 +185,7 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 4. Stacker Doors: STACKER 21.36, STACKER SLM, STACKER
+  // 6. Stacker Doors: STACKER 21.36, STACKER SLM, STACKER
   const stackerRegex = /\bSTACKER(?:\s*(\d{2})\.?(\d{2}))?\b/gi;
   while ((match = stackerRegex.exec(rawText)) !== null) {
     const h = match[1] ? parseInt(match[1], 10) * 100 : 2100;
@@ -153,7 +200,7 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 5. Cavity Sliding Doors: CSD, CSD 820, CSD 920
+  // 7. Cavity Sliding Doors: CSD, CSD 820, CSD 920
   const csdRegex = /\bCSD(?:\s*(\d{3,4}))?\b/gi;
   while ((match = csdRegex.exec(rawText)) !== null) {
     const w = match[1] ? parseInt(match[1], 10) : 820;
@@ -167,7 +214,7 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 6. Front Entry Doors: EXT 1020, EXT 1200
+  // 8. Front Entry Doors: EXT 1020, EXT 1200
   const extDoorRegex = /\bEXT\s*(1020|1200)\b/gi;
   while ((match = extDoorRegex.exec(rawText)) !== null) {
     const w = parseInt(match[1], 10);
@@ -181,7 +228,21 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 7. Roller Door 21.24
+  // 9. Garage External Personal Access Door: EXT 820, EXT 920
+  const extGarageRegex = /\bEXT\s*(820|920)\b/gi;
+  while ((match = extGarageRegex.exec(rawText)) !== null) {
+    const w = parseInt(match[1], 10);
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "door",
+      typeCode: "EXT_GARAGE_DOOR",
+      heightMm: 2040,
+      widthMm: w,
+      isObscure: false,
+    });
+  }
+
+  // 10. Roller Door 21.24
   const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*21\.?24)?|RD\s*21\.?24)\b/gi;
   while ((match = rollerRegex.exec(rawText)) !== null) {
     tags.push({
@@ -240,6 +301,48 @@ export function diffOpeningsAgainstMaster(
           confidence: 0.98,
         });
       }
+    } else if (tag.typeCode === "EXT_GARAGE_DOOR") {
+      upgrades.push({
+        id: "upg_garage_access_door",
+        category: "doors_windows",
+        name: `External Weatherproof Personal Access Door to Garage (${tag.rawTag})`,
+        description: `Solid external weatherproof personal access door (2040mm × ${tag.widthMm}mm) fitted to garage with lockset and weatherseal.`,
+        baseline: "Solid external garage wall without secondary pedestrian door",
+        detected: `${tag.rawTag} external personal access door`,
+        unitPrice: 950,
+        quantity: 1,
+        subtotal: 950,
+        accepted: true,
+        confidence: 0.98,
+      });
+    } else if (tag.typeCode === "SD") {
+      upgrades.push({
+        id: "upg_window_to_sliding_door",
+        category: "doors_windows",
+        name: `Window Upgraded to Sliding Glass Door (${tag.rawTag})`,
+        description: `Convert standard window opening to ${tag.heightMm}mm × ${tag.widthMm}mm powder-coated aluminum sliding glass door providing direct access onto Alfresco.`,
+        baseline: "Standard residential window opening",
+        detected: `${tag.rawTag} (${tag.heightMm}mm × ${tag.widthMm}mm) sliding glass door`,
+        unitPrice: 1650,
+        quantity: 1,
+        subtotal: 1650,
+        accepted: true,
+        confidence: 0.98,
+      });
+    } else if (tag.typeCode === "PW") {
+      upgrades.push({
+        id: "upg_kitchen_splashback_window",
+        category: "doors_windows",
+        name: `Kitchen Picture Splashback Window (${tag.rawTag})`,
+        description: `Extended panoramic fixed glass picture window splashback (${tag.heightMm}mm × ${tag.widthMm}mm) behind cooktop.`,
+        baseline: "Standard kitchen splashback window",
+        detected: `${tag.rawTag} (${tag.heightMm}mm × ${tag.widthMm}mm) picture splashback window`,
+        unitPrice: 720,
+        quantity: 1,
+        subtotal: 720,
+        accepted: true,
+        confidence: 0.98,
+      });
     } else if (tag.typeCode === "STACKER") {
       upgrades.push({
         id: "upg_alfresco_stacker_door",
@@ -285,23 +388,22 @@ export function diffOpeningsAgainstMaster(
     } else if (tag.typeCode === "SW" || tag.typeCode === "AWN") {
       // Under H3 tier, taller windows are standard ($0 variation)
       if (isH3 && tag.heightMm > 1200) {
-        // H3 standard included ($0)
         continue;
       }
-      // If a window is enlarged from standard 1218 to 1818 in a bedroom, flag enlargement
-      if (tag.heightMm >= 1800 && tag.widthMm >= 1800) {
+      // If a window is enlarged from standard 1218 (1200 x 1810) to wider/taller format (e.g. SW 12.24)
+      if (tag.widthMm > 1850 || tag.heightMm > 1250) {
         upgrades.push({
           id: `upg_window_enlarge_${tag.heightMm}_${tag.widthMm}`,
           category: "doors_windows",
-          name: `Enlarged Architectural Feature Window (${tag.rawTag})`,
-          description: `Window enlarged to ${tag.heightMm}mm × ${tag.widthMm}mm feature size.`,
-          baseline: "Standard 1200mm high window (AS 1218)",
+          name: `Enlarged Window Upgrade (${tag.rawTag})`,
+          description: `Window enlarged to ${tag.heightMm}mm × ${tag.widthMm}mm format with reinforced structural lintel.`,
+          baseline: "Standard 1200mm × 1810mm residential window",
           detected: `${tag.rawTag} (${tag.heightMm}mm × ${tag.widthMm}mm)`,
-          unitPrice: 380,
+          unitPrice: 480,
           quantity: 1,
-          subtotal: 380,
+          subtotal: 480,
           accepted: true,
-          confidence: 0.92,
+          confidence: 0.95,
         });
       }
     }

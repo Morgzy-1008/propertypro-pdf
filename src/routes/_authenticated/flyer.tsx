@@ -20,7 +20,8 @@ import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flye
 import { useFitScale } from "@/components/flyer/useFitScale";
 import { parseAud } from "@/lib/pricing";
 import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
-import { findConsultantByEmail, type Consultant } from "@/components/flyer/consultants";
+import { findConsultant, findConsultantByEmail, type Consultant } from "@/components/flyer/consultants";
+import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 import { getLocalLots, upsertLocalPackage, type Pkg } from "@/lib/databaseStorage";
 import { ensureStaffSupabaseAuth, syncPackageToSupabase, syncLotToSupabase } from "@/lib/supabaseSync";
@@ -71,23 +72,37 @@ function Index() {
     [],
   );
 
-  /** Check if the signed-in user is one of the 3 consultants */
+  /** Automate consultant details based on whichever NHC is signed in */
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: auth }) => {
-      if (auth.user?.email) {
-        const consultant = findConsultantByEmail(auth.user.email);
-        if (consultant) {
-          setData((prev) => ({
-            ...prev,
-            consultantId: consultant.id,
-            contactName: consultant.name,
-            contactPhone: consultant.phone,
-            contactEmail: consultant.email,
-            contactOffice: consultant.displayCentre,
-          }));
-        }
-      }
+    const applyStaffConsultant = (staff: StaffProfile) => {
+      if (!staff) return;
+      const consultant = findConsultant(staff.id) || findConsultantByEmail(staff.email);
+      const name = consultant?.name || staff.name;
+      const phone = consultant?.phone || staff.phone;
+      const email = consultant?.email || staff.email;
+      const displayCentre = consultant?.displayCentre || staff.displayCentre || "Hudson Homes";
+      const id = consultant?.id || staff.id || "nhc-staff";
+
+      setData((prev) => ({
+        ...prev,
+        consultantId: id,
+        contactName: name,
+        contactPhone: phone,
+        contactEmail: email,
+        contactOffice: displayCentre,
+      }));
+    };
+
+    const initialStaff = getActiveStaffUser();
+    if (initialStaff) {
+      applyStaffConsultant(initialStaff);
+    }
+
+    const unsub = onStaffUserChanged((newStaff) => {
+      if (newStaff) applyStaffConsultant(newStaff);
     });
+
+    return () => unsub();
   }, []);
 
   /** Pick up a lot or saved package handed over from the database page. */
@@ -98,23 +113,26 @@ function Index() {
       window.sessionStorage.removeItem("hudson-flyer-handoff");
       const patch = JSON.parse(raw) as Partial<FlyerData>;
       
-      supabase.auth.getUser().then(({ data: auth }) => {
-        const consultant = auth.user?.email ? findConsultantByEmail(auth.user.email) : null;
-        if (consultant) {
-          // If signed in as one of the 3 consultants, apply their details over the package
-          setData((prev) => ({
-            ...prev,
-            ...patch,
-            consultantId: consultant.id,
-            contactName: consultant.name,
-            contactPhone: consultant.phone,
-            contactEmail: consultant.email,
-            contactOffice: consultant.displayCentre,
-          }));
-        } else {
-          // Keep original saved package details for non-consultant users
-          setData((prev) => ({ ...prev, ...patch }));
-        }
+      const activeStaff = getActiveStaffUser();
+      const staffConsultant = activeStaff ? (findConsultant(activeStaff.id) || findConsultantByEmail(activeStaff.email)) : null;
+
+      setData((prev) => {
+        // If the handoff package already explicitly has custom consultant details, preserve them;
+        // otherwise automate with the signed-in NHC's details:
+        const hasExplicitConsultant = !!patch.contactName && patch.contactName !== "Morgan Hales";
+        const fallback = staffConsultant || activeStaff;
+
+        return {
+          ...prev,
+          ...patch,
+          ...(!hasExplicitConsultant && fallback ? {
+            consultantId: fallback.id,
+            contactName: fallback.name,
+            contactPhone: fallback.phone,
+            contactEmail: fallback.email,
+            contactOffice: (fallback as any).displayCentre || prev.contactOffice,
+          } : {}),
+        };
       });
       toast.success("Package details loaded from the database");
     } catch {
@@ -123,38 +141,26 @@ function Index() {
   }, []);
 
   const saveToDatabase = async () => {
+    const activeStaff = getActiveStaffUser();
     const { data: auth } = await supabase.auth.getUser();
-    const staffUser = typeof window !== "undefined"
-      ? (() => {
-          try {
-            return JSON.parse(localStorage.getItem("hudson_hub_auth_user") || "null");
-          } catch {
-            return null;
-          }
-        })()
-      : null;
 
-    if (!auth.user && !staffUser) {
+    if (!auth.user && !activeStaff) {
       navigate({ to: "/auth" });
       return;
     }
     setSaving(true);
     await ensureStaffSupabaseAuth();
 
-    // If the signed-in user is one of the 3 consultants, make sure their details are on the saved package
-    const activeEmail = auth.user?.email || staffUser?.email || "";
-    const activeId = auth.user?.id || staffUser?.id || "nhc-staff";
-    const consultant = activeEmail ? findConsultantByEmail(activeEmail) : null;
-    const finalData: FlyerData = consultant
-      ? {
-          ...data,
-          consultantId: consultant.id,
-          contactName: consultant.name,
-          contactPhone: consultant.phone,
-          contactEmail: consultant.email,
-          contactOffice: consultant.displayCentre,
-        }
-      : data;
+    // Respect whichever consultant is currently selected/active in `data`.
+    // We NEVER overwrite with Jesse or any arbitrary service account!
+    const finalData: FlyerData = {
+      ...data,
+      contactName: data.contactName || activeStaff?.name || "Steve Slisar",
+      contactPhone: data.contactPhone || activeStaff?.phone || "0483 950 830",
+      contactEmail: data.contactEmail || activeStaff?.email || "steve.slisar@hudsonhomes.com.au",
+      contactOffice: data.contactOffice || activeStaff?.displayCentre || "HomeWorld Warnervale Display",
+      consultantId: data.consultantId || activeStaff?.id || "steve-slisar",
+    };
 
     const candidateLotId = toValidUuid(finalData.lotId);
 
@@ -252,25 +258,9 @@ function Index() {
     setDownloading(true);
     try {
       await document.fonts.ready;
-      const { data: auth } = await supabase.auth.getUser();
-      const consultant = auth.user?.email ? findConsultantByEmail(auth.user.email) : null;
-      const pdfData: FlyerData = consultant
-        ? {
-            ...data,
-            consultantId: consultant.id,
-            contactName: consultant.name,
-            contactPhone: consultant.phone,
-            contactEmail: consultant.email,
-            contactOffice: consultant.displayCentre,
-          }
-        : data;
-
-      if (consultant && data.consultantId !== consultant.id) {
-        setData(pdfData);
-        await new Promise((r) => setTimeout(r, 100));
-      }
-
-      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(pdfData));
+      // Download the flyer with the exact consultant details shown on screen (Steve Slisar or selected consultant)
+      await downloadA4Pdf(document.querySelector(".print-root") ?? document, buildFlyerPdfFilename(data));
+      toast.success("PDF downloaded successfully");
     } catch {
       toast.error("Could not create the PDF. Please try again.");
     } finally {
@@ -285,9 +275,9 @@ function Index() {
         <div className="ambient-glow-gold h-96 w-96 -top-20 right-10" />
         <div className="ambient-glow-cyan h-96 w-96 top-96 -left-20" />
 
-        <header className="flex-shrink-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
-          <div className="flex items-center justify-between gap-4 px-6 py-2.5">
-            <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+        <header className="flex-shrink-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl sticky top-0 shadow-lg">
+          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 overflow-x-auto no-scrollbar">
+            <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
               <HudsonMark className="h-8 w-auto text-brand-gold" />
               <div className="leading-tight border-l border-slate-800 pl-3">
                 <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
@@ -299,7 +289,7 @@ function Index() {
               </div>
             </Link>
 
-            <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
               <Link to="/hub">
                 <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent hover:border-slate-800">
                   Hub
@@ -392,13 +382,13 @@ function Index() {
           </aside>
 
           {/* Flyer Preview Viewport - scrolls smoothly without displacing LHS bar */}
-          <section ref={ref} className="flex-1 h-full overflow-y-auto p-6 lg:p-8 flex justify-center custom-scrollbar">
+          <section ref={ref} className="flex-1 h-full overflow-y-auto overflow-x-hidden p-6 lg:p-8 flex justify-center custom-scrollbar">
             <div
               className="flex flex-col items-center gap-6 pb-16"
               style={{
                 transform: `scale(${scale})`,
                 transformOrigin: "top center",
-                height: (template === "showcase" || template === "siting" ? 1123 * 2 + 24 : 1123) * scale,
+                height: ((template === "showcase" || template === "siting") ? 1123 * 2 + 24 : 1123) * scale,
               }}
             >
               <div className="flyer-preview-container flex flex-col gap-6 [&>.flyer-page]:shadow-[0_24px_60px_-18px_rgba(0,0,0,0.6)] [&>.flyer-page]:rounded-sm">

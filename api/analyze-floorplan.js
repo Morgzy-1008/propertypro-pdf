@@ -64,7 +64,7 @@ export default async function handler(req, res) {
       : "image/png";
 
 async function callGeminiWithFallback(apiKey, body) {
-  const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-3.7-flash"];
+  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.7-flash"];
   let lastError = null;
 
   for (const model of models) {
@@ -214,8 +214,14 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
    - CRITICAL NOTE ON MARGIN TABLES: Draftsmen and clients often modify wall lines, push out alfrescos, or step out garage walls WITHOUT updating the printed schedule table in the margin (which often still shows the original brochure numbers). DO NOT RELY ON THE PRINTED TABLE TO DECIDE IF WALLS MOVED! You must inspect the actual drawn wall lines and room boundaries in Image 2 vs Image 1.
    - Check every room label, wall line, and dimension on Image 2 against Image 1:
-     * Outdoor Alfresco: Check the printed dimensions (e.g. 7.5x4.0 vs standard 4.5x3.0) OR if the slab/roofline visibly extends further rearward or northward along adjacent bedrooms past the standard baseline boundary. If larger, report "alfresco" area extension with calculated deltaM2!
-     * Garage: Check if the garage is widened or stepped outward (e.g. right wall stepped out beyond living wall line, 5.7x5.7 vs 5.5x5.5, or 3rd car bay / triple garage addition). Report "garage" area extension!
+     * Outdoor Alfresco: Check printed dimensions (e.g. 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms (Bed 3, Children's Activity) past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
+     * Garage: Check if the garage is widened or stepped outward (e.g. right wall stepped out beyond living/laundry wall line, 5.7x5.7 vs 5.5x5.5, or dedicated storage/workshop bay addition). If extended, report "garage" area extension with calculated deltaM2!
+     * Kitchen Island Sinks: Compare the kitchen island sink fixture. Standard is a 1.5 bowl top-mount / drop-in sink with a drainer tray. If upgraded to a DOUBLE UNDERMOUNT SINK (two equal square/rectangular bowls seamlessly undermounted with NO drainer board), report this as an inclusion upgrade!
+     * Butler's Pantry / Walk-In Pantry (WIP): Check inside the Walk-In Pantry. Standard has dry perimeter shelving with NO sink. If a secondary prep sink, tapware, and water/drainage plumbing is added to the bench, report this as an inclusion upgrade!
+     * Window to Sliding Door Conversions: Check if an external window (e.g. in the Children's Activity room or secondary bedroom) has been replaced with an aluminum sliding glass door ('SD' or sliding door line/arrow symbol) providing direct access onto the Alfresco.
+     * Kitchen Splashback Window: Check if the fixed glass picture splashback window behind the cooktop is enlarged or panoramic ('PW 06.30').
+     * Bedroom & Living Window Size Upgrades: Check if any bedroom window (e.g. Bed 4) is enlarged or scheduled with upgraded glazing dimensions (e.g. 'SW 12.24' vs standard).
+     * Garage External Personal Access Door: Check if a weatherproof pedestrian door ('EXT 820' or 'EXT 920') has been added to the rear or side of the garage.
      * Front Entry Door: Check if Image 2 marks "EXT 1200" (1200mm door) or "EXT 1020" (1020mm door).
      * Master Ensuite: Check if the vanity has dual basins / twin mixers (double vanity upgrade) replacing the standard single basin.
      * Alfresco Doors: Check if a wide multi-panel sliding or stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard sliding doors.
@@ -229,18 +235,30 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - If external walls or outdoor slabs HAVE visibly moved outward (e.g. rear alfresco pushout, living extension, garage widening):
      * Set externalFootprintChanged: true.
      * Add to areaModifications with zone, deltaM2, and dimensions.
+   - For ANY item marked "by owner", "client supply", or "NIC" (not in contract): set isByOwner: true, unitPrice: 0.
 
-5. VERIFIED FIXTURE UPGRADES & MODIFICATIONS (Only report if explicitly marked or changed):
-   - "2740mm Ceilings GF" -> category: "internal_general", unitPrice: 6850, ceilingHeightM: 2.74
-   - Extended kitchen island with 40mm waterfall stone ends -> category: "internal_kitchen", unitPrice: 1950
-   - Master Ensuite Double Basin Vanity -> category: "internal_bathroom", unitPrice: 1280
-   - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> category: "doors_windows", unitPrice: 1250
-   - 1020mm Wide Front Entry Door ("EXT 1020") -> category: "doors_windows", unitPrice: 850
-   - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36") -> category: "doors_windows", unitPrice: 1850
-   - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> category: "internal_bathroom", unitPrice: 7800
-   - Additional 21.24 single roller door (for 3rd car bay or rear yard access) -> category: "doors_windows", unitPrice: 1950
-   - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> category: "internal_bathroom", unitPrice: 12500
-   - For any items marked "by owner" / "NIC", set isByOwner: true, unitPrice: 0.
+5. VERIFIED FIXTURE UPGRADES & MODIFICATIONS (Include in detectedInclusions if present):
+   - Kitchen Island Double Undermount Sink -> id: "upg_kitchen_double_undermount_sink", name: "Kitchen Island Double Undermount Sink Upgrade", category: "internal_kitchen", unitPrice: 850
+   - Kitchen Island Single Undermount Sink -> id: "upg_kitchen_single_undermount_sink", name: "Kitchen Island Single Large Undermount Sink Upgrade", category: "internal_kitchen", unitPrice: 650
+   - Butler's Pantry (WIP) Prep Sink & Plumbing Rough-In -> id: "upg_butlers_prep_sink", name: "Butler's Pantry / WIP Prep Sink & Plumbing Rough-In", category: "internal_kitchen", unitPrice: 1250
+   - Window to Sliding Door Conversion (e.g. Children's Activity SD 21.27) -> id: "upg_window_to_sliding_door", name: "Window Upgraded to Sliding Glass Door (SD)", category: "doors_windows", unitPrice: 1650
+   - Kitchen Extended Picture Splashback Window (PW 06.30) -> id: "upg_kitchen_splashback_window", name: "Kitchen Extended Picture Splashback Window (PW)", category: "doors_windows", unitPrice: 720
+   - Enlarged Bedroom Window (e.g. Bed 4 SW 12.24) -> id: "upg_window_size_upgrade", name: "Enlarged Bedroom / Living Window Size Upgrade", category: "doors_windows", unitPrice: 480
+   - Garage External Personal Access Door (EXT 820) -> id: "upg_garage_access_door", name: "External Weatherproof Personal Access Door to Garage (EXT 820)", category: "doors_windows", unitPrice: 950
+   - "2740mm Ceilings GF" -> id: "upg_ceiling_2740", name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade", category: "internal_general", unitPrice: 6850
+   - Extended kitchen island with 40mm waterfall stone ends -> id: "upg_kitchen_island_waterfall", name: "Extended Island Benchtop with 40mm Waterfall Stone Ends", category: "internal_kitchen", unitPrice: 1950
+   - Master Ensuite Double Basin Vanity -> id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", unitPrice: 1280
+   - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> id: "upg_entry_door_1200", name: "1200mm Grand Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 1250
+   - 1020mm Wide Front Entry Door ("EXT 1020") -> id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 850
+   - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36") -> id: "upg_alfresco_stacker_door", name: "3-Panel Aluminum Stacker Sliding Door to Alfresco", category: "doors_windows", unitPrice: 1850
+   - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> id: "upg_gf_bathroom_addition", name: "Ground Floor Full Bathroom Addition / Conversion", category: "internal_bathroom", unitPrice: 7800
+   - Additional 21.24 single roller door (for 3rd car bay or rear yard access) -> id: "upg_single_roller_door", name: "Additional 2100mm × 2400mm Colorbond Single Roller Door", category: "doors_windows", unitPrice: 1950
+   - Dedicated Study Room / Home Office Addition -> id: "upg_study_addition", name: "Dedicated Home Office / Study Addition", category: "internal_general", unitPrice: 2850
+   - Mudroom / Mud Nook Joinery Fit-Out -> id: "upg_mudroom_fitout", name: "Mudroom / Mud Nook Joinery Fit-Out", category: "internal_general", unitPrice: 1250
+   - Grand 3.5m Servery / Preparation Island Benchtop -> id: "upg_kitchen_island_prep", name: "Grand 3.5m Servery / Preparation Island Benchtop", category: "internal_kitchen", unitPrice: 2450
+   - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
+   - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
+   - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -395,6 +413,114 @@ Return ONLY valid JSON matching this schema:
         unitPrice: 6850,
         description: "Increased ceiling height to 2740mm on Ground Floor living zones.",
       },
+      upg_kitchen_double_undermount_sink: {
+        id: "upg_kitchen_double_undermount_sink",
+        name: "Kitchen Island Double Undermount Sink Upgrade",
+        category: "internal_kitchen",
+        baseline: "Standard 1.5 bowl drop-in stainless steel sink with drainer",
+        detected: "Double bowl undermount stainless steel / granite sink seamless stone cutouts",
+        unitPrice: 850,
+        description: "Seamless double bowl undermount sink installation to island bench with polished cutouts.",
+      },
+      upg_kitchen_single_undermount_sink: {
+        id: "upg_kitchen_single_undermount_sink",
+        name: "Kitchen Island Single Large Undermount Sink Upgrade",
+        category: "internal_kitchen",
+        baseline: "Standard 1.5 bowl drop-in stainless steel sink with drainer",
+        detected: "Single large undermount sink with polished stone cutout",
+        unitPrice: 650,
+        description: "Large single bowl undermount sink installation to island bench.",
+      },
+      upg_butlers_prep_sink: {
+        id: "upg_butlers_prep_sink",
+        name: "Butler's Pantry / WIP Prep Sink & Plumbing Rough-In",
+        category: "internal_kitchen",
+        baseline: "Dry Walk-In Pantry joinery shelves without plumbing or water",
+        detected: "Secondary undermount prep sink, designer tapware, and water/drainage rough-in inside Butler's Pantry",
+        unitPrice: 1250,
+        description: "Secondary food preparation sink, tapware, and drainage rough-in to Butler's Pantry (WIP).",
+      },
+      upg_window_to_sliding_door: {
+        id: "upg_window_to_sliding_door",
+        name: "Window Upgraded to Sliding Glass Door (SD)",
+        category: "doors_windows",
+        baseline: "Standard fixed/sliding window glazing unit",
+        detected: "Window opening upgraded to external aluminum sliding door ('SD' / SD 21.27) onto alfresco",
+        unitPrice: 1650,
+        description: "Conversion of window unit to external sliding door (e.g. Children's Activity to Alfresco).",
+      },
+      upg_kitchen_splashback_window: {
+        id: "upg_kitchen_splashback_window",
+        name: "Kitchen Extended Picture Splashback Window (PW)",
+        category: "doors_windows",
+        baseline: "Standard splashback tiling or short splashback window",
+        detected: "Panoramic picture splashback window (e.g. PW 06.30) behind cooktop",
+        unitPrice: 720,
+        description: "Fixed picture splashback window unit providing natural light across kitchen workspace.",
+      },
+      upg_window_size_upgrade: {
+        id: "upg_window_size_upgrade",
+        name: "Enlarged Bedroom / Living Window Size Upgrade",
+        category: "doors_windows",
+        baseline: "Standard brochure scheduled window dimension",
+        detected: "Window enlarged (e.g. SW 12.24 in Bed 4) providing increased natural light and airflow",
+        unitPrice: 480,
+        description: "Enlarged architectural window frame and glazing upgrade to bedroom or living zone.",
+      },
+      upg_garage_access_door: {
+        id: "upg_garage_access_door",
+        name: "External Weatherproof Personal Access Door to Garage (EXT 820)",
+        category: "doors_windows",
+        baseline: "Solid external garage perimeter wall without secondary pedestrian door",
+        detected: "820mm external weatherproof personal access door ('EXT 820') on garage",
+        unitPrice: 950,
+        description: "External weatherproof personal access pedestrian door to rear/side yard.",
+      },
+      upg_study_addition: {
+        id: "upg_study_addition",
+        name: "Dedicated Home Office / Study Addition",
+        category: "internal_general",
+        baseline: "Standard open circulation space or secondary bedroom",
+        detected: "Dedicated Study room layout incorporated into plan",
+        unitPrice: 2850,
+        description: "Dedicated Study room addition incorporated into floorplan.",
+      },
+      upg_mudroom_fitout: {
+        id: "upg_mudroom_fitout",
+        name: "Mudroom / Mud Nook Joinery Fit-Out",
+        category: "internal_general",
+        baseline: "Direct garage entry corridor without dedicated mudroom joinery",
+        detected: "Dedicated Mudroom / Mud Nook joinery zone adjoining garage internal access",
+        unitPrice: 1250,
+        description: "Integrated mudroom transition zone with bench seating and joinery.",
+      },
+      upg_kitchen_island_prep: {
+        id: "upg_kitchen_island_prep",
+        name: "Grand 3.5m Servery / Preparation Island Benchtop",
+        category: "internal_kitchen",
+        baseline: "Standard 2400mm × 900mm island benchtop",
+        detected: "Extended 3.5m × 1.0m island servery/prep benchtop notation on plan",
+        unitPrice: 2450,
+        description: "Grand extended 3.5m × 1.0m kitchen servery & preparation island benchtop.",
+      },
+      upg_powder_room_addition: {
+        id: "upg_powder_room_addition",
+        name: "Ground Floor Powder Room / Additional WC Addition",
+        category: "internal_bathroom",
+        baseline: "Standard floorplan without separate guest powder room",
+        detected: "Separate Powder Room (PDR) addition with basin and toilet suite",
+        unitPrice: 2450,
+        description: "Dedicated guest powder room (PDR) added to floorplan layout.",
+      },
+      upg_kitchen_island_waterfall: {
+        id: "upg_kitchen_island_waterfall",
+        name: "Extended Island Benchtop with 40mm Waterfall Stone Ends",
+        category: "internal_kitchen",
+        baseline: "Standard 20mm edge island benchtop with laminate/panel ends",
+        detected: "Extended island bench with 40mm edge profile and twin waterfall stone end drops",
+        unitPrice: 1950,
+        description: "40mm stone waterfall ends to kitchen island benchtop.",
+      },
       upg_front_balcony: {
         id: "upg_front_balcony",
         name: "Front Architectural Feature Balcony",
@@ -435,11 +561,11 @@ Return ONLY valid JSON matching this schema:
 
         const isStandardIsland =
           /island\s*bench|kitchen\s*island/i.test(lowerText) &&
-          !/waterfall|40mm|stone\s*ends|mitred/i.test(lowerText);
+          !/waterfall|40mm|stone\s*ends|mitred|undermount|double\s*sink|prep\s*sink|sink\s*upgrade/i.test(lowerText);
 
         const isStandardGarage =
           /double\s*garage|std\s*garage|2\s*car\s*garage/i.test(lowerText) &&
-          !/ext|extension|widened|widening|3rd\s*car|triple|roller\s*door/i.test(lowerText);
+          !/ext|extension|widened|widening|3rd\s*car|triple|roller\s*door|access\s*door/i.test(lowerText);
 
         const isStandardAlfrescoPorch =
           /standard\s*(?:alfresco|porch)|entry\s*porch|covered\s*alfresco/i.test(lowerText) &&
@@ -473,6 +599,20 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_entry_door_1200;
           } else if (/ext\s*1020|1020\s*door|1020mm\s*door|1020\s*entry|1020\s*front/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_entry_door_1020;
+          } else if (/ext\s*820|ext\s*920|garage.*access\s*door|personal.*access/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_garage_access_door;
+          } else if (/undermount.*(?:double|dual)|double.*undermount/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_double_undermount_sink;
+          } else if (/undermount/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_single_undermount_sink;
+          } else if (/butler.*sink|wip.*sink|prep\s*sink|sink.*butler/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_butlers_prep_sink;
+          } else if (/sliding\s*door.*(?:activity|alfresco)|sd\s*21|window.*to.*sliding|activity.*sliding/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_window_to_sliding_door;
+          } else if (/splashback.*window|pw\s*06|picture.*splashback/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_splashback_window;
+          } else if (/sw\s*12\.24|sw\s*12|bedroom.*window|bed.*4.*window|enlarged.*window/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_window_size_upgrade;
           } else if (/stacker|stacking/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_alfresco_stacker_door;
           } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(lowerText)) {
@@ -485,6 +625,14 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_front_balcony;
           } else if (/additional\s*ensuite|2nd\s*ensuite|second\s*ensuite|guest\s*ensuite|bed\s*[2-5]\s*ensuite|opt\s*ensuite/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_additional_ensuite_wir;
+          } else if (/study/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_study_addition;
+          } else if (/mud/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_mudroom_fitout;
+          } else if (/3\.5m|servery|prep\s*isl/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_island_prep;
+          } else if (/powder|\bpdr\b/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_addition;
           } else if (/storage\s*conversion|study\s*conversion|convert.*media/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_living_media_conversion;
           }
@@ -510,9 +658,9 @@ Return ONLY valid JSON matching this schema:
             };
 
         let semanticKey = finalItem.id || finalItem.name.toLowerCase().trim();
-        if (/bed\s*4.*(?:ensuite|wir)|bed\s*4/i.test(lowerText)) {
+        if (/bed\s*4.*(?:ensuite|wir)|bed\s*4\s*ens/i.test(lowerText)) {
           semanticKey = "sem_bed4_wir";
-        } else if (/bed\s*3.*(?:ensuite|wir)|bed\s*3/i.test(lowerText)) {
+        } else if (/bed\s*3.*(?:ensuite|wir)|bed\s*3\s*ens/i.test(lowerText)) {
           semanticKey = "sem_bed3_wir";
         } else if (/gf.*bath|ground.*floor.*bath|guest.*bath|full.*bath/i.test(lowerText)) {
           semanticKey = "sem_gf_bathroom";
@@ -522,6 +670,20 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_living_media";
         } else if (/double\s*vanity|dual\s*basin|twin\s*basin|double\s*basin/i.test(lowerText)) {
           semanticKey = "sem_double_vanity";
+        } else if (/undermount.*(?:double|dual)|double.*undermount/i.test(lowerText)) {
+          semanticKey = "sem_kitchen_double_undermount_sink";
+        } else if (/undermount/i.test(lowerText)) {
+          semanticKey = "sem_kitchen_single_undermount_sink";
+        } else if (/butler.*sink|wip.*sink|prep\s*sink|sink.*butler/i.test(lowerText)) {
+          semanticKey = "sem_butlers_prep_sink";
+        } else if (/sliding\s*door|sd\s*21/i.test(lowerText)) {
+          semanticKey = "sem_window_to_sliding_door";
+        } else if (/splashback|pw\s*06/i.test(lowerText)) {
+          semanticKey = "sem_kitchen_splashback_window";
+        } else if (/sw\s*12|window\s*size|enlarged\s*window|bedroom.*window|bed.*4.*window/i.test(lowerText)) {
+          semanticKey = "sem_window_size_upgrade";
+        } else if (/ext\s*820|ext\s*920|garage\s*personal|garage\s*access/i.test(lowerText)) {
+          semanticKey = "sem_garage_access_door";
         } else if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
           semanticKey = "sem_roller_door";
         } else if (/1200|ext\s*1200/i.test(lowerText)) {
@@ -530,6 +692,14 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_entry_door_1020";
         } else if (/stacker|stacking/i.test(lowerText)) {
           semanticKey = "sem_stacker_door";
+        } else if (/study/i.test(lowerText)) {
+          semanticKey = "sem_study_addition";
+        } else if (/mud/i.test(lowerText)) {
+          semanticKey = "sem_mudroom_fitout";
+        } else if (/3\.5m|servery|prep\s*isl/i.test(lowerText)) {
+          semanticKey = "sem_kitchen_island_prep";
+        } else if (/powder|\bpdr\b/i.test(lowerText)) {
+          semanticKey = "sem_powder_room";
         } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
           semanticKey = "sem_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {
