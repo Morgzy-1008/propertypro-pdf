@@ -33,6 +33,7 @@ import { getUnreadAlertCount, getPendingAccessRequests, onAdminAlertsChanged } f
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
 import { canAccessFloorplanEditor } from "@/lib/access";
+import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
 
 export const Route = createFileRoute("/_authenticated/hub")({
   head: () => ({
@@ -183,6 +184,9 @@ function WelcomeHubPage() {
             </div>
           )}
         </div>
+
+        {/* Hudson Homes Personal AI Assistant */}
+        <HubAiAssistant isLight={isLight} staffUser={staffUser} />
 
         {/* Action / Tool Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
