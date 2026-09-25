@@ -138,23 +138,31 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing or invalid message." });
     }
 
-    let key = userKey || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
-    if (!key) {
-      try {
-        const fs = await import("fs");
-        if (fs.existsSync(".env")) {
-          const envContent = fs.readFileSync(".env", "utf8");
-          const match =
-            envContent.match(/VITE_GEMINI_API_KEY\s*=\s*["']?([^"'\r\n]+)/) ||
-            envContent.match(/GEMINI_API_KEY\s*=\s*["']?([^"'\r\n]+)/);
-          if (match) {
-            key = match[1].trim();
-          }
-        }
-      } catch {}
+    const candidateKeys = [];
+    if (userKey && typeof userKey === "string" && userKey.trim()) {
+      candidateKeys.push(userKey.trim());
     }
+    if (process.env.VITE_GEMINI_API_KEY && process.env.VITE_GEMINI_API_KEY.trim()) {
+      candidateKeys.push(process.env.VITE_GEMINI_API_KEY.trim());
+    }
+    if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.trim()) {
+      candidateKeys.push(process.env.GEMINI_API_KEY.trim());
+    }
+    try {
+      const fs = await import("fs");
+      if (fs.existsSync(".env")) {
+        const envContent = fs.readFileSync(".env", "utf8");
+        const match =
+          envContent.match(/VITE_GEMINI_API_KEY\s*=\s*["']?([^"'\r\n]+)/) ||
+          envContent.match(/GEMINI_API_KEY\s*=\s*["']?([^"'\r\n]+)/);
+        if (match && match[1]) {
+          candidateKeys.push(match[1].trim());
+        }
+      }
+    } catch {}
 
-    if (!key) {
+    const uniqueKeys = Array.from(new Set(candidateKeys)).filter(Boolean);
+    if (uniqueKeys.length === 0) {
       return res.status(500).json({ error: "Gemini API key is not configured." });
     }
 
@@ -217,49 +225,55 @@ export default async function handler(req, res) {
     let responseData = null;
     let lastError = null;
 
-    for (const model of models) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-        const apiRes = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents,
-            generationConfig: {
-              temperature: 0.25,
-              responseMimeType: "application/json",
-            },
-          }),
-        });
+    keyLoop: for (const key of uniqueKeys) {
+      for (const model of models) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+          const apiRes = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents,
+              generationConfig: {
+                temperature: 0.25,
+                responseMimeType: "application/json",
+              },
+            }),
+          });
 
-        if (apiRes.ok) {
-          const json = await apiRes.json();
-          const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            try {
-              responseData = JSON.parse(rawText);
-              responseData.modelUsed = model;
-              break;
-            } catch {
-              responseData = {
-                answer: rawText,
-                confidence: 0.95,
-                verified: true,
-                suggestedQuestions: [
-                  "Tell me about Hudson Homes Designer inclusions",
-                  "How do I use Quote Builder V2?",
-                ],
-                modelUsed: model,
-              };
+          if (apiRes.ok) {
+            const json = await apiRes.json();
+            const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawText) {
+              try {
+                responseData = JSON.parse(rawText);
+                responseData.modelUsed = model;
+                break keyLoop;
+              } catch {
+                responseData = {
+                  answer: rawText,
+                  confidence: 0.95,
+                  verified: true,
+                  suggestedQuestions: [
+                    "Tell me about Hudson Homes Designer inclusions",
+                    "How do I use Quote Builder V2?",
+                  ],
+                  modelUsed: model,
+                };
+                break keyLoop;
+              }
+            }
+          } else {
+            const errText = await apiRes.text();
+            lastError = `${model} HTTP ${apiRes.status}: ${errText}`;
+            // If auth failure on this key (401/403), break to try next key
+            if (apiRes.status === 401 || apiRes.status === 403) {
               break;
             }
           }
-        } else {
-          const errText = await apiRes.text();
-          lastError = `${model} HTTP ${apiRes.status}: ${errText}`;
+        } catch (err) {
+          lastError = err.message;
         }
-      } catch (err) {
-        lastError = err.message;
       }
     }
 

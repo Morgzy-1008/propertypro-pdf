@@ -16,6 +16,109 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { type StaffProfile } from "@/lib/authSession";
+import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
+
+const HUDSON_KNOWLEDGE_INSTRUCTION = `
+You are the Hudson Homes Personal AI Assistant (Hudson Copilot).
+Audience: New Home Consultants (NHCs), sales estimators, and staff.
+
+STRICT MANDATE:
+1. Only answer with verified confidence exceeding 95%.
+2. If asked about unreleased pricing, speculative land releases, or non-Hudson topics, refuse to hallucinate and state:
+   "⚠️ **Accuracy Notice**: I cannot answer that with high accuracy (>95% confidence) at this moment. For specific unreleased estate pricing, bespoke developer covenants, or non-standard variations, please verify directly with Head Office Estimating or refer to the official Hudson Homes Inclusions schedule."
+3. Hudson Inclusions:
+   - Trend: 20mm stone benchtop, Westinghouse 900mm appliances, 2440mm ceiling, Colorbond/concrete tile roof, Taubmans 3-coat paint, Termimesh barrier.
+   - Designer: 2590mm raised ceiling, 40mm stone benchtop, 900mm European appliances, soft-close cabinets, ducted AC (Actron/Daikin), full-height bathroom tiling, shower niches.
+   - H3 Tier: Architectural awning windows ($0 variation), freestanding bathtub, double undermount kitchen sink, full-height porcelain wall tiles.
+   - Fixed Site Costs: Up to H-class slab, piering, council submission (DA/CDC), BASIX/NatHERS 7-star compliance.
+4. Hudson OS (hudson.dev):
+   - Flyer Builder (/flyer): 4 templates (1-Page Express, 2-Page Siting, 2-Page Showcase, House Only), automated logged-in NHC details.
+   - Land Database (/database): Searchable lot inventory, AI Price List Parser, 1-click package handoff.
+   - Quote Builder V2 (/quote-builder): 5 steps, Modified Plan Engine with visual diffing and Presight code parsing for alfresco/garage extensions, window/door modifications, and sink fixtures.
+
+Return valid JSON format:
+{
+  "answer": "markdown answer",
+  "confidence": number,
+  "verified": boolean,
+  "suggestedQuestions": ["Q1", "Q2", "Q3"]
+}
+`;
+
+async function queryGeminiDirect(
+  message: string,
+  history: Array<{ role: string; text: string }>,
+  apiKey: string,
+  staffUser: StaffProfile | null
+): Promise<any> {
+  const models = ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-flash-latest"];
+  const userInfo = staffUser
+    ? `Active user: ${staffUser.name || "NHC"} (${staffUser.displayCentre || "Display Centre"}, role: ${staffUser.role || "Consultant"}).`
+    : "Active user: Hudson Homes Staff Member.";
+
+  const contents: any[] = [
+    {
+      role: "user",
+      parts: [{ text: `[SYSTEM KNOWLEDGE & INSTRUCTIONS]\n${HUDSON_KNOWLEDGE_INSTRUCTION}\n\n${userInfo}\n\nPlease acknowledge instructions.` }],
+    },
+    {
+      role: "model",
+      parts: [{ text: JSON.stringify({ answer: "Understood. I will answer only with >95% accuracy.", confidence: 1.0, verified: true }) }],
+    },
+  ];
+
+  for (const turn of history.slice(-6)) {
+    contents.push({
+      role: turn.role === "assistant" ? "model" : "user",
+      parts: [{ text: turn.text }],
+    });
+  }
+  contents.push({
+    role: "user",
+    parts: [{ text: message }],
+  });
+
+  for (const m of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature: 0.25,
+            responseMimeType: "application/json",
+          },
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          try {
+            const parsed = JSON.parse(rawText);
+            parsed.modelUsed = m;
+            return parsed;
+          } catch {
+            return {
+              answer: rawText,
+              confidence: 0.95,
+              verified: true,
+              suggestedQuestions: [
+                "What features are included in Designer inclusions?",
+                "How does Quote Builder V2 calculate variations?",
+              ],
+              modelUsed: m,
+            };
+          }
+        }
+      }
+    } catch {}
+  }
+  throw new Error("Direct Gemini connection failed.");
+}
 
 interface ChatMessage {
   id: string;
@@ -106,28 +209,49 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
         text: m.text,
       }));
 
-      const res = await fetch("/api/hub-chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: trimmed,
-          history: historyPayload,
-          staffUser: staffUser
-            ? {
-                name: staffUser.name,
-                displayCentre: staffUser.displayCentre,
-                role: staffUser.role,
-              }
-            : null,
-        }),
-      });
+      const apiKey = getGeminiApiKey();
+      let data: any = null;
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.error || `Server responded with ${res.status}`);
+      try {
+        const res = await fetch("/api/hub-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: trimmed,
+            history: historyPayload,
+            apiKey: apiKey || undefined,
+            staffUser: staffUser
+              ? {
+                  name: staffUser.name,
+                  displayCentre: staffUser.displayCentre,
+                  role: staffUser.role,
+                }
+              : null,
+          }),
+        });
+
+        if (res.ok) {
+          data = await res.json();
+        }
+      } catch (networkErr) {
+        console.warn("[HubAiAssistant] Serverless proxy fetch error, falling back to direct client call:", networkErr);
       }
 
-      const data = await res.json();
+      // If serverless endpoint returned an error or failed (e.g. 502/500), fall back directly to Gemini API
+      if (!data && apiKey) {
+        data = await queryGeminiDirect(trimmed, historyPayload, apiKey, staffUser);
+      }
+
+      if (!data) {
+        throw new Error("Unable to obtain response from Hudson AI service.");
+      }
+
+      // Enforce 95% confidence threshold check
+      if (typeof data.confidence === "number" && data.confidence < 0.95) {
+        data.verified = false;
+        data.answer =
+          "⚠️ **Accuracy Notice**: I cannot answer that with high accuracy (>95% confidence) at this moment. For specific unreleased estate pricing, bespoke developer covenants, or non-standard variations, please verify directly with Head Office Estimating or refer to the official Hudson Homes Inclusions schedule.";
+      }
 
       setMessages((prev) => [
         ...prev,
