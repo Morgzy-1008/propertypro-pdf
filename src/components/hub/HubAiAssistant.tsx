@@ -278,7 +278,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto my-7 px-0">
+    <div className="w-full">
       {/* Sleek Aesthetic Message Bar */}
       <div
         className={`relative rounded-2xl border transition-all duration-300 shadow-xl overflow-hidden ${
@@ -368,7 +368,8 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
 
         {/* Quick Suggestion Pills (Wrapped, Zero Scrollbar) */}
         <div
-          className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-t text-xs ${
+          style={{ overflowX: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}
+          className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-t text-xs overflow-hidden no-scrollbar ${
             isLight ? "border-slate-100 bg-slate-50/70" : "border-slate-800/60 bg-slate-950/50"
           }`}
         >
@@ -450,7 +451,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
           </div>
 
           {/* Message Thread */}
-          <div ref={threadRef} className="space-y-4 max-h-[460px] overflow-y-auto pr-1.5 custom-scrollbar">
+          <div ref={threadRef} className="space-y-4 max-h-[460px] overflow-y-auto overflow-x-hidden pr-1.5 custom-scrollbar">
             {messages.map((m) => (
               <div
                 key={m.id}

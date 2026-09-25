@@ -186,7 +186,9 @@ function WelcomeHubPage() {
         </div>
 
         {/* Hudson Homes Personal AI Assistant */}
-        <HubAiAssistant isLight={isLight} staffUser={staffUser} />
+        <div className="w-full max-w-6xl mx-auto mb-6">
+          <HubAiAssistant isLight={isLight} staffUser={staffUser} />
+        </div>
 
         {/* Action / Tool Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
