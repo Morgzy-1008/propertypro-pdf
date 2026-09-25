@@ -278,35 +278,35 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto my-6 px-2 sm:px-0">
+    <div className="w-full max-w-6xl mx-auto my-7 px-0">
       {/* Sleek Aesthetic Message Bar */}
       <div
-        className={`relative rounded-2xl border transition-all duration-300 shadow-lg ${
+        className={`relative rounded-2xl border transition-all duration-300 shadow-xl overflow-hidden ${
           isLight
-            ? "border-brand-gold/40 bg-white/90 shadow-brand-gold/5 focus-within:border-brand-gold focus-within:shadow-brand-gold/15"
-            : "border-brand-gold/30 bg-slate-900/80 backdrop-blur-xl shadow-black/40 focus-within:border-brand-gold/70 focus-within:shadow-brand-gold/10"
+            ? "border-slate-200/90 bg-white shadow-slate-200/50 hover:border-brand-gold/50 focus-within:border-brand-gold focus-within:ring-2 focus-within:ring-brand-gold/20"
+            : "border-slate-800/90 bg-gradient-to-b from-slate-900/95 to-slate-900/60 backdrop-blur-xl shadow-black/40 hover:border-brand-gold/40 focus-within:border-brand-gold/70 focus-within:shadow-brand-gold/10"
         }`}
       >
         {/* Subtle Ambient Top Border Accent */}
-        <div className="absolute -top-[1px] left-6 right-6 h-[1.5px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-80" />
+        <div className="absolute top-0 left-8 right-8 h-[2px] bg-gradient-to-r from-transparent via-brand-gold to-transparent opacity-90" />
 
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend(query);
           }}
-          className="flex items-center gap-2 p-2 sm:p-2.5"
+          className="flex items-center gap-2.5 p-2 sm:p-3"
         >
           {/* AI Badge Icon */}
           <div
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold select-none flex-shrink-0 ${
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-semibold select-none flex-shrink-0 ${
               isLight
-                ? "bg-amber-50 text-amber-800 border border-amber-200/80"
-                : "bg-gradient-to-r from-amber-950/80 to-slate-900 border border-brand-gold/30 text-amber-300"
+                ? "bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs"
+                : "bg-gradient-to-r from-amber-950/80 to-slate-900 border border-brand-gold/30 text-amber-300 shadow-inner"
             }`}
           >
             <Sparkles className="h-4 w-4 text-brand-gold animate-pulse" />
-            <span className="hidden sm:inline font-mono tracking-tight text-[11px]">Hudson AI</span>
+            <span className="font-mono tracking-tight text-xs font-bold">Hudson AI</span>
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           </div>
 
@@ -318,20 +318,20 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ask Hudson AI anything (e.g. inclusions, pricing, floorplans, or site features)..."
             disabled={isLoading}
-            className={`flex-1 bg-transparent px-2 sm:px-3 py-2 text-sm sm:text-base outline-none transition-colors ${
+            className={`flex-1 bg-transparent px-3 py-2.5 text-sm sm:text-base outline-none transition-colors ${
               isLight
-                ? "text-slate-900 placeholder:text-slate-400"
-                : "text-white placeholder:text-slate-500"
+                ? "text-slate-900 placeholder:text-slate-400 font-medium"
+                : "text-white placeholder:text-slate-500 font-normal"
             } disabled:opacity-60`}
           />
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 pr-1">
             {messages.length > 0 && (
               <button
                 type="button"
                 onClick={() => setIsExpanded(!isExpanded)}
-                className={`p-2 rounded-xl border text-xs font-medium transition-colors ${
+                className={`p-2.5 rounded-xl border text-xs font-medium transition-colors cursor-pointer ${
                   isLight
                     ? "border-slate-200 hover:bg-slate-100 text-slate-600"
                     : "border-slate-800 hover:bg-slate-800 text-slate-400 hover:text-slate-200"
@@ -345,9 +345,9 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
             <button
               type="submit"
               disabled={!query.trim() || isLoading}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 cursor-pointer ${
                 query.trim() && !isLoading
-                  ? "bg-gradient-to-r from-amber-500 via-brand-gold to-amber-600 text-slate-950 font-bold shadow-md shadow-brand-gold/20 hover:scale-[1.02] active:scale-[0.98]"
+                  ? "bg-gradient-to-r from-amber-500 via-brand-gold to-amber-600 text-slate-950 shadow-md shadow-brand-gold/25 hover:scale-[1.02] active:scale-[0.98]"
                   : "bg-slate-800/40 text-slate-500 border border-slate-800/80 cursor-not-allowed"
               }`}
             >
@@ -359,21 +359,22 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
               ) : (
                 <>
                   <span>Ask</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>
           </div>
         </form>
 
-        {/* Quick Suggestion Pills */}
+        {/* Quick Suggestion Pills (Wrapped, Zero Scrollbar) */}
         <div
-          className={`flex items-center gap-1.5 px-3 py-2 border-t overflow-x-auto no-scrollbar text-xs ${
-            isLight ? "border-slate-100 bg-slate-50/60" : "border-slate-800/60 bg-slate-950/40"
+          className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-t text-xs ${
+            isLight ? "border-slate-100 bg-slate-50/70" : "border-slate-800/60 bg-slate-950/50"
           }`}
         >
-          <span className={`text-[10px] uppercase font-bold tracking-wider mr-1 flex-shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
-            Try asking:
+          <span className={`text-[10px] uppercase font-bold tracking-wider mr-1 flex-shrink-0 flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+            <Sparkles className="h-3 w-3 text-brand-gold" />
+            <span>Suggested:</span>
           </span>
           {DEFAULT_SUGGESTIONS.map((item, idx) => (
             <button
@@ -384,10 +385,10 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
                 handleSend(item);
               }}
               disabled={isLoading}
-              className={`whitespace-nowrap px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer flex-shrink-0 ${
+              className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
                 isLight
-                  ? "border-slate-200 bg-white text-slate-700 hover:border-amber-400 hover:text-amber-800 shadow-2xs"
-                  : "border-slate-800/80 bg-slate-900/60 text-slate-300 hover:border-brand-gold/60 hover:text-amber-300 hover:bg-slate-800/80"
+                  ? "border-slate-200 bg-white text-slate-700 hover:border-brand-gold hover:text-amber-800 hover:bg-amber-50/50 shadow-2xs"
+                  : "border-slate-800 bg-slate-900/80 text-slate-300 hover:border-brand-gold/60 hover:text-amber-300 hover:bg-slate-800"
               }`}
             >
               {item}
@@ -399,10 +400,10 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
       {/* Expandable Conversational Window */}
       {isExpanded && messages.length > 0 && (
         <div
-          className={`mt-4 rounded-2xl border p-4 sm:p-6 transition-all duration-300 shadow-2xl ${
+          className={`mt-4 rounded-2xl border p-5 sm:p-6 transition-all duration-300 shadow-2xl ${
             isLight
-              ? "border-slate-200 bg-white"
-              : "border-slate-800 bg-slate-900/90 backdrop-blur-xl"
+              ? "border-slate-200 bg-white shadow-slate-200/60"
+              : "border-slate-800 bg-slate-900/90 backdrop-blur-xl shadow-black/50"
           }`}
         >
           {/* Header Bar */}
