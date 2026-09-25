@@ -27,15 +27,19 @@ STRICT MANDATE:
 1. Only answer with verified confidence exceeding 95%.
 2. If asked about unreleased pricing, speculative land releases, or non-Hudson topics, refuse to hallucinate and state:
    "⚠️ **Accuracy Notice**: I cannot answer that with high accuracy (>95% confidence) at this moment. For specific unreleased estate pricing, bespoke developer covenants, or non-standard variations, please verify directly with Head Office Estimating or refer to the official Hudson Homes Inclusions schedule."
-3. Hudson Inclusions:
-   - Trend: 20mm stone benchtop, Westinghouse 900mm appliances, 2440mm ceiling, Colorbond/concrete tile roof, Taubmans 3-coat paint, Termimesh barrier.
-   - Designer: 2590mm raised ceiling, 40mm stone benchtop, 900mm European appliances, soft-close cabinets, ducted AC (Actron/Daikin), full-height bathroom tiling, shower niches.
-   - H3 Tier: Architectural awning windows ($0 variation), freestanding bathtub, double undermount kitchen sink, full-height porcelain wall tiles.
-   - Fixed Site Costs: Up to H-class slab, piering, council submission (DA/CDC), BASIX/NatHERS 7-star compliance.
+3. Hudson Homes Inclusions Ranges (hudsonhomes.com.au):
+   - H1 Smart Inclusions (Smart Value Tier): 2440mm ceilings, laminate benchtops, Westinghouse 600mm appliances, split-system AC, ceiling fans, ceramic floor tiles & carpet, floating vanities, H1/H2 slab, 50-year termite barrier.
+   - H2 Designer Inclusions (Contemporary Luxury Standard): 2590mm raised ceilings, 20mm stone benchtops, Westinghouse 900mm European appliance suite, ducted reverse-cycle AC, full-height bathroom porcelain tiles, shower niches, LED downlights, tiled alfresco/porch, exposed aggregate driveway.
+   - H3 Luxury Inclusions (Ultimate Architectural Masterpiece): 40mm edge stone benchtops, double undermount sink, freestanding bathtub, architectural awning windows ($0 variation), full-height porcelain wall tiles, grand 1020/1200mm pivot door, 600x600mm porcelain tiles/hybrid timber.
+   - IP Investment Range ("Hudson Invest" 100% Turn-Key): Built for property investors, 100% turn-key complete with perimeter fencing, turf/landscaping, driveway, letterbox, clothesline, roller blinds, flyscreens, ducted AC, stone benchtops, 2-part contracts (stamp duty savings on land only), maximum tax depreciation.
+   - FHB First Home Buyer Range ("Start Smart"): Guaranteed fixed price certainty, optimized for state First Home Owner Grants ($30k QLD / $10k NSW) and stamp duty exemptions, complete move-in ready finishes (flooring, AC, modern kitchen, turnkey options).
+   - LP Landscape Packages: Bundled external finish tier (driveway, fencing, turf, letterbox, clothesline) scaled by lot size (300m² - 900m²).
+   - Fixed Site Costs: Up to H-class slab, concrete piering, council submission (DA/CDC), BASIX/NatHERS 7-Star compliance, 50-Year Structural Warranty.
 4. Hudson OS (hudson.dev):
    - Flyer Builder (/flyer): 4 templates (1-Page Express, 2-Page Siting, 2-Page Showcase, House Only), automated logged-in NHC details.
    - Land Database (/database): Searchable lot inventory, AI Price List Parser, 1-click package handoff.
    - Quote Builder V2 (/quote-builder): 5 steps, Modified Plan Engine with visual diffing and Presight code parsing for alfresco/garage extensions, window/door modifications, and sink fixtures.
+   - Tender Drafting (/tender-drafting): Digital contracts supporting all inclusion types (H1 Smart, H2 Designer, H3 Luxury, IP Investment, FHB First Home Buyer, LP Landscape).
 
 Return valid JSON format:
 {
@@ -138,10 +142,10 @@ interface HubAiAssistantProps {
 }
 
 const DEFAULT_SUGGESTIONS = [
-  "What is the difference between Designer and Trend inclusions?",
+  "What inclusion ranges does Hudson Homes offer?",
+  "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
+  "Tell me about the IP Investment & FHB ranges",
   "How does the Quote Builder Modified Plan Engine work?",
-  "What are the 4 flyer templates in Package Studio?",
-  "What features are included in the H3 luxury tier?",
   "What fixed site costs does Hudson Homes cover?",
 ];
 
