@@ -184,7 +184,9 @@ export type InclusionTier =
   | "H2 Inclusions (2025)"
   | "H3 Inclusions (2025)"
   | "Smart Style"
-  | "Hudson Base";
+  | "Smart Series"
+  | "Hudson Base"
+  | "Home Builders Series";
 
 export interface FloorplanAreaBreakdown {
   livingM2?: number; // Single Storey living area
@@ -228,6 +230,7 @@ export interface QuoteDesignSelection {
   designM2: number;
   facadeName: string;
   facadePrice: number;
+  facadeImageUrl?: string;
   isCustomFacade?: boolean;
   customFacadeDescription?: string;
   specTier: InclusionTier;

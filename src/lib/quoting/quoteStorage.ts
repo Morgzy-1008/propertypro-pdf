@@ -200,10 +200,10 @@ function getDefaultDesignSelection(): QuoteDesignSelection {
       porchM2: 0,
       balconyM2: 0,
       storeys: "single",
-      groundRateM2: rates.singleGroundLivingM2Rate,
-      upperRateM2: rates.doubleUpperLivingM2Rate,
-      ancillaryRateM2: rates.ancillaryM2Rate,
-      scaffoldingAllowance: rates.doubleScaffoldingAllowance,
+      groundRateM2: 0,
+      upperRateM2: 0,
+      ancillaryRateM2: 0,
+      scaffoldingAllowance: 8500,
     },
   };
   return defaultDesign;

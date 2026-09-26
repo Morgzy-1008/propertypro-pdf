@@ -38,6 +38,7 @@ import {
 import { formatAud } from "@/lib/pricing";
 import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
 import {
+  calculateCustomTotalM2,
   calculateDesignGFA,
   isDoubleStoreyDesign,
   resolveItemCategory,
@@ -286,8 +287,14 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const hasSecondDwelling = Boolean(quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled);
   const secondDwelling = quote.design.secondDwelling;
 
+  const isCustomMode = quote.design.mode === "custom_floorplan";
+  const customSpec = quote.design.customSpec;
+  const customTotalM2 = customSpec ? calculateCustomTotalM2(customSpec) : 0;
+
   const effectiveDesignM2 =
-    quote.design.isModifiedFloorplan && quote.design.modifiedDesignM2
+    isCustomMode
+      ? customTotalM2 || quote.design.designM2 || 200
+      : quote.design.isModifiedFloorplan && quote.design.modifiedDesignM2
       ? quote.design.modifiedDesignM2
       : quote.design.designM2 || 200;
 
@@ -315,9 +322,20 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const isTargetH2 = activeTargetTier.includes("H2");
   const isTargetH3 = activeTargetTier.includes("H3");
 
+  const singleStoreyLivingM2 =
+    activeDwellingTab === "dwelling2"
+      ? activeTargetM2
+      : isCustomMode && Number(customSpec?.groundLivingM2) > 0
+      ? Number(customSpec.groundLivingM2)
+      : quote.design.standardAreas?.livingM2 ||
+        quote.design.modifiedAreas?.livingM2 ||
+        activeTargetM2;
+
   const gfM2 =
     activeDwellingTab === "dwelling2"
       ? Math.round(activeTargetM2 * 0.55)
+      : isCustomMode && Number(customSpec?.groundLivingM2) > 0
+      ? Number(customSpec.groundLivingM2)
       : quote.design.standardAreas?.groundLivingM2 ||
         quote.design.modifiedAreas?.groundLivingM2 ||
         Math.round(effectiveDesignM2 * 0.55);
@@ -325,6 +343,8 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const ffM2 =
     activeDwellingTab === "dwelling2"
       ? Math.round(activeTargetM2 * 0.45)
+      : isCustomMode && Number(customSpec?.firstLivingM2) > 0
+      ? Number(customSpec.firstLivingM2)
       : quote.design.standardAreas?.firstLivingM2 ||
         quote.design.modifiedAreas?.firstLivingM2 ||
         Math.round(effectiveDesignM2 * 0.45);
@@ -878,7 +898,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_2590_h1",
                           ["pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
                           {
-                            quantity: activeTargetM2,
+                            quantity: singleStoreyLivingM2,
                             unitRate: 51,
                             name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
                             category: "structural",
@@ -894,10 +914,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery)</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 51)}
+                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 51)}
                       </span>
                     </div>
 
@@ -908,7 +928,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_2740_h1",
                           ["pop_ceiling_2590_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
                           {
-                            quantity: activeTargetM2,
+                            quantity: singleStoreyLivingM2,
                             unitRate: 76,
                             name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
                             category: "structural",
@@ -924,10 +944,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
+                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 76)}
                       </span>
                     </div>
                   </>
@@ -940,7 +960,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_2740_h2",
                           ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_3000_h2"],
                           {
-                            quantity: activeTargetM2,
+                            quantity: singleStoreyLivingM2,
                             unitRate: 58,
                             name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
                             category: "structural",
@@ -956,10 +976,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery)</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 58)}
+                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 58)}
                       </span>
                     </div>
 
@@ -970,7 +990,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_3000_h2",
                           ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_2740_h2"],
                           {
-                            quantity: activeTargetM2,
+                            quantity: singleStoreyLivingM2,
                             unitRate: 76,
                             name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
                             category: "structural",
@@ -986,10 +1006,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery)</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(activeTargetM2 * 76)}
+                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 76)}
                       </span>
                     </div>
                   </>

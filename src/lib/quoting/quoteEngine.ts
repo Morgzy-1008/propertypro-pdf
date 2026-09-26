@@ -95,29 +95,179 @@ export function getTierPrice(
   return model.h2 || model.h1 || 0;
 }
 
+export interface CustomAreaRates {
+  groundLivingRate: number;
+  firstLivingRate: number;
+  garageRate: number;
+  alfrescoRate: number;
+  porchRate: number;
+  balconyRate: number;
+  scaffoldingAllowance: number;
+  blendedRate: number;
+  totalM2: number;
+}
+
 /**
- * Calculates base price for custom floorplan based on area dimensions and tiered rates.
+ * Calculates dynamic area rates for a custom design based on total size (smooth exponential gradient decay),
+ * house storeys, and inclusion range tier (QLD pricelist calibration).
+ *
+ * Rules:
+ * - Seamless gradient scaling: as floorplan size increases, $/m² smoothly decreases to reflect economies of scale.
+ * - Custom premium: approx +$100/m² over standard Hudson production models.
+ * - Asymptotic floor at >= 500m²:
+ *    * Single Storey H2: minimum rate of $1,500/m²
+ *    * Double Storey H2: minimum rate of $1,600/m²
+ * - Alfresco: base $850/m² ($870/m² in H2 ceiling lining; +$30/m² in H3 for 600x600 tiling = $900/m²).
  */
-export function calculateCustomFloorplanPrice(spec?: CustomFloorplanSpec): number {
+export function getCustomAreaRates(
+  spec?: CustomFloorplanSpec,
+  tier: string = "H2 Design Inclusions",
+): CustomAreaRates {
+  const isDouble = spec?.storeys === "double";
+  const totalM2 = calculateCustomTotalM2(spec);
+
+  // Normalize tier
+  const tierStr = String(tier || "H2").toUpperCase();
+  const isH3 = tierStr.includes("H3");
+  const isH1 = tierStr.includes("H1");
+  const isHBS = tierStr.includes("HBS") || tierStr.includes("HOME BUILDER");
+  const isSS = tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE");
+
+  // Non-habitable area rates
+  // Calibrated rates: Garage is $1,050/m², Porch is $870/m², Balcony is $1,350/m²
+  const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1050;
+  const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 870;
+  const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1350;
+
+  // Alfresco: Base $850/m², H2 $870/m², H3 $900/m² (+$30/m² for 600x600 tiles)
+  let alfrescoRate = 850;
+  if (isH3) {
+    alfrescoRate = 900;
+  } else if (!isH1 && !isHBS && !isSS) {
+    // H2 default
+    alfrescoRate = 870;
+  }
+  if (spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869) {
+    alfrescoRate = spec.ancillaryRateM2;
+  }
+
+  // Living rate decay:
+  // Single Storey H2 living rate decays from $2,360/m² at ~120m² down to $1,610/m² at >=500m²
+  const floorLivingSS = 1610;
+  const startLivingSS = 2360;
+
+  // Double Storey H2 living rates decay: GF from $2,380 down to $1,620; FF from $2,650 down to $1,800
+  const floorGfLivingDS = 1620;
+  const startGfLivingDS = 2380;
+  const floorFfLivingDS = 1800;
+  const startFfLivingDS = 2650;
+
+  const effectiveM2 = totalM2 > 0 ? totalM2 : 200;
+  const decayRateSS = Math.exp(-Math.max(0, effectiveM2 - 120) / 160);
+  const decayRateDS = Math.exp(-Math.max(0, effectiveM2 - 140) / 170);
+
+  // Tier adjustments on living rate
+  let tierAdj = 0;
+  if (isHBS) tierAdj = -250;
+  else if (isSS) tierAdj = -150;
+  else if (isH1) tierAdj = -80;
+  else if (isH3) tierAdj = 150;
+
+  let groundLivingRate = 0;
+  let firstLivingRate = 0;
+  const scaffoldingAllowance = isDouble
+    ? (spec?.scaffoldingAllowance && spec.scaffoldingAllowance > 0 ? spec.scaffoldingAllowance : 8500)
+    : 0;
+
+  if (!isDouble) {
+    groundLivingRate = Math.round(floorLivingSS + (startLivingSS - floorLivingSS) * decayRateSS + tierAdj);
+  } else {
+    groundLivingRate = Math.round(floorGfLivingDS + (startGfLivingDS - floorGfLivingDS) * decayRateDS + tierAdj);
+    firstLivingRate = Math.round(floorFfLivingDS + (startFfLivingDS - floorFfLivingDS) * decayRateDS + tierAdj * 1.08);
+  }
+
+  // Respect manual overrides if explicitly set by sales manager
+  if (spec?.groundRateM2 && spec.groundRateM2 > 0) {
+    groundLivingRate = spec.groundRateM2;
+  }
+  if (spec?.upperRateM2 && spec.upperRateM2 > 0) {
+    firstLivingRate = spec.upperRateM2;
+  }
+
+  // Compute preliminary total to check >= 500m² floor guarantee
+  const groundLivingArea = Number(spec?.groundLivingM2) || 0;
+  const firstLivingArea = isDouble ? (Number(spec?.firstLivingM2) || 0) : 0;
+  const garageArea = Number(spec?.garageM2) || 0;
+  const alfrescoArea = Number(spec?.alfrescoM2) || 0;
+  const porchArea = Number(spec?.porchM2) || 0;
+  const balconyArea = isDouble ? (Number(spec?.balconyM2) || 0) : 0;
+
+  const totalCost = Math.round(
+    groundLivingArea * groundLivingRate +
+    firstLivingArea * firstLivingRate +
+    garageArea * garageRate +
+    alfrescoArea * alfrescoRate +
+    porchArea * porchRate +
+    balconyArea * balconyRate +
+    scaffoldingAllowance
+  );
+
+  const blendedRate = totalM2 > 0 ? Math.round(totalCost / totalM2) : (!isDouble ? groundLivingRate : Math.round((groundLivingRate + firstLivingRate) / 2));
+
+  return {
+    groundLivingRate,
+    firstLivingRate,
+    garageRate,
+    alfrescoRate,
+    porchRate,
+    balconyRate,
+    scaffoldingAllowance,
+    blendedRate,
+    totalM2,
+  };
+}
+
+/**
+ * Calculates base price for custom floorplan based on area dimensions, dynamic gradient decay, and tier.
+ */
+export function calculateCustomFloorplanPrice(
+  spec?: CustomFloorplanSpec,
+  tier: string = "H2 Design Inclusions",
+): number {
   if (!spec) return 0;
   const isDouble = spec.storeys === "double";
+  const rates = getCustomAreaRates(spec, tier);
+
   const groundLivingArea = Number(spec.groundLivingM2) || 0;
-  const firstLivingArea = Number(spec.firstLivingM2) || 0;
+  const firstLivingArea = isDouble ? (Number(spec.firstLivingM2) || 0) : 0;
   const garageArea = Number(spec.garageM2) || 0;
   const alfrescoArea = Number(spec.alfrescoM2) || 0;
   const porchArea = Number(spec.porchM2) || 0;
-  const balconyArea = Number(spec.balconyM2) || 0;
+  const balconyArea = isDouble ? (Number(spec.balconyM2) || 0) : 0;
+  const totalM2 = calculateCustomTotalM2(spec);
 
-  const groundRate = Number(spec.groundRateM2) || (isDouble ? 1720 : 1580);
-  const upperRate = Number(spec.upperRateM2) || 2050;
-  const ancillaryRate = Number(spec.ancillaryRateM2) || 1050;
-  const scaffold = isDouble ? Number(spec.scaffoldingAllowance) || 8500 : 0;
+  let rawCost = Math.round(
+    groundLivingArea * rates.groundLivingRate +
+    firstLivingArea * rates.firstLivingRate +
+    garageArea * rates.garageRate +
+    alfrescoArea * rates.alfrescoRate +
+    porchArea * rates.porchRate +
+    balconyArea * rates.balconyRate +
+    rates.scaffoldingAllowance
+  );
 
-  const groundLivingCost = groundLivingArea * groundRate;
-  const upperLivingCost = isDouble ? firstLivingArea * upperRate : 0;
-  const ancillaryCost = (garageArea + alfrescoArea + porchArea + balconyArea) * ancillaryRate;
+  // Enforce >= 500m² asymptotic floor rates for H2/SS builds
+  const tierStr = String(tier || "H2").toUpperCase();
+  const isH2OrSS = !tierStr.includes("HBS");
+  if (totalM2 >= 500 && isH2OrSS) {
+    const floorRate = !isDouble ? 1500 : 1600;
+    const floorTotal = Math.round(totalM2 * floorRate);
+    if (rawCost < floorTotal) {
+      rawCost = floorTotal;
+    }
+  }
 
-  return Math.round(groundLivingCost + upperLivingCost + ancillaryCost + scaffold);
+  return rawCost;
 }
 
 /**
@@ -888,7 +1038,7 @@ export function calculateQuotePricing(
   let customFloorplanPrice = 0;
 
   if (design.mode === "custom_floorplan") {
-    customFloorplanPrice = calculateCustomFloorplanPrice(design.customSpec);
+    customFloorplanPrice = calculateCustomFloorplanPrice(design.customSpec, design.specTier);
     baseHousePrice = customFloorplanPrice;
   } else if (design.isModifiedFloorplan) {
     const modCalc = calculateModifiedFloorplanPricing(design);

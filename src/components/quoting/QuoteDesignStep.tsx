@@ -57,6 +57,7 @@ import {
   calculateCustomFloorplanPrice,
   calculateCustomTotalM2,
   calculateModifiedFloorplanPricing,
+  getCustomAreaRates,
   getStandardAreaBreakdown,
   getAutomatedPromotionDiscount,
   getHousingTypeForDesign,
@@ -118,6 +119,39 @@ export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[
     id: "H3 Luxury Inclusions",
     label: "H3 Luxury Inclusions",
     tag: "Ultimate Luxury",
+  },
+];
+
+export const CUSTOM_INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string; desc: string }[] = [
+  {
+    id: "H3 Luxury Inclusions",
+    label: "H3 Luxury",
+    tag: "Ultimate Luxury",
+    desc: "+$150/m² living • 600x600 alfresco tiles (+$30/m²)",
+  },
+  {
+    id: "H2 Design Inclusions",
+    label: "H2 Designer",
+    tag: "Most Popular",
+    desc: "Baseline Designer Specification • Ceiling lining to alfresco",
+  },
+  {
+    id: "H1 Smart Inclusions",
+    label: "H1 Smart",
+    tag: "Essential Value",
+    desc: "-$80/m² living • Quality Hudson turnkey standard",
+  },
+  {
+    id: "Smart Series",
+    label: "Smart Series",
+    tag: "Smart Style",
+    desc: "-$150/m² living • Value-engineered package",
+  },
+  {
+    id: "Home Builders Series",
+    label: "Home Builders",
+    tag: "HBS Base",
+    desc: "-$250/m² living • Maximum budget efficiency",
   },
 ];
 
@@ -368,8 +402,25 @@ export function QuoteDesignStep({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modifiedFileInputRef = useRef<HTMLInputElement>(null);
 
+  const customSpec = design.customSpec || {
+    groundLivingM2: 0,
+    firstLivingM2: 0,
+    garageM2: 0,
+    alfrescoM2: 0,
+    porchM2: 0,
+    balconyM2: 0,
+    storeys: "single" as const,
+    groundRateM2: 0,
+    upperRateM2: 0,
+    ancillaryRateM2: 0,
+    scaffoldingAllowance: 8500,
+  };
+
   const housingTypePrices = getHousingTypePrices(division);
-  const effectiveHousingType = getHousingTypeForDesign(design.designName, design.housingType);
+  const effectiveHousingType =
+    design.mode === "custom_floorplan"
+      ? (customSpec.storeys === "double" ? "Double Storey" : "Single Storey")
+      : getHousingTypeForDesign(design.designName, design.housingType);
   const models = housingTypePrices[effectiveHousingType] || housingTypePrices["Single Storey"] || SINGLE_STOREY_PRICES;
   const currentModel = models.find((m) => m.name === design.designName);
 
@@ -417,20 +468,6 @@ export function QuoteDesignStep({
       }
     });
   }, [design.designName, design.housingType, design.specTier, design.facadeName, design.isCustomFacade, design.isModifiedFloorplan, design.landscapingSelected, design.landscapingLandSize]);
-
-  const customSpec = design.customSpec || {
-    groundLivingM2: 0,
-    firstLivingM2: 0,
-    garageM2: 0,
-    alfrescoM2: 0,
-    porchM2: 0,
-    balconyM2: 0,
-    storeys: "single" as const,
-    groundRateM2: 1580,
-    upperRateM2: 2050,
-    ancillaryRateM2: 1050,
-    scaffoldingAllowance: 8500,
-  };
 
   const isCinnamon = Boolean(design.designName && /cinnamon/i.test(design.designName));
   const isDouble =
@@ -696,6 +733,11 @@ export function QuoteDesignStep({
   };
 
   const handleTierChange = (tier: InclusionTier) => {
+    if (design.mode === "custom_floorplan") {
+      const effectiveBasePrice = calculateCustomFloorplanPrice(customSpec, tier);
+      onChange({ specTier: tier, basePrice: effectiveBasePrice });
+      return;
+    }
     const stdPrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
     let effectiveBasePrice = stdPrice;
     if (design.isModifiedFloorplan && currentModel) {
@@ -840,13 +882,17 @@ export function QuoteDesignStep({
 
   const handleCustomSpecChange = (field: keyof typeof customSpec, val: any) => {
     const updated = { ...customSpec, [field]: val };
-    const calculatedBase = calculateCustomFloorplanPrice(updated);
+    const calculatedBase = calculateCustomFloorplanPrice(updated, design.specTier);
     const totalM2 = calculateCustomTotalM2(updated);
     onChange({
       customSpec: updated,
       basePrice: calculatedBase,
       designM2: totalM2,
-      promotionsDiscount: 0,
+      ...(field === "storeys"
+        ? {
+            housingType: val === "double" ? "Double Storey" : "Single Storey",
+          }
+        : {}),
     });
   };
 
@@ -2162,111 +2208,467 @@ export function QuoteDesignStep({
       {design.mode === "custom_floorplan" && (
         <div className="space-y-6">
           <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-800/40 text-xs text-cyan-200">
-            <strong>Custom Floorplan Calculator:</strong> Enter individual floor area dimensions below. The base price calculates automatically using the Hudson custom formula rates.
+            <strong>Custom Architectural Quoting Engine:</strong> Select the target inclusion specification tier and enter individual floor area dimensions below. The dynamic rates and base price calculate automatically using the Hudson QLD price list gradient calibration.
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Storey Configuration</Label>
-              <Select
-                value={customSpec.storeys}
-                onValueChange={(v: any) => handleCustomSpecChange("storeys", v)}
-              >
-                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                  <SelectItem value="single">Single Storey</SelectItem>
-                  <SelectItem value="double">Two Storey / Double</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* 1. Custom Inclusion Specification Tier Selector */}
+          <div className="space-y-2">
+            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              Inclusion Specification Range (Drives Dynamic Area Rates)
+            </Label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              {CUSTOM_INCLUSION_TIERS.map((tier) => {
+                const isSelected =
+                  design.specTier === tier.id ||
+                  (tier.id === "H1 Smart Inclusions" && design.specTier === "H1 Inclusions (2025)") ||
+                  (tier.id === "H2 Design Inclusions" && design.specTier === "H2 Inclusions (2025)") ||
+                  (tier.id === "H3 Luxury Inclusions" && design.specTier === "H3 Inclusions (2025)");
+                const tierPrice = calculateCustomFloorplanPrice(customSpec, tier.id);
+                return (
+                  <div
+                    key={tier.id}
+                    onClick={() => {
+                      onChange({
+                        specTier: tier.id,
+                        basePrice: tierPrice,
+                      });
+                      toast.success(`Inclusions set to ${tier.label}`);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/50 shadow-md"
+                        : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-xs text-white block truncate">{tier.label}</span>
+                      {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+                    </div>
+                    <span className="text-[9px] uppercase font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-300 inline-block mt-1">
+                      {tier.tag}
+                    </span>
+                    <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 leading-tight">
+                      {tier.desc}
+                    </p>
+                    <div className="mt-2 pt-1.5 border-t border-slate-800 text-right">
+                      <span className="text-xs font-bold text-emerald-400 font-mono">
+                        {formatAud(tierPrice)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. Storey Configuration & Area Dimensions */}
+          <div className="space-y-4 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs text-slate-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-cyan-400" />
+                Floorplan Areas &amp; Architectural Dimensions
+              </Label>
+              <span className="text-[11px] text-slate-400 font-mono">
+                Total: <strong className="text-white">{calculateCustomTotalM2(customSpec)} m²</strong>
+              </span>
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Ground Living Area (m²)</Label>
-              <Input
-                type="number"
-                value={customSpec.groundLivingM2 || ""}
-                onChange={(e) => handleCustomSpecChange("groundLivingM2", Number(e.target.value))}
-                placeholder="0"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
-              />
-            </div>
-
-            {customSpec.storeys === "double" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">First Floor Living Area (m²)</Label>
+                <Label className="text-xs text-slate-300">Storey Configuration</Label>
+                <Select
+                  value={customSpec.storeys}
+                  onValueChange={(v: any) => handleCustomSpecChange("storeys", v)}
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                    <SelectItem value="single">Single Storey</SelectItem>
+                    <SelectItem value="double">Two Storey / Double</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-300">Ground Living Area (m²)</Label>
                 <Input
                   type="number"
-                  value={customSpec.firstLivingM2 || ""}
-                  onChange={(e) => handleCustomSpecChange("firstLivingM2", Number(e.target.value))}
+                  value={customSpec.groundLivingM2 || ""}
+                  onChange={(e) => handleCustomSpecChange("groundLivingM2", Number(e.target.value))}
                   placeholder="0"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
                 />
               </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Garage Area (m²)</Label>
-              <Input
-                type="number"
-                value={customSpec.garageM2 || ""}
-                onChange={(e) => handleCustomSpecChange("garageM2", Number(e.target.value))}
-                placeholder="0"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
-              />
+              {customSpec.storeys === "double" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-300">First Floor Living Area (m²)</Label>
+                  <Input
+                    type="number"
+                    value={customSpec.firstLivingM2 || ""}
+                    onChange={(e) => handleCustomSpecChange("firstLivingM2", Number(e.target.value))}
+                    placeholder="0"
+                    className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
+                  />
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Alfresco Area (m²)</Label>
-              <Input
-                type="number"
-                value={customSpec.alfrescoM2 || ""}
-                onChange={(e) => handleCustomSpecChange("alfrescoM2", Number(e.target.value))}
-                placeholder="0"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Porch Area (m²)</Label>
-              <Input
-                type="number"
-                value={customSpec.porchM2 || ""}
-                onChange={(e) => handleCustomSpecChange("porchM2", Number(e.target.value))}
-                placeholder="0"
-                className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
-              />
-            </div>
-
-            {customSpec.storeys === "double" && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Balcony Area (m²)</Label>
+                <Label className="text-xs text-slate-300">Garage Area (m²)</Label>
                 <Input
                   type="number"
-                  value={customSpec.balconyM2 || ""}
-                  onChange={(e) => handleCustomSpecChange("balconyM2", Number(e.target.value))}
+                  value={customSpec.garageM2 || ""}
+                  onChange={(e) => handleCustomSpecChange("garageM2", Number(e.target.value))}
                   placeholder="0"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
                 />
               </div>
-            )}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-300">Alfresco Area (m²)</Label>
+                <Input
+                  type="number"
+                  value={customSpec.alfrescoM2 || ""}
+                  onChange={(e) => handleCustomSpecChange("alfrescoM2", Number(e.target.value))}
+                  placeholder="0"
+                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-300">Porch Area (m²)</Label>
+                <Input
+                  type="number"
+                  value={customSpec.porchM2 || ""}
+                  onChange={(e) => handleCustomSpecChange("porchM2", Number(e.target.value))}
+                  placeholder="0"
+                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                />
+              </div>
+
+              {customSpec.storeys === "double" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-300">Balcony Area (m²)</Label>
+                  <Input
+                    type="number"
+                    value={customSpec.balconyM2 || ""}
+                    onChange={(e) => handleCustomSpecChange("balconyM2", Number(e.target.value))}
+                    placeholder="0"
+                    className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="p-4 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-400 block">Total Calculated Area</span>
-              <span className="text-base font-bold text-slate-100 font-mono">
-                {calculateCustomTotalM2(customSpec)} m²
-              </span>
+          {/* 3. Dynamic Area Rates Breakdown Engine (QLD Price List Calibrated) */}
+          {(() => {
+            const rates = getCustomAreaRates(customSpec, design.specTier);
+            return (
+              <div className="p-4 rounded-xl bg-slate-950/90 border border-slate-800 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-800/80 pb-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-cyan-400" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+                      Calculated Area Rates ({design.specTier})
+                    </span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800/50">
+                      Seamless Gradient Engine
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Smooth decay calibrated to QLD Price Lists (+~$100/m² custom premium)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center">
+                  <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-medium">Ground Living</span>
+                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.groundLivingRate)}/m²</span>
+                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.groundLivingM2 || 0} m²</span>
+                  </div>
+
+                  {customSpec.storeys === "double" && (
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block font-medium">First Floor Living</span>
+                      <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.firstLivingRate)}/m²</span>
+                      <span className="text-[9px] text-slate-500 block font-mono">{customSpec.firstLivingM2 || 0} m²</span>
+                    </div>
+                  )}
+
+                  <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-medium">Garage</span>
+                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.garageRate)}/m²</span>
+                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.garageM2 || 0} m²</span>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                    <div className="flex items-center justify-center gap-1">
+                      <span className="text-[10px] text-slate-400 font-medium">Alfresco</span>
+                      {design.specTier?.includes("H3") && (
+                        <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 rounded font-bold">+600x600</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.alfrescoRate)}/m²</span>
+                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.alfrescoM2 || 0} m²</span>
+                  </div>
+
+                  <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                    <span className="text-[10px] text-slate-400 block font-medium">Porch</span>
+                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.porchRate)}/m²</span>
+                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.porchM2 || 0} m²</span>
+                  </div>
+
+                  {customSpec.storeys === "double" && (
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block font-medium">Balcony</span>
+                      <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.balconyRate)}/m²</span>
+                      <span className="text-[9px] text-slate-500 block font-mono">{customSpec.balconyM2 || 0} m²</span>
+                    </div>
+                  )}
+
+                  {customSpec.storeys === "double" && (
+                    <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
+                      <span className="text-[10px] text-slate-400 block font-medium">Scaffolding</span>
+                      <span className="text-xs font-bold text-emerald-400 font-mono">{formatAud(rates.scaffoldingAllowance)}</span>
+                      <span className="text-[9px] text-slate-500 block font-mono">Allowance</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-2 border-t border-slate-800">
+                  <div className="flex items-center flex-wrap gap-2">
+                    <span className="text-[11px] text-slate-400">Total House:</span>
+                    <span className="text-sm font-bold text-white font-mono">
+                      {rates.totalM2} m²
+                    </span>
+                    <span className="text-[11px] text-slate-400 ml-2">Blended Avg:</span>
+                    <span className="text-sm font-bold text-cyan-400 font-mono">
+                      {formatAud(rates.blendedRate)}/m²
+                    </span>
+                    {rates.totalM2 >= 500 && (
+                      <span className="text-[10px] bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
+                        Guaranteed Minimum Floor Rate Applied (≥500 m²)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] text-slate-400 mr-2">Calculated Custom Base Price:</span>
+                    <span className="text-lg font-bold text-emerald-400 font-mono">
+                      {formatAud(design.basePrice)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* 4. Facade Selection & Managers Discount for Custom Design */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Architectural Facade Selector */}
+            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+                  <PenTool className="h-3.5 w-3.5 text-cyan-400" />
+                  Architectural Facade ({isDouble ? "Double Storey" : "Single Storey"} Range)
+                </Label>
+                <span className="text-xs font-mono font-bold text-amber-400">
+                  {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <Label className="text-[11px] text-slate-400 font-medium">
+                    Select Facade from Price List ({suitableFacades.length} available)
+                  </Label>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <FacadeLibrary
+                      value={design.facadeName || ""}
+                      onSelect={(item) => {
+                        const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
+                        const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
+                        onChange({
+                          isCustomFacade: false,
+                          facadeName: item.name,
+                          facadePrice: uplift,
+                          facadeImageUrl: item.url,
+                        });
+                      }}
+                      storey={isDouble ? "double" : "single"}
+                      designName={design.designName}
+                      designFacades={suitableFacades.filter((f) => f.url).map((f) => ({
+                        id: f.id || f.name,
+                        name: f.name,
+                        range: f.range || f.note || design.housingType,
+                        tags: [f.name.toLowerCase(), "custom"],
+                        url: f.url!,
+                        originalUrl: f.url,
+                      }))}
+                    />
+
+                    {/* Upload Custom Facade Photo Button */}
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Import Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              const dataUrl = reader.result as string;
+                              onChange({
+                                isCustomFacade: true,
+                                facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                                facadeImageUrl: dataUrl,
+                              });
+                              toast.success("Custom facade photo attached!");
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Attached Photo Preview Badge */}
+                {design.facadeImageUrl && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs">
+                    <div className="flex items-center gap-2">
+                      <img src={design.facadeImageUrl} alt="Facade preview" className="h-7 w-12 object-cover rounded border border-emerald-500/40" />
+                      <span className="text-emerald-300 text-[11px] font-medium">Custom Facade Photo Attached</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ facadeImageUrl: undefined })}
+                      className="text-[10px] text-red-400 hover:text-red-300 font-semibold"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
+                <Select
+                  value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
+                  onValueChange={handleFacadeSelect}
+                >
+                  <SelectTrigger className="w-full border-slate-800 bg-slate-900 text-xs text-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
+                    {suitableFacades.map((f, idx) => (
+                      <SelectItem key={f.id || `${f.name}-${idx}`} value={f.name}>
+                        <div className="flex items-center justify-between gap-2 w-full">
+                          <span>{f.name}</span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {f.note ? `${f.note} • ` : ""}
+                            {f.uplift === 0 ? "(Standard Included $0)" : `(+${formatAud(f.uplift)})`}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="CUSTOM_FACADE" className="text-cyan-400 font-bold border-t border-slate-800 mt-1">
+                      + Custom Architectural Facade (Specify Details &amp; Price)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Custom Facade Detailed Editor */}
+              {design.isCustomFacade && (
+                <div className="space-y-3 pt-3 border-t border-slate-800 bg-slate-900/50 p-3 rounded-lg">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-300">
+                    <PenTool className="h-3.5 w-3.5" />
+                    Custom Facade Specification
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-slate-400">Custom Facade Title</Label>
+                      <Input
+                        value={design.facadeName}
+                        onChange={(e) => onChange({ facadeName: e.target.value })}
+                        placeholder="e.g. Bespoke Hamptons with Feature Gable"
+                        className="h-8.5 text-xs border-slate-800 bg-slate-950 text-slate-100"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-slate-400">Custom Facade Price ($)</Label>
+                      <Input
+                        type="number"
+                        value={design.facadePrice || ""}
+                        onChange={(e) => onChange({ facadePrice: Number(e.target.value) || 0 })}
+                        placeholder="e.g. 8500"
+                        className="h-8.5 text-xs border-slate-800 bg-slate-950 text-emerald-400 font-bold font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-slate-400">Brief Architectural Scope / Description</Label>
+                    <Input
+                      value={design.customFacadeDescription || ""}
+                      onChange={(e) => onChange({ customFacadeDescription: e.target.value })}
+                      placeholder="e.g. Feature timber cladding, upgraded piers and custom portico roofing..."
+                      className="h-8.5 text-xs border-slate-800 bg-slate-950 text-slate-100"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="text-right">
-              <span className="text-xs text-slate-400 block">Calculated Custom Base Price</span>
-              <span className="text-lg font-bold text-emerald-400 font-mono">
-                {formatAud(design.basePrice)}
-              </span>
+
+            {/* Builder Promotion / Managers Discount Allowance */}
+            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Tag className="h-3.5 w-3.5 text-emerald-400" />
+                  <Label className="text-xs text-slate-300 font-semibold">
+                    Managers Discount / Promotional Allowance
+                  </Label>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">
+                    $10k Closer Safety Net
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold text-emerald-400">
+                  {design.promotionsDiscount > 0 ? `-${formatAud(design.promotionsDiscount)}` : "$0 (Standard)"}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-slate-400">Discount Title</Label>
+                  <Input
+                    value={design.promotionName ?? "Managers Discount"}
+                    onChange={(e) => onChange({ promotionName: e.target.value })}
+                    placeholder="Managers Discount"
+                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100 font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] text-slate-400">Managers Discretionary Discount ($)</Label>
+                    <span className="text-[9px] text-slate-500 font-mono">Autofills $0 &bull; $10k buffer</span>
+                  </div>
+                  <Input
+                    type="number"
+                    value={design.promotionsDiscount ?? 0}
+                    onChange={(e) => onChange({ promotionsDiscount: Number(e.target.value) || 0 })}
+                    placeholder="0"
+                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2350,12 +2752,43 @@ export function QuoteDesignStep({
         designName={design.designName || (design.mode === "custom_floorplan" ? "Custom Floorplan" : undefined)}
         initialImageUrl={activeFloorplanUrl || undefined}
         onSave={(croppedDataUrl) => {
-          onChange({
-            floorplanUrl: croppedDataUrl,
-            isModifiedFloorplan: true,
-          });
+          if (design.mode === "custom_floorplan") {
+            onChange({
+              floorplanUrl: croppedDataUrl,
+              isModifiedFloorplan: false,
+            });
+          } else {
+            onChange({
+              floorplanUrl: croppedDataUrl,
+              isModifiedFloorplan: true,
+            });
+          }
         }}
         onExtractedAreas={(extracted) => {
+          if (design.mode === "custom_floorplan") {
+            const updatedSpec: CustomFloorplanSpec = {
+              ...customSpec,
+              groundLivingM2: extracted.groundLivingM2 ?? extracted.livingM2 ?? customSpec.groundLivingM2,
+              firstLivingM2: extracted.firstLivingM2 ?? customSpec.firstLivingM2,
+              garageM2: extracted.garageM2 ?? customSpec.garageM2,
+              alfrescoM2: extracted.alfrescoM2 ?? customSpec.alfrescoM2,
+              porchM2: extracted.porchM2 ?? customSpec.porchM2,
+              balconyM2: extracted.balconyM2 ?? customSpec.balconyM2,
+            };
+            const totalM2 = calculateCustomTotalM2(updatedSpec);
+            const basePrice = calculateCustomFloorplanPrice(updatedSpec, design.specTier);
+            onChange({
+              customSpec: updatedSpec,
+              designM2: totalM2,
+              basePrice,
+              isModifiedFloorplan: false,
+              modifiedDesignM2: undefined,
+              modifiedAreas: undefined,
+            });
+            toast.success(`Custom plan dimensions updated (${totalM2} m² total).`);
+            return;
+          }
+
           const currentAreas = design.modifiedAreas || (design.standardAreas as any) || {};
           const mergedAreas = {
             ...currentAreas,
