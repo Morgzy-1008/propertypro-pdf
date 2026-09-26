@@ -11,7 +11,7 @@ import { prepareFloorplan, prepareFacade, widenFacadeClientSide, preframeFacadeI
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
 
-import { facadeCategory, facadeGarage, garageFromCars, facadeBaseName, type FacadeStorey } from "./facadePricing";
+import { facadeCategory, facadeGarage, garageFromCars, facadeBaseName, isSingleGarageDesign, type FacadeStorey } from "./facadePricing";
 import { isNarrowDoubleStorey } from "@/lib/quoting/facadeLookup";
 import { duplexFacadesForDesign } from "./duplexFacades.data";
 import { MULBERRY_FACADES } from "./acreageFacades.data";
@@ -220,7 +220,7 @@ function resolveDefaultFacade(
   currentFacadeName?: string,
 ): FacadeItem | null {
   const storey = storeyFor(housingType);
-  const targetGarage = garageFromCars(planCars);
+  const targetGarage = garageFromCars(planCars) ?? (isSingleGarageDesign(designName, housingType) ? 1 : null);
 
   if (housingType === "dual-oc") {
     const list = duplexFacadesForDesign(designName);
@@ -355,9 +355,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   // Auto-sync facade if floorplan/garage spaces change or if design is selected without a facade
   useEffect(() => {
     if (!data.designName && !data.cars) return;
-    const g = garageFromCars(data.cars);
+    const g = garageFromCars(data.cars) ?? (isSingleGarageDesign(data.designName, data.housingType) ? 1 : null);
     const currentG = data.facadeId || data.facadeName || data.facadeUrl
-      ? facadeGarage({ name: data.facadeName, url: data.facadeUrl, tags: [] })
+      ? facadeGarage({ id: data.facadeId, name: data.facadeName, url: data.facadeUrl, tags: [] })
       : null;
 
     const needsSync =
@@ -402,7 +402,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         : null;
 
   /** A single-garage plan can only take a single-garage facade, and vice versa. */
-  const garage = garageFromCars(data.cars);
+  const garage = garageFromCars(data.cars) ?? (isSingleGarageDesign(data.designName, data.housingType) ? 1 : null);
 
   const applyPricing = (
     designName: string,

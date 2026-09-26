@@ -65,6 +65,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
+import { isSingleGarageDesign, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
 import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
 import type {
@@ -384,6 +385,19 @@ export function getFacadesForDesignAndHousingType(
     return HOUSING_FACADES["Granny Flat"];
   }
 
+  if (isSingleGarageDesign(designName, housingType)) {
+    const baseList = isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
+    return baseList.map((f, idx) => {
+      const resolved = findFacadeForDesign(f.name, false, "Single Storey", designName);
+      return {
+        ...f,
+        name: f.name.includes("Single Garage") ? f.name : `${f.name} (Single Garage)`,
+        id: `${(resolved?.id || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}-${idx}`,
+        url: resolved?.url || f.url,
+      };
+    });
+  }
+
   return isNsw ? NSW_SINGLE_STOREY_FACADES : HOUSING_FACADES["Single Storey"];
 }
 
@@ -474,6 +488,16 @@ export function QuoteDesignStep({
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"
       : effectiveHousingType === "Double Storey" || effectiveHousingType === "double" || isCinnamon;
+  const isDuplex =
+    effectiveHousingType === "Dual Living" ||
+    effectiveHousingType === "dual-oc" ||
+    Boolean(
+      design.designName &&
+        (/ - TD| - SD|\bduplex\b|\bdual\b/i.test(design.designName) ||
+          ["alabaster", "cayenne", "cayene", "teal", "wisteria", "magnolia", "maize", "raven", "lavender"].some((f) =>
+            design.designName.toLowerCase().startsWith(f)
+          ))
+    );
 
   const standardPlans = design.designName ? plansForDesign(design.designName) : [];
   const standardFloorplanUrl = standardPlans[0]?.url || "";
@@ -2077,14 +2101,15 @@ export function QuoteDesignStep({
                     }}
                     storey={isDouble ? "double" : "single"}
                     designName={design.designName}
-                    designFacades={suitableFacades.filter((f) => f.url).map((f) => ({
+                    garage={isSingleGarageDesign(design.designName, design.housingType) ? 1 : 2}
+                    designFacades={isDuplex ? suitableFacades.filter((f) => f.url).map((f) => ({
                       id: f.id || f.name,
                       name: f.name,
                       range: f.range || f.note || design.housingType,
                       tags: [f.name.toLowerCase(), "duplex"],
                       url: f.url!,
                       originalUrl: f.url,
-                    }))}
+                    })) : undefined}
                   />
                 </div>
                 <Select
@@ -2501,14 +2526,13 @@ export function QuoteDesignStep({
                       }}
                       storey={isDouble ? "double" : "single"}
                       designName={design.designName}
-                      designFacades={suitableFacades.filter((f) => f.url).map((f) => ({
-                        id: f.id || f.name,
-                        name: f.name,
-                        range: f.range || f.note || design.housingType,
-                        tags: [f.name.toLowerCase(), "custom"],
-                        url: f.url!,
-                        originalUrl: f.url,
-                      }))}
+                      garage={
+                        customSpec.garageM2 > 0 && customSpec.garageM2 <= 26
+                          ? 1
+                          : customSpec.garageM2 > 26
+                          ? 2
+                          : null
+                      }
                     />
 
                     {/* Upload Custom Facade Photo Button */}

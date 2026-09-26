@@ -25,14 +25,21 @@ export function isNarrowDoubleStorey(designNameOrId?: string): boolean {
  */
 export function isSingleGarageDesign(designName?: string, housingType?: string): boolean {
   if (!designName && !housingType) return false;
-  const lower = `${designName || ""} ${housingType || ""}`.toLowerCase();
+  const lower = `${designName || ""} ${housingType || ""}`.toLowerCase().trim();
   return (
     lower.includes("(s/g)") ||
     lower.includes("s/g") ||
     lower.includes("single garage") ||
     lower.includes("single-garage") ||
     lower.startsWith("hazel") ||
-    lower.includes("hazel ")
+    lower.startsWith("canary") ||
+    lower.startsWith("cerise 20") ||
+    lower.startsWith("indigo (qld only)") ||
+    lower.startsWith("iris") ||
+    lower.startsWith("lime") ||
+    lower.startsWith("mint") ||
+    lower.startsWith("orchid") ||
+    lower.startsWith("robin")
   );
 }
 

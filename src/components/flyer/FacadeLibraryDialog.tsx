@@ -20,6 +20,7 @@ import {
   facadeCategory,
   facadeGarage,
   facadePriceForDesign,
+  isSingleGarageDesign,
   type FacadeGarage,
   type FacadeStorey,
 } from "./facadePricing";
@@ -92,10 +93,14 @@ function facadeBelongsToCategory(
 export function FacadeLibrary({
   value,
   onSelect,
+  /** Restrict the library to the facades suited to the selected design. */
   storey,
   disabled,
+  /** Exact facade list published for the chosen design (dual-occupancy, acreage). */
   designFacades,
+  /** Selected design name — drives duplex / Mulberry facade pricing. */
   designName,
+  /** Garage spaces on the selected floorplan: only matching facades are shown. */
   garage,
 }: {
   value: string;
@@ -114,13 +119,18 @@ export function FacadeLibrary({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("alpha");
   type TabId = FacadeStorey | "uploaded" | "design";
-  const [category, setCategory] = useState<TabId>(storey ?? "single");
+
+  const effectiveGarage: FacadeGarage | null =
+    garage ?? (designName && isSingleGarageDesign(designName) ? 1 : null);
+
+  const [category, setCategory] = useState<TabId>(() => (effectiveGarage === 1 ? "single" : storey ?? "single"));
   const [custom, setCustom] = useState<FacadeItem[]>(() => loadCustomFacades());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (storey) setCategory(storey);
-  }, [storey]);
+    if (effectiveGarage === 1) setCategory("single");
+    else if (storey) setCategory(storey);
+  }, [storey, effectiveGarage, open]);
 
   const restricted = !!designFacades?.length;
   const all = useMemo(
@@ -128,23 +138,39 @@ export function FacadeLibrary({
     [restricted, designFacades, custom],
   );
 
-  /** Only facades drawn with the same garage as the floorplan can be used. A
-   *  design-specific list is already the published gallery, so it isn't filtered. */
+  /** Only facades drawn with the same garage as the floorplan can be used. */
   const matchesGarage = (f: FacadeItem) => {
-    if (restricted || f.range === "Uploaded" || !garage) return true;
+    if (f.range === "Uploaded" || !effectiveGarage) return true;
     const g = facadeGarage(f);
-    return g === "both" || g === garage;
+    if (effectiveGarage === 1) {
+      // Single car garage floorplans: ONLY single car garage facades!
+      return g === 1;
+    }
+    if (effectiveGarage === 2) {
+      // Double car garage floorplans: NEVER single car garage facades!
+      return g === 2;
+    }
+    return true;
   };
 
-  const eligible = useMemo(() => all.filter(matchesGarage), [all, garage, restricted]);
+  const eligible = useMemo(() => all.filter(matchesGarage), [all, effectiveGarage]);
 
-  const tabs = useMemo(
-    () =>
-      restricted
-        ? [{ id: "design" as const, label: "Available for this design" }, CATEGORIES[3]]
-        : CATEGORIES,
-    [restricted],
-  );
+  const tabs = useMemo(() => {
+    if (restricted) {
+      return [
+        { id: "design" as const, label: "Available for this design" },
+        CATEGORIES.find((c) => c.id === "uploaded")!,
+      ];
+    }
+    if (effectiveGarage === 1) {
+      return [
+        { id: "single" as const, label: "Single Garage (Narrow Lot)" },
+        CATEGORIES.find((c) => c.id === "uploaded")!,
+      ];
+    }
+    return CATEGORIES;
+  }, [restricted, effectiveGarage]);
+
   const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
 
   const priceOf = (f: FacadeItem) =>

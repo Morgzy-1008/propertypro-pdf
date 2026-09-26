@@ -339,18 +339,48 @@ export function facadePriceForDesign(
 }
 
 /* ---- Garage matching ------------------------------------------------------
- * Facades are rendered either with a single or a double garage. Base facades
- * like Classic and Classic Plus can adapt to both 1-car and 2-car floorplans.
+ * Facades are rendered either with a single or a double garage.
+ * When a design is selected with a single car garage, ONLY single car garage
+ * facades (with dedicated 1-car garage renders) must be shown.
  * ------------------------------------------------------------------------ */
 
 export type FacadeGarage = 1 | 2 | "both";
 
-export function facadeGarage(item: { name: string; url: string; tags?: string[] }): FacadeGarage {
-  const src = `${item.name} ${item.url} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
-  if (/single[-\s]?garage/i.test(src)) return 1;
-  if (/double[-\s]?garage/i.test(src)) return 2;
-  // Base facades without explicit garage labels fit both 1-car and 2-car designs
-  return "both";
+export function isSingleGarageFacade(item: { id?: string; name: string; url?: string; range?: string; tags?: string[] }): boolean {
+  const src = `${item.id ?? ""} ${item.name} ${item.url ?? ""} ${item.range ?? ""} ${item.tags?.join(" ") ?? ""}`.toLowerCase();
+  return (
+    /single[-\s]?garage/i.test(src) ||
+    item.range === "Single Storey (Narrow Lot)" ||
+    Boolean(item.tags?.includes("single-garage")) ||
+    Boolean(item.tags?.includes("single_garage")) ||
+    Boolean(item.id?.endsWith("-single-garage"))
+  );
+}
+
+export function facadeGarage(item: { id?: string; name: string; url?: string; range?: string; tags?: string[] }): FacadeGarage {
+  if (isSingleGarageFacade(item)) return 1;
+  return 2;
+}
+
+/** Checks if a design model is a single garage home */
+export function isSingleGarageDesign(designName?: string, housingType?: string): boolean {
+  if (!designName && !housingType) return false;
+  const lower = `${designName || ""} ${housingType || ""}`.toLowerCase().trim();
+  return (
+    lower.includes("(s/g)") ||
+    lower.includes("s/g") ||
+    lower.includes("single garage") ||
+    lower.includes("single-garage") ||
+    lower.startsWith("hazel") ||
+    lower.startsWith("canary") ||
+    lower.startsWith("cerise 20") ||
+    lower.startsWith("indigo (qld only)") ||
+    lower.startsWith("iris") ||
+    lower.startsWith("lime") ||
+    lower.startsWith("mint") ||
+    lower.startsWith("orchid") ||
+    lower.startsWith("robin")
+  );
 }
 
 /** How many garage spaces a floorplan's car count implies (2+ car = double). */
@@ -359,3 +389,5 @@ export function garageFromCars(cars: string | number | undefined): 1 | 2 | null 
   if (!Number.isFinite(n) || n <= 0) return null;
   return n >= 2 ? 2 : 1;
 }
+
+
