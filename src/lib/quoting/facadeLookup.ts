@@ -21,6 +21,22 @@ export function isNarrowDoubleStorey(designNameOrId?: string): boolean {
 }
 
 /**
+ * Checks if a design model belongs to single garage plans (e.g. Hazel 14, Hazel 15, Indigo, Iris, or (s/g)).
+ */
+export function isSingleGarageDesign(designName?: string, housingType?: string): boolean {
+  if (!designName && !housingType) return false;
+  const lower = `${designName || ""} ${housingType || ""}`.toLowerCase();
+  return (
+    lower.includes("(s/g)") ||
+    lower.includes("s/g") ||
+    lower.includes("single garage") ||
+    lower.includes("single-garage") ||
+    lower.startsWith("hazel") ||
+    lower.includes("hazel ")
+  );
+}
+
+/**
  * Normalizes facade names to match base variations.
  * E.g., "Classic (Double Garage)" -> "classic", "Classic Plus (Double Storey)" -> "classicplus", "Hamptons" -> "hamptons".
  */
@@ -313,6 +329,63 @@ export function findFacadeForDesign(
     if (match) return resolveWithPreRendered(match);
   } else {
     // SINGLE STOREY / SPLIT LEVEL / DUAL LIVING RESOLUTION
+    const isSingleGarage = isSingleGarageDesign(designName, housingType);
+    if (isSingleGarage) {
+      const singleGarageIdMap: Record<string, string> = {
+        classic: "classic-single-garage",
+        classicplus: "classic-single-garage",
+        aspen: "aspen-single-garage",
+        avoca: "avoca-single-garage",
+        banksia: "banksia-single-garage",
+        bayside: "bayside-single-garage",
+        breeze: "breeze-single-garage",
+        chateaux: "chateaux-single-garage",
+        coastal: "coastal-single-garage",
+        contemporary: "contemporary-single-garage",
+        crest: "crest-single-garage",
+        eden: "eden-single-garage",
+        elite: "elite-single-garage",
+        executive: "executive-single-garage",
+        hamptons: "hamptons-single-garage",
+        hampton: "hamptons-single-garage",
+        harmony: "harmony-single-garage",
+        hillsdale: "hillsdale-single-garage",
+        infinity: "infinity-single-garage",
+        majestic: "majestic-single-garage",
+        pavillion: "pavillion-single-garage",
+        pavilion: "pavillion-single-garage",
+        riviera: "riviera-single-garage",
+        savoy: "savoy-single-garage",
+        serenity: "serenity-single-garage",
+        sovereign: "sovereign-single-garage",
+        statesman: "statesman-single-garage",
+        modernbox: "contemporary-single-garage",
+        moderncoastal: "coastal-single-garage",
+        mochahamptons: "hamptons-single-garage",
+        modernbarn: "statesman-single-garage",
+        modernfarmhouse: "statesman-single-garage",
+        modernfarmhouseoptionb: "statesman-single-garage",
+        modernclassical: "classic-single-garage",
+        modernclassicaloptiona: "classic-single-garage",
+        modernclassicaloptionb: "classic-single-garage",
+      };
+
+      if (singleGarageIdMap[baseKey]) {
+        const found = HUDSON_FACADES.find((f) => f.id === singleGarageIdMap[baseKey]);
+        if (found) return resolveWithPreRendered(found);
+      }
+
+      const exactSgMatch = HUDSON_FACADES.find(
+        (f) =>
+          (f.id.toLowerCase() === rawKey || normalizeFacadeKey(f.id) === baseKey) &&
+          (f.range === "Single Storey (Narrow Lot)" || (f.tags || []).includes("single-garage"))
+      );
+      if (exactSgMatch) return resolveWithPreRendered(exactSgMatch);
+
+      const defaultSg = HUDSON_FACADES.find((f) => f.id === "classic-single-garage");
+      if (defaultSg) return resolveWithPreRendered(defaultSg);
+    }
+
     const singleIdMap: Record<string, string> = {
       classic: "classic",
       classicplus: "classic-plus",

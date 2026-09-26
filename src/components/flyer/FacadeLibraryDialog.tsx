@@ -78,7 +78,12 @@ function facadeBelongsToCategory(
   }
 
   if (category === "single") {
-    return f.range === "Single Storey";
+    return (
+      f.range === "Single Storey" ||
+      f.range === "Single Storey (Narrow Lot)" ||
+      tags.includes("single") ||
+      /single[-\s]?storey/i.test(range)
+    );
   }
 
   return true;

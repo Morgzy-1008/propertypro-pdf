@@ -11,7 +11,8 @@ import { prepareFloorplan, prepareFacade, widenFacadeClientSide, preframeFacadeI
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
 
-import { facadeCategory, facadeGarage, garageFromCars, type FacadeStorey } from "./facadePricing";
+import { facadeCategory, facadeGarage, garageFromCars, facadeBaseName, type FacadeStorey } from "./facadePricing";
+import { isNarrowDoubleStorey } from "@/lib/quoting/facadeLookup";
 import { duplexFacadesForDesign } from "./duplexFacades.data";
 import { MULBERRY_FACADES } from "./acreageFacades.data";
 import { HUDSON_FACADES } from "./facades.data";
@@ -211,6 +212,81 @@ function storeyFor(type: string): FacadeStorey | null {
   return "single";
 }
 
+function resolveDefaultFacade(
+  planCars: string | number | undefined,
+  housingType: string,
+  designName: string,
+  currentFacadeId?: string,
+  currentFacadeName?: string,
+): FacadeItem | null {
+  const storey = storeyFor(housingType);
+  const targetGarage = garageFromCars(planCars);
+
+  if (housingType === "dual-oc") {
+    const list = duplexFacadesForDesign(designName);
+    if (list && list.length > 0) {
+      if (currentFacadeId) {
+        const existing = list.find((f) => f.id === currentFacadeId);
+        if (existing) return existing;
+      }
+      return list[0];
+    }
+  }
+
+  if (housingType === "acreage") {
+    if (currentFacadeId) {
+      const existing = MULBERRY_FACADES.find((f) => f.id === currentFacadeId);
+      if (existing) return existing;
+    }
+    return MULBERRY_FACADES.find((f) => f.id === "classic-ranch") || MULBERRY_FACADES[0] || null;
+  }
+
+  if (housingType === "split-level") {
+    const match = HUDSON_FACADES.find((f) => f.id === "classic-cobalt");
+    if (match) return match;
+  }
+
+  if (storey === "double") {
+    const isNarrow = isNarrowDoubleStorey(designName);
+    const targetId = isNarrow ? "classic-narrow-dg" : "classic-double-garage";
+    if (currentFacadeId && currentFacadeId !== "classic" && currentFacadeId !== "classic-single-garage") {
+      const existing = HUDSON_FACADES.find(
+        (f) => f.id === currentFacadeId && (f.range === "Double Storey" || f.range === "Narrow Double Storey")
+      );
+      if (existing) return existing;
+      const base = facadeBaseName(currentFacadeName || currentFacadeId);
+      const match = HUDSON_FACADES.find(
+        (f) => (f.range === "Double Storey" || f.range === "Narrow Double Storey") && facadeBaseName(f.name) === base
+      );
+      if (match) return match;
+    }
+    return HUDSON_FACADES.find((f) => f.id === targetId) || HUDSON_FACADES.find((f) => f.range === "Double Storey") || null;
+  }
+
+  // Single Storey
+  if (targetGarage === 1) {
+    if (currentFacadeId) {
+      const base = facadeBaseName(currentFacadeName || currentFacadeId);
+      const existing = HUDSON_FACADES.find((f) => f.id === currentFacadeId && facadeGarage(f) === 1);
+      if (existing) return existing;
+
+      const match = HUDSON_FACADES.find((f) => facadeGarage(f) === 1 && facadeBaseName(f.name) === base);
+      if (match) return match;
+    }
+    return HUDSON_FACADES.find((f) => f.id === "classic-single-garage") || null;
+  } else {
+    if (currentFacadeId) {
+      const base = facadeBaseName(currentFacadeName || currentFacadeId);
+      const existing = HUDSON_FACADES.find((f) => f.id === currentFacadeId && facadeGarage(f) !== 1 && f.range === "Single Storey");
+      if (existing) return existing;
+
+      const match = HUDSON_FACADES.find((f) => f.range === "Single Storey" && facadeGarage(f) !== 1 && facadeBaseName(f.name) === base);
+      if (match) return match;
+    }
+    return HUDSON_FACADES.find((f) => f.id === "classic") || null;
+  }
+}
+
 export function FlyerForm({ data, set, template }: { data: FlyerData; set: Setter; template?: TemplateId }) {
   const designs = designsFor(data.housingType as HousingType);
   const [autoFilterLand, setAutoFilterLand] = useState(true);
@@ -276,6 +352,45 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     checkRevert();
   }, [data.facadeId, data.facadeUrl]);
 
+  // Auto-sync facade if floorplan/garage spaces change or if design is selected without a facade
+  useEffect(() => {
+    if (!data.designName && !data.cars) return;
+    const g = garageFromCars(data.cars);
+    const currentG = data.facadeId || data.facadeName || data.facadeUrl
+      ? facadeGarage({ name: data.facadeName, url: data.facadeUrl, tags: [] })
+      : null;
+
+    const needsSync =
+      !data.facadeUrl ||
+      (g === 1 && currentG === 2) ||
+      (g === 2 && currentG === 1);
+
+    if (needsSync) {
+      const match = resolveDefaultFacade(
+        data.cars,
+        data.housingType,
+        data.designName,
+        data.facadeId,
+        data.facadeName,
+      );
+      if (match) {
+        set("facadeId", match.id);
+        set("facadeName", match.name);
+        set("facadeUrl", match.url);
+        set("rawFacadeUrl", match.originalUrl || match.url);
+        const amount = facadeUpliftFor(
+          match.id,
+          match.name,
+          storeyFor(data.housingType) ?? undefined,
+          data.designName,
+        );
+        setUplift(amount);
+        setUpliftInput(amount === 0 ? "0" : String(amount));
+        applyPricing(data.designName, data.range, data.landPrice, amount);
+      }
+    }
+  }, [data.designName, data.cars, data.housingType]);
+
   /** Dual-occupancy designs only offer the facades shown on their design page,
    *  and the acreage range only offers the Mulberry facades. */
   const designFacades = !data.designName
@@ -316,6 +431,35 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("beds", plan.beds);
     set("baths", plan.baths);
     set("cars", plan.cars);
+
+    // Auto-select matching facade for this plan & garage spaces
+    const facade = resolveDefaultFacade(
+      plan.cars,
+      data.housingType,
+      data.designName || plan.design,
+      data.facadeId,
+      data.facadeName,
+    );
+
+    let nextUplift = uplift;
+    if (facade) {
+      set("facadeId", facade.id);
+      set("facadeName", facade.name);
+      set("facadeUrl", facade.url);
+      set("rawFacadeUrl", facade.originalUrl || facade.url);
+
+      nextUplift = facadeUpliftFor(
+        facade.id,
+        facade.name,
+        storeyFor(data.housingType) ?? undefined,
+        data.designName || plan.design,
+      );
+      setUplift(nextUplift);
+      setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+    }
+
+    applyPricing(data.designName || plan.design, data.range, data.landPrice, nextUplift);
+
     // NOTE: plan.frontage is the *house* width — the flyer's frontage field is
     // the land block frontage, so it is never overwritten by a design change.
     // Trim the blank page margin so the drawing fills the flyer frame.
@@ -341,38 +485,42 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       set("floorplanName", row?.name ?? name);
       set("floorplanUrl", "");
       set("floorplanSize", row ? String(row.m2) : "");
+
+      const facade = resolveDefaultFacade(
+        data.cars,
+        data.housingType,
+        name,
+        data.facadeId,
+        data.facadeName,
+      );
+      let nextUplift = uplift;
+      if (facade) {
+        set("facadeId", facade.id);
+        set("facadeName", facade.name);
+        set("facadeUrl", facade.url);
+        set("rawFacadeUrl", facade.originalUrl || facade.url);
+        nextUplift = facadeUpliftFor(
+          facade.id,
+          facade.name,
+          storeyFor(data.housingType) ?? undefined,
+          name,
+        );
+        setUplift(nextUplift);
+        setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+      }
+
+      const costs = data.landscaping
+        ? {
+            ...data.costs,
+            driveway: 0,
+            landscaping: landscapingPriceFor(data.landSize, data.housingType, name),
+          }
+        : data.costs;
+      applyPricing(name, data.range, data.landPrice, nextUplift, costs);
     }
     const sizes = otherSizesForDesign(name);
     set("otherSizes", sizes);
     set("showOtherSizes", sizes.length > 0);
-
-    // Duplex and Mulberry facades are priced per design, so re-price the facade.
-    const amount = (data.facadeId || data.facadeName)
-      ? facadeUpliftFor(
-          data.facadeId,
-          data.facadeName,
-          storeyFor(data.housingType) ?? undefined,
-          name,
-        )
-      : uplift;
-    setUplift(amount);
-    setUpliftInput(amount === 0 ? "0" : String(amount));
-
-    const costs = data.landscaping
-      ? {
-          ...data.costs,
-          driveway: 0,
-          landscaping: landscapingPriceFor(data.landSize, data.housingType, name),
-        }
-      : data.costs;
-    applyPricing(name, data.range, data.landPrice, amount, costs);
-
-    // If a facade is already selected, re-price it; otherwise keep it unselected so the flyer prompts the user to pick a facade
-    if (!data.facadeId) {
-      set("facadeId", "");
-      set("facadeName", "");
-      set("facadeUrl", "");
-    }
   };
 
   const selectVariant = (label: string) => {
