@@ -32,7 +32,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "@/lib/quoting/quoteEngine";
+import {
+  calculateQuotePricing,
+  generateQuoteNumber,
+  resolveItemCategory,
+  rehydrateAndRecalculateQuote,
+} from "@/lib/quoting/quoteEngine";
 import { createNewBlankQuote, recoverAllHistoricalQuotes, loadAllQuotesAsync } from "@/lib/quoting/quoteStorage";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
@@ -92,7 +97,7 @@ function normalizeRawQuote(raw: any): FullQuote | null {
       ? raw.pricing
       : calculateQuotePricing(design, siteConditions, lineItems, depositAmount);
 
-  return {
+  const rawConstructed: FullQuote = {
     id: raw.id || `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     quoteNumber: raw.quoteNumber || client.estimateNumber || generateQuoteNumber(),
     createdAt: raw.createdAt || new Date().toISOString(),
@@ -104,6 +109,8 @@ function normalizeRawQuote(raw: any): FullQuote | null {
     lineItems,
     pricing,
   };
+
+  return rehydrateAndRecalculateQuote(rawConstructed);
 }
 
 function extractQuotesFromFile(text: string): FullQuote[] {
@@ -752,9 +759,10 @@ export function QuoteEstimatesDialog({
                         <Button
                           size="sm"
                           onClick={() => {
-                            onLoadQuote(q);
+                            const refreshed = rehydrateAndRecalculateQuote(q);
+                            onLoadQuote(refreshed);
                             onOpenChange(false);
-                            toast.success(`Loaded estimate #${q.quoteNumber} for ${q.client?.clientName || "Client"}`);
+                            toast.success(`Loaded estimate #${refreshed.quoteNumber || "MH"} (Updated to latest 2026 pricing & specs)`);
                           }}
                           className={`text-xs font-bold gap-1 ${
                             isActive

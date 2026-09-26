@@ -1,5 +1,10 @@
 import { DEFAULT_CATALOGUE, DEFAULT_CUSTOM_RATES } from "./quoteCatalogue";
-import { calculateQuotePricing, generateQuoteNumber, resolveItemCategory } from "./quoteEngine";
+import {
+  calculateQuotePricing,
+  generateQuoteNumber,
+  resolveItemCategory,
+  rehydrateAndRecalculateQuote,
+} from "./quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { SINGLE_STOREY_PRICES } from "@/lib/pricelist.data";
 import { getActiveStaffUser } from "@/lib/authSession";
@@ -343,11 +348,13 @@ export function loadAllQuotes(): FullQuote[] {
         screwPieringRequired: isBrownfield ? true : (q.siteConditions?.screwPieringRequired ?? false),
       };
 
-      return {
+      const quoteToRehydrate: FullQuote = {
         ...q,
         siteConditions: updatedSite,
         lineItems: normalizedLineItems,
       };
+
+      return rehydrateAndRecalculateQuote(quoteToRehydrate);
     });
   } catch {
     return [];
@@ -379,14 +386,15 @@ export async function loadAllQuotesAsync(): Promise<FullQuote[]> {
     map.set(draft.id, draft);
   }
 
-  const results = Array.from(map.values());
+  const results = Array.from(map.values()).map((q) => rehydrateAndRecalculateQuote(q));
   results.sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
   return results;
 }
 
 export function getQuoteById(id: string): FullQuote | null {
   const all = loadAllQuotes();
-  return all.find((q) => q.id === id || q.quoteNumber === id) ?? null;
+  const matched = all.find((q) => q.id === id || q.quoteNumber === id);
+  return matched ? rehydrateAndRecalculateQuote(matched) : null;
 }
 
 function sanitizeQuoteForLocalStorage(quote: FullQuote): FullQuote {
@@ -538,7 +546,7 @@ export function loadActiveDraftQuote(): FullQuote | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as FullQuote;
     if (parsed && parsed.pricing && parsed.design && parsed.client) {
-      return parsed;
+      return rehydrateAndRecalculateQuote(parsed);
     }
     return null;
   } catch {

@@ -405,7 +405,7 @@ export function QuoteDesignStep({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modifiedFileInputRef = useRef<HTMLInputElement>(null);
 
-  const customSpec = design.customSpec || {
+  const rawCustomSpec = design.customSpec || {
     groundLivingM2: 0,
     firstLivingM2: 0,
     garageM2: 0,
@@ -417,6 +417,14 @@ export function QuoteDesignStep({
     upperRateM2: 0,
     ancillaryRateM2: 0,
     scaffoldingAllowance: 8500,
+  };
+
+  const legacyPlaceholderRates = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
+  const customSpec = {
+    ...rawCustomSpec,
+    groundRateM2: legacyPlaceholderRates.includes(rawCustomSpec.groundRateM2) ? 0 : rawCustomSpec.groundRateM2,
+    upperRateM2: legacyPlaceholderRates.includes(rawCustomSpec.upperRateM2) ? 0 : rawCustomSpec.upperRateM2,
+    ancillaryRateM2: (rawCustomSpec.ancillaryRateM2 === 869 || rawCustomSpec.ancillaryRateM2 === 1050) ? 0 : rawCustomSpec.ancillaryRateM2,
   };
 
   const housingTypePrices = getHousingTypePrices(division);

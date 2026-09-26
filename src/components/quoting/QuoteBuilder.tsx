@@ -41,6 +41,7 @@ import {
   getStandardAreaBreakdown,
   calculateModifiedFloorplanPricing,
   getAutomatedPromotionDiscount,
+  rehydrateAndRecalculateQuote,
 } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
@@ -1038,8 +1039,9 @@ export function QuoteBuilder() {
         savedQuotes={savedQuotes}
         activeQuoteId={quote.id}
         onLoadQuote={async (loaded) => {
-          setQuote(loaded);
-          await saveQuoteAsync(loaded);
+          const refreshed = rehydrateAndRecalculateQuote(loaded);
+          setQuote(refreshed);
+          await saveQuoteAsync(refreshed);
           await refreshSavedQuotes();
         }}
         onDeleteQuote={async (id) => {
@@ -1052,8 +1054,9 @@ export function QuoteBuilder() {
         }}
         onSaveCurrentQuote={handleSaveQuote}
         onImportQuote={async (imported) => {
-          setQuote(imported);
-          await saveQuoteAsync(imported);
+          const refreshed = rehydrateAndRecalculateQuote(imported);
+          setQuote(refreshed);
+          await saveQuoteAsync(refreshed);
           await refreshSavedQuotes();
         }}
       />

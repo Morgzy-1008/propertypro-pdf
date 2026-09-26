@@ -13,11 +13,14 @@ import {
   NSW_SPLIT_LEVEL_PRICES,
   NSW_DUAL_OC_PRICES,
 } from "@/lib/pricelist.nsw.data";
+import { facadePriceForDesign } from "@/components/flyer/facadePricing";
+import { getActiveDivision, type Division } from "@/lib/divisionContext";
 import type {
   CategorySubtotal,
   CatalogueCategory,
   CustomFloorplanSpec,
   FloorplanAreaBreakdown,
+  FullQuote,
   QuoteDesignSelection,
   QuotePricingSummary,
   QuoteSelectedLineItem,
@@ -76,22 +79,46 @@ export function getHousingTypeForDesign(
   return fallbackType || "Single Storey";
 }
 
+export function getHousingTypePrices(division: string = getActiveDivision()): Record<string, PriceRow[]> {
+  const isNsw = division === "NSW";
+  const dual = isNsw ? NSW_DUAL_OC_PRICES : DUAL_OC_PRICES;
+  return {
+    "Single Storey": isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES,
+    "Double Storey": isNsw ? NSW_DOUBLE_STOREY_PRICES : DOUBLE_STOREY_PRICES,
+    "Split Level": isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES,
+    "Dual Living": dual,
+    "Granny Flat": [
+      { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
+      { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
+      { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
+      { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
+      ...dual,
+    ],
+  };
+}
+
 export function getTierPrice(
   model: PriceRow,
   tier: string = "H2",
   housingType?: string,
 ): number {
+  if (!model) return 0;
+  const norm = String(tier || "H2").toUpperCase();
+  const isH3 = norm.includes("H3");
+  const isH1 = norm.includes("H1");
+  const isHBS = norm.includes("HBS") || norm.includes("HOME BUILDER");
+  const isSS = norm.includes("SS") || norm.includes("SMART SERIES") || norm.includes("SMART STYLE");
+
   if (housingType === "Dual Living") {
-    if (tier === "HBS") return (model as any).hbs || model.h1 || 0;
-    if (tier === "H1") return model.h1 || (model as any).hbs || 0;
-    if (tier === "H2") return model.h2 || model.h1 || 0;
-    if (tier === "H3") return (model as any).h3 || model.h2 || 0;
+    if (isHBS) return (model as any).hbs || model.h1 || 0;
+    if (isH1) return model.h1 || (model as any).hbs || 0;
+    if (isH3) return (model as any).h3 || model.h2 || 0;
+    return model.h2 || model.h1 || 0;
   }
-  if (tier === "HBS") return (model as any).hbs || model.h1 || 0;
-  if (tier === "SS") return (model as any).ss || model.h1 || 0;
-  if (tier === "H1") return model.h1 || 0;
-  if (tier === "H2") return model.h2 || model.h1 || 0;
-  if (tier === "H3") return (model as any).h3 || model.h2 || 0;
+  if (isHBS) return (model as any).hbs || model.h1 || 0;
+  if (isSS) return (model as any).ss || model.h1 || 0;
+  if (isH1) return model.h1 || (model as any).hbs || 0;
+  if (isH3) return (model as any).h3 || model.h2 || 0;
   return model.h2 || model.h1 || 0;
 }
 
@@ -186,12 +213,28 @@ export function getCustomAreaRates(
     firstLivingRate = Math.round(floorFfLivingDS + (startFfLivingDS - floorFfLivingDS) * decayRateDS + tierAdj * 1.08);
   }
 
-  // Respect manual overrides if explicitly set by sales manager
-  if (spec?.groundRateM2 && spec.groundRateM2 > 0) {
-    groundLivingRate = spec.groundRateM2;
-  }
-  if (spec?.upperRateM2 && spec.upperRateM2 > 0) {
-    firstLivingRate = spec.upperRateM2;
+  // Respect manual overrides ONLY if explicitly flagged or genuine non-placeholder override,
+  // and ALWAYS preserve tier adjustments (+150 for H3, -80 for H1) so switching inclusions works properly.
+  const isLegacyPlaceholderRate = (rate?: number) => {
+    if (!rate || rate <= 0) return true;
+    const legacyValues = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
+    return legacyValues.includes(rate);
+  };
+
+  if (spec?.isManualRateOverride) {
+    if (spec.groundRateM2 && spec.groundRateM2 > 0) {
+      groundLivingRate = Math.round(spec.groundRateM2 + tierAdj);
+    }
+    if (spec.upperRateM2 && spec.upperRateM2 > 0) {
+      firstLivingRate = Math.round(spec.upperRateM2 + tierAdj * 1.08);
+    }
+  } else {
+    if (spec?.groundRateM2 && spec.groundRateM2 > 0 && !isLegacyPlaceholderRate(spec.groundRateM2)) {
+      groundLivingRate = Math.round(spec.groundRateM2 + tierAdj);
+    }
+    if (spec?.upperRateM2 && spec.upperRateM2 > 0 && !isLegacyPlaceholderRate(spec.upperRateM2)) {
+      firstLivingRate = Math.round(spec.upperRateM2 + tierAdj * 1.08);
+    }
   }
 
   // Compute preliminary total to check >= 500m² floor guarantee
@@ -1648,5 +1691,117 @@ export function detectCouncilFromLocation(
   }
 
   return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
+}
+
+/**
+ * Automatically updates and recalculates a saved quote upon loading or hydration:
+ * - Purges legacy placeholder overrides (1660, 1580, etc.) from customSpec so dynamic decay & H1/H2/H3 tiers apply
+ * - Normalizes inclusion tiers to current H1 Smart, H2 Designer, H3 Luxury standards
+ * - Updates base house price against official 2026 pricelists (standard) or dynamic decay engine (custom/modified)
+ * - Updates standard facade prices if updated in the pricelist
+ * - Recalculates all line item subtotals and complete gross & net financial summary
+ */
+export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
+  if (!rawQuote || typeof rawQuote !== "object") return rawQuote;
+
+  // Clone deeply
+  const quote: FullQuote = JSON.parse(JSON.stringify(rawQuote));
+  if (!quote.design) return quote;
+
+  // 1. Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury
+  let tier = quote.design.specTier || "H2 Design Inclusions";
+  const tierUpper = String(tier).toUpperCase();
+  if (tierUpper.includes("H3")) {
+    tier = "H3 Luxury Inclusions";
+  } else if (tierUpper.includes("H1")) {
+    tier = "H1 Smart Inclusions";
+  } else if (tierUpper.includes("H2") || tierUpper.includes("DESIGN")) {
+    tier = "H2 Design Inclusions";
+  } else if (tierUpper.includes("HBS") || tierUpper.includes("HOME BUILDER") || tierUpper.includes("SMART SERIES") || tierUpper.includes("SS")) {
+    tier = "H1 Smart Inclusions";
+  } else {
+    tier = "H2 Design Inclusions";
+  }
+  quote.design.specTier = tier;
+
+  // 2. Clean legacy customSpec overrides so dynamic decay functions cleanly
+  if (quote.design.customSpec) {
+    const isDouble = quote.design.customSpec.storeys === "double";
+    const legacyValues = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
+    if (legacyValues.includes(quote.design.customSpec.groundRateM2)) {
+      quote.design.customSpec.groundRateM2 = 0;
+    }
+    if (legacyValues.includes(quote.design.customSpec.upperRateM2)) {
+      quote.design.customSpec.upperRateM2 = 0;
+    }
+    if (quote.design.customSpec.ancillaryRateM2 === 869 || quote.design.customSpec.ancillaryRateM2 === 1050) {
+      quote.design.customSpec.ancillaryRateM2 = 0;
+    }
+    quote.design.customSpec.scaffoldingAllowance = isDouble ? 8500 : 0;
+
+    const totalM2 = calculateCustomTotalM2(quote.design.customSpec);
+    if (quote.design.mode === "custom_floorplan") {
+      quote.design.designM2 = totalM2;
+      quote.design.basePrice = calculateCustomFloorplanPrice(quote.design.customSpec, tier);
+    }
+  }
+
+  // 3. Update Base Price for Modified or Standard Designs
+  if (quote.design.mode === "modified" || quote.design.isModifiedFloorplan) {
+    const modCalc = calculateModifiedFloorplanPricing(quote.design);
+    quote.design.basePrice = modCalc.modifiedBasePrice;
+    quote.design.modifiedDesignM2 = modCalc.modifiedTotalM2;
+    quote.design.promotionsDiscount = getAutomatedPromotionDiscount(modCalc.modifiedTotalM2);
+  } else if (quote.design.mode === "standard" || !quote.design.mode) {
+    // Re-calibrate against official pricelists
+    const div = quote.client?.state === "NSW" ? "NSW" : "QLD";
+    const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
+    quote.design.housingType = housingType;
+    const models = getHousingTypePrices(div)[housingType] || [];
+    const matched = models.find(
+      (m) => m.name.toLowerCase() === (quote.design.designName || "").toLowerCase()
+    );
+    if (matched) {
+      const stdPrice = getTierPrice(matched, tier, housingType);
+      if (stdPrice > 0) {
+        quote.design.standardBasePrice = stdPrice;
+        quote.design.basePrice = stdPrice;
+        quote.design.designM2 = matched.m2;
+      }
+    }
+  }
+
+  // 4. Update standard facade uplift if not custom
+  if (!quote.design.isCustomFacade && quote.design.facadeName) {
+    try {
+      const facadePrice = facadePriceForDesign(
+        quote.design.housingType || "Single Storey",
+        quote.design.facadeName,
+        quote.design.designName
+      );
+      quote.design.facadePrice = facadePrice;
+    } catch {}
+  }
+
+  // 5. Ensure line item categorization and subtotal validity
+  if (Array.isArray(quote.lineItems)) {
+    quote.lineItems = quote.lineItems.map((it) => ({
+      ...it,
+      category: resolveItemCategory(it),
+      subtotal: (it.quantity ?? 1) * (it.unitRate ?? 0),
+    }));
+  }
+
+  // 6. Recalculate complete financial summary
+  const depositAmount = quote.client?.depositAmount || 1650;
+  quote.pricing = calculateQuotePricing(
+    quote.design,
+    quote.siteConditions,
+    quote.lineItems,
+    depositAmount,
+    quote.secondDwellingLineItems
+  );
+
+  return quote;
 }
 
