@@ -38,7 +38,7 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
   const frontageM = Number(d.landFrontage || 14.0);
 
   const [analysis, setAnalysis] = useState<WallVectorAnalysis>(() =>
-    generateWallVectorAnalysis(d.designName)
+    generateWallVectorAnalysis(d.designName, undefined, d.housingType, d.houseWidthM, d.houseLengthM)
   );
 
   // Dragging state

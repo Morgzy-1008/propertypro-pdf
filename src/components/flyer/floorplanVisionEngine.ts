@@ -5,6 +5,8 @@
  * isolates Ground Floor for double-storey designs, and tightly crops to the true primary house footprint.
  */
 
+import { getHudsonDimensions } from "@/lib/hudsonDimensions.data";
+
 export interface Point2D {
   x: number;
   y: number;
@@ -485,6 +487,94 @@ export const HUDSON_CAD_REGISTRY: Record<string, {
     familyRearX: 0.80,
     rhsMainWallX: 1.0,
   },
+  "Hazel 14": {
+    width: 8.27,
+    length: 16.66,
+    totalM2: 125.80,
+    garageM2: 18.93,
+    garageDims: "3.0m × 5.5m",
+    alfrescoM2: 6.70,
+    alfrescoDims: "3.1m × 2.1m",
+    porchM2: 1.54,
+    porchDims: "1.4m × 1.0m",
+    livingM2: 98.63,
+    garageStepOutM: 0.0,
+    garageStepBackM: 1.20,
+    garageDoorX1: 0.55,
+    garageDoorX2: 0.95,
+    garageDoorY: 0.94,
+    frontLivingY: 1.0,
+    rearMasterY: 0.0,
+    familyRearY: 0.20,
+    familyRearX: 0.80,
+    rhsMainWallX: 1.0,
+  },
+  "Hazel 15": {
+    width: 8.27,
+    length: 18.71,
+    totalM2: 142.05,
+    garageM2: 18.80,
+    garageDims: "3.0m × 5.5m",
+    alfrescoM2: 8.58,
+    alfrescoDims: "3.8m × 2.1m",
+    porchM2: 1.71,
+    porchDims: "1.5m × 1.1m",
+    livingM2: 112.96,
+    garageStepOutM: 0.0,
+    garageStepBackM: 1.20,
+    garageDoorX1: 0.55,
+    garageDoorX2: 0.95,
+    garageDoorY: 0.94,
+    frontLivingY: 1.0,
+    rearMasterY: 0.0,
+    familyRearY: 0.20,
+    familyRearX: 0.80,
+    rhsMainWallX: 1.0,
+  },
+  "Hazel 17": {
+    width: 8.27,
+    length: 20.87,
+    totalM2: 158.08,
+    garageM2: 18.80,
+    garageDims: "3.0m × 5.5m",
+    alfrescoM2: 9.36,
+    alfrescoDims: "4.2m × 2.1m",
+    porchM2: 1.88,
+    porchDims: "1.6m × 1.1m",
+    livingM2: 128.04,
+    garageStepOutM: 0.0,
+    garageStepBackM: 1.20,
+    garageDoorX1: 0.55,
+    garageDoorX2: 0.95,
+    garageDoorY: 0.94,
+    frontLivingY: 1.0,
+    rearMasterY: 0.0,
+    familyRearY: 0.20,
+    familyRearX: 0.80,
+    rhsMainWallX: 1.0,
+  },
+  "Hazel 19": {
+    width: 8.27,
+    length: 22.91,
+    totalM2: 173.20,
+    garageM2: 18.80,
+    garageDims: "3.0m × 5.5m",
+    alfrescoM2: 9.73,
+    alfrescoDims: "4.4m × 2.1m",
+    porchM2: 2.05,
+    porchDims: "1.7m × 1.2m",
+    livingM2: 142.62,
+    garageStepOutM: 0.0,
+    garageStepBackM: 1.20,
+    garageDoorX1: 0.55,
+    garageDoorX2: 0.95,
+    garageDoorY: 0.94,
+    frontLivingY: 1.0,
+    rearMasterY: 0.0,
+    familyRearY: 0.20,
+    familyRearX: 0.80,
+    rhsMainWallX: 1.0,
+  },
 };
 
 export function generateWallVectorAnalysis(
@@ -494,7 +584,9 @@ export function generateWallVectorAnalysis(
   customWidth?: number,
   customLength?: number
 ): WallVectorAnalysis {
-  let matchedKey = "Amber 21";
+  const dim = getHudsonDimensions(designName);
+
+  let matchedKey = "";
   for (const k of Object.keys(HUDSON_CAD_REGISTRY)) {
     if (designName.toLowerCase().includes(k.toLowerCase())) {
       matchedKey = k;
@@ -502,9 +594,11 @@ export function generateWallVectorAnalysis(
     }
   }
 
-  const cad = HUDSON_CAD_REGISTRY[matchedKey] || HUDSON_CAD_REGISTRY["Amber 21"];
-  const W = customWidth && customWidth > 0 ? customWidth : cad.width;
-  const L = customLength && customLength > 0 ? customLength : cad.length;
+  const cad = matchedKey ? HUDSON_CAD_REGISTRY[matchedKey] : HUDSON_CAD_REGISTRY["Amber 21"];
+  const defaultW = dim ? dim.width : (cad ? cad.width : 10.55);
+  const defaultL = dim ? dim.length : (cad ? cad.length : 20.15);
+  const W = customWidth && customWidth > 0 ? customWidth : defaultW;
+  const L = customLength && customLength > 0 ? customLength : defaultL;
 
   return {
     croppedUrl,

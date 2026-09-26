@@ -1,3 +1,5 @@
+import { getHudsonDimensions } from "@/lib/hudsonDimensions.data";
+
 export interface EstatePreset {
   id: string;
   name: string;
@@ -288,7 +290,22 @@ export function getDesignGeometry(
   const isAcreage = /mulberry|ranch|acreage/i.test(designName) || housingType === "acreage";
   const isDouble = housingType === "double-storey" || housingType === "double" || /double/i.test(designName);
 
-  // Check exact blueprint dimensions registry first
+  // Check comprehensive dimensions registry first
+  const exactDim = getHudsonDimensions(designName);
+  if (exactDim) {
+    const isLeft = /left|lh\b/i.test(designName) || designName.charCodeAt(0) % 2 === 0;
+    return {
+      houseWidth: exactDim.width,
+      houseLength: exactDim.length,
+      garageStepOut: 0.0,
+      garageStepBack: 1.20,
+      alfrescoRecess: 3.00,
+      garageSide: isLeft ? "left" : "right",
+      hasStepOut: false,
+    };
+  }
+
+  // Check exact blueprint dimensions registry
   for (const [key, val] of Object.entries(HUDSON_EXACT_DIMENSIONS)) {
     if (new RegExp(`\\b${key}\\b`, "i").test(designName) || designName.toLowerCase() === key.toLowerCase()) {
       const isLeft = /left|lh\b/i.test(designName) || designName.charCodeAt(0) % 2 === 0;

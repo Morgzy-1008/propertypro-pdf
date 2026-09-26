@@ -24,6 +24,7 @@ import { landscapingPriceFor } from "@/lib/landscaping";
 
 import { plansForDesign, otherSizesForDesign } from "./floorplans";
 import type { FloorplanRecord } from "./floorplans.data";
+import { getHudsonDimensions } from "@/lib/hudsonDimensions.data";
 import { CONSULTANTS, findConsultant } from "./consultants";
 
 import { COST_FIELDS, costsTotal, defaultCosts } from "@/lib/additionalCosts";
@@ -432,6 +433,16 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("baths", plan.baths);
     set("cars", plan.cars);
 
+    // Populate exact house dimensions for siting and setbacks
+    const dim = getHudsonDimensions(plan.label) || getHudsonDimensions(data.designName || plan.design);
+    if (dim) {
+      set("houseWidthM", dim.width);
+      set("houseLengthM", dim.length);
+    } else if (plan.houseWidth && plan.houseLength) {
+      set("houseWidthM", parseFloat(plan.houseWidth));
+      set("houseLengthM", parseFloat(plan.houseLength));
+    }
+
     // Auto-select matching facade for this plan & garage spaces
     const facade = resolveDefaultFacade(
       plan.cars,
@@ -485,6 +496,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       set("floorplanName", row?.name ?? name);
       set("floorplanUrl", "");
       set("floorplanSize", row ? String(row.m2) : "");
+      const dim = getHudsonDimensions(name);
+      if (dim) {
+        set("houseWidthM", dim.width);
+        set("houseLengthM", dim.length);
+      }
 
       const facade = resolveDefaultFacade(
         data.cars,

@@ -67,6 +67,7 @@ import { duplexFacadesForDesign } from "@/components/flyer/duplexFacades.data";
 import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
 import { isSingleGarageDesign, findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { FacadeLibrary } from "@/components/flyer/FacadeLibraryDialog";
+import { fileToImageDataUrl } from "@/components/flyer/fileToImage";
 import { QuoteFacadeRenderPreview } from "./QuoteFacadeRenderPreview";
 import type {
   InclusionTier,
@@ -125,10 +126,10 @@ export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[
 
 export const CUSTOM_INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string; desc: string }[] = [
   {
-    id: "H3 Luxury Inclusions",
-    label: "H3 Luxury",
-    tag: "Ultimate Luxury",
-    desc: "+$150/m² living • 600x600 alfresco tiles (+$30/m²)",
+    id: "H1 Smart Inclusions",
+    label: "H1 Smart",
+    tag: "Essential Value",
+    desc: "-$80/m² living • Quality Hudson turnkey standard",
   },
   {
     id: "H2 Design Inclusions",
@@ -137,22 +138,10 @@ export const CUSTOM_INCLUSION_TIERS: { id: InclusionTier; label: string; tag: st
     desc: "Baseline Designer Specification • Ceiling lining to alfresco",
   },
   {
-    id: "H1 Smart Inclusions",
-    label: "H1 Smart",
-    tag: "Essential Value",
-    desc: "-$80/m² living • Quality Hudson turnkey standard",
-  },
-  {
-    id: "Smart Series",
-    label: "Smart Series",
-    tag: "Smart Style",
-    desc: "-$150/m² living • Value-engineered package",
-  },
-  {
-    id: "Home Builders Series",
-    label: "Home Builders",
-    tag: "HBS Base",
-    desc: "-$250/m² living • Maximum budget efficiency",
+    id: "H3 Luxury Inclusions",
+    label: "H3 Luxury",
+    tag: "Ultimate Luxury",
+    desc: "+$150/m² living • 600x600 alfresco tiles (+$30/m²)",
   },
 ];
 
@@ -2111,7 +2100,54 @@ export function QuoteDesignStep({
                       originalUrl: f.url,
                     })) : undefined}
                   />
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors">
+                    <Upload className="h-3.5 w-3.5" />
+                    <span>Upload Render (PDF / Image)</span>
+                    <input
+                      id="standard-facade-upload-input"
+                      type="file"
+                      accept="image/*,application/pdf,.pdf"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                        try {
+                          const dataUrl = await fileToImageDataUrl(file);
+                          if (dataUrl) {
+                            onChange({
+                              isCustomFacade: true,
+                              facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                              facadeImageUrl: dataUrl,
+                            });
+                            toast.success("Custom facade render attached!", { id: toastId });
+                          } else {
+                            toast.error("Failed to parse facade file.", { id: toastId });
+                          }
+                        } catch (err: any) {
+                          toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                        }
+                      }}
+                    />
+                  </label>
                 </div>
+
+                {design.facadeImageUrl && design.isCustomFacade && (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs">
+                    <div className="flex items-center gap-2">
+                      <img src={design.facadeImageUrl} alt="Facade preview" className="h-7 w-12 object-cover rounded border border-emerald-500/40" />
+                      <span className="text-emerald-300 text-[11px] font-medium">Custom Facade Render Attached</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ facadeImageUrl: undefined, isCustomFacade: false })}
+                      className="text-[10px] text-red-400 hover:text-red-300 font-semibold"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+
                 <Select
                   value={design.isCustomFacade ? "CUSTOM_FACADE" : design.facadeName || suitableFacades[0]?.name}
                   onValueChange={handleFacadeSelect}
@@ -2178,6 +2214,54 @@ export function QuoteDesignStep({
                       className="h-8.5 text-xs border-slate-800 bg-slate-950 text-slate-100"
                     />
                   </div>
+
+                  <div className="pt-1 flex flex-col gap-2">
+                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors w-fit">
+                      <Upload className="h-3.5 w-3.5" />
+                      <span>Upload Custom Facade Render (PDF / Image)</span>
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf,.pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                          try {
+                            const dataUrl = await fileToImageDataUrl(file);
+                            if (dataUrl) {
+                              onChange({
+                                isCustomFacade: true,
+                                facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                                facadeImageUrl: dataUrl,
+                              });
+                              toast.success("Custom facade render attached!", { id: toastId });
+                            } else {
+                              toast.error("Failed to parse facade file.", { id: toastId });
+                            }
+                          } catch (err: any) {
+                            toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                          }
+                        }}
+                      />
+                    </label>
+
+                    {design.facadeImageUrl && (
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs">
+                        <div className="flex items-center gap-2">
+                          <img src={design.facadeImageUrl} alt="Facade preview" className="h-7 w-12 object-cover rounded border border-emerald-500/40" />
+                          <span className="text-emerald-300 text-[11px] font-medium">Custom Facade Render Attached</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => onChange({ facadeImageUrl: undefined })}
+                          className="text-[10px] text-red-400 hover:text-red-300 font-semibold"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -2242,7 +2326,7 @@ export function QuoteDesignStep({
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               Inclusion Specification Range (Drives Dynamic Area Rates)
             </Label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {CUSTOM_INCLUSION_TIERS.map((tier) => {
                 const isSelected =
                   design.specTier === tier.id ||
@@ -2535,28 +2619,33 @@ export function QuoteDesignStep({
                       }
                     />
 
-                    {/* Upload Custom Facade Photo Button */}
+                    {/* Upload Custom Facade Render (Photo or PDF) */}
                     <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors">
                       <Upload className="h-3.5 w-3.5" />
-                      <span>Import Photo</span>
+                      <span>Upload Render (PDF / Image)</span>
                       <input
+                        id="custom-facade-upload-input"
                         type="file"
-                        accept="image/*"
+                        accept="image/*,application/pdf,.pdf"
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              const dataUrl = reader.result as string;
+                          if (!file) return;
+                          const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                          try {
+                            const dataUrl = await fileToImageDataUrl(file);
+                            if (dataUrl) {
                               onChange({
                                 isCustomFacade: true,
                                 facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
                                 facadeImageUrl: dataUrl,
                               });
-                              toast.success("Custom facade photo attached!");
-                            };
-                            reader.readAsDataURL(file);
+                              toast.success("Custom facade render attached!", { id: toastId });
+                            } else {
+                              toast.error("Failed to parse facade file.", { id: toastId });
+                            }
+                          } catch (err: any) {
+                            toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
                           }
                         }}
                       />
@@ -2564,12 +2653,12 @@ export function QuoteDesignStep({
                   </div>
                 </div>
 
-                {/* Attached Photo Preview Badge */}
+                {/* Attached Photo/PDF Preview Badge */}
                 {design.facadeImageUrl && (
                   <div className="flex items-center justify-between p-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs">
                     <div className="flex items-center gap-2">
                       <img src={design.facadeImageUrl} alt="Facade preview" className="h-7 w-12 object-cover rounded border border-emerald-500/40" />
-                      <span className="text-emerald-300 text-[11px] font-medium">Custom Facade Photo Attached</span>
+                      <span className="text-emerald-300 text-[11px] font-medium">Custom Facade Render Attached</span>
                     </div>
                     <button
                       type="button"
