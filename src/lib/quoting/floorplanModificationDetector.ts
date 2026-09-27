@@ -1376,11 +1376,11 @@ export async function analyzeModifiedFloorplanFile(
   // The baseline cadSpec MUST strictly represent the official brochure baseline.
   // NEVER overwrite cadSpec with candidate modified schedule table specs!
   const cadSpec = {
-    totalM2: cadRegistryEntry?.totalM2 || stdAreasLookup.totalM2 || verifiedModel?.row.m2 || 190,
-    livingM2: cadRegistryEntry?.livingM2 || fallbackLiving,
-    alfrescoM2: cadRegistryEntry?.alfrescoM2 || stdAreasLookup.alfrescoM2 || 10,
-    garageM2: cadRegistryEntry?.garageM2 || stdAreasLookup.garageM2 || 33,
-    porchM2: cadRegistryEntry?.porchM2 || stdAreasLookup.porchM2 || 2.5,
+    totalM2: stdAreasLookup.totalM2 || cadRegistryEntry?.totalM2 || verifiedModel?.row.m2 || 190,
+    livingM2: stdAreasLookup.livingM2 || fallbackLiving || cadRegistryEntry?.livingM2,
+    alfrescoM2: stdAreasLookup.alfrescoM2 || cadRegistryEntry?.alfrescoM2 || 10,
+    garageM2: stdAreasLookup.garageM2 || cadRegistryEntry?.garageM2 || 33,
+    porchM2: stdAreasLookup.porchM2 || cadRegistryEntry?.porchM2 || 2.5,
     width: cadRegistryEntry?.width || 10.55,
     length: cadRegistryEntry?.length || 20.27,
     alfrescoDims: cadRegistryEntry?.alfrescoDims || "2.6m × 3.6m",

@@ -221,12 +221,12 @@ export function detectFloorplanFromText(rawText: string, filename?: string): Det
       const extractedTable = extractAreaTableFromText(rawText);
 
       // Check for variances
-      let livingM2 = extractedTable?.livingM2 || extractedTable?.groundLivingM2 || cad?.livingM2 || stdAreas.livingM2 || (standardTotalM2 > 230 ? 160 : 135);
+      let livingM2 = extractedTable?.livingM2 || extractedTable?.groundLivingM2 || stdAreas.livingM2 || cad?.livingM2 || (standardTotalM2 > 230 ? 160 : 135);
       let groundLivingM2 = extractedTable?.groundLivingM2 ?? stdAreas.groundLivingM2;
       let firstLivingM2 = extractedTable?.firstLivingM2 ?? stdAreas.firstLivingM2;
-      let garageM2 = extractedTable?.garageM2 || cad?.garageM2 || stdAreas.garageM2 || (standardTotalM2 > 230 ? 38.0 : 34.0);
-      let alfrescoM2 = extractedTable?.alfrescoM2 || cad?.alfrescoM2 || stdAreas.alfrescoM2 || 14.5;
-      let porchM2 = extractedTable?.porchM2 || cad?.porchM2 || stdAreas.porchM2 || 3.0;
+      let garageM2 = extractedTable?.garageM2 || stdAreas.garageM2 || cad?.garageM2 || (standardTotalM2 > 230 ? 38.0 : 34.0);
+      let alfrescoM2 = extractedTable?.alfrescoM2 || stdAreas.alfrescoM2 || cad?.alfrescoM2 || 14.5;
+      let porchM2 = extractedTable?.porchM2 || stdAreas.porchM2 || cad?.porchM2 || 3.0;
       let balconyM2 = extractedTable?.balconyM2 ?? stdAreas.balconyM2;
 
       let effectiveTotalM2 = extractedTable?.totalM2 || (livingM2 + garageM2 + alfrescoM2 + porchM2 + (balconyM2 || 0));
