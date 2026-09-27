@@ -537,27 +537,40 @@ Hudson Homes standard ceiling heights are calibrated for optimal light, thermal 
     };
   }
 
-  // 3B. Kitchen Appliances & Westinghouse Suite
-  if (query.includes("appliance") || query.includes("oven") || query.includes("cooktop") || query.includes("rangehood") || query.includes("dishwasher") || query.includes("westinghouse")) {
+  // 3B. Kitchen Appliances: Haier (H1) & Fisher & Paykel (H2/H3)
+  if (
+    query.includes("appliance") ||
+    query.includes("oven") ||
+    query.includes("cooktop") ||
+    query.includes("rangehood") ||
+    query.includes("dishwasher") ||
+    query.includes("fisher") ||
+    query.includes("paykel") ||
+    query.includes("haier") ||
+    query.includes("westinghouse")
+  ) {
     return {
-      answer: `### Hudson Homes Standard Kitchen Appliance Suite
+      answer: `### Hudson Homes Official Kitchen Appliance Suite
 
-Hudson Homes partners with trusted Australian manufacturer **Westinghouse** across our building ranges:
+Hudson Homes specifies industry-leading kitchen appliances calibrated to each specification tier (grounded in our official Quote & Inclusions Schedule):
 
-1. **H1 Smart Inclusions (600mm Suite)**:
-   - **Westinghouse 600mm Multi-Function Built-in Oven**: Stainless steel finish with programmable timer and cool-touch door.
-   - **Westinghouse 600mm 4-Burner Cooktop**: Quality stainless steel gas cooktop (or 4-zone electric ceramic cooktop where gas is not reticulated).
-   - **Westinghouse 600mm Canopy Rangehood**: High-performance recirculating or ducted extraction.
-   - **Dishwasher Provision**: Cold water connection, drainage, and single powerpoint ready for installation.
+1. **H1 Smart Inclusions (Haier 600mm Suite)**:
+   - **Haier 600mm Stainless Steel Electric Oven**: Multi-function fan-forced oven with digital timer and cool-touch glass door.
+   - **Haier 600mm 4-Zone Cooktop**: Stainless steel gas or ceramic glass electric cooktop.
+   - **Haier 600mm Slide-Out / Canopy Rangehood**: High-performance ducted extraction.
+   - **Haier 600mm Stainless Steel Dishwasher**: Fully connected and installed as standard.
 
-2. **H2 Designer Inclusions (900mm European Suite — Display Home Standard)**:
-   - **Westinghouse 900mm Multi-Function Built-in Oven**: Commercial-grade 125L capacity with twin fan system.
-   - **Westinghouse 900mm 5-Burner Cooktop**: High-powered dual wok burner and cast iron trivets.
-   - **Westinghouse 900mm Stainless Steel Canopy Rangehood**: High-airflow dual centrifugal motor.
-   - **Westinghouse Stainless Steel Dishwasher**: Fully installed and connected as standard ($0 variation).
+2. **H2 Designer Inclusions (Fisher & Paykel 900mm Luxury Suite)**:
+   - **Fisher & Paykel 900mm Luxury Built-in Oven**: Premium commercial-grade brushed stainless steel with generous 100L+ multi-shelf capacity.
+   - **Fisher & Paykel 900mm 5-Burner Cooktop**: Powerful central dual-ring brass wok burner, cast-iron trivets, and flame failure safety.
+   - **Fisher & Paykel 900mm High-Extraction Canopy Rangehood**: Stainless steel multi-speed extraction.
+   - **Fisher & Paykel Stainless Steel Dishwasher**: Fully installed and integrated as standard ($0 variation).
 
-3. **H3 Luxury Inclusions**:
-   - Upgraded European chef appliance suite + double undermount sink + butler's pantry fit-out.`,
+3. **H3 Luxury Inclusions (Fisher & Paykel Chef & Butler's Suite)**:
+   - **Fisher & Paykel 900mm Luxury Oven & Cooktop Suite**.
+   - **Fisher & Paykel Premium Stainless Steel Dishwasher**.
+   - **Fisher & Paykel Built-in Microwave Oven** with matching stainless steel trim kit.
+   - Double bowl undermount stainless steel sink and scullery/butler's pantry fit-out.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
@@ -871,7 +884,7 @@ The **IP Investment Range** is our purpose-built, 100% turn-key solution designe
 1. **Complete Turnkey Inclusions**:
    - **Internal Finishes**: Vertical or roller **blinds** to all clear glazed windows, aluminum **flyscreens** to all openable windows and sliding doors, quality carpet to bedrooms, and durable ceramic floor tiles to living areas.
    - **External & Landscaping**: Complete turn-key **landscaping** including front and rear turf, garden beds with drought-tolerant planting, exposed aggregate concrete driveway and path, 1.8m boundary timber paling **fencing** with side gate, folding clothesline, and letterbox.
-   - **Appliances & Climate**: Reverse-cycle split-system or ducted air conditioning, Westinghouse stainless steel appliances with dishwasher, and ceiling fans to bedrooms.
+   - **Appliances & Climate**: Reverse-cycle split-system or ducted air conditioning, Fisher & Paykel or Haier stainless steel appliances with dishwasher, and ceiling fans to bedrooms.
    - **Kitchen & Bathrooms**: 20mm engineered stone benchtops, modern laminate cabinetry, and quality chrome tapware.
 
 2. **Investor Benefits**:
@@ -1198,8 +1211,8 @@ Yes! You can fit a spacious double storey home on a 300m² block:
    - Building vertically maximizes your floor space while preserving compliant private open space and meeting maximum site coverage percentages (typically 50% to 60%).
 
 2. **Recommended Hudson Double Storey Designs for 300m² Blocks**:
-   - **Jasper 26** (244.6 m²): 4 Bed, 2.5 Bath, 2 Car Garage — designed for compact 10m-12.5m frontages.
-   - **Azure 25** (232.8 m²): 4 Bed, 2.5 Bath, 2 Car Garage — high-efficiency small-lot layout.
+   - **Jasper 26** (241.82 m²): 4 Bed, 2 Bath, 2 Car Garage — 11.39m width × 24.71m length (fits standard 12.5m+ frontages; requires 12.5m wide lot).
+   - **Azure 25** (232.8 m²): 4 Bed, 2.5 Bath, 2 Car Garage — high-efficiency small-lot layout (12.5m frontage).
    - **Cedar 26** (242.1 m²): 4 Bed, 2.5 Bath, 2 Car Garage — luxury family living on suburban blocks.
 
 3. **Compliance Features**:
@@ -1382,7 +1395,7 @@ The home is delivered complete and tenant-ready on settlement day with zero addi
 - **Climate Control**: Ducted reverse-cycle air conditioning (or split systems to key zones) for year-round tenant comfort and premium rental appeal.
 
 #### 2. Investor-Grade Specifications
-- **Kitchen**: 20mm engineered stone benchtops, Westinghouse stainless steel appliances, dishwasher included, and durable soft-close cabinetry.
+- **Kitchen**: 20mm engineered stone benchtops, Fisher & Paykel or Haier stainless steel appliances, dishwasher included, and durable soft-close cabinetry.
 - **Durable Flooring**: Hard-wearing ceramic tiles to high-traffic living areas, hallways, and kitchen; stain-resistant carpets to bedrooms.
 - **Electrical**: Energy-efficient LED downlights throughout living zones.
 
@@ -1424,7 +1437,7 @@ The **FHB Range** is tailored specifically for first-time purchasers entering th
 #### 3. Complete Move-In Ready Finish
 - **Flooring**: Quality ceramic floor tiles to living, meals, and kitchen; quality carpet with underlay to all bedrooms.
 - **Climate Control**: Split-system or ducted air conditioning and ceiling fans.
-- **Kitchen Essentials**: Modern benchtops, Westinghouse stainless steel appliances (oven, cooktop, rangehood, dishwasher provision).
+- **Kitchen Essentials**: Modern benchtops, Haier 600mm stainless steel appliances (oven, cooktop, rangehood, dishwasher).
 - **External Options**: Driveway, perimeter fencing, turfing, clothesline, and letterbox can be packaged together so you have zero out-of-pocket expenses on handover day.
 
 #### 4. Smart-Living Floorplans
@@ -1461,7 +1474,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 #### 1. H1: Smart Inclusions (Smart Value / Move-In Ready Standard)
 *The essential balance of functional design, quality fixtures, and affordability.*
 - **Ceilings**: Nominal 2440mm ceiling height throughout.
-- **Kitchen**: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, Westinghouse stainless steel appliances (600mm oven, cooktop, and rangehood), and stainless steel drop-in sink.
+- **Kitchen**: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, **Haier 600mm stainless steel appliances** (600mm electric oven, cooktop, and rangehood, dishwasher included), and stainless steel drop-in sink.
 - **Comfort & Finishes**: Reverse-cycle split system air conditioning, ceiling fans to bedrooms, ceramic tiles to living zones, and quality carpet to bedrooms.
 - **Bathrooms**: Floating-style vanities, polished-edge mirrors, and semi-frameless pivot shower screens.
 - **Structure**: Engineered concrete slab up to H1/H2 classification, Termimesh barrier, and Colorbond or concrete tile roof.
@@ -1472,7 +1485,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 #### 2. H2: Designer Inclusions (Contemporary Luxury & Style)
 *Elevated contemporary style and premium luxury seen in our display homes.*
 - **Ceilings**: **Raised 2590mm high ceilings** (with optional 2740mm ground floor upgrade) creating superior natural light and volume.
-- **Kitchen**: **20mm engineered stone benchtops** to kitchen, bathrooms, and laundry; premium **Westinghouse 900mm European appliance suite** (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven), soft-close cabinetry, and designer gooseneck mixer.
+- **Kitchen**: **20mm engineered stone benchtops** to kitchen, bathrooms, and laundry; premium **Fisher & Paykel 900mm luxury appliance suite** (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven, dishwasher included), soft-close cabinetry, and designer gooseneck mixer.
 - **Comfort & Climate**: Fully installed **ActronAir or Daikin ducted reverse-cycle air conditioning** with multi-zone digital controller.
 - **Bathrooms**: **Full-height floor-to-ceiling porcelain wall tiles** to ensuite and bathroom, recessed tiled shower niches with chrome trim, and designer tapware in matte black, brushed nickel, or chrome.
 - **Electrical & Outdoor**: Premium **LED downlight package** to living areas, porch, and alfresco; tiled outdoor alfresco and porch; exposed aggregate driveway.
