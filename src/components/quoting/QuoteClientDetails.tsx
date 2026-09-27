@@ -39,6 +39,7 @@ import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
 import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
 import type { CrmLead } from "@/lib/crm/crmTypes";
 import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
+import { lookupSuburbsByPostcode } from "@/lib/address/australianSuburbsData";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { ClientDetails, DepositType, FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
@@ -587,9 +588,19 @@ export function QuoteClientDetails({
             <Input
               value={client.postcode || ""}
               onChange={(e) => {
-                const pc = e.target.value;
+                const pc = e.target.value.trim();
                 const stateGuess = pc.startsWith("2") ? "NSW" : pc.startsWith("4") ? "QLD" : undefined;
-                handleAddressChange({ postcode: pc, ...(stateGuess ? { state: stateGuess } : {}) });
+                const patch: Partial<ClientDetails> = { postcode: pc, ...(stateGuess ? { state: stateGuess } : {}) };
+                if (pc.length === 4 && !client.suburb) {
+                  const matches = lookupSuburbsByPostcode(pc);
+                  if (matches.length > 0) {
+                    patch.suburb = matches[0].suburb;
+                    if (matches[0].state === "NSW" || matches[0].state === "QLD") {
+                      patch.state = matches[0].state;
+                    }
+                  }
+                }
+                handleAddressChange(patch);
                 if (stateGuess) setActiveDivision(stateGuess);
               }}
               placeholder="e.g. 4280 / 2150"
