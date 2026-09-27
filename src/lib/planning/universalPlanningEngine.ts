@@ -873,8 +873,9 @@ Here is the verified statutory planning framework, council criteria, and enginee
 ---
 
 #### 2. Feasibility Thresholds & Statutory Rules (${isDuplex ? "Duplex / Dual-Occupancy" : "Auxiliary Unit"})
-1. **Plan of Development (PoD) Designation**:
+1. **Plan of Development (PoD) Designation & Zoning Rules**:
    - ${podExplanation}
+   - **Local Statutory Context**: ${rules.notes}
 2. **Lot Area & Street Frontage Requirements**:
    - **Minimum Lot Size**: **≥ ${rules.minLotSizeM2} m²** (${lotSizeExplanation})
    - **Minimum Street Frontage**: **≥ ${rules.minFrontageM}m** (${frontageExplanation})

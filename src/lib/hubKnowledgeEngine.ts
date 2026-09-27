@@ -218,6 +218,7 @@ export function evaluateLotSiting(params: SitingParams) {
     lhsSetback,
     lhsBtb,
     rhsSetback,
+    rhsBtb,
     frontSetback,
     rearSetback,
     strictFit,
@@ -226,7 +227,7 @@ export function evaluateLotSiting(params: SitingParams) {
   };
 }
 
-export function formatSitingResponse(res: ReturnType<typeof evaluateLotSiting>): string {
+export function formatSitingResponse(res: ReturnType<typeof evaluateLotSiting>) {
   const {
     lotWidth,
     lotDepth,
@@ -254,6 +255,7 @@ export function formatSitingResponse(res: ReturnType<typeof evaluateLotSiting>):
 
 **Lot Parameters:**
 - **Dimensions:** ${lotWidth}m Wide × ${lotDepth}m Deep (${lotArea} m²)
+- **Lot Frontage:** ${lotWidth}m minimum width
 ${storeyFilter ? `- **Requested Housing Type:** **${typeDesc}**\n` : ""}- **Setbacks Applied:**
   - **LHS (Left):** ${lhsSetback}m${lhsBtb ? " *(Built-To-Boundary / Zero-Lot permitted)*" : ""}
   - **RHS (Right):** ${rhsSetback}m
@@ -375,7 +377,990 @@ export function generateHudsonKnowledgeResponse(
     };
   }
 
-  // 2. Specific IP (Investment Property / Investor Range) Query
+  // -------------------------------------------------------------------------
+  // 2. DIRECT FLOORPLAN / MODEL LOOKUPS (Amber, Jasper, Azure, Cedar, Hazel, Wisteria, Gemini, etc.)
+  // -------------------------------------------------------------------------
+  const knownDesignNames = [
+    "amber", "azure", "jasper", "cedar", "hazel", "wisteria", "gemini", 
+    "amaranth", "alabaster", "topaz", "sapphire", "emerald", "onyx", 
+    "ruby", "opal", "pearl", "diamond", "quartz", "aspen", "sienna"
+  ];
+  const matchedDesign = knownDesignNames.find((d) => new RegExp(`\\b${d}\\b`, "i").test(query));
+  if (
+    matchedDesign &&
+    (query.includes("dimension") ||
+      query.includes("size") ||
+      query.includes("width") ||
+      query.includes("length") ||
+      query.includes("frontage") ||
+      query.includes("fit") ||
+      query.includes("tell me about") ||
+      query.includes("floorplan") ||
+      query.includes("plan") ||
+      query.includes("design") ||
+      query.includes("dual") ||
+      query.includes("key") ||
+      query.includes("duplex") ||
+      query.includes("spec") ||
+      query.includes("specs"))
+  ) {
+    if (matchedDesign === "gemini") {
+      return {
+        answer: `### Hudson Homes Architectural Design: Gemini Dual-Key Range
+
+Here are the verified architectural specifications for the **Gemini 28 Dual-Key** design:
+
+- **Gemini 28** (260 m², 4 Bed, 3 Bath, 2 Car, Width: 12.8m, Length: 22.4m, Min Lot Frontage: 14.0m)
+- **Dual-Key Investor Configuration**: The Gemini 28 is engineered specifically for suburban investor yield, featuring 3 Bed primary + 1 Bed auxiliary under a single roofline.
+- **Independent Tenancies & High Rental Yield**: Each living zone features private entry, separate utility metering, independent kitchen and laundry facilities, delivering two independent rental revenue streams from a single residential property.
+- **Council Compliance**: Designed to comply with auxiliary unit and secondary dwelling planning standards (such as Logan, Ipswich, Moreton Bay, and NSW Complying Development).`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What is the difference between a duplex and a dual-key auxiliary dwelling?",
+          "How does the two-part contract save money on stamp duty?",
+          "What are the infrastructure charges for an auxiliary unit?",
+        ],
+        modelUsed: "hudson-floorplan-engine",
+      };
+    }
+
+    if (matchedDesign === "wisteria") {
+      return {
+        answer: `### Hudson Homes Architectural Design: Wisteria Dual Living Range
+
+Here are the verified architectural specifications for the **Wisteria Dual Living / Duplex** family:
+
+- **Wisteria 33** (308 m², 5 Bed, 3 Bath, 3 Car, Width: 15.5m, Length: 23.2m, Min Lot Frontage: 16.0m)
+- **Wisteria 34** (315 m², 5 Bed, 3 Bath, 3 Car, Width: 16.0m, Length: 23.8m, Min Lot Frontage: 16.5m)
+- **Wisteria 36** (335 m², 6 Bed, 4 Bath, 3 Car, Width: 16.5m, Length: 24.5m, Min Lot Frontage: 18.0m)
+- **Wisteria 40** (372 m², 6 Bed, 4 Bath, 4 Car, Width: 17.5m, Length: 25.0m, Min Lot Frontage: 19.0m)
+
+- **Dual Living / Duplex Design**: The Wisteria range is Hudson's flagship Queensland and NSW dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one cohesive roofline with independent entrances and separate utility metering.`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What is the difference between a duplex and a dual-key auxiliary dwelling?",
+          "What are the infrastructure charges for a duplex in Queensland?",
+          "Can I build a duplex on 61 Paradise Road Flagstone?",
+        ],
+        modelUsed: "hudson-floorplan-engine",
+      };
+    }
+
+    const matching = HUDSON_FLOORPLANS.filter(
+      (p) =>
+        p.design.toLowerCase().includes(matchedDesign) ||
+        p.label.toLowerCase().includes(matchedDesign)
+    );
+
+    if (matching.length > 0) {
+      const p = matching[0];
+      const allLabels = matching.slice(0, 4).map((m) => `**${m.label}** (${m.size} m², ${m.beds} Bed, ${m.baths} Bath, ${m.cars} Garage, Width: ${m.houseWidth || m.frontage}m, Length: ${m.houseLength || "N/A"}m, Min Lot Frontage: ${m.frontage}m)`).join("\n- ");
+      
+      let extraNote = "";
+      if (matchedDesign === "wisteria") {
+        extraNote = "\n- **Dual Living / Duplex Design**: The Wisteria range is Hudson's flagship Queensland and NSW dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one cohesive roofline with independent entrances and separate utility metering.";
+      } else if (matchedDesign === "gemini") {
+        extraNote = "\n- **Dual-Key Investor Configuration**: The Gemini 28 is engineered specifically for suburban investor yield, featuring 3 Bed primary + 1 Bed auxiliary under a single roofline.";
+      }
+
+      return {
+        answer: `### Hudson Homes Architectural Design: ${p.design} Range
+
+Here are the verified architectural specifications for the **${p.design}** family:
+
+- ${allLabels}${extraNote}
+
+#### Key Design Features:
+- **Optimal Living Space**: Efficient open-plan family layout with integrated kitchen, walk-in pantry, and outdoor alfresco living.
+- **Master Suite**: Private master retreat featuring walk-in robe (WIR) and ensuite.
+- **Available Inclusions**: Selectable across **H1 Smart**, **H2 Designer**, and **H3 Luxury** specifications.
+- **Modified Plan Engine**: Compatible with our 1-click plan modifier in Quote Builder V2 to customize alfresco dimensions, garage extensions, or window placements!`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          `Can ${p.label} fit on my lot?`,
+          "What inclusion ranges does Hudson Homes offer?",
+          "How does Quote Builder V2 calculate variations?",
+        ],
+        modelUsed: "hudson-floorplan-engine",
+      };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // 3. SPECIFIC TECHNICAL & SPECIFICATION HANDLERS (High Priority)
+  // -------------------------------------------------------------------------
+
+  // 3A. Ceiling Heights & Vertical Volume
+  if (
+    (query.includes("ceiling height") ||
+      query.includes("high ceiling") ||
+      query.includes("2440") ||
+      query.includes("2590") ||
+      query.includes("2740") ||
+      (query.includes("ceiling") && !query.includes("insulation") && !query.includes("batts") && !query.includes("fan"))) &&
+    !query.includes("insulation") &&
+    !query.includes("batts")
+  ) {
+    return {
+      answer: `### Hudson Homes Standard Ceiling Heights
+
+Hudson Homes standard ceiling heights are calibrated for optimal light, thermal efficiency, and interior volume across our specification ranges:
+
+1. **H1 Smart Inclusions**:
+   - **Nominal 2440mm ceiling height** throughout the entire home.
+   - Clean, functional volume delivering great energy efficiency and smart value.
+
+2. **H2 Designer Inclusions**:
+   - **Raised 2590mm high ceilings** throughout single-storey homes and ground floor of double-storey homes.
+   - Creates display-home luxury, greater natural light through larger windows, and enhanced vertical space.
+   - Optional ground floor upgrade available to **2740mm** ceiling height.
+
+3. **H3 Luxury Inclusions**:
+   - **Raised 2590mm high ceilings** standard (with 2740mm ground floor upgrade option) paired with upgraded full-height doors and highlight architectural glazing.
+
+4. **Ceiling Fans**:
+   - Quality 48" or 52" modern ceiling fans are included to all bedrooms as standard, complementing air conditioning systems.
+
+> [!TIP]
+> Ceiling height selections are configured directly in Step 1 of Quote Builder V2 and flow automatically into your sales estimate!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between H1 Smart and H2 Designer?",
+        "What appliances are included in H2 Designer?",
+        "What benchtops come standard in H1 Smart?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3B. Kitchen Appliances & Westinghouse Suite
+  if (query.includes("appliance") || query.includes("oven") || query.includes("cooktop") || query.includes("rangehood") || query.includes("dishwasher") || query.includes("westinghouse")) {
+    return {
+      answer: `### Hudson Homes Standard Kitchen Appliance Suite
+
+Hudson Homes partners with trusted Australian manufacturer **Westinghouse** across our building ranges:
+
+1. **H1 Smart Inclusions (600mm Suite)**:
+   - **Westinghouse 600mm Multi-Function Built-in Oven**: Stainless steel finish with programmable timer and cool-touch door.
+   - **Westinghouse 600mm 4-Burner Cooktop**: Quality stainless steel gas cooktop (or 4-zone electric ceramic cooktop where gas is not reticulated).
+   - **Westinghouse 600mm Canopy Rangehood**: High-performance recirculating or ducted extraction.
+   - **Dishwasher Provision**: Cold water connection, drainage, and single powerpoint ready for installation.
+
+2. **H2 Designer Inclusions (900mm European Suite — Display Home Standard)**:
+   - **Westinghouse 900mm Multi-Function Built-in Oven**: Commercial-grade 125L capacity with twin fan system.
+   - **Westinghouse 900mm 5-Burner Cooktop**: High-powered dual wok burner and cast iron trivets.
+   - **Westinghouse 900mm Stainless Steel Canopy Rangehood**: High-airflow dual centrifugal motor.
+   - **Westinghouse Stainless Steel Dishwasher**: Fully installed and connected as standard ($0 variation).
+
+3. **H3 Luxury Inclusions**:
+   - Upgraded European chef appliance suite + double undermount sink + butler's pantry fit-out.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What benchtops are included in H2 Designer?",
+        "What is included in the H3 luxury tier?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3C. Benchtops & Cabinetry (Engineered Stone vs Laminate)
+  if (
+    query.includes("benchtop") ||
+    (/\bstone\b/i.test(query) && !query.includes("flagstone") && !query.includes("bridgeman") && !query.includes("touchstone")) ||
+    query.includes("laminate") ||
+    query.includes("island") ||
+    query.includes("cabinetry") ||
+    query.includes("undermount")
+  ) {
+    return {
+      answer: `### Hudson Homes Benchtop & Cabinetry Specifications
+
+Hudson Homes adheres to modern building standards, including fully compliant silica-safe engineered stone and durable cabinetry:
+
+1. **H1 Smart Inclusions**:
+   - **Durable Laminate Benchtops**: Modern square-edge or post-formed laminate benchtops from Laminex / Polytec in contemporary designer colours.
+   - **Cabinetry**: Fully lined interior carcasses with matching overhead cupboards and painted bulkheads above.
+   - **Sink**: Drop-in stainless steel double bowl sink with chrome mixer.
+
+2. **H2 Designer Inclusions**:
+   - **20mm Engineered Stone Benchtops**: Standard to **Kitchen, Ensuite, Main Bathroom, and Laundry** (silica-safe compliant engineered composite).
+   - **Profile**: Elegant 20mm pencil round edge finish.
+   - **Features**: Soft-close cupboard doors and soft-close cutlery drawers.
+   - **Tapware**: Designer high-arc gooseneck pull-out mixer in chrome, matte black, or brushed nickel.
+
+3. **H3 Luxury Inclusions**:
+   - **40mm Edge Engineered Stone**: Thickened 40mm pencil round or mitred stone edge to kitchen island.
+   - **Undermount Sink**: Double bowl undermount stainless steel sink flush-mounted under the stone as standard ($0 variation).
+   - **Butler's Pantry**: Stone benchtops extended into prep kitchen / pantry with secondary sink.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What appliances are included in H2 Designer?",
+        "What ceiling heights come standard in H1 vs H2?",
+        "Tell me about H3 Luxury inclusions",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3D. Air Conditioning & Climate Control
+  if (query.includes("air conditioning") || query.includes("air con") || query.includes("ducted") || query.includes("split system") || query.includes("actron") || query.includes("daikin")) {
+    return {
+      answer: `### Hudson Homes Climate Control & Air Conditioning
+
+Year-round heating and cooling systems are engineered to home layout and climate zone:
+
+1. **H1 Smart Inclusions**:
+   - **Reverse-Cycle Split System Air Conditioner**: High-efficiency inverter split system fully installed in main living zone.
+   - **Ceiling Fans**: 48" or 52" modern ceiling fans with wall controls included in all bedrooms.
+
+2. **H2 Designer Inclusions**:
+   - **Fully Ducted Reverse-Cycle Air Conditioning**: Premium **ActronAir or Daikin** system with inverter technology.
+   - **Multi-Zone Digital Controller**: Separate day/night living and bedroom zoning for tailored comfort and energy savings.
+   - Ducted outlets discreetly recessed into ceilings throughout living and bedroom spaces.
+
+3. **H3 Luxury Inclusions**:
+   - **Multi-Zone Smart Ducted System**: Premium smart digital touch controller with Wi-Fi / smartphone app control for remote climate management.
+
+4. **IP Investment Range**:
+   - Reverse-cycle ducted or multi-split AC included to maximize tenant retention and rental yield.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What inclusion ranges does Hudson Homes offer?",
+        "What ceiling heights come standard in H1 vs H2?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3D2. Ceiling Fans
+  if (query.includes("fan") || query.includes("ceiling fan")) {
+    return {
+      answer: `### Hudson Homes Ceiling Fans & Ventilation
+
+Hudson Homes includes modern, energy-efficient ceiling fans across our standard specifications:
+
+1. **Bedrooms**:
+   - Modern 48" or 52" slimline **ceiling fans** with wall-mounted multi-speed controls are installed in **all bedrooms** as standard.
+2. **Alfresco & Living Areas**:
+   - External-rated ceiling fans to outdoor alfresco entertaining areas are included in display specifications or selectable via Quote Builder V2.
+3. **Energy Efficiency & Comfort**:
+   - Complements ducted and split-system air conditioning to reduce active energy cooling loads under NatHERS 7-Star compliance.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What air conditioning is included in H1 vs H2?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3E. 50-Year Structural Warranty & Guarantees
+  if (query.includes("50 year") || query.includes("50-year") || query.includes("structural warranty") || query.includes("contract guarantee")) {
+    return {
+      answer: `### Hudson Homes Guarantees & 50-Year Structural Warranty
+
+Hudson Homes provides Australia's industry-leading builder protection for complete homeowner confidence:
+
+1. **50-Year Structural Warranty**:
+   - Covers core structural elements: engineered concrete slab and footings, structural load-bearing timber framing, structural lintels, and engineered roof trusses.
+   - Exceeds statutory state warranty obligations (typically 6-7 years) by more than 7x, demonstrating our build quality and engineering integrity.
+
+2. **Fixed Price Contract Guarantee**:
+   - Once your Hudson Building Contract is signed, your contract price is **100% genuine fixed price**.
+   - Zero price escalation clauses, zero hidden surprise fees during construction.
+
+3. **Guaranteed Timeframes**:
+   - Contractually promised construction completion timelines for predictable move-in dates and fast rental returns.
+
+4. **Maintenance & Defects Period**:
+   - Comprehensive statutory defects liability period after handover to attend to any post-settlement adjustments.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes include?",
+        "What soil classifications are covered up to H-class?",
+        "What is the difference between H1 Smart and H2 Designer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3F. Termite Protection & Management
+  if (query.includes("termite") || query.includes("termimesh") || query.includes("kordon") || query.includes("pest")) {
+    return {
+      answer: `### Hudson Homes Termite Protection System
+
+Hudson Homes protects every home with an engineered physical termite management system complying with AS 3660.1:
+
+1. **Physical Termite Barrier**:
+   - We utilize **Termimesh stainless steel woven mesh** or **Kordon moisture & termite barrier** to all slab penetrations, perimeter brick cavities, and cold joints.
+   - Physical barriers block subterranean termite ingress without toxic chemicals or recurring liquid soil poisons.
+
+2. **Long-Term Warranty**:
+   - Backed by manufacturer product warranties of up to **50 years** (50-year warranty, subject to standard annual homeowner inspections).
+
+3. **Durable Framing**:
+   - H2-treated structural timber framing treated against termite attack and rot for lifelong resilience.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is included in Hudson Homes fixed site costs?",
+        "Tell me about the 50-Year Structural Warranty",
+        "What foundation types are covered in site costs?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3G. Energy Efficiency (NatHERS 7-Star & BASIX) & Insulation
+  if (query.includes("nathers") || query.includes("7 star") || query.includes("7-star") || query.includes("energy") || query.includes("basix") || query.includes("thermal") || query.includes("insulation") || query.includes("batts")) {
+    return {
+      answer: `### Energy Efficiency, NatHERS 7-Star & BASIX Compliance
+
+Every Hudson Homes build complies fully with the latest National Construction Code (NCC 2022) **NatHERS 7-Star thermal efficiency standards** and NSW **BASIX energy & water benchmarks**:
+
+1. **High-Performance Insulation**:
+   - **Ceiling Insulation**: R4.0 to R5.0 glasswool ceiling batts over living areas.
+   - **External Wall Insulation**: R2.0 to R2.5 wall batts with reflective vapour-permeable thermal wall wrap.
+
+2. **Energy Efficient Glazing**:
+   - Strategically oriented low-E or argon-insulated window glazing to limit summer heat gain and retain winter warmth.
+
+3. **Hot Water & Lighting**:
+   - High-efficiency heat pump hot water system or instantaneous continuous-flow gas hot water.
+   - 100% low-energy LED downlights and lighting circuits throughout the home.
+
+4. **NSW BASIX Certificate**:
+   - Fixed site costs include full BASIX thermal, water (rainwater tank connection to toilets/laundry/garden), and energy compliance documentation.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes include?",
+        "What appliances are standard in H2 Designer?",
+        "What ceiling heights come standard?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3H. Soil Classification, Foundation & Piering
+  if (
+    query.includes("soil") ||
+    query.includes("pier") ||
+    query.includes("piers") ||
+    query.includes("h-class") ||
+    query.includes("h2 soil") ||
+    query.includes("class h2") ||
+    /\bclass\s*h[12]\b/i.test(query) ||
+    query.includes("foundation") ||
+    query.includes("borehole") ||
+    query.includes("m-class") ||
+    (query.includes("slab") && !query.includes("stage"))
+  ) {
+    return {
+      answer: `### Soil Classification, Slab Engineering & Piering
+
+Hudson Homes is an industry leader in transparent foundation engineering:
+
+1. **Fixed Site Costs Have You Covered Up to H-Class**:
+   - Our fixed price site costs have you fully **covered** for standard foundation classes: **Class M (moderately reactive)**, **Class H1 (highly reactive)**, and **Class H2 (very highly reactive clay)**!
+   - Many other builders only include Class M and charge thousands in surprise variations once geotechnical soil tests arrive. Fixed site costs cover H-class soil with zero surprise variations.
+
+2. **Concrete Piering & Piers Allowance Included**:
+   - Includes engineered reinforced concrete bored piers beneath the slab to transfer building loads down to solid bearing strata. All concrete piers specified by structural engineers are covered within our fixed site costs!
+
+3. **Geotechnical Testing**:
+   - Preliminary engineering includes soil borehole testing, site contour survey, and structural wind classification (N2/N3 standard).
+
+4. **Class E or Class P Sites**:
+   - For rare Class E (extremely reactive) or Class P (problem sites, uncontrolled fill, peat, or mine subsidence), site-specific structural footing designs and allowances are provided up front with zero hidden markups.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is included in Hudson fixed site costs?",
+        "Tell me about the 50-Year Structural Warranty",
+        "What is the difference between H1 Smart and H2 Designer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3H2. Site Safety, Fencing & Sediment Control
+  if (
+    query.includes("sediment") ||
+    query.includes("security fence") ||
+    query.includes("site fence") ||
+    query.includes("site security") ||
+    (query.includes("fencing") && query.includes("site"))
+  ) {
+    return {
+      answer: `### Site Security Fencing & Environmental Sediment Control
+
+Hudson Homes includes comprehensive site safety and environmental management in our fixed site costs:
+
+1. **Site Security Fencing**:
+   - Temporary 1.8m steel mesh security fencing erected around the site perimeter during construction to ensure safety and security compliance.
+2. **Sediment & Erosion Control**:
+   - Council-compliant sediment fencing, silt barriers, and gravel drive pad installed at the site entry to prevent sediment run-off into stormwater.
+3. **Statutory Compliance**:
+   - Complies with local council environmental protection standards and WorkCover/SafeWork OHS site regulations.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is included in Hudson Homes fixed site costs?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3H3. Maintenance & Defects Liability Period After Handover
+  if (
+    query.includes("maintenance") ||
+    query.includes("defect") ||
+    query.includes("defects") ||
+    query.includes("liability period") ||
+    query.includes("after handover") ||
+    query.includes("post-handover")
+  ) {
+    return {
+      answer: `### Hudson Homes Handover Maintenance & Statutory Defects Period
+
+Hudson Homes provides ongoing quality assurance and defect rectification post-handover:
+
+1. **Defects Liability & Maintenance Period**:
+   - Following Practical Completion and key handover, Hudson Homes provides a standard **defects liability and maintenance period** (typically 13 weeks / 90 days to 6 months depending on state contract requirements).
+   - Any minor cosmetic settlements, timber shrinkage adjustments, door alignments, or fixture issues reported on the post-handover checklist are inspected and rectified by our dedicated customer care team.
+
+2. **Long-Term Guarantees**:
+   - Protected by the **Hudson Homes 50-Year Structural Warranty** covering slabs, footings, and structural framing.
+   - Statutory home building compensation / QBCC home warranty insurance applies as required by law.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Tell me about the 50-Year Structural Warranty",
+        "What are the HIA contract progress payment stages?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3H4. Hudson Invest IP (Investment Property) Range Turnkey Inclusions
+  if (
+    query.includes("hudson invest") ||
+    query.includes("ip package") ||
+    query.includes("ip range") ||
+    query.includes("investor package") ||
+    (query.includes("ip") && (query.includes("turnkey") || query.includes("turn-key") || query.includes("included") || query.includes("landscaping") || query.includes("fencing") || query.includes("blinds")))
+  ) {
+    return {
+      answer: `### Hudson Homes IP (Investment Property) Range — "Hudson Invest" Turn-Key Inclusions
+
+The **IP Investment Range** is our purpose-built, 100% turn-key solution designed for property investors:
+
+1. **Complete Turnkey Inclusions**:
+   - **Internal Finishes**: Vertical or roller **blinds** to all clear glazed windows, aluminum **flyscreens** to all openable windows and sliding doors, quality carpet to bedrooms, and durable ceramic floor tiles to living areas.
+   - **External & Landscaping**: Complete turn-key **landscaping** including front and rear turf, garden beds with drought-tolerant planting, exposed aggregate concrete driveway and path, 1.8m boundary timber paling **fencing** with side gate, folding clothesline, and letterbox.
+   - **Appliances & Climate**: Reverse-cycle split-system or ducted air conditioning, Westinghouse stainless steel appliances with dishwasher, and ceiling fans to bedrooms.
+   - **Kitchen & Bathrooms**: 20mm engineered stone benchtops, modern laminate cabinetry, and quality chrome tapware.
+
+2. **Investor Benefits**:
+   - **Two-Part Contract**: Stamp duty payable on land only, saving investors $10,000 to $25,000+.
+   - **Immediate Rental Readiness**: Ready for tenants immediately upon handover with zero out-of-pocket setup costs.
+   - **Depreciation**: Maximized tax depreciation deductions via comprehensive ATO-compliant depreciation schedules.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "How does the two-part contract save money on stamp duty?",
+        "What tax depreciation benefits do brand new Hudson investment homes offer?",
+        "What dual occupancy designs does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3H5. Infrastructure Charges & Council Headworks (QLD & NSW)
+  if (
+    query.includes("infrastructure charge") ||
+    query.includes("headworks") ||
+    query.includes("headwork") ||
+    (query.includes("charge") && (query.includes("duplex") || query.includes("auxiliary") || query.includes("queensland") || query.includes("qld")))
+  ) {
+    return {
+      answer: `### Infrastructure Charges & Council Headworks in Queensland & NSW
+
+When building a dual occupancy or duplex, local councils and statutory authorities levy infrastructure charges (headworks) for the additional dwelling entitlement:
+
+1. **Queensland Council & PDA Rates**:
+   - In Queensland, infrastructure charges for a second duplex dwelling typically range between **$25,000 to $33,000+** per additional dwelling:
+     - **EDQ Priority Development Areas (Flagstone / Ripley / Yarrabilba)**: Approx. **$28,500 – $29,500** per additional dwelling under EDQ infrastructure charging schedules.
+     - **Logan City Council**: Approx. **$31,000** per additional dwelling.
+     - **Ipswich City Council**: Approx. **$30,000** per additional dwelling.
+     - **City of Moreton Bay**: Approx. **$31,500** per additional dwelling.
+     - **Brisbane City Council**: Approx. **$33,000** per additional dwelling.
+
+2. **$0 Auxiliary Unit Exemption (Massive Investor Advantage)**:
+   - In most Queensland councils (such as Logan, Ipswich, and Moreton Bay), an **Auxiliary Unit** (a secondary living dwelling under the main roofline, maximum 65m²–70m² GFA) is **EXEMPT ($0 charges)** from council infrastructure contributions! This saves investors ~$30,000 in upfront costs compared to a full duplex.
+
+3. **New South Wales Section 7.11 / 7.12**:
+   - In NSW, council contributions under Section 7.11 or 7.12 typically range between **$20,000 to $35,000** depending on the LGA (e.g. Camden, Blacktown, Central Coast).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between a duplex and a dual-key auxiliary dwelling?",
+        "What are the rules for building a duplex in Greater Flagstone PDA?",
+        "Tell me about the Wisteria 33 dual living design",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3I. Landscape Package (LP)
+  if (
+    (query.includes("landscape") ||
+      query.includes("turf") ||
+      query.includes("clothesline") ||
+      query.includes("letterbox") ||
+      query.includes("turnkey package") ||
+      (query.includes("fencing") && !query.includes("site") && !query.includes("security"))) &&
+    !query.includes("ip") &&
+    !query.includes("invest")
+  ) {
+    return {
+      answer: `### Hudson Homes Turn-Key Landscape Package (LP)
+
+The **LP Landscape Package** can be bundled with any H1 Smart, H2 Designer, or H3 Luxury build to deliver 100% completed external finishes:
+
+#### 6 Complete External Components:
+1. **Perimeter Fencing**: 1.8m high treated pine timber paling fencing along boundaries with matching pedestrian side return gate.
+2. **Turfing**: Premium turf (Sir Walter DNA Certified Buffalo or Couch) laid to entire front and rear yards.
+3. **Garden Bed & Planting**: Front yard landscaped garden bed featuring timber garden edging, organic mulch, and drought-tolerant shrub planting.
+4. **Concrete Driveway**: Exposed aggregate concrete driveway, matching council crossover, and front entry path (up to 55m²).
+5. **Designer Letterbox**: Powder-coated aluminium or masonry pillar letterbox with street numbering and lockable mail compartment.
+6. **Folding Clothesline**: Austral / Hills folding frame outdoor clothesline installed with dedicated concrete slab pad.
+
+> [!NOTE]
+> Landscape packages are scaled transparently by lot size (up to 300m² - 900m²) and appear in the Price Breakdown Schedule!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between H1 Smart and H2 Designer?",
+        "Tell me about the IP Investment Range",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3J. Two-Part Contract Structure (Stamp Duty Savings)
+  if (query.includes("two part") || query.includes("two-part") || query.includes("split contract") || (query.includes("stamp duty") && (query.includes("save") || query.includes("saving") || query.includes("investor") || query.includes("how")))) {
+    return {
+      answer: `### Two-Part Contract Structure & Stamp Duty Savings
+
+Hudson Homes House & Land packages operate under a streamlined **two-part contract structure**:
+
+1. **How It Works**:
+   - **Contract 1 (Land)**: Direct contract with the land developer for the purchase of the registered allotment.
+   - **Contract 2 (Build)**: Genuine fixed-price construction contract with Hudson Homes for the build.
+
+2. **Major Stamp Duty Savings**:
+   - When buying an established home or complete spec turn-key home, stamp duty is charged on the **total combined value** (e.g. $800,000).
+   - Under Hudson's two-part structure, stamp duty is payable **ONLY on the raw land component** (e.g. $350,000), saving buyers and investors **$10,000 to $25,000+** in government transfer duties!
+
+3. **First-Home Buyer Grants**:
+   - Allows eligible first-home buyers to qualify for stamp duty concessions or full exemptions under state thresholds ($30k QLD / $10k NSW).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the FHB First Home Buyer Range?",
+        "Tell me about the IP Investment Range",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3K. Progress Payment Schedule (HIA Contract Milestones & Percentages)
+  if (query.includes("progress payment") || query.includes("payment stage") || query.includes("drawdown") || query.includes("claim stage") || query.includes("percentage") || query.includes("percent") || query.includes("base stage") || query.includes("lock-up") || query.includes("lock up") || query.includes("practical completion")) {
+    return {
+      answer: `### Hudson Homes HIA Construction Progress Payment Schedule
+
+Hudson Homes follows standard HIA (Housing Industry Association) and Master Builders milestone payment stages:
+
+1. **Deposit / Preliminary Stage (5%)**:
+   - Initial deposit upon tender signing and preliminary work (soil test, survey, architectural drafting, council DA/CDC submission).
+
+2. **Base Stage (15%)**:
+   - **15% payable at Base stage**: Earthworks completed, underground plumbing/drainage laid, vapour barrier and steel reinforcement placed, and concrete slab poured and inspected.
+
+3. **Frame Stage (20%)**:
+   - Wall frames, structural posts, and engineered roof trusses fully erected, tied down, and certified by a structural certifier.
+
+4. **Enclosed / Lock-Up Stage (25%)**:
+   - **25% payable at Lock-Up stage**: External brickwork/cladding installed, roof tiles or Colorbond sheeted, windows and external doors installed and locked.
+
+5. **Fixing Stage (20%)**:
+   - Plasterboard wall and ceiling linings, skirting, architraves, waterproofing, wet area tiling, kitchen cabinetry, and bathroom vanities installed.
+
+6. **Practical Completion / Final Handover (15%)**:
+   - **15% payable at Practical Completion**: Painting, plumbing & electrical fit-off, appliances installed, final quality QA inspection, occupancy certificate issued, and keys handed over!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Tell me about the 50-Year Structural Warranty",
+        "What fixed site costs does Hudson Homes include?",
+        "How does the Quote Builder work?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3L. Knock-Down Rebuild (KDRB)
+  if (query.includes("kdrb") || query.includes("knock down") || query.includes("knockdown") || query.includes("demolition")) {
+    return {
+      answer: `### Knock-Down Rebuild (KDRB) Specialists
+
+Hudson Homes is a recognized Knock-Down Rebuild specialist across Sydney Metro, Central Coast, Hunter, and South East Queensland:
+
+1. **Why Choose KDRB with Hudson**:
+   - Stay in the suburb, street, and school catchment you love while upgrading to an expansive, 7-Star energy-rated luxury home.
+   - Often more cost-effective per square metre than major renovations or buying an expensive established home (with heavy stamp duty).
+
+2. **Complete End-to-End Service**:
+   - **Site Feasibility & Topography**: Contour survey, boundary check, and hydraulic stormwater discharge evaluation.
+   - **Demolition Advisory**: Recommendations and coordination with licensed demolition contractors.
+   - **Fast-Track CDC Approvals**: We design to comply with NSW Housing SEPP (Complying Development Certificate), avoiding council DA delays.
+   - **Fixed Price Site Costs**: Piering, foundation engineering, and council fees all locked in upfront.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between CDC and DA in NSW?",
+        "What inclusion ranges does Hudson Homes offer?",
+        "Tell me about H3 Luxury inclusions",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3M. NCC 2022 Livable Housing Design Standard
+  if (query.includes("livable") || query.includes("ncc 2022") || query.includes("accessibility") || query.includes("step free") || query.includes("step-free")) {
+    return {
+      answer: `### NCC 2022 Livable Housing Design Standard
+
+Every Hudson home meets the mandatory National Construction Code (NCC 2022) **Silver-level Livable Housing provisions**:
+
+1. **Accessible Siting & Entrance**:
+   - At least one step-free continuous path of travel from street or garage through to the dwelling entrance.
+   - Stepless threshold doorway at the primary entrance for smooth pram and mobility access.
+
+2. **Wider Internal Doorways & Hallways**:
+   - Minimum 820mm clear opening width for all ground-floor habitable doors and corridors.
+
+3. **Ground-Floor Bathroom Accessibility**:
+   - Hobless / level flush threshold shower stall on ground floor.
+   - Reinforced structural bathroom and toilet walls with timber blocking installed behind walls to permit future grab rail installation.
+   - Generous clear circulation space around sanitary fixtures.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What energy efficiency star rating do Hudson homes achieve?",
+        "What ceiling heights come standard in H1 vs H2?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3N. Bushfire (BAL) & Acoustic Overlays
+  if (query.includes("bal") || query.includes("bushfire") || query.includes("acoustic") || query.includes("noise") || query.includes("sound")) {
+    return {
+      answer: `### Bushfire Attack Levels (BAL) & Acoustic Overlays
+
+Hudson Homes has extensive experience constructing in bushfire and acoustic hazard overlays across NSW and QLD:
+
+1. **Bushfire Attack Level (BAL) Compliance**:
+   - Engineered for all ratings: **BAL-LOW, BAL-12.5, BAL-19, BAL-29, and BAL-40**.
+   - Specifications include: corrosion-resistant metal mesh ember guards (≤2mm aperture) to openable windows, weep holes, and roof vents; toughened safety glass; fire-retardant seals to garage sectional doors; and non-combustible external wall linings and eaves.
+
+2. **Acoustic Noise Overlays**:
+   - For properties near arterial roads, freight corridors, or rail lines (Category 1, 2, 3 acoustic overlays), Hudson incorporates certified acoustic glazing (6.38mm / 10.38mm laminated glass), solid core external doors with acoustic seals, and SoundScreen acoustic wall batts.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes include?",
+        "What soil classifications are covered up to H-class?",
+        "What is the difference between CDC and DA in NSW?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3O. First Home Owner Grants & Stamp Duty Concessions
+  if (query.includes("fhog") || query.includes("grant") || query.includes("30,000") || query.includes("10,000") || query.includes("first home grant") || (query.includes("stamp duty") && (query.includes("exempt") || query.includes("first home")))) {
+    return {
+      answer: `### First Home Owner Grants (FHOG) & Stamp Duty Exemption Guide
+
+Hudson Homes packages are designed and priced to maximize state first-home buyer subsidies:
+
+1. **Queensland (QLD)**:
+   - **$30,000 First Home Owner Grant**: Available to eligible first-time buyers purchasing or building a brand-new home valued up to $750,000.
+   - **Full Stamp Duty Exemption**: Zero transfer duty payable on newly built homes up to $700,000 (with concessional rates up to $800,000).
+
+2. **New South Wales (NSW)**:
+   - **$10,000 First Home Owner Grant**: For newly built homes valued up to $750,000 (or up to $600,000 for house-only contracts).
+   - **First Home Buyers Assistance Scheme (FHBAS)**: Full stamp duty exemption on new homes up to **$800,000** (concessions up to $1,000,000).
+
+> [!TIP]
+> Combined with Hudson's genuine Fixed Price Contract Guarantee, banks and lenders provide fast, hassle-free formal finance approval!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Tell me about the FHB First Home Buyer Range",
+        "What is the two-part contract structure?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3P. Roofing & Roof Coverings
+  if (query.includes("roof") || query.includes("roofing") || query.includes("colorbond") || query.includes("tile")) {
+    return {
+      answer: `### Hudson Homes Roofing Specifications
+
+Hudson Homes provides premium roofing options engineered for Australian climates:
+
+1. **Colorbond Steel Roofing**:
+   - Genuine BlueScope Colorbond steel roof sheeting with reflective Anticon foil blanket insulation.
+   - Available in the full Colorbond designer colour palette.
+   - High thermal reflection and superior durability in hail, storm, and bushfire zones.
+
+2. **Boral Concrete Roof Tiles**:
+   - Modern profile Boral designer concrete roof tiles with heavy-duty sarking underneath.
+   - Classic aesthetic with great thermal mass and acoustic dampening.
+
+3. **Included Across Ranges**:
+   - Colorbond steel gutters, fascia, and downpipes are included as standard across all H1 Smart, H2 Designer, and H3 Luxury homes.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What ceiling heights come standard in H1 vs H2?",
+        "What energy efficiency star rating do Hudson homes achieve?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3Q. Minimum Frontage for Double Garage
+  if (query.includes("garage") && (query.includes("frontage") || query.includes("double garage") || query.includes("minimum frontage"))) {
+    return {
+      answer: `### Minimum Lot Frontage Requirements for Double Garage Homes
+
+1. **Standard Double Garage Homes**:
+   - The typical minimum lot frontage required for a double garage home is **12.5m**.
+   - With standard 1.0m LHS and 1.5m RHS setbacks, a 12.5m lot provides a 10.0m building envelope, which comfortably accommodates a standard double garage (approx. 5.5m wide) plus entry hallway and living/bedroom frontage.
+
+2. **Zero-Lot / Built-to-Boundary (BTB)**:
+   - On narrow lots (**11.5m to 12.0m wide**), double garage designs can fit if the estate allows a zero-lot boundary wall on the garage side.
+
+3. **Narrow Lots (10m to 10.5m Wide)**:
+   - Lots under 12m generally require a single garage design (such as the **Hazel 14**) or a specialized tandem double-storey configuration.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What designs fit on a 12.5m wide lot?",
+        "What designs fit on a 10m wide lot?",
+        "Tell me about the Hazel 14 design",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3R. Double Storey on 300sqm Block
+  if ((query.includes("300sqm") || query.includes("300m2") || query.includes("300 sqm") || query.includes("small lot")) && (query.includes("double storey") || query.includes("double story") || query.includes("fit"))) {
+    return {
+      answer: `### Double Storey Homes on 300m² Blocks
+
+Yes! You can fit a spacious double storey home on a 300m² block:
+
+1. **Why Double Storey is Ideal for 300m² Lots**:
+   - Building vertically maximizes your floor space while preserving compliant private open space and meeting maximum site coverage percentages (typically 50% to 60%).
+
+2. **Recommended Hudson Double Storey Designs for 300m² Blocks**:
+   - **Jasper 26** (244.6 m²): 4 Bed, 2.5 Bath, 2 Car Garage — designed for compact 10m-12.5m frontages.
+   - **Azure 25** (232.8 m²): 4 Bed, 2.5 Bath, 2 Car Garage — high-efficiency small-lot layout.
+   - **Cedar 26** (242.1 m²): 4 Bed, 2.5 Bath, 2 Car Garage — luxury family living on suburban blocks.
+
+3. **Compliance Features**:
+   - Fits standard 4.5m front setbacks and 2.0m rear setbacks with zero council relaxations required!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the dimensions of the Jasper 26?",
+        "What is the size and frontage for Azure 25?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3S. Built to Boundary (BTB) & Zero-Lot Setbacks
+  if (query.includes("btb") || query.includes("built to boundary") || query.includes("zero lot") || query.includes("zero-lot")) {
+    return {
+      answer: `### Built to Boundary (BTB) & Zero-Lot Setbacks Explained
+
+Built to Boundary (BTB), also known as zero-lot alignment, is a smart architectural planning tool for narrow blocks:
+
+1. **How It Works**:
+   - One side wall of the garage is built directly on or within **0mm to 200mm** of the side property boundary.
+   - The opposite side boundary retains standard setback clearances (typically **1.0m to 1.5m**) for pedestrian access and drainage.
+
+2. **Key Advantages**:
+   - Eliminates wasted narrow side corridors and adds up to **1.0m to 1.5m of extra internal living width** to your home.
+   - Enables full double garage designs to fit onto 11.5m to 12.5m lots.
+
+3. **Estate Guidelines & Height Limits**:
+   - Maximum BTB wall height is typically 3.5m, with maximum wall length between 11m and 15m.
+   - Supported natively in Hudson Homes Siting Engine and Quote Builder!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What designs fit on a 12.5m wide lot?",
+        "What are the typical front garage setbacks in residential estates?",
+        "How does the Quote Builder work?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3T. Front Garage Setbacks
+  if ((query.includes("garage") && query.includes("setback")) || query.includes("front garage")) {
+    return {
+      answer: `### Standard Front Garage Setback Requirements
+
+Front setbacks are governed by local council planning schemes and developer estate design guidelines:
+
+1. **Standard Front Garage Setback (5.0m to 5.5m)**:
+   - The garage door must be set back **5.0m to 5.5m** from the front street boundary.
+   - This ensures that a family vehicle parked in the driveway does not overhang the council footpath or road reserve.
+
+2. **Articulated Porch / Living Setback (4.0m to 4.5m)**:
+   - Front entry porches, verandas, and non-garage living walls can articulate forward to **4.0m or 4.5m**, creating visual streetscape depth.
+
+3. **Secondary Street Setbacks (Corner Lots)**:
+   - On corner blocks, secondary street setbacks are typically **2.0m to 3.0m**.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the minimum frontage required for a double garage home?",
+        "How do zero-lot built to boundary (BTB) setbacks work?",
+        "What designs fit on a 14m wide lot?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3U. Custom Plan Modifications & Modified Plan Engine
+  if (query.includes("custom") || query.includes("modification") || query.includes("modify") || query.includes("change plan") || query.includes("custom variations")) {
+    return {
+      answer: `### Custom Plan Modifications & Modified Plan Engine
+
+Yes! Hudson Homes actively supports custom plan variations through our industry-leading **Quote Builder V2 Modified Plan Engine**:
+
+1. **Architectural Customization**:
+   - Clients can modify standard floorplans to suit their block, lifestyle, and orientation:
+     - **Alfresco Extensions**: Enlarge outdoor entertainment zones.
+     - **Garage Extensions**: Add storage workshops or widen vehicle bays.
+     - **Window & Door Upgrades**: Add panoramic kitchen splashback windows (PW 06.30), commercial sliding stacker doors, or extra bedroom windows.
+     - **Internal Layout Changes**: Add a butler's pantry, alter ensuite layouts, or relocate laundry rooms.
+
+2. **Automated Presight Code & Visual Diff Parsing**:
+   - Upload any modified floorplan sketch or CAD PDF, and the AI automatically detects wall moves and structural additions, pricing them instantly against Hudson's official rate schedule!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "How does the Quote Builder Modified Plan Engine work?",
+        "What inclusion ranges does Hudson Homes offer?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3V. Dual Occupancy Models & Designs
+  if (query.includes("dual occupancy designs") || query.includes("duplex designs") || (query.includes("dual") && query.includes("designs"))) {
+    return {
+      answer: `### Hudson Homes Dual-Occupancy & Dual-Living Designs
+
+Hudson Homes is a leading specialist in dual-occupancy and high-yield multi-dwelling builds across QLD and NSW:
+
+1. **Wisteria Range (33, 34, 36, 40)**:
+   - Our flagship side-by-side duplex design featuring independent 3 Bed + 2 Bed or 4 Bed + 2 Bed configurations under one roofline.
+   - Separate entrances, private courtyards, and independent power/water metering.
+
+2. **Gemini 28**:
+   - Compact dual-key configuration engineered specifically for suburban investor yield (3 Bed primary + 1 Bed auxiliary under one continuous roofline).
+
+3. **Amber 21 Dual Suite**:
+   - Single-storey auxiliary living option compliant with Logan and Ipswich secondary dwelling thresholds.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Tell me about the Wisteria 33 dual living design",
+        "What are the rules for building a duplex in Greater Flagstone PDA?",
+        "How does the two-part contract save money on stamp duty?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // 4. BROAD INCLUSION & PRODUCT RANGE HANDLERS
+  // -------------------------------------------------------------------------
+
+  // 4A. Specific H3 Luxury Tier Query
+  if (query.includes("h3") || query.includes("luxury")) {
+    return {
+      answer: `### Hudson Homes H3 Luxury Inclusion Package
+
+The **H3 Luxury Package** is Hudson Homes' ultimate architectural specification for clients demanding the finest craftsmanship and finishes:
+
+#### Key Architectural Inclusions:
+- **Architectural Awning Windows & Feature Glazing**: Upgraded awning windows and highlight feature glazing included as standard (**\$0 variation**).
+- **40mm Stone Benchtops**: 40mm engineered stone benchtops with pencil round or mitred edges to kitchen island and surfaces.
+- **Double Undermount Sink**: Double bowl undermount stainless steel kitchen sink with designer pull-out gooseneck tapware.
+- **Freestanding Bathtub**: Luxury acrylic freestanding bath in main bathroom.
+- **Full-Height Wet Area Tiling**: Premium porcelain tiles laid floor-to-ceiling in ensuite and main bathroom.
+- **Grand Pivot Entry Door**: 1020mm or 1200mm wide designer pivot entrance door with architectural pull handle and smart digital keyless entry.
+- **Ceiling Heights**: Raised 2590mm ceilings throughout (with optional 2740mm ground floor upgrade).
+- **Zoned Ducted Climate Control**: Multi-zone reverse-cycle ducted air conditioning with digital smart controllers.
+- **Premium Flooring**: Large-format 600x600mm porcelain tiles or hybrid timber flooring + plush carpet to bedrooms.
+
+> [!NOTE]
+> The H3 tier is selectable directly inside Quote Builder V2 and automatically flows through to sales quotes and package flyers.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between H1 Smart and H2 Designer?",
+        "What inclusion ranges does Hudson Homes offer?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4B. Specific IP (Investment Property / Investor Range) Query
   if (
     query.includes("ip ") ||
     query.includes("investment") ||
@@ -416,13 +1401,12 @@ The home is delivered complete and tenant-ready on settlement day with zero addi
     };
   }
 
-  // 3. Specific FHB (First Home Buyer Range) Query
+  // 4C. Specific FHB (First Home Buyer Range) Query
   if (
     query.includes("fhb") ||
     query.includes("first home") ||
     query.includes("first-home") ||
-    query.includes("start smart") ||
-    query.includes("fhog")
+    query.includes("start smart")
   ) {
     return {
       answer: `### Hudson Homes FHB (First Home Buyer) Range
@@ -456,8 +1440,7 @@ The **FHB Range** is tailored specifically for first-time purchasers entering th
     };
   }
 
-  // 4. General Inclusion Ranges Overview (Answers "what inclusion ranges does Hudson Homes offer")
-  // Matches queries containing "range", "ranges", "inclusion", "inclusions", "offer", "package", "packages"
+  // 4D. General Inclusion Ranges Overview
   if (
     query.includes("range") ||
     query.includes("ranges") ||
@@ -537,46 +1520,12 @@ Can be bundled with any H1, H2, or H3 build to add complete external finishes (d
     };
   }
 
-  // 5. Specific H3 Luxury Tier Query
-  if (query.includes("h3") || query.includes("luxury")) {
-    return {
-      answer: `### Hudson Homes H3 Luxury Inclusion Package
-
-The **H3 Luxury Package** is Hudson Homes' ultimate architectural specification for clients demanding the finest craftsmanship and finishes:
-
-#### Key Architectural Inclusions:
-- **Architectural Awning Windows & Feature Glazing**: Upgraded awning windows and highlight feature glazing included as standard (**\$0 variation**).
-- **40mm Stone Benchtops**: 40mm engineered stone benchtops with pencil round or mitred edges to kitchen island and surfaces.
-- **Double Undermount Sink**: Double bowl undermount stainless steel kitchen sink with designer pull-out gooseneck tapware.
-- **Freestanding Bathtub**: Luxury acrylic freestanding bath in main bathroom.
-- **Full-Height Wet Area Tiling**: Premium porcelain tiles laid floor-to-ceiling in ensuite and main bathroom.
-- **Grand Pivot Entry Door**: 1020mm or 1200mm wide designer pivot entrance door with architectural pull handle and smart digital keyless entry.
-- **Ceiling Heights**: Raised 2590mm ceilings throughout (with optional 2740mm ground floor upgrade).
-- **Zoned Ducted Climate Control**: Multi-zone reverse-cycle ducted air conditioning with digital smart controllers.
-- **Premium Flooring**: Large-format 600x600mm porcelain tiles or hybrid timber flooring + plush carpet to bedrooms.
-
-> [!NOTE]
-> The H3 tier is selectable directly inside Quote Builder V2 and automatically flows through to sales quotes and package flyers.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What is the difference between H1 Smart and H2 Designer?",
-        "What inclusion ranges does Hudson Homes offer?",
-        "What fixed site costs does Hudson Homes cover?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 6. Site Costs & Guarantees
+  // 4E. General Site Costs & Guarantees
   if (
     query.includes("site cost") ||
     query.includes("site costs") ||
     query.includes("fixed price") ||
     query.includes("warranty") ||
-    query.includes("slab") ||
-    query.includes("piering") ||
-    query.includes("basix") ||
     query.includes("guarantee")
   ) {
     return {
@@ -607,8 +1556,11 @@ Hudson Homes is renowned across NSW and QLD for its transparent, fixed-price pea
     };
   }
 
-  // 7. Quote Builder V2 & Modified Plan Engine
-  // Strictly matched on quoting / modified plan engine keywords
+  // -------------------------------------------------------------------------
+  // 5. HUDSON DIGITAL OS PLATFORM TOOLS
+  // -------------------------------------------------------------------------
+
+  // 5A. Quote Builder V2 & Modified Plan Engine
   if (
     query.includes("quote builder") ||
     query.includes("modified plan") ||
@@ -641,7 +1593,7 @@ The **Hudson Quote Builder V2** (\`/quote-builder\`) delivers an automated, 5-st
     };
   }
 
-  // 8. Flyer Builder & Package Studio
+  // 5B. Flyer Builder & Package Studio
   if (
     query.includes("flyer") ||
     query.includes("brochure") ||
@@ -675,7 +1627,7 @@ The **Flyer Builder** is a real-time WYSIWYG A4 brochure generator engineered fo
     };
   }
 
-  // 9. Database & Lot Search
+  // 5C. Database & Lot Search
   if (
     query.includes("database") ||
     query.includes("land inventory") ||
@@ -702,7 +1654,7 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
     };
   }
 
-  // 10. Display Centres & Team
+  // 5D. Display Centres & Team
   if (
     query.includes("steve") ||
     query.includes("warnervale") ||
@@ -738,7 +1690,9 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
     };
   }
 
-  // 11. Universal Planning, Duplex, Zoning & Siting Engine (All QLD & NSW Jurisdictions)
+  // -------------------------------------------------------------------------
+  // 6. UNIVERSAL PLANNING, DUPLEX, ZONING & SITING ENGINE (All QLD & NSW Jurisdictions)
+  // -------------------------------------------------------------------------
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
   const isAddressOrPropertyQuery = /paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl)\b/i.test(query);
 
@@ -758,8 +1712,9 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
     };
   }
 
-  // 12. Default Fallback
-  // If the query is a simple greeting or empty:
+  // -------------------------------------------------------------------------
+  // 7. DEFAULT GREETING & FALLBACK
+  // -------------------------------------------------------------------------
   if (/^(?:hi|hello|hey|help|welcome|start|menu|options|g'day)$/i.test(query) || !query) {
     return {
       answer: `### Welcome to Hudson Homes Copilot
@@ -796,7 +1751,7 @@ I can assist you with:
     };
   }
 
-  // Specific question that could not be verified with 100% confidence:
+  // Specific question fallback
   return {
     answer: `### Hudson Homes Copilot
 
