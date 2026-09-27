@@ -3,6 +3,59 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const APP_BUILD_TIME = Date.now();
+
+function versionPlugin() {
+  const version = "2026.1";
+  const getPayload = () =>
+    JSON.stringify(
+      {
+        buildTime: APP_BUILD_TIME,
+        version,
+        builtAt: new Date(APP_BUILD_TIME).toISOString(),
+      },
+      null,
+      2
+    );
+
+  return {
+    name: "hudson-version-plugin",
+    buildStart() {
+      try {
+        const publicDir = path.resolve(__dirname, "public");
+        if (!fs.existsSync(publicDir)) {
+          fs.mkdirSync(publicDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(publicDir, "version.json"), getPayload());
+      } catch (err) {
+        console.warn("Could not write public/version.json:", err);
+      }
+    },
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: getPayload(),
+      });
+    },
+    configureServer(server: any) {
+      server.middlewares.use((req: any, res: any, next: any) => {
+        if (req.url && req.url.startsWith("/version.json")) {
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          return res.end(getPayload());
+        }
+        next();
+      });
+    },
+  };
+}
 
 function apiDevPlugin() {
   return {
@@ -341,12 +394,16 @@ function apiDevPlugin() {
 }
 
 export default defineConfig({
+  define: {
+    __APP_BUILD_TIME__: APP_BUILD_TIME,
+  },
   plugins: [
     TanStackRouterVite(),
     tailwindcss(),
     react(),
     tsconfigPaths(),
     apiDevPlugin(),
+    versionPlugin(),
   ],
   build: {
     outDir: "dist",

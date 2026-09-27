@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
+import { UpdateNotificationPrompt } from "@/components/common/UpdateNotificationPrompt";
 
 function NotFoundComponent() {
   return (
@@ -112,6 +113,7 @@ function RootComponent() {
         {/* Required: nested routes render here */}
         <Outlet />
         <Toaster />
+        <UpdateNotificationPrompt />
       </ThemeProvider>
     </QueryClientProvider>
   );
