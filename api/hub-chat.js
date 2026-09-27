@@ -42,7 +42,7 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 #### 1. H1: Smart Inclusions (Smart Value Tier / Move-In Ready Essential)
 - Positioning: Affordable, functional, and durable move-in ready solution.
 - Ceilings: Nominal 2440mm ceiling height throughout.
-- Kitchen: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, Westinghouse stainless steel appliances (600mm oven, cooktop, rangehood, dishwasher provision), stainless steel drop-in sink.
+- Kitchen: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, Haier 600mm stainless steel electric appliances (600mm multi-function oven, cooktop, rangehood, dishwasher included), stainless steel drop-in sink.
 - Climate & Living: Reverse-cycle split system air conditioning to main living zone, ceiling fans to all bedrooms, quality ceramic floor tiles to living/kitchen, quality carpet with underlay to bedrooms.
 - Bathrooms: Floating-style vanities, polished edge vanity mirrors, semi-frameless pivot shower screens, chrome tapware.
 - Structure & Foundation: Engineered reinforced concrete slab up to H1/H2 classification included, Termimesh or Kordon physical termite barrier (50-year warranty), Colorbond steel roof or Boral concrete tiles, sectional overhead garage door with 2 remotes.
@@ -51,7 +51,7 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 #### 2. H2: Designer Inclusions (Contemporary Luxury & Style — Display Home Standard)
 - Positioning: Elevated luxury, contemporary styling, and display-home elegance.
 - Ceilings: Raised 2590mm high ceilings (with optional 2740mm ground floor upgrade) for superior vertical light and volume.
-- Kitchen: 20mm engineered stone benchtops with pencil round profile to kitchen, bathrooms, and laundry; premium Westinghouse 900mm European appliance suite (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven), soft-close drawers and cupboard hinges, water point to fridge cavity, designer gooseneck sink mixer.
+- Kitchen: 20mm engineered stone benchtops with pencil round profile to kitchen, bathrooms, and laundry; premium Fisher & Paykel 900mm luxury appliance suite (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven, and fully installed dishwasher), soft-close drawers and cupboard hinges, water point to fridge cavity, designer gooseneck sink mixer.
 - Climate & Living: Fully installed ActronAir or Daikin ducted reverse-cycle air conditioning with multi-zone digital controller.
 - Electrical & Outdoor: Premium LED downlight package to living zones, porch, and alfresco; tiled outdoor alfresco and front porch, exposed aggregate driveway.
 - Bathrooms: Full-height floor-to-ceiling porcelain wall tiles to ensuite and main bathroom, tiled recessed shower niches with polished chrome trim, designer tapware in matte black, brushed nickel, or chrome.
@@ -59,11 +59,11 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 
 #### 3. H3: Luxury Inclusions (Ultimate Architectural Masterpiece)
 - Positioning: The pinnacle architectural tier for buyers who want "it all" with bespoke indulgence and zero compromise.
-- Kitchen: 40mm edge engineered stone benchtops with pencil round or mitred edges, double bowl undermount stainless steel sinks with designer pull-out mixer, scullery/butler's pantry fit-out, premium European appliances.
+- Kitchen: 40mm edge engineered stone benchtops with pencil round or mitred edges, double bowl undermount stainless steel sinks with designer pull-out mixer, scullery/butler's pantry fit-out, premium Fisher & Paykel 900mm luxury appliance suite plus Fisher & Paykel built-in microwave and trim kit.
 - Architectural Glazing: Architectural awning windows & highlight feature glazing included as standard ($0 variation).
 - Bathrooms: Freestanding luxury acrylic bathtub in main bathroom, full-height porcelain wall tiling throughout wet areas, stone vanity benchtops, and niche LED accent lighting.
 - Entrance & Doors: Grand 1020mm or 1200mm wide pivot designer entrance door with architectural pull handle and smart digital keyless entry lock.
-- Climate & Flooring: Multi-zone ducted reverse-cycle air conditioning with smart digital controller; large-format 600x600mm porcelain tiles or hybrid timber flooring + deluxe plush carpet.
+- Climate & Flooring: Fully Zoned Ducted Air-Conditioning with MyAir (MyAir5) Touch Screen Controller; large-format 600x600mm porcelain tiles or hybrid timber flooring + deluxe plush carpet.
 - Target: Discerning luxury buyers, Knock-Down Rebuilds (KDRB), and prestige master builds.
 
 #### 4. IP: Investment Property Range ("Hudson Invest" 100% Turn-Key Investor Package)
@@ -75,7 +75,7 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
   - Powder-coated letterbox with street numbering and folding outdoor clothesline.
   - Custom block-out roller blinds to all windows and sliding doors.
   - Flyscreens to all openable windows and security screen doors.
-- Investor Specifications: 20mm stone benchtops, ducted air conditioning, LED downlights, Westinghouse appliances with dishwasher, durable ceramic tiles, and stain-resistant carpet.
+- Investor Specifications: 20mm stone benchtops, ducted air conditioning, LED downlights, Haier or Fisher & Paykel stainless steel appliances with dishwasher included, durable ceramic tiles, and stain-resistant carpet.
 - Investor Strategic Perks: Two-part contract structure (pay stamp duty on land value only, saving thousands), maximum annual non-cash tax depreciation write-offs, and guaranteed construction timeframes for fast rental occupancy.
 
 #### 5. FHB: First Home Buyer Range ("Start Smart" / First Home Complete)
@@ -747,7 +747,7 @@ The home is delivered complete and tenant-ready on settlement day with zero addi
 - **Climate Control**: Ducted reverse-cycle air conditioning (or split systems to key zones) for year-round tenant comfort and premium rental appeal.
 
 #### 2. Investor-Grade Specifications
-- **Kitchen**: 20mm engineered stone benchtops, Westinghouse stainless steel appliances, dishwasher included, and durable soft-close cabinetry.
+- **Kitchen**: 20mm engineered stone benchtops, Haier or Fisher & Paykel stainless steel appliances, dishwasher included, and durable soft-close cabinetry.
 - **Durable Flooring**: Hard-wearing ceramic tiles to high-traffic living areas, hallways, and kitchen; stain-resistant carpets to bedrooms.
 - **Electrical**: Energy-efficient LED downlights throughout living zones.
 
@@ -790,7 +790,7 @@ The **FHB Range** is tailored specifically for first-time purchasers entering th
 #### 3. Complete Move-In Ready Finish
 - **Flooring**: Quality ceramic floor tiles to living, meals, and kitchen; quality carpet with underlay to all bedrooms.
 - **Climate Control**: Split-system or ducted air conditioning and ceiling fans.
-- **Kitchen Essentials**: Modern benchtops, Westinghouse stainless steel appliances (oven, cooktop, rangehood, dishwasher provision).
+- **Kitchen Essentials**: Modern benchtops, Haier 600mm stainless steel appliances (oven, cooktop, rangehood, dishwasher provision).
 - **External Options**: Driveway, perimeter fencing, turfing, clothesline, and letterbox can be packaged together so you have zero out-of-pocket expenses on handover day.
 
 #### 4. Smart-Living Floorplans
@@ -828,7 +828,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 #### 1. H1: Smart Inclusions (Smart Value / Move-In Ready Standard)
 *The essential balance of functional design, quality fixtures, and affordability.*
 - **Ceilings**: Nominal 2440mm ceiling height throughout.
-- **Kitchen**: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, Westinghouse stainless steel appliances (600mm oven, cooktop, and rangehood), and stainless steel drop-in sink.
+- **Kitchen**: Durable laminate benchtops, fully lined cabinetry with overhead cupboards and bulkheads, Haier 600mm stainless steel electric appliances (600mm oven, cooktop, and rangehood with dishwasher included), and stainless steel drop-in sink.
 - **Comfort & Finishes**: Reverse-cycle split system air conditioning, ceiling fans to bedrooms, ceramic tiles to living zones, and quality carpet to bedrooms.
 - **Bathrooms**: Floating-style vanities, polished-edge mirrors, and semi-frameless pivot shower screens.
 - **Structure**: Engineered concrete slab up to H1/H2 classification, Termimesh barrier, and Colorbond or concrete tile roof.
@@ -839,7 +839,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 #### 2. H2: Designer Inclusions (Contemporary Luxury & Style)
 *Elevated contemporary style and premium luxury seen in our display homes.*
 - **Ceilings**: **Raised 2590mm high ceilings** (with optional 2740mm ground floor upgrade) creating superior natural light and volume.
-- **Kitchen**: **20mm engineered stone benchtops** to kitchen, bathrooms, and laundry; premium **Westinghouse 900mm European appliance suite** (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven), soft-close cabinetry, and designer gooseneck mixer.
+- **Kitchen**: **20mm engineered stone benchtops** to kitchen, bathrooms, and laundry; premium **Fisher & Paykel 900mm luxury appliance suite** (900mm canopy rangehood, 900mm cooktop, 900mm built-in oven, and fully installed dishwasher), soft-close cabinetry, and designer gooseneck mixer.
 - **Comfort & Climate**: Fully installed **ActronAir or Daikin ducted reverse-cycle air conditioning** with multi-zone digital controller.
 - **Bathrooms**: **Full-height floor-to-ceiling porcelain wall tiles** to ensuite and bathroom, recessed tiled shower niches with chrome trim, and designer tapware in matte black, brushed nickel, or chrome.
 - **Electrical & Outdoor**: Premium **LED downlight package** to living areas, porch, and alfresco; tiled outdoor alfresco and porch; exposed aggregate driveway.

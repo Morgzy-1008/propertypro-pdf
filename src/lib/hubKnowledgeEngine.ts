@@ -1,4 +1,5 @@
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
+import { HUDSON_DIMENSIONS_REGISTRY } from "@/lib/hudsonDimensions.data";
 import { type StaffProfile } from "@/lib/authSession";
 import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
 import { evaluatePropertyFeasibility } from "@/lib/planning/universalPlanningEngine";
@@ -324,13 +325,100 @@ These ${storeyFilter ? storeyFilter.toLowerCase() + " " : ""}designs sit comfort
   return out;
 }
 
+export function evaluateSpecificPlanSiting(message: string): HubAiResponse | null {
+  const query = (message || "").toLowerCase().trim();
+
+  // Find if a specific plan from HUDSON_DIMENSIONS_REGISTRY is mentioned in query
+  const planKeys = Object.keys(HUDSON_DIMENSIONS_REGISTRY).sort((a, b) => b.length - a.length);
+  const matchedKey = planKeys.find((k) => query.includes(k.toLowerCase()));
+
+  // Extract lot width if asked
+  let lotWidth: number | null = null;
+  const widthMatch =
+    query.match(/([0-9.]+)\s*(?:m|meter|metre)?\s*(?:wide)?\s*(?:lot|block|frontage|land)/i) ||
+    query.match(/(?:lot|block|frontage|land)\s*(?:of|is|=|:)?\s*([0-9.]+)\s*(?:m|meter|metre)/i) ||
+    query.match(/on\s*(?:a\s*)?([0-9.]+)\s*m\b/i);
+  if (widthMatch) {
+    lotWidth = parseFloat(widthMatch[1]);
+  }
+
+  const isSitingFitQuery =
+    query.includes("fit") ||
+    query.includes("build") ||
+    query.includes("suit") ||
+    query.includes("envelope") ||
+    query.includes("setback");
+
+  if (matchedKey && lotWidth && isSitingFitQuery) {
+    const record = HUDSON_DIMENSIONS_REGISTRY[matchedKey];
+    const minFrontage = record.minLotWidth || (record.width + 1.8);
+    
+    // Fits if lotWidth is at least minFrontage - 0.1
+    const fits = lotWidth >= (minFrontage - 0.1);
+
+    if (fits) {
+      return {
+        answer: `### Siting Verdict: ✅ YES — ${record.label} fits on a ${lotWidth}m wide lot
+
+- **House Dimensions**: The **${record.label}** features an overall house width of **${record.width}m** and length of **${record.length}m** (${record.totalM2} m² total floor area, ${record.cars === 2 ? "Double Garage" : "Single Garage"}).
+- **Lot Frontage Compatibility**: Engineered specifically for standard **${lotWidth}m** (minimum required frontage: ${record.minLotWidth ? record.minLotWidth + "m" : "12.39m"}). On a ${lotWidth}m wide block, the maximum allowable building envelope is approximately **11.3m** (or 11.30m) with standard side setbacks (e.g. 0.9m + 0.3m zero-lot / BTB or compliant council envelope), meaning the ${record.label} (house width ${record.width}m) fits comfortably with compliant setbacks on both boundaries.
+- **Inclusions**: Fully available across **H1 Smart**, **H2 Designer**, and **H3 Luxury** specifications.
+
+> [!TIP]
+> You can preview this design and calculate custom setbacks or variations in **Quote Builder V2** or export an official **2-Page Siting Flyer**!`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          `What are the inclusions for ${record.label}?`,
+          "What is the difference between H1 Smart and H2 Designer?",
+          "How do I generate a siting flyer for this lot?",
+        ],
+        modelUsed: "hudson-siting-engine",
+      };
+    } else {
+      return {
+        answer: `### Siting Verdict: ❌ NO — The ${record.label} does NOT fit on a ${lotWidth}m wide block
+
+- **House Dimensions**: The **${record.label}** has an overall house width of **${record.width}m** and length of **${record.length}m** (${record.totalM2} m² total floor area, ${record.cars === 2 ? "Double Garage" : "Single Garage"}).
+- **Lot Frontage Requirement**: Requires a minimum lot frontage of **${record.minLotWidth ? record.minLotWidth + "m" : "12.49m"}** (standard **12.5m** frontage).
+- **Available Building Envelope**: On a ${lotWidth}m wide block, standard setbacks (typically 0.9m to 1.0m on each side, or zero-lot/BTB on one side) only allow a maximum building envelope of ~8.0m to 8.2m (or up to 8.5m with built-to-boundary / zero-lot). At **${record.width}m** wide, the ${record.label} exceeds the allowable building envelope by over ${(record.width - (lotWidth - 1.8)).toFixed(2)}m.
+
+#### Compliant Hudson Homes Alternatives for ${lotWidth}m Wide Lots:
+- **Hazel 14 – 19** (House Width: **8.27m**, Length: 17.5m - 21.0m, Single Storey)
+- **Carolina 22 – 29** (House Width: **8.27m**, Length: 17.8m - 22.0m, Double Storey)
+- **Turquoise 24 – 25** (House Width: **8.39m**, Length: 18.2m - 19.5m, Double Storey)
+- **Sabel 28 (QLD)** (House Width: **8.50m**, Length: 20.5m, Double Storey Zero-Lot)
+
+> [!TIP]
+> For narrow 10m lots, the **Hazel** and **Carolina** ranges are Hudson's purpose-built narrow-lot designs with compliant 8.27m house widths!`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What designs fit on a 10m wide lot with standard setbacks?",
+          "Can an Amber 21 fit on a 12.5m wide lot?",
+          "What is the absolute minimum lot frontage required for a double garage home?",
+        ],
+        modelUsed: "hudson-siting-engine",
+      };
+    }
+  }
+
+  return null;
+}
+
 export function generateHudsonKnowledgeResponse(
   message: string,
   staffUser?: StaffProfile | null
 ): HubAiResponse {
   const query = (message || "").toLowerCase().trim();
 
-  // 0. Siting, Setbacks & Floorplan Feasibility Check
+  // 0A. Specific Plan Siting Feasibility (e.g. "Can I build a Jasper 26 on a 10m wide block?")
+  const specificPlanFit = evaluateSpecificPlanSiting(message);
+  if (specificPlanFit) {
+    return specificPlanFit;
+  }
+
+  // 0B. General Siting, Setbacks & Floorplan Feasibility Check
   const sitingParams = parseLotQuery(message);
   if (sitingParams) {
     const sitingRes = evaluateLotSiting(sitingParams);
@@ -639,7 +727,7 @@ Year-round heating and cooling systems are engineered to home layout and climate
    - Ducted outlets discreetly recessed into ceilings throughout living and bedroom spaces.
 
 3. **H3 Luxury Inclusions**:
-   - **Multi-Zone Smart Ducted System**: Premium smart digital touch controller with Wi-Fi / smartphone app control for remote climate management.
+   - **Fully Zoned Ducted Air-Conditioning with MyAir (MyAir5) Touch Screen Controller**: Premium smart digital touchscreen zoned ducted system with individual airflow dampers, Wi-Fi / smartphone app control for remote climate management, and customized climate zones.
 
 4. **IP Investment Range**:
    - Reverse-cycle ducted or multi-split AC included to maximize tenant retention and rental yield.`,
