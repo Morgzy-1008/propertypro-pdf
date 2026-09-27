@@ -836,25 +836,30 @@ Hudson Homes protects every home with an engineered physical termite management 
 
 Every Hudson Homes build complies fully with the latest National Construction Code (NCC 2022) **NatHERS 7-Star thermal efficiency standards** and NSW **BASIX energy & water benchmarks**:
 
-1. **High-Performance Insulation**:
+1. **Queensland (QLD) Policy Update (New Price List)**:
+   - **$0 Additional Allowances**: Under the new Queensland price list, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed!).
+   - Full NatHERS 7-Star compliance (insulation batts, thermal performance, glazed openings, heat pump hot water) is fully built into base pricing with zero surprise cost variations.
+
+2. **New South Wales (NSW) BASIX Certificate**:
+   - Fixed site costs include full BASIX thermal, water (rainwater tank connection to toilets/laundry/garden), and energy compliance documentation.
+
+3. **High-Performance Insulation**:
    - **Ceiling Insulation**: R4.0 to R5.0 glasswool ceiling batts over living areas.
    - **External Wall Insulation**: R2.0 to R2.5 wall batts with reflective vapour-permeable thermal wall wrap.
 
-2. **Energy Efficient Glazing**:
+4. **Energy Efficient Glazing**:
    - Strategically oriented low-E or argon-insulated window glazing to limit summer heat gain and retain winter warmth.
 
-3. **Hot Water & Lighting**:
-   - High-efficiency heat pump hot water system or instantaneous continuous-flow gas hot water.
-   - 100% low-energy LED downlights and lighting circuits throughout the home.
-
-4. **NSW BASIX Certificate**:
-   - Fixed site costs include full BASIX thermal, water (rainwater tank connection to toilets/laundry/garden), and energy compliance documentation.`,
+5. **Hot Water & Lighting**:
+   - **QLD**: Wulfe Heat Pump M9 (200L or 330L) delivering 70%+ energy savings.
+   - **NSW**: Rinnai 26L Gas Continuous Flow hot water system (preset to 50°C).
+   - 100% low-energy LED downlights and lighting circuits throughout the home.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
         "What fixed site costs does Hudson Homes include?",
         "What appliances are standard in H2 Designer?",
-        "What ceiling heights come standard?",
+        "Are concrete piers included in Hudson Homes fixed site costs?",
       ],
       modelUsed: "hudson-knowledge-engine",
     };
@@ -877,14 +882,18 @@ Every Hudson Homes build complies fully with the latest National Construction Co
     return {
       answer: `### Soil Classification, Slab Engineering & Piering
 
-Hudson Homes is an industry leader in transparent foundation engineering:
+Hudson Homes provides transparent foundation engineering across NSW and Queensland:
 
-1. **Fixed Site Costs Have You Covered Up to H-Class**:
+1. **State Differences in Piering & Site Costs**:
+   - **New South Wales (NSW) — Concrete Piers Included**:
+     - Reinforced concrete bored piers specified by structural engineers are **included** within Hudson Homes fixed site costs.
+   - **Queensland (QLD — New Price List) — Piering Excluded as Standard**:
+     - Under the new Queensland price list, **no piering is included as standard site costs**. Concrete piering is quoted provisionally or as a site-specific variation based on the geotechnical soil report and engineer footing design.
+     - In exchange, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed; NatHERS 7-Star compliance is now built into base pricing).
+
+2. **Fixed Site Costs Have You Covered Up to H-Class Slab**:
    - Our fixed price site costs have you fully **covered** for standard foundation classes: **Class M (moderately reactive)**, **Class H1 (highly reactive)**, and **Class H2 (very highly reactive clay)**!
-   - Many other builders only include Class M and charge thousands in surprise variations once geotechnical soil tests arrive. Fixed site costs cover H-class soil with zero surprise variations.
-
-2. **Concrete Piering & Piers Allowance Included**:
-   - Includes engineered reinforced concrete bored piers beneath the slab to transfer building loads down to solid bearing strata. All concrete piers specified by structural engineers are covered within our fixed site costs!
+   - Many other builders only include Class M and charge thousands in surprise variations once geotechnical soil tests arrive. Hudson covers H-class soil with zero surprise variations.
 
 3. **Geotechnical Testing**:
    - Preliminary engineering includes soil borehole testing, site contour survey, and structural wind classification (N2/N3 standard).
@@ -896,7 +905,7 @@ Hudson Homes is an industry leader in transparent foundation engineering:
       suggestedQuestions: [
         "What is included in Hudson fixed site costs?",
         "Tell me about the 50-Year Structural Warranty",
-        "What is the difference between H1 Smart and H2 Designer?",
+        "What are the differences between NSW and QLD inclusions?",
       ],
       modelUsed: "hudson-knowledge-engine",
     };
@@ -1032,7 +1041,7 @@ When building a dual occupancy or duplex, local councils and statutory authoriti
     };
   }
 
-  // 3H6. Happy Upgrades - "Your Way" Promotional Upgrades
+  // 3H6. Happy Upgrades - "Your Way" Promotional Upgrades (CULLED)
   if (
     query.includes("happy upgrade") ||
     query.includes("promo") ||
@@ -1042,47 +1051,22 @@ When building a dual occupancy or duplex, local councils and statutory authoriti
     (query.includes("upgrade") && (query.includes("option 1") || query.includes("option 2") || query.includes("option 3")))
   ) {
     return {
-      answer: `### Hudson Homes "Happy Upgrades - Your Way" Promotions
+      answer: `### Promotional Status: "Happy Upgrades — Your Way" Promotion Culled
 
-Hudson Homes offers three tiered promotional upgrade packages calibrated to our specification levels:
+Please note that the **"Happy Upgrades — Your Way" promotional campaign has been officially culled / concluded**.
 
----
+1. **Promotion Status**:
+   - The tiered promotional upgrade packages (Option 1 for H1 Smart, Option 2 for H2 Designer, and Option 3 for H3 Luxury) are no longer active or selectable in our sales system.
+   - All quotes, tenders, and building proposals now reflect standard pricing and official inclusion schedules across our 6 tiers: **Investment Package (IP)**, **Sapphire Series (SS)**, **Hudson Base Standard (HBS)**, **H1 Smart**, **H2 Designer**, and **H3 Luxury**.
 
-#### 1. Option One (1) — H1 Smart Inclusions Promo:
-**Choose Day & Night Ducted Air Conditioning PLUS Any Five (5) Additional Upgrades:**
-- **Base Upgrade**: Day & Night Ducted Air Conditioning (2 Zones: Living & Bedrooms — **Rinnai** in NSW / **Daikin** in QLD).
-- **Plus Choose 5 of the Following Upgrades**:
-  1. **2590mm Raised Ceilings** (Single-storey designs or upper floor of two-storey designs).
-  2. **20mm Engineered Stone Benchtops to Kitchen** (AC Stone STD range in NSW / Quantum Zero Stone Builders range in QLD).
-  3. **LED Downlights Package** (1 downlight per 2m² in white).
-  4. **Freestanding Bath** (Caroma Urbane II 1580mm AU6W or 1775mm AU8W with chrome plug & waste).
-  5. **Stone Benchtops to Bathroom & Ensuite** (20mm engineered stone).
-  6. **900mm Luxury Appliance Suite** (Fisher & Paykel 900mm electric oven OB90S9LEX2, 900mm gas/electric cooktop, integrated rangehood HP90ICSX4).
-  7. **1200mm Laminated Laundry Cabinet** with Clark Radiant 45L drop-in tub (Polytec STD range colours).
+2. **Queensland Policy & Pricelist Updates**:
+   - Under the new Queensland price list, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed; NatHERS 7-Star compliance is now fully built into base pricing).
+   - Please note: Under the new QLD price list, **no piering is included as standard site costs** (piering is quoted provisionally per geotechnical engineering).
 
----
+3. **New South Wales Value**:
+   - NSW fixed site costs continue to include reinforced concrete bored piers and comprehensive BASIX compliance.
 
-#### 2. Option Two (2) — H2 Designer Inclusions Promo:
-**Choose Any Four (4) Premium Upgrades:**
-1. **Stain Grade Timber Staircase**: Upgraded to stain-grade treads, risers, and balustrade (stained timber rails & posts with standard metal balusters).
-2. **1200mm Wide Entry Door (Stain Grade)**: 2040x1200mm Hume Linear range (XLR150, XLR160, XLR500, XLR600).
-3. **Full Zoned Ducted A/C Upgrade**: Upgrade from Day/Night to Fully Zoned Ducted A/C (Rinnai in NSW / Daikin in QLD).
-4. **2740mm Ceilings to Ground Floor** (Two-storey designs).
-5. **Complete Home Filtration Water System** (CHF 6000 15").
-6. **Tapware Upgrade to Matte Black or Brushed Brass**: Caroma Liano II sink mixer + Luna basin, shower & bath wall mixers.
-7. **Full Height Tiling to Bathroom & Ensuite** (Up to 2590mm high for two wet areas with showers).
-8. **Main Floor 600x600 Rectified Edge Floor Tiles** (Selected from the Hudson Homes Gold Range).
-
----
-
-#### 3. Option Three (3) — H3 Luxury Inclusions Promo:
-**Choose Any Three (3) Prestige Upgrades:**
-1. **Driveway Package**: Coloured through concrete (NSW) or Exposed aggregate concrete (QLD) up to 6m setback.
-2. **6.5kW Solar PV Power System** (In lieu of standard 1.5kW system).
-3. **$10,000 Spectrum Studio Design Allowance**.
-4. **3-Metre Outdoor Kitchenette with Beefeater BBQ**: Polytec cabinets, double skin brickwork base (1200mm high), 20mm stone benchtop, Clark Polar single bowl undermount sink (PPL10BU), Stylus Venecia mixer, and Beefeater 4-burner built-in BBQ (BBG1640SA).
-5. **10mm Rebated Glass Balustrade to Staircase** (Two-storey designs).
-6. **$10,000 Winnings Electrical Appliance Allowance**.`,
+For current national or regional offerings, or questions regarding standard inclusions, please consult with your Hudson Homes New Home Consultant (NHC) or Sales Manager.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
@@ -1124,11 +1108,13 @@ While Hudson Homes provides consistent luxury and our **50-Year Structural Warra
 | **Wet Area Privacy Glass** | **Obscure** privacy glass | **Luminamist** privacy glass |
 | **Standard Kitchen Sink (SS/HBS)** | Base MK3 Double Bowl 1 & 3/4 sink | Oliveri 1080mm Double Bowl sink (PS112 / PS111) |
 | **Laundry Cabinet (SS/HBS/H1)** | Base laundry trough & white cabinet (9504719) | Clark 42L stainless steel tub with metal cabinet (F6001) |
-| **Porch Concrete Tiling** | Concrete broom finish (tiles are optional with riser tile) | Ceramic floor tiles with 150mm riser tile included standard on IP, H1, H2, H3 |`,
+| **Porch Concrete Tiling** | Concrete broom finish (tiles are optional with riser tile) | Ceramic floor tiles with 150mm riser tile included standard on IP, H1, H2, H3 |
+| **Site Costs — Piering** | **No piering included as standard site costs** under new price list (quoted provisionally per engineer) | **Reinforced concrete bored piers included** in fixed site costs |
+| **Energy Efficiency Allowances** | **$0 additional allowances required** (NatHERS 7-Star built directly into base pricing) | Included in fixed site costs via BASIX compliance documentation |`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
-        "What promotions does Hudson Homes offer?",
+        "What appliances are included in H2 Designer?",
         "What brand and size of kitchen appliances come in H1, H2, and H3?",
         "What air conditioning system comes standard in H1 vs H2 vs H3?",
       ],
@@ -1701,7 +1687,7 @@ The **FHB Range** is tailored specifically for first-time purchasers entering th
 
 #### 1. Genuine Fixed-Price Contract Guarantee
 - Eliminates cost blowouts and valuation shortfalls during bank finance approval.
-- **Fixed Price Site Costs**: Includes engineered concrete slab up to H-class, concrete piering, council submission fees (DA/CDC), and BASIX / NatHERS 7-Star compliance.
+- **Fixed Price Site Costs**: Includes engineered concrete slab up to H-class, concrete piering in NSW (in QLD, no piering is included as standard site costs under the new pricelist, but $0 additional energy allowances are required), council submission fees (DA/CDC), and BASIX / NatHERS 7-Star compliance.
 
 #### 2. First Home Owner Grant (FHOG) & Stamp Duty Optimization
 - Packages are priced and structured to qualify for state first home owner grants (e.g. up to **\$30,000 in Queensland** and **\$10,000 in NSW**).
@@ -1817,13 +1803,17 @@ Can be bundled with any H1, H2, or H3 build to add complete external finishes (d
     return {
       answer: `### Hudson Homes Fixed Site Costs & Guarantees
 
-Hudson Homes is renowned across NSW and QLD for its transparent, fixed-price peace of mind:
+Hudson Homes is renowned across NSW and QLD for transparent pricing and peace of mind:
 
 1. **Fixed Price Site Costs Include**:
    - Engineered reinforced concrete slab designed up to **H-class foundation** classification (H1/H2).
-   - **Concrete piering** allowance engineered to structural requirements.
+   - **Concrete Piering & State Site Costs Policy**:
+     - **New South Wales (NSW)**: Reinforced concrete bored piers are **included** within fixed site costs.
+     - **Queensland (QLD — New Price List)**: **No piering is included as standard site costs**. Concrete piering is quoted provisionally or as a site-specific variation based on the geotechnical soil report and engineer footing design.
+   - **Energy Efficiency Allowances**:
+     - **QLD**: Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed; NatHERS 7-Star compliance is now fully built into base pricing).
+     - **NSW**: Full BASIX thermal, water, and energy compliance documentation included.
    - **Council application fees and certifier fees** (DA or CDC approvals).
-   - **BASIX & NatHERS 7-Star** energy and thermal efficiency compliance.
    - Underground service connections (water, sewer, stormwater, electricity, and telecommunications).
    - Sediment control and occupational health & safety site fencing.
 
@@ -1835,8 +1825,8 @@ Hudson Homes is renowned across NSW and QLD for its transparent, fixed-price pea
       verified: true,
       suggestedQuestions: [
         "What inclusion ranges does Hudson Homes offer?",
-        "What are the 4 flyer templates in Package Studio?",
-        "How does the Quote Builder Modified Plan Engine work?",
+        "What are the differences between NSW and QLD inclusions?",
+        "Are concrete piers included in Hudson Homes fixed site costs?",
       ],
       modelUsed: "hudson-knowledge-engine",
     };
@@ -2015,7 +2005,7 @@ I can assist you with:
   - **IP Investment Range** ("Hudson Invest" 100% turn-key, stamp duty savings on land only, tax depreciation)
   - **FHB First Home Buyer Range** (Fixed-price peace of mind, FHOG grant eligibility, move-in ready finishes)
   - **LP Landscape Packages** (Driveway, fencing, turf, letterbox, clothesline)
-- **Site Costs & Warranties**: Fixed price site costs up to H-class slab, piering, DA/CDC approvals, and our 50-Year Structural Warranty.
+- **Site Costs & Warranties**: Fixed price site costs up to H-class slab, piering in NSW (excluded in QLD standard site costs under new pricelist with $0 energy allowances), DA/CDC approvals, and our 50-Year Structural Warranty.
 - **Hudson OS Tools**:
   - **Flyer Builder (\`/flyer\`)**: 4 templates and automated NHC details.
   - **House & Land Database (\`/database\`)**: AI price list parser and lot searching.

@@ -125,17 +125,19 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 10. **Wet Area Privacy Glass**:
    - **Queensland (QLD)**: **Obscure** glass.
    - **New South Wales (NSW)**: **Luminamist** glass.
+11. **Site Costs — Concrete Piering (Critical Update)**:
+   - **Queensland (QLD — New Price List)**: **NO piering included as standard site costs**. Concrete piering is excluded from standard site costs and quoted provisionally based on geotechnical soil report and engineer foundation design.
+   - **New South Wales (NSW)**: Reinforced concrete bored piers are **included** within standard fixed site costs.
+12. **Energy Efficiency Allowances (Critical Update)**:
+   - **Queensland (QLD — New Price List)**: Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed; NatHERS 7-Star compliance is built directly into standard base pricing).
+   - **New South Wales (NSW)**: Standard BASIX thermal and energy compliance included.
 
 ---
 
-### PROMOTIONS: HAPPY UPGRADES - "YOUR WAY"
-1. **Option One (1) — H1 Smart Inclusions Promo**:
-   - **Base**: Day & Night Ducted Air Conditioning (Rinnai in NSW / Daikin in QLD).
-   - **Plus choose ANY 5 of**: 2590mm ceilings, 20mm stone kitchen benchtops, LED downlights (1 per 2m²), freestanding bath (Caroma Urbane II 1580/1775mm), stone benchtops to bath/ensuite, 900mm Fisher & Paykel appliance suite, 1200mm laminated laundry cabinet.
-2. **Option Two (2) — H2 Designer Inclusions Promo**:
-   - **Choose ANY 4 of**: Stain-grade timber staircase, 1200mm wide stain-grade Hume Linear entry door, full zoned ducted A/C upgrade, 2740mm ground floor ceilings (2-storey), complete home filtration system (CHF 6000), matte black or brushed brass tapware (Liano II / Luna), full-height tiling to bath & ensuite (up to 2590mm, 2 wet areas), 600x600 Gold Range main floor tiles.
-3. **Option Three (3) — H3 Luxury Inclusions Promo**:
-   - **Choose ANY 3 of**: Coloured through (NSW) or Exposed aggregate (QLD) driveway up to 6m, 6.5kW solar PV system, $10,000 Spectrum Studio design allowance, 3m outdoor kitchenette with Beefeater BBQ and 20mm stone, 10mm rebated glass staircase balustrade, $10,000 Winnings electrical appliance allowance.
+### PROMOTIONS STATUS: CULLED
+- **"Happy Upgrades — Your Way" Campaign**: Officially **culled / concluded**. 
+- Promotional upgrade packs (Option 1 for H1, Option 2 for H2, Option 3 for H3) are no longer active or selectable.
+- All quotes and tenders must follow standard Hudson Homes price lists and specification tiers (H1 Smart, H2 Designer, H3 Luxury, and IP Investment).
 
 ---
 

@@ -132,7 +132,15 @@ export const HUDSON_DETAILED_INCLUSIONS_MASTER: InclusionItem[] = [
     category: "Foundations & Termite",
     item: "Bored Concrete Piering as required by structural engineer",
     nsw: { "IP (New)": true, SS: true, HBS: false, H1: true, H2: true, H3: true },
-    qld: { "IP (New)": true, SS: true, HBS: false, H1: true, H2: true, H3: true },
+    qld: { "IP (New)": false, SS: false, HBS: false, H1: false, H2: false, H3: false },
+    notes: "Under the new Queensland price list, NO piering is included as standard site costs. Concrete piering is quoted separately/provisionally based on the geotechnical soil report. In NSW, bored concrete piering is included in fixed site costs.",
+  },
+  {
+    category: "Foundations & Termite",
+    item: "Energy Efficiency Additional Allowances (NatHERS 7-Star)",
+    nsw: { "IP (New)": "$0 (Included in BASIX fixed site costs)", SS: "$0", HBS: "$0", H1: "$0", H2: "$0", H3: "$0" },
+    qld: { "IP (New)": "$0 (No additional allowances required in QLD under new price list)", SS: "$0", HBS: "$0", H1: "$0", H2: "$0", H3: "$0" },
+    notes: "Under the new Queensland price list, Hudson Homes NO LONGER requires additional allowances for energy efficiency in QLD; 7-Star thermal efficiency is integrated into standard base pricing.",
   },
   {
     category: "Foundations & Termite",
@@ -493,10 +501,12 @@ export const HUDSON_DETAILED_INCLUSIONS_MASTER: InclusionItem[] = [
   },
 ];
 
-// PROMOTIONAL UPGRADES: HAPPY UPGRADES - "YOUR WAY"
+// PROMOTIONAL UPGRADES: HAPPY UPGRADES - "YOUR WAY" (OFFICIALLY CULLED / INACTIVE)
 export const HUDSON_HAPPY_UPGRADES_PROMOS = {
+  status: "CULLED",
+  culledNotice: "The 'Happy Upgrades - Your Way' promotion has officially been culled / discontinued. All standard quotes and sales estimates must be calculated from official price lists.",
   option1_h1_smart: {
-    title: "Option One (1) - H1 Smart Inclusions",
+    title: "Option One (1) - H1 Smart Inclusions (CULLED)",
     description: "Choose Ducted Air Conditioning PLUS Five (5) Additional Upgrades",
     baseUpgrade: {
       item: "Day & Night Ducted Air Conditioning (1 Only)",
