@@ -511,36 +511,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
           </div>
         </form>
 
-        {/* Quick Suggestion Pills (Wrapped, Zero Scrollbar) */}
-        <div
-          style={{ overflowX: "hidden", scrollbarWidth: "none", msOverflowStyle: "none" }}
-          className={`flex flex-wrap items-center gap-2 px-4 py-2.5 border-t text-xs overflow-hidden no-scrollbar ${
-            isLight ? "border-slate-100 bg-slate-50/70" : "border-slate-800/60 bg-slate-950/50"
-          }`}
-        >
-          <span className={`text-[10px] uppercase font-bold tracking-wider mr-1 flex-shrink-0 flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            <Sparkles className="h-3 w-3 text-brand-gold" />
-            <span>Suggested:</span>
-          </span>
-          {DEFAULT_SUGGESTIONS.map((item, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setQuery(item);
-                handleSend(item);
-              }}
-              disabled={isLoading}
-              className={`px-3 py-1 rounded-full text-[11px] font-medium border transition-all cursor-pointer ${
-                isLight
-                  ? "border-slate-200 bg-white text-slate-700 hover:border-brand-gold hover:text-amber-800 hover:bg-amber-50/50 shadow-2xs"
-                  : "border-slate-800 bg-slate-900/80 text-slate-300 hover:border-brand-gold/60 hover:text-amber-300 hover:bg-slate-800"
-              }`}
-            >
-              {item}
-            </button>
-          ))}
-        </div>
+
       </div>
 
       {/* Expandable Conversational Window */}

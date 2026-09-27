@@ -1,5 +1,11 @@
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import { HUDSON_DIMENSIONS_REGISTRY } from "@/lib/hudsonDimensions.data";
+import {
+  HUDSON_DETAILED_INCLUSIONS_MASTER,
+  HUDSON_HAPPY_UPGRADES_PROMOS,
+  lookupInclusionItem,
+  compareStateInclusions,
+} from "@/lib/hudsonDetailedInclusions.data";
 import { type StaffProfile } from "@/lib/authSession";
 import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
 import { evaluatePropertyFeasibility } from "@/lib/planning/universalPlanningEngine";
@@ -1023,6 +1029,185 @@ When building a dual occupancy or duplex, local councils and statutory authoriti
         "Tell me about the Wisteria 33 dual living design",
       ],
       modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3H6. Happy Upgrades - "Your Way" Promotional Upgrades
+  if (
+    query.includes("happy upgrade") ||
+    query.includes("promo") ||
+    query.includes("promotions") ||
+    query.includes("your way") ||
+    query.includes("upgrade package") ||
+    (query.includes("upgrade") && (query.includes("option 1") || query.includes("option 2") || query.includes("option 3")))
+  ) {
+    return {
+      answer: `### Hudson Homes "Happy Upgrades - Your Way" Promotions
+
+Hudson Homes offers three tiered promotional upgrade packages calibrated to our specification levels:
+
+---
+
+#### 1. Option One (1) — H1 Smart Inclusions Promo:
+**Choose Day & Night Ducted Air Conditioning PLUS Any Five (5) Additional Upgrades:**
+- **Base Upgrade**: Day & Night Ducted Air Conditioning (2 Zones: Living & Bedrooms — **Rinnai** in NSW / **Daikin** in QLD).
+- **Plus Choose 5 of the Following Upgrades**:
+  1. **2590mm Raised Ceilings** (Single-storey designs or upper floor of two-storey designs).
+  2. **20mm Engineered Stone Benchtops to Kitchen** (AC Stone STD range in NSW / Quantum Zero Stone Builders range in QLD).
+  3. **LED Downlights Package** (1 downlight per 2m² in white).
+  4. **Freestanding Bath** (Caroma Urbane II 1580mm AU6W or 1775mm AU8W with chrome plug & waste).
+  5. **Stone Benchtops to Bathroom & Ensuite** (20mm engineered stone).
+  6. **900mm Luxury Appliance Suite** (Fisher & Paykel 900mm electric oven OB90S9LEX2, 900mm gas/electric cooktop, integrated rangehood HP90ICSX4).
+  7. **1200mm Laminated Laundry Cabinet** with Clark Radiant 45L drop-in tub (Polytec STD range colours).
+
+---
+
+#### 2. Option Two (2) — H2 Designer Inclusions Promo:
+**Choose Any Four (4) Premium Upgrades:**
+1. **Stain Grade Timber Staircase**: Upgraded to stain-grade treads, risers, and balustrade (stained timber rails & posts with standard metal balusters).
+2. **1200mm Wide Entry Door (Stain Grade)**: 2040x1200mm Hume Linear range (XLR150, XLR160, XLR500, XLR600).
+3. **Full Zoned Ducted A/C Upgrade**: Upgrade from Day/Night to Fully Zoned Ducted A/C (Rinnai in NSW / Daikin in QLD).
+4. **2740mm Ceilings to Ground Floor** (Two-storey designs).
+5. **Complete Home Filtration Water System** (CHF 6000 15").
+6. **Tapware Upgrade to Matte Black or Brushed Brass**: Caroma Liano II sink mixer + Luna basin, shower & bath wall mixers.
+7. **Full Height Tiling to Bathroom & Ensuite** (Up to 2590mm high for two wet areas with showers).
+8. **Main Floor 600x600 Rectified Edge Floor Tiles** (Selected from the Hudson Homes Gold Range).
+
+---
+
+#### 3. Option Three (3) — H3 Luxury Inclusions Promo:
+**Choose Any Three (3) Prestige Upgrades:**
+1. **Driveway Package**: Coloured through concrete (NSW) or Exposed aggregate concrete (QLD) up to 6m setback.
+2. **6.5kW Solar PV Power System** (In lieu of standard 1.5kW system).
+3. **$10,000 Spectrum Studio Design Allowance**.
+4. **3-Metre Outdoor Kitchenette with Beefeater BBQ**: Polytec cabinets, double skin brickwork base (1200mm high), 20mm stone benchtop, Clark Polar single bowl undermount sink (PPL10BU), Stylus Venecia mixer, and Beefeater 4-burner built-in BBQ (BBG1640SA).
+5. **10mm Rebated Glass Balustrade to Staircase** (Two-storey designs).
+6. **$10,000 Winnings Electrical Appliance Allowance**.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What appliances are included in H2 Designer?",
+        "What is the difference between NSW and QLD inclusions?",
+        "Tell me about H3 Luxury inclusions",
+      ],
+      modelUsed: "hudson-inclusions-engine",
+    };
+  }
+
+  // 3H7. Queensland vs New South Wales Inclusions Differences
+  if (
+    query.includes("nsw vs qld") ||
+    query.includes("qld vs nsw") ||
+    query.includes("difference between nsw and qld") ||
+    query.includes("differences between nsw and qld") ||
+    query.includes("queensland vs new south wales") ||
+    query.includes("state difference") ||
+    query.includes("state differences") ||
+    (query.includes("difference") && (query.includes("nsw") || query.includes("qld")) && query.includes("inclusion"))
+  ) {
+    return {
+      answer: `### Hudson Homes Specification Differences: NSW vs Queensland
+
+While Hudson Homes provides consistent luxury and our **50-Year Structural Warranty** across both states, key specifications are specifically calibrated to local state climatic conditions, planning codes, and supply chains:
+
+| Specification Domain | Queensland (QLD) Inclusions | New South Wales (NSW) Inclusions |
+|---|---|---|
+| **Roof Covering** | **Colorbond 'Custom Orb' steel roofing** standard across all tiers (Bristile tiles optional on H2/H3) | **Bristile 'Designer' / 'Classic' concrete roof tiles** with heavy-duty sarking standard (Colorbond optional on H2/H3) |
+| **Structural Timber Framing** | **'T2' termite-treated Radiata Pine** prefabricated frames & trusses standard across **all tiers** (lowset & highset) | Radiata Pine frames & trusses standard; **'T2' termite-treated** timber introduced on **H2 & H3** |
+| **Hot Water System** | **Wulfe Heat Pump M9** (200L for up to 2 bath / 330L for up to 3 bath) | **Rinnai 26L Gas Continuous Flow** water heater (preset to 50°C) |
+| **Electrical Mains Power** | **Single Phase Underground** (Two Phase for Duplex; Three Phase standard on H3) | **Three Phase Underground Power** included standard across **all 6 tiers** |
+| **Main Floor Tiling** | Ceramic pressed 450x450 tiles **including bedroom hallways** | Ceramic pressed 450x450 tiles **excluding bedroom hallways** (carpeted) |
+| **Shower Wall Linings** | **6mm Fibre Cement** wall linings to bathroom & ensuite with shower | **10mm Water-Resistant Plasterboard** to wet areas |
+| **Alfresco Ceiling** | 10mm plasterboard with **metal ceiling battens at 450mm centres** | **10mm Water-Resistant Plasterboard** |
+| **Rainwater & Gas** | As required by local authority / development approval | **3000L Colorbond Stainless Steel rainwater tank** with pump + **1 gas bayonet** to living |
+| **Robe Drawer Towers (H2/H3)** | **610mm wide** tower bank of drawers | **508mm wide** tower bank of drawers |
+| **Wet Area Privacy Glass** | **Obscure** privacy glass | **Luminamist** privacy glass |
+| **Standard Kitchen Sink (SS/HBS)** | Base MK3 Double Bowl 1 & 3/4 sink | Oliveri 1080mm Double Bowl sink (PS112 / PS111) |
+| **Laundry Cabinet (SS/HBS/H1)** | Base laundry trough & white cabinet (9504719) | Clark 42L stainless steel tub with metal cabinet (F6001) |
+| **Porch Concrete Tiling** | Concrete broom finish (tiles are optional with riser tile) | Ceramic floor tiles with 150mm riser tile included standard on IP, H1, H2, H3 |`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What promotions does Hudson Homes offer?",
+        "What brand and size of kitchen appliances come in H1, H2, and H3?",
+        "What air conditioning system comes standard in H1 vs H2 vs H3?",
+      ],
+      modelUsed: "hudson-inclusions-engine",
+    };
+  }
+
+  // 3H8. Hot Water Systems across NSW and QLD
+  if (
+    query.includes("hot water") ||
+    query.includes("heat pump") ||
+    query.includes("rinnai") ||
+    query.includes("wulfe")
+  ) {
+    return {
+      answer: `### Hudson Homes Standard Hot Water Systems
+
+Hudson Homes provides state-tailored, energy-efficient hot water systems meeting NatHERS 7-Star and NCC 2022 standards:
+
+1. **Queensland (QLD) — Energy-Efficient Heat Pump**:
+   - **Wulfe Heat Pump M9**:
+     - **200-Litre (Model ES200M9)**: Standard for homes with up to 2 bathrooms with showers.
+     - **330-Litre (Model ES330M9)**: Standard for homes with up to 3 bathrooms with showers.
+   - Extracts ambient thermal energy from the air, delivering up to 70%+ energy savings compared to conventional electric hot water.
+
+2. **New South Wales (NSW) — Instantaneous Continuous Flow Gas**:
+   - **Rinnai 26L Gas Continuous Flow Water Heater**:
+     - Factory preset to 50°C for anti-scald safety without needing an external tempering valve.
+     - Unlimited on-demand continuous hot water delivery, high efficiency, and compact external wall mounting.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between NSW and QLD inclusions?",
+        "What air conditioning is included in H1 vs H2 vs H3?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-inclusions-engine",
+    };
+  }
+
+  // 3H9. Bathtubs & Sanitaryware Across Tiers
+  if (
+    query.includes("bath") ||
+    query.includes("bathtub") ||
+    query.includes("freestanding") ||
+    query.includes("caroma urbane") ||
+    query.includes("decina") ||
+    query.includes("stylus basis")
+  ) {
+    return {
+      answer: `### Hudson Homes Bathtubs & Sanitaryware Specifications
+
+Hudson Homes includes high-quality acrylic bathtubs and sanitaryware suited to each tier:
+
+1. **H1 Smart Inclusions**:
+   - **Stylus Basis 1675mm Acrylic Bathtub** (Model BB7W-W, or 1525mm BB5W-W where required) with chrome plug and waste.
+   - **Stylus Venecia Close-Coupled Toilet Suite** (Model W45004SSC) with bottom inlet and soft-close seat.
+   - **Stylus Venecia Basin** (semi-recessed W40101CW or inset W40001CW).
+
+2. **H2 Designer Inclusions**:
+   - **Caroma Urbane II 1775mm Freestanding Bath** (Model AU8W, or 1580mm AU6W) with chrome plug & waste standard to the main bathroom ($0 variation).
+   - **Caroma Luna CleanFlush Wall-Faced Toilet Suite** (Model 844820W) with back inlet and hygienic rimless flush.
+   - **Caroma Luna Basin** (semi-recessed 873615W or inset 899215W).
+   - **Tiled Shower Niche**: 600mm x 400mm tiled recess in showers as standard.
+
+3. **H3 Luxury Inclusions**:
+   - **Caroma Urbane II 1775mm Freestanding Bath** (Model AU8W) with chrome pop-up waste.
+   - **Caroma Luna CleanFlush Wall-Faced Toilet Suite** (Optional Caroma Urbane II in-wall cistern suite with chrome buttons).
+   - **Caroma Urbane II Luxury Basin** (semi-recessed 878910W or inset 878310W).
+   - **10mm Frameless Glass Shower Screens** (up to 2100mm high in QLD / 2000mm in NSW) with pivot doors and chrome hardware.
+   - **Full-Height Wall Tiling** to all wet areas with showers and tiled window reveals with metal angle trim.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What appliances are included in H2 Designer?",
+        "What benchtops are included in H1 vs H2 vs H3?",
+        "What is the difference between NSW and QLD inclusions?",
+      ],
+      modelUsed: "hudson-inclusions-engine",
     };
   }
 

@@ -88,8 +88,54 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 #### 6. LP: Landscape Packages (Turn-Key External Finish Tier)
 - Bundled with any H1, H2, or H3 build to add complete external finishes (driveway, perimeter fencing, turf, letterbox, clothesline) scaled transparently by lot size (up to 300m² to 900m²).
 
-#### 7. Trend Specification
-- Classic smart-value tier widely used across Queensland and select NSW package catalogs, sharing core features with the H1 Smart tier.
+#### 7. HBS (Home Builder Standard) & SS (Smart Start)
+- **HBS (Home Builder Standard)**: Essential entry baseline with Class S slab, up to 300mm leveling, batten lighting with globe, 42x11mm architraves and 67x11mm skirting, painted Hume Vaucluse front door.
+- **SS (Smart Start)**: First-home buyer tier with Class M engineered slab, up to 1.0m site fall, 67x18mm skirting/architraves, 2100mm garage door, Haier appliances, and full council/DA approvals.
+
+---
+
+### DETAILED SPECIFICATION DIFFERENCES: NSW VS QUEENSLAND
+1. **Roofing**:
+   - **Queensland (QLD)**: **Colorbond 'Custom Orb' steel roofing** is standard across ALL tiers (IP, SS, HBS, H1, H2, H3). Bristile concrete tiles are an option on H2/H3.
+   - **New South Wales (NSW)**: **Bristile Designer / Classic concrete roof tiles** with heavy-duty sarking standard across all tiers. Colorbond steel roofing is an option on H2/H3.
+2. **Timber Framing & Termite Protection**:
+   - **Queensland (QLD)**: **'T2' termite-treated Radiata Pine** prefabricated frames & trusses standard across **ALL tiers** (both lowset and two-storey).
+   - **New South Wales (NSW)**: Radiata Pine standard on IP, SS, HBS, H1; **'T2' termite-treated** timber standard on **H2 Designer & H3 Luxury**.
+3. **Hot Water Systems**:
+   - **Queensland (QLD)**: **Wulfe Heat Pump M9** (200L ES200M9 for up to 2 bathrooms; 330L ES330M9 for up to 3 bathrooms) delivering 70%+ energy savings.
+   - **New South Wales (NSW)**: **Rinnai 26L Gas Continuous Flow** water heater (preset to 50°C).
+4. **Electrical Mains Power**:
+   - **New South Wales (NSW)**: **Three Phase Underground Power** included standard across all tiers.
+   - **Queensland (QLD)**: **Single Phase Underground Power** standard up to H2; Two Phase for Duplex designs; Three Phase standard on H3.
+5. **Main Floor Tiling**:
+   - **Queensland (QLD)**: Ceramic pressed 450x450 tiles **including bedroom hallways**.
+   - **New South Wales (NSW)**: Ceramic pressed 450x450 tiles **excluding bedroom hallways** (carpeted).
+6. **Bathroom Wall Linings in Showers**:
+   - **Queensland (QLD)**: **6mm Fibre Cement** wall linings to bathroom & ensuite with shower.
+   - **New South Wales (NSW)**: **10mm Water-Resistant Plasterboard** to wet areas.
+7. **Alfresco Ceiling**:
+   - **Queensland (QLD)**: 10mm plasterboard with **metal ceiling battens at 450mm centres**.
+   - **New South Wales (NSW)**: **10mm Water-Resistant Plasterboard**.
+8. **Rainwater Tank & Gas**:
+   - **New South Wales (NSW)**: **3000L Colorbond Stainless Steel rainwater tank** with submersible pump + **1 gas bayonet** to living.
+   - **Queensland (QLD)**: Per local authority / development approval.
+9. **Robe Drawer Towers (H2/H3)**:
+   - **Queensland (QLD)**: **610mm wide** tower bank of drawers.
+   - **New South Wales (NSW)**: **508mm wide** tower bank of drawers.
+10. **Wet Area Privacy Glass**:
+   - **Queensland (QLD)**: **Obscure** glass.
+   - **New South Wales (NSW)**: **Luminamist** glass.
+
+---
+
+### PROMOTIONS: HAPPY UPGRADES - "YOUR WAY"
+1. **Option One (1) — H1 Smart Inclusions Promo**:
+   - **Base**: Day & Night Ducted Air Conditioning (Rinnai in NSW / Daikin in QLD).
+   - **Plus choose ANY 5 of**: 2590mm ceilings, 20mm stone kitchen benchtops, LED downlights (1 per 2m²), freestanding bath (Caroma Urbane II 1580/1775mm), stone benchtops to bath/ensuite, 900mm Fisher & Paykel appliance suite, 1200mm laminated laundry cabinet.
+2. **Option Two (2) — H2 Designer Inclusions Promo**:
+   - **Choose ANY 4 of**: Stain-grade timber staircase, 1200mm wide stain-grade Hume Linear entry door, full zoned ducted A/C upgrade, 2740mm ground floor ceilings (2-storey), complete home filtration system (CHF 6000), matte black or brushed brass tapware (Liano II / Luna), full-height tiling to bath & ensuite (up to 2590mm, 2 wet areas), 600x600 Gold Range main floor tiles.
+3. **Option Three (3) — H3 Luxury Inclusions Promo**:
+   - **Choose ANY 3 of**: Coloured through (NSW) or Exposed aggregate (QLD) driveway up to 6m, 6.5kW solar PV system, $10,000 Spectrum Studio design allowance, 3m outdoor kitchenette with Beefeater BBQ and 20mm stone, 10mm rebated glass staircase balustrade, $10,000 Winnings electrical appliance allowance.
 
 ---
 
