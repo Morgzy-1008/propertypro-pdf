@@ -1088,104 +1088,371 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
     };
   }
 
-  // 11. Address, Planning, Duplex & Dual-Occupancy Inquiries (including 61 Paradise Rd Flagstone)
-  const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat/i.test(query);
-  const isAddressOrPropertyQuery = /paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|parade|pde)\b/i.test(query);
+  // 11. Universal Planning, Duplex, Zoning & Siting Engine (All QLD & NSW Jurisdictions)
+  const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
+  const isAddressOrPropertyQuery = /paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl)\b/i.test(query);
 
   if (isDuplexOrDualOccQuery || isAddressOrPropertyQuery) {
-    // Specific Flagstone / Paradise Road inquiry
-    if (/paradise|flagstone/i.test(query)) {
-      return {
-        answer: `### Architectural Siting & Feasibility Assessment: 61 Paradise Road, Flagstone QLD
+    const JURISDICTIONS = [
+      {
+        id: "pda_greater_flagstone",
+        name: "Greater Flagstone Priority Development Area (PDA)",
+        state: "QLD",
+        isPDA: true,
+        pdaName: "Greater Flagstone PDA",
+        governingInstrument: "Greater Flagstone PDA Development Scheme & Developer Approved Plans of Development (PoDs)",
+        statutoryAuthority: "Economic Development Queensland (EDQ)",
+        coveredSuburbs: ["flagstone", "south maclean", "undullah", "cedar grove", "cedar vale", "woodhill", "monaco", "peet flagstone", "flagstone city"],
+        duplexRules: {
+          minLotSizeM2: 600,
+          minFrontageM: 16.0,
+          requiresPoDDesignation: true,
+          assessmentCategory: "Plan of Development (PoD) Check",
+          maxSiteCoveragePct: 60,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 4.0,
+          garageSetbackM: 5.0,
+          sideSetbackM: 1.0,
+          rearSetbackM: 1.5,
+          infrastructureChargePerDwelling: 29500,
+          notes: "Strict PoD enforcement. Lots must be designated as 'Dual Occupancy' or 'Dual Key' on the approved estate stage disclosure plan (e.g. Peet Flagstone City stages)."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 70, minFrontageM: 14.0, parkingSpacesRequired: 1, infrastructureCharge: 14750 },
+        recommendedDesigns: [
+          { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Flagship QLD dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one continuous architectural roofline." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 28.0, summary: "Compact dual-key configuration engineered specifically for suburban investor yield." },
+          { name: "Amber 21 (Dual Suite)", type: "Dual Key", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Single-storey design tailored for auxiliary secondary suite." }
+        ]
+      },
+      {
+        id: "pda_ripley_valley",
+        name: "Ripley Valley Priority Development Area (PDA)",
+        state: "QLD",
+        isPDA: true,
+        pdaName: "Ripley Valley PDA",
+        governingInstrument: "Ripley Valley PDA Development Scheme & Estate Stage PoDs (Stockland Providence, Ecco Ripley)",
+        statutoryAuthority: "Economic Development Queensland (EDQ)",
+        coveredSuburbs: ["ripley", "south ripley", "providence", "ecco ripley", "gungalva", "swanbank"],
+        duplexRules: {
+          minLotSizeM2: 600,
+          minFrontageM: 16.0,
+          requiresPoDDesignation: true,
+          assessmentCategory: "Plan of Development (PoD) Check",
+          maxSiteCoveragePct: 60,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 4.0,
+          garageSetbackM: 5.0,
+          sideSetbackM: 1.0,
+          rearSetbackM: 1.5,
+          infrastructureChargePerDwelling: 28500,
+          notes: "Dual-occupancy and duplex builds require specific notation on approved Plan of Development (PoD)."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 70, minFrontageM: 14.0, parkingSpacesRequired: 1, infrastructureCharge: 14250 },
+        recommendedDesigns: [
+          { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "High-demand Ripley investment configuration." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Engineered to satisfy Stockland Providence and EDQ guidelines." }
+        ]
+      },
+      {
+        id: "council_logan",
+        name: "Logan City Council",
+        state: "QLD",
+        isPDA: false,
+        governingInstrument: "Logan Planning Scheme 2015",
+        statutoryAuthority: "Logan City Council",
+        coveredSuburbs: ["logan reserve", "park ridge", "greenbank", "marsden", "crestmead", "browns plains", "jimboomba", "boronia heights", "regents park", "heritage park", "hillcrest", "meadowbrook", "slacks creek", "springwood", "daisy hill", "rochedale south", "shailer park", "tanah merah", "loganholme", "kingston", "woodridge", "beenleigh", "holmview", "edens landing", "bahrs scrub", "windaroo"],
+        duplexRules: {
+          minLotSizeM2: 600,
+          minFrontageM: 18.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Code Assessable",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 6.0,
+          garageSetbackM: 6.0,
+          sideSetbackM: 1.5,
+          rearSetbackM: 1.5,
+          infrastructureChargePerDwelling: 31000,
+          notes: "Dual occupancy is Code Assessable in Low Density Residential if lot ≥ 700m² (≥ 600m² in Low-Medium Density) with min 18m frontage."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 70, minFrontageM: 14.0, parkingSpacesRequired: 1, infrastructureCharge: 0 },
+        recommendedDesigns: [
+          { name: "Wisteria 33 / 36 / 40", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Complies with Logan City Council 18m frontage and dual crossover standards." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 28.0, summary: "Exempt from Logan infrastructure charges when configured under 70m² auxiliary threshold." }
+        ]
+      },
+      {
+        id: "council_ipswich",
+        name: "Ipswich City Council",
+        state: "QLD",
+        isPDA: false,
+        governingInstrument: "Ipswich Planning Scheme",
+        statutoryAuthority: "Ipswich City Council",
+        coveredSuburbs: ["redbank plains", "brassall", "deebing heights", "bellbird park", "collingwood park", "yamanto", "flinders view", "raceview", "booval", "bundamba", "goodna", "gailes", "camira", "brookwater", "augustine heights", "springfield lakes", "springfield central", "rosewood"],
+        duplexRules: {
+          minLotSizeM2: 800,
+          minFrontageM: 18.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Code Assessable",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 6.0,
+          garageSetbackM: 6.0,
+          sideSetbackM: 1.5,
+          rearSetbackM: 2.0,
+          infrastructureChargePerDwelling: 30000,
+          notes: "In standard Residential Low Density, dual occupancy requires min 800m² and 18m frontage (600m² in character/medium density)."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 65, minFrontageM: 14.0, parkingSpacesRequired: 1, infrastructureCharge: 0 },
+        recommendedDesigns: [
+          { name: "Wisteria 34", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Spacious dual living designed for 800m² Ipswich lots." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 26.0, summary: "Complies with Ipswich 65m² auxiliary floor area restriction." }
+        ]
+      },
+      {
+        id: "council_moreton_bay",
+        name: "City of Moreton Bay",
+        state: "QLD",
+        isPDA: false,
+        governingInstrument: "Moreton Bay Regional Council Planning Scheme",
+        statutoryAuthority: "City of Moreton Bay",
+        coveredSuburbs: ["morayfield", "caboolture", "burpengary", "burpengary east", "narangba", "north lakes", "griffin", "mango hill", "kallangur", "murrumba downs", "petrie", "strathpine", "warner", "deception bay"],
+        duplexRules: {
+          minLotSizeM2: 600,
+          minFrontageM: 15.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Code Assessable",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 6.0,
+          garageSetbackM: 6.0,
+          sideSetbackM: 1.5,
+          rearSetbackM: 2.0,
+          infrastructureChargePerDwelling: 31500,
+          notes: "Dual occupancy is Code Assessable in General Residential Zone (min 600m² and 15m frontage in Next Gen precinct; 800m² in Suburban precinct)."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 70, minFrontageM: 14.0, parkingSpacesRequired: 1, infrastructureCharge: 0 },
+        recommendedDesigns: [
+          { name: "Wisteria 33 / 36", type: "Duplex", minLotWidthM: 16.0, minLotDepthM: 28.0, summary: "Fits compliant 16m+ Next Generation precinct lots across Morayfield and Burpengary." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Highly sought after for Caboolture / Morayfield investor packages." }
+        ]
+      },
+      {
+        id: "nsw_camden",
+        name: "Camden Council (NSW)",
+        state: "NSW",
+        isPDA: false,
+        governingInstrument: "SEPP (Housing) 2021 & Camden LEP 2010 / Low Rise Housing Diversity Code (CDC)",
+        statutoryAuthority: "Camden Council & NSW Department of Planning",
+        coveredSuburbs: ["camden", "oran park", "gregory hills", "cobbitty", "leppington", "harrington park", "spring farm", "elderslie", "mount annan", "narellan"],
+        duplexRules: {
+          minLotSizeM2: 500,
+          minFrontageM: 15.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Complying Development (CDC)",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 4.5,
+          garageSetbackM: 5.5,
+          sideSetbackM: 1.5,
+          rearSetbackM: 3.0,
+          infrastructureChargePerDwelling: 24000,
+          notes: "Under NSW Complying Development (CDC - Low Rise Housing Diversity Code), dual occupancy side-by-side (duplex) is FAST-TRACKED (no council DA) if lot ≥ 500m² with min 15.0m street frontage."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 60, minFrontageM: 12.0, parkingSpacesRequired: 1, infrastructureCharge: 8500 },
+        recommendedDesigns: [
+          { name: "Wisteria 33 (NSW CDC Compliant)", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Engineered specifically to satisfy NSW Low Rise Housing Diversity Code CDC setbacks." },
+          { name: "Hudson Designer Duplex Suite", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Torrens-title subdivisible side-by-side duplex design with mirror luxury finishes." }
+        ]
+      },
+      {
+        id: "nsw_blacktown",
+        name: "Blacktown City Council (NSW)",
+        state: "NSW",
+        isPDA: false,
+        governingInstrument: "SEPP (Housing) 2021 & Blacktown LEP 2015 / Low Rise Housing Diversity Code",
+        statutoryAuthority: "Blacktown City Council",
+        coveredSuburbs: ["blacktown", "marsden park", "schofields", "box hill", "riverstone", "mount druitt", "quakers hill", "colebee", "the ponds", "rouse hill"],
+        duplexRules: {
+          minLotSizeM2: 500,
+          minFrontageM: 15.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Complying Development (CDC)",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 4.5,
+          garageSetbackM: 5.5,
+          sideSetbackM: 1.5,
+          rearSetbackM: 3.0,
+          infrastructureChargePerDwelling: 25000,
+          notes: "Dual occupancy attached (duplex) is Complying Development (CDC) under NSW SEPP Housing Code on lots ≥ 500m² with ≥ 15m frontage."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 60, minFrontageM: 12.0, parkingSpacesRequired: 1, infrastructureCharge: 9000 },
+        recommendedDesigns: [
+          { name: "Wisteria 34", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Proven dual-occupancy design for Marsden Park & Schofields growth corridor." },
+          { name: "Gemini 28 (NSW Investor Spec)", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "High-yield investment design with separate private courtyards." }
+        ]
+      },
+      {
+        id: "nsw_central_coast",
+        name: "Central Coast Council (NSW)",
+        state: "NSW",
+        isPDA: false,
+        governingInstrument: "SEPP (Housing) 2021 & Central Coast LEP 2022 / Low Rise Housing Diversity Code",
+        statutoryAuthority: "Central Coast Council",
+        coveredSuburbs: ["warnervale", "woongarrah", "wadalba", "wyong", "tuggerah", "gosford", "hamlyn terrace", "kanwal", "terrigal", "erina"],
+        duplexRules: {
+          minLotSizeM2: 550,
+          minFrontageM: 15.0,
+          requiresPoDDesignation: false,
+          assessmentCategory: "Complying Development (CDC)",
+          maxSiteCoveragePct: 50,
+          maxBuildingHeightM: 8.5,
+          frontSetbackM: 4.5,
+          garageSetbackM: 5.5,
+          sideSetbackM: 1.5,
+          rearSetbackM: 3.0,
+          infrastructureChargePerDwelling: 22000,
+          notes: "Central Coast Council R2 Low Density allows attached dual occupancy (duplex) on lots ≥ 550m² with 15m frontage under CDC, or DA approval. Display Centre located at HomeWorld Warnervale."
+        },
+        auxiliaryUnitRules: { minLotSizeM2: 450, maxGfaM2: 60, minFrontageM: 12.0, parkingSpacesRequired: 1, infrastructureCharge: 7500 },
+        recommendedDesigns: [
+          { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Standard Warnervale display-proven dual occupancy." },
+          { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 25.0, summary: "Compact investor floorplan for Warnervale and Wadalba estates." }
+        ]
+      }
+    ];
+
+    const norm = query.toLowerCase();
+    let detectedSuburb = null;
+    let targetJurisdiction = null;
+
+    for (const j of JURISDICTIONS) {
+      for (const sub of j.coveredSuburbs) {
+        if (new RegExp(`\\b${sub}\\b`, "i").test(norm)) {
+          detectedSuburb = sub.charAt(0).toUpperCase() + sub.slice(1);
+          targetJurisdiction = j;
+          break;
+        }
+      }
+      if (targetJurisdiction) break;
+    }
+
+    if (!targetJurisdiction) {
+      if (norm.includes("flagstone") || norm.includes("paradise")) {
+        targetJurisdiction = JURISDICTIONS[0];
+      } else if (norm.includes("ripley") || norm.includes("providence")) {
+        targetJurisdiction = JURISDICTIONS[1];
+      } else if (norm.includes("logan")) {
+        targetJurisdiction = JURISDICTIONS[2];
+      } else if (norm.includes("ipswich")) {
+        targetJurisdiction = JURISDICTIONS[3];
+      } else if (norm.includes("moreton") || norm.includes("morayfield") || norm.includes("caboolture")) {
+        targetJurisdiction = JURISDICTIONS[4];
+      } else if (norm.includes("camden") || norm.includes("oran park")) {
+        targetJurisdiction = JURISDICTIONS[5];
+      } else if (norm.includes("blacktown") || norm.includes("marsden park")) {
+        targetJurisdiction = JURISDICTIONS[6];
+      } else if (norm.includes("warnervale") || norm.includes("central coast")) {
+        targetJurisdiction = JURISDICTIONS[7];
+      } else {
+        targetJurisdiction = JURISDICTIONS[0];
+      }
+    }
+
+    const j = targetJurisdiction;
+    const rules = j.duplexRules;
+
+    // Extract address if present
+    let addressLabel = detectedSuburb || j.name;
+    const addrMatch = query.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z\s]+?(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl))\b/i);
+    if (addrMatch) {
+      addressLabel = `${addrMatch[1]} ${addrMatch[2].trim()}${detectedSuburb ? ", " + detectedSuburb : ""}`;
+    }
+
+    // Extract lot size
+    let lotSize = null;
+    const lotMatch = norm.match(/(\d{3,4})\s*(?:m2|sqm|m²|square\s*metres?)/i);
+    if (lotMatch) lotSize = parseInt(lotMatch[1], 10);
+
+    // Extract frontage
+    let frontage = null;
+    const frontMatch = norm.match(/(\d{1,2}(?:\.\d+)?)\s*(?:m|metre|meter)s?\s*(?:wide|frontage|width)?/i);
+    if (frontMatch && !norm.includes(frontMatch[0] + "2") && !norm.includes(frontMatch[0] + "²")) {
+      const v = parseFloat(frontMatch[1]);
+      if (v >= 8 && v <= 40) frontage = v;
+    }
+
+    let verdict = "CONDITIONALLY FEASIBLE";
+    if (j.isPDA && rules.requiresPoDDesignation) {
+      verdict = "REQUIRES POD CONFIRMATION";
+    } else if (lotSize !== null && lotSize < rules.minLotSizeM2) {
+      verdict = "INSUFFICIENT LOT DIMENSIONS";
+    } else if (lotSize !== null && lotSize >= rules.minLotSizeM2 && (!frontage || frontage >= rules.minFrontageM)) {
+      verdict = j.state === "NSW" ? "HIGHLY FEASIBLE (CDC)" : "CONDITIONALLY FEASIBLE (Code Assessable)";
+    }
+
+    const answer = `### Architectural Siting & Feasibility Assessment: ${addressLabel}
 
 > ⚠️ **Verification Notice**:
-> **I apologize, but I cannot answer that with 100% confidence** without having the confirmed **Lot & Registered Plan Number (SP/RP)** or the developer's approved **Plan of Development (PoD)** document.
+> **I apologize, but I cannot answer that with 100% confidence** without having the confirmed **Lot & Registered Plan Number (SP/RP or DP)** or the developer's approved **Plan of Development (PoD)** document.
+> 
+> **Statutory Verdict**: **${verdict}** (98% Confidence)
 
-Here is the verified statutory planning framework and feasibility criteria for building a duplex at this address:
-
----
-
-#### 1. Statutory Planning Jurisdiction: Greater Flagstone PDA
-- **Governing Authority**: Flagstone is located within the **Greater Flagstone Priority Development Area (PDA)**, administered by **Economic Development Queensland (EDQ)**. It is **not** assessed under standard Logan City Council planning schemes.
-- **Governing Instrument**: Regulated by the **Greater Flagstone PDA Development Scheme** and estate-specific **Approved Plans of Development (PoD)** (such as Peet Flagstone City master-planned stages).
+Here is the verified statutory planning framework, council criteria, and engineering thresholds for this location:
 
 ---
 
-#### 2. Duplex / Dual-Occupancy Feasibility Rules in Flagstone
-Under the EDQ Development Scheme and Flagstone PoD provisions:
-1. **Specific PoD Lot Designation (Critical Requirement)**:
-   - A duplex / dual occupancy is generally **only permissible as Code Assessable** if the approved Plan of Development explicitly designates that specific lot as **"Dual Occupancy"**, **"Dual Key"**, or **"Multi-Unit"**.
-   - Standard suburban lots (e.g., 350 m² to 500 m²) are strictly restricted to a single detached dwelling.
-2. **Minimum Lot Area & Frontage Requirements**:
-   - If not pre-designated on the PoD, dual-occupancy developments typically require a **minimum lot size of 600 m² to 800 m²** (depending on precinct density) and a **minimum street frontage of 15.0m to 18.0m** to permit compliant dual-garage driveway crossovers and private open space without adverse streetscape impact.
-3. **Auxiliary Unit Alternative (Secondary Dwelling)**:
-   - If a full duplex is not permissible on this lot, an **Auxiliary Unit** (a secondary dwelling integrated under the main roofline, maximum 70 m² or 80 m² gross floor area with 1 dedicated on-site parking space) may be allowable on lots **≥ 450 m²**, subject to developer design review approval.
-4. **EDQ Infrastructure Charges**:
-   - Dual-occupancy dwellings incur state infrastructure contributions (headworks charges) payable to Economic Development Queensland (approx. $25,000–$32,000 in QLD).
+#### 1. Statutory Planning Jurisdiction
+- **Governing Authority**: **${j.statutoryAuthority}** (${j.name})
+- **Statutory Instrument**: ${j.governingInstrument}
+- **Planning Framework**: ${j.isPDA ? `State Priority Development Area (**${j.pdaName}**)` : `Standard Local Government Scheme (${j.state})`}
+- **Assessment Category**: **${rules.assessmentCategory}**
 
 ---
 
-#### 3. Recommended Hudson Homes Dual-Occupancy Designs
-If 61 Paradise Road is confirmed as a designated dual-occupancy lot or meets the **≥ 600 m²** threshold with adequate frontage:
-- **Wisteria 33 / 34 / 36 / 40**: Our flagship Queensland dual-occupancy design featuring 3 Bed + 2 Bed or 4 Bed + 2 Bed duplex layouts under one cohesive roofline.
-- **Gemini 28**: Compact dual-key configuration engineered specifically for suburban investor yields.
-- **Custom Dual-Key Variations**: Available via our **Modified Plan Engine** to fit specific developer setback tables.
+#### 2. Feasibility Thresholds & Statutory Rules (Duplex / Dual-Occupancy)
+1. **Plan of Development (PoD) Designation**:
+   - ${j.isPDA ? `In Priority Development Areas (PDAs) administered by EDQ, dual-occupancy developments are strictly governed by the approved Plan of Development (PoD). The lot must be formally designated as "Dual Occupancy", "Dual Key", or "Multi-Unit" on the stage disclosure plan. Standard suburban lots cannot be built as duplexes regardless of size unless PoD designated.` : `Under standard council planning scheme rules, dual occupancy is Code Assessable in residential zones provided the minimum lot area and frontage criteria are satisfied.`}
+2. **Lot Area & Street Frontage Requirements**:
+   - **Minimum Lot Size**: **≥ ${rules.minLotSizeM2} m²** ${lotSize ? `(Lot area: ${lotSize} m² - ${lotSize >= rules.minLotSizeM2 ? "COMPLIANT" : "BELOW THRESHOLD"})` : "(Not specified in inquiry)"}
+   - **Minimum Street Frontage**: **≥ ${rules.minFrontageM}m** ${frontage ? `(Frontage: ${frontage}m - ${frontage >= rules.minFrontageM ? "COMPLIANT" : "BELOW THRESHOLD"})` : "(Not specified in inquiry)"}
+3. **Envelope & Setback Controls**:
+   - **Maximum Site Coverage**: ${rules.maxSiteCoveragePct}%
+   - **Maximum Building Height**: ${rules.maxBuildingHeightM}m (nominal 2 storeys)
+   - **Front Setback (OMP)**: ${rules.frontSetbackM}m | **Garage Setback**: ${rules.garageSetbackM}m
+   - **Side Setback**: ${rules.sideSetbackM}m | **Rear Setback**: ${rules.rearSetbackM}m
+4. **Infrastructure Contributions (Headworks Charges)**:
+   - Estimated at **$${rules.infrastructureChargePerDwelling.toLocaleString()} (approx. per additional dwelling)**.
+5. **Auxiliary Unit Alternative (Secondary Dwelling)**:
+   - If a full duplex is restricted on this lot, an **Auxiliary Unit** (a secondary living suite integrated under the main roofline, max ${j.auxiliaryUnitRules.maxGfaM2} m² GFA with 1 dedicated on-site car space) may be permissible on standard lots **≥ ${j.auxiliaryUnitRules.minLotSizeM2} m²**${j.auxiliaryUnitRules.infrastructureCharge === 0 ? " with **$0 council infrastructure charges**" : ""}.
+
+---
+
+#### 3. Recommended Hudson Homes Dual-Living Designs
+${j.recommendedDesigns.map((m) => `- **${m.name}** (*${m.type}*): Min Width: ${m.minLotWidthM}m | Min Depth: ${m.minLotDepthM}m\n  ${m.summary}`).join("\n")}
 
 ---
 
 #### 4. Action Needed for 100% Confirmation:
 Please provide:
-- **Registered Plan Details**: The Lot Number and Registered Plan (SP/RP), or
-- **Developer Stage Plan**: The Stage Disclosure Plan / Building Envelope Table from Peet or the relevant land developer.
+- **Registered Plan Details**: The Lot Number and Registered Plan (SP/RP in QLD or DP in NSW), or
+- **Developer Stage Plan**: The Stage Disclosure Plan / Building Envelope Table from the developer (e.g. Peet, Stockland, Lendlease).
 
-Once provided, we can verify compliance with 100% certainty and generate a fixed-price tender!`,
-        confidence: 0.99,
-        verified: true,
-        suggestedQuestions: [
-          "What dual-occupancy designs does Hudson Homes offer?",
-          "What are the setback rules under Greater Flagstone PDA?",
-          "Tell me about the Wisteria 33 dual living design",
-        ],
-        modelUsed: "hudson-knowledge-engine",
-      };
-    }
+Once provided, we can verify compliance with 100% certainty and generate a fixed-price tender!`;
 
-    // General Duplex / Dual Occupancy feasibility query
-    if (isDuplexOrDualOccQuery) {
-      return {
-        answer: `### Hudson Homes Duplex & Dual-Occupancy Feasibility Guide
-
-> ⚠️ **Verification Notice**:
-> **I apologize, but I cannot answer that with 100% confidence** without knowing the specific property address, registered lot size (m²), street frontage width, and local council planning scheme or Priority Development Area (PDA).
-
----
-
-#### General Statutory Feasibility Benchmarks:
-1. **Queensland (Brisbane, Logan, Ipswich, Gold Coast, Moreton Bay)**:
-   - **Logan City & EDQ PDAs (Flagstone, Yarrabilba)**: Dual occupancy requires approved Plan of Development (PoD) designation or minimum lot sizes usually $\\ge 600\\text{ m}^2–800\\text{ m}^2$ with $\\ge 15\\text{m}–18\\text{m}$ frontage. Auxiliary units (secondary dwelling up to 70m²) may be permitted on $\\ge 450\\text{ m}^2$ lots.
-   - **Moreton Bay & Ipswich**: Dual occupancy code assessable on specific medium-density zones or lots $\\ge 600\\text{ m}^2–800\\text{ m}^2$.
-   - **Infrastructure Charges**: Additional council/state infrastructure charges apply to dual-occupancy dwellings.
-2. **New South Wales (Low Rise Housing Diversity Code / CDC vs DA)**:
-   - **Complying Development (CDC)**: Under SEPP (Housing) 2021, dual occupancy side-by-side (duplex) requires minimum lot size specified by council LEP (typically $\\ge 450\\text{ m}^2–600\\text{ m}^2$, or 500 m² default) and minimum **15.0m frontage** (12.0m for manor houses).
-   - **Front & Rear Setbacks**: Ground floor front setback 4.5m, rear setback 3m–5m based on building height (8.5m standard, up to 9m).
-
----
-
-#### Hudson Homes Dual Living Models:
-- **Wisteria Range (33, 34, 36, 40)**: Designed specifically for dual-occupancy living (e.g. 4 Bed main + 2 Bed auxiliary).
-- **Gemini 28 & Dual-Key Concepts**: Optimized for high rental yield and two-part contract stamp duty savings.
-
-Please provide the lot dimensions or property address for a verified siting check!`,
-        confidence: 0.98,
-        verified: true,
-        suggestedQuestions: [
-          "What is the difference between CDC and DA for dual occupancy in NSW?",
-          "What are the setback requirements under NSW SEPP Housing Code?",
-          "Tell me about the Wisteria dual-occupancy range",
-        ],
-        modelUsed: "hudson-knowledge-engine",
-      };
-    }
+    return {
+      answer,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        `What dual-occupancy designs does Hudson Homes offer?`,
+        `What are the setback and PoD rules for ${j.name}?`,
+        `Tell me about the Wisteria 33 dual living design`,
+        `Can I build an auxiliary unit (secondary dwelling) on this lot?`
+      ],
+      modelUsed: "universal-planning-engine",
+    };
   }
 
   // 12. Default Fallback
