@@ -844,11 +844,14 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 set("suburb", item.suburb);
                 onLocationChange("suburb", item.suburb);
               }
-              if (item.estate) {
-                set("estate", item.estate);
-                const matched = matchEstatePreset(item.estate, item.suburb);
+              if (item.estate || item.suburb) {
+                if (item.estate) set("estate", item.estate);
+                const matched = matchEstatePreset(item.estate || "", item.suburb || "");
                 if (matched && matched.id !== "standard") {
                   set("estatePreset", matched.id);
+                  set("frontSetback", matched.frontSetback);
+                  set("garageSetback", matched.garageSetback);
+                  set("sideSetback", matched.sideSetback);
                 }
               }
             }}
@@ -868,11 +871,14 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                   set("suburb", item.suburb);
                   onLocationChange("suburb", item.suburb);
                 }
-                if (item.estate) {
-                  set("estate", item.estate);
-                  const matched = matchEstatePreset(item.estate, item.suburb);
+                if (item.estate || item.suburb) {
+                  if (item.estate) set("estate", item.estate);
+                  const matched = matchEstatePreset(item.estate || "", item.suburb || "");
                   if (matched && matched.id !== "standard") {
                     set("estatePreset", matched.id);
+                    set("frontSetback", matched.frontSetback);
+                    set("garageSetback", matched.garageSetback);
+                    set("sideSetback", matched.sideSetback);
                   }
                 }
               }}
