@@ -548,7 +548,7 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
 
         currentPage.push({
           label: isContinued ? `${group.label} (Continued)` : group.label,
-          total: chunk.reduce((s, it) => s + it.amount, 0),
+          total: chunk.reduce((s, it) => s + it.amount, 0) || (!isContinued ? group.total : 0),
           items: chunk,
         });
 
@@ -997,7 +997,72 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   ];
 
   const totalVariationsAmount = (pricing.categorySubtotals || []).reduce((s, c) => s + c.amount, 0);
-  const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAmount;
+  const turnkeyPackagesCost = (pricing.landscapingCost || 0) + (!design.landscapingSelected ? (pricing.exposedDrivewayCost || 0) : 0);
+  const totalVariationsAndPackagesAmount = totalVariationsAmount + turnkeyPackagesCost;
+  const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAndPackagesAmount;
+
+  const landscapingSpecGroup: SpecGroup | null = (pricing.landscapingCost > 0 || design.landscapingSelected) ? {
+    label: `Turnkey Landscaping Package (${design.landscapingLandSize || 450} m² Lot)`,
+    total: pricing.landscapingCost,
+    items: [
+      {
+        id: "landscape_turf",
+        name: "Premium Sir Walter / Couch Turf",
+        description: "Supply and lay premium Sir Walter / Couch turf to front and rear yard, shaped to boundary fencing with finished soil levelling.",
+        qtyLabel: "Front & Rear",
+        amount: 0,
+      },
+      {
+        id: "landscape_driveway",
+        name: "Exposed Aggregate Concrete Driveway & Porch Path",
+        description: "Exposed aggregate concrete paving from council kerb/crossover to double garage and front portico/porch path.",
+        qtyLabel: `${design.exposedDrivewayM2 || 55} m²`,
+        amount: 0,
+      },
+      {
+        id: "landscape_fencing",
+        name: "Treated Timber Perimeter Fencing & Return Gate",
+        description: "1.8m high treated pine lap and cap / standard timber paling boundary fencing including single side pedestrian return gate.",
+        qtyLabel: "Perimeter",
+        amount: 0,
+      },
+      {
+        id: "landscape_letterbox",
+        name: "Designer Pillar Letterbox",
+        description: "Freestanding masonry or architectural pillar letterbox with integrated street numbers and key lock.",
+        qtyLabel: "1 Item",
+        amount: 0,
+      },
+      {
+        id: "landscape_clothesline",
+        name: "Folding Clothesline",
+        description: "Ground-mounted or external wall-mounted folding frame clothesline installed in functional service yard.",
+        qtyLabel: "1 Item",
+        amount: 0,
+      },
+      {
+        id: "landscape_garden_beds",
+        name: "Feature Garden Beds & Mulch",
+        description: "Front garden bed preparation including organic planting soil, garden edging, hardwood mulch, and drought-tolerant shrubs.",
+        qtyLabel: "Front Yard",
+        amount: 0,
+      },
+    ],
+  } : null;
+
+  const standaloneDrivewayGroup: SpecGroup | null = ((pricing.exposedDrivewayCost > 0 || design.exposedDrivewaySelected) && !design.landscapingSelected) ? {
+    label: `External Concrete Paving & Driveway`,
+    total: pricing.exposedDrivewayCost,
+    items: [
+      {
+        id: "driveway_paving",
+        name: `Exposed Aggregate Concrete Driveway & Porch Path (${design.exposedDrivewayM2 || 55} m²)`,
+        description: "Exposed aggregate concrete paving from council crossover to double garage and front entry porch.",
+        qtyLabel: `${design.exposedDrivewayM2 || 55} m²`,
+        amount: pricing.exposedDrivewayCost,
+      },
+    ],
+  } : null;
 
   const variationGroups: SpecGroup[] = (pricing.categorySubtotals || []).map((cat) => ({
     label: cat.label,
@@ -1013,6 +1078,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
 
   const allSpecGroups: SpecGroup[] = [
     ...activeSiteSchedule,
+    ...(landscapingSpecGroup ? [landscapingSpecGroup] : []),
+    ...(standaloneDrivewayGroup ? [standaloneDrivewayGroup] : []),
     ...variationGroups,
   ];
 
@@ -1524,68 +1591,6 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </tr>
                 )}
 
-                {/* Complete Turnkey Landscaping Package if selected */}
-                {(pricing.landscapingCost > 0 || design.landscapingSelected) && (
-                  <tr className="bg-emerald-50/40">
-                    <td className="py-2.5 px-3 text-slate-700">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">
-                          Complete Turnkey Landscaping Package ({design.landscapingLandSize || 450}&nbsp;m² Lot):
-                        </span>
-                        <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono">
-                          Turnkey Inclusions
-                        </span>
-                      </div>
-                      <div className="mt-1 text-[10px] text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Turf:</strong> Front &amp; rear Sir Walter / Couch turfing to boundaries</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Driveway:</strong> Exposed aggregate concrete driveway &amp; porch path</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Fencing:</strong> 1.8m treated timber perimeter fencing &amp; side return gate</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Letterbox:</strong> Designer pillar letterbox with street numbers</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Clothesline:</strong> Wall or post-mounted folding clothesline</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-600 font-bold">✓</span>
-                          <span><strong>Garden Beds:</strong> Mulched garden bed with drought-tolerant planting</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-bold align-top">
-                      +{formatAud(pricing.landscapingCost)}
-                    </td>
-                  </tr>
-                )}
-
-                {/* Exposed Aggregate Concrete Driveway & Path if selected standalone */}
-                {((pricing.exposedDrivewayCost > 0 || design.exposedDrivewaySelected) && !design.landscapingSelected) && (
-                  <tr>
-                    <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">
-                        Exposed Aggregate Concrete Driveway &amp; Porch Path ({design.exposedDrivewayM2 || 55} m²):
-                      </span>
-                      <span className="block text-[10px] text-slate-500">
-                        Exposed aggregate concrete paving from council crossover to double garage and front entry porch
-                      </span>
-                    </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
-                      +{formatAud(pricing.exposedDrivewayCost)}
-                    </td>
-                  </tr>
-                )}
-
                 {/* Site Specific Earthworks & Statutory Inclusions Subtotal */}
                 {totalSiteAndStatutorySubtotal > 0 && (
                   <tr>
@@ -1601,17 +1606,17 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </tr>
                 )}
 
-                {/* Variations Subtotal if any */}
-                {hasVariations && (
+                {/* Variations & Turnkey Packages Subtotal if any */}
+                {totalVariationsAndPackagesAmount > 0 && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">Estimate Variations &amp; Custom Upgrades:</span>
+                      <span className="font-semibold text-slate-900">Estimate Variations, Upgrades &amp; Turnkey Packages:</span>
                       <span className="block text-[10px] text-slate-500">
-                        Detailed in Advanced Estimate Specification schedule
+                        Detailed in Advanced Estimate Specification schedule{pricing.landscapingCost > 0 ? " (includes Turnkey Landscaping Package)" : ""}
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
-                      +{formatAud(totalVariationsAmount)}
+                      +{formatAud(totalVariationsAndPackagesAmount)}
                     </td>
                   </tr>
                 )}
