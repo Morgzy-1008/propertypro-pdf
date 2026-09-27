@@ -32,7 +32,7 @@ export const ESTATE_PRESETS: EstatePreset[] = [
     rearSetback: 1.0,
     doubleStoreyRearSetback: 2.0,
     maxSiteCoverage: 60,
-    keywords: ["flagstone", "jimboomba", "peet", "undullah", "flagstone central"],
+    keywords: ["flagstone", "jimboomba", "undullah", "flagstone central"],
   },
   {
     id: "yarrabilba",
@@ -48,7 +48,7 @@ export const ESTATE_PRESETS: EstatePreset[] = [
     rearSetback: 1.5,
     doubleStoreyRearSetback: 2.0,
     maxSiteCoverage: 60,
-    keywords: ["yarrabilba", "lendlease", "logan reserve", "chambers flat"],
+    keywords: ["yarrabilba", "logan reserve", "chambers flat"],
   },
   {
     id: "covella",
@@ -64,7 +64,7 @@ export const ESTATE_PRESETS: EstatePreset[] = [
     rearSetback: 2.5,
     doubleStoreyRearSetback: 2.5,
     maxSiteCoverage: 55,
-    keywords: ["covella", "greenbank", "avid"],
+    keywords: ["covella", "greenbank"],
   },
   {
     id: "everleigh",
@@ -80,7 +80,7 @@ export const ESTATE_PRESETS: EstatePreset[] = [
     rearSetback: 2.0,
     doubleStoreyRearSetback: 2.5,
     maxSiteCoverage: 60,
-    keywords: ["everleigh", "mirvac", "pub lane"],
+    keywords: ["everleigh", "pub lane"],
   },
   {
     id: "shoreline",
@@ -128,7 +128,7 @@ export const ESTATE_PRESETS: EstatePreset[] = [
     rearSetback: 2.0,
     doubleStoreyRearSetback: 2.5,
     maxSiteCoverage: 60,
-    keywords: ["providence", "south ripley", "ripley", "stockland"],
+    keywords: ["providence", "south ripley", "ripley"],
   },
   {
     id: "north-harbour",
@@ -480,15 +480,37 @@ export const ESTATE_PRESETS: EstatePreset[] = [
 ];
 
 export function matchEstatePreset(estateName: string, suburbName: string): EstatePreset {
-  const combined = `${estateName || ""} ${suburbName || ""}`.toLowerCase().trim();
+  const cleanEstate = (estateName || "").toLowerCase().trim();
+  const cleanSuburb = (suburbName || "").toLowerCase().trim();
+  const combined = `${cleanEstate} ${cleanSuburb}`.trim();
   if (!combined) return ESTATE_PRESETS.find((p) => p.id === "standard")!;
 
+  // 1. Direct match on ID or exact preset name
   for (const preset of ESTATE_PRESETS) {
     if (preset.id === "standard" || preset.id === "custom") continue;
-    if (preset.keywords.some((kw) => combined.includes(kw))) {
+    if (preset.id === cleanEstate || preset.name.toLowerCase() === cleanEstate) {
       return preset;
     }
   }
+
+  // 2. Highest specificity: match by longest keyword
+  let bestPreset: EstatePreset | null = null;
+  let maxKeywordLength = 0;
+
+  for (const preset of ESTATE_PRESETS) {
+    if (preset.id === "standard" || preset.id === "custom") continue;
+    for (const kw of preset.keywords) {
+      const lowerKw = kw.toLowerCase().trim();
+      if (lowerKw.length >= 3 && combined.includes(lowerKw)) {
+        if (lowerKw.length > maxKeywordLength) {
+          maxKeywordLength = lowerKw.length;
+          bestPreset = preset;
+        }
+      }
+    }
+  }
+
+  if (bestPreset) return bestPreset;
 
   return ESTATE_PRESETS.find((p) => p.id === "standard")!;
 }
