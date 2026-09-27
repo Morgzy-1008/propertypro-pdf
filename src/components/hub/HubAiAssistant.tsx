@@ -35,7 +35,11 @@ STRICT MANDATE:
    - FHB First Home Buyer Range ("Start Smart"): Guaranteed fixed price certainty, optimized for state First Home Owner Grants ($30k QLD / $10k NSW) and stamp duty exemptions, complete move-in ready finishes (flooring, AC, modern kitchen, turnkey options).
    - LP Landscape Packages: Bundled external finish tier (driveway, fencing, turf, letterbox, clothesline) scaled by lot size (300m² - 900m²).
    - Fixed Site Costs: Up to H-class slab, concrete piering, council submission (DA/CDC), BASIX/NatHERS 7-Star compliance, 50-Year Structural Warranty.
-4. Hudson OS (hudson.dev):
+4. Planning, Siting & Duplex / Dual-Occupancy Knowledge:
+   - Flagstone QLD: Located within Greater Flagstone Priority Development Area (PDA) administered by Economic Development Queensland (EDQ), NOT standard Logan City Council scheme. Duplex / Dual Occupancy requires specific nomination on the approved Plan of Development (PoD) or minimum lot size (600m²-800m²) with 15m-18m frontage. Auxiliary units (up to 70m²) may be permitted on ≥450m² lots.
+   - NSW Low Rise Housing Diversity Code: Duplex / dual-occupancy under CDC requires min 15m frontage and council LEP lot size (typically ≥450m²-600m²).
+   - Hudson Homes Dual Living Models: Wisteria 33 / 34 / 36 / 40, Gemini 28, and custom dual-key configurations.
+5. Hudson OS (hudson.dev):
    - Flyer Builder (/flyer): 4 templates (1-Page Express, 2-Page Siting, 2-Page Showcase, House Only), automated logged-in NHC details.
    - Land Database (/database): Searchable lot inventory, AI Price List Parser, 1-click package handoff.
    - Quote Builder V2 (/quote-builder): 5 steps, Modified Plan Engine with visual diffing and Presight code parsing for alfresco/garage extensions, window/door modifications, and sink fixtures.
@@ -217,43 +221,50 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
       const apiKey = getGeminiApiKey();
       let data: any = null;
 
-      try {
-        const res = await fetch("/api/hub-chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: trimmed,
-            history: historyPayload,
-            apiKey: apiKey || undefined,
-            staffUser: staffUser
-              ? {
-                  name: staffUser.name,
-                  displayCentre: staffUser.displayCentre,
-                  role: staffUser.role,
-                }
-              : null,
-          }),
-        });
-
-        if (res.ok) {
-          data = await res.json();
-        }
-      } catch (networkErr) {
-        console.warn("[HubAiAssistant] Serverless proxy fetch error, falling back to direct client call:", networkErr);
-      }
-
-      // If serverless endpoint returned an error or failed (e.g. 502/500), try direct Gemini API
-      if (!data && apiKey) {
+      // 1. Check verified built-in knowledge engine first for instant, guaranteed-accurate responses
+      const verifiedLocal = generateHudsonKnowledgeResponse(trimmed, staffUser);
+      if (verifiedLocal && verifiedLocal.verified && verifiedLocal.confidence >= 0.98) {
+        data = verifiedLocal;
+      } else {
+        // 2. Otherwise query serverless endpoint /api/hub-chat
         try {
-          data = await queryGeminiDirect(trimmed, historyPayload, apiKey, staffUser);
-        } catch (directErr) {
-          console.warn("[HubAiAssistant] Direct Gemini call failed, activating built-in Knowledge Engine:", directErr);
-        }
-      }
+          const res = await fetch("/api/hub-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: trimmed,
+              history: historyPayload,
+              apiKey: apiKey || undefined,
+              staffUser: staffUser
+                ? {
+                    name: staffUser.name,
+                    displayCentre: staffUser.displayCentre,
+                    role: staffUser.role,
+                  }
+                : null,
+            }),
+          });
 
-      // If still no response (e.g. Gemini key disabled/invalid or network issue), seamlessly use Knowledge Engine
-      if (!data) {
-        data = generateHudsonKnowledgeResponse(trimmed, staffUser);
+          if (res.ok) {
+            data = await res.json();
+          }
+        } catch (networkErr) {
+          console.warn("[HubAiAssistant] Serverless proxy fetch error, falling back to direct client call:", networkErr);
+        }
+
+        // 3. If serverless endpoint returned an error or failed (e.g. 502/500), try direct Gemini API
+        if (!data && apiKey) {
+          try {
+            data = await queryGeminiDirect(trimmed, historyPayload, apiKey, staffUser);
+          } catch (directErr) {
+            console.warn("[HubAiAssistant] Direct Gemini call failed, activating built-in Knowledge Engine:", directErr);
+          }
+        }
+
+        // 4. If still no response, use Knowledge Engine fallback
+        if (!data) {
+          data = verifiedLocal || generateHudsonKnowledgeResponse(trimmed, staffUser);
+        }
       }
 
       // Enforce 95% confidence threshold check

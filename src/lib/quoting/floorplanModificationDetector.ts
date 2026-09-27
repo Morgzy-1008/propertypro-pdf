@@ -1287,7 +1287,7 @@ export async function analyzeModifiedFloorplanFile(
       if (verified) {
         detectedModelName = verified.row.name;
         housingType = verified.housingType;
-      } else {
+      } else if (!activeDesignName || activeDesignName === "UNSELECTED") {
         detectedModelName = visualModel.designName;
         housingType = visualModel.housingType || "Single Storey";
       }
@@ -1497,6 +1497,15 @@ export async function analyzeModifiedFloorplanFile(
     if (!isExternalFootprintUnchanged) {
       if (geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
         for (const gMod of geminiResult.areaModifications) {
+          // If the printed schedule table already specifies this zone, the schedule table is authoritative!
+          if (
+            (gMod.zone === "alfresco" && candidateTableSpec.alfrescoM2 !== undefined) ||
+            (gMod.zone === "garage" && candidateTableSpec.garageM2 !== undefined) ||
+            (gMod.zone === "living" && candidateTableSpec.livingM2 !== undefined) ||
+            (gMod.zone === "porch" && candidateTableSpec.porchM2 !== undefined)
+          ) {
+            continue;
+          }
           if (!spatialModsToApply.some((s) => s.zone === gMod.zone)) {
             spatialModsToApply.push(gMod);
           }
@@ -1505,6 +1514,14 @@ export async function analyzeModifiedFloorplanFile(
 
       if (canvasResult && canvasResult.areaModifications) {
         for (const cMod of canvasResult.areaModifications) {
+          if (
+            (cMod.zone === "alfresco" && candidateTableSpec.alfrescoM2 !== undefined) ||
+            (cMod.zone === "garage" && candidateTableSpec.garageM2 !== undefined) ||
+            (cMod.zone === "living" && candidateTableSpec.livingM2 !== undefined) ||
+            (cMod.zone === "porch" && candidateTableSpec.porchM2 !== undefined)
+          ) {
+            continue;
+          }
           if (!spatialModsToApply.some((s) => s.zone === cMod.zone)) {
             spatialModsToApply.push(cMod);
           }

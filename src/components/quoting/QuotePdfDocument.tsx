@@ -1399,21 +1399,72 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                <tr className="font-semibold">
-                  <td className="py-2.5 px-3">
-                    <div className="text-slate-900 font-bold">
-                      {design.mode === "standard"
-                        ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
-                        : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
-                    </div>
-                    <div className="text-[10px] text-slate-500 font-normal">
-                      Living area {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform {pricing.gfaM2} m²
-                    </div>
-                  </td>
-                  <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                    {formatAud(pricing.baseHousePrice)}
-                  </td>
-                </tr>
+                {/* Base House / Architectural Floorplan */}
+                {(() => {
+                  const isMod = !!design.isModifiedFloorplan || design.mode === "modified";
+                  const modCalc = isMod ? calculateModifiedFloorplanPricing(design) : null;
+                  const hasModCostDelta = !!modCalc && modCalc.totalCostAdjustment !== 0;
+
+                  if (isMod && modCalc && hasModCostDelta) {
+                    return (
+                      <>
+                        <tr className="font-semibold">
+                          <td className="py-2.5 px-3">
+                            <div className="text-slate-900 font-bold">
+                              {design.designName} with {formatInclusionTierTitle(design.specTier)}
+                            </div>
+                            <div className="text-[10px] text-slate-500 font-normal">
+                              Standard brochure baseline {modCalc.standardTotalM2.toFixed(2)} m² ({(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq)
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                            {formatAud(modCalc.standardBasePrice)}
+                          </td>
+                        </tr>
+
+                        <tr className="bg-slate-50/70 font-semibold border-l-4 border-l-emerald-600">
+                          <td className="py-2.5 px-3 text-slate-800">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900">
+                                Architectural Spatial Modifications (Net Area Difference: {modCalc.netDeltaM2 > 0 ? "+" : ""}{modCalc.netDeltaM2.toFixed(2)} m²):
+                              </span>
+                              <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
+                                Modified Plan
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-600 font-normal mt-0.5">
+                              {modCalc.zones
+                                .filter((z) => z.deltaM2 !== 0)
+                                .map((z) => `${z.label.replace(" Area", "")}: ${z.deltaM2 > 0 ? "+" : ""}${z.deltaM2.toFixed(2)} m² (${z.costAdjustment >= 0 ? "+" : ""}${formatAud(z.costAdjustment)})`)
+                                .join(" • ") || `Total adjusted area: ${modCalc.modifiedTotalM2.toFixed(2)} m²`}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                            {modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}
+                          </td>
+                        </tr>
+                      </>
+                    );
+                  }
+
+                  return (
+                    <tr className="font-semibold">
+                      <td className="py-2.5 px-3">
+                        <div className="text-slate-900 font-bold">
+                          {design.mode === "standard"
+                            ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
+                            : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-normal">
+                          Living area {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform {pricing.gfaM2} m²
+                        </div>
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
+                        {formatAud(pricing.baseHousePrice)}
+                      </td>
+                    </tr>
+                  );
+                })()}
 
                 {pricing.facadePrice > 0 && (
                   <tr>
@@ -1473,32 +1524,60 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </tr>
                 )}
 
-                {/* Turnkey Landscaping Package if selected */}
+                {/* Complete Turnkey Landscaping Package if selected */}
                 {(pricing.landscapingCost > 0 || design.landscapingSelected) && (
-                  <tr>
-                    <td className="py-2 px-3 text-slate-700">
-                      <span className="font-semibold text-slate-900">
-                        Turnkey Landscaping Package ({design.landscapingLandSize || 450} m² Lot):
-                      </span>
-                      <span className="block text-[10px] text-slate-500">
-                        Includes exposed aggregate driveway &amp; path, treated timber perimeter fencing &amp; gate, turf &amp; garden beds, clothesline, letterbox
-                      </span>
+                  <tr className="bg-emerald-50/40">
+                    <td className="py-2.5 px-3 text-slate-700">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900">
+                          Complete Turnkey Landscaping Package ({design.landscapingLandSize || 450}&nbsp;m² Lot):
+                        </span>
+                        <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-mono">
+                          Turnkey Inclusions
+                        </span>
+                      </div>
+                      <div className="mt-1 text-[10px] text-slate-600 grid grid-cols-2 gap-x-4 gap-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Turf:</strong> Front &amp; rear Sir Walter / Couch turfing to boundaries</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Driveway:</strong> Exposed aggregate concrete driveway &amp; porch path</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Fencing:</strong> 1.8m treated timber perimeter fencing &amp; side return gate</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Letterbox:</strong> Designer pillar letterbox with street numbers</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Clothesline:</strong> Wall or post-mounted folding clothesline</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-600 font-bold">✓</span>
+                          <span><strong>Garden Beds:</strong> Mulched garden bed with drought-tolerant planting</span>
+                        </div>
+                      </div>
                     </td>
-                    <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">
+                    <td className="py-2.5 px-3 text-right font-mono text-slate-900 font-bold align-top">
                       +{formatAud(pricing.landscapingCost)}
                     </td>
                   </tr>
                 )}
 
-                {/* Exposed Aggregate Concrete Driveway & Path if selected */}
-                {(pricing.exposedDrivewayCost > 0 || design.exposedDrivewaySelected) && (
+                {/* Exposed Aggregate Concrete Driveway & Path if selected standalone */}
+                {((pricing.exposedDrivewayCost > 0 || design.exposedDrivewaySelected) && !design.landscapingSelected) && (
                   <tr>
                     <td className="py-2 px-3 text-slate-700">
                       <span className="font-semibold text-slate-900">
                         Exposed Aggregate Concrete Driveway &amp; Porch Path ({design.exposedDrivewayM2 || 55} m²):
                       </span>
                       <span className="block text-[10px] text-slate-500">
-                        Exposed aggregate concrete paving from council crossover to double garage and front entry porch ($230/m²)
+                        Exposed aggregate concrete paving from council crossover to double garage and front entry porch
                       </span>
                     </td>
                     <td className="py-2 px-3 text-right font-mono text-slate-800 font-semibold">

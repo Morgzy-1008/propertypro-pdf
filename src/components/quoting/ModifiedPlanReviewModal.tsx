@@ -309,21 +309,13 @@ export function ModifiedPlanReviewModal({
 
                     <div className="flex items-center gap-3 self-end sm:self-auto">
                       <div className="flex items-center gap-1.5 text-xs">
-                        <span className="text-slate-400">Rate:</span>
-                        <div className="relative w-24">
-                          <span className="absolute left-2 top-2 text-[11px] text-slate-500">$</span>
-                          <Input
-                            type="number"
-                            value={area.unitRate}
-                            onChange={(e) => handleAreaRateChange(idx, Number(e.target.value))}
-                            disabled={!area.accepted}
-                            className="h-8 pl-5 pr-1 text-xs font-mono border-slate-700 bg-slate-950"
-                          />
-                        </div>
-                        <span className="text-slate-400 text-[10px]">/m²</span>
+                        <span className="text-slate-400 font-medium">Net Delta:</span>
+                        <span className="font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
+                          {area.deltaM2 > 0 ? `+${area.deltaM2}` : area.deltaM2} m²
+                        </span>
                       </div>
 
-                      <span className="text-xs font-mono font-bold min-w-20 text-right">
+                      <span className="text-xs font-mono font-bold min-w-20 text-right text-white">
                         {formatAud(area.subtotal)}
                       </span>
                     </div>

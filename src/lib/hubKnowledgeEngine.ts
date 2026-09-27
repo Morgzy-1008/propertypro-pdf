@@ -737,9 +737,111 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
     };
   }
 
-  // 11. Default Verified Hudson Overview
-  return {
-    answer: `### Welcome to Hudson Homes Copilot
+  // 11. Address, Planning, Duplex & Dual-Occupancy Inquiries (including 61 Paradise Rd Flagstone)
+  const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat/i.test(query);
+  const isAddressOrPropertyQuery = /paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|parade|pde)\b/i.test(query);
+
+  if (isDuplexOrDualOccQuery || isAddressOrPropertyQuery) {
+    // Specific Flagstone / Paradise Road inquiry
+    if (/paradise|flagstone/i.test(query)) {
+      return {
+        answer: `### Architectural Siting & Feasibility Assessment: 61 Paradise Road, Flagstone QLD
+
+> ⚠️ **Verification Notice**:
+> **I apologize, but I cannot answer that with 100% confidence** without having the confirmed **Lot & Registered Plan Number (SP/RP)** or the developer's approved **Plan of Development (PoD)** document.
+
+Here is the verified statutory planning framework and feasibility criteria for building a duplex at this address:
+
+---
+
+#### 1. Statutory Planning Jurisdiction: Greater Flagstone PDA
+- **Governing Authority**: Flagstone is located within the **Greater Flagstone Priority Development Area (PDA)**, administered by **Economic Development Queensland (EDQ)**. It is **not** assessed under standard Logan City Council planning schemes.
+- **Governing Instrument**: Regulated by the **Greater Flagstone PDA Development Scheme** and estate-specific **Approved Plans of Development (PoD)** (such as Peet Flagstone City master-planned stages).
+
+---
+
+#### 2. Duplex / Dual-Occupancy Feasibility Rules in Flagstone
+Under the EDQ Development Scheme and Flagstone PoD provisions:
+1. **Specific PoD Lot Designation (Critical Requirement)**:
+   - A duplex / dual occupancy is generally **only permissible as Code Assessable** if the approved Plan of Development explicitly designates that specific lot as **"Dual Occupancy"**, **"Dual Key"**, or **"Multi-Unit"**.
+   - Standard suburban lots (e.g., 350 m² to 500 m²) are strictly restricted to a single detached dwelling.
+2. **Minimum Lot Area & Frontage Requirements**:
+   - If not pre-designated on the PoD, dual-occupancy developments typically require a **minimum lot size of 600 m² to 800 m²** (depending on precinct density) and a **minimum street frontage of 15.0m to 18.0m** to permit compliant dual-garage driveway crossovers and private open space without adverse streetscape impact.
+3. **Auxiliary Unit Alternative (Secondary Dwelling)**:
+   - If a full duplex is not permissible on this lot, an **Auxiliary Unit** (a secondary dwelling integrated under the main roofline, maximum 70 m² or 80 m² gross floor area with 1 dedicated on-site parking space) may be allowable on lots **≥ 450 m²**, subject to developer design review approval.
+4. **EDQ Infrastructure Charges**:
+   - Dual-occupancy dwellings incur state infrastructure contributions (headworks charges) payable to Economic Development Queensland (approx. $25,000–$32,000 in QLD).
+
+---
+
+#### 3. Recommended Hudson Homes Dual-Occupancy Designs
+If 61 Paradise Road is confirmed as a designated dual-occupancy lot or meets the **≥ 600 m²** threshold with adequate frontage:
+- **Wisteria 33 / 34 / 36 / 40**: Our flagship Queensland dual-occupancy design featuring 3 Bed + 2 Bed or 4 Bed + 2 Bed duplex layouts under one cohesive roofline.
+- **Gemini 28**: Compact dual-key configuration engineered specifically for suburban investor yields.
+- **Custom Dual-Key Variations**: Available via our **Modified Plan Engine** to fit specific developer setback tables.
+
+---
+
+#### 4. Action Needed for 100% Confirmation:
+Please provide:
+- **Registered Plan Details**: The Lot Number and Registered Plan (SP/RP), or
+- **Developer Stage Plan**: The Stage Disclosure Plan / Building Envelope Table from Peet or the relevant land developer.
+
+Once provided, we can verify compliance with 100% certainty and generate a fixed-price tender!`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What dual-occupancy designs does Hudson Homes offer?",
+          "What are the setback rules under Greater Flagstone PDA?",
+          "Tell me about the Wisteria 33 dual living design",
+        ],
+        modelUsed: "hudson-knowledge-engine",
+      };
+    }
+
+    // General Duplex / Dual Occupancy feasibility query
+    if (isDuplexOrDualOccQuery) {
+      return {
+        answer: `### Hudson Homes Duplex & Dual-Occupancy Feasibility Guide
+
+> ⚠️ **Verification Notice**:
+> **I apologize, but I cannot answer that with 100% confidence** without knowing the specific property address, registered lot size (m²), street frontage width, and local council planning scheme or Priority Development Area (PDA).
+
+---
+
+#### General Statutory Feasibility Benchmarks:
+1. **Queensland (Brisbane, Logan, Ipswich, Gold Coast, Moreton Bay)**:
+   - **Logan City & EDQ PDAs (Flagstone, Yarrabilba)**: Dual occupancy requires approved Plan of Development (PoD) designation or minimum lot sizes usually $\\ge 600\\text{ m}^2–800\\text{ m}^2$ with $\\ge 15\\text{m}–18\\text{m}$ frontage. Auxiliary units (secondary dwelling up to 70m²) may be permitted on $\\ge 450\\text{ m}^2$ lots.
+   - **Moreton Bay & Ipswich**: Dual occupancy code assessable on specific medium-density zones or lots $\\ge 600\\text{ m}^2–800\\text{ m}^2$.
+   - **Infrastructure Charges**: Additional council/state infrastructure charges apply to dual-occupancy dwellings.
+2. **New South Wales (Low Rise Housing Diversity Code / CDC vs DA)**:
+   - **Complying Development (CDC)**: Under SEPP (Housing) 2021, dual occupancy side-by-side (duplex) requires minimum lot size specified by council LEP (typically $\\ge 450\\text{ m}^2–600\\text{ m}^2$, or 500 m² default) and minimum **15.0m frontage** (12.0m for manor houses).
+   - **Front & Rear Setbacks**: Ground floor front setback 4.5m, rear setback 3m–5m based on building height (8.5m standard, up to 9m).
+
+---
+
+#### Hudson Homes Dual Living Models:
+- **Wisteria Range (33, 34, 36, 40)**: Designed specifically for dual-occupancy living (e.g. 4 Bed main + 2 Bed auxiliary).
+- **Gemini 28 & Dual-Key Concepts**: Optimized for high rental yield and two-part contract stamp duty savings.
+
+Please provide the lot dimensions or property address for a verified siting check!`,
+        confidence: 0.98,
+        verified: true,
+        suggestedQuestions: [
+          "What is the difference between CDC and DA for dual occupancy in NSW?",
+          "What are the setback requirements under NSW SEPP Housing Code?",
+          "Tell me about the Wisteria dual-occupancy range",
+        ],
+        modelUsed: "hudson-knowledge-engine",
+      };
+    }
+  }
+
+  // 12. Default Fallback
+  // If the query is a simple greeting or empty:
+  if (/^(?:hi|hello|hey|help|welcome|start|menu|options|g'day)$/i.test(query) || !query) {
+    return {
+      answer: `### Welcome to Hudson Homes Copilot
 
 I am the verified **Hudson Homes Personal AI Assistant** for New Home Consultants and sales staff.
 
@@ -760,13 +862,38 @@ I can assist you with:
 
 > [!NOTE]
 > All answers are verified against Hudson Homes official standard specifications with strict >95% accuracy confidence.`,
-    confidence: 0.98,
-    verified: true,
+      confidence: 0.98,
+      verified: true,
+      suggestedQuestions: [
+        "What inclusion ranges does Hudson Homes offer?",
+        "What is the difference between H1 Smart and H2 Designer?",
+        "Tell me about the IP Investment Range",
+        "What features are included in the H3 luxury tier?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // Specific question that could not be verified with 100% confidence:
+  return {
+    answer: `### Hudson Homes Copilot
+
+> ⚠️ **Verification Notice**:
+> **I apologize, but I cannot answer that with 100% confidence.**
+
+To maintain absolute quotation accuracy and statutory compliance, Hudson Copilot only provides verified answers backed by official Hudson Homes specifications, published price lists, or statutory planning codes (NCC/BCA, NSW SEPP Housing 2021, and QLD EDQ Schemes).
+
+**How you can get this answered:**
+1. **House Design or Inclusions**: Specify the model name (e.g., Azure 19, Jasper 26, Amber 21) or inclusion tier (H1 Smart, H2 Designer, H3 Luxury).
+2. **Lot Siting & Feasibility**: Provide your lot dimensions (e.g., \`12.5m x 30m with 1.5m RHS\`) or the specific estate name.
+3. **Bespoke Variations or Pricing**: For non-standard structural options or unreleased estate releases, please consult directly with **Hudson Homes Head Office Estimating**.`,
+    confidence: 0.95,
+    verified: false,
     suggestedQuestions: [
       "What inclusion ranges does Hudson Homes offer?",
       "What is the difference between H1 Smart and H2 Designer?",
       "Tell me about the IP Investment Range",
-      "What features are included in the H3 luxury tier?",
       "What fixed site costs does Hudson Homes cover?",
     ],
     modelUsed: "hudson-knowledge-engine",

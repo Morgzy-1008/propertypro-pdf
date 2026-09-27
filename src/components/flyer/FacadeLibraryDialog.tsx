@@ -90,6 +90,47 @@ function facadeBelongsToCategory(
   return true;
 }
 
+const INITIAL_BATCH = 15;
+const BATCH_INCREMENT = 15;
+
+function FacadeCardThumbnail({
+  f,
+  isHighPriority,
+}: {
+  f: FacadeItem;
+  isHighPriority: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
+
+  return (
+    <div className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden">
+      {!loaded && !error && (
+        <div className="absolute inset-0 bg-slate-800/80 animate-pulse flex items-center justify-center">
+          <span className="h-3.5 w-3.5 rounded-full border-2 border-brand-gold/40 border-t-brand-gold animate-spin" />
+        </div>
+      )}
+      <img
+        src={f.url}
+        alt={f.name}
+        loading={isHighPriority ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={isHighPriority ? "high" : "auto"}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
+          loaded ? "opacity-100" : "opacity-0"
+        }`}
+      />
+      {f.range === "Narrow Double Storey" && (
+        <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
+          Narrow Double
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function FacadeLibrary({
   value,
   onSelect,
@@ -118,6 +159,8 @@ export function FacadeLibrary({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortId>("alpha");
+  const [visibleLimit, setVisibleLimit] = useState(INITIAL_BATCH);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   type TabId = FacadeStorey | "uploaded" | "design";
 
   const effectiveGarage: FacadeGarage | null =
@@ -131,6 +174,10 @@ export function FacadeLibrary({
     if (effectiveGarage === 1) setCategory("single");
     else if (storey) setCategory(storey);
   }, [storey, effectiveGarage, open]);
+
+  useEffect(() => {
+    setVisibleLimit(INITIAL_BATCH);
+  }, [category, sort, query, open]);
 
   const restricted = !!designFacades?.length;
   const all = useMemo(
@@ -190,6 +237,26 @@ export function FacadeLibrary({
     return sorted;
   }, [eligible, active, query, sort, designName]);
 
+
+  const visibleResults = useMemo(() => results.slice(0, visibleLimit), [results, visibleLimit]);
+
+  useEffect(() => {
+    if (!open) return;
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          setVisibleLimit((prev) => Math.min(prev + BATCH_INCREMENT, results.length));
+        }
+      },
+      { rootMargin: "250px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, results.length, visibleLimit]);
 
   const persist = (items: FacadeItem[]) => {
     setCustom(items);
@@ -305,7 +372,7 @@ export function FacadeLibrary({
         </div>
 
         <div className="grid max-h-[55vh] grid-cols-3 gap-3 overflow-y-auto pr-1">
-          {results.map((f) => {
+          {visibleResults.map((f, idx) => {
             const price = priceOf(f);
             return (
               <div key={f.id} className="group relative">
@@ -321,19 +388,7 @@ export function FacadeLibrary({
                       : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
                   }`}
                 >
-                  <div className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden">
-                    <img
-                      src={f.url}
-                      alt={f.name}
-                      loading="lazy"
-                      className="h-full w-full object-cover object-center"
-                    />
-                    {f.range === "Narrow Double Storey" && (
-                      <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
-                        Narrow Double
-                      </span>
-                    )}
-                  </div>
+                  <FacadeCardThumbnail f={f} isHighPriority={idx < 6} />
                   <div className="flex items-baseline justify-between gap-2 px-2.5 py-2">
                     <span className="truncate text-xs font-semibold text-slate-200">{f.name}</span>
                     <span className="flex-none text-[11px] font-bold text-brand-gold">
@@ -360,6 +415,19 @@ export function FacadeLibrary({
               </div>
             );
           })}
+          {visibleResults.length < results.length && (
+            <div ref={loadMoreRef} className="col-span-3 py-3 flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleLimit((prev) => Math.min(prev + BATCH_INCREMENT, results.length))}
+                className="text-xs border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white"
+              >
+                Load more facades ({results.length - visibleResults.length} remaining)
+              </Button>
+            </div>
+          )}
           {results.length === 0 && (
             <p className="col-span-3 py-8 text-center text-sm text-slate-400">
               No facades match “{query}”. Add renders to build out the library.

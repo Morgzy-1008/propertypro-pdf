@@ -1023,7 +1023,7 @@ export function ModifiedFloorplanModal({
                       onClick={() => handleAssignCategory(idx, "groundLivingM2")}
                       className="h-6 text-[10.5px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-2.5 shadow-xs"
                     >
-                      Ground Living ($1,480/m²)
+                      Ground Living
                     </Button>
                     <Button
                       size="sm"
@@ -1031,7 +1031,7 @@ export function ModifiedFloorplanModal({
                       onClick={() => handleAssignCategory(idx, "firstLivingM2")}
                       className="h-6 text-[10.5px] bg-cyan-600 hover:bg-cyan-500 text-white font-bold px-2.5 shadow-xs"
                     >
-                      First Living ($1,780/m²)
+                      First Living
                     </Button>
                     <Button
                       size="sm"
@@ -1039,7 +1039,7 @@ export function ModifiedFloorplanModal({
                       onClick={() => handleAssignCategory(idx, "garageM2")}
                       className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
                     >
-                      Garage ($1,300/m²)
+                      Garage
                     </Button>
                     <Button
                       size="sm"
@@ -1047,7 +1047,7 @@ export function ModifiedFloorplanModal({
                       onClick={() => handleAssignCategory(idx, "alfrescoM2")}
                       className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
                     >
-                      Alfresco/Porch ($870/m²)
+                      Alfresco / Porch
                     </Button>
                     <Button
                       size="sm"
@@ -1055,7 +1055,7 @@ export function ModifiedFloorplanModal({
                       onClick={() => handleAssignCategory(idx, "balconyM2")}
                       className="h-6 text-[10.5px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-2 border border-slate-700"
                     >
-                      Balcony ($2,000/m²)
+                      Balcony
                     </Button>
                     <Button
                       size="sm"

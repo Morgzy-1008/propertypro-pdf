@@ -1400,7 +1400,6 @@ export function QuoteDesignStep({
                             <th className="py-2.5 px-3 text-center">Standard Size</th>
                             <th className="py-2.5 px-3 text-center min-w-[130px]">Modified Size (m²)</th>
                             <th className="py-2.5 px-3 text-center">Variance (Δ)</th>
-                            <th className="py-2.5 px-3 text-right">Schedule Rate</th>
                             <th className="py-2.5 px-3 text-right">Cost Adjustment</th>
                           </tr>
                         </thead>
@@ -1468,16 +1467,6 @@ export function QuoteDesignStep({
                                   )}
                                 </td>
 
-                                {/* Rate ($/m²) */}
-                                <td className="py-2.5 px-3 text-right text-slate-300 font-sans text-xs">
-                                  <div>{formatAud(z.ratePerM2)}/m²</div>
-                                  {z.deltaM2 < 0 && (
-                                    <span className="text-[9px] text-amber-400/90 block font-mono">
-                                      (80% credit = {formatAud(Math.round(z.ratePerM2 * 0.8))}/m²)
-                                    </span>
-                                  )}
-                                </td>
-
                                 {/* Cost Adjustment */}
                                 <td className="py-2.5 px-3 text-right font-bold">
                                   {z.costAdjustment > 0 ? (
@@ -1518,10 +1507,8 @@ export function QuoteDesignStep({
                                 <span className="text-slate-400">0.00 m²</span>
                               )}
                             </td>
-                            <td className="py-3 px-3 text-right font-sans text-slate-400 text-[11px]">
-                              Net Adjustment:
-                            </td>
                             <td className="py-3 px-3 text-right font-mono text-sm font-extrabold">
+                              <span className="text-[10px] text-slate-400 font-normal font-sans mr-2">Net Adjustment:</span>
                               {modCalc.totalCostAdjustment > 0 ? (
                                 <span className="text-emerald-400">+{formatAud(modCalc.totalCostAdjustment)}</span>
                               ) : modCalc.totalCostAdjustment < 0 ? (
