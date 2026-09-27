@@ -1,5 +1,6 @@
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import { type StaffProfile } from "@/lib/authSession";
+import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
 
 export interface HubAiResponse {
   answer: string;
@@ -8,7 +9,6 @@ export interface HubAiResponse {
   suggestedQuestions: string[];
   modelUsed: string;
 }
-
 
 export interface SitingParams {
   lotWidth: number;
@@ -19,14 +19,15 @@ export interface SitingParams {
   rhsBtb: boolean;
   frontSetback: number;
   rearSetback: number;
+  storeyFilter?: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | null;
 }
 
 export function parseLotQuery(text: string): SitingParams | null {
   const t = (text || "").toLowerCase();
 
   const isSitingQuery =
-    (t.includes("lot") || t.includes("block") || t.includes("land") || t.includes("frontage")) &&
-    (t.includes("setback") || t.includes("wide") || t.includes("deep") || t.includes("fit") || t.includes("work") || t.includes("design") || t.includes("btb") || t.includes("boundary") || t.includes("envelope"));
+    (t.includes("lot") || t.includes("block") || t.includes("land") || t.includes("frontage") || t.includes("envelope") || /\b[0-9.]+\s*(?:m)?\s*(?:x|by|\*)\s*[0-9.]+\b/i.test(t)) &&
+    (t.includes("setback") || t.includes("wide") || t.includes("deep") || t.includes("fit") || t.includes("work") || t.includes("design") || t.includes("btb") || t.includes("boundary") || t.includes("envelope") || t.includes("ss") || t.includes("ds") || t.includes("storey") || t.includes("story") || t.includes("plan"));
 
   if (!isSitingQuery) return null;
 
@@ -91,6 +92,38 @@ export function parseLotQuery(text: string): SitingParams | null {
     rearSetback = parseFloat(rearMatch2[1]);
   }
 
+  let storeyFilter: SitingParams["storeyFilter"] = null;
+  if (
+    /\bss\b/i.test(t) ||
+    /\bsingle\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\b1\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\bone\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\bonly\s*single\b/i.test(t) ||
+    /\bsingle\s*homes?\b/i.test(t) ||
+    /\bsingle\s*designs?\b/i.test(t)
+  ) {
+    storeyFilter = "Single Storey";
+  } else if (
+    /\bds\b/i.test(t) ||
+    /\bdouble\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\btwo\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\b2\s*(?:storey|story|level|floor)\b/i.test(t) ||
+    /\bonly\s*double\b/i.test(t) ||
+    /\bdouble\s*homes?\b/i.test(t) ||
+    /\bdouble\s*designs?\b/i.test(t)
+  ) {
+    storeyFilter = "Double Storey";
+  } else if (
+    /\bdual\s*(?:living|occ|key)?\b/i.test(t) ||
+    /\bduplex\b/i.test(t)
+  ) {
+    storeyFilter = "Dual Living";
+  } else if (
+    /\bsplit\s*(?:level)?\b/i.test(t)
+  ) {
+    storeyFilter = "Split Level";
+  }
+
   return {
     lotWidth: lotWidth || 15.5,
     lotDepth: lotDepth || 21.35,
@@ -100,6 +133,7 @@ export function parseLotQuery(text: string): SitingParams | null {
     rhsBtb,
     frontSetback,
     rearSetback,
+    storeyFilter,
   };
 }
 
@@ -113,6 +147,7 @@ export function evaluateLotSiting(params: SitingParams) {
     rhsBtb,
     frontSetback,
     rearSetback,
+    storeyFilter,
   } = params;
 
   const maxWidthStd = Math.max(0, lotWidth - lhsSetback - rhsSetback);
@@ -123,17 +158,30 @@ export function evaluateLotSiting(params: SitingParams) {
 
   const maxDepth = Math.max(0, lotDepth - frontSetback - rearSetback);
 
-  const validPlans = HUDSON_FLOORPLANS.filter((p) => p.houseWidth && p.houseLength).map((p) => ({
-    label: p.label,
-    design: p.design,
-    beds: parseInt(p.beds) || 0,
-    baths: parseFloat(p.baths) || 0,
-    cars: parseInt(p.cars) || 0,
-    sizeM2: parseFloat(p.size) || 0,
-    frontageReq: parseFloat(p.frontage) || 0,
-    houseWidth: parseFloat(p.houseWidth!),
-    houseLength: parseFloat(p.houseLength!),
-  }));
+  const allPlans = HUDSON_FLOORPLANS.filter((p) => p.houseWidth && p.houseLength).map((p) => {
+    const housingType = getHousingTypeForDesign(p.design || p.label);
+    return {
+      label: p.label,
+      design: p.design,
+      housingType,
+      beds: parseInt(p.beds) || 0,
+      baths: parseFloat(p.baths) || 0,
+      cars: parseInt(p.cars) || 0,
+      sizeM2: parseFloat(p.size) || 0,
+      frontageReq: parseFloat(p.frontage) || 0,
+      houseWidth: parseFloat(p.houseWidth!),
+      houseLength: parseFloat(p.houseLength!),
+    };
+  });
+
+  const validPlans = allPlans.filter((p) => {
+    if (!storeyFilter) return true;
+    return p.housingType === storeyFilter;
+  });
+
+  const potentialMaxWidthBtb = Math.max(0, lotWidth - 0.0 - rhsSetback);
+  const isBtbPermitted = Boolean(lhsBtb || rhsBtb);
+  const effectiveBtbWidth = isBtbPermitted ? maxWidthBtb : potentialMaxWidthBtb;
 
   const strictFit = validPlans
     .filter((p) => p.houseWidth <= maxWidthStd && p.houseLength <= maxDepth)
@@ -143,7 +191,7 @@ export function evaluateLotSiting(params: SitingParams) {
     .filter(
       (p) =>
         p.houseWidth > maxWidthStd &&
-        p.houseWidth <= maxWidthBtb &&
+        p.houseWidth <= effectiveBtbWidth &&
         p.houseLength <= maxDepth
     )
     .sort((a, b) => b.sizeM2 - a.sizeM2);
@@ -151,7 +199,7 @@ export function evaluateLotSiting(params: SitingParams) {
   const closeFit = validPlans
     .filter(
       (p) =>
-        p.houseWidth <= maxWidthBtb &&
+        p.houseWidth <= effectiveBtbWidth &&
         p.houseLength > maxDepth &&
         p.houseLength <= maxDepth + 2.5
     )
@@ -161,8 +209,10 @@ export function evaluateLotSiting(params: SitingParams) {
     lotWidth,
     lotDepth,
     lotArea: (lotWidth * lotDepth).toFixed(1),
+    storeyFilter: storeyFilter || null,
     maxWidthStd: maxWidthStd.toFixed(2),
-    maxWidthBtb: maxWidthBtb.toFixed(2),
+    maxWidthBtb: effectiveBtbWidth.toFixed(2),
+    isBtbPermitted,
     maxDepth: maxDepth.toFixed(2),
     lhsSetback,
     lhsBtb,
@@ -180,8 +230,10 @@ export function formatSitingResponse(res: ReturnType<typeof evaluateLotSiting>):
     lotWidth,
     lotDepth,
     lotArea,
+    storeyFilter,
     maxWidthStd,
     maxWidthBtb,
+    isBtbPermitted,
     maxDepth,
     lhsSetback,
     lhsBtb,
@@ -193,11 +245,15 @@ export function formatSitingResponse(res: ReturnType<typeof evaluateLotSiting>):
     closeFit,
   } = res;
 
+  const typeDesc = storeyFilter
+    ? `${storeyFilter} (${storeyFilter === "Single Storey" ? "SS" : storeyFilter === "Double Storey" ? "DS" : storeyFilter})`
+    : "All Storeys";
+
   let out = `### 📐 Architectural Siting & Feasibility Assessment
 
 **Lot Parameters:**
 - **Dimensions:** ${lotWidth}m Wide × ${lotDepth}m Deep (${lotArea} m²)
-- **Setbacks Applied:**
+${storeyFilter ? `- **Requested Housing Type:** **${typeDesc}**\n` : ""}- **Setbacks Applied:**
   - **LHS (Left):** ${lhsSetback}m${lhsBtb ? " *(Built-To-Boundary / Zero-Lot permitted)*" : ""}
   - **RHS (Right):** ${rhsSetback}m
   - **Front to Garage:** ${frontSetback}m
@@ -209,8 +265,8 @@ ${lhsBtb ? `- **With Zero-Lot / BTB on LHS:** Up to **${maxWidthBtb}m** (${lotWi
 
 ---
 
-### 1. Directly Compliant Hudson Designs (${strictFit.length} Designs Fit 100%)
-These designs sit comfortably inside the ${maxWidthStd}m × ${maxDepth}m envelope with zero structural boundary variations:
+### 1. Directly Compliant Hudson ${storeyFilter ? storeyFilter + " " : ""}Designs (${strictFit.length} Designs Fit 100%)
+These ${storeyFilter ? storeyFilter.toLowerCase() + " " : ""}designs sit comfortably inside the ${maxWidthStd}m × ${maxDepth}m envelope with zero structural boundary variations:
 
 `;
 
@@ -219,30 +275,35 @@ These designs sit comfortably inside the ${maxWidthStd}m × ${maxDepth}m envelop
     for (const p of topStrict) {
       const wMargin = (parseFloat(maxWidthStd) - p.houseWidth).toFixed(2);
       const lMargin = (parseFloat(maxDepth) - p.houseLength).toFixed(2);
-      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m² / ${(p.sizeM2 / 9.29).toFixed(1)} sq)\n`;
+      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m² / ${(p.sizeM2 / 9.29).toFixed(1)} sq) [${p.housingType}]\n`;
       out += `  - *Config:* ${p.beds} Bed, ${p.baths} Bath, ${p.cars} Car Garage\n`;
       out += `  - *Clearances:* +${wMargin}m width buffer, +${lMargin}m rear buffer\n`;
     }
   } else {
-    out += `*No standard catalog designs fit strictly within this envelope without BTB or length concessions.*\n`;
+    out += `*No standard ${storeyFilter ? storeyFilter.toLowerCase() + " " : ""}catalog designs fit strictly within this envelope without BTB or length concessions.*\n`;
   }
 
   if (btbFit.length > 0) {
-    out += `\n### 2. Compliant via Built-to-Boundary (BTB) on LHS (${btbFit.length} Designs)\n`;
-    out += `These designs take advantage of your LHS Zero-Lot wall (up to ${maxWidthBtb}m wide):\n\n`;
-    for (const p of btbFit.slice(0, 5)) {
-      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m²)\n`;
+    if (isBtbPermitted) {
+      out += `\n### 2. Compliant via Built-to-Boundary (BTB) on LHS (${btbFit.length} Designs)\n`;
+      out += `These ${storeyFilter ? storeyFilter.toLowerCase() + " " : ""}designs take advantage of your LHS Zero-Lot wall (up to ${maxWidthBtb}m wide):\n\n`;
+    } else {
+      out += `\n### 2. Compliant if Lot Allows Zero-Lot / Built-to-Boundary (BTB) on Garage (${btbFit.length} Designs)\n`;
+      out += `If your developer guidelines allow a Zero-Lot garage wall (increasing allowable building width up to **${maxWidthBtb}m**), these flagship designs also fit 100%:\n\n`;
+    }
+    for (const p of btbFit.slice(0, 8)) {
+      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m² / ${(p.sizeM2 / 9.29).toFixed(1)} sq) [${p.housingType}]\n`;
       out += `  - *Config:* ${p.beds} Bed, ${p.baths} Bath, ${p.cars} Car Garage\n`;
     }
   }
 
   if (closeFit.length > 0) {
     out += `\n### 3. "Close" Designs & Architectural Solutions (${closeFit.length} Options)\n`;
-    out += `These designs fit the 13.0m width easily, but their length exceeds ${maxDepth}m by a small margin. They can work with minor articulation or boundary adjustments:\n\n`;
+    out += `These ${storeyFilter ? storeyFilter.toLowerCase() + " " : ""}designs fit the width easily, but their length exceeds ${maxDepth}m by a small margin. They can work with minor articulation or boundary adjustments:\n\n`;
 
     for (const p of closeFit.slice(0, 6)) {
       const over = (p.houseLength - parseFloat(maxDepth)).toFixed(2);
-      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m² | ${p.beds}b/${p.baths}b/${p.cars}c)\n`;
+      out += `- **${p.label}**: **${p.houseWidth}m W × ${p.houseLength}m L** (${p.sizeM2} m² | ${p.beds}b/${p.baths}b/${p.cars}c) [${p.housingType}]\n`;
       out += `  - *Length Delta:* Only **+${over}m** over the ${maxDepth}m boundary.\n`;
       if (parseFloat(over) <= 0.6) {
         out += `  - *How to Make it Work:* Front porch articulation or bringing living forward to 4.5m (while holding garage at 5.0m) or slight alfresco depth reduction easily accommodates this.\n`;
