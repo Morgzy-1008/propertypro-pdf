@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   getActiveStaffUser,
+  setActiveStaffUser,
   clearActiveStaffUser,
   onStaffUserChanged,
   isStaffSessionActive,
+  KNOWN_STAFF_PROFILES,
   type StaffProfile,
 } from "@/lib/authSession";
 import { getUnreadAlertCount, onAdminAlertsChanged } from "@/lib/adminAlerts";
@@ -18,6 +20,10 @@ import {
   Bell,
   Clock,
   Lock,
+  UserCheck,
+  Users,
+  CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -52,7 +58,75 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
     };
   }, []);
 
+  const isMorgan =
+    activeUser?.id === "morgan-hales" ||
+    activeUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
+    activeUser?.role === "admin";
+
+  const isImpersonating =
+    typeof window !== "undefined" &&
+    (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
+      localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
+
+  const canSwitchProfiles = isMorgan || isImpersonating;
+
+  const handleSwitchToProfile = (profile: StaffProfile) => {
+    try {
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+        localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+      }
+      setActiveStaffUser(profile, true);
+      setIsDropdownOpen(false);
+      toast.success(`Switched account to ${profile.name}`, {
+        description: `Now previewing as ${profile.title} (${profile.displayCentre})`,
+      });
+
+      if (profile.role === "marketing") {
+        const path = window.location.pathname;
+        if (
+          path.includes("quote") ||
+          path.includes("crm") ||
+          path.includes("tender") ||
+          path.includes("site-studio") ||
+          path.includes("floorplan-editor")
+        ) {
+          navigate({ to: "/hub", replace: true });
+        }
+      }
+      setTimeout(() => {
+        window.location.reload();
+      }, 150);
+    } catch (e) {
+      console.error("Profile switch error:", e);
+    }
+  };
+
+  const handleReturnToMorgan = () => {
+    try {
+      const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
+      if (morgan) {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem("hudson_admin_impersonator");
+          localStorage.removeItem("hudson_admin_impersonator");
+        }
+        setActiveStaffUser(morgan, true);
+        setIsDropdownOpen(false);
+        toast.success("Returned to Morgan Hales (System Admin)");
+        setTimeout(() => {
+          window.location.reload();
+        }, 150);
+      }
+    } catch (e) {
+      console.error("Return to admin error:", e);
+    }
+  };
+
   const handleSignOut = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("hudson_admin_impersonator");
+      localStorage.removeItem("hudson_admin_impersonator");
+    }
     clearActiveStaffUser(false);
     setIsDropdownOpen(false);
     toast.info("Signed out. Redirecting to authentication page...");
@@ -119,14 +193,14 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                 className="fixed inset-0 z-40"
                 onClick={() => setIsDropdownOpen(false)}
               />
-              <div className={`absolute right-0 mt-2 w-64 rounded-2xl border shadow-2xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 space-y-2 ${
+              <div className={`absolute right-0 mt-2 w-72 sm:w-80 rounded-2xl border shadow-2xl p-3 z-50 text-xs animate-in fade-in zoom-in-95 duration-100 space-y-2 ${
                 isLight
                   ? "border-slate-200 bg-white text-slate-800 shadow-slate-900/10"
                   : "border-slate-800 bg-slate-950/95 text-slate-200 backdrop-blur-xl"
               }`}>
                 <div className={`pb-2.5 border-b ${isLight ? "border-slate-200" : "border-slate-800"}`}>
                   <div className="flex items-center justify-between">
-                    <span className={`font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>{activeUser.name}</span>
+                    <span className={`font-bold block text-sm ${isLight ? "text-slate-900" : "text-white"}`}>{activeUser.name}</span>
                     <span className={`text-[9px] px-1.5 py-0.2 rounded font-mono font-bold border ${
                       isLight
                         ? "bg-emerald-50 text-emerald-800 border-emerald-300"
@@ -138,9 +212,20 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                   <span className={`text-[11px] block font-mono truncate ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                     {activeUser.email}
                   </span>
-                  <span className={`text-[10px] font-semibold mt-1 inline-flex items-center gap-1 ${isLight ? "text-amber-800" : "text-amber-400"}`}>
-                    <Building className="h-3 w-3" /> {activeUser.displayCentre}
-                  </span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[10px] font-semibold inline-flex items-center gap-1 ${isLight ? "text-amber-800" : "text-amber-400"}`}>
+                      <Building className="h-3 w-3" /> {activeUser.displayCentre}
+                    </span>
+                    <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                      activeUser.role === "marketing"
+                        ? "bg-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30"
+                        : activeUser.role === "admin"
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                    }`}>
+                      {activeUser.title}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -169,18 +254,107 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                     </button>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={handleSignOut}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 font-semibold ${
-                      isLight
-                        ? "hover:bg-rose-50 text-rose-700"
-                        : "hover:bg-rose-950/40 text-rose-400"
-                    }`}
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    <span>Sign Out &amp; Switch Account</span>
-                  </button>
+                  {/* Colleague Profile Switcher for Morgan Hales & Admin Session Testing */}
+                  {canSwitchProfiles && (
+                    <div className={`pt-2 mt-1 border-t space-y-1.5 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                      <div className="flex items-center justify-between px-1">
+                        <span className={`text-[10.5px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isLight ? "text-amber-800" : "text-amber-400"}`}>
+                          <Users className="h-3.5 w-3.5" />
+                          <span>Switch Colleague View</span>
+                        </span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${isLight ? "bg-amber-100 text-amber-900" : "bg-amber-500/20 text-amber-300"}`}>
+                          Instant Access
+                        </span>
+                      </div>
+
+                      {/* Quick Return to Morgan button if currently previewing as another colleague */}
+                      {isImpersonating && activeUser.id !== "morgan-hales" && (
+                        <button
+                          type="button"
+                          onClick={handleReturnToMorgan}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between font-bold border transition-all ${
+                            isLight
+                              ? "bg-amber-100 border-amber-300 text-amber-950 hover:bg-amber-200 shadow-xs"
+                              : "bg-amber-500/20 border-amber-500/40 text-amber-300 hover:bg-amber-500/30 shadow-md"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <UserCheck className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
+                            <span>Return to Morgan Hales (Admin)</span>
+                          </span>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-black">
+                            RESET
+                          </span>
+                        </button>
+                      )}
+
+                      {/* Colleague Profiles List */}
+                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                        {KNOWN_STAFF_PROFILES.map((p) => {
+                          const isCurrent = activeUser?.id === p.id || activeUser?.email?.toLowerCase() === p.email.toLowerCase();
+                          return (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => handleSwitchToProfile(p)}
+                              className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between transition-all group ${
+                                isCurrent
+                                  ? isLight
+                                    ? "bg-amber-50 border border-amber-300 text-slate-900 font-bold"
+                                    : "bg-amber-500/15 border border-amber-500/30 text-white font-bold"
+                                  : isLight
+                                    ? "hover:bg-slate-100 text-slate-700"
+                                    : "hover:bg-slate-800/70 text-slate-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={`h-5 w-5 rounded-full bg-gradient-to-br ${p.accentColor || "from-amber-500 to-orange-600"} flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-xs`}>
+                                  {p.avatarInitials}
+                                </div>
+                                <div className="truncate">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="truncate font-semibold leading-tight text-[11px]">{p.name}</span>
+                                    {p.role === "marketing" && (
+                                      <span className="text-[8.5px] px-1 rounded bg-fuchsia-500/20 text-fuchsia-400 font-bold uppercase">
+                                        Marketing
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className={`block text-[9.5px] truncate leading-none mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                    {p.title.replace("Senior New Home Consultant & System Admin", "Admin & NHC")} • {p.division || p.state || "AU"}
+                                  </span>
+                                </div>
+                              </div>
+                              {isCurrent ? (
+                                <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 shrink-0 font-mono flex items-center gap-0.5">
+                                  <CheckCircle2 className="h-3 w-3" /> Active
+                                </span>
+                              ) : (
+                                <span className={`text-[9.5px] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                                  Switch →
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className={`pt-1 border-t ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center gap-2 font-semibold ${
+                        isLight
+                          ? "hover:bg-rose-50 text-rose-700"
+                          : "hover:bg-rose-950/40 text-rose-400"
+                      }`}
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </>

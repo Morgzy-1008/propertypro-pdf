@@ -108,6 +108,7 @@ function WelcomeHubPage() {
   const displayName = staffUser ? staffUser.name.split(" ")[0] : "there";
   const isLight = mode === "normal";
   const isAdmin = staffUser?.role === "admin" || staffUser?.id === "morgan-hales";
+  const isMarketing = staffUser?.role === "marketing";
   const isMorgan =
     staffUser?.id === "morgan-hales" ||
     staffUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
@@ -260,39 +261,41 @@ function WelcomeHubPage() {
             </div>
           </Link>
 
-          {/* Card 3: Hudson Quoting System */}
-          <Link
-            to="/quote-builder"
-            className={`group relative overflow-hidden rounded-2xl border ${
-              isLight
-                ? "border-slate-200 bg-white shadow-xs hover:border-emerald-500/70 hover:shadow-xl hover:-translate-y-1"
-                : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1"
-            } p-6 transition-all duration-300 flex flex-col justify-between`}
-          >
-            <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
-                  <Layers className="h-5 w-5" />
+          {/* Card 3: Hudson Quoting System (Restricted from Marketing Team) */}
+          {!isMarketing && (
+            <Link
+              to="/quote-builder"
+              className={`group relative overflow-hidden rounded-2xl border ${
+                isLight
+                  ? "border-slate-200 bg-white shadow-xs hover:border-emerald-500/70 hover:shadow-xl hover:-translate-y-1"
+                  : "border-slate-800 bg-gradient-to-b from-slate-900/90 to-slate-900/40 hover:border-emerald-500/60 hover:shadow-2xl hover:shadow-emerald-500/10 hover:-translate-y-1"
+              } p-6 transition-all duration-300 flex flex-col justify-between`}
+            >
+              <div className="absolute top-0 right-0 h-32 w-32 bg-emerald-500/5 rounded-full blur-3xl group-hover:bg-emerald-500/15 transition-all duration-500" />
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform duration-300 shadow-inner">
+                    <Layers className="h-5 w-5" />
+                  </div>
+                  <span className="text-[10px] font-semibold tracking-wider uppercase text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                    Estimating Engine
+                  </span>
                 </div>
-                <span className="text-[10px] font-semibold tracking-wider uppercase text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                  Estimating Engine
+                <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-200"} transition-colors`}>
+                  Hudson Quoting System
+                </h2>
+              </div>
+              <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
+                <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                  <span>Delta Area Pricing</span>
+                </div>
+                <span className="font-semibold text-emerald-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
+                  Launch Quoting <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </span>
               </div>
-              <h2 className={`text-lg font-bold ${isLight ? "text-slate-900 group-hover:text-emerald-700" : "text-white group-hover:text-emerald-200"} transition-colors`}>
-                Hudson Quoting System
-              </h2>
-            </div>
-            <div className={`mt-5 pt-4 border-t ${isLight ? "border-slate-100" : "border-slate-800/80"} flex items-center justify-between text-xs`}>
-              <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                <span>Delta Area Pricing</span>
-              </div>
-              <span className="font-semibold text-emerald-600 group-hover:translate-x-1 transition-transform inline-flex items-center">
-                Launch Quoting <ArrowRight className="ml-1 h-3.5 w-3.5" />
-              </span>
-            </div>
-          </Link>
+            </Link>
+          )}
 
           {/* Card 4: Concept Floorplan Editor (Allowed Staff: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, Morgan) */}
           {hasFloorplanAccess && (

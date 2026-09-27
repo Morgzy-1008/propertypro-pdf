@@ -116,6 +116,26 @@ export const ALL_STAFF_CONSULTANTS: Consultant[] = [
     division: "QLD",
     state: "QLD",
   },
+  {
+    id: "cheryl-rong",
+    name: "Cheryl Rong",
+    phone: "0400 000 000",
+    email: "Cheryl.Rong@hudsonhomes.com.au",
+    title: "Marketing Coordinator",
+    displayCentre: "Marketing Department",
+    division: "NSW",
+    state: "NSW",
+  },
+  {
+    id: "zoe-hogbin",
+    name: "Zoe Hogbin",
+    phone: "0400 000 000",
+    email: "Zoe.Hogbin@hudsonhomes.com.au",
+    title: "Marketing Manager",
+    displayCentre: "Marketing Department",
+    division: "NSW",
+    state: "NSW",
+  },
 ];
 
 export function findConsultant(id: string) {

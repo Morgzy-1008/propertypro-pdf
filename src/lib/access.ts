@@ -18,6 +18,8 @@ export const DEFAULT_ALLOWED_EMAILS = [
   "steve.slisar@hudsonhomes.com.au",
   "steve.silsar@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
+  "cheryl.rong@hudsonhomes.com.au",
+  "zoe.hogbin@hudsonhomes.com.au",
 ];
 
 const LOCAL_APPROVED_EMAILS_KEY = "hudson_approved_staff_emails_v1";
@@ -180,8 +182,13 @@ export function canAccessFloorplanEditor(staffUser?: {
   const id = (staffUser.id || "").trim().toLowerCase();
   const name = (staffUser.name || "").trim().toLowerCase();
 
-  // Explicitly excluded: Christine and Gary
+  // Explicitly excluded: Christine, Gary, and Marketing Team
   if (
+    staffUser?.role === "marketing" ||
+    email === "cheryl.rong@hudsonhomes.com.au" ||
+    email === "zoe.hogbin@hudsonhomes.com.au" ||
+    id === "cheryl-rong" ||
+    id === "zoe-hogbin" ||
     email === "christine.hunt@hudsonhomes.com.au" ||
     email.includes("christine.hunt") ||
     id === "christine-hunt" ||

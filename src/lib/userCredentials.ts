@@ -19,13 +19,15 @@ export const PREV_STAFF_EMAILS = [
   "ben.grill@hudsonhomes.com.au",
 ];
 
-// New NSW New Home Sales Consultants.
-// Only these new consultants need to be prompted to create a password on their initial login.
+// New Staff Logins (NSW Sales Consultants & Marketing Team).
+// Only these new team members need to be prompted to create a password on their initial login.
 export const NEW_STAFF_EMAILS = [
   "gary.rees@hudsonhomes.com.au",
   "steve.slisar@hudsonhomes.com.au",
   "christine.hunt@hudsonhomes.com.au",
   "aaron.martin@hudsonhomes.com.au",
+  "cheryl.rong@hudsonhomes.com.au",
+  "zoe.hogbin@hudsonhomes.com.au",
 ];
 
 // Complete Authorized Staff Whitelist
@@ -75,6 +77,8 @@ export function normalizeStaffEmail(email?: string | null): string {
     clean = "steve.slisar@hudsonhomes.com.au";
   }
   if (clean === "aaron@hudsonhomes.com.au") clean = "aaron.martin@hudsonhomes.com.au";
+  if (clean === "cheryl@hudsonhomes.com.au") clean = "cheryl.rong@hudsonhomes.com.au";
+  if (clean === "zoe@hudsonhomes.com.au") clean = "zoe.hogbin@hudsonhomes.com.au";
   return clean;
 }
 

@@ -10,7 +10,7 @@ export interface StaffProfile {
   displayCentre: string;
   division?: "QLD" | "NSW";
   state?: "QLD" | "NSW";
-  role: "nhc" | "admin" | "estimator";
+  role: "nhc" | "admin" | "estimator" | "marketing";
   avatarInitials: string;
   accentColor: string;
 }
@@ -145,6 +145,32 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     role: "nhc",
     avatarInitials: "AM",
     accentColor: "from-amber-500 to-yellow-600",
+  },
+  {
+    id: "cheryl-rong",
+    name: "Cheryl Rong",
+    email: "cheryl.rong@hudsonhomes.com.au",
+    phone: "0400 000 000",
+    title: "Marketing Coordinator",
+    displayCentre: "Marketing Department",
+    division: "NSW",
+    state: "NSW",
+    role: "marketing",
+    avatarInitials: "CR",
+    accentColor: "from-fuchsia-500 to-pink-600",
+  },
+  {
+    id: "zoe-hogbin",
+    name: "Zoe Hogbin",
+    email: "zoe.hogbin@hudsonhomes.com.au",
+    phone: "0400 000 000",
+    title: "Marketing Manager",
+    displayCentre: "Marketing Department",
+    division: "NSW",
+    state: "NSW",
+    role: "marketing",
+    avatarInitials: "ZH",
+    accentColor: "from-purple-500 to-indigo-600",
   },
 ];
 

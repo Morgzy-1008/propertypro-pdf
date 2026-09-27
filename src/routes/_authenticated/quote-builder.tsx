@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { QuoteBuilder } from "@/components/quoting/QuoteBuilder";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { ShieldCheck, FileText, Database, Home } from "lucide-react";
@@ -6,8 +6,15 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser } from "@/lib/authSession";
 
 export const Route = createFileRoute("/_authenticated/quote-builder")({
+  beforeLoad: async () => {
+    const staffUser = getActiveStaffUser();
+    if (staffUser?.role === "marketing") {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Hudson Quoting System | Technical House & Land Quoting" },

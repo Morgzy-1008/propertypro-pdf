@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { TenderRequestPortal } from "@/components/tender/TenderRequestPortal";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { Home, Layers, Database, FileText, Send } from "lucide-react";
@@ -6,8 +6,19 @@ import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { getActiveStaffUser } from "@/lib/authSession";
 
 export const Route = createFileRoute("/_authenticated/tender-request")({
+  beforeLoad: async () => {
+    const staffUser = getActiveStaffUser();
+    const isMorgan =
+      staffUser?.id === "morgan-hales" ||
+      staffUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
+      staffUser?.role === "admin";
+    if (!isMorgan) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Submit Your Tender Request | Hudson Homes" },
