@@ -1,3 +1,5 @@
+import { parseLotQuery, evaluateLotSiting, formatSitingResponse } from "./siting-engine.js";
+
 export const config = {
   maxDuration: 60,
 };
@@ -167,6 +169,24 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing or invalid message." });
     }
 
+    // 0. High-Accuracy Siting & Setback Evaluation
+    const sitingParams = parseLotQuery(message);
+    if (sitingParams) {
+      const sitingResult = evaluateLotSiting(sitingParams);
+      const answer = formatSitingResponse(sitingResult);
+      return res.status(200).json({
+        answer,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "Can we fit Hazel 14 by adjusting the front porch?",
+          "What are the inclusions for Maize 33 or Magnolia 34?",
+          "How do I generate a 2-Page Siting Flyer for this lot?",
+        ],
+        modelUsed: "hudson-siting-engine",
+      });
+    }
+
     const candidateKeys = [];
     if (userKey && typeof userKey === "string" && userKey.trim()) {
       candidateKeys.push(userKey.trim());
@@ -332,6 +352,23 @@ export default async function handler(req, res) {
 
 export function generateHudsonKnowledgeResponse(message, staffUser) {
   const query = (message || "").toLowerCase().trim();
+
+  // 0. Siting, Setbacks & Floorplan Feasibility Check
+  const sitingParams = parseLotQuery(message);
+  if (sitingParams) {
+    const sitingRes = evaluateLotSiting(sitingParams);
+    return {
+      answer: formatSitingResponse(sitingRes),
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Can we fit Hazel 14 by adjusting the front porch?",
+        "What are the inclusions for Maize 33 or Magnolia 34?",
+        "How do I generate a 2-Page Siting Flyer for this lot?",
+      ],
+      modelUsed: "hudson-siting-engine",
+    };
+  }
 
   // 1. Guardrail for speculative / non-Hudson topics
   const isSpeculativeOrExternal =
@@ -666,10 +703,10 @@ The **Flyer Builder** is a real-time WYSIWYG A4 brochure generator engineered fo
   // 9. Database & Lot Search
   if (
     query.includes("database") ||
-    query.includes("lot") ||
     query.includes("land inventory") ||
     query.includes("price list") ||
-    query.includes("parser")
+    query.includes("ai price list") ||
+    (query.includes("lot") && (query.includes("inventory") || query.includes("table") || query.includes("portal") || query.includes("upload") || query.includes("list") || query.includes("search lots") || query.includes("registered")))
   ) {
     return {
       answer: `### House & Land Database (\`/database\`)
