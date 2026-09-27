@@ -598,7 +598,7 @@ export function QuoteAdminCatalogue({
                         <span className="text-xs text-slate-500 font-mono">$</span>
                         <Input
                           type="number"
-                          value={customRates.garageM2Rate ?? 1400}
+                          value={customRates.garageM2Rate ?? 1300}
                           onChange={(e) =>
                             handleRateChange("garageM2Rate" as any, Number(e.target.value))
                           }

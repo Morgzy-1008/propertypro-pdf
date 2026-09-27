@@ -115,7 +115,13 @@ export function loadCatalogue(): CatalogueItem[] {
     }
     const parsed = JSON.parse(raw);
     const items = Array.isArray(parsed) ? parsed : DEFAULT_CATALOGUE;
-    return items.map((it: CatalogueItem) => ({ ...it, category: resolveItemCategory(it) }));
+    return items.map((it: CatalogueItem) => {
+      const resolved = { ...it, category: resolveItemCategory(it) };
+      if (resolved.id === "str_custom_garage" && (resolved.unitRate === 1400 || resolved.unitRate === 1050 || resolved.unitRate === 1150)) {
+        resolved.unitRate = 1300;
+      }
+      return resolved;
+    });
   } catch {
     return DEFAULT_CATALOGUE.map((it) => ({ ...it, category: resolveItemCategory(it) }));
   }
@@ -138,7 +144,11 @@ export function loadCustomRates() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_RATES);
     if (!raw) return DEFAULT_CUSTOM_RATES;
-    return { ...DEFAULT_CUSTOM_RATES, ...JSON.parse(raw) };
+    const rates = { ...DEFAULT_CUSTOM_RATES, ...JSON.parse(raw) };
+    if ([1050, 1150, 1400].includes(rates.garageM2Rate)) {
+      rates.garageM2Rate = DEFAULT_CUSTOM_RATES.garageM2Rate;
+    }
+    return rates;
   } catch {
     return DEFAULT_CUSTOM_RATES;
   }

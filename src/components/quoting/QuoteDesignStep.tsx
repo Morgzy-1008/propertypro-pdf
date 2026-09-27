@@ -424,7 +424,7 @@ export function QuoteDesignStep({
     ...rawCustomSpec,
     groundRateM2: legacyPlaceholderRates.includes(rawCustomSpec.groundRateM2) ? 0 : rawCustomSpec.groundRateM2,
     upperRateM2: legacyPlaceholderRates.includes(rawCustomSpec.upperRateM2) ? 0 : rawCustomSpec.upperRateM2,
-    ancillaryRateM2: (rawCustomSpec.ancillaryRateM2 === 869 || rawCustomSpec.ancillaryRateM2 === 1050) ? 0 : rawCustomSpec.ancillaryRateM2,
+    ancillaryRateM2: [869, 1050, 1150, 1400].includes(rawCustomSpec.ancillaryRateM2) ? 0 : rawCustomSpec.ancillaryRateM2,
   };
 
   const housingTypePrices = getHousingTypePrices(division);

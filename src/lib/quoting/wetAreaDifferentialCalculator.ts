@@ -14,7 +14,7 @@ export const DATABUILD_RECIPE_RATES = {
   living_ds_ground_m2: 1520,
   living_ds_upper_m2: 1650,
   alfresco_m2: 920,
-  garage_m2: 1150,
+  garage_m2: 1300,
   wet_area_m2: 2350,
   porch_m2: 850,
   structural_beam_ds: 1850,

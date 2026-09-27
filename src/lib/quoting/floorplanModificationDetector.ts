@@ -40,7 +40,7 @@ export const DATABUILD_RECIPE_RATES = {
   living_ds_ground_m2: 1520,
   living_ds_upper_m2: 1650,
   alfresco_m2: 920,
-  garage_m2: 1150,
+  garage_m2: 1300,
   wet_area_m2: 2350,
   porch_m2: 850,
   structural_beam_ds: 1850,
@@ -678,7 +678,7 @@ export async function detectVisualModificationsViaCanvas(
           zone: "garage",
           deltaM2,
           estimatedLinearExtensionM: wCand,
-          reason: `Auto-calculated from plan geometry: Garage extended to ${wCand}m × ${dCand}m (${candGarM2.toFixed(2)} m² total; Standard: ${standardGarageM2.toFixed(2)} m² → Delta: +${deltaM2.toFixed(2)} m² @ $1,150/m²).`,
+          reason: `Auto-calculated from plan geometry: Garage extended to ${wCand}m × ${dCand}m (${candGarM2.toFixed(2)} m² total; Standard: ${standardGarageM2.toFixed(2)} m² → Delta: +${deltaM2.toFixed(2)} m² @ $1,300/m²).`,
         });
       }
     }
@@ -770,7 +770,7 @@ export async function detectVisualModificationsViaCanvas(
             zone: "garage",
             deltaM2: deltaGarageM2,
             estimatedLinearExtensionM: extWidthM,
-            reason: `Auto-calculated from plan geometry: Garage widened by ${extWidthM}m (${extWidthM}m width × ${garageDepthM}m depth = +${deltaGarageM2.toFixed(2)} m² @ $1,150/m²).`,
+            reason: `Auto-calculated from plan geometry: Garage widened by ${extWidthM}m (${extWidthM}m width × ${garageDepthM}m depth = +${deltaGarageM2.toFixed(2)} m² @ $1,300/m²).`,
           });
         }
       }
@@ -1475,7 +1475,7 @@ export async function analyzeModifiedFloorplanFile(
         zone: "garage",
         deltaM2,
         estimatedLinearExtensionM: candidateTableSpec.widthM ? Math.round((candidateTableSpec.widthM - cadSpec.width) * 10) / 10 : undefined,
-        reason: `Architectural plan schedule: ${isWorkshop ? "Garage & Integrated Workshop" : "Garage"} extended from ${standardGarageM2.toFixed(2)} m² baseline to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $1,150/m²).`,
+        reason: `Architectural plan schedule: ${isWorkshop ? "Garage & Integrated Workshop" : "Garage"} extended from ${standardGarageM2.toFixed(2)} m² baseline to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $1,300/m²).`,
       });
     }
 

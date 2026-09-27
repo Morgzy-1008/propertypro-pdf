@@ -7,7 +7,7 @@ export const DEFAULT_CUSTOM_RATES = {
   doubleUpperLivingM2Rate: 1800,
   doubleGroundLivingH3M2Rate: 1650,
   doubleUpperLivingH3M2Rate: 1950,
-  garageM2Rate: 1400,
+  garageM2Rate: 1300,
   ancillaryM2Rate: 869, // Alfresco, Porch
   doubleScaffoldingAllowance: 8500,
 };
@@ -158,7 +158,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Garage Floor Footprint Extension",
     description: "Reinforced concrete slab, timber/steel wall framing, exterior brickwork/cladding, and engineered roof trusses for garage.",
     unitType: "per_m2",
-    unitRate: 1400,
+    unitRate: 1300,
     isClientSelectable: true,
   },
   {

@@ -161,8 +161,8 @@ export function getCustomAreaRates(
   const isSS = tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE");
 
   // Non-habitable area rates
-  // Calibrated rates: Garage is $1,050/m², Porch is $870/m², Balcony is $1,350/m²
-  const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1050;
+  // Calibrated rates: Garage is $1,300/m², Porch is $870/m², Balcony is $1,350/m²
+  const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 && spec.ancillaryRateM2 !== 1050 && spec.ancillaryRateM2 !== 1150 && spec.ancillaryRateM2 !== 1400 ? spec.ancillaryRateM2 : 1300;
   const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 870;
   const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1350;
 
@@ -1734,7 +1734,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     if (legacyValues.includes(quote.design.customSpec.upperRateM2)) {
       quote.design.customSpec.upperRateM2 = 0;
     }
-    if (quote.design.customSpec.ancillaryRateM2 === 869 || quote.design.customSpec.ancillaryRateM2 === 1050) {
+    if ([869, 1050, 1150, 1400].includes(quote.design.customSpec.ancillaryRateM2)) {
       quote.design.customSpec.ancillaryRateM2 = 0;
     }
     quote.design.customSpec.scaffoldingAllowance = isDouble ? 8500 : 0;
@@ -1785,11 +1785,18 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
 
   // 5. Ensure line item categorization and subtotal validity
   if (Array.isArray(quote.lineItems)) {
-    quote.lineItems = quote.lineItems.map((it) => ({
-      ...it,
-      category: resolveItemCategory(it),
-      subtotal: (it.quantity ?? 1) * (it.unitRate ?? 0),
-    }));
+    quote.lineItems = quote.lineItems.map((it) => {
+      const unitRate =
+        it.catalogueItemId === "str_custom_garage" && [1050, 1150, 1400].includes(it.unitRate)
+          ? 1300
+          : (it.unitRate ?? 0);
+      return {
+        ...it,
+        unitRate,
+        category: resolveItemCategory(it),
+        subtotal: (it.quantity ?? 1) * unitRate,
+      };
+    });
   }
 
   // 6. Recalculate complete financial summary
