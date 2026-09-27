@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 import {
   Select,
   SelectContent,
@@ -338,9 +339,14 @@ export function CrmNewClientModal({
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-slate-300">Suburb</Label>
-                <Input
+                <AddressAutocompleteInput
                   value={suburb}
-                  onChange={(e) => setSuburb(e.target.value)}
+                  onChange={(v) => setSuburb(v)}
+                  onSelectAddress={(item) => {
+                    setSuburb(item.suburb || suburb);
+                    if (item.estate) setTargetEstate(item.estate);
+                    if (item.lotNumber) setLotNumber(`Lot ${item.lotNumber}`);
+                  }}
                   placeholder="e.g. South Ripley"
                   className="h-9 text-xs border-slate-800 bg-slate-950 text-white"
                 />

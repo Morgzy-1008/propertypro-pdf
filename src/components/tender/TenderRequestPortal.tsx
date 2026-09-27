@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 import {
   Select,
   SelectContent,
@@ -1590,15 +1591,30 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <Label className="text-[11px] text-slate-300">Street Name</Label>
-                  <Input
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[11px] text-slate-300">Street Name</Label>
+                    <span className="text-[9.5px] text-cyan-400 font-medium">Type to auto-fill</span>
+                  </div>
+                  <AddressAutocompleteInput
                     value={tender.currentHomeAddress.streetName}
-                    onChange={(e) =>
+                    onChange={(v) =>
                       updateTender({
-                        currentHomeAddress: { ...tender.currentHomeAddress, streetName: e.target.value },
+                        currentHomeAddress: { ...tender.currentHomeAddress, streetName: v },
                       })
                     }
-                    placeholder="e.g. Sovereign Way"
+                    onSelectAddress={(item) => {
+                      updateTender({
+                        currentHomeAddress: {
+                          ...tender.currentHomeAddress,
+                          streetNumber: item.streetNumber || tender.currentHomeAddress.streetNumber,
+                          streetName: item.streetName || item.fullStreet || tender.currentHomeAddress.streetName,
+                          suburb: item.suburb || tender.currentHomeAddress.suburb,
+                          postcode: item.postcode || tender.currentHomeAddress.postcode,
+                          state: item.state || tender.currentHomeAddress.state,
+                        },
+                      });
+                    }}
+                    placeholder="e.g. 14 Sovereign Way / 31 Broad Axe"
                     className="border-slate-800 bg-slate-900 text-xs"
                   />
                 </div>
@@ -2266,10 +2282,24 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
               </div>
 
               <div className="md:col-span-2">
-                <Label className="text-[11px] text-slate-300">Site Street Address</Label>
-                <Input
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] text-slate-300">Site Street Address</Label>
+                  <span className="text-[9.5px] text-cyan-400 font-medium">Type to auto-fill</span>
+                </div>
+                <AddressAutocompleteInput
                   value={tender.land.streetName}
-                  onChange={(e) => updateTender({ land: { ...tender.land, streetName: e.target.value } })}
+                  onChange={(v) => updateTender({ land: { ...tender.land, streetName: v } })}
+                  onSelectAddress={(item) => {
+                    updateTender({
+                      land: {
+                        ...tender.land,
+                        streetName: item.fullStreet || item.streetName || tender.land.streetName,
+                        suburb: item.suburb || tender.land.suburb,
+                        council: item.council || tender.land.council,
+                        lotNumber: item.lotNumber ? item.lotNumber : tender.land.lotNumber,
+                      },
+                    });
+                  }}
                   placeholder="e.g. Sovereign Way, Pelican Waters"
                   className="border-slate-800 bg-slate-900 text-xs"
                 />

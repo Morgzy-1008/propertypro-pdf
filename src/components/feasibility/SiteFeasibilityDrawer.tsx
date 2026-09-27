@@ -8,6 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 import {
   Select,
   SelectContent,
@@ -240,20 +241,29 @@ export function SiteFeasibilityDrawer({
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-3">
             {/* Address Search */}
             <div className="sm:col-span-4">
-              <Label className="text-[10.5px] uppercase font-semibold text-slate-400">Address / Lot / Estate Query</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-[10.5px] uppercase font-semibold text-slate-400">Address / Lot / Estate Query</Label>
+                <span className="text-[9px] text-cyan-400">Auto-fills &amp; Scans</span>
+              </div>
               <div className="flex gap-1.5 mt-1">
-                <Input
-                  value={addressInput}
-                  onChange={(e) => setAddressInput(e.target.value)}
-                  placeholder="e.g. Lot 243, 61 Paradise Rd, Flagstone"
-                  className="border-slate-800 bg-slate-900 text-xs font-semibold text-white h-8"
-                  onKeyDown={(e) => e.key === "Enter" && executeAnalysis()}
-                />
+                <div className="flex-1">
+                  <AddressAutocompleteInput
+                    value={addressInput}
+                    onChange={(v) => setAddressInput(v)}
+                    onSelectAddress={(item) => {
+                      const full = item.formattedAddress || `${item.fullStreet}, ${item.suburb}`;
+                      setAddressInput(full);
+                      executeAnalysis(full);
+                    }}
+                    placeholder="e.g. Lot 243, 61 Paradise Rd, Flagstone"
+                    className="border-slate-800 bg-slate-900 text-xs font-semibold text-white h-8"
+                  />
+                </div>
                 <Button
                   size="sm"
                   onClick={() => executeAnalysis()}
                   disabled={loading}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs h-8 px-3"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs h-8 px-3 shrink-0"
                 >
                   {loading ? "Scanning..." : "Scan"}
                 </Button>

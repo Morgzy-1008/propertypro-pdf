@@ -88,6 +88,45 @@ function apiDevPlugin() {
           }
         }
 
+        if (req.url && req.url.startsWith("/api/address-autocomplete")) {
+          if (req.method === "OPTIONS") {
+            res.setHeader("Access-Control-Allow-Origin", "*");
+            res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+            res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+            res.statusCode = 200;
+            return res.end();
+          }
+          try {
+            const urlObj = new URL(req.url, "http://localhost");
+            const queryObj: Record<string, string> = {};
+            urlObj.searchParams.forEach((v, k) => {
+              queryObj[k] = v;
+            });
+            const { default: handler } = await import("./api/address-autocomplete.js");
+            const mockReq = { method: req.method || "GET", query: queryObj };
+            const mockRes = {
+              setHeader: (k: string, v: string) => res.setHeader(k, v),
+              status: (code: number) => {
+                res.statusCode = code;
+                return {
+                  json: (data: any) => {
+                    res.setHeader("Content-Type", "application/json");
+                    res.end(JSON.stringify(data));
+                  },
+                  end: () => res.end(),
+                };
+              },
+            };
+            await handler(mockReq, mockRes);
+            return;
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ error: err.message, suggestions: [] }));
+            return;
+          }
+        }
+
         if (req.url && (req.url.startsWith("/api/redo-ai") || req.url.startsWith("/api/outpaint"))) {
           if (req.method === "OPTIONS") {
             res.setHeader("Access-Control-Allow-Origin", "*");

@@ -38,6 +38,7 @@ import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
 import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
 import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
 import type { CrmLead } from "@/lib/crm/crmTypes";
+import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { ClientDetails, DepositType, FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
@@ -508,20 +509,55 @@ export function QuoteClientDetails({
           </div>
 
           <div className="space-y-1.5 md:col-span-4">
-            <Label className="text-[11px] text-slate-400">Street Address</Label>
-            <Input
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] text-slate-400">Street Address</Label>
+              <span className="text-[9.5px] text-cyan-400 font-medium">Type address or lot to auto-fill</span>
+            </div>
+            <AddressAutocompleteInput
               value={client.siteAddress}
-              onChange={(e) => handleAddressChange({ siteAddress: e.target.value })}
-              placeholder="e.g. 31 Broad Axe Crescent"
+              onChange={(val) => handleAddressChange({ siteAddress: val })}
+              onSelectAddress={(item) => {
+                const patch: Partial<ClientDetails> = {
+                  siteAddress: item.fullStreet || item.streetName || item.formattedAddress,
+                  suburb: item.suburb || client.suburb,
+                  state: (item.state === "NSW" ? "NSW" : "QLD"),
+                  postcode: item.postcode || client.postcode,
+                };
+                if (item.lotNumber) {
+                  patch.lotNumber = `Lot ${item.lotNumber}`;
+                }
+                if (item.estate) {
+                  patch.estate = item.estate;
+                }
+                handleAddressChange(patch);
+                if (patch.state) {
+                  setActiveDivision(patch.state as "QLD" | "NSW");
+                }
+              }}
+              placeholder="e.g. 31 Broad Axe Crescent / Lot 243 Paradise Rd"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
 
           <div className="space-y-1.5 sm:col-span-2 md:col-span-2">
             <Label className="text-[11px] text-slate-400">Suburb</Label>
-            <Input
+            <AddressAutocompleteInput
               value={client.suburb}
-              onChange={(e) => handleAddressChange({ suburb: e.target.value })}
+              onChange={(val) => handleAddressChange({ suburb: val })}
+              onSelectAddress={(item) => {
+                const patch: Partial<ClientDetails> = {
+                  suburb: item.suburb || client.suburb,
+                  state: (item.state === "NSW" ? "NSW" : "QLD"),
+                  postcode: item.postcode || client.postcode,
+                };
+                if (item.estate) {
+                  patch.estate = item.estate;
+                }
+                handleAddressChange(patch);
+                if (patch.state) {
+                  setActiveDivision(patch.state as "QLD" | "NSW");
+                }
+              }}
               placeholder="e.g. Flagstone / Coomera / Ripley / Parramatta"
               className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500"
             />

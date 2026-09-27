@@ -21,6 +21,7 @@ import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 import { INCLUSION_RANGES, PALETTES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
 import { landscapingPriceFor } from "@/lib/landscaping";
+import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 
 import { plansForDesign, otherSizesForDesign } from "./floorplans";
 import type { FloorplanRecord } from "./floorplans.data";
@@ -824,11 +825,63 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       </div>
 
       <Section id="section-location" title="Location">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Suburb" value={data.suburb} onChange={(v) => onLocationChange("suburb", v)} />
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium tracking-wide text-slate-300">Address</Label>
+            <span className="text-[10px] text-cyan-400 font-medium">Type address to auto-fill suburb &amp; estate</span>
+          </div>
+          <AddressAutocompleteInput
+            value={data.address}
+            onChange={(v) => set("address", v)}
+            onSelectAddress={(item) => {
+              const fullAddr = item.fullStreet || item.streetName || item.formattedAddress.split(",")[0];
+              const addrWithLot = item.lotNumber ? `Lot ${item.lotNumber}, ${fullAddr}` : fullAddr;
+              set("address", addrWithLot);
+              if (item.lotNumber) {
+                set("lotId", item.lotNumber);
+              }
+              if (item.suburb) {
+                set("suburb", item.suburb);
+                onLocationChange("suburb", item.suburb);
+              }
+              if (item.estate) {
+                set("estate", item.estate);
+                const matched = matchEstatePreset(item.estate, item.suburb);
+                if (matched && matched.id !== "standard") {
+                  set("estatePreset", matched.id);
+                }
+              }
+            }}
+            placeholder="e.g. Lot 134, Sovereign Way or 31 Broad Axe Cres"
+            className="border-slate-700 bg-slate-900/80 text-slate-100"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium tracking-wide text-slate-300">Suburb</Label>
+            <AddressAutocompleteInput
+              value={data.suburb}
+              onChange={(v) => onLocationChange("suburb", v)}
+              onSelectAddress={(item) => {
+                if (item.suburb) {
+                  set("suburb", item.suburb);
+                  onLocationChange("suburb", item.suburb);
+                }
+                if (item.estate) {
+                  set("estate", item.estate);
+                  const matched = matchEstatePreset(item.estate, item.suburb);
+                  if (matched && matched.id !== "standard") {
+                    set("estatePreset", matched.id);
+                  }
+                }
+              }}
+              placeholder="e.g. Flagstone / Coomera / Ripley"
+              className="border-slate-700 bg-slate-900/80 text-slate-100"
+            />
+          </div>
           <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
         </div>
-        <Field label="Address" value={data.address} onChange={(v) => set("address", v)} />
         <div className="grid grid-cols-3 gap-3">
           <Field label="Land m²" value={data.landSize} onChange={setLandSize} />
           <Field
