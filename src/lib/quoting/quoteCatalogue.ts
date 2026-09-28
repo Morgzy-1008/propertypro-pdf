@@ -284,7 +284,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Additional Wet Area Surcharge (Bathroom/Ensuite/Laundry)",
     description: "Specialized waterproofing membrane, sub-floor plumbing rough-in, and sand-cement screed surcharge for enlarged wet areas.",
     unitType: "per_m2",
-    unitRate: 242,
+    unitRate: 150,
     isClientSelectable: true,
   },
   {

@@ -529,7 +529,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const ssPorticoRate = 870;
   const ssGarageRate = 1300;
   const ssAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
-  const ssWetAreaRate = ssGfLivingRate + 150; // $150/m² on top of living area sqm rate
+  const ssWetAreaRate = 150; // $150/m² wet area add-on
 
   const dsGfLivingRate = targetTierCode === "H3" ? 1650 : targetTierCode === "H1" ? 1480 : 1500;
   const dsFfLivingRate = targetTierCode === "H3" ? 1950 : targetTierCode === "H1" ? 1780 : 1800;
@@ -537,7 +537,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const dsAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
   const dsGarageRate = 1300;
   const dsBalconyRate = 2000;
-  const dsWetAreaRate = dsGfLivingRate + 150; // $150/m² on top of GF living rate
+  const dsWetAreaRate = 150; // $150/m² wet area add-on (ground or top floor)
 
   const extGfLivingItem = lineItems.find((i) => i.id === `pop_ext_gf_living${pfx}` || i.catalogueItemId === "str_custom_ss_h2" || i.catalogueItemId === "str_custom_ss_h3" || i.catalogueItemId === "str_custom_ds_h2_gf" || i.catalogueItemId === "str_custom_ds_h3_gf" || i.catalogueItemId === "str_add_gf_ss" || i.catalogueItemId === "str_add_gf_ds");
   const extFfLivingItem = lineItems.find((i) => i.id === `pop_ext_ff_living${pfx}` || i.catalogueItemId === "str_custom_ds_h2_ff" || i.catalogueItemId === "str_custom_ds_h3_ff" || i.catalogueItemId === "str_add_ff_ds");
@@ -707,10 +707,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     {
                       id: "pop_ext_wet_area",
                       item: extWetAreaItem,
-                      name: "Wet Area Living Add-on",
-                      badge: "+$150/m² on living",
+                      name: "Wet Area Sqm Add-on",
+                      badge: "$150/m² Add-on",
                       unitRate: dsWetAreaRate,
-                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance (+ $150/m² on top of GF living rate), priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance ($150/m²) for wet areas (bathroom, ensuite, powder, or laundry) on ground floor or top floor.`,
                       defaultQty: 4,
                       category: "floorplan_extensions" as const,
                     },
@@ -755,10 +755,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     {
                       id: "pop_ext_wet_area",
                       item: extWetAreaItem,
-                      name: "Wet Area Living Add-on",
-                      badge: "+$150/m² on living",
+                      name: "Wet Area Sqm Add-on",
+                      badge: "$150/m² Add-on",
                       unitRate: ssWetAreaRate,
-                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance (+ $150/m² on top of living area sqm rate), priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance ($150/m²) for wet areas (bathroom, ensuite, powder, or laundry) on ground floor.`,
                       defaultQty: 4,
                       category: "floorplan_extensions" as const,
                     },
