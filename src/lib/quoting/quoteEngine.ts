@@ -1292,7 +1292,11 @@ export function calculateQuotePricing(
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances
-  const screwPieringCost = site.screwPieringRequired ? (Number(site.screwPieringCost) || Math.round(gfaM2 * 90)) : 0;
+  const screwPieringCost = site.screwPieringRequired
+    ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
+        ? Number(site.screwPieringCost)
+        : Math.round(gfaM2 * 90))
+    : 0;
   const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
   const isBrick = site.existingDwellingMaterial === "brick";
   const defaultDemoCost = (existingIsDouble ? 40000 : 32500) + (isBrick ? 2000 : 0);

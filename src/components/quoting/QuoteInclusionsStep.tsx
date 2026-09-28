@@ -519,14 +519,33 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const spectrumItem = lineItems.find((i) => i.id === `pop_spectrum_colour${pfx}`);
   const stone40Item = lineItems.find((i) => i.id === `pop_stone_40mm${pfx}`);
 
-  // Parametric Recipe extensions lookups
-  const bathExtItem = lineItems.find((i) => i.id === `pop_recipe_bath_ext${pfx}` || i.catalogueItemId === "str_custom_bathroom_ext_m2");
-  const ensuitePkgItem = lineItems.find((i) => i.id === `pop_recipe_ensuite_pkg${pfx}` || i.catalogueItemId === "str_ensuite_luxury_kit");
-  const alfrescoExtItem = lineItems.find((i) => i.id === `pop_recipe_alfresco_ext${pfx}` || i.catalogueItemId === "str_custom_porch_alfresco");
+  // Dynamic Floorplan Extension lookups and rates calibrated to Page 2 design & inclusion tier
+  const isDoubleStoreyTarget = activeTargetStoreys;
+  const targetTierCode: "H1" | "H2" | "H3" = isTargetH3 ? "H3" : isTargetH1 ? "H1" : "H2";
+  const targetTierLabel = targetTierCode === "H3" ? "H3 Luxury" : targetTierCode === "H1" ? "H1 Smart" : "H2 Designer";
 
-  const bathExtRate = lineItems.find((i) => i.catalogueItemId === "str_custom_bathroom_ext_m2")?.unitRate || 1280;
-  const ensuitePkgRate = lineItems.find((i) => i.catalogueItemId === "str_ensuite_luxury_kit")?.unitRate || 7940;
-  const alfrescoExtRate = lineItems.find((i) => i.catalogueItemId === "str_custom_porch_alfresco")?.unitRate || 869;
+  // Calibrated extension sqm rates for single storey & double storey
+  const ssGfLivingRate = targetTierCode === "H3" ? 1810 : targetTierCode === "H1" ? 1420 : 1660;
+  const ssPorticoRate = 870;
+  const ssGarageRate = 1300;
+  const ssAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
+  const ssWetAreaRate = ssGfLivingRate + 150; // $150/m² on top of living area sqm rate
+
+  const dsGfLivingRate = targetTierCode === "H3" ? 1650 : targetTierCode === "H1" ? 1480 : 1500;
+  const dsFfLivingRate = targetTierCode === "H3" ? 1950 : targetTierCode === "H1" ? 1780 : 1800;
+  const dsPorchRate = 870;
+  const dsAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
+  const dsGarageRate = 1300;
+  const dsBalconyRate = 2000;
+  const dsWetAreaRate = dsGfLivingRate + 150; // $150/m² on top of GF living rate
+
+  const extGfLivingItem = lineItems.find((i) => i.id === `pop_ext_gf_living${pfx}` || i.catalogueItemId === "str_custom_ss_h2" || i.catalogueItemId === "str_custom_ss_h3" || i.catalogueItemId === "str_custom_ds_h2_gf" || i.catalogueItemId === "str_custom_ds_h3_gf" || i.catalogueItemId === "str_add_gf_ss" || i.catalogueItemId === "str_add_gf_ds");
+  const extFfLivingItem = lineItems.find((i) => i.id === `pop_ext_ff_living${pfx}` || i.catalogueItemId === "str_custom_ds_h2_ff" || i.catalogueItemId === "str_custom_ds_h3_ff" || i.catalogueItemId === "str_add_ff_ds");
+  const extPorticoItem = lineItems.find((i) => i.id === `pop_ext_portico${pfx}` || i.catalogueItemId === "str_custom_porch_alfresco");
+  const extGarageItem = lineItems.find((i) => i.id === `pop_ext_garage${pfx}` || i.catalogueItemId === "str_custom_garage");
+  const extAlfrescoItem = lineItems.find((i) => i.id === `pop_ext_alfresco${pfx}` || i.catalogueItemId === "str_add_alfresco");
+  const extBalconyItem = lineItems.find((i) => i.id === `pop_ext_balcony${pfx}` || i.catalogueItemId === "str_balcony_uncovered" || i.catalogueItemId === "str_balcony_covered");
+  const extWetAreaItem = lineItems.find((i) => i.id === `pop_ext_wet_area${pfx}` || i.catalogueItemId === "str_add_wet_area_surcharge");
 
   return (
     <div className="space-y-5">
@@ -617,188 +636,247 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
         </div>
 
         <div className="space-y-3">
-          {/* CATEGORY 0: PARAMETRIC EXTENSIONS & WET AREA RECIPES */}
+          {/* CATEGORY 0: DYNAMIC FLOORPLAN EXTENSIONS & WET AREA RECIPES */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Room Extensions &amp; Wet Area Additions
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Floorplan Extensions ({isDoubleStoreyTarget ? "Double Storey" : "Single Storey"} &bull; {targetTierLabel} Rates)
+              </span>
+              <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
+                Priced in {targetTierLabel} as selected on Page 2
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {/* Custom Bathroom Extension */}
-              <div
-                onClick={() => {
-                  const isInc = !bathExtItem?.isIncluded;
-                  const qty = bathExtItem?.quantity || 4;
-                  upsertPopularItem("pop_recipe_bath_ext", {
-                    isIncluded: isInc,
-                    quantity: qty,
-                    unitRate: bathExtRate,
-                    name: "Custom Bathroom / Wet Area Footprint Extension",
-                    description: "Complete structural bathroom footprint extension including concrete slab prep, screed bed, Class III liquid membrane waterproofing, floor and full-height wall tiling, framing, and rough-in plumbing & electrical allowances.",
-                    category: "floorplan_extensions",
-                    unitType: "per_m2",
-                  });
-                }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                  bathExtItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Custom Bathroom Extension</span>
-                  <span className="text-[10px] text-slate-400 font-mono">${bathExtRate}/m² (inc. tiling, screed, WP)</span>
-                </div>
+              {(isDoubleStoreyTarget
+                ? [
+                    {
+                      id: "pop_ext_gf_living",
+                      item: extGfLivingItem,
+                      name: "GF Living Extension",
+                      unitRate: dsGfLivingRate,
+                      description: `Double storey ground floor living extension with engineered upper joist load-bearing framing, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 10,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_ff_living",
+                      item: extFfLivingItem,
+                      name: "FF Living Extension",
+                      unitRate: dsFfLivingRate,
+                      description: `Double storey upper floor structural living extension with engineered floor joists, acoustic floor sheeting, and roofline, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 10,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_portico",
+                      item: extPorticoItem,
+                      name: "Porch Extension",
+                      unitRate: dsPorchRate,
+                      description: `Under-roof front porch entrance extension with integrated concrete slab and ceiling lining, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 5,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_alfresco",
+                      item: extAlfrescoItem,
+                      name: "Alfresco Extension",
+                      unitRate: dsAlfrescoRate,
+                      description: `Outdoor entertaining alfresco extension with integrated slab and ceiling lining, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 10,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_garage",
+                      item: extGarageItem,
+                      name: "Garage Extension",
+                      unitRate: dsGarageRate,
+                      description: `Structural garage footprint extension with slab, framing, exterior cladding, and roof trusses, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 6,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_balcony",
+                      item: extBalconyItem,
+                      name: "Balcony Extension",
+                      unitRate: dsBalconyRate,
+                      description: `External upper floor structural balcony extension with waterproofing, floor tiles, and balustrading, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 6,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_wet_area",
+                      item: extWetAreaItem,
+                      name: "Wet Area Living Add-on",
+                      badge: "+$150/m² on living",
+                      unitRate: dsWetAreaRate,
+                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance (+ $150/m² on top of GF living rate), priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 4,
+                      category: "floorplan_extensions" as const,
+                    },
+                  ]
+                : [
+                    {
+                      id: "pop_ext_gf_living",
+                      item: extGfLivingItem,
+                      name: "Ground Floor Extension",
+                      unitRate: ssGfLivingRate,
+                      description: `Structural ground floor living footprint extension, framed, insulated, lined, and finished in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 10,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_portico",
+                      item: extPorticoItem,
+                      name: "Portico Extension",
+                      unitRate: ssPorticoRate,
+                      description: `Under-roof front entrance portico extension with concrete slab, posts, and ceiling lining, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 5,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_garage",
+                      item: extGarageItem,
+                      name: "Garage Extension",
+                      unitRate: ssGarageRate,
+                      description: `Structural garage footprint extension including 25MPa slab, exterior brickwork/cladding, and roofline, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 6,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_alfresco",
+                      item: extAlfrescoItem,
+                      name: "Alfresco Extension",
+                      unitRate: ssAlfrescoRate,
+                      description: `Outdoor entertaining alfresco extension with integrated reinforced concrete slab and ceiling lining, priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 10,
+                      category: "floorplan_extensions" as const,
+                    },
+                    {
+                      id: "pop_ext_wet_area",
+                      item: extWetAreaItem,
+                      name: "Wet Area Living Add-on",
+                      badge: "+$150/m² on living",
+                      unitRate: ssWetAreaRate,
+                      description: `Specialized waterproofing membrane, screed bed, and rough-in plumbing allowance (+ $150/m² on top of living area sqm rate), priced in ${targetTierLabel} Inclusions as selected on Page 2.`,
+                      defaultQty: 4,
+                      category: "floorplan_extensions" as const,
+                    },
+                  ]
+              ).map((card) => {
+                const isInc = card.item?.isIncluded ?? false;
+                const qty = card.item?.quantity ?? 0;
+                const subtotal = isInc ? qty * card.unitRate : 0;
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
+                return (
+                  <div
+                    key={card.id}
                     onClick={() => {
-                      const curQty = bathExtItem?.quantity || 1;
-                      const nextQty = Math.max(0, curQty - 1);
-                      upsertPopularItem("pop_recipe_bath_ext", {
-                        isIncluded: nextQty > 0,
+                      const nextInc = !isInc;
+                      const nextQty = nextInc ? (qty > 0 ? qty : card.defaultQty) : 0;
+                      upsertPopularItem(card.id, {
+                        isIncluded: nextInc,
                         quantity: nextQty,
-                        unitRate: bathExtRate,
-                        name: "Custom Bathroom / Wet Area Footprint Extension",
-                        description: "Complete structural bathroom footprint extension including concrete slab prep, screed bed, Class III liquid membrane waterproofing, floor and full-height wall tiling, framing, and rough-in plumbing & electrical allowances.",
-                        category: "floorplan_extensions",
+                        unitRate: card.unitRate,
+                        name: card.name,
+                        description: card.description,
+                        category: card.category,
                         unitType: "per_m2",
                       });
                     }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
+                      isInc
+                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                        : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                    }`}
                   >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${bathExtItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
-                    {bathExtItem?.isIncluded ? `${bathExtItem.quantity} m² (${formatAud(bathExtItem.subtotal)})` : "0 m²"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const curQty = bathExtItem?.quantity || 0;
-                      const nextQty = curQty + 1;
-                      upsertPopularItem("pop_recipe_bath_ext", {
-                        isIncluded: true,
-                        quantity: nextQty,
-                        unitRate: bathExtRate,
-                        name: "Custom Bathroom / Wet Area Footprint Extension",
-                        description: "Complete structural bathroom footprint extension including concrete slab prep, screed bed, Class III liquid membrane waterproofing, floor and full-height wall tiling, framing, and rough-in plumbing & electrical allowances.",
-                        category: "floorplan_extensions",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      <div className="flex items-center justify-between gap-1.5 mb-1">
+                        <span className="font-bold text-xs text-white block truncate">
+                          {card.name}
+                        </span>
+                        <div className="flex items-center gap-1 flex-none">
+                          {card.badge && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                              {card.badge}
+                            </span>
+                          )}
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">
+                            {targetTierLabel}
+                          </span>
+                        </div>
+                      </div>
 
-              {/* Luxury Ensuite Addition Package */}
-              <div
-                onClick={() => {
-                  const next = !ensuitePkgItem?.isIncluded;
-                  upsertPopularItem("pop_recipe_ensuite_pkg", {
-                    isIncluded: next,
-                    quantity: 1,
-                    unitRate: ensuitePkgRate,
-                    name: "Luxury Ensuite Addition Package (Complete Suite)",
-                    description: "Complete luxury ensuite room addition including 1200mm vanity with stone top, dual shower rose station, semi-frameless glass screen, back-to-wall toilet suite, full-height wall tiling, and chrome/matte black tapware.",
-                    category: "internal_bathroom",
-                    unitType: "fixed",
-                  });
-                }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                  ensuitePkgItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Luxury Ensuite Package</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Complete suite addition</span>
-                </div>
-                <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                  {ensuitePkgItem?.isIncluded ? "✓ " : ""}+{formatAud(ensuitePkgRate)}
-                </span>
-              </div>
+                      <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                        {card.description}
+                      </p>
+                    </div>
 
-              {/* Alfresco Footprint Extension */}
-              <div
-                onClick={() => {
-                  const isInc = !alfrescoExtItem?.isIncluded;
-                  const qty = alfrescoExtItem?.quantity || 10;
-                  upsertPopularItem("pop_recipe_alfresco_ext", {
-                    isIncluded: isInc,
-                    quantity: qty,
-                    unitRate: alfrescoExtRate,
-                    name: "Custom Alfresco Footprint Extension",
-                    description: "Integrated reinforced concrete slab, structural brick piers or timber posts, under-roof framing extension, external ceiling lining, and LED downlight for outdoor entertaining.",
-                    category: "floorplan_extensions",
-                    unitType: "per_m2",
-                  });
-                }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                  alfrescoExtItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Custom Alfresco Extension</span>
-                  <span className="text-[10px] text-slate-400 font-mono">${alfrescoExtRate}/m² under-roof</span>
-                </div>
+                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 mt-1">
+                      <span className="text-xs font-mono font-bold text-emerald-400">
+                        {formatAud(card.unitRate)}/m²
+                      </span>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const curQty = alfrescoExtItem?.quantity || 5;
-                      const nextQty = Math.max(0, curQty - 5);
-                      upsertPopularItem("pop_recipe_alfresco_ext", {
-                        isIncluded: nextQty > 0,
-                        quantity: nextQty,
-                        unitRate: alfrescoExtRate,
-                        name: "Custom Alfresco Footprint Extension",
-                        description: "Integrated reinforced concrete slab, structural brick piers or timber posts, under-roof framing extension, external ceiling lining, and LED downlight for outdoor entertaining.",
-                        category: "floorplan_extensions",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${alfrescoExtItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
-                    {alfrescoExtItem?.isIncluded ? `${alfrescoExtItem.quantity} m² (${formatAud(alfrescoExtItem.subtotal)})` : "0 m²"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const curQty = alfrescoExtItem?.quantity || 0;
-                      const nextQty = curQty + 5;
-                      upsertPopularItem("pop_recipe_alfresco_ext", {
-                        isIncluded: true,
-                        quantity: nextQty,
-                        unitRate: alfrescoExtRate,
-                        name: "Custom Alfresco Footprint Extension",
-                        description: "Integrated reinforced concrete slab, structural brick piers or timber posts, under-roof framing extension, external ceiling lining, and LED downlight for outdoor entertaining.",
-                        category: "floorplan_extensions",
-                        unitType: "per_m2",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </button>
-                </div>
-              </div>
+                      <div
+                        className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const curQty = card.item?.quantity || card.defaultQty;
+                            const step = card.id.includes("portico") || card.id.includes("wet") ? 1 : 2;
+                            const nextQty = Math.max(0, curQty - step);
+                            upsertPopularItem(card.id, {
+                              isIncluded: nextQty > 0,
+                              quantity: nextQty,
+                              unitRate: card.unitRate,
+                              name: card.name,
+                              description: card.description,
+                              category: card.category,
+                              unitType: "per_m2",
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+                          title="Decrease m²"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className={`font-bold text-xs font-mono px-1 min-w-[54px] text-center ${isInc ? "text-emerald-400" : "text-slate-500"}`}>
+                          {isInc ? `${qty} m²` : "0 m²"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const curQty = card.item?.quantity || 0;
+                            const step = card.id.includes("portico") || card.id.includes("wet") ? 1 : 2;
+                            const nextQty = curQty === 0 ? card.defaultQty : curQty + step;
+                            upsertPopularItem(card.id, {
+                              isIncluded: true,
+                              quantity: nextQty,
+                              unitRate: card.unitRate,
+                              name: card.name,
+                              description: card.description,
+                              category: card.category,
+                              unitType: "per_m2",
+                            });
+                          }}
+                          className="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+                          title="Increase m²"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {isInc && (
+                      <div className="text-[10px] text-right font-mono font-bold text-emerald-300 -mt-1">
+                        Subtotal: {formatAud(subtotal)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 

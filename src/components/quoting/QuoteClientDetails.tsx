@@ -304,68 +304,6 @@ export function QuoteClientDetails({
         )}
       </div>
 
-      {/* Select Existing Client & CRM Import Banner */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-slate-950/90 p-4 rounded-xl border border-slate-800 ring-1 ring-emerald-500/20 shadow-lg">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex-none">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-100 flex items-center gap-2">
-              Import Client from CRM or Saved Estimates
-              <span className="text-[10px] font-mono font-normal bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded">
-                {crmLeads.length} CRM Contacts &bull; {consultantQuotes.length} Saved Quotes
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Select an existing client from Hudson CRM or restore a previously saved estimate.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 flex-none">
-          {/* CRM Leads Dropdown */}
-          <Select value="" onValueChange={handleSelectCrmLead}>
-            <SelectTrigger className="h-9 text-xs border-amber-500/40 bg-slate-900 text-amber-300 font-semibold w-56">
-              <SelectValue placeholder="🏢 Import from CRM Lead…" />
-            </SelectTrigger>
-            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
-              {crmLeads.length === 0 ? (
-                <div className="p-3 text-center text-xs text-slate-500">
-                  No contacts found in CRM yet.
-                </div>
-              ) : (
-                crmLeads.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.clientName} ({l.targetEstate || "TBA"} &bull; {l.stage.replace(/_/g, " ")})
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-
-          {/* Saved Estimates Dropdown */}
-          <Select value="" onValueChange={handleSelectExistingClient}>
-            <SelectTrigger className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-200 w-56">
-              <SelectValue placeholder="📄 Load Saved Estimate…" />
-            </SelectTrigger>
-            <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-72">
-              {consultantQuotes.length === 0 ? (
-                <div className="p-3 text-center text-xs text-slate-500">
-                  No saved client estimates found yet.
-                </div>
-              ) : (
-                consultantQuotes.map((q) => (
-                  <SelectItem key={q.id} value={q.id}>
-                    {q.client.clientName} — {q.client.siteAddress ? `${q.client.lotNumber ? `Lot ${q.client.lotNumber}, ` : ""}${q.client.suburb || q.client.siteAddress}` : "Site TBA"} ({q.quoteNumber})
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
       {/* Primary Client (Client 1) Contact Info */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">

@@ -666,8 +666,12 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
-  // Geotechnical Allowances ($90 / m2)
-  const screwPieringCost = siteConditions.screwPieringRequired ? (siteConditions.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
+  // Geotechnical Allowances ($90 / m2 default, user editable)
+  const screwPieringCost = siteConditions.screwPieringRequired
+    ? (siteConditions.screwPieringCost !== undefined && !isNaN(Number(siteConditions.screwPieringCost))
+        ? Number(siteConditions.screwPieringCost)
+        : Math.round(gfaM2 * 90))
+    : 0;
   const rockCost = Number(siteConditions.rockExcavationAllowance) || 0;
   const retainingCost = Number(siteConditions.retainingWallAllowance) || 0;
 

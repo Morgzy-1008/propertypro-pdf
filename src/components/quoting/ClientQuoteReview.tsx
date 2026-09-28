@@ -466,8 +466,11 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
   const councilDaCost = site.councilDaRequired ? (site.councilDaCost ?? 8000) : 0;
   const trafficCost = site.trafficControlRequired ? (site.trafficControlCost ?? 10000) : 0;
-  const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
-  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
+  const screwPieringCost = site.screwPieringRequired
+    ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
+        ? Number(site.screwPieringCost)
+        : Math.round(gfaM2 * 90))
+    : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;

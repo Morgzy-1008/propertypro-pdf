@@ -163,7 +163,7 @@ Hudson Homes offers five distinct, guaranteed inclusion packages backed by our 5
 - **AI Price List Parser**: Drag-and-drop developer PDF/Excel price lists; the AI automatically extracts lot numbers, dimensions, prices, and registration dates into the database in seconds.
 - 1-click "Create Package / Send to Flyer" button directly porting lot data into Flyer Studio.
 
-#### 4. Quote Builder V2 (/quote-builder / /quote-builder-v2)
+#### 4. Quote Builder (/quote-builder)
 - 5-step digital quoting workflow.
 - Popular designs: Amber 21, Azure 25, Burgundy 30, Cedar 26, Jasper 26, Turquoise 31, etc.
 - **Modified Plan Engine**: Combines architectural visual diffing (Gemini 3.8 Flash) and Presight code parsing to detect custom floorplan modifications:

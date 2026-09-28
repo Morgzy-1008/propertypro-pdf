@@ -173,7 +173,12 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical Allowances ($90 / m2 for screw piering, $0 starting default for rock & retaining)
-  const screwPieringCost = site.screwPieringRequired ? (site.screwPieringCost ?? Math.round(gfaM2 * 90)) : 0;
+  const defaultScrewPiering = Math.round(gfaM2 * 90);
+  const screwPieringCost = site.screwPieringRequired
+    ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
+        ? Number(site.screwPieringCost)
+        : defaultScrewPiering)
+    : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
 
@@ -1297,9 +1302,18 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </div>
           </div>
 
-          {/* Screw Piering Allowance ($90/m2) */}
+          {/* Screw Piering Allowance ($90/m2 default, user editable) */}
           <div
-            onClick={() => onSiteChange({ screwPieringRequired: !site.screwPieringRequired })}
+            onClick={() => {
+              if (!site.screwPieringRequired) {
+                onSiteChange({
+                  screwPieringRequired: true,
+                  screwPieringCost: site.screwPieringCost ?? defaultScrewPiering,
+                });
+              } else {
+                onSiteChange({ screwPieringRequired: false });
+              }
+            }}
             className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
               site.screwPieringRequired
                 ? isLight
@@ -1311,14 +1325,107 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
-                Screw Piering ({gfaM2} m² GFA)
-              </span>
-              {site.screwPieringRequired && <Check className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />}
+              <div>
+                <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                  Screw Piering ({gfaM2} m² GFA)
+                </span>
+                <span className={`block text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                  Standard: {formatAud(defaultScrewPiering)} ($90/m²)
+                </span>
+              </div>
+              {site.screwPieringRequired && (
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/20 text-emerald-300"
+                }`}>
+                  <Check className="h-3 w-3" /> Selected
+                </span>
+              )}
             </div>
-            <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-              +{formatAud(site.screwPieringCost ?? Math.round(gfaM2 * 90))}
-            </span>
+
+            {site.screwPieringRequired ? (
+              <div
+                className="mt-3 pt-2.5 border-t border-emerald-500/20 space-y-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Allowance Amount:
+                  </span>
+                  {site.screwPieringCost !== undefined && site.screwPieringCost !== defaultScrewPiering && (
+                    <button
+                      type="button"
+                      onClick={() => onSiteChange({ screwPieringCost: defaultScrewPiering })}
+                      className="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-medium"
+                      title="Reset to calculated standard $90/m² GFA"
+                    >
+                      Reset to Standard ($90/m²)
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Number(site.screwPieringCost ?? defaultScrewPiering);
+                      const next = Math.max(0, cur - 500);
+                      onSiteChange({ screwPieringCost: next });
+                    }}
+                    className={`p-1.5 rounded transition-colors ${
+                      isLight
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                        : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    }`}
+                    title="Decrease $500"
+                  >
+                    <Minus className="h-3.5 w-3.5" />
+                  </button>
+
+                  <div className="relative flex-1">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
+                      $
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={100}
+                      value={site.screwPieringCost ?? defaultScrewPiering}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        onSiteChange({ screwPieringCost: Math.max(0, isNaN(val) ? 0 : val) });
+                      }}
+                      className={`h-8 pl-6 pr-2 text-xs font-mono font-bold text-right ${
+                        isLight
+                          ? "bg-white border-slate-300 text-emerald-800 focus:border-emerald-500"
+                          : "bg-slate-950 border-slate-700 text-emerald-400 focus:border-emerald-500"
+                      }`}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cur = Number(site.screwPieringCost ?? defaultScrewPiering);
+                      const next = cur + 500;
+                      onSiteChange({ screwPieringCost: next });
+                    }}
+                    className={`p-1.5 rounded transition-colors ${
+                      isLight
+                        ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                        : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                    }`}
+                    title="Increase $500"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                +{formatAud(site.screwPieringCost ?? defaultScrewPiering)}
+              </span>
+            )}
           </div>
 
           {/* Rock Excavation Allowance ($0 prefilled, stepped in $2,500 with +/- buttons) */}
