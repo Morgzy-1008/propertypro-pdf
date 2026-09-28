@@ -1889,7 +1889,7 @@ The **Flyer Builder** is a real-time WYSIWYG A4 brochure generator engineered fo
 4. **House Only**: Dedicated format for clients who already own land.
 
 #### Automated NHC Details:
-- The system automatically detects whichever NHC is signed in (e.g. Steve Slisar, Jesse Jenkins, Gary Rees) and populates their name, phone, email, and display centre on the flyer footer.
+- The system automatically detects whichever NHC is signed in (e.g. Steve Slisar, Gary Rees, Adrian Baxter) and populates their name, phone, email, and display centre on the flyer footer.
 - Consultants can also use the consultant selector dropdown if preparing packages for another team member.
 - Supports 1-click print-ready A4 PDF export and Supabase cloud synchronization.`,
       confidence: 0.99,
@@ -1954,7 +1954,7 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   - Display homes situated across high-growth South East Queensland corridors (Brisbane, Gold Coast, Ipswich, Moreton Bay).
 - **Key System Personnel**:
   - **Morgan Hales**: Head of Digital Product, Systems & Technology (Platform Administrator).
-  - **Senior NHCs**: Steve Slisar, Jesse Jenkins, Gary Rees.`,
+  - **Senior NHCs**: Steve Slisar, Gary Rees, Adrian Baxter.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [

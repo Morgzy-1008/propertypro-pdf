@@ -75,30 +75,38 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
       if (typeof window !== "undefined") {
         sessionStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
         localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+        try {
+          sessionStorage.setItem(
+            "hudson_login_toast",
+            JSON.stringify({ name: profile.name, type: "switched", title: profile.title })
+          );
+        } catch {}
       }
       setActiveStaffUser(profile, true);
-      setIsDropdownOpen(false);
-      toast.success(`Switched account to ${profile.name}`, {
-        description: `Now previewing as ${profile.title} (${profile.displayCentre})`,
-      });
-
-      if (profile.role === "marketing") {
-        const path = window.location.pathname;
-        if (
-          path.includes("quote") ||
-          path.includes("crm") ||
-          path.includes("tender") ||
-          path.includes("site-studio") ||
-          path.includes("floorplan-editor")
-        ) {
-          navigate({ to: "/hub", replace: true });
-        }
+      if (profile.division) {
+        localStorage.setItem("hudson_active_division", profile.division);
       }
-      setTimeout(() => {
-        window.location.reload();
-      }, 150);
+      setIsDropdownOpen(false);
+
+      const path = typeof window !== "undefined" ? window.location.pathname : "/hub";
+      const isRestrictedForMarketing =
+        path.includes("quote") ||
+        path.includes("crm") ||
+        path.includes("tender") ||
+        path.includes("site-studio") ||
+        path.includes("floorplan-editor");
+
+      const targetPath = (profile.role === "marketing" && isRestrictedForMarketing) ? "/hub" : path;
+      const targetUrl = `${targetPath}?switched=${encodeURIComponent(profile.id)}&_t=${Date.now()}`;
+
+      if (typeof window !== "undefined") {
+        window.location.href = targetUrl;
+      }
     } catch (e) {
       console.error("Profile switch error:", e);
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
     }
   };
 
@@ -109,16 +117,27 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
         if (typeof window !== "undefined") {
           sessionStorage.removeItem("hudson_admin_impersonator");
           localStorage.removeItem("hudson_admin_impersonator");
+          try {
+            sessionStorage.setItem(
+              "hudson_login_toast",
+              JSON.stringify({ name: "Morgan Hales", type: "returned" })
+            );
+          } catch {}
         }
         setActiveStaffUser(morgan, true);
+        if (morgan.division) {
+          localStorage.setItem("hudson_active_division", morgan.division);
+        }
         setIsDropdownOpen(false);
-        toast.success("Returned to Morgan Hales (System Admin)");
-        setTimeout(() => {
-          window.location.reload();
-        }, 150);
+        if (typeof window !== "undefined") {
+          window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
+        }
       }
     } catch (e) {
       console.error("Return to admin error:", e);
+      if (typeof window !== "undefined") {
+        window.location.reload();
+      }
     }
   };
 
@@ -268,7 +287,7 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                       </div>
 
                       {/* Quick Return to Morgan button if currently previewing as another colleague */}
-                      {isImpersonating && activeUser.id !== "morgan-hales" && (
+                      {isImpersonating && activeUser?.id !== "morgan-hales" && (
                         <button
                           type="button"
                           onClick={handleReturnToMorgan}
@@ -288,55 +307,171 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                         </button>
                       )}
 
-                      {/* Colleague Profiles List */}
-                      <div className="max-h-56 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                        {KNOWN_STAFF_PROFILES.map((p) => {
-                          const isCurrent = activeUser?.id === p.id || activeUser?.email?.toLowerCase() === p.email.toLowerCase();
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => handleSwitchToProfile(p)}
-                              className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between transition-all group ${
-                                isCurrent
-                                  ? isLight
-                                    ? "bg-amber-50 border border-amber-300 text-slate-900 font-bold"
-                                    : "bg-amber-500/15 border border-amber-500/30 text-white font-bold"
-                                  : isLight
-                                    ? "hover:bg-slate-100 text-slate-700"
-                                    : "hover:bg-slate-800/70 text-slate-300"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div className={`h-5 w-5 rounded-full bg-gradient-to-br ${p.accentColor || "from-amber-500 to-orange-600"} flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-xs`}>
-                                  {p.avatarInitials}
-                                </div>
-                                <div className="truncate">
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="truncate font-semibold leading-tight text-[11px]">{p.name}</span>
-                                    {p.role === "marketing" && (
-                                      <span className="text-[8.5px] px-1 rounded bg-fuchsia-500/20 text-fuchsia-400 font-bold uppercase">
-                                        Marketing
+                      {/* Colleague Profiles List Grouped by Department */}
+                      <div className="max-h-60 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        {/* Section: Marketing Team */}
+                        <div>
+                          <div className="text-[9px] font-mono uppercase tracking-wider font-bold text-fuchsia-400 px-1 mb-1">
+                            Marketing Team (Restricted Access)
+                          </div>
+                          <div className="space-y-1">
+                            {KNOWN_STAFF_PROFILES.filter((p) => p.role === "marketing").map((p) => {
+                              const isCurrent = activeUser?.id === p.id || activeUser?.email?.toLowerCase() === p.email.toLowerCase();
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => handleSwitchToProfile(p)}
+                                  disabled={isCurrent}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between transition-all group ${
+                                    isCurrent
+                                      ? isLight
+                                        ? "bg-amber-50 border border-amber-300 text-slate-900 font-bold"
+                                        : "bg-amber-500/15 border border-amber-500/30 text-white font-bold"
+                                      : isLight
+                                        ? "hover:bg-slate-100 text-slate-700 cursor-pointer"
+                                        : "hover:bg-slate-800/70 text-slate-300 cursor-pointer"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className={`h-5 w-5 rounded-full bg-gradient-to-br ${p.accentColor || "from-fuchsia-500 to-pink-600"} flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-xs`}>
+                                      {p.avatarInitials}
+                                    </div>
+                                    <div className="truncate">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="truncate font-semibold leading-tight text-[11px]">{p.name}</span>
+                                        <span className="text-[8.5px] px-1 rounded bg-fuchsia-500/20 text-fuchsia-400 font-bold uppercase">
+                                          Marketing
+                                        </span>
+                                      </div>
+                                      <span className={`block text-[9.5px] truncate leading-none mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                        {p.title}
                                       </span>
-                                    )}
+                                    </div>
                                   </div>
-                                  <span className={`block text-[9.5px] truncate leading-none mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-                                    {p.title.replace("Senior New Home Consultant & System Admin", "Admin & NHC")} • {p.division || p.state || "AU"}
-                                  </span>
-                                </div>
-                              </div>
-                              {isCurrent ? (
-                                <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 shrink-0 font-mono flex items-center gap-0.5">
-                                  <CheckCircle2 className="h-3 w-3" /> Active
-                                </span>
-                              ) : (
-                                <span className={`text-[9.5px] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-amber-700" : "text-amber-400"}`}>
-                                  Switch →
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })}
+                                  {isCurrent ? (
+                                    <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 shrink-0 font-mono flex items-center gap-0.5">
+                                      <CheckCircle2 className="h-3 w-3" /> Active
+                                    </span>
+                                  ) : (
+                                    <span className={`text-[9.5px] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                                      Switch →
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Section: Queensland NHCs */}
+                        <div>
+                          <div className="text-[9px] font-mono uppercase tracking-wider font-bold text-amber-400 px-1 mb-1">
+                            Queensland Sales Team
+                          </div>
+                          <div className="space-y-1">
+                            {KNOWN_STAFF_PROFILES.filter((p) => p.role !== "marketing" && (p.division === "QLD" || p.state === "QLD")).map((p) => {
+                              const isCurrent = activeUser?.id === p.id || activeUser?.email?.toLowerCase() === p.email.toLowerCase();
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => handleSwitchToProfile(p)}
+                                  disabled={isCurrent}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between transition-all group ${
+                                    isCurrent
+                                      ? isLight
+                                        ? "bg-amber-50 border border-amber-300 text-slate-900 font-bold"
+                                        : "bg-amber-500/15 border border-amber-500/30 text-white font-bold"
+                                      : isLight
+                                        ? "hover:bg-slate-100 text-slate-700 cursor-pointer"
+                                        : "hover:bg-slate-800/70 text-slate-300 cursor-pointer"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className={`h-5 w-5 rounded-full bg-gradient-to-br ${p.accentColor || "from-amber-500 to-orange-600"} flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-xs`}>
+                                      {p.avatarInitials}
+                                    </div>
+                                    <div className="truncate">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="truncate font-semibold leading-tight text-[11px]">{p.name}</span>
+                                        {p.role === "admin" && (
+                                          <span className="text-[8.5px] px-1 rounded bg-amber-500/20 text-amber-400 font-bold uppercase">
+                                            Admin
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className={`block text-[9.5px] truncate leading-none mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                        {p.title.replace("Senior New Home Consultant & System Admin", "Admin & NHC")} • {p.displayCentre.replace(" Display Home", "")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {isCurrent ? (
+                                    <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 shrink-0 font-mono flex items-center gap-0.5">
+                                      <CheckCircle2 className="h-3 w-3" /> Active
+                                    </span>
+                                  ) : (
+                                    <span className={`text-[9.5px] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                                      Switch →
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Section: NSW NHCs */}
+                        <div>
+                          <div className="text-[9px] font-mono uppercase tracking-wider font-bold text-blue-400 px-1 mb-1">
+                            New South Wales Sales Team
+                          </div>
+                          <div className="space-y-1">
+                            {KNOWN_STAFF_PROFILES.filter((p) => p.role !== "marketing" && (p.division === "NSW" || p.state === "NSW")).map((p) => {
+                              const isCurrent = activeUser?.id === p.id || activeUser?.email?.toLowerCase() === p.email.toLowerCase();
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => handleSwitchToProfile(p)}
+                                  disabled={isCurrent}
+                                  className={`w-full text-left px-2 py-1.5 rounded-lg flex items-center justify-between transition-all group ${
+                                    isCurrent
+                                      ? isLight
+                                        ? "bg-amber-50 border border-amber-300 text-slate-900 font-bold"
+                                        : "bg-amber-500/15 border border-amber-500/30 text-white font-bold"
+                                      : isLight
+                                        ? "hover:bg-slate-100 text-slate-700 cursor-pointer"
+                                        : "hover:bg-slate-800/70 text-slate-300 cursor-pointer"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className={`h-5 w-5 rounded-full bg-gradient-to-br ${p.accentColor || "from-indigo-500 to-blue-600"} flex items-center justify-center text-white text-[9px] font-black shrink-0 shadow-xs`}>
+                                      {p.avatarInitials}
+                                    </div>
+                                    <div className="truncate">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="truncate font-semibold leading-tight text-[11px]">{p.name}</span>
+                                      </div>
+                                      <span className={`block text-[9.5px] truncate leading-none mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                        {p.title} • {p.displayCentre.replace(" Display Home", "").replace(" Display", "")}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {isCurrent ? (
+                                    <span className="text-[9px] font-bold text-emerald-500 dark:text-emerald-400 shrink-0 font-mono flex items-center gap-0.5">
+                                      <CheckCircle2 className="h-3 w-3" /> Active
+                                    </span>
+                                  ) : (
+                                    <span className={`text-[9.5px] font-bold shrink-0 opacity-0 group-hover:opacity-100 transition-opacity ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                                      Switch →
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}

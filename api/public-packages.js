@@ -27,7 +27,7 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const staffEmail = process.env.VITE_STAFF_AUTH_EMAIL || process.env.STAFF_AUTH_EMAIL || "jesse.jenkins@hudsonhomes.com.au";
+    const staffEmail = process.env.VITE_STAFF_AUTH_EMAIL || process.env.STAFF_AUTH_EMAIL || "morgan.hales@hudsonhomes.com.au";
     const staffPass = process.env.VITE_STAFF_AUTH_PASS || process.env.STAFF_AUTH_PASS || "StoneBenchTop99";
     try {
       await supabase.auth.signInWithPassword({ email: staffEmail, password: staffPass });

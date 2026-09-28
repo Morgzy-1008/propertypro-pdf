@@ -18,7 +18,7 @@ import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 const REALTIME_CHANNEL_NAME = "hudson_database_live_realtime";
 const STAFF_AUTH_EMAIL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_STAFF_AUTH_EMAIL) ||
-  "jesse.jenkins@hudsonhomes.com.au";
+  "morgan.hales@hudsonhomes.com.au";
 const STAFF_AUTH_PASS =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_STAFF_AUTH_PASS) ||
   "StoneBenchTop99";

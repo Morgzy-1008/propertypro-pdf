@@ -41,7 +41,7 @@ export function StaffSignInModal({
   onSignedIn,
   canDismiss = true,
 }: StaffSignInModalProps) {
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("jesse-jenkins");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("morgan-hales");
   const [rememberMe, setRememberMe] = useState(true);
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [customName, setCustomName] = useState("");

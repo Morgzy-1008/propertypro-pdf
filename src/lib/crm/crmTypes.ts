@@ -176,15 +176,6 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
     commissionRatePct: 2.25,
   },
   {
-    id: "jesse",
-    name: "Jesse Jenkins",
-    email: "jesse.jenkins@hudsonhomes.com.au",
-    phone: "0431 292 123",
-    displayOffice: "Lilywood Landings Display Home",
-    baseSalaryYearly: 0,
-    commissionRatePct: 2.25,
-  },
-  {
     id: "alyssa_hales",
     name: "Alyssa Hales",
     email: "alyssa.hales@hudsonhomes.com.au",
@@ -252,7 +243,6 @@ export const HUDSON_CONSULTANTS: CrmConsultant[] = [
 export function normalizeConsultantId(idOrEmailOrName?: string): string {
   if (!idOrEmailOrName) return "morgan_hales";
   const s = idOrEmailOrName.toLowerCase().replace(/-/g, "_").trim();
-  if (s.includes("jesse")) return "jesse";
   if (s.includes("adrian")) return "adrian";
   if (s.includes("morgan")) return "morgan_hales";
   if (s.includes("alyssa")) return "alyssa_hales";

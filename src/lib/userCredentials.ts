@@ -10,7 +10,6 @@ const PASSWORD_SALT = "HudsonHomesEnterpriseSecuredSalt_2026_";
 // These staff members should NEVER be prompted to create a new password.
 export const PREV_STAFF_EMAILS = [
   "morgan.hales@hudsonhomes.com.au",
-  "jesse.jenkins@hudsonhomes.com.au",
   "adrian.baxter@hudsonhomes.com.au",
   "alyssa.hales@hudsonhomes.com.au",
   "alyssa.pippig@hudsonhomes.com.au",
@@ -60,7 +59,6 @@ export function normalizeStaffEmail(email?: string | null): string {
   if (clean === "morgzy@hudsonhomes.com.au" || clean === "morgan@hudsonhomes.com.au") {
     clean = "morgan.hales@hudsonhomes.com.au";
   }
-  if (clean === "jesse@hudsonhomes.com.au") clean = "jesse.jenkins@hudsonhomes.com.au";
   if (clean === "adrian@hudsonhomes.com.au") clean = "adrian.baxter@hudsonhomes.com.au";
   if (
     clean === "alyssa@hudsonhomes.com.au" ||

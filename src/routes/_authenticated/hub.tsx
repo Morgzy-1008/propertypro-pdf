@@ -28,7 +28,14 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
-import { getActiveStaffUser, onStaffUserChanged, isStaffSessionActive, type StaffProfile } from "@/lib/authSession";
+import {
+  getActiveStaffUser,
+  onStaffUserChanged,
+  isStaffSessionActive,
+  KNOWN_STAFF_PROFILES,
+  setActiveStaffUser,
+  type StaffProfile,
+} from "@/lib/authSession";
 import { getUnreadAlertCount, getPendingAccessRequests, onAdminAlertsChanged } from "@/lib/adminAlerts";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
@@ -70,7 +77,7 @@ function WelcomeHubPage() {
       const rawToast = sessionStorage.getItem("hudson_login_toast");
       if (rawToast) {
         sessionStorage.removeItem("hudson_login_toast");
-        const { name, type } = JSON.parse(rawToast);
+        const { name, type, title } = JSON.parse(rawToast);
         if (type === "new") {
           toast.success(`Welcome to Hudson Homes, ${name}!`, {
             description: "Your password is saved and your 24-hr session is active.",
@@ -78,6 +85,14 @@ function WelcomeHubPage() {
         } else if (type === "reset") {
           toast.success(`Welcome back, ${name}!`, {
             description: "Password reset successfully. Your session is active for 24 hours.",
+          });
+        } else if (type === "switched") {
+          toast.success(`Switched account to ${name}`, {
+            description: `Now previewing as ${title || "Colleague Profile"}.`,
+          });
+        } else if (type === "returned") {
+          toast.success("Returned to Morgan Hales (Admin)", {
+            description: "Full administrative controls restored.",
           });
         } else {
           toast.success(`Welcome back, ${name}!`, {
@@ -116,6 +131,11 @@ function WelcomeHubPage() {
     staffUser?.name?.toLowerCase().includes("morgan hales");
   const hasFloorplanAccess = canAccessFloorplanEditor(staffUser);
 
+  const isImpersonating =
+    typeof window !== "undefined" &&
+    (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
+      localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
+
   return (
     <div className={`min-h-screen ${isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"} flex flex-col font-sans selection:bg-brand-gold/30`}>
       {/* Top Navigation Bar */}
@@ -144,6 +164,53 @@ function WelcomeHubPage() {
 
       {/* Main Hub Content */}
       <main className="flex-1 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-10 flex flex-col justify-center">
+        {/* Admin Impersonation Active Banner */}
+        {isImpersonating && staffUser && staffUser.id !== "morgan-hales" && (
+          <div className="w-full max-w-6xl mx-auto mb-6 p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/40 text-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-bold text-sm shrink-0 shadow-sm animate-pulse">
+                👁️
+              </div>
+              <div className="text-left">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs sm:text-sm font-extrabold text-amber-300 uppercase tracking-wide">
+                    Admin Preview Mode Active:
+                  </span>
+                  <span className="text-xs sm:text-sm font-black text-white bg-slate-900/90 px-2 py-0.5 rounded-md border border-slate-700">
+                    {staffUser.name}
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-400/90 mt-0.5">
+                  You are previewing this account as <strong>{staffUser.title}</strong> ({staffUser.displayCentre} • {staffUser.division || staffUser.state || "QLD"}).
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
+                if (morgan) {
+                  sessionStorage.removeItem("hudson_admin_impersonator");
+                  localStorage.removeItem("hudson_admin_impersonator");
+                  sessionStorage.setItem(
+                    "hudson_login_toast",
+                    JSON.stringify({ name: "Morgan Hales", type: "returned" })
+                  );
+                  setActiveStaffUser(morgan, true);
+                  if (morgan.division) {
+                    localStorage.setItem("hudson_active_division", morgan.division);
+                  }
+                  window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+            >
+              <UserCheck className="h-4 w-4" />
+              <span>Return to Morgan Hales (Admin)</span>
+            </button>
+          </div>
+        )}
+
         {/* Welcome Greeting Header */}
         <div className="text-center max-w-3xl mx-auto mb-10">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-brand-gold/10 border border-brand-gold/20 text-brand-gold text-xs font-medium tracking-wide mb-3">
@@ -297,7 +364,7 @@ function WelcomeHubPage() {
             </Link>
           )}
 
-          {/* Card 4: Concept Floorplan Editor (Allowed Staff: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, Morgan) */}
+          {/* Card 4: Concept Floorplan Editor (Allowed Staff: Steve, Aaron, Alyssa, Shelley, Adrian, Ben, Morgan) */}
           {hasFloorplanAccess && (
             <Link
               to="/floorplan-editor"

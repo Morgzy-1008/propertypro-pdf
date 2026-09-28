@@ -152,7 +152,7 @@ function Index() {
     await ensureStaffSupabaseAuth();
 
     // Respect whichever consultant is currently selected/active in `data`.
-    // We NEVER overwrite with Jesse or any arbitrary service account!
+    // We NEVER overwrite with any arbitrary service account!
     const finalData: FlyerData = {
       ...data,
       contactName: data.contactName || activeStaff?.name || "Steve Slisar",

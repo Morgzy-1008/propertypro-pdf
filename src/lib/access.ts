@@ -6,7 +6,6 @@ import { normalizeStaffEmail } from "./userCredentials";
  */
 export const DEFAULT_ALLOWED_EMAILS = [
   "morgan.hales@hudsonhomes.com.au",
-  "jesse.jenkins@hudsonhomes.com.au",
   "adrian.baxter@hudsonhomes.com.au",
   "alyssa.hales@hudsonhomes.com.au",
   "alyssa.hales@hudsonhhomes.com.au",
@@ -153,7 +152,7 @@ export function markUserPasswordConfigured(email: string): void {
 
 /**
  * Staff with permission to access the Concept Floorplan Editor Portal.
- * Allowed: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, and Morgan.
+ * Allowed: Steve, Aaron, Alyssa, Shelley, Adrian, Ben, and Morgan.
  * Excluded: Christine and Gary.
  */
 export const FLOORPLAN_EDITOR_ALLOWED_EMAILS = [
@@ -165,7 +164,6 @@ export const FLOORPLAN_EDITOR_ALLOWED_EMAILS = [
   "alyssa.pippig@hudsonhomes.com.au",
   "alyssa.hales@hudsonhhomes.com.au",
   "shelley.lay@hudsonhomes.com.au",
-  "jesse.jenkins@hudsonhomes.com.au",
   "adrian.baxter@hudsonhomes.com.au",
   "ben.grill@hudsonhomes.com.au",
 ];
@@ -201,7 +199,7 @@ export function canAccessFloorplanEditor(staffUser?: {
     return false;
   }
 
-  // Explicitly allowed: Steve, Aaron, Alyssa, Shelley, Jesse, Adrian, Ben, and Morgan
+  // Explicitly allowed: Steve, Aaron, Alyssa, Shelley, Adrian, Ben, and Morgan
   if (
     email === "morgan.hales@hudsonhomes.com.au" ||
     id === "morgan-hales" ||
@@ -218,14 +216,12 @@ export function canAccessFloorplanEditor(staffUser?: {
     id === "aaron-martin" ||
     id === "alyssa-hales" ||
     id === "shelley-lay" ||
-    id === "jesse-jenkins" ||
     id === "adrian-baxter" ||
     id === "ben-grill" ||
     name.includes("steve") ||
     name.includes("aaron") ||
     name.includes("alyssa") ||
     name.includes("shelley") ||
-    name.includes("jesse") ||
     name.includes("adrian") ||
     name.includes("ben")
   );

@@ -17,17 +17,17 @@ export interface StaffProfile {
 
 export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
   {
-    id: "jesse-jenkins",
-    name: "Jesse Jenkins",
-    email: "jesse.jenkins@hudsonhomes.com.au",
-    phone: "0431 292 123",
-    title: "New Home Consultant",
-    displayCentre: "Lilywood Landings Display Home",
+    id: "morgan-hales",
+    name: "Morgan Hales",
+    email: "morgan.hales@hudsonhomes.com.au",
+    phone: "0417 571 864",
+    title: "Senior New Home Consultant & System Admin",
+    displayCentre: "Flagstone Display Home",
     division: "QLD",
     state: "QLD",
-    role: "nhc",
-    avatarInitials: "JJ",
-    accentColor: "from-cyan-500 to-blue-600",
+    role: "admin",
+    avatarInitials: "MH",
+    accentColor: "from-amber-500 to-orange-600",
   },
   {
     id: "adrian-baxter",
@@ -41,19 +41,6 @@ export const KNOWN_STAFF_PROFILES: StaffProfile[] = [
     role: "nhc",
     avatarInitials: "AB",
     accentColor: "from-emerald-500 to-teal-600",
-  },
-  {
-    id: "morgan-hales",
-    name: "Morgan Hales",
-    email: "morgan.hales@hudsonhomes.com.au",
-    phone: "0417 571 864",
-    title: "Senior New Home Consultant & System Admin",
-    displayCentre: "Flagstone Display Home",
-    division: "QLD",
-    state: "QLD",
-    role: "admin",
-    avatarInitials: "MH",
-    accentColor: "from-amber-500 to-orange-600",
   },
   {
     id: "alyssa-hales",
@@ -258,7 +245,7 @@ export function isStaffSessionActive(): boolean {
 }
 
 export function getActiveStaffUser(): StaffProfile {
-  const defaultProfile = KNOWN_STAFF_PROFILES[2]; // Morgan Hales (admin)
+  const defaultProfile = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales") || KNOWN_STAFF_PROFILES[0];
   if (typeof window === "undefined") return defaultProfile;
   try {
     // 1. In-memory
@@ -476,21 +463,18 @@ export function isSameStaffEmail(emailA?: string | null, emailB?: string | null)
 
 export const REMUNERATION_AUTHORIZED_EMAILS = [
   "morgan.hales@hudsonhomes.com.au",
-  "jesse.jenkins@hudsonhomes.com.au",
   "adrian.baxter@hudsonhomes.com.au",
 ];
 
 export const REMUNERATION_AUTHORIZED_IDS = [
   "morgan-hales",
   "morgan_hales",
-  "jesse-jenkins",
-  "jesse_jenkins",
   "adrian-baxter",
   "adrian_baxter",
 ];
 
 /**
- * Only Adrian, Jesse, and Morgan are permitted to view salary & commission features in the CRM.
+ * Only Adrian and Morgan are permitted to view salary & commission features in the CRM.
  */
 export function canViewRemuneration(user: StaffProfile | null | undefined): boolean {
   if (!user) return false;

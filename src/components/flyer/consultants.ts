@@ -22,16 +22,6 @@ export const CONSULTANTS: Consultant[] = [
     state: "QLD",
   },
   {
-    id: "jesse-jenkins",
-    name: "Jesse Jenkins",
-    phone: "0431 292 123",
-    email: "Jesse.jenkins@hudsonhomes.com.au",
-    title: "New Home Consultant",
-    displayCentre: "Lilywood Landings Display Home",
-    division: "QLD",
-    state: "QLD",
-  },
-  {
     id: "adrian-baxter",
     name: "Adrian Baxter",
     phone: "0419 232 955",
