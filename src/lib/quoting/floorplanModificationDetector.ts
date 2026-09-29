@@ -30,6 +30,7 @@ import {
   calculateOpeningReplacement,
   calculateWetAreaExtension,
   createZeroCostInternalChange,
+  performInternalSweep,
   FORESIGHT_EDITOR_OPENINGS,
 } from "./conceptFloorplanEditorBridge";
 import type {
@@ -1405,22 +1406,31 @@ export async function analyzeModifiedFloorplanFile(
   // 2. Identify Base Design Model (Universal Dynamic Resolution)
   // Stage 1: Lock the base design model with strict deterministic priority.
   let detectedModelName = "";
-  let housingType = "Single Storey";
+  let housingType = activeHousingType || "Single Storey";
 
-  // Priority 1: Explicit text or filename match from embedded PDF fonts / file name
-  const textMatched = detectFloorplanFromText(rawText, file.name);
-  if (textMatched) {
-    detectedModelName = textMatched.matchedDesignName;
-    housingType = textMatched.housingType;
-  } else {
-    const matched = findHudsonModelByName(file.name) || findHudsonModelByName(rawText);
-    if (matched) {
-      detectedModelName = matched.row.name;
-      housingType = matched.housingType;
+  // Priority 1: User-confirmed base design from Step 1 verification modal
+  if (activeDesignName && activeDesignName !== "UNSELECTED") {
+    const verified = findHudsonModelByName(activeDesignName);
+    detectedModelName = verified ? verified.row.name : activeDesignName;
+    housingType = (verified ? verified.housingType : activeHousingType || getHousingTypeForDesign(activeDesignName) || "Single Storey") as any;
+  }
+
+  // Priority 2: Explicit text or filename match from embedded PDF fonts / file name
+  if (!detectedModelName) {
+    const textMatched = detectFloorplanFromText(rawText, file.name);
+    if (textMatched) {
+      detectedModelName = textMatched.matchedDesignName;
+      housingType = textMatched.housingType;
+    } else {
+      const matched = findHudsonModelByName(file.name) || findHudsonModelByName(rawText);
+      if (matched) {
+        detectedModelName = matched.row.name;
+        housingType = matched.housingType;
+      }
     }
   }
 
-  // Priority 1.5: If filename and rawText had no recognizable Hudson model, scan the sheet header/title block from image
+  // Priority 2.5: If filename and rawText had no recognizable Hudson model, scan the sheet header/title block from image
   if (!detectedModelName && dataUrl) {
     const visualModel = await identifyDesignModelFromImage(dataUrl);
     if (visualModel && visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
@@ -1428,17 +1438,11 @@ export async function analyzeModifiedFloorplanFile(
       if (verified) {
         detectedModelName = verified.row.name;
         housingType = verified.housingType;
-      } else if (!activeDesignName || activeDesignName === "UNSELECTED") {
+      } else {
         detectedModelName = visualModel.designName;
         housingType = visualModel.housingType || "Single Storey";
       }
     }
-  }
-
-  // Priority 2: If the uploaded file had no recognized model, fall back to activeDesignName from Step 2
-  if ((!detectedModelName || detectedModelName.toLowerCase() === "unknown") && activeDesignName && activeDesignName !== "UNSELECTED") {
-    detectedModelName = activeDesignName;
-    housingType = activeHousingType || getHousingTypeForDesign(activeDesignName) || "Single Storey";
   }
 
   // Handle Ember/Amber spelling
@@ -1725,18 +1729,9 @@ export async function analyzeModifiedFloorplanFile(
         accepted: true,
       });
     } else if (mod.zone === "wet_area") {
-      const rate = DATABUILD_RECIPE_RATES.wet_area_m2;
-      areaDeltas.push({
-        zoneKey: "wetAreaM2",
-        zoneLabel: "Master Ensuite / Bathroom Extension",
-        standardM2: 8.5,
-        modifiedM2: Math.round((8.5 + delta) * 100) / 100,
-        deltaM2: delta,
-        recipeId: "recipe_bath_ext_m2",
-        unitRate: rate,
-        subtotal: Math.round(delta * rate),
-        accepted: true,
-      });
+      // Wet area extensions are handled exclusively in Tab 2 (Internal Sweep & Rooms)
+      // at the user-specified $150.00/m² base rate. Never double-charge in structural areaDeltas!
+      continue;
     }
   }
 
@@ -1802,38 +1797,11 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Universal: Ensure Single Roller Door variation is recognized when a 3rd car bay or additional roller door is specified
-  const hasThirdCarBayOrRollerDoor =
-    areaDeltas.some((d) => d.zoneKey === "garageM2" && d.deltaM2 >= 10.0) ||
-    /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car|three\s*car/i.test(rawText) ||
-    /roller\s*door\s*21\.24|roller\s*door|triple\s*garage|3rd\s*car/i.test(geminiResult?.analysisNotes || "");
-  if (hasThirdCarBayOrRollerDoor) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_single_roller_door" || /roller\s*door|rd\s*21\.24/i.test(u.name))) {
-      const rollerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_single_roller_door");
-      if (rollerRule) {
-        inclusionUpgrades.push({
-          id: rollerRule.id,
-          category: rollerRule.category,
-          name: rollerRule.name,
-          description: rollerRule.description,
-          baseline: rollerRule.baseline,
-          detected: rollerRule.detected,
-          unitPrice: rollerRule.unitPrice,
-          quantity: 1,
-          subtotal: rollerRule.unitPrice,
-          accepted: true,
-          confidence: rollerRule.confidence,
-          isByOwner: false,
-          reason: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) added for 3rd garage car bay (variation cost above square meter rate).",
-        });
-      }
-    }
-  }
-
-  // Universal: Ensure Additional Ensuite & WIR is recognized if specified for a secondary bedroom
+  // Universal: Ensure Additional Ensuite & WIR is recognized if specified for a secondary bedroom (e.g. Bed 4)
+  // Strict boundary: Never trigger on Master Robe / Master Ensuite!
   const hasBed4OrSecondaryEnsuite =
-    /bed\s*[2-5].*(?:ens|ensuite|wir)|bath\s*\/\s*ens/i.test(rawText) ||
-    /bed\s*[2-5].*(?:ens|ensuite|wir)|bath\s*\/\s*ens/i.test(geminiResult?.analysisNotes || "");
+    /\b(?:bed\s*[2-5]|bedroom\s*[2-5]|guest\s*bed)\s*(?:ensuite|ens\b|private\s*bath)/i.test(rawText) ||
+    /\b(?:bed\s*[2-5]|bedroom\s*[2-5]|guest\s*bed)\s*(?:ensuite|ens\b|private\s*bath)/i.test(geminiResult?.analysisNotes || "");
   if (hasBed4OrSecondaryEnsuite) {
     if (!inclusionUpgrades.some((u) => u.id === "upg_additional_ensuite_wir" || /bed\s*[2-5].*ens|additional.*ensuite/i.test(u.name))) {
       const ensRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_additional_ensuite_wir");
@@ -1852,60 +1820,6 @@ export async function analyzeModifiedFloorplanFile(
           confidence: ensRule.confidence,
           isByOwner: false,
           reason: "Conversion of secondary bedroom (Bed 4) into private ensuite and walk-in robe.",
-        });
-      }
-    }
-  }
-
-  // Universal: Ensure 1200mm Front Entry Door is recognized
-  const hasExt1200Door =
-    /ext\s*1200|1200\s*(?:entry|door|entrance)/i.test(rawText) ||
-    /ext\s*1200|1200\s*(?:entry|door|entrance)/i.test(geminiResult?.analysisNotes || "");
-  if (hasExt1200Door) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_entry_door_1200" || /1200/i.test(u.name))) {
-      const doorRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_entry_door_1200");
-      if (doorRule) {
-        inclusionUpgrades.push({
-          id: doorRule.id,
-          category: doorRule.category,
-          name: doorRule.name,
-          description: doorRule.description,
-          baseline: doorRule.baseline,
-          detected: doorRule.detected,
-          unitPrice: doorRule.unitPrice,
-          quantity: 1,
-          subtotal: doorRule.unitPrice,
-          accepted: true,
-          confidence: doorRule.confidence,
-          isByOwner: false,
-          reason: "1200mm wide architectural feature entrance door ('EXT 1200') on plan.",
-        });
-      }
-    }
-  }
-
-  // Universal: Ensure Stacker Door to Alfresco is recognized
-  const hasStackerDoor =
-    /stacker|stacking/i.test(rawText) ||
-    /stacker|stacking/i.test(geminiResult?.analysisNotes || "");
-  if (hasStackerDoor) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_alfresco_stacker_door" || /stacker/i.test(u.name))) {
-      const stackerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_alfresco_stacker_door");
-      if (stackerRule) {
-        inclusionUpgrades.push({
-          id: stackerRule.id,
-          category: stackerRule.category,
-          name: stackerRule.name,
-          description: stackerRule.description,
-          baseline: stackerRule.baseline,
-          detected: stackerRule.detected,
-          unitPrice: stackerRule.unitPrice,
-          quantity: 1,
-          subtotal: stackerRule.unitPrice,
-          accepted: true,
-          confidence: stackerRule.confidence,
-          isByOwner: false,
-          reason: "Multi-panel stacking sliding door upgrade to covered alfresco.",
         });
       }
     }
@@ -1933,35 +1847,6 @@ export async function analyzeModifiedFloorplanFile(
           confidence: bathRule.confidence,
           isByOwner: false,
           reason: "Ground floor full bathroom addition / conversion to service guest suite.",
-        });
-      }
-    }
-  }
-
-  // Universal: Ensure Master Ensuite Double Basin Vanity is recognized
-  // Universal: Ensure 1020mm Front Entry Door is recognized
-  const hasExt1020Door =
-    /ext\s*1020|1020\s*(?:entry|door|entrance)/i.test(rawText) ||
-    /ext\s*1020|1020\s*(?:entry|door|entrance)/i.test(geminiResult?.analysisNotes || "") ||
-    /coral\s*21.*annette|annette.*andrew/i.test(rawText);
-  if (hasExt1020Door) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_entry_door_1020" || /1020/i.test(u.name))) {
-      const doorRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_entry_door_1020");
-      if (doorRule) {
-        inclusionUpgrades.push({
-          id: doorRule.id,
-          category: doorRule.category,
-          name: doorRule.name,
-          description: doorRule.description,
-          baseline: doorRule.baseline,
-          detected: doorRule.detected,
-          unitPrice: doorRule.unitPrice,
-          quantity: 1,
-          subtotal: doorRule.unitPrice,
-          accepted: true,
-          confidence: doorRule.confidence,
-          isByOwner: false,
-          reason: "1020mm wide architectural feature entrance door notation ('EXT 1020') on plan.",
         });
       }
     }
@@ -2117,50 +2002,7 @@ export async function analyzeModifiedFloorplanFile(
   const openingReplacements = diffOpeningsWithReplacementCredits(presightTags, detectedModelName);
 
   // 1c. Full Internal Sweep: Room Recognition, Furniture Verification & $0 Non-Structural Changes
-  const internalRoomChanges: InternalRoomChange[] = [];
-
-  // Check for wet area extension ($150/m² base cost + tile & waterproofing differential)
-  const wetDelta = areaDeltas.find((d) => d.zoneKey === "wetAreaM2")?.deltaM2 || 0;
-  if (wetDelta > 0) {
-    internalRoomChanges.push(calculateWetAreaExtension("Master Ensuite / Bathroom", wetDelta));
-  } else {
-    const bathMatch = rawText.match(/(?:ensuite|bathroom)\s*(?:ext|extension|\+)?\s*(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)/i);
-    if (bathMatch) {
-      const m2 = parseFloat(bathMatch[1]);
-      if (!isNaN(m2) && m2 > 0) {
-        internalRoomChanges.push(calculateWetAreaExtension("Master Ensuite", m2));
-      }
-    }
-  }
-
-  // Internal room wall adjustments (reported even if $0.00 per requirement)
-  if (
-    /bed\s*2.*(?:shift|move|expand|enlarge|wall)|bed\s*3.*(?:shift|reduce|wall)|wall\s*shift/i.test(rawText) ||
-    /bed\s*2.*wall/i.test(geminiResult?.analysisNotes || "")
-  ) {
-    internalRoomChanges.push(
-      createZeroCostInternalChange(
-        "Bedroom 2 & 3 Non-Structural Wall Relocation",
-        1.5,
-        "Non-structural internal partition wall shifted to expand Bedroom 2. Reallocation of dry living space with zero builder contract variation.",
-        ["Bed", "Bedside Table", "BIR"]
-      )
-    );
-  }
-
-  if (
-    /kitchen.*island|island.*extended|pantry.*shelf/i.test(rawText) ||
-    /kitchen/i.test(geminiResult?.analysisNotes || "")
-  ) {
-    internalRoomChanges.push(
-      createZeroCostInternalChange(
-        "Kitchen & Meals Internal Zone Flow",
-        0.0,
-        "Open-plan living flow and island servery alignment verified against concept floorplan standard layout.",
-        ["Island Bench", "Prep Sink", "Cooktop"]
-      )
-    );
-  }
+  const internalRoomChanges = performInternalSweep(rawText, detectedModelName);
 
   // 2. Previously Learned Features from Persistent Memory
   const learnedList = getLearnedFeatures();
@@ -2198,7 +2040,16 @@ export async function analyzeModifiedFloorplanFile(
     const seenSemanticKeys = new Set<string>();
     const finalInclusions: DetectedInclusionUpgrade[] = [];
     for (const inc of inclusionUpgrades) {
+      if (inc.category === "doors_windows") continue;
+
       const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
+      // Skip any door or window opening upgrades (these are strictly handled in openingReplacements with 80% trade credit)
+      if (
+        /sliding.*door|(?:\d{2}[-\s]*)?\d{2}\s*sd|sd\s*\d{2}|stacker|bifold|barn\s*door|csd\s*\d|cavity\s*slider|ext\s*(?:1020|1200|820|920)|roller\s*door|rd\s*21|panel\s*lift|splashback\s*window|pw\s*06|enlarged\s*window|sw\s*12|awn\s*12/i.test(desc)
+      ) {
+        continue;
+      }
+
       let semKey = inc.id || inc.name.toLowerCase().trim();
       if (/bed\s*4.*(?:ensuite|wir)|bed\s*4\s*ens/i.test(desc)) {
         semKey = "sem_bed4_wir";
@@ -2218,22 +2069,6 @@ export async function analyzeModifiedFloorplanFile(
         semKey = "sem_undermount_sink";
       } else if (/butler.*sink|wip.*sink|prep\s*sink|sink.*butler/i.test(desc)) {
         semKey = "sem_butlers_prep_sink";
-      } else if (/sliding\s*door|sd\s*21/i.test(desc)) {
-        semKey = "sem_sliding_door";
-      } else if (/splashback|pw\s*06/i.test(desc)) {
-        semKey = "sem_splashback_window";
-      } else if (/sw\s*12|window\s*size|enlarged\s*window|bedroom.*window|bed.*4.*window/i.test(desc)) {
-        semKey = "sem_window_size_upgrade";
-      } else if (/ext\s*820|ext\s*920|garage.*access\s*door|personal.*access/i.test(desc)) {
-        semKey = "sem_garage_access_door";
-      } else if (/roller\s*door|rd\s*21\.24/i.test(desc)) {
-        semKey = "sem_roller_door";
-      } else if (/1200|ext\s*1200/i.test(desc)) {
-        semKey = "sem_entry_door_1200";
-      } else if (/1020|ext\s*1020/i.test(desc)) {
-        semKey = "sem_entry_door_1020";
-      } else if (/stacker|stacking/i.test(desc)) {
-        semKey = "sem_stacker_door";
       } else if (/study/i.test(desc)) {
         semKey = "sem_study_addition";
       } else if (/mud/i.test(desc)) {
@@ -2431,21 +2266,6 @@ export async function analyzeModifiedFloorplanFile(
     });
   }
 
-  if (wetAreaDelta > 0) {
-    const rate = DATABUILD_RECIPE_RATES.wet_area_m2;
-    areaDeltas.push({
-      zoneKey: "wetAreaM2",
-      zoneLabel: "Master Ensuite / Bathroom Extension",
-      standardM2: 8.5,
-      modifiedM2: Math.round((8.5 + wetAreaDelta) * 100) / 100,
-      deltaM2: wetAreaDelta,
-      recipeId: "recipe_bath_ext_m2",
-      unitRate: rate,
-      subtotal: Math.round(wetAreaDelta * rate),
-      accepted: true,
-    });
-  }
-
   // 3. Strict Fixture Upgrade Triggering
   for (const rule of FIXTURE_UPGRADE_RULES) {
     if (rule.id === "upg_structural_beam_gf_ext") {
@@ -2504,30 +2324,32 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // Filter out any door/window items from inclusions so they do not duplicate Tab 3
+  const filteredInclusions = inclusionUpgrades.filter((inc) => {
+    if (inc.category === "doors_windows") return false;
+    const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
+    if (
+      /sliding.*door|(?:\d{2}[-\s]*)?\d{2}\s*sd|sd\s*\d{2}|stacker|bifold|barn\s*door|csd\s*\d|cavity\s*slider|ext\s*(?:1020|1200|820|920)|roller\s*door|rd\s*21|panel\s*lift|splashback\s*window|pw\s*06|enlarged\s*window|sw\s*12|awn\s*12/i.test(desc)
+    ) {
+      return false;
+    }
+    return true;
+  });
+
   // Opening replacements with 80% trade credit in deterministic fallback
   const deterministicTags = parsePresightOpeningTags(rawText);
   const fallbackOpeningReplacements = diffOpeningsWithReplacementCredits(deterministicTags, detectedModelName);
 
   // Full internal sweep changes
-  const fallbackInternalRoomChanges: InternalRoomChange[] = [];
-  if (wetAreaDelta > 0) {
-    fallbackInternalRoomChanges.push(calculateWetAreaExtension("Master Ensuite / Bathroom", wetAreaDelta));
-  }
-  if (/bed\s*2.*(?:shift|move|expand|enlarge|wall)|bed\s*3.*(?:shift|reduce|wall)|wall\s*shift/i.test(rawText)) {
-    fallbackInternalRoomChanges.push(
-      createZeroCostInternalChange(
-        "Bedroom 2 & 3 Non-Structural Wall Relocation",
-        1.5,
-        "Non-structural internal partition wall shifted to expand Bedroom 2. Reallocation of dry living space with zero builder contract variation.",
-        ["Bed", "Bedside Table", "BIR"]
-      )
-    );
+  let fallbackInternalRoomChanges = performInternalSweep(rawText, detectedModelName);
+  if (wetAreaDelta > 0 && !fallbackInternalRoomChanges.some((r) => r.category === "wet_area")) {
+    fallbackInternalRoomChanges.push(calculateWetAreaExtension("Master Ensuite", wetAreaDelta, 150));
   }
 
   const netDeltaM2 = areaDeltas.reduce((acc, d) => acc + d.deltaM2, 0);
   const modifiedTotalM2 = Math.round((standardTotalM2 + netDeltaM2) * 100) / 100;
   const totalAreaCost = areaDeltas.reduce((acc, d) => acc + d.subtotal, 0);
-  const totalInclusionsCost = inclusionUpgrades.reduce((acc, u) => acc + u.subtotal, 0);
+  const totalInclusionsCost = filteredInclusions.reduce((acc, u) => acc + u.subtotal, 0);
   const totalOpeningsCost = fallbackOpeningReplacements.filter((o) => o.accepted).reduce((acc, o) => acc + o.netCost, 0);
   const totalInternalRoomsCost = fallbackInternalRoomChanges.filter((r) => r.accepted && !r.isZeroCost).reduce((acc, r) => acc + r.subtotal, 0);
 
@@ -2538,7 +2360,7 @@ export async function analyzeModifiedFloorplanFile(
     modifiedTotalM2,
     netDeltaM2: Math.round(netDeltaM2 * 100) / 100,
     areaDeltas,
-    inclusionUpgrades,
+    inclusionUpgrades: filteredInclusions,
     openingReplacements: fallbackOpeningReplacements,
     internalRoomChanges: fallbackInternalRoomChanges,
     totalAreaCost,

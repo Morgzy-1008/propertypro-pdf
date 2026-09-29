@@ -247,15 +247,55 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 10. Roller Door 21.24
-  const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*21\.?24)?|RD\s*21\.?24)\b/gi;
+  // 10. Roller Door & Sectional Panel Lift Doors
+  const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*(?:21\.?48|21\.?24))?|RD\s*(?:21\.?48|21\.?24)|PANEL\s*LIFT(?:\s*(?:21\.?48|21\.?24))?)\b/gi;
   while ((match = rollerRegex.exec(rawText)) !== null) {
+    const isDouble = /48/i.test(match[0]);
     tags.push({
       rawTag: match[0].toUpperCase(),
       category: "door",
       typeCode: "ROLLER_DOOR",
       heightMm: 2100,
+      widthMm: isDouble ? 4800 : 2400,
+      isObscure: false,
+    });
+  }
+
+  // 11. Corner Stacker & Bifold Doors
+  const bifoldRegex = /\b(?:CORNER\s*STACKER|STACKER\s*CORNER|BIFOLD(?:\s*21[-.]?24)?)\b/gi;
+  while ((match = bifoldRegex.exec(rawText)) !== null) {
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "door",
+      typeCode: "STACKER",
+      heightMm: 2100,
       widthMm: 2400,
+      isObscure: false,
+    });
+  }
+
+  // 12. Barn Door / Face Hung
+  const barnRegex = /\b(?:BARN\s*DOOR|FACE[- ]HUNG(?:\s*820)?)\b/gi;
+  while ((match = barnRegex.exec(rawText)) !== null) {
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "door",
+      typeCode: "CSD",
+      heightMm: 2040,
+      widthMm: 820,
+      isObscure: false,
+    });
+  }
+
+  // 13. Corner Window
+  const cornerWinRegex = /\b(?:CORNER\s*WINDOW|CW\s*12\.?18)\b/gi;
+  while ((match = cornerWinRegex.exec(rawText)) !== null) {
+    tags.push({
+      rawTag: match[0].toUpperCase(),
+      category: "window",
+      typeCode: "SW",
+      heightMm: 1200,
+      widthMm: 1810,
       isObscure: false,
     });
   }
