@@ -5,7 +5,8 @@
  * and compares them against ground-truth Master Window/Door schedules with Inclusion Tier awareness (H1/H2/H3).
  */
 
-import type { DetectedInclusionUpgrade } from "./quoteTypes";
+import type { DetectedInclusionUpgrade, OpeningReplacementItem } from "./quoteTypes";
+import { calculateOpeningReplacement } from "./conceptFloorplanEditorBridge";
 
 export interface PresightOpeningTag {
   rawTag: string;
@@ -155,11 +156,13 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 4. Sliding Glass Doors: SD 21.27, SD 21.24, SD2127, etc.
-  const sdRegex = /\bSD\s*(\d{2})\.?(\d{2})\b/gi;
+  // 4. Sliding Glass Doors: SD 21.27, SD 21.24, 21-21SD, 21-24SD, 21.21SD, 2121SD, etc.
+  const sdRegex = /\b(?:SD\s*(\d{2})\.?(\d{2})|(\d{2})[-.]?(\d{2})\s*SD)\b/gi;
   while ((match = sdRegex.exec(rawText)) !== null) {
-    const h = parseInt(match[1], 10) * 100;
-    const w = parseInt(match[2], 10) * 100;
+    const rawH = match[1] || match[3];
+    const rawW = match[2] || match[4];
+    const h = parseInt(rawH, 10) * 100;
+    const w = parseInt(rawW, 10) * 100;
     tags.push({
       rawTag: match[0].toUpperCase(),
       category: "door",
@@ -185,11 +188,13 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 6. Stacker Doors: STACKER 21.36, STACKER SLM, STACKER
-  const stackerRegex = /\bSTACKER(?:\s*(\d{2})\.?(\d{2}))?\b/gi;
+  // 6. Stacker Doors: STACKER 21.36, 21-36 STACKER, STACKER, STACKER SLM
+  const stackerRegex = /\b(?:STACKER(?:\s*(\d{2})\.?(\d{2}))?|(\d{2})[-.]?(\d{2})\s*STACKER)\b/gi;
   while ((match = stackerRegex.exec(rawText)) !== null) {
-    const h = match[1] ? parseInt(match[1], 10) * 100 : 2100;
-    const w = match[2] ? parseInt(match[2], 10) * 100 : 3600;
+    const rawH = match[1] || match[3];
+    const rawW = match[2] || match[4];
+    const h = rawH ? parseInt(rawH, 10) * 100 : 2100;
+    const w = rawW ? parseInt(rawW, 10) * 100 : 3600;
     tags.push({
       rawTag: match[0].toUpperCase(),
       category: "door",
@@ -410,4 +415,30 @@ export function diffOpeningsAgainstMaster(
   }
 
   return upgrades;
+}
+
+/**
+ * Parses tags and generates detailed opening replacement records with exact 80% trade credit calculations.
+ * Used by the modified plan review breakdown.
+ */
+export function diffOpeningsWithReplacementCredits(
+  parsedTags: PresightOpeningTag[],
+  designName?: string
+): OpeningReplacementItem[] {
+  const replacements: OpeningReplacementItem[] = [];
+  const seenCodes = new Set<string>();
+
+  for (const tag of parsedTags) {
+    const raw = tag.rawTag;
+    if (seenCodes.has(raw)) continue;
+    seenCodes.add(raw);
+
+    // If tag is unannotated standard or baseline brochure schedule match without custom tag, skip ($0)
+    if (!raw || /standard|unannotated/i.test(raw)) continue;
+
+    const rep = calculateOpeningReplacement(raw, tag.locationHint);
+    replacements.push(rep);
+  }
+
+  return replacements;
 }

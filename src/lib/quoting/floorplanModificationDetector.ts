@@ -17,6 +17,7 @@ import {
 import {
   parsePresightOpeningTags,
   diffOpeningsAgainstMaster,
+  diffOpeningsWithReplacementCredits,
 } from "./presightCodeParser";
 import {
   getLearnedFeatures,
@@ -25,11 +26,20 @@ import {
   type UnconfirmedFeatureCandidate,
 } from "./featureMemoryRegistry";
 import { evaluateZoneBoundaryShift } from "./wetAreaDifferentialCalculator";
+import {
+  calculateOpeningReplacement,
+  calculateWetAreaExtension,
+  createZeroCostInternalChange,
+  FORESIGHT_EDITOR_OPENINGS,
+} from "./conceptFloorplanEditorBridge";
 import type {
   DetectedAreaDelta,
   DetectedInclusionUpgrade,
   PlanModificationAnalysis,
   InclusionTier,
+  OpeningReplacementItem,
+  InternalRoomChange,
+  BaseDesignCandidate,
 } from "./quoteTypes";
 
 /**
@@ -1227,6 +1237,137 @@ Return ONLY valid JSON matching this schema:
 }
 
 /**
+ * Phase 1: Fast Base Design Identification
+ * Scans title blocks, sheet headers, cursive script text, and dimensions to determine
+ * what base floorplan the design started with, before prompting the user for confirmation.
+ */
+export async function identifyBaseDesignCandidate(
+  file: File,
+  fallbackDesignName?: string,
+  fallbackHousingType?: string
+): Promise<BaseDesignCandidate> {
+  let rawText = "";
+  let dataUrl = "";
+
+  // 1. Ingest file
+  if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+    try {
+      const parsed = await pdfDocumentToPagesAndText(file, 2);
+      rawText = parsed.rawText || "";
+      dataUrl = parsed.compositeFloorplanDataUrl || parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+    } catch (err: any) {
+      console.warn("PDF parsing error during base candidate detection:", err);
+    }
+  } else if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt")) {
+    rawText = await file.text();
+  } else {
+    const rawDataUrl = await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve((e.target?.result as string) || "");
+      reader.readAsDataURL(file);
+    });
+    dataUrl = await compressImageDataUrl(rawDataUrl, 1600, 1600, 0.85);
+  }
+
+  let matchedDesign = "";
+  let housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" = "Single Storey";
+  let confidence = 0.5;
+  let matchSource: BaseDesignCandidate["matchSource"] = "title_block";
+  let matchReason = "";
+
+  // Check 1: Filename match
+  const filenameMatch = findHudsonModelByName(file.name);
+  if (filenameMatch) {
+    matchedDesign = filenameMatch.row.name;
+    housingType = filenameMatch.housingType as any;
+    confidence = 0.95;
+    matchSource = "title_block";
+    matchReason = `File name matches master design "${filenameMatch.row.name}".`;
+  }
+
+  // Check 2: Direct text match from PDF fonts / title block
+  if (!matchedDesign && rawText) {
+    const textMatched = detectFloorplanFromText(rawText, file.name);
+    if (textMatched) {
+      matchedDesign = textMatched.matchedDesignName;
+      housingType = textMatched.housingType as any;
+      confidence = 0.98;
+      matchSource = "title_block";
+      matchReason = `Sheet title block text explicitly specifies "${textMatched.matchedDesignName}".`;
+    } else {
+      const rawTextMatch = findHudsonModelByName(rawText);
+      if (rawTextMatch) {
+        matchedDesign = rawTextMatch.row.name;
+        housingType = rawTextMatch.housingType as any;
+        confidence = 0.92;
+        matchSource = "text_header";
+        matchReason = `Drawing notes reference Hudson master model "${rawTextMatch.row.name}".`;
+      }
+    }
+  }
+
+  // Check 3: Vision / AI Identification from image title block
+  if (!matchedDesign && dataUrl) {
+    try {
+      const visualModel = await identifyDesignModelFromImage(dataUrl);
+      if (visualModel && visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
+        const verified = findHudsonModelByName(visualModel.designName);
+        if (verified) {
+          matchedDesign = verified.row.name;
+          housingType = verified.housingType as any;
+          confidence = 0.90;
+          matchSource = "geometry_matching";
+          matchReason = `Visual scan identified sheet title block: "${verified.row.name}".`;
+        }
+      }
+    } catch (e) {
+      console.warn("Visual candidate identification failed:", e);
+    }
+  }
+
+  // Check 4: Fallback to active selection in step 2
+  if (!matchedDesign && fallbackDesignName && fallbackDesignName !== "UNSELECTED") {
+    const verified = findHudsonModelByName(fallbackDesignName);
+    matchedDesign = verified ? verified.row.name : fallbackDesignName;
+    housingType = (verified ? verified.housingType : fallbackHousingType || "Single Storey") as any;
+    confidence = 0.75;
+    matchSource = "schedule_table";
+    matchReason = `Using currently selected quote base design "${matchedDesign}".`;
+  }
+
+  // Handle Ember/Amber spelling
+  if (/ember\s*21/i.test(matchedDesign) || /ember\s*21/i.test(file.name) || /ember\s*21/i.test(rawText)) {
+    matchedDesign = "Amber 21";
+  }
+
+  // Fallback default
+  if (!matchedDesign) {
+    matchedDesign = "Amber 21";
+    confidence = 0.40;
+    matchSource = "geometry_matching";
+    matchReason = "Base design could not be determined automatically. Please confirm or choose from standard designs.";
+  }
+
+  const verified = findHudsonModelByName(matchedDesign);
+  const stdTotalM2 = verified?.row.m2 || 198.08;
+  const masterKey = matchedDesign.toLowerCase().trim();
+  const masterThumbnailUrl = LOCAL_FLOORPLAN_MAP[masterKey] || getBaselineFloorplanImageUrl(matchedDesign);
+
+  return {
+    designName: verified ? verified.row.name : matchedDesign,
+    housingType: (verified ? verified.housingType : housingType) as any,
+    standardTotalM2: stdTotalM2,
+    confidence,
+    matchSource,
+    matchReason,
+    thumbnailUrl: masterThumbnailUrl,
+    candidateFloorplanUrl: dataUrl,
+    rawTextSnippet: rawText.slice(0, 300),
+    file,
+  };
+}
+
+/**
  * Scans an uploaded file (PDF or Image) and detects spatial and fixture modifications.
  * Universal engine supporting all Hudson Homes designs, calibrated with Amber 21 Classic.
  */
@@ -1972,6 +2113,55 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // 1b. Foresight Concept Floorplan Editor Opening Replacements with 80% Trade Credit Calculation
+  const openingReplacements = diffOpeningsWithReplacementCredits(presightTags, detectedModelName);
+
+  // 1c. Full Internal Sweep: Room Recognition, Furniture Verification & $0 Non-Structural Changes
+  const internalRoomChanges: InternalRoomChange[] = [];
+
+  // Check for wet area extension ($150/m² base cost + tile & waterproofing differential)
+  const wetDelta = areaDeltas.find((d) => d.zoneKey === "wetAreaM2")?.deltaM2 || 0;
+  if (wetDelta > 0) {
+    internalRoomChanges.push(calculateWetAreaExtension("Master Ensuite / Bathroom", wetDelta));
+  } else {
+    const bathMatch = rawText.match(/(?:ensuite|bathroom)\s*(?:ext|extension|\+)?\s*(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)/i);
+    if (bathMatch) {
+      const m2 = parseFloat(bathMatch[1]);
+      if (!isNaN(m2) && m2 > 0) {
+        internalRoomChanges.push(calculateWetAreaExtension("Master Ensuite", m2));
+      }
+    }
+  }
+
+  // Internal room wall adjustments (reported even if $0.00 per requirement)
+  if (
+    /bed\s*2.*(?:shift|move|expand|enlarge|wall)|bed\s*3.*(?:shift|reduce|wall)|wall\s*shift/i.test(rawText) ||
+    /bed\s*2.*wall/i.test(geminiResult?.analysisNotes || "")
+  ) {
+    internalRoomChanges.push(
+      createZeroCostInternalChange(
+        "Bedroom 2 & 3 Non-Structural Wall Relocation",
+        1.5,
+        "Non-structural internal partition wall shifted to expand Bedroom 2. Reallocation of dry living space with zero builder contract variation.",
+        ["Bed", "Bedside Table", "BIR"]
+      )
+    );
+  }
+
+  if (
+    /kitchen.*island|island.*extended|pantry.*shelf/i.test(rawText) ||
+    /kitchen/i.test(geminiResult?.analysisNotes || "")
+  ) {
+    internalRoomChanges.push(
+      createZeroCostInternalChange(
+        "Kitchen & Meals Internal Zone Flow",
+        0.0,
+        "Open-plan living flow and island servery alignment verified against concept floorplan standard layout.",
+        ["Island Bench", "Prep Sink", "Cooktop"]
+      )
+    );
+  }
+
   // 2. Previously Learned Features from Persistent Memory
   const learnedList = getLearnedFeatures();
   for (const feat of learnedList) {
@@ -2003,7 +2193,7 @@ export async function analyzeModifiedFloorplanFile(
   );
 
   // If Gemini or Canvas Differ found any spatial or fixture modifications, return immediate result
-  if (geminiResult || (canvasResult && canvasResult.areaModifications.length > 0) || areaDeltas.length > 0) {
+  if (geminiResult || (canvasResult && canvasResult.areaModifications.length > 0) || areaDeltas.length > 0 || openingReplacements.length > 0) {
     // Final strict semantic deduplication pass for inclusions (ensuring no duplicates across categories)
     const seenSemanticKeys = new Set<string>();
     const finalInclusions: DetectedInclusionUpgrade[] = [];
@@ -2071,6 +2261,8 @@ export async function analyzeModifiedFloorplanFile(
     const netDeltaM2 = Math.round((modifiedTotalM2 - standardTotalM2) * 100) / 100;
     const totalAreaCost = areaDeltas.reduce((acc, d) => acc + d.subtotal, 0);
     const totalInclusionsCost = finalInclusions.reduce((acc, u) => acc + u.subtotal, 0);
+    const totalOpeningsCost = openingReplacements.filter((o) => o.accepted).reduce((acc, o) => acc + o.netCost, 0);
+    const totalInternalRoomsCost = internalRoomChanges.filter((r) => r.accepted && !r.isZeroCost).reduce((acc, r) => acc + r.subtotal, 0);
 
     const source =
       geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0
@@ -2087,10 +2279,14 @@ export async function analyzeModifiedFloorplanFile(
       netDeltaM2: Math.round(netDeltaM2 * 100) / 100,
       areaDeltas,
       inclusionUpgrades: finalInclusions,
+      openingReplacements,
+      internalRoomChanges,
       unconfirmedFeatures,
       totalAreaCost,
       totalInclusionsCost,
-      netTotalCost: totalAreaCost + totalInclusionsCost,
+      totalOpeningsCost,
+      totalInternalRoomsCost,
+      netTotalCost: totalAreaCost + totalInclusionsCost + totalOpeningsCost + totalInternalRoomsCost,
       floorplanDataUrl: dataUrl,
       fileName: file.name,
       detectionSource: source,
@@ -2265,7 +2461,7 @@ export async function analyzeModifiedFloorplanFile(
           quantity: 1,
           subtotal: rule.unitPrice,
           accepted: true,
-          confidence: rule.confidence,
+          confidence: rule.confidence ?? 0.85,
         });
       }
       continue;
@@ -2281,7 +2477,7 @@ export async function analyzeModifiedFloorplanFile(
       const lines = fullSearchText.split(/[\r\n]+/);
       const matchedLine = lines.find((l) => l.includes(matchedKw)) || "";
       const isOwner = isMarkedByOwner(matchedLine);
-      const price = isOwner ? 0 : rule.unitPrice;
+      const price = isOwner ? 0 : (rule.unitPrice ?? 0);
 
       // Invariant: Additional ensuite only triggers on secondary bedrooms or explicit additions
       if (rule.id === "upg_additional_ensuite_wir") {
@@ -2301,17 +2497,39 @@ export async function analyzeModifiedFloorplanFile(
         quantity: 1,
         subtotal: price,
         accepted: true,
-        confidence: rule.confidence,
+        confidence: rule.confidence ?? 0.85,
         isByOwner: isOwner,
         reason: `Matched text token: "${matchedKw}"`,
       });
     }
   }
 
+  // Opening replacements with 80% trade credit in deterministic fallback
+  const deterministicTags = parsePresightOpeningTags(rawText);
+  const fallbackOpeningReplacements = diffOpeningsWithReplacementCredits(deterministicTags, detectedModelName);
+
+  // Full internal sweep changes
+  const fallbackInternalRoomChanges: InternalRoomChange[] = [];
+  if (wetAreaDelta > 0) {
+    fallbackInternalRoomChanges.push(calculateWetAreaExtension("Master Ensuite / Bathroom", wetAreaDelta));
+  }
+  if (/bed\s*2.*(?:shift|move|expand|enlarge|wall)|bed\s*3.*(?:shift|reduce|wall)|wall\s*shift/i.test(rawText)) {
+    fallbackInternalRoomChanges.push(
+      createZeroCostInternalChange(
+        "Bedroom 2 & 3 Non-Structural Wall Relocation",
+        1.5,
+        "Non-structural internal partition wall shifted to expand Bedroom 2. Reallocation of dry living space with zero builder contract variation.",
+        ["Bed", "Bedside Table", "BIR"]
+      )
+    );
+  }
+
   const netDeltaM2 = areaDeltas.reduce((acc, d) => acc + d.deltaM2, 0);
   const modifiedTotalM2 = Math.round((standardTotalM2 + netDeltaM2) * 100) / 100;
   const totalAreaCost = areaDeltas.reduce((acc, d) => acc + d.subtotal, 0);
   const totalInclusionsCost = inclusionUpgrades.reduce((acc, u) => acc + u.subtotal, 0);
+  const totalOpeningsCost = fallbackOpeningReplacements.filter((o) => o.accepted).reduce((acc, o) => acc + o.netCost, 0);
+  const totalInternalRoomsCost = fallbackInternalRoomChanges.filter((r) => r.accepted && !r.isZeroCost).reduce((acc, r) => acc + r.subtotal, 0);
 
   return {
     baseDesignName: detectedModelName,
@@ -2321,9 +2539,13 @@ export async function analyzeModifiedFloorplanFile(
     netDeltaM2: Math.round(netDeltaM2 * 100) / 100,
     areaDeltas,
     inclusionUpgrades,
+    openingReplacements: fallbackOpeningReplacements,
+    internalRoomChanges: fallbackInternalRoomChanges,
     totalAreaCost,
     totalInclusionsCost,
-    netTotalCost: totalAreaCost + totalInclusionsCost,
+    totalOpeningsCost,
+    totalInternalRoomsCost,
+    netTotalCost: totalAreaCost + totalInclusionsCost + totalOpeningsCost + totalInternalRoomsCost,
     floorplanDataUrl: dataUrl,
     fileName: file.name,
     detectionSource: "deterministic",

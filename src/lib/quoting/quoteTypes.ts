@@ -349,6 +349,70 @@ export interface UnconfirmedFeatureCandidate {
   suggestedPrice?: number;
 }
 
+export interface OpeningReplacementItem {
+  id: string;
+  openingType: "door" | "window";
+  annotationCode: string; // e.g. "21-21SD", "CSD 820", "EXT 1020", "PW 0630", "RD 21.24"
+  location?: string; // e.g. "Living to Alfresco", "Master Bedroom Ensuite", "Front Entry", "Garage External"
+  replacedItemName: string; // e.g. "Standard 820 Hinged Door", "Standard 1218 Sliding Window"
+  replacedItemBaselineCost: number; // e.g. 350
+  creditPercent: number; // 80 (%)
+  creditAmount: number; // e.g. -280 (negative number representing credit)
+  newItemName: string; // e.g. "21-21SD Aluminium Sliding Door"
+  newItemCost: number; // e.g. 1450
+  netCost: number; // newItemCost - creditAmount (e.g. 1450 - 280 = 1170)
+  description: string;
+  accepted: boolean;
+  confidence: number;
+}
+
+export interface InternalRoomChange {
+  id: string;
+  roomName: string;
+  roomType:
+    | "bedroom"
+    | "living"
+    | "dining"
+    | "kitchen"
+    | "bathroom"
+    | "ensuite"
+    | "powder"
+    | "laundry"
+    | "study"
+    | "robe"
+    | "pantry"
+    | "garage"
+    | "alfresco"
+    | "other";
+  furnitureDetected?: string[]; // e.g. ["Double Bed", "Bedside Table", "BIR"], ["Island Bench", "Cooktop", "Sink"]
+  standardDims?: string;
+  modifiedDims?: string;
+  standardM2?: number;
+  modifiedM2?: number;
+  deltaM2: number;
+  description: string;
+  isZeroCost: boolean;
+  category: "wet_area" | "internal_wall" | "room_conversion" | "zero_cost_layout";
+  baseRatePerM2?: number; // e.g. $150.00/m² base wet area prep
+  finishesRatePerM2?: number; // e.g. $870.00/m² tile & waterproofing differential
+  unitRate?: number; // Total $/m² (e.g. $1,020.00/m² for wet area)
+  subtotal: number;
+  accepted: boolean;
+}
+
+export interface BaseDesignCandidate {
+  designName: string;
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  standardTotalM2: number;
+  confidence: number;
+  matchSource: "title_block" | "geometry_matching" | "text_header" | "schedule_table";
+  matchReason: string;
+  thumbnailUrl?: string;
+  candidateFloorplanUrl?: string;
+  rawTextSnippet?: string;
+  file?: File;
+}
+
 export interface PlanModificationAnalysis {
   baseDesignName: string;
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
@@ -357,9 +421,15 @@ export interface PlanModificationAnalysis {
   netDeltaM2: number;
   areaDeltas: DetectedAreaDelta[];
   inclusionUpgrades: DetectedInclusionUpgrade[];
+  openingReplacements?: OpeningReplacementItem[];
+  internalRoomChanges?: InternalRoomChange[];
+  candidateBaseDesign?: BaseDesignCandidate;
+  isBaseDesignConfirmed?: boolean;
   unconfirmedFeatures?: UnconfirmedFeatureCandidate[];
   totalAreaCost: number;
   totalInclusionsCost: number;
+  totalOpeningsCost?: number;
+  totalInternalRoomsCost?: number;
   netTotalCost: number;
   floorplanDataUrl?: string;
   fileName?: string;
@@ -368,3 +438,4 @@ export interface PlanModificationAnalysis {
   canvasNotes?: string;
   ceilingHeightM?: number;
 }
+

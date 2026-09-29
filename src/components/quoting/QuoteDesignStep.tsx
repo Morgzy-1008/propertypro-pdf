@@ -22,7 +22,12 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ModifiedFloorplanModal } from "./ModifiedFloorplanModal";
 import { ModifiedPlanReviewModal } from "./ModifiedPlanReviewModal";
-import { analyzeModifiedFloorplanFile } from "@/lib/quoting/floorplanModificationDetector";
+import { BaseDesignConfirmationModal } from "./BaseDesignConfirmationModal";
+import {
+  analyzeModifiedFloorplanFile,
+  identifyBaseDesignCandidate,
+} from "@/lib/quoting/floorplanModificationDetector";
+import type { BaseDesignCandidate } from "@/lib/quoting/quoteTypes";
 import {
   Select,
   SelectContent,
@@ -398,7 +403,10 @@ export function QuoteDesignStep({
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
+  const [pendingCandidate, setPendingCandidate] = useState<BaseDesignCandidate | null>(null);
   const [isAnalyzingModifiedFile, setIsAnalyzingModifiedFile] = useState(false);
+  const [scanStageLabel, setScanStageLabel] = useState<string>("");
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
   const [isDraggingDropzone, setIsDraggingDropzone] = useState(false);
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
@@ -919,30 +927,60 @@ export function QuoteDesignStep({
 
   const handleProcessModifiedFile = async (file: File) => {
     setIsAnalyzingModifiedFile(true);
+    setScanStageLabel("Step 1: Identifying base floorplan model from sheet title block...");
     try {
-      const analysis = await analyzeModifiedFloorplanFile(
+      const candidate = await identifyBaseDesignCandidate(
         file,
         design.designName,
-        design.housingType,
+        design.housingType
+      );
+      setPendingCandidate(candidate);
+      setIsBaseConfirmOpen(true);
+    } catch (err: any) {
+      console.error("Floorplan base candidate identification failed:", err);
+      const errMsg = err?.message || "Could not parse floorplan file. Please try a different PDF or image.";
+      toast.error(errMsg.length > 160 ? errMsg.slice(0, 160) + "..." : errMsg);
+    } finally {
+      setIsAnalyzingModifiedFile(false);
+      setScanStageLabel("");
+    }
+  };
+
+  const handleConfirmBaseDesign = async (confirmedDesignName: string, confirmedHousingType: string) => {
+    setIsBaseConfirmOpen(false);
+    if (!pendingCandidate || !pendingCandidate.file) return;
+
+    setIsAnalyzingModifiedFile(true);
+    setScanStageLabel(`Running Full Scan for ${confirmedDesignName}: diffing structural walls, internal rooms & openings...`);
+    try {
+      const analysis = await analyzeModifiedFloorplanFile(
+        pendingCandidate.file,
+        confirmedDesignName,
+        confirmedHousingType,
         design.specTier
       );
       setPendingAnalysis(analysis);
       setIsReviewModalOpen(true);
-      if (analysis.netDeltaM2 === 0 && analysis.inclusionUpgrades.length === 0) {
+      if (
+        analysis.netDeltaM2 === 0 &&
+        analysis.inclusionUpgrades.length === 0 &&
+        (!analysis.openingReplacements || analysis.openingReplacements.length === 0)
+      ) {
         toast.success(
           `✨ Scanned floorplan: verified standard ${analysis.baseDesignName} (0.0 m² delta, $0.00 adjustment).`
         );
       } else {
         toast.success(
-          `✨ Scanned floorplan: matched ${analysis.baseDesignName} (${analysis.netDeltaM2 >= 0 ? `+${analysis.netDeltaM2}` : analysis.netDeltaM2} m² delta) with ${analysis.inclusionUpgrades.length} upgrades.`
+          `✨ Full scan completed for ${analysis.baseDesignName}: matched ${analysis.netDeltaM2 >= 0 ? `+${analysis.netDeltaM2}` : analysis.netDeltaM2} m² net variance with ${analysis.inclusionUpgrades.length + (analysis.openingReplacements?.length || 0)} item modifications.`
         );
       }
     } catch (err: any) {
-      console.error("Floorplan analysis failed:", err);
-      const errMsg = err?.message || "Could not parse floorplan file. Please try a different PDF or image.";
+      console.error("Floorplan full scan failed:", err);
+      const errMsg = err?.message || "Could not complete full scan of floorplan file.";
       toast.error(errMsg.length > 160 ? errMsg.slice(0, 160) + "..." : errMsg);
     } finally {
       setIsAnalyzingModifiedFile(false);
+      setScanStageLabel("");
     }
   };
 
@@ -1045,14 +1083,17 @@ export function QuoteDesignStep({
 
     if (onAddInclusionLineItems) {
       const acceptedUpgrades = approved.inclusionUpgrades.filter((u) => u.accepted);
-      if (acceptedUpgrades.length > 0) {
-        const lineItemsToAdd: QuoteSelectedLineItem[] = acceptedUpgrades.map((u) => ({
+      const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
+      const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted && !r.isZeroCost);
+
+      const lineItemsToAdd: QuoteSelectedLineItem[] = [
+        ...acceptedUpgrades.map((u) => ({
           id: `mod_${u.id}`,
           catalogueItemId: u.id,
           category: u.category,
           name: u.name,
           description: u.description,
-          unitType: "item",
+          unitType: "fixed" as const,
           unitRate: u.unitPrice,
           quantity: u.quantity,
           subtotal: u.subtotal,
@@ -1060,7 +1101,40 @@ export function QuoteDesignStep({
           isClientSelectable: true,
           clientSelected: true,
           notes: `Detected from modified floorplan (${approved.fileName || "Plan"}): ${u.detected}`,
-        }));
+        })),
+        ...acceptedOpenings.map((o) => ({
+          id: `mod_op_${o.id}`,
+          catalogueItemId: o.id,
+          category: "doors_windows" as const,
+          name: `${o.newItemName} (80% Credit Applied)`,
+          description: o.description,
+          unitType: "fixed" as const,
+          unitRate: o.netCost,
+          quantity: 1,
+          subtotal: o.netCost,
+          isIncluded: false,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `Replaces ${o.replacedItemName} ($${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-$${Math.abs(o.creditAmount).toFixed(2)}) applied against $${o.newItemCost.toFixed(2)}.`,
+        })),
+        ...acceptedRooms.map((r) => ({
+          id: `mod_room_${r.id}`,
+          catalogueItemId: r.id,
+          category: "internal_bathroom" as const,
+          name: `${r.roomName} Extension (+${r.deltaM2} m²)`,
+          description: r.description,
+          unitType: "fixed" as const,
+          unitRate: r.subtotal,
+          quantity: 1,
+          subtotal: r.subtotal,
+          isIncluded: false,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `$150/m² base wet area preparation + tile/waterproofing differential`,
+        })),
+      ];
+
+      if (lineItemsToAdd.length > 0) {
         onAddInclusionLineItems(lineItemsToAdd);
       }
     }
@@ -1151,7 +1225,9 @@ export function QuoteDesignStep({
                     <Sparkles className="h-5 w-5 text-cyan-300 animate-pulse" />
                   </div>
                   <div className="text-center">
-                    <h4 className="text-sm font-bold text-cyan-300">Scanning &amp; Scaling Modified Floorplan...</h4>
+                    <h4 className="text-sm font-bold text-cyan-300">
+                      {scanStageLabel || "Scanning & Scaling Modified Floorplan..."}
+                    </h4>
                     <p className="text-xs text-slate-400 mt-1">
                       Aligning against Hudson master plans, calculating room push-outs, and identifying inclusion upgrades.
                     </p>
@@ -2972,6 +3048,14 @@ export function QuoteDesignStep({
             },
           });
         }}
+      />
+
+      {/* Base Floorplan Recognition Confirmation Prompt */}
+      <BaseDesignConfirmationModal
+        isOpen={isBaseConfirmOpen}
+        onClose={() => setIsBaseConfirmOpen(false)}
+        candidate={pendingCandidate}
+        onConfirm={handleConfirmBaseDesign}
       />
 
       {/* Automated Modified Floorplan Recognition & Discrepancies Review Modal */}
