@@ -68,10 +68,7 @@ async function callGeminiWithFallback(apiKey, body) {
     "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
-    "gemini-flash-latest",
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
-    "gemini-3.7-flash"
+    "gemini-flash-latest"
   ];
   let lastError = null;
 
@@ -130,6 +127,8 @@ Return ONLY valid JSON:
   "totalM2": number,
   "scheduleTable": {
     "livingM2": number,
+    "groundLivingM2": number,
+    "firstLivingM2": number,
     "garageM2": number,
     "alfrescoM2": number,
     "porchM2": number,
@@ -249,7 +248,7 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
 3. THOROUGH ROOM-BY-ROOM AUDIT & COMPARISON (DO NOT ASSUME IDENTICAL):
    - You MUST conduct a meticulous room-by-room, door-by-door, and dimension-by-dimension audit comparing Image 2 against Image 1.
    - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
-   - CRITICAL NOTE ON MARGIN TABLES: Draftsmen and clients often modify wall lines, push out alfrescos, or step out garage walls WITHOUT updating the printed schedule table in the margin (which often still shows the original brochure numbers). DO NOT RELY ON THE PRINTED TABLE TO DECIDE IF WALLS MOVED! You must inspect the actual drawn wall lines and room boundaries in Image 2 vs Image 1.
+   - CRITICAL NOTE ON MARGIN TABLES: Locate and transcribe the printed Area Schedule table anywhere on the sheet (title block, margin notes, drawing header, corner schedule), regardless of font style, handwriting, or cursive script. Draftsmen and clients often modify wall lines, push out alfrescos, or step out garage walls WITHOUT updating the printed schedule table in the margin (which often still shows the original brochure numbers). DO NOT RELY ON THE PRINTED TABLE TO DECIDE IF WALLS MOVED! You must inspect the actual drawn wall lines and room boundaries in Image 2 vs Image 1.
    - Check every room label, wall line, and dimension on Image 2 against Image 1:
      * Outdoor Alfresco: Check printed dimensions (e.g. 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms (Bed 3, Children's Activity) past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
      * Garage: Check if the garage is widened or stepped outward (e.g. right wall stepped out beyond living/laundry wall line, 5.7x5.7 vs 5.5x5.5, or dedicated storage/workshop bay addition). If extended, report "garage" area extension with calculated deltaM2!
@@ -320,6 +319,17 @@ Return ONLY valid JSON matching this schema:
   "externalFootprintChanged": boolean,
   "ceilingHeightM": number,
   "analysisNotes": string,
+  "scheduleTable": {
+    "livingM2": number,
+    "groundLivingM2": number,
+    "firstLivingM2": number,
+    "garageM2": number,
+    "alfrescoM2": number,
+    "porchM2": number,
+    "totalM2": number,
+    "widthM": number,
+    "lengthM": number
+  },
   "areaModifications": [
     {
       "zone": "living" | "alfresco" | "garage" | "wet_area" | "porch",

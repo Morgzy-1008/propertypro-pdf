@@ -419,6 +419,7 @@ export interface BaseDesignCandidate {
   candidateFloorplanUrl?: string;
   rawTextSnippet?: string;
   file?: File;
+  scheduleTable?: any;
 }
 
 export interface PlanModificationAnalysis {

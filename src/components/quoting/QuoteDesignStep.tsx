@@ -957,7 +957,8 @@ export function QuoteDesignStep({
         pendingCandidate.file,
         confirmedDesignName,
         confirmedHousingType,
-        design.specTier
+        design.specTier,
+        pendingCandidate
       );
       setPendingAnalysis(analysis);
       setIsReviewModalOpen(true);
