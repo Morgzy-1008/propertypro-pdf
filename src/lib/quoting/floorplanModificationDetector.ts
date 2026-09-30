@@ -79,19 +79,19 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
   {
     id: "upg_ensuite_larger_shower",
     category: "internal_bathroom",
-    name: "Enlarged Master Ensuite Shower Recess Upgrade",
-    description: "Shower recess extended from standard 900mm × 900mm to 1200mm × 900mm tiled recess with extended semi-frameless glass screen and chrome mixer tap.",
+    name: "Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm)",
+    description: "Shower recess extended from standard 900mm × 900mm to 1800mm × 900mm (+900mm length)",
     baseline: "Standard 900mm × 900mm framed shower recess",
-    detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
-    unitPrice: 650,
+    detected: "Enlarged 1800mm × 900mm walk-in shower recess layout in Master Ensuite",
+    unitPrice: 850,
     confidence: 0.96,
-    triggerKeywords: ["larger shower", "large shower", "1200 shower", "1200x900", "walk-in shower", "extended shower", "shower in the ensuite"],
+    triggerKeywords: ["larger shower", "large shower", "1200 shower", "1200x900", "1500 shower", "1800 shower", "1800x900", "walk-in shower", "extended shower", "shower in the ensuite"],
   },
   {
     id: "upg_powder_room_vanity_conversion",
     category: "internal_bathroom",
     name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware",
-    description: "Conversion of standard separate WC compartment into a private guest Powder Room (Pdr), including wall-hung vitreous china vanity basin, chrome mixer tap, water feed, and waste drainage rough-in.",
+    description: "Powder Room (Pdr) conversion with vanity basin and mixer tapware",
     baseline: "Standard separate WC compartment (toilet suite only, no vanity basin)",
     detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
     unitPrice: 1850,
@@ -101,10 +101,10 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
   {
     id: "upg_butlers_pantry_lhs_sink",
     category: "internal_kitchen",
-    name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)",
-    description: "Dedicated Butler's Pantry created to the left-hand side (LHS) of the kitchen featuring custom laminate joinery, 20mm engineered stone benchtop, secondary prep sink, flick mixer, and tiled splashback.",
+    name: "Butler's Pantry with 2.1m Benchtop & Prep Sink (LHS)",
+    description: "Butler's Pantry added to LHS of Kitchen with 2.1m benchtop and prep sink",
     baseline: "Standard Walk-in / cupboard pantry with dry melamine shelving",
-    detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+    detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and 2.1m stone bench",
     unitPrice: 2450,
     confidence: 0.94,
     triggerKeywords: ["butler lhs", "butlers to the lhs", "butler on lhs", "butlers pantry lhs", "pantry to the lhs", "prep sink to pantry"],
@@ -1023,17 +1023,17 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
    - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
     - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
     - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
-    - Enlarged Master Ensuite Shower Recess (1200x900 or walk-in) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Shower Recess Upgrade", category: "internal_bathroom", unitPrice: 650
-    - Ground Floor Powder Room Conversion with Vanity Basin (separate WC converted to private Powder Room with vanity) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
-    - Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
+    - Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm)", category: "internal_bathroom", unitPrice: 850
+    - Ground Floor Powder Room Conversion with Vanity Basin (1200mm × 900mm NCC) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
+    - Butler's Pantry Joinery & Prep Sink Package (2.1m Benchtop LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
 
 7. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
    - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
-     id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned from front facade elevation to rear private garden wing for enhanced privacy and noise isolation. Internal dry partition wall realignment ($0.00 Dry Variation)."
+     id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned to rear wing ($0.00 Dry Variation)."
    - Internal Dry Partition Framing Realignment -> if internal timber stud walls shifted:
-     id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment & Circulation Flow", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation)."
+     id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal non-structural timber stud partition walls realigned ($0.00 Dry Variation)."
    - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
-     id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: number, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: deltaM2 * 150, description: "Master Ensuite expanded wet area footprint. Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)."
+     id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: number, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: deltaM2 * 150, description: "Master Ensuite expanded wet area footprint (+2.60 m² @ $150/m² base wet area preparation)."
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -1855,24 +1855,37 @@ export async function analyzeModifiedFloorplanFile(
   } else {
     // 1. DIRECT CANDIDATE SCHEDULE TABLE MATHEMATICAL DIFFING:
     // If the plan has a printed schedule table from drafting/Presight, compute exact deltas!
+    const isQld =
+      (typeof window !== "undefined" && (
+        localStorage.getItem("hudson_staff_state") === "QLD" ||
+        localStorage.getItem("hudson_quote_state") === "QLD" ||
+        JSON.parse(localStorage.getItem("hudson_active_staff_user") || "{}")?.state === "QLD" ||
+        JSON.parse(localStorage.getItem("hudson_active_staff_user") || "{}")?.division === "QLD"
+      )) ||
+      /qld|queensland|flagstone|logan|brisbane|ipswich/i.test(rawText) ||
+      /qld|queensland|flagstone|logan|brisbane|ipswich/i.test(geminiResult?.analysisNotes || "") ||
+      /5\.7\s*[xX*×]\s*6\.0|5\.7m\s*[xX*×]\s*6\.0m/i.test(rawText) ||
+      /5\.7\s*[xX*×]\s*6\.0|5\.7m\s*[xX*×]\s*6\.0m/i.test(geminiResult?.analysisNotes || "");
+
+    const effectiveStandardGarageM2 = isQld ? Math.max(standardGarageM2, 36.00) : standardGarageM2;
+
     if (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2 + 0.5) {
       const deltaM2 = Math.round((candidateTableSpec.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
       spatialModsToApply.push({
         zone: "alfresco",
         deltaM2,
         estimatedLinearExtensionM: candidateTableSpec.lengthM ? Math.round((candidateTableSpec.lengthM - cadSpec.length) * 10) / 10 : undefined,
-        reason: `Architectural plan schedule: Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² baseline to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $920/m²).`,
+        reason: `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $920/m²)`,
       });
     }
 
-    if (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > standardGarageM2 + 0.5) {
-      const deltaM2 = Math.round((candidateTableSpec.garageM2 - standardGarageM2) * 100) / 100;
-      const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
+    if (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > effectiveStandardGarageM2 + 0.5) {
+      const deltaM2 = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
       spatialModsToApply.push({
         zone: "garage",
         deltaM2,
         estimatedLinearExtensionM: candidateTableSpec.widthM ? Math.round((candidateTableSpec.widthM - cadSpec.width) * 10) / 10 : undefined,
-        reason: `Architectural plan schedule: ${isWorkshop ? "Garage & Integrated Workshop" : "Garage"} extended from ${standardGarageM2.toFixed(2)} m² baseline to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $1,300/m²).`,
+        reason: `Garage extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $1,300/m²)`,
       });
     }
 
@@ -1881,7 +1894,7 @@ export async function analyzeModifiedFloorplanFile(
       spatialModsToApply.push({
         zone: "living",
         deltaM2,
-        reason: `Architectural plan schedule: Living area extended from ${standardLivingM2.toFixed(2)} m² baseline to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²).`,
+        reason: `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`,
       });
     }
 
@@ -2225,7 +2238,7 @@ export async function analyzeModifiedFloorplanFile(
           name: butlerRule.name,
           description: butlerRule.description,
           baseline: butlerRule.baseline,
-          detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+          detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and 2.1m stone bench",
           unitPrice: butlerRule.unitPrice,
           quantity: 1,
           subtotal: butlerRule.unitPrice,
@@ -2238,12 +2251,12 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Universal: Ensure Enlarged Ensuite Shower Recess is recognized
+  // Universal: Ensure Enlarged Ensuite Shower Recess is recognized (exact 1800mm x 900mm)
   const hasEnsuiteLargerShower =
-    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(rawText) ||
-    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(geminiResult?.analysisNotes || "");
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|1800\s*shower|1800x900|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500|1800)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(rawText) ||
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|1800\s*shower|1800x900|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500|1800)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(geminiResult?.analysisNotes || "");
   if (hasEnsuiteLargerShower) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_ensuite_larger_shower" || /larger\s*shower|1200.*shower/i.test(u.name))) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_ensuite_larger_shower" || /larger\s*shower|1800.*shower|walk[\s-]in.*shower/i.test(u.name))) {
       const showerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_larger_shower");
       if (showerRule) {
         inclusionUpgrades.push({
@@ -2252,7 +2265,7 @@ export async function analyzeModifiedFloorplanFile(
           name: showerRule.name,
           description: showerRule.description,
           baseline: showerRule.baseline,
-          detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
+          detected: "Enlarged 1800mm × 900mm walk-in shower recess layout in Master Ensuite",
           unitPrice: showerRule.unitPrice,
           quantity: 1,
           subtotal: showerRule.unitPrice,

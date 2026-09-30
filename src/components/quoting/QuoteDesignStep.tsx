@@ -1091,10 +1091,10 @@ export function QuoteDesignStep({
         // 1. Structural Square Meter Extensions
         ...acceptedAreas.map((a) => {
           const detailedDesc = a.zoneKey === "garageM2"
-            ? `Garage Footprint Extension (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²): Standard double garage widened and extended from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m² (12.12m overall building width). Provides extended vehicular door clearance, perimeter storage, and workshop capacity.`
+            ? `Garage extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
             : (a.zoneKey === "livingM2" || a.zoneKey === "groundLivingM2"
-              ? `Living & Family Room Extension (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²): Open-plan family, dining, and living envelope extended rearward from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m² (17.40m overall building length). Expands indoor entertaining area and circulation flow around kitchen.`
-              : `${a.zoneLabel} (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²): Footprint extended from ${a.standardM2.toFixed(2)} m² standard baseline to ${a.modifiedM2.toFixed(2)} m² with continuous concrete slab and roofline extension.`);
+              ? `Living area extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
+              : `${a.zoneLabel} extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`);
 
           return {
             id: `mod_area_${a.zoneKey}`,

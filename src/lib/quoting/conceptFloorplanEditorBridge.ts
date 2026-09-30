@@ -783,28 +783,28 @@ export function detectUniversalSpatialModifications(
       createZeroCostInternalChange(
         "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing",
         0.0,
-        "Master bedroom suite, private ensuite, and walk-in robe repositioned from front elevation to rear garden wing for enhanced privacy and quiet aspect. Internal non-structural dry wall realignment ($0.00 Dry Variation).",
+        "Master Bedroom (Bed 1), Ensuite & WIR relocated to rear wing ($0.00 Variation)",
         ["King Bed", "Private Ensuite", "WIR Robe Fitout", "Bedside Tables"]
       )
     );
   }
 
-  // 2. Larger Shower in Ensuite
+  // 2. Larger Shower in Ensuite (exact 1800mm x 900mm walk-in shower)
   const isLargerShower =
     hasImageClues?.largerShower ||
-    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combined);
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|1800\s*shower|1800x900|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500|1800)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combined);
 
   if (isLargerShower) {
     fixtureUpgrades.push({
       id: "upg_ensuite_larger_shower",
       category: "internal_bathroom",
-      name: "Enlarged Master Ensuite Shower Recess Upgrade",
-      description: "Shower recess extended from standard 900mm × 900mm to 1200mm × 900mm tiled recess with extended semi-frameless glass screen and chrome mixer tap.",
+      name: "Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm)",
+      description: "Shower recess extended from standard 900mm × 900mm to 1800mm × 900mm (+900mm length)",
       baseline: "Standard 900mm × 900mm framed shower recess",
-      detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
-      unitPrice: 650,
+      detected: "Enlarged 1800mm × 900mm walk-in shower recess layout in Master Ensuite",
+      unitPrice: 850,
       quantity: 1,
-      subtotal: 650,
+      subtotal: 850,
       accepted: true,
       confidence: 0.96,
     });
@@ -820,7 +820,7 @@ export function detectUniversalSpatialModifications(
       id: "upg_powder_room_vanity_conversion",
       category: "internal_bathroom",
       name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware",
-      description: "Conversion of standard separate WC compartment into a private guest Powder Room (Pdr), including wall-hung vitreous china vanity basin, chrome mixer tap, water feed, and waste drainage rough-in.",
+      description: "Powder Room (Pdr) conversion with vanity basin and mixer tapware",
       baseline: "Standard separate WC compartment (toilet suite only, no vanity basin)",
       detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
       unitPrice: 1850,
@@ -840,10 +840,10 @@ export function detectUniversalSpatialModifications(
     fixtureUpgrades.push({
       id: "upg_butlers_pantry_lhs_sink",
       category: "internal_kitchen",
-      name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)",
-      description: "Dedicated Butler's Pantry created to the left-hand side (LHS) of the kitchen featuring custom laminate joinery, 20mm engineered stone benchtop, secondary prep sink, flick mixer, and tiled splashback.",
+      name: "Butler's Pantry with 2.1m Benchtop & Prep Sink (LHS)",
+      description: "Butler's Pantry added to LHS of Kitchen with 2.1m benchtop and prep sink",
       baseline: "Standard Walk-in / cupboard pantry with dry melamine shelving",
-      detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+      detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and 2.1m stone bench",
       unitPrice: 2450,
       quantity: 1,
       subtotal: 2450,
@@ -859,13 +859,21 @@ export function detectUniversalSpatialModifications(
       : (/more\s*wet\s*area|wet\s*area\s*sqm/i.test(combined) ? 2.6 : 0);
 
   if (wetDelta > 0) {
-    internalChanges.push(
-      calculateWetAreaExtension(
-        "Master Ensuite & Wet Area Footprint Expansion",
-        wetDelta,
-        150
-      )
-    );
+    internalChanges.push({
+      id: "wet_ext_master_ensuite",
+      roomName: "Master Ensuite & Wet Area Footprint Expansion",
+      roomType: "ensuite",
+      furnitureDetected: ["Shower Recess", "Vanity Basin", "Toilet Suite", "Class III Waterproofing"],
+      deltaM2: wetDelta,
+      description: `Ensuite wet area extended by +${wetDelta.toFixed(2)} m² (+${wetDelta.toFixed(2)} m² @ $150/m² base wet area preparation)`,
+      isZeroCost: false,
+      category: "wet_area",
+      baseRatePerM2: 150,
+      finishesRatePerM2: 0,
+      unitRate: 150,
+      subtotal: Math.round(wetDelta * 150),
+      accepted: true,
+    });
   }
 
   // 6. Non-Structural Dry Layout Moves ($0.00 Variations) - only triggered when internal changes actually occur
@@ -878,7 +886,7 @@ export function detectUniversalSpatialModifications(
       createZeroCostInternalChange(
         "Internal Dry Partition Framing Realignment & Circulation Flow",
         0.0,
-        "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation).",
+        "Internal dry partition framing realigned ($0.00 Variation)",
         ["Internal Stud Framing", "Plasterboard Lining", "Door Clearances"]
       )
     );

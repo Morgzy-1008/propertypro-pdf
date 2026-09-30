@@ -26,6 +26,41 @@ export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   council_statutory: "Council & Statutory Requirements",
 };
 
+/**
+ * Normalizes any InclusionTier string into the canonical tier key: "H1" | "H2" | "H3"
+ */
+export function normalizeInclusionTier(tier?: string): "H1" | "H2" | "H3" {
+  if (!tier) return "H2";
+  const lower = tier.toLowerCase();
+  if (lower.includes("h3") || lower.includes("luxury")) return "H3";
+  if (lower.includes("h1") || lower.includes("smart") || lower.includes("base") || lower.includes("home builder")) return "H1";
+  return "H2"; // Default to H2 Design Inclusions
+}
+
+/**
+ * Resolves the unit rate for an item based on the active inclusion tier.
+ * Rules:
+ * 1. Doors and windows are strictly uniform across all inclusion tiers (user rule).
+ * 2. If the item defines tierRates, return the matching tier rate.
+ * 3. Otherwise return standard unitRate.
+ */
+export function getItemRateForInclusion(
+  item: { category?: CatalogueCategory; unitRate: number; tierRates?: { H1?: number; H2?: number; H3?: number } },
+  specTier?: string
+): number {
+  // User rule: doors and windows are identical across all inclusion levels
+  if (item.category === "doors_windows") {
+    return item.unitRate;
+  }
+  if (item.tierRates) {
+    const tier = normalizeInclusionTier(specTier);
+    if (typeof item.tierRates[tier] === "number") {
+      return item.tierRates[tier]!;
+    }
+  }
+  return item.unitRate;
+}
+
 export interface DuplicatePair {
   id: string; // unique pair key e.g. "itemA::itemB"
   itemA: CatalogueItem;

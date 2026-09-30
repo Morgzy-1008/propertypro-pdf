@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, DEFAULT_CATALOGUE } from "./quoteCatalogue";
+import { CATEGORY_LABELS, DEFAULT_CATALOGUE, getItemRateForInclusion } from "./quoteCatalogue";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import {
   DOUBLE_STOREY_PRICES,
@@ -779,10 +779,28 @@ export function calculateModifiedFloorplanPricing(
     housingType === "Split Level" ||
     isDoubleStoreyDesign(design?.designName, housingType);
 
+  const isQld =
+    (design as any)?.state === "QLD" ||
+    (design as any)?.division === "QLD" ||
+    getActiveDivision() === "QLD";
+
   const rateConfig = (MODIFIED_SQM_RATES[housingType as keyof typeof MODIFIED_SQM_RATES] ||
     MODIFIED_SQM_RATES["Single Storey"]) as Record<string, number>;
 
   const zones: ZoneVarianceResult[] = [];
+
+  const rawStdGarage = stdAreas.garageM2 ?? 0;
+  const modGarage = modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : rawStdGarage;
+  // All QLD designs are priced already for a 5.7mx6.0m garage (internal = 36.00 m² schedule) as standard.
+  // Do not charge extra when garage is 5.7m x 6.0m / up to 36.00 m².
+  let effectiveStdGarage = rawStdGarage;
+  if (isQld) {
+    if (modGarage <= 36.05) {
+      effectiveStdGarage = Math.max(rawStdGarage, modGarage);
+    } else {
+      effectiveStdGarage = Math.max(rawStdGarage, 36.00);
+    }
+  }
 
   if (isDoubleOrSplit) {
     const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [
@@ -803,8 +821,8 @@ export function calculateModifiedFloorplanPricing(
       {
         key: "garageM2",
         label: "Garage Area",
-        std: stdAreas.garageM2 ?? 0,
-        mod: modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : (stdAreas.garageM2 ?? 0),
+        std: effectiveStdGarage,
+        mod: modGarage,
         rate: rateConfig.garageM2 || 1300,
       },
       {
@@ -862,8 +880,8 @@ export function calculateModifiedFloorplanPricing(
       {
         key: "garageM2",
         label: "Garage Area",
-        std: stdAreas.garageM2 ?? 0,
-        mod: modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : (stdAreas.garageM2 ?? 0),
+        std: effectiveStdGarage,
+        mod: modGarage,
         rate: rateConfig.garageM2 || 1300,
       },
       {
@@ -1181,12 +1199,13 @@ export function getAcousticCost(
 }
 
 /**
- * Computes line item subtotal based on quantity and rate.
+ * Computes line item subtotal based on quantity and rate, dynamically calibrated to the inclusion tier.
+ * User rule: Doors and windows are strictly uniform across all inclusion tiers.
  */
-export function computeLineItemSubtotal(item: QuoteSelectedLineItem): number {
+export function computeLineItemSubtotal(item: QuoteSelectedLineItem, specTier?: string): number {
   if (!item.isIncluded) return 0;
   const qty = Number(item.quantity) || 1;
-  const rate = Number(item.unitRate) || 0;
+  const rate = getItemRateForInclusion(item, specTier);
   return Math.round(qty * rate);
 }
 
@@ -1368,8 +1387,16 @@ export function calculateQuotePricing(
     if (!item.isIncluded) continue;
     if (item.isClientSelectable && item.clientSelected === false) continue;
     const cat = resolveItemCategory(item);
+    const effectiveRate = getItemRateForInclusion(item, design?.specTier);
+    const qty = Number(item.quantity) || 1;
+    const subtotal = Math.round(qty * effectiveRate);
     if (categoryGroups[cat]) {
-      categoryGroups[cat].push({ ...item, category: cat });
+      categoryGroups[cat].push({
+        ...item,
+        category: cat,
+        unitRate: effectiveRate,
+        subtotal,
+      });
     }
   }
 
@@ -1385,10 +1412,10 @@ export function calculateQuotePricing(
         );
         if (!hasExisting) {
           const detailedDesc = z.key === "garageM2"
-            ? `Garage Footprint Extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²): Standard double garage widened and extended from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² (12.12m overall building width). Provides extended vehicular door clearance, perimeter storage, and workshop capacity.`
+            ? `Garage extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²)`
             : (z.key === "livingM2" || z.key === "groundLivingM2"
-              ? `Living & Family Room Extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1480).toLocaleString()}/m²): Open-plan family, dining, and living envelope extended rearward from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² (17.40m overall building length). Expands indoor entertaining area and circulation flow around kitchen.`
-              : `${z.label} footprint extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²): Footprint extended from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² with continuous concrete slab and roofline extension.`);
+              ? `Living area extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1480).toLocaleString()}/m²)`
+              : `${z.label} extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²)`);
 
           categoryGroups.structural.push({
             id: `mod_area_${z.key}`,
@@ -1402,7 +1429,7 @@ export function calculateQuotePricing(
             isIncluded: true,
             isClientSelectable: true,
             clientSelected: true,
-            notes: `Structural footprint extension: +${z.deltaM2.toFixed(2)} m² from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m²`,
+            notes: `${z.label} extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m²)`,
           });
         }
       }
@@ -1956,10 +1983,11 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   // 5. Ensure line item categorization and subtotal validity
   if (Array.isArray(quote.lineItems)) {
     quote.lineItems = quote.lineItems.map((it) => {
+      const tierRate = getItemRateForInclusion(it, tier);
       const unitRate =
-        it.catalogueItemId === "str_custom_garage" && [1050, 1150, 1400].includes(it.unitRate)
+        it.catalogueItemId === "str_custom_garage" && [1050, 1150, 1400].includes(tierRate)
           ? 1300
-          : (it.unitRate ?? 0);
+          : (tierRate ?? 0);
       return {
         ...it,
         unitRate,

@@ -170,7 +170,23 @@ export function evaluateShowerDimensions(
   const roundedDepth = Math.round(measuredDepthMm / 50) * 50;
   const widthDeltaMm = roundedWidth - baselineWidthMm;
 
-  if (roundedWidth >= 1400) {
+  if (roundedWidth >= 1650) {
+    return {
+      fixtureType: "shower",
+      zoneName,
+      measuredWidthMm: roundedWidth,
+      measuredDepthMm: roundedDepth,
+      baselineWidthMm,
+      baselineDepthMm,
+      widthDeltaMm,
+      isModified: true,
+      classificationName: `${zoneName} Enlarged Walk-In Shower Recess (${roundedWidth}mm × ${roundedDepth}mm)`,
+      unitPrice: 850,
+      description: `Shower recess extended from ${baselineWidthMm}mm × ${baselineDepthMm}mm to ${roundedWidth}mm × ${roundedDepth}mm (+${widthDeltaMm}mm length)`,
+    };
+  }
+
+  if (roundedWidth >= 1350 && roundedWidth < 1650) {
     return {
       fixtureType: "shower",
       zoneName,
@@ -181,12 +197,12 @@ export function evaluateShowerDimensions(
       widthDeltaMm,
       isModified: true,
       classificationName: `${zoneName} Walk-In Frameless Shower Recess (${roundedWidth}mm × ${roundedDepth}mm)`,
-      unitPrice: 750,
-      description: `Shower recess enlarged from ${baselineWidthMm}×${baselineDepthMm}mm to ${roundedWidth}×${roundedDepth}mm (+${widthDeltaMm}mm length) with frameless walk-in screen.`,
+      unitPrice: 650,
+      description: `Shower recess extended from ${baselineWidthMm}mm × ${baselineDepthMm}mm to ${roundedWidth}mm × ${roundedDepth}mm (+${widthDeltaMm}mm length)`,
     };
   }
 
-  if (roundedWidth >= 1150 && roundedWidth < 1400) {
+  if (roundedWidth >= 1150 && roundedWidth < 1350) {
     return {
       fixtureType: "shower",
       zoneName,
@@ -196,9 +212,9 @@ export function evaluateShowerDimensions(
       baselineDepthMm,
       widthDeltaMm,
       isModified: true,
-      classificationName: `${zoneName} Enlarged 1200mm Shower Recess (${roundedWidth}mm × ${roundedDepth}mm)`,
+      classificationName: `${zoneName} Enlarged Shower Recess (${roundedWidth}mm × ${roundedDepth}mm)`,
       unitPrice: 450,
-      description: `Shower recess extended from standard ${baselineWidthMm}mm to ${roundedWidth}mm (+${widthDeltaMm}mm) including extended semi-frameless screen.`,
+      description: `Shower recess extended from ${baselineWidthMm}mm to ${roundedWidth}mm (+${widthDeltaMm}mm length)`,
     };
   }
 
@@ -213,6 +229,48 @@ export function evaluateShowerDimensions(
     isModified: false,
     classificationName: `Standard ${baselineWidthMm}mm × ${baselineDepthMm}mm Shower Recess (Included)`,
     unitPrice: 0,
-    description: `Standard ${baselineWidthMm}×${baselineDepthMm}mm semi-frameless shower recess ($0).`,
+    description: `Standard ${baselineWidthMm}mm × ${baselineDepthMm}mm shower recess ($0)`,
+  };
+}
+
+/**
+ * Evaluates benchtop dimensions against standard Hudson baselines.
+ */
+export function evaluateBenchtopDimensions(
+  measuredLengthMm: number,
+  zoneName = "Kitchen Island",
+  baselineLengthMm = 2400
+): MeasuredFixtureResult {
+  const roundedLength = Math.round(measuredLengthMm / 50) * 50;
+  const lengthDeltaMm = roundedLength - baselineLengthMm;
+
+  if (lengthDeltaMm > 150) {
+    return {
+      fixtureType: "island_bench",
+      zoneName,
+      measuredWidthMm: roundedLength,
+      measuredDepthMm: 900,
+      baselineWidthMm: baselineLengthMm,
+      baselineDepthMm: 900,
+      widthDeltaMm: lengthDeltaMm,
+      isModified: true,
+      classificationName: `${zoneName} Extended Benchtop (${roundedLength}mm)`,
+      unitPrice: Math.round((lengthDeltaMm / 1000) * 650),
+      description: `Benchtop extended from ${baselineLengthMm}mm to ${roundedLength}mm (+${lengthDeltaMm}mm)`,
+    };
+  }
+
+  return {
+    fixtureType: "island_bench",
+    zoneName,
+    measuredWidthMm: baselineLengthMm,
+    measuredDepthMm: 900,
+    baselineWidthMm: baselineLengthMm,
+    baselineDepthMm: 900,
+    widthDeltaMm: 0,
+    isModified: false,
+    classificationName: `Standard ${baselineLengthMm}mm Benchtop (Included)`,
+    unitPrice: 0,
+    description: `Standard ${baselineLengthMm}mm benchtop ($0)`,
   };
 }

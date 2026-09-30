@@ -17,6 +17,12 @@ export type CatalogueCategory =
   | "site_earthworks"
   | "council_statutory";
 
+export interface TieredPrice {
+  H1?: number;
+  H2?: number;
+  H3?: number;
+}
+
 export interface CatalogueItem {
   id: string;
   category: CatalogueCategory;
@@ -24,6 +30,7 @@ export interface CatalogueItem {
   description: string;
   unitType: UnitType;
   unitRate: number;
+  tierRates?: TieredPrice;
   defaultQty?: number;
   isIncludedByDefault?: boolean;
   isClientSelectable?: boolean;
@@ -39,6 +46,7 @@ export interface QuoteSelectedLineItem {
   description: string;
   unitType: UnitType;
   unitRate: number;
+  tierRates?: TieredPrice;
   quantity: number;
   subtotal: number;
   isIncluded: boolean;
