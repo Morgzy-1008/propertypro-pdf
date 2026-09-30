@@ -515,7 +515,7 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
 async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
-  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+  const models = ["gemini-flash-latest", "gemini-3.8-flash", "gemini-2.0-flash-001"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -577,8 +577,11 @@ export async function identifyDesignModelFromImage(
    - Strip suffixes like "Modified", "Concept", "Rev A", "Rev 1", "Custom" to return the exact master Hudson model name (e.g. "Azure 19 Modified" -> "Azure 19", "Amber 21 Concept" -> "Amber 21", "Burgundy 30 Rev A" -> "Burgundy 30").
    - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
 2. Identify the housing type: "Single Storey" or "Double Storey".
-3. Extract the printed Area Schedule specifications table (usually at the bottom or corner):
+3. Extract the printed Area Schedule specifications table:
+   - Locate and transcribe the printed Area Schedule table anywhere on the sheet (title block, margin notes, drawing header, corner schedule), regardless of font style, handwriting, or cursive script.
    - Living Area (m²)
+   - Ground Floor Living Area (m²)
+   - First Floor Living Area (m²)
    - Garage Area (m²)
    - Alfresco Area (m²)
    - Porch Area (m²)
@@ -1575,12 +1578,24 @@ export async function identifyBaseDesignCandidate(
   }
 
   // Extract schedule table if available from visualModel or rawText regexes
+  const parseCandidateM2 = (pattern: RegExp, maxNormal = 600) => {
+    const m = rawText.match(pattern);
+    if (!m) return undefined;
+    const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
+    let val = parseFloat(rawNum);
+    if (isNaN(val) || val <= 0) return undefined;
+    if (val > maxNormal && val < 100000) {
+      val = val / 100;
+    }
+    return Math.round(val * 100) / 100;
+  };
+
   const extractedScheduleTable = visualModel?.scheduleTable || {
-    livingM2: parseFloat((rawText.match(/(?:living(?:\s*area)?|ground\s*floor|first\s*floor|residence|habitable|internal(?:\s*area)?)\s*[:\s\t\-]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
-    garageM2: parseFloat((rawText.match(/(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
-    totalM2: parseFloat((rawText.match(/(?:gross\s*building\s*area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
-    alfrescoM2: parseFloat((rawText.match(/(?:covered\s*alfresco|alfresco|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
-    porchM2: parseFloat((rawText.match(/(?:entry\s*porch|covered\s*entry|portico|porch)\s*[:\s\t\-]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
+    livingM2: parseCandidateM2(/(?:living(?:\s*area)?|ground\s*floor|first\s*floor|residence|habitable|internal(?:\s*area)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 350),
+    garageM2: parseCandidateM2(/(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 80),
+    totalM2: parseCandidateM2(/(?:gross\s*building\s*area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 600),
+    alfrescoM2: parseCandidateM2(/(?:covered\s*alfresco|alfresco|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 50),
+    porchM2: parseCandidateM2(/(?:entry\s*porch|covered\s*entry|portico|porch)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 20),
   };
 
   // Check 4: Fallback to active selection in step 2 (prioritized over geometric matching to protect user's confirmed base design)
@@ -1691,6 +1706,11 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // Pre-seed rawText from Step 1 pending candidate if available
+  if (!rawText && pendingCandidate?.rawTextSnippet) {
+    rawText = pendingCandidate.rawTextSnippet;
+  }
+
   // 2. Identify Base Design Model (Universal Dynamic Resolution)
   // Stage 1: Lock the base design model with strict deterministic priority.
   let detectedModelName = "";
@@ -1770,30 +1790,36 @@ export async function analyzeModifiedFloorplanFile(
     return Math.round(val * 100) / 100;
   };
 
-  const tableGroundLivingM2 = extractM2(/(?:ground\s*floor(?:\s*living)?)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 300);
-  const tableFirstLivingM2 = extractM2(/(?:first\s*floor(?:\s*living)?|upper\s*floor(?:\s*living)?)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 300);
+  const tableGroundLivingM2 = extractM2(
+    /(?:ground\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
+    300
+  );
+  const tableFirstLivingM2 = extractM2(
+    /(?:first\s*floor(?:\s*(?:living|area|residence))?|upper\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
+    300
+  );
   let tableLivingM2 = extractM2(
-    /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+    /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?|ground\s*floor(?:\s*living)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
     350
   ) || (tableGroundLivingM2 && tableFirstLivingM2 ? tableGroundLivingM2 + tableFirstLivingM2 : tableGroundLivingM2);
   let tableGarageM2 = extractM2(
-    /(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+    /(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
     80
   );
   let tableAlfrescoM2 = extractM2(
-    /(?:covered\s*alfresco|alfresco|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    40
+    /(?:covered\s*alfresco|alfresco|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
+    50
   );
   let tablePorchM2 = extractM2(
-    /(?:entry\s*porch|covered\s*entry|portico|porch)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    15
+    /(?:entry\s*porch|covered\s*entry|portico|porch)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
+    20
   );
   let tableTotalM2 = extractM2(
-    /(?:gross\s*building\s*area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+    /(?:gross\s*building\s*area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m[²2]|sqm|m\b|\s|$))/i,
     600
   );
-  let tableWidthM = extractDim(/(?:overall\s*width|width)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i);
-  let tableLengthM = extractDim(/(?:overall\s*length|length|depth)\s*[:\s\t\-]+(\d+(?:[.\u00B7\u2022]\d+)?)/i);
+  let tableWidthM = extractDim(/(?:overall\s*width|width)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
+  let tableLengthM = extractDim(/(?:overall\s*length|length|depth)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
 
   // Pre-seed with pre-extracted table specs from Step 1 (pendingCandidate) if available
   if (pendingCandidate?.scheduleTable) {
@@ -1964,7 +1990,7 @@ export async function analyzeModifiedFloorplanFile(
     });
   }
 
-  if (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2 + 2.0) {
+  if (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2 + 0.5) {
     const deltaM2 = Math.round((candidateTableSpec.livingM2 - standardLivingM2) * 100) / 100;
     spatialModsToApply.push({
       zone: "living",
@@ -1985,7 +2011,14 @@ export async function analyzeModifiedFloorplanFile(
   // 2. INCORPORATE GEMINI AI VISION & CANVAS GEOMETRY FOR NON-OVERLAPPING ZONES
   if (geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
     for (const gMod of geminiResult.areaModifications) {
-      if (!spatialModsToApply.some((s) => s.zone === gMod.zone)) {
+      const gZone = gMod.zone as string;
+      const isAlreadyCovered = spatialModsToApply.some((s) => {
+        const sZone = s.zone as string;
+        if (sZone === gZone) return true;
+        if ((sZone === "living" || sZone === "groundLivingM2") && (gZone === "living" || gZone === "groundLivingM2")) return true;
+        return false;
+      });
+      if (!isAlreadyCovered) {
         spatialModsToApply.push(gMod);
       }
     }
@@ -1993,7 +2026,14 @@ export async function analyzeModifiedFloorplanFile(
 
   if (canvasResult && canvasResult.areaModifications) {
     for (const cMod of canvasResult.areaModifications) {
-      if (!spatialModsToApply.some((s) => s.zone === cMod.zone)) {
+      const cZone = cMod.zone as string;
+      const isAlreadyCovered = spatialModsToApply.some((s) => {
+        const sZone = s.zone as string;
+        if (sZone === cZone) return true;
+        if ((sZone === "living" || sZone === "groundLivingM2") && (cZone === "living" || cZone === "groundLivingM2")) return true;
+        return false;
+      });
+      if (!isAlreadyCovered) {
         spatialModsToApply.push(cMod);
       }
     }
@@ -2003,14 +2043,17 @@ export async function analyzeModifiedFloorplanFile(
     const delta = Math.round(mod.deltaM2 * 100) / 100;
     if (delta <= 0) continue;
 
-    if (mod.zone === "living") {
+    const z = mod.zone as string;
+    if (z === "living" || z === "groundLivingM2" || z === "living_ground" || z === "envelope" || z === "structural") {
       const rate = isDoubleStorey ? DATABUILD_RECIPE_RATES.living_ds_ground_m2 : DATABUILD_RECIPE_RATES.living_ss_m2;
       const modM2 = (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2)
         ? candidateTableSpec.livingM2
         : Math.round((standardLivingM2 + delta) * 100) / 100;
       areaDeltas.push({
         zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
-        zoneLabel: isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension",
+        zoneLabel: z === "envelope" || z === "structural"
+          ? "Living & Structural Envelope Extension"
+          : (isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension"),
         standardM2: standardLivingM2,
         modifiedM2: modM2,
         deltaM2: delta,
@@ -2019,7 +2062,22 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: Math.round(delta * rate),
         accepted: true,
       });
-    } else if (mod.zone === "alfresco") {
+    } else if (z === "firstLivingM2" || z === "upper_living" || z === "first_floor") {
+      const rate = DATABUILD_RECIPE_RATES.living_ds_upper_m2 || 1650;
+      const stdFirst = stdAreasLookup?.firstLivingM2 || cadRegistryEntry?.firstLivingM2 || 70;
+      const modM2 = Math.round((stdFirst + delta) * 100) / 100;
+      areaDeltas.push({
+        zoneKey: "firstLivingM2",
+        zoneLabel: "First Floor / Upper Living Extension",
+        standardM2: stdFirst,
+        modifiedM2: modM2,
+        deltaM2: delta,
+        recipeId: "recipe_living_ds_upper_m2",
+        unitRate: rate,
+        subtotal: Math.round(delta * rate),
+        accepted: true,
+      });
+    } else if (z === "alfresco" || z === "outdoor_living") {
       const rate = DATABUILD_RECIPE_RATES.alfresco_m2;
       const modM2 = (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2)
         ? candidateTableSpec.alfrescoM2
@@ -2035,7 +2093,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: Math.round(delta * rate),
         accepted: true,
       });
-    } else if (mod.zone === "garage") {
+    } else if (z === "garage" || z === "carport") {
       const rate = DATABUILD_RECIPE_RATES.garage_m2;
       const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
       const modM2 = (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > standardGarageM2)
@@ -2052,7 +2110,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: Math.round(delta * rate),
         accepted: true,
       });
-    } else if (mod.zone === "porch") {
+    } else if (z === "porch" || z === "entry_porch" || z === "portico") {
       const rate = DATABUILD_RECIPE_RATES.porch_m2;
       const modM2 = (candidateTableSpec.porchM2 && candidateTableSpec.porchM2 > standardPorchM2)
         ? candidateTableSpec.porchM2
@@ -2068,7 +2126,7 @@ export async function analyzeModifiedFloorplanFile(
         subtotal: Math.round(delta * rate),
         accepted: true,
       });
-    } else if (mod.zone === "wet_area") {
+    } else if (z === "wet_area") {
       // Wet area extensions are handled exclusively in Tab 2 (Internal Sweep & Rooms)
       // at the user-specified $150.00/m² base rate. Never double-charge in structural areaDeltas!
       continue;
@@ -2100,7 +2158,7 @@ export async function analyzeModifiedFloorplanFile(
 
   // Deterministic Dimension Fallback for Area Deltas if areaDeltas is empty
   if (areaDeltas.length === 0) {
-    const alfMatch = rawText.match(/Alfresco\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+    const alfMatch = rawText.match(/(?:covered\s*alfresco|alfresco|outdoor\s*living)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
     if (alfMatch) {
       const w = parseFloat(alfMatch[1]);
       const l = parseFloat(alfMatch[2]);
@@ -2123,7 +2181,7 @@ export async function analyzeModifiedFloorplanFile(
       }
     }
 
-    const garMatch = rawText.match(/Garage\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+    const garMatch = rawText.match(/(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
     if (garMatch) {
       const w = parseFloat(garMatch[1]);
       const l = parseFloat(garMatch[2]);
@@ -2146,7 +2204,7 @@ export async function analyzeModifiedFloorplanFile(
       }
     }
 
-    const familyMatch = rawText.match(/(?:Family|Living)\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+    const familyMatch = rawText.match(/(?:family|living(?:\s*room)?|meals|dining|rumpus)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
     if (familyMatch) {
       const w = parseFloat(familyMatch[1]);
       const l = parseFloat(familyMatch[2]);
@@ -2775,6 +2833,27 @@ export async function analyzeModifiedFloorplanFile(
       }
     }
 
+    // Final Net Total Area Reconciliation check:
+    if (effectiveModTotal && effectiveModTotal > standardTotalM2 + 0.5) {
+      const totalNetDelta = Math.round((effectiveModTotal - standardTotalM2) * 100) / 100;
+      const allocatedDelta = areaDeltas.reduce((sum, d) => sum + d.deltaM2, 0);
+      const unallocatedM2 = Math.round((totalNetDelta - allocatedDelta) * 100) / 100;
+      if (unallocatedM2 >= 1.0) {
+        const rate = isDoubleStorey ? 1480 : 1420;
+        areaDeltas.push({
+          zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
+          zoneLabel: "Living & Structural Envelope Extension",
+          standardM2: standardLivingM2,
+          modifiedM2: Math.round((standardLivingM2 + unallocatedM2) * 100) / 100,
+          deltaM2: Math.round(unallocatedM2 * 100) / 100,
+          recipeId: "recipe_living_ss_m2",
+          unitRate: rate,
+          subtotal: Math.round(unallocatedM2 * rate),
+          accepted: true,
+        });
+      }
+    }
+
     const sumAreaDeltas = areaDeltas.reduce((acc, d) => acc + d.deltaM2, 0);
     const modifiedTotalM2 =
       candidateTableSpec.totalM2 && candidateTableSpec.totalM2 !== standardTotalM2
@@ -2832,7 +2911,7 @@ export async function analyzeModifiedFloorplanFile(
 
   // 1. Universal Room Dimension Parsing across any Hudson Home Design
   // A. Alfresco dimensions (e.g. "Alfresco 7.5 x 4.0" vs standard 4.5 x 3.0 or 2.6 x 3.6)
-  const alfMatch = rawText.match(/Alfresco\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  const alfMatch = rawText.match(/(?:covered\s*alfresco|alfresco|outdoor\s*living)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
   if (alfMatch) {
     const w = parseFloat(alfMatch[1]);
     const l = parseFloat(alfMatch[2]);
@@ -2845,7 +2924,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // B. Garage dimensions (e.g. "Garage 5.7 x 5.7" vs "5.5 x 5.5")
-  const garMatch = rawText.match(/Garage\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  const garMatch = rawText.match(/(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
   if (garMatch) {
     const w = parseFloat(garMatch[1]);
     const l = parseFloat(garMatch[2]);
@@ -2858,7 +2937,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // C. Living / Family Room dimensions
-  const familyMatch = rawText.match(/(?:Family|Living)\s*[\r\n\t]*(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  const familyMatch = rawText.match(/(?:family|living(?:\s*room)?|meals|dining|rumpus)\s*[:\-\s\t\n(]*(\d+(?:\.\d+)?)\s*m?\s*[xX*×]\s*(\d+(?:\.\d+)?)\s*m?/i);
   if (familyMatch) {
     const w = parseFloat(familyMatch[1]);
     const l = parseFloat(familyMatch[2]);

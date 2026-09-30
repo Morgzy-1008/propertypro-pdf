@@ -65,10 +65,9 @@ export default async function handler(req, res) {
 
 async function callGeminiWithFallback(apiKey, body) {
   const models = [
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-flash-latest"
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-2.0-flash-001"
   ];
   let lastError = null;
 
@@ -111,8 +110,11 @@ async function callGeminiWithFallback(apiKey, body) {
    - Strip suffixes like "Modified", "Concept", "Rev A", "Rev 1", "Custom" to return the exact master Hudson model name (e.g. "Azure 19 Modified" -> "Azure 19", "Amber 21 Concept" -> "Amber 21", "Burgundy 30 Rev A" -> "Burgundy 30").
    - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
 2. Identify the housing type: "Single Storey" or "Double Storey".
-3. Extract the printed Area Schedule specifications table (usually at the bottom or corner):
+3. Extract the printed Area Schedule specifications table:
+   - Locate and transcribe the printed Area Schedule table anywhere on the sheet (title block, margin notes, drawing header, corner schedule), regardless of font style, handwriting, or cursive script.
    - Living Area (m²)
+   - Ground Floor Living Area (m²)
+   - First Floor Living Area (m²)
    - Garage Area (m²)
    - Alfresco Area (m²)
    - Porch Area (m²)
