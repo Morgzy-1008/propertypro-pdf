@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Sparkles,
+  Compass,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1996,6 +1997,12 @@ function DatabasePage() {
             <Link to="/flyer">
               <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}>
                 Flyer builder
+              </Button>
+            </Link>
+            <Link to="/land-scout">
+              <Button variant="outline" size="sm" className={`text-xs ${isLight ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100 shadow-xs" : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"}`}>
+                <Compass className="h-3.5 w-3.5 mr-1" />
+                Land Scout
               </Button>
             </Link>
             <Button variant="ghost" size="sm" onClick={() => void load()} className={isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"} title="Refresh database">

@@ -298,7 +298,7 @@ export function LandScoutDashboard() {
                   Vacant Land Search
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="hidden sm:block text-[11px] text-slate-400">
                 Search and browse available vacant land blocks across QLD and NSW
               </p>
             </div>

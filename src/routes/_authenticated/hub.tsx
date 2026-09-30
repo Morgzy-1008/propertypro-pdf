@@ -16,7 +16,7 @@ import {
   UserCheck,
   Radio,
 } from "lucide-react";
-import { Logo } from "@/components/flyer/FlyerTemplates";
+import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import {
@@ -185,18 +185,18 @@ function PortalCard({
         <div
           className={`relative z-10 mt-5 pt-4 border-t ${
             isLight ? "border-slate-100" : "border-slate-800/80"
-          } flex items-center justify-between text-xs ${
+          } flex items-center justify-between gap-3 text-xs ${
             isWide ? "lg:mt-0 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-8 lg:flex-col lg:items-end lg:justify-center lg:gap-3" : ""
           }`}
         >
-          <div className={`flex items-center gap-1.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+          <div className={`flex items-center gap-1.5 min-w-0 flex-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
             <span className="truncate">{features}</span>
           </div>
           <span
-            className={`font-semibold ${iconColor} group-hover:translate-x-1.5 transition-transform duration-300 inline-flex items-center shrink-0`}
+            className={`font-semibold ${iconColor} group-hover:translate-x-1.5 transition-transform duration-300 inline-flex items-center shrink-0 pl-1`}
           >
-            {actionText} <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            {actionText} <ArrowRight className="ml-1.5 h-3.5 w-3.5 shrink-0" />
           </span>
         </div>
       </Link>
@@ -309,10 +309,15 @@ function WelcomeHubPage() {
         } backdrop-blur-xl sticky top-0 z-40 transition-colors`}
       >
         <div className="absolute bottom-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Logo light={!isLight} size={11} />
-            <div className={`hidden sm:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-3`}>
+        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <Link to="/hub" className="flex items-center">
+              <HudsonMark size={9} className="sm:hidden" />
+              <div className="hidden sm:block">
+                <Logo light={!isLight} size={11} />
+              </div>
+            </Link>
+            <div className={`hidden md:block border-l ${isLight ? "border-slate-300" : "border-slate-700/80"} pl-3`}>
               <span className={`text-xs font-bold tracking-widest ${isLight ? "text-slate-800" : "text-slate-300"} uppercase font-mono`}>
                 Digital Builder OS
               </span>
@@ -322,7 +327,25 @@ function WelcomeHubPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <Link
+              to="/land-scout"
+              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+              title="Hudson Land Scout - Vacant Land Search"
+            >
+              <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+              <span>Land Scout</span>
+            </Link>
+
+            <Link
+              to="/site-studio"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/40 text-teal-400 hover:bg-teal-500 hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Hudson Site Studio - Cadastre Siting"
+            >
+              <Layers className="h-4 w-4 shrink-0" />
+              <span>Site Studio</span>
+            </Link>
+
             <ThemeToggle />
 
             {/* NHC Active Profile Pill (with Website Admin button for Admins) */}
@@ -494,11 +517,35 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 03: Hudson Quoting System (Restricted from Marketing Team) */}
+          {/* Portal 03: Hudson Land Scout (Vacant Land Intelligence & Acquisition) */}
+          <PortalCard
+            to="/land-scout"
+            portalNumber="PORTAL // 03"
+            categoryBadge="Land Intelligence"
+            statusBadge={{
+              text: "Live Cadastre & Estates",
+              pulse: true,
+              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+            }}
+            title="Hudson Land Scout"
+            description="Discover all available vacant subdivision blocks across QLD & NSW growth corridors, inspect cadastre boundaries, and 1-click package."
+            icon={Compass}
+            features="NSW & QLD Cadastre • Auto-Siting"
+            actionText="Launch Land Scout"
+            glowGradient="from-amber-400 via-brand-gold to-yellow-500"
+            lightBeam="from-transparent via-brand-gold to-transparent"
+            innerGlow="from-amber-500/30 to-transparent"
+            iconColor="text-brand-gold"
+            iconBg="from-amber-500/20 to-yellow-500/10 border-brand-gold/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+          />
+
+          {/* Portal 04: Hudson Quoting System (Restricted from Marketing Team) */}
           {!isMarketing && (
             <PortalCard
               to="/quote-builder"
-              portalNumber="PORTAL // 03"
+              portalNumber="PORTAL // 04"
               categoryBadge="Estimating Engine"
               title="Hudson Quoting System"
               description="Calculate precise client tenders with dynamic m² area extensions, piering allowances, and live variation subtotals."
@@ -515,11 +562,11 @@ function WelcomeHubPage() {
             />
           )}
 
-          {/* Portal 04: Concept Floorplan Editor (Allowed Staff) */}
+          {/* Portal 05: Concept Floorplan Editor (Allowed Staff) */}
           {hasFloorplanAccess && (
             <PortalCard
               to="/floorplan-editor"
-              portalNumber="PORTAL // 04"
+              portalNumber="PORTAL // 05"
               categoryBadge="Concept Studio"
               title="Concept Floorplan Editor"
               description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
@@ -536,11 +583,11 @@ function WelcomeHubPage() {
             />
           )}
 
-          {/* Portal 05: Submit Your Tender Request (Restricted to Morgan Hales) */}
+          {/* Portal 06: Submit Your Tender Request (Restricted to Morgan Hales) */}
           {isMorgan && (
             <PortalCard
               to="/tender-request"
-              portalNumber="PORTAL // 05"
+              portalNumber="PORTAL // 06"
               categoryBadge="Tender Portal"
               statusBadge={{
                 text: "Under Development",
@@ -562,11 +609,11 @@ function WelcomeHubPage() {
             />
           )}
 
-          {/* Portal 06: Hudson Horizon CRM (Restricted to Morgan Hales) */}
+          {/* Portal 07: Hudson Horizon CRM (Restricted to Morgan Hales) */}
           {isMorgan && (
             <PortalCard
               to="/crm"
-              portalNumber="PORTAL // 06"
+              portalNumber="PORTAL // 07"
               categoryBadge="Builder CRM"
               statusBadge={{
                 text: "Under Development",
@@ -588,32 +635,30 @@ function WelcomeHubPage() {
             />
           )}
 
-          {/* Portal 07: Hudson Site Studio (Flagship Siting Engine - Restricted to Morgan Hales) */}
-          {isMorgan && (
-            <PortalCard
-              to="/site-studio"
-              portalNumber="PORTAL // 07"
-              categoryBadge="Siting Studio"
-              statusBadge={{
-                text: "Archistar Replacement",
-                pulse: false,
-                style: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30 font-mono",
-              }}
-              title="Hudson Site Studio"
-              description="Full 1:200 cadastre lot siting, building envelope setbacks, easement snapping, PDF export, and interactive lot orientation."
-              icon={Compass}
-              features="1:200 Cadastre Siting • Vector Canvas"
-              actionText="Launch Site Studio"
-              glowGradient="from-emerald-400 via-teal-400 to-cyan-500"
-              lightBeam="from-transparent via-teal-400 to-transparent"
-              innerGlow="from-teal-500/25 to-transparent"
-              iconColor="text-teal-400"
-              iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
-              badgeStyle="text-teal-400 bg-teal-500/10 border-teal-500/20"
-              isLight={isLight}
-              isWide={true}
-            />
-          )}
+          {/* Portal 08: Hudson Site Studio (Flagship Siting Engine - Archistar & CanBuild Parity) */}
+          <PortalCard
+            to="/site-studio"
+            portalNumber="PORTAL // 08"
+            categoryBadge="Siting Studio"
+            statusBadge={{
+              text: "Archistar Replacement",
+              pulse: false,
+              style: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30 font-mono",
+            }}
+            title="Hudson Site Studio"
+            description="Full 1:200 cadastre lot siting, building envelope setbacks, auto-catalog optimization, cut & fill earthworks, and PDF export."
+            icon={Compass}
+            features="1:200 Cadastre Siting • Vector Canvas"
+            actionText="Launch Site Studio"
+            glowGradient="from-emerald-400 via-teal-400 to-cyan-500"
+            lightBeam="from-transparent via-teal-400 to-transparent"
+            innerGlow="from-teal-500/25 to-transparent"
+            iconColor="text-teal-400"
+            iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
+            badgeStyle="text-teal-400 bg-teal-500/10 border-teal-500/20"
+            isLight={isLight}
+            isWide={true}
+          />
         </div>
       </main>
 

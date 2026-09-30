@@ -408,6 +408,18 @@ export function SiteStudioWorkspace() {
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
+          <Link to="/land-scout">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 text-xs gap-1.5 border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+              title="Search Vacant Land with Hudson Land Scout"
+            >
+              <Compass className="h-3.5 w-3.5 text-brand-gold" />
+              <span className="hidden sm:inline">Land Scout</span>
+            </Button>
+          </Link>
+
           <Button
             variant="outline"
             size="sm"

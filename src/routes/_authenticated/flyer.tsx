@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, FileText, BookOpen, Database, Save, Home, Layers } from "lucide-react";
+import { Download, FileText, BookOpen, Database, Save, Home, Layers, Compass } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -349,6 +349,13 @@ function Index() {
                 <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
                   <Database className="h-3.5 w-3.5 text-cyan-400" />
                   Database
+                </Button>
+              </Link>
+
+              <Link to="/land-scout">
+                <Button variant="outline" size="sm" className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white text-xs gap-1.5">
+                  <Compass className="h-3.5 w-3.5 text-amber-400" />
+                  Land Scout
                 </Button>
               </Link>
 
