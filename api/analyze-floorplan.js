@@ -296,6 +296,17 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
    - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
    - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
+   - Enlarged Master Ensuite Shower Recess (1200x900 or walk-in) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Shower Recess Upgrade", category: "internal_bathroom", unitPrice: 650
+   - Ground Floor Powder Room Conversion with Vanity Basin (separate WC converted to private Powder Room with vanity) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
+   - Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
+
+6. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
+   - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
+     id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned from front facade elevation to rear private garden wing for enhanced privacy and noise isolation. Internal dry partition wall realignment ($0.00 Dry Variation)."
+   - Internal Dry Partition Framing Realignment -> if internal timber stud walls shifted:
+     id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment & Circulation Flow", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation)."
+   - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
+     id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: 2.6, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: 390, description: "Master Ensuite expanded by +2.60 m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)."
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -686,6 +697,12 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_double_undermount_sink;
           } else if (/undermount/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_kitchen_single_undermount_sink;
+          } else if (/butler.*lhs|lhs.*butler|butlers\s*pantry\s*lhs|butler.*prep\s*sink|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs|pantry.*lhs/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_butlers_pantry_lhs_sink;
+          } else if (/larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_larger_shower;
+          } else if (/powder.*vanity|pdr.*vanity|separate\s*toilet.*(?:powder|pdr|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_vanity_conversion;
           } else if (/butler.*sink|wip.*sink|prep\s*sink|sink.*butler/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_butlers_prep_sink;
           } else if (/sliding\s*door.*(?:activity|alfresco)|sd\s*21|window.*to.*sliding|activity.*sliding/i.test(lowerText)) {
@@ -716,12 +733,6 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_addition;
           } else if (/storage\s*conversion|study\s*conversion|convert.*media/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_living_media_conversion;
-          } else if (/larger\s*shower|1200\s*shower|1200x900|extended\s*shower/i.test(lowerText)) {
-            matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_larger_shower;
-          } else if (/powder.*vanity|pdr.*vanity|separate\s*toilet.*powder/i.test(lowerText)) {
-            matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_vanity_conversion;
-          } else if (/butler.*lhs|lhs.*butler|butler.*prep\s*sink/i.test(lowerText)) {
-            matchedRule = FIXTURE_UPGRADE_MAP.upg_butlers_pantry_lhs_sink;
           }
         }
 
@@ -785,18 +796,18 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_mudroom_fitout";
         } else if (/3\.5m|servery|prep\s*isl/i.test(lowerText)) {
           semanticKey = "sem_kitchen_island_prep";
+        } else if (/butler.*lhs|lhs.*butler/i.test(lowerText)) {
+          semanticKey = "sem_butler_lhs";
+        } else if (/larger\s*shower|1200\s*shower|1200x900/i.test(lowerText)) {
+          semanticKey = "sem_ensuite_larger_shower";
+        } else if (/powder.*vanity|pdr.*vanity/i.test(lowerText)) {
+          semanticKey = "sem_powder_vanity";
         } else if (/powder|\bpdr\b/i.test(lowerText)) {
           semanticKey = "sem_powder_room";
         } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
           semanticKey = "sem_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {
           semanticKey = "sem_front_balcony";
-        } else if (/larger\s*shower|1200\s*shower|1200x900/i.test(lowerText)) {
-          semanticKey = "sem_ensuite_larger_shower";
-        } else if (/powder.*vanity|pdr.*vanity/i.test(lowerText)) {
-          semanticKey = "sem_powder_vanity";
-        } else if (/butler.*lhs|lhs.*butler/i.test(lowerText)) {
-          semanticKey = "sem_butler_lhs";
         }
 
         if (!seenSemanticKeys.has(semanticKey)) {
@@ -834,8 +845,7 @@ Return ONLY valid JSON matching this schema:
       parsedData.internalRoomChanges = [];
     }
     const combinedNotes = `${parsedData.detectedModelName || ""} ${suggestedDesign || ""} ${rawText || ""} ${parsedData.analysisNotes || ""}`.toLowerCase();
-    const hasBed1Rear = /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear/i.test(combinedNotes) ||
-      (/azure\s*19/i.test(combinedNotes) && /rear|modified/i.test(combinedNotes));
+    const hasBed1Rear = /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear/i.test(combinedNotes);
     if (hasBed1Rear && !parsedData.internalRoomChanges.some(r => /bed\s*1|master/i.test(r.roomName))) {
       parsedData.internalRoomChanges.push({
         id: "room_bed1_rear_relocation",
@@ -853,26 +863,30 @@ Return ONLY valid JSON matching this schema:
         accepted: true
       });
     }
-    const hasWetAreaIncrease = /wet\s*area|more\s*wet\s*area|ensuite.*(?:larger|ext)/i.test(combinedNotes) ||
-      (/azure\s*19/i.test(combinedNotes) && /modified|pdr|powder|ensuite/i.test(combinedNotes));
+    const wetDeltaMatch = combinedNotes.match(/(?:more\s*wet\s*area|wet\s*area\s*(?:delta|increase|ext|expansion|sqm)?|ensuite\s*footprint\s*expansion)[^\d]*([0-9]+(?:\.[0-9]+)?)\s*m/i);
+    const parsedWetM2 = wetDeltaMatch ? parseFloat(wetDeltaMatch[1]) : 0;
+    const hasWetAreaIncrease = parsedWetM2 > 0 || /more\s*wet\s*area|wet\s*area\s*sqm/i.test(combinedNotes);
+    const effectiveWetDelta = parsedWetM2 > 0 ? parsedWetM2 : 2.6;
     if (hasWetAreaIncrease && !parsedData.internalRoomChanges.some(r => /wet\s*area/i.test(r.roomName))) {
       parsedData.internalRoomChanges.push({
         id: "wet_ext_master_ensuite",
         roomName: "Master Ensuite & Wet Area Footprint Expansion",
         roomType: "ensuite",
         furnitureDetected: ["Shower Recess", "Vanity Basin", "Toilet Suite", "Class III Waterproofing"],
-        deltaM2: 2.6,
-        description: "Master Ensuite expanded by +2.60 m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in).",
+        deltaM2: effectiveWetDelta,
+        description: `Master Ensuite expanded by +${effectiveWetDelta.toFixed(2)} m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in).`,
         isZeroCost: false,
         category: "wet_area",
         baseRatePerM2: 150,
         finishesRatePerM2: 0,
         unitRate: 150,
-        subtotal: 390,
+        subtotal: Math.round(effectiveWetDelta * 150),
         accepted: true
       });
     }
-    if (!parsedData.internalRoomChanges.some(r => /dry\s*partition|non-structural/i.test(r.roomName))) {
+    const hasInternalChanges = parsedData.internalRoomChanges.length > 0 || (parsedData.detectedInclusions && parsedData.detectedInclusions.length > 0);
+    const hasExplicitDryFraming = /dry\s*partition|non-structural|framing\s*realignment|dry\s*layout/i.test(combinedNotes);
+    if ((hasInternalChanges || hasExplicitDryFraming) && !parsedData.internalRoomChanges.some(r => /dry\s*partition|non-structural/i.test(r.roomName))) {
       parsedData.internalRoomChanges.push({
         id: "layout_dry_framing_realignment",
         roomName: "Internal Dry Partition Framing Realignment & Circulation Flow",

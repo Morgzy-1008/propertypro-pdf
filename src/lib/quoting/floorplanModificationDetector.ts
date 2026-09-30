@@ -1021,8 +1021,19 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
    - Mudroom / Mud Nook Joinery Fit-Out -> id: "upg_mudroom_fitout", name: "Mudroom / Mud Nook Joinery Fit-Out", category: "internal_general", unitPrice: 1250
    - Grand 3.5m Servery / Preparation Island Benchtop -> id: "upg_kitchen_island_prep", name: "Grand 3.5m Servery / Preparation Island Benchtop", category: "internal_kitchen", unitPrice: 2450
    - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
-   - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
-   - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
+    - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
+    - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
+    - Enlarged Master Ensuite Shower Recess (1200x900 or walk-in) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Shower Recess Upgrade", category: "internal_bathroom", unitPrice: 650
+    - Ground Floor Powder Room Conversion with Vanity Basin (separate WC converted to private Powder Room with vanity) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
+    - Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
+
+7. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
+   - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
+     id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned from front facade elevation to rear private garden wing for enhanced privacy and noise isolation. Internal dry partition wall realignment ($0.00 Dry Variation)."
+   - Internal Dry Partition Framing Realignment -> if internal timber stud walls shifted:
+     id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment & Circulation Flow", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation)."
+   - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
+     id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: number, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: deltaM2 * 150, description: "Master Ensuite expanded wet area footprint. Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)."
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -1202,7 +1213,13 @@ Return ONLY valid JSON matching this schema:
 
         let matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === inc.id);
         if (!matchedRule) {
-          if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
+          if (/butler.*lhs|lhs.*butler|butlers\s*pantry\s*lhs|butler.*prep\s*sink|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs|pantry.*lhs/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_butlers_pantry_lhs_sink");
+          } else if (/larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_larger_shower");
+          } else if (/powder.*vanity|pdr.*vanity|separate\s*toilet.*(?:powder|pdr|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_powder_room_vanity_conversion");
+          } else if (/roller\s*door|rd\s*21\.24/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_single_roller_door");
           } else if (/ext\s*1020|1020\s*door|1020mm\s*door|1020\s*entry/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_entry_door_1020");
@@ -1280,6 +1297,12 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "feature_kitchen_double_undermount_sink";
         } else if (/undermount/i.test(lowerText)) {
           semanticKey = "feature_kitchen_single_undermount_sink";
+        } else if (/butler.*lhs|lhs.*butler/i.test(lowerText)) {
+          semanticKey = "feature_butlers_pantry_lhs_sink";
+        } else if (/larger\s*shower|1200\s*shower|1200x900/i.test(lowerText)) {
+          semanticKey = "feature_ensuite_larger_shower";
+        } else if (/powder.*vanity|pdr.*vanity/i.test(lowerText)) {
+          semanticKey = "feature_powder_room_vanity_conversion";
         } else if (/butler.*sink|wip.*sink|prep\s*sink|sink.*butler/i.test(lowerText)) {
           semanticKey = "feature_butlers_prep_sink";
         } else if (/sliding\s*door|sd\s*21/i.test(lowerText)) {
@@ -1337,6 +1360,45 @@ Return ONLY valid JSON matching this schema:
 /**
  * Matches candidate area schedule against all Hudson standard models geometrically.
  */
+/**
+ * Universal title parser to extract Hudson Homes base model from complex sheet titles,
+ * including client names, cursive scripts, revision markers, and Foresight Concept headers.
+ * e.g. "Haidyn & Kristen's New Residence / Azure 19 Modified" -> "Azure 19"
+ */
+export function extractModelFromCandidateTitle(
+  titleStr?: string
+): { designName: string; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
+  if (!titleStr) return null;
+
+  // 1. Direct match
+  const direct = findHudsonModelByName(titleStr);
+  if (direct) {
+    return { designName: direct.row.name, housingType: direct.housingType as any };
+  }
+
+  // 2. Segment by common title delimiters (slashes, pipes, dashes, colons, newlines)
+  const segments = titleStr.split(/[\/|:\n\r–—\-]+/);
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    if (!trimmed) continue;
+    const cleanSeg = trimmed.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom|plan|drawing|residence|new)\b/gi, "").trim();
+    const match = findHudsonModelByName(cleanSeg) || findHudsonModelByName(trimmed);
+    if (match) {
+      return { designName: match.row.name, housingType: match.housingType as any };
+    }
+  }
+
+  // 3. Regex scan against all known Hudson models
+  for (const item of ALL_PRICE_ROWS) {
+    const namePattern = new RegExp(`\\b${escapeRegex(item.row.name)}\\b`, "i");
+    if (namePattern.test(titleStr)) {
+      return { designName: item.row.name, housingType: item.housingType as any };
+    }
+  }
+
+  return null;
+}
+
 export function matchDesignGeometricallyFromSchedule(scheduleTable: {
   livingM2?: number;
   garageM2?: number;
@@ -1352,8 +1414,10 @@ export function matchDesignGeometricallyFromSchedule(scheduleTable: {
   for (const [modelName, std] of Object.entries(HUDSON_STANDARD_AREAS)) {
     let diff = 0;
     let factors = 0;
-    if (scheduleTable.livingM2 && std.livingM2) {
-      diff += Math.abs(scheduleTable.livingM2 - std.livingM2) * 2.5;
+    // Support double-storey models where living is split into groundLivingM2 + firstLivingM2
+    const stdLiving = std.livingM2 ?? ((std.groundLivingM2 || 0) + (std.firstLivingM2 || 0));
+    if (scheduleTable.livingM2 && stdLiving) {
+      diff += Math.abs(scheduleTable.livingM2 - stdLiving) * 2.5;
       factors += 2.5;
     }
     if (scheduleTable.garageM2 && std.garageM2) {
@@ -1414,33 +1478,42 @@ export async function identifyBaseDesignCandidate(
   let matchSource: BaseDesignCandidate["matchSource"] = "title_block";
   let matchReason = "";
 
-  // Check 1: Filename match
-  const filenameMatch = findHudsonModelByName(file.name);
-  if (filenameMatch) {
-    matchedDesign = filenameMatch.row.name;
-    housingType = filenameMatch.housingType as any;
+  // Check 1: Filename match (including compound client / model titles)
+  const titleFromName = extractModelFromCandidateTitle(file.name);
+  if (titleFromName) {
+    matchedDesign = titleFromName.designName;
+    housingType = titleFromName.housingType as any;
     confidence = 0.95;
     matchSource = "title_block";
-    matchReason = `File name matches master design "${filenameMatch.row.name}".`;
+    matchReason = `File name matches master design "${titleFromName.designName}".`;
   }
 
-  // Check 2: Direct text match from PDF fonts / title block
+  // Check 2: Direct text match from PDF fonts / title block (including Cursive 'Dancing Script' OCR)
   if (!matchedDesign && rawText) {
-    const textMatched = detectFloorplanFromText(rawText, file.name);
-    if (textMatched) {
-      matchedDesign = textMatched.matchedDesignName;
-      housingType = textMatched.housingType as any;
+    const fromRawTitle = extractModelFromCandidateTitle(rawText);
+    if (fromRawTitle) {
+      matchedDesign = fromRawTitle.designName;
+      housingType = fromRawTitle.housingType as any;
       confidence = 0.98;
       matchSource = "title_block";
-      matchReason = `Sheet title block text explicitly specifies "${textMatched.matchedDesignName}".`;
+      matchReason = `Sheet title block text explicitly specifies "${fromRawTitle.designName}".`;
     } else {
-      const rawTextMatch = findHudsonModelByName(rawText);
-      if (rawTextMatch) {
-        matchedDesign = rawTextMatch.row.name;
-        housingType = rawTextMatch.housingType as any;
-        confidence = 0.92;
-        matchSource = "text_header";
-        matchReason = `Drawing notes reference Hudson master model "${rawTextMatch.row.name}".`;
+      const textMatched = detectFloorplanFromText(rawText, file.name);
+      if (textMatched) {
+        matchedDesign = textMatched.matchedDesignName;
+        housingType = textMatched.housingType as any;
+        confidence = 0.98;
+        matchSource = "title_block";
+        matchReason = `Sheet title block text explicitly specifies "${textMatched.matchedDesignName}".`;
+      } else {
+        const rawTextMatch = findHudsonModelByName(rawText);
+        if (rawTextMatch) {
+          matchedDesign = rawTextMatch.row.name;
+          housingType = rawTextMatch.housingType as any;
+          confidence = 0.92;
+          matchSource = "text_header";
+          matchReason = `Drawing notes reference Hudson master model "${rawTextMatch.row.name}".`;
+        }
       }
     }
   }
@@ -1450,15 +1523,24 @@ export async function identifyBaseDesignCandidate(
   if (!matchedDesign && dataUrl) {
     try {
       visualModel = await identifyDesignModelFromImage(dataUrl);
-      if (visualModel && visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
-        const cleanTitle = visualModel.designName.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom)\b/gi, "").trim();
-        const verified = findHudsonModelByName(cleanTitle) || findHudsonModelByName(visualModel.rawTitleFound);
-        if (verified) {
-          matchedDesign = verified.row.name;
-          housingType = verified.housingType as any;
-          confidence = 0.94;
+      if (visualModel) {
+        const fromVisualTitle = extractModelFromCandidateTitle(visualModel.rawTitleFound || visualModel.designName || "");
+        if (fromVisualTitle) {
+          matchedDesign = fromVisualTitle.designName;
+          housingType = fromVisualTitle.housingType as any;
+          confidence = 0.95;
           matchSource = "title_block";
-          matchReason = `Visual scan identified sheet title block: "${verified.row.name}".`;
+          matchReason = `Visual scan identified sheet title block: "${fromVisualTitle.designName}".`;
+        } else if (visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
+          const cleanTitle = visualModel.designName.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom)\b/gi, "").trim();
+          const verified = findHudsonModelByName(cleanTitle) || findHudsonModelByName(visualModel.rawTitleFound);
+          if (verified) {
+            matchedDesign = verified.row.name;
+            housingType = verified.housingType as any;
+            confidence = 0.94;
+            matchSource = "title_block";
+            matchReason = `Visual scan identified sheet title block: "${verified.row.name}".`;
+          }
         }
       }
     } catch (e) {
@@ -1497,8 +1579,10 @@ export async function identifyBaseDesignCandidate(
     matchReason = `Using currently selected quote base design "${matchedDesign}".`;
   }
 
-  // Handle Ember/Amber spelling
-  if (/ember\s*21/i.test(matchedDesign) || /ember\s*21/i.test(file.name) || /ember\s*21/i.test(rawText)) {
+  // Handle Ember/Amber spelling typo ONLY if matchedDesign is an ember variant or unassigned
+  if (/ember\s*21/i.test(matchedDesign)) {
+    matchedDesign = "Amber 21";
+  } else if (!matchedDesign && (/ember\s*21/i.test(file.name) || /ember\s*21/i.test(rawText))) {
     matchedDesign = "Amber 21";
   }
 
@@ -2074,11 +2158,37 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Universal: Ensure Dedicated Powder Room is recognized
+  // Universal: Ensure Dedicated Powder Room / Vanity Conversion is recognized
+  const isPowderVanityConversion =
+    /powder.*vanity|pdr.*vanity|separate\s*toilet.*(?:powder|pdr|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(rawText) ||
+    /powder.*vanity|pdr.*vanity|separate\s*toilet.*(?:powder|pdr|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(geminiResult?.analysisNotes || "");
+
   const hasPowderRoom =
     /\bpdr\b|powder\s*room|\bpowder\b/i.test(rawText) ||
     /\bpdr\b|powder\s*room|\bpowder\b/i.test(geminiResult?.analysisNotes || "");
-  if (hasPowderRoom) {
+
+  if (isPowderVanityConversion) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_powder_room_vanity_conversion" || /powder.*vanity|pdr.*vanity/i.test(u.name))) {
+      const pdrVanityRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_powder_room_vanity_conversion");
+      if (pdrVanityRule) {
+        inclusionUpgrades.push({
+          id: pdrVanityRule.id,
+          category: pdrVanityRule.category,
+          name: pdrVanityRule.name,
+          description: pdrVanityRule.description,
+          baseline: pdrVanityRule.baseline,
+          detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
+          unitPrice: pdrVanityRule.unitPrice,
+          quantity: 1,
+          subtotal: pdrVanityRule.unitPrice,
+          accepted: true,
+          confidence: pdrVanityRule.confidence,
+          isByOwner: false,
+          reason: pdrVanityRule.description,
+        });
+      }
+    }
+  } else if (hasPowderRoom) {
     if (!inclusionUpgrades.some((u) => u.id === "upg_powder_room_addition" || /powder|pdr/i.test(u.name))) {
       const pdrRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_powder_room_addition");
       if (pdrRule) {
@@ -2096,6 +2206,60 @@ export async function analyzeModifiedFloorplanFile(
           confidence: pdrRule.confidence,
           isByOwner: false,
           reason: "Dedicated guest powder room (PDR) added to floorplan layout.",
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure Butler's Pantry LHS is recognized
+  const isButlersPantryLhs =
+    /butler.*lhs|lhs.*butler|butlers\s*to\s*the\s*lhs|butlers\s*pantry\s*lhs|pantry.*lhs|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs/i.test(rawText) ||
+    /butler.*lhs|lhs.*butler|butlers\s*to\s*the\s*lhs|butlers\s*pantry\s*lhs|pantry.*lhs|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs/i.test(geminiResult?.analysisNotes || "");
+  if (isButlersPantryLhs) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_butlers_pantry_lhs_sink" || /butler.*lhs/i.test(u.name))) {
+      const butlerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_butlers_pantry_lhs_sink");
+      if (butlerRule) {
+        inclusionUpgrades.push({
+          id: butlerRule.id,
+          category: butlerRule.category,
+          name: butlerRule.name,
+          description: butlerRule.description,
+          baseline: butlerRule.baseline,
+          detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+          unitPrice: butlerRule.unitPrice,
+          quantity: 1,
+          subtotal: butlerRule.unitPrice,
+          accepted: true,
+          confidence: butlerRule.confidence,
+          isByOwner: false,
+          reason: butlerRule.description,
+        });
+      }
+    }
+  }
+
+  // Universal: Ensure Enlarged Ensuite Shower Recess is recognized
+  const hasEnsuiteLargerShower =
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(rawText) ||
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(geminiResult?.analysisNotes || "");
+  if (hasEnsuiteLargerShower) {
+    if (!inclusionUpgrades.some((u) => u.id === "upg_ensuite_larger_shower" || /larger\s*shower|1200.*shower/i.test(u.name))) {
+      const showerRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_larger_shower");
+      if (showerRule) {
+        inclusionUpgrades.push({
+          id: showerRule.id,
+          category: showerRule.category,
+          name: showerRule.name,
+          description: showerRule.description,
+          baseline: showerRule.baseline,
+          detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
+          unitPrice: showerRule.unitPrice,
+          quantity: 1,
+          subtotal: showerRule.unitPrice,
+          accepted: true,
+          confidence: showerRule.confidence,
+          isByOwner: false,
+          reason: showerRule.description,
         });
       }
     }
@@ -2171,16 +2335,48 @@ export async function analyzeModifiedFloorplanFile(
 
   // 1c. Full Internal Sweep: Room Recognition, Furniture Verification & Universal Spatial Layout Diffing
   const sweepResults = performInternalSweep(rawText, detectedModelName);
+
+  // Dynamic universal layout clues evaluated from drawings, OCR, Gemini notes, and room geometry:
+  const combinedContext = `${detectedModelName} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
+  const bed1RearEvidence =
+    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combinedContext) ||
+    Boolean(geminiResult?.internalRoomChanges?.some((r: any) => /bed\s*1|master/i.test(r.roomName) && /rear|relocat/i.test(`${r.roomName} ${r.description}`)));
+
+  const largerShowerEvidence =
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combinedContext) ||
+    Boolean(geminiResult?.detectedInclusions?.some((inc: any) => /larger\s*shower|1200\s*shower|1200x900|extended\s*shower/i.test(`${inc.id} ${inc.name} ${inc.description}`)));
+
+  const powderRoomVanityEvidence =
+    /powder.*vanity|pdr.*vanity|separate\s*toilet.*(?:powder|pdr|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(combinedContext) ||
+    Boolean(geminiResult?.detectedInclusions?.some((inc: any) => /powder.*vanity|pdr.*vanity|powder_room_vanity/i.test(`${inc.id} ${inc.name} ${inc.description}`)));
+
+  const butlersPantryLhsEvidence =
+    /butler.*lhs|lhs.*butler|butlers\s*to\s*the\s*lhs|butlers\s*pantry\s*lhs|pantry.*lhs|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs/i.test(combinedContext) ||
+    Boolean(geminiResult?.detectedInclusions?.some((inc: any) => /butler.*lhs|lhs.*butler|butlers_pantry_lhs/i.test(`${inc.id} ${inc.name} ${inc.description}`)));
+
+  let dynamicWetAreaDelta = 0;
+  const wetAreaMatch = combinedContext.match(/(?:more\s*wet\s*area|wet\s*area\s*(?:delta|increase|ext|expansion|sqm)?|ensuite\s*footprint\s*expansion)[^\d]*([0-9]+(?:\.[0-9]+)?)\s*m/i);
+  if (wetAreaMatch && parseFloat(wetAreaMatch[1]) > 0) {
+    dynamicWetAreaDelta = parseFloat(wetAreaMatch[1]);
+  } else if (geminiResult?.internalRoomChanges) {
+    const wetChange = geminiResult.internalRoomChanges.find((r: any) => /wet\s*area|ensuite.*exp/i.test(r.roomName) && r.deltaM2 > 0);
+    if (wetChange) {
+      dynamicWetAreaDelta = wetChange.deltaM2;
+    }
+  } else if (powderRoomVanityEvidence && largerShowerEvidence) {
+    dynamicWetAreaDelta = 2.6;
+  }
+
   const universalMods = detectUniversalSpatialModifications(
     detectedModelName,
     rawText,
     geminiResult?.analysisNotes || "",
     {
-      bed1Rear: true,
-      largerShower: true,
-      powderRoomVanity: true,
-      butlersPantryLhs: true,
-      wetAreaDeltaM2: 2.6,
+      bed1Rear: bed1RearEvidence,
+      largerShower: largerShowerEvidence,
+      powderRoomVanity: powderRoomVanityEvidence,
+      butlersPantryLhs: butlersPantryLhsEvidence,
+      wetAreaDeltaM2: dynamicWetAreaDelta,
     }
   );
 

@@ -44,7 +44,7 @@ export function BaseDesignConfirmationModal({
   onConfirm,
   isLight = false,
 }: BaseDesignConfirmationModalProps) {
-  const [selectedDesignName, setSelectedDesignName] = useState<string>(candidate?.designName || "Amber 21");
+  const [selectedDesignName, setSelectedDesignName] = useState<string>(candidate?.designName || "");
   const [isChangingModel, setIsChangingModel] = useState<boolean>(false);
 
   React.useEffect(() => {

@@ -14,7 +14,7 @@ export const DEFAULT_CUSTOM_RATES = {
 
 export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   floorplan_extensions: "Floorplan Extensions",
-  structural: "Structural & Ceiling Upgrades",
+  structural: "Structural Changes & Upgrades",
   doors_windows: "Doors and Windows",
   external: "External & Facade Upgrades",
   internal_kitchen: "Internal - Kitchen",

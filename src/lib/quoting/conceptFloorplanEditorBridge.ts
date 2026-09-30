@@ -773,13 +773,10 @@ export function detectUniversalSpatialModifications(
   const internalChanges: InternalRoomChange[] = [];
   const fixtureUpgrades: any[] = [];
 
-  const isAzure19 = /azure\s*19/i.test(baseDesignName) || /azure\s*19/i.test(combined);
-
   // 1. Master Bed 1 Relocated to Rear Wing ($0.00 Variation)
   const isBed1AtRear =
     hasImageClues?.bed1Rear ||
-    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combined) ||
-    (isAzure19 && /rear|modified/i.test(combined));
+    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combined);
 
   if (isBed1AtRear) {
     internalChanges.push(
@@ -795,8 +792,7 @@ export function detectUniversalSpatialModifications(
   // 2. Larger Shower in Ensuite
   const isLargerShower =
     hasImageClues?.largerShower ||
-    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combined) ||
-    (isAzure19 && /shower|modified/i.test(combined));
+    /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combined);
 
   if (isLargerShower) {
     fixtureUpgrades.push({
@@ -817,8 +813,7 @@ export function detectUniversalSpatialModifications(
   // 3. Separate Toilet Converted to Powder Room ("PDR" with Vanity Basin)
   const isPowderRoom =
     hasImageClues?.powderRoomVanity ||
-    /pdr|powder\s*room|powder|separate\s*toilet.*(?:pdr|powder|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(combined) ||
-    (isAzure19 && /pdr|powder|modified/i.test(combined));
+    /pdr|powder\s*room|powder|separate\s*toilet.*(?:pdr|powder|vanity)|seperated\s*th\s*etoilet|seperated\s*the\s*toilet|made\s*a\s*pdr|powder\s*with\s*vanity|toilet\s*converted\s*into\s*a\s*private\s*powder/i.test(combined);
 
   if (isPowderRoom) {
     fixtureUpgrades.push({
@@ -839,8 +834,7 @@ export function detectUniversalSpatialModifications(
   // 4. Butler's Pantry Added to LHS of Kitchen
   const isButlersPantry =
     hasImageClues?.butlersPantryLhs ||
-    /butler|butlers|butler's\s*pantry|butlers\s*to\s*the\s*lhs|butler.*lhs|pantry.*lhs|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs/i.test(combined) ||
-    (isAzure19 && /butler|modified/i.test(combined));
+    /butler.*lhs|lhs.*butler|butlers\s*to\s*the\s*lhs|butlers\s*pantry\s*lhs|pantry.*lhs|prep\s*sink.*pantry|butler's\s*pantry\s*added\s*to\s*lhs/i.test(combined);
 
   if (isButlersPantry) {
     fixtureUpgrades.push({
@@ -860,8 +854,9 @@ export function detectUniversalSpatialModifications(
 
   // 5. Wet Area Footprint Increase (@ $150/m² base wet area preparation)
   const wetDelta =
-    hasImageClues?.wetAreaDeltaM2 ||
-    (isPowderRoom || isLargerShower || /more\s*wet\s*area|wet\s*area\s*sqm/i.test(combined) ? 2.6 : 0);
+    hasImageClues?.wetAreaDeltaM2 !== undefined
+      ? hasImageClues.wetAreaDeltaM2
+      : (/more\s*wet\s*area|wet\s*area\s*sqm/i.test(combined) ? 2.6 : 0);
 
   if (wetDelta > 0) {
     internalChanges.push(
@@ -873,15 +868,21 @@ export function detectUniversalSpatialModifications(
     );
   }
 
-  // 6. Non-Structural Dry Layout Moves ($0.00 Variations)
-  internalChanges.push(
-    createZeroCostInternalChange(
-      "Internal Dry Partition Framing Realignment & Circulation Flow",
-      0.0,
-      "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation).",
-      ["Internal Stud Framing", "Plasterboard Lining", "Door Clearances"]
-    )
-  );
+  // 6. Non-Structural Dry Layout Moves ($0.00 Variations) - only triggered when internal changes actually occur
+  if (
+    internalChanges.length > 0 ||
+    fixtureUpgrades.length > 0 ||
+    /dry\s*partition|framing\s*realignment|non-structural\s*wall|dry\s*layout\s*moves/i.test(combined)
+  ) {
+    internalChanges.push(
+      createZeroCostInternalChange(
+        "Internal Dry Partition Framing Realignment & Circulation Flow",
+        0.0,
+        "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation).",
+        ["Internal Stud Framing", "Plasterboard Lining", "Door Clearances"]
+      )
+    );
+  }
 
   return { internalRoomChanges: internalChanges, fixtureUpgrades };
 }

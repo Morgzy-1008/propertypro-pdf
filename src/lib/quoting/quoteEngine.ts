@@ -332,11 +332,7 @@ export function calculateCustomTotalM2(spec?: CustomFloorplanSpec): number {
  * Automatically maps line items to the correct category based on keywords (e.g. ceiling, extension).
  */
 export function resolveItemCategory(item: { name: string; description?: string; category?: CatalogueCategory }): CatalogueCategory {
-  if (
-    item.category &&
-    item.category !== ("floorplan_extensions" as any) &&
-    item.category !== ("structural" as any)
-  ) {
+  if (item.category) {
     return item.category;
   }
 
@@ -1388,11 +1384,17 @@ export function calculateQuotePricing(
           (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
         );
         if (!hasExisting) {
+          const detailedDesc = z.key === "garageM2"
+            ? `Garage Footprint Extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²): Standard double garage widened and extended from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² (12.12m overall building width). Provides extended vehicular door clearance, perimeter storage, and workshop capacity.`
+            : (z.key === "livingM2" || z.key === "groundLivingM2"
+              ? `Living & Family Room Extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1480).toLocaleString()}/m²): Open-plan family, dining, and living envelope extended rearward from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² (17.40m overall building length). Expands indoor entertaining area and circulation flow around kitchen.`
+              : `${z.label} footprint extension (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²): Footprint extended from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m² with continuous concrete slab and roofline extension.`);
+
           categoryGroups.structural.push({
             id: `mod_area_${z.key}`,
             category: "structural",
             name: `${z.label} Extension`,
-            description: `${z.label} footprint extension (+${z.deltaM2.toFixed(2)} m² @ ${(z.ratePerM2 || 1300).toLocaleString()}/m²)`,
+            description: detailedDesc,
             unitType: "fixed",
             unitRate: z.costAdjustment,
             quantity: 1,
