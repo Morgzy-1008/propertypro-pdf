@@ -1075,7 +1075,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       id: it.id,
       name: it.name,
       description: it.description,
-      qtyLabel: it.quantity > 1 ? `${it.quantity} × ${formatAud(it.unitRate)}` : "1 Item",
+      qtyLabel: it.unitRate === 0 ? "$0.00 Variation" : (it.quantity > 1 ? `${it.quantity} × ${formatAud(it.unitRate)}` : "1 Item"),
       amount: it.quantity * it.unitRate,
     })),
   }));
@@ -1470,68 +1470,28 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {/* Base House / Architectural Floorplan */}
+                {/* Base House / Architectural Floorplan - Strictly Standard Brochure Baseline */}
                 {(() => {
                   const isMod = !!design.isModifiedFloorplan || design.mode === "modified";
                   const modCalc = isMod ? calculateModifiedFloorplanPricing(design) : null;
-                  const hasModCostDelta = !!modCalc && modCalc.totalCostAdjustment !== 0;
-
-                  if (isMod && modCalc && hasModCostDelta) {
-                    return (
-                      <>
-                        <tr className="font-semibold">
-                          <td className="py-2.5 px-3">
-                            <div className="text-slate-900 font-bold">
-                              {design.designName} with {formatInclusionTierTitle(design.specTier)}
-                            </div>
-                            <div className="text-[10px] text-slate-500 font-normal">
-                              Standard brochure baseline {modCalc.standardTotalM2.toFixed(2)} m² ({(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq)
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                            {formatAud(modCalc.standardBasePrice)}
-                          </td>
-                        </tr>
-
-                        <tr className="bg-slate-50/70 font-semibold border-l-4 border-l-emerald-600">
-                          <td className="py-2.5 px-3 text-slate-800">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900">
-                                Architectural Spatial Modifications (Net Area Difference: {modCalc.netDeltaM2 > 0 ? "+" : ""}{modCalc.netDeltaM2.toFixed(2)} m²):
-                              </span>
-                              <span className="text-[9px] font-bold uppercase bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">
-                                Modified Plan
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-600 font-normal mt-0.5">
-                              {modCalc.zones
-                                .filter((z) => z.deltaM2 !== 0)
-                                .map((z) => `${z.label.replace(" Area", "")}: ${z.deltaM2 > 0 ? "+" : ""}${z.deltaM2.toFixed(2)} m² (${z.costAdjustment >= 0 ? "+" : ""}${formatAud(z.costAdjustment)})`)
-                                .join(" • ") || `Total adjusted area: ${modCalc.modifiedTotalM2.toFixed(2)} m²`}
-                            </div>
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                            {modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}
-                          </td>
-                        </tr>
-                      </>
-                    );
-                  }
+                  const stdBaselinePrice = Number(design.standardBasePrice) || (modCalc ? modCalc.standardBasePrice : Number(pricing.baseHousePrice)) || 0;
 
                   return (
                     <tr className="font-semibold">
                       <td className="py-2.5 px-3">
                         <div className="text-slate-900 font-bold">
-                          {design.mode === "standard"
+                          {design.mode === "standard" || isMod
                             ? `${effectiveDesignName} with ${formatInclusionTierTitle(design.specTier)}`
-                            : `Custom Architectural Floorplan (${design.customSpec.storeys === "double" ? "Two" : "Single"} Storey)`}
+                            : `Custom Architectural Floorplan (${design.customSpec?.storeys === "double" ? "Two" : "Single"} Storey)`}
                         </div>
                         <div className="text-[10px] text-slate-500 font-normal">
-                          Living area {totalAreaM2} m² ({(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform {pricing.gfaM2} m²
+                          {isMod && modCalc
+                            ? `Standard brochure baseline ${modCalc.standardTotalM2.toFixed(2)} m² (${(modCalc.standardTotalM2 * 0.107639).toFixed(1)} sq) · Modified Total Area ${modCalc.modifiedTotalM2.toFixed(2)} m²`
+                            : `Living area ${totalAreaM2} m² (${(totalAreaM2 * 0.107639).toFixed(1)} sq) · GFA Platform ${pricing.gfaM2} m²`}
                         </div>
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-900">
-                        {formatAud(pricing.baseHousePrice)}
+                        {formatAud(stdBaselinePrice)}
                       </td>
                     </tr>
                   );

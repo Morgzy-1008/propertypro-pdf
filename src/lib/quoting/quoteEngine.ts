@@ -332,6 +332,14 @@ export function calculateCustomTotalM2(spec?: CustomFloorplanSpec): number {
  * Automatically maps line items to the correct category based on keywords (e.g. ceiling, extension).
  */
 export function resolveItemCategory(item: { name: string; description?: string; category?: CatalogueCategory }): CatalogueCategory {
+  if (
+    item.category &&
+    item.category !== ("floorplan_extensions" as any) &&
+    item.category !== ("structural" as any)
+  ) {
+    return item.category;
+  }
+
   const text = `${item.name} ${item.description || ""}`.toLowerCase();
 
   if (
@@ -1210,7 +1218,8 @@ export function calculateQuotePricing(
     baseHousePrice = customFloorplanPrice;
   } else if (design.isModifiedFloorplan) {
     const modCalc = calculateModifiedFloorplanPricing(design);
-    baseHousePrice = Number(modCalc.modifiedBasePrice) || Number(design.basePrice) || 0;
+    // INVARIANT: Base house price strictly fixed at standard brochure baseline!
+    baseHousePrice = Number(design.standardBasePrice) || Number(modCalc.standardBasePrice) || Number(design.basePrice) || 0;
   } else {
     baseHousePrice = Number(design.basePrice) || 0;
   }
@@ -1368,6 +1377,36 @@ export function calculateQuotePricing(
     }
   }
 
+  // Universal: If design is a modified floorplan and has area deltas, ensure structural footprint line items exist
+  if (design.isModifiedFloorplan && design.modifiedAreas && design.standardAreas) {
+    const modCalc = calculateModifiedFloorplanPricing(design);
+    for (const z of modCalc.zones) {
+      if (z.deltaM2 > 0) {
+        const hasExisting = categoryGroups.structural.some(
+          (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
+        ) || categoryGroups.floorplan_extensions.some(
+          (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
+        );
+        if (!hasExisting) {
+          categoryGroups.structural.push({
+            id: `mod_area_${z.key}`,
+            category: "structural",
+            name: `${z.label} Extension`,
+            description: `${z.label} footprint extension (+${z.deltaM2.toFixed(2)} m² @ ${(z.ratePerM2 || 1300).toLocaleString()}/m²)`,
+            unitType: "fixed",
+            unitRate: z.costAdjustment,
+            quantity: 1,
+            subtotal: z.costAdjustment,
+            isIncluded: true,
+            isClientSelectable: true,
+            clientSelected: true,
+            notes: `Structural footprint extension: +${z.deltaM2.toFixed(2)} m² from ${z.standardM2.toFixed(2)} m² baseline to ${z.modifiedM2.toFixed(2)} m²`,
+          });
+        }
+      }
+    }
+  }
+
   // Calculate category subtotals
   const categorySubtotals: CategorySubtotal[] = [];
   let variationsSubtotal = 0;
@@ -1389,7 +1428,7 @@ export function calculateQuotePricing(
   for (const cat of categoryOrder) {
     const items = categoryGroups[cat] || [];
     const catAmount = items.reduce((sum, it) => sum + computeLineItemSubtotal(it), 0);
-    if (catAmount > 0) {
+    if (catAmount > 0 || items.length > 0) {
       categorySubtotals.push({
         category: cat,
         label: CATEGORY_LABELS[cat] || cat,

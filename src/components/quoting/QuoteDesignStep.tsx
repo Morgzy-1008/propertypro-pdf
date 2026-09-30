@@ -810,7 +810,7 @@ export function QuoteDesignStep({
         standardAreas: stdAreas,
         modifiedAreas: initialModifiedAreas,
         modifiedDesignM2: pricing.modifiedTotalM2,
-        basePrice: pricing.modifiedBasePrice,
+        basePrice: stdPrice,
         promotionsDiscount: autoDiscount,
       });
       toast.success(`Modified floorplan enabled for ${currentModel.name}! You can adjust individual room & zone SQMs.`);
@@ -859,7 +859,7 @@ export function QuoteDesignStep({
       standardAreas: currentStd,
       modifiedAreas: updatedModifiedAreas,
       modifiedDesignM2: pricing.modifiedTotalM2,
-      basePrice: pricing.modifiedBasePrice,
+      basePrice: design.standardBasePrice || stdPrice,
       promotionsDiscount: autoDiscount,
     });
   };
@@ -877,7 +877,7 @@ export function QuoteDesignStep({
     onChange({
       modifiedAreas: { ...stdAreas },
       modifiedDesignM2: pricing.modifiedTotalM2,
-      basePrice: pricing.modifiedBasePrice,
+      basePrice: design.standardBasePrice || stdPrice,
     });
     toast.info("Room dimensions reset to standard design baseline.");
   };
@@ -1076,17 +1076,35 @@ export function QuoteDesignStep({
       standardAreas: stdAreas,
       modifiedAreas: updatedModifiedAreas,
       modifiedDesignM2: approved.modifiedTotalM2,
-      basePrice: modCalc.modifiedBasePrice,
+      basePrice: stdPrice, // Invariant: Base house price strictly fixed at standard brochure baseline!
       promotionsDiscount: autoDiscount,
       ...(approved.floorplanDataUrl ? { floorplanUrl: approved.floorplanDataUrl } : {}),
     });
 
     if (onAddInclusionLineItems) {
+      const acceptedAreas = (approved.areaDeltas || []).filter((a) => a.accepted && a.deltaM2 > 0);
       const acceptedUpgrades = approved.inclusionUpgrades.filter((u) => u.accepted);
       const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
-      const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted && !r.isZeroCost);
+      const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted);
 
       const lineItemsToAdd: QuoteSelectedLineItem[] = [
+        // 1. Structural Square Meter Extensions
+        ...acceptedAreas.map((a) => ({
+          id: `mod_area_${a.zoneKey}`,
+          catalogueItemId: a.recipeId || `recipe_${a.zoneKey}`,
+          category: "structural" as const,
+          name: a.zoneLabel,
+          description: `${a.zoneLabel} (+${a.deltaM2.toFixed(2)} m² @ ${a.unitRate.toLocaleString()}/m²)`,
+          unitType: "fixed" as const,
+          unitRate: a.subtotal,
+          quantity: 1,
+          subtotal: a.subtotal,
+          isIncluded: true,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `Structural footprint extension: +${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`,
+        })),
+        // 2. Fixture Upgrades & Custom Specifications
         ...acceptedUpgrades.map((u) => ({
           id: `mod_${u.id}`,
           catalogueItemId: u.id,
@@ -1097,11 +1115,12 @@ export function QuoteDesignStep({
           unitRate: u.unitPrice,
           quantity: u.quantity,
           subtotal: u.subtotal,
-          isIncluded: false,
+          isIncluded: true,
           isClientSelectable: true,
           clientSelected: true,
           notes: `Detected from modified floorplan (${approved.fileName || "Plan"}): ${u.detected}`,
         })),
+        // 3. Opening Replacements with 80% Trade Credit
         ...acceptedOpenings.map((o) => ({
           id: `mod_op_${o.id}`,
           catalogueItemId: o.id,
@@ -1112,26 +1131,32 @@ export function QuoteDesignStep({
           unitRate: o.netCost,
           quantity: 1,
           subtotal: o.netCost,
-          isIncluded: false,
+          isIncluded: true,
           isClientSelectable: true,
           clientSelected: true,
-          notes: `Replaces ${o.replacedItemName} ($${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-$${Math.abs(o.creditAmount).toFixed(2)}) applied against $${o.newItemCost.toFixed(2)}.`,
+          notes: `Replaces ${o.replacedItemName} (${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-${Math.abs(o.creditAmount).toFixed(2)}) applied against ${o.newItemCost.toFixed(2)}.`,
         })),
-        ...acceptedRooms.map((r) => ({
-          id: `mod_room_${r.id}`,
-          catalogueItemId: r.id,
-          category: "internal_bathroom" as const,
-          name: `${r.roomName} Extension (+${r.deltaM2} m²)`,
-          description: r.description,
-          unitType: "fixed" as const,
-          unitRate: r.subtotal,
-          quantity: 1,
-          subtotal: r.subtotal,
-          isIncluded: false,
-          isClientSelectable: true,
-          clientSelected: true,
-          notes: `$150/m² base wet area preparation + tile/waterproofing differential`,
-        })),
+        // 4. Internal Room Changes & $0 Layout Variations
+        ...acceptedRooms.map((r) => {
+          const isZero = r.isZeroCost || r.subtotal === 0;
+          return {
+            id: `mod_room_${r.id}`,
+            catalogueItemId: r.id,
+            category: (isZero ? "structural" : (r.category === "wet_area" ? "internal_bathroom" : "structural")) as any,
+            name: isZero ? r.roomName : `${r.roomName} (+${r.deltaM2} m²)`,
+            description: r.description,
+            unitType: "fixed" as const,
+            unitRate: isZero ? 0 : r.subtotal,
+            quantity: 1,
+            subtotal: isZero ? 0 : r.subtotal,
+            isIncluded: true,
+            isClientSelectable: true,
+            clientSelected: true,
+            notes: isZero
+              ? "Internal non-structural dry layout variation ($0.00)"
+              : "$150/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)",
+          };
+        }),
       ];
 
       if (lineItemsToAdd.length > 0) {
@@ -1612,13 +1637,13 @@ export function QuoteDesignStep({
 
                       <div className="p-3 rounded-xl border border-emerald-500/50 bg-emerald-950/30">
                         <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider flex items-center justify-between">
-                          <span>Automated Modified Base Price</span>
+                          <span>Structural Extensions Subtotal</span>
                           <span className="font-mono text-[9px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300">
                             {modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}
                           </span>
                         </span>
                         <div className="text-base font-mono font-extrabold text-emerald-300 mt-0.5 flex items-baseline justify-between">
-                          <span>{formatAud(modCalc.modifiedBasePrice)}</span>
+                          <span>{modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}</span>
                           <span className="text-[11px] font-sans font-bold text-slate-300">
                             {modCalc.modifiedTotalM2} m² ({(modCalc.modifiedTotalM2 * 0.107639).toFixed(1)} sq)
                           </span>
@@ -2995,7 +3020,7 @@ export function QuoteDesignStep({
             isModifiedFloorplan: true,
             modifiedAreas: mergedAreas,
             modifiedDesignM2: pricing.modifiedTotalM2,
-            basePrice: pricing.modifiedBasePrice,
+            basePrice: draftDesign.standardBasePrice || draftDesign.basePrice,
           });
         }}
       />

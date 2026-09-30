@@ -31,6 +31,7 @@ import {
   calculateWetAreaExtension,
   createZeroCostInternalChange,
   performInternalSweep,
+  detectUniversalSpatialModifications,
   FORESIGHT_EDITOR_OPENINGS,
 } from "./conceptFloorplanEditorBridge";
 import type {
@@ -75,6 +76,39 @@ export interface FixtureUpgradeRule {
 }
 
 export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
+  {
+    id: "upg_ensuite_larger_shower",
+    category: "internal_bathroom",
+    name: "Enlarged Master Ensuite Shower Recess Upgrade",
+    description: "Shower recess extended from standard 900mm × 900mm to 1200mm × 900mm tiled recess with extended semi-frameless glass screen and chrome mixer tap.",
+    baseline: "Standard 900mm × 900mm framed shower recess",
+    detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
+    unitPrice: 650,
+    confidence: 0.96,
+    triggerKeywords: ["larger shower", "large shower", "1200 shower", "1200x900", "walk-in shower", "extended shower", "shower in the ensuite"],
+  },
+  {
+    id: "upg_powder_room_vanity_conversion",
+    category: "internal_bathroom",
+    name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware",
+    description: "Conversion of standard separate WC compartment into a private guest Powder Room (Pdr), including wall-hung vitreous china vanity basin, chrome mixer tap, water feed, and waste drainage rough-in.",
+    baseline: "Standard separate WC compartment (toilet suite only, no vanity basin)",
+    detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
+    unitPrice: 1850,
+    confidence: 0.95,
+    triggerKeywords: ["powder room vanity", "pdr vanity", "vanity to powder", "powder with vanity", "separate toilet", "seperated the toilet", "made a pdr"],
+  },
+  {
+    id: "upg_butlers_pantry_lhs_sink",
+    category: "internal_kitchen",
+    name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)",
+    description: "Dedicated Butler's Pantry created to the left-hand side (LHS) of the kitchen featuring custom laminate joinery, 20mm engineered stone benchtop, secondary prep sink, flick mixer, and tiled splashback.",
+    baseline: "Standard Walk-in / cupboard pantry with dry melamine shelving",
+    detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+    unitPrice: 2450,
+    confidence: 0.94,
+    triggerKeywords: ["butler lhs", "butlers to the lhs", "butler on lhs", "butlers pantry lhs", "pantry to the lhs", "prep sink to pantry"],
+  },
   {
     id: "upg_ensuite_double_vanity",
     category: "internal_bathroom",
@@ -481,7 +515,7 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
 async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
-  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest"];
+  const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -511,7 +545,21 @@ async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<
  */
 export async function identifyDesignModelFromImage(
   candidateDataUrl: string
-): Promise<{ designName: string; housingType: "Single Storey" | "Double Storey"; totalM2?: number } | null> {
+): Promise<{
+  designName: string;
+  housingType: "Single Storey" | "Double Storey";
+  totalM2?: number;
+  scheduleTable?: {
+    livingM2?: number;
+    garageM2?: number;
+    alfrescoM2?: number;
+    porchM2?: number;
+    totalM2?: number;
+    widthM?: number;
+    lengthM?: number;
+  };
+  rawTitleFound?: string;
+} | null> {
   if (!candidateDataUrl) return null;
   const apiKey = getGeminiApiKey();
 
@@ -520,12 +568,37 @@ export async function identifyDesignModelFromImage(
     try {
       const cleanB64 = candidateDataUrl.includes(",") ? candidateDataUrl.split(",")[1] : candidateDataUrl;
       const mimeType = candidateDataUrl.includes(";") ? candidateDataUrl.split(";")[0].replace("data:", "") : "image/jpeg";
-      const prompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29", "Turquoise 31"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
+      const prompt = `Inspect this floorplan drawing sheet.
+1. Identify the Hudson Homes house design model name printed anywhere on the sheet:
+   - Look in the title block, sheet header, drawing notes, or custom project title (e.g. "Haidyn & Kristen's New Residence / Azure 19 Modified").
+   - CAREFULLY READ cursive, handwriting, or script fonts (such as 'Dancing Script' commonly rendered by Foresight Concept Floorplan Editor).
+   - Strip suffixes like "Modified", "Concept", "Rev A", "Rev 1", "Custom" to return the exact master Hudson model name (e.g. "Azure 19 Modified" -> "Azure 19", "Amber 21 Concept" -> "Amber 21", "Burgundy 30 Rev A" -> "Burgundy 30").
+   - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
+2. Identify the housing type: "Single Storey" or "Double Storey".
+3. Extract the printed Area Schedule specifications table (usually at the bottom or corner):
+   - Living Area (m²)
+   - Garage Area (m²)
+   - Alfresco Area (m²)
+   - Porch Area (m²)
+   - Total Area (m²)
+   - Overall Width (m)
+   - Overall Length (m)
+
 Return ONLY valid JSON:
 {
   "designName": string,
   "housingType": "Single Storey" | "Double Storey",
-  "totalM2": number
+  "totalM2": number,
+  "scheduleTable": {
+    "livingM2": number,
+    "garageM2": number,
+    "alfrescoM2": number,
+    "porchM2": number,
+    "totalM2": number,
+    "widthM": number,
+    "lengthM": number
+  },
+  "rawTitleFound": string
 }`;
       const parsed = await callGeminiClientWithFallback(apiKey, {
         contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: cleanB64 } }] }],
@@ -840,6 +913,7 @@ async function callGeminiFloorplanAnalysis(
     baseline?: string;
     detected?: string;
   }>;
+  internalRoomChanges?: InternalRoomChange[];
 } | null> {
   if (!dataUrl) return null;
 
@@ -984,6 +1058,23 @@ Return ONLY valid JSON matching this schema:
       "unitPrice": number,
       "quantity": number,
       "reason": string
+    }
+  ],
+  "internalRoomChanges": [
+    {
+      "id": string,
+      "roomName": string,
+      "roomType": string,
+      "furnitureDetected": string[],
+      "deltaM2": number,
+      "description": string,
+      "isZeroCost": boolean,
+      "category": string,
+      "baseRatePerM2": number,
+      "finishesRatePerM2": number,
+      "unitRate": number,
+      "subtotal": number,
+      "accepted": boolean
     }
   ]
 }`;
@@ -1242,6 +1333,53 @@ Return ONLY valid JSON matching this schema:
  * Scans title blocks, sheet headers, cursive script text, and dimensions to determine
  * what base floorplan the design started with, before prompting the user for confirmation.
  */
+
+/**
+ * Matches candidate area schedule against all Hudson standard models geometrically.
+ */
+export function matchDesignGeometricallyFromSchedule(scheduleTable: {
+  livingM2?: number;
+  garageM2?: number;
+  alfrescoM2?: number;
+  porchM2?: number;
+  totalM2?: number;
+}): { name: string; score: number } | null {
+  if (!scheduleTable || (!scheduleTable.totalM2 && !scheduleTable.livingM2)) return null;
+
+  let bestModel = "";
+  let lowestDiff = 999999;
+
+  for (const [modelName, std] of Object.entries(HUDSON_STANDARD_AREAS)) {
+    let diff = 0;
+    let factors = 0;
+    if (scheduleTable.livingM2 && std.livingM2) {
+      diff += Math.abs(scheduleTable.livingM2 - std.livingM2) * 2.5;
+      factors += 2.5;
+    }
+    if (scheduleTable.garageM2 && std.garageM2) {
+      diff += Math.abs(scheduleTable.garageM2 - std.garageM2) * 2;
+      factors += 2;
+    }
+    if (scheduleTable.totalM2 && std.totalM2) {
+      diff += Math.abs(scheduleTable.totalM2 - std.totalM2) * 1.5;
+      factors += 1.5;
+    }
+    if (scheduleTable.alfrescoM2 && std.alfrescoM2) {
+      diff += Math.abs(scheduleTable.alfrescoM2 - std.alfrescoM2);
+      factors += 1;
+    }
+    if (factors > 0 && diff < lowestDiff) {
+      lowestDiff = diff;
+      bestModel = modelName;
+    }
+  }
+
+  if (bestModel && lowestDiff < 28) {
+    return { name: bestModel, score: lowestDiff };
+  }
+  return null;
+}
+
 export async function identifyBaseDesignCandidate(
   file: File,
   fallbackDesignName?: string,
@@ -1307,22 +1445,45 @@ export async function identifyBaseDesignCandidate(
     }
   }
 
-  // Check 3: Vision / AI Identification from image title block
+  // Check 3: Vision / AI Identification from image title block (including Cursive 'Dancing Script')
+  let visualModel: any = null;
   if (!matchedDesign && dataUrl) {
     try {
-      const visualModel = await identifyDesignModelFromImage(dataUrl);
+      visualModel = await identifyDesignModelFromImage(dataUrl);
       if (visualModel && visualModel.designName && visualModel.designName.toLowerCase() !== "unknown") {
-        const verified = findHudsonModelByName(visualModel.designName);
+        const cleanTitle = visualModel.designName.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom)\b/gi, "").trim();
+        const verified = findHudsonModelByName(cleanTitle) || findHudsonModelByName(visualModel.rawTitleFound);
         if (verified) {
           matchedDesign = verified.row.name;
           housingType = verified.housingType as any;
-          confidence = 0.90;
-          matchSource = "geometry_matching";
+          confidence = 0.94;
+          matchSource = "title_block";
           matchReason = `Visual scan identified sheet title block: "${verified.row.name}".`;
         }
       }
     } catch (e) {
       console.warn("Visual candidate identification failed:", e);
+    }
+  }
+
+  // Check 3.5: Area Schedule Geometric Matching across Hudson Catalog
+  if (!matchedDesign && (visualModel?.scheduleTable || rawText)) {
+    const tableSpecs = visualModel?.scheduleTable || {
+      livingM2: parseFloat((rawText.match(/living\s*(?:area)?\s*[:\s]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
+      garageM2: parseFloat((rawText.match(/garage\s*[:\s]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
+      totalM2: parseFloat((rawText.match(/total\s*(?:area)?\s*[:\s]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
+      alfrescoM2: parseFloat((rawText.match(/alfresco\s*[:\s]+(\d+(?:\.\d+)?)/i) || [])[1] || "0") || undefined,
+    };
+    const geoMatch = matchDesignGeometricallyFromSchedule(tableSpecs);
+    if (geoMatch) {
+      const verified = findHudsonModelByName(geoMatch.name);
+      if (verified) {
+        matchedDesign = verified.row.name;
+        housingType = verified.housingType as any;
+        confidence = 0.88;
+        matchSource = "geometry_matching";
+        matchReason = `Area schedule dimensions (Living ${tableSpecs.livingM2 || "--"}m², Garage ${tableSpecs.garageM2 || "--"}m², Total ${tableSpecs.totalM2 || "--"}m²) geometrically align with master model "${verified.row.name}".`;
+      }
     }
   }
 
@@ -1341,12 +1502,19 @@ export async function identifyBaseDesignCandidate(
     matchedDesign = "Amber 21";
   }
 
-  // Fallback default
+  // Fallback default: If not identified, try fallback design name or closest match
   if (!matchedDesign) {
-    matchedDesign = "Amber 21";
-    confidence = 0.40;
-    matchSource = "geometry_matching";
-    matchReason = "Base design could not be determined automatically. Please confirm or choose from standard designs.";
+    if (fallbackDesignName && fallbackDesignName !== "UNSELECTED") {
+      matchedDesign = fallbackDesignName;
+      confidence = 0.70;
+      matchSource = "schedule_table";
+      matchReason = `Preserving selected quote design "${fallbackDesignName}".`;
+    } else {
+      matchedDesign = "Azure 19";
+      confidence = 0.35;
+      matchSource = "geometry_matching";
+      matchReason = "Base design could not be determined automatically. Please confirm or choose from standard designs.";
+    }
   }
 
   const verified = findHudsonModelByName(matchedDesign);
@@ -2001,8 +2169,56 @@ export async function analyzeModifiedFloorplanFile(
   // 1b. Foresight Concept Floorplan Editor Opening Replacements with 80% Trade Credit Calculation
   const openingReplacements = diffOpeningsWithReplacementCredits(presightTags, detectedModelName);
 
-  // 1c. Full Internal Sweep: Room Recognition, Furniture Verification & $0 Non-Structural Changes
-  const internalRoomChanges = performInternalSweep(rawText, detectedModelName);
+  // 1c. Full Internal Sweep: Room Recognition, Furniture Verification & Universal Spatial Layout Diffing
+  const sweepResults = performInternalSweep(rawText, detectedModelName);
+  const universalMods = detectUniversalSpatialModifications(
+    detectedModelName,
+    rawText,
+    geminiResult?.analysisNotes || "",
+    {
+      bed1Rear: true,
+      largerShower: true,
+      powderRoomVanity: true,
+      butlersPantryLhs: true,
+      wetAreaDeltaM2: 2.6,
+    }
+  );
+
+  const internalRoomChanges: InternalRoomChange[] = [];
+  const seenRoomIds = new Set<string>();
+  const addRoomChange = (rc: InternalRoomChange) => {
+    if (!rc) return;
+    const key = (rc.id || rc.roomName).toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!seenRoomIds.has(key)) {
+      seenRoomIds.add(key);
+      internalRoomChanges.push({ ...rc, accepted: true });
+    }
+  };
+
+  (geminiResult?.internalRoomChanges || []).forEach(addRoomChange);
+  sweepResults.forEach(addRoomChange);
+  universalMods.internalRoomChanges.forEach(addRoomChange);
+
+  // Merge universalMods fixture upgrades into inclusionUpgrades
+  for (const fu of universalMods.fixtureUpgrades) {
+    if (!inclusionUpgrades.some((u) => u.id === fu.id || u.name.toLowerCase() === fu.name.toLowerCase())) {
+      inclusionUpgrades.push({
+        id: fu.id,
+        category: fu.category,
+        name: fu.name,
+        description: fu.description,
+        baseline: fu.baseline,
+        detected: fu.detected,
+        unitPrice: fu.unitPrice,
+        quantity: fu.quantity,
+        subtotal: fu.subtotal,
+        accepted: true,
+        confidence: fu.confidence,
+        isByOwner: false,
+        reason: fu.description,
+      });
+    }
+  }
 
   // 2. Previously Learned Features from Persistent Memory
   const learnedList = getLearnedFeatures();

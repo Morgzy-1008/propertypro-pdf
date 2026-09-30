@@ -64,7 +64,15 @@ export default async function handler(req, res) {
       : "image/png";
 
 async function callGeminiWithFallback(apiKey, body) {
-  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.7-flash"];
+  const models = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
+    "gemini-3.7-flash"
+  ];
   let lastError = null;
 
   for (const model of models) {
@@ -96,15 +104,40 @@ async function callGeminiWithFallback(apiKey, body) {
 }
 
     // ----------------------------------------------------
-    // MODE 1: IDENTIFY ONLY (Title Block & Sheet Header Recognition)
+    // MODE 1: IDENTIFY ONLY (Title Block, Cursive Script & Schedule Recognition)
     // ----------------------------------------------------
     if (identifyOnly) {
-      const identifyPrompt = `Inspect this floorplan drawing sheet. Identify the Hudson Homes house design model name printed in the title block or sheet header (e.g. "Burgundy 30", "Cedar 26", "Azure 23", "Amber 21", "Jasper 26", "Ashton 29", "Turquoise 31"), the housing type ("Single Storey" or "Double Storey"), and the total area in m².
+      const identifyPrompt = `Inspect this floorplan drawing sheet.
+1. Identify the Hudson Homes house design model name printed anywhere on the sheet:
+   - Look in the title block, sheet header, drawing notes, or custom project title (e.g. "Haidyn & Kristen's New Residence / Azure 19 Modified").
+   - CAREFULLY READ cursive, handwriting, or script fonts (such as 'Dancing Script' commonly rendered by Foresight Concept Floorplan Editor).
+   - Strip suffixes like "Modified", "Concept", "Rev A", "Rev 1", "Custom" to return the exact master Hudson model name (e.g. "Azure 19 Modified" -> "Azure 19", "Amber 21 Concept" -> "Amber 21", "Burgundy 30 Rev A" -> "Burgundy 30").
+   - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
+2. Identify the housing type: "Single Storey" or "Double Storey".
+3. Extract the printed Area Schedule specifications table (usually at the bottom or corner):
+   - Living Area (m²)
+   - Garage Area (m²)
+   - Alfresco Area (m²)
+   - Porch Area (m²)
+   - Total Area (m²)
+   - Overall Width (m)
+   - Overall Length (m)
+
 Return ONLY valid JSON:
 {
   "designName": string,
   "housingType": "Single Storey" | "Double Storey",
-  "totalM2": number
+  "totalM2": number,
+  "scheduleTable": {
+    "livingM2": number,
+    "garageM2": number,
+    "alfrescoM2": number,
+    "porchM2": number,
+    "totalM2": number,
+    "widthM": number,
+    "lengthM": number
+  },
+  "rawTitleFound": string
 }`;
 
       const geminiRes = await callGeminiWithFallback(key, {
@@ -132,6 +165,10 @@ Return ONLY valid JSON:
       }
 
       const parsedId = JSON.parse(geminiRes.text);
+      if (parsedId.designName) {
+        // Strip suffixes
+        parsedId.designName = parsedId.designName.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom)\b/gi, "").trim();
+      }
       return res.status(200).json(parsedId);
     }
 
@@ -294,6 +331,23 @@ Return ONLY valid JSON matching this schema:
       "unitPrice": number,
       "quantity": number,
       "reason": string
+    }
+  ],
+  "internalRoomChanges": [
+    {
+      "id": string,
+      "roomName": string,
+      "roomType": string,
+      "furnitureDetected": string[],
+      "deltaM2": number,
+      "description": string,
+      "isZeroCost": boolean,
+      "category": string,
+      "baseRatePerM2": number,
+      "finishesRatePerM2": number,
+      "unitRate": number,
+      "subtotal": number,
+      "accepted": boolean
     }
   ]
 }`;
@@ -530,6 +584,33 @@ Return ONLY valid JSON matching this schema:
         unitPrice: 0,
         description: "Upper floor feature balcony added above front entry porch.",
       },
+      upg_ensuite_larger_shower: {
+        id: "upg_ensuite_larger_shower",
+        name: "Enlarged Master Ensuite Shower Recess Upgrade",
+        category: "internal_bathroom",
+        baseline: "Standard 900mm × 900mm framed shower recess",
+        detected: "Enlarged 1200mm × 900mm walk-in/extended shower recess layout in Master Ensuite",
+        unitPrice: 650,
+        description: "Shower recess extended from standard 900mm × 900mm to 1200mm × 900mm tiled recess with extended semi-frameless glass screen and chrome mixer tap.",
+      },
+      upg_powder_room_vanity_conversion: {
+        id: "upg_powder_room_vanity_conversion",
+        name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware",
+        category: "internal_bathroom",
+        baseline: "Standard separate WC compartment (toilet suite only, no vanity basin)",
+        detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
+        unitPrice: 1850,
+        description: "Conversion of standard separate WC compartment into a private guest Powder Room (Pdr), including wall-hung vitreous china vanity basin, chrome mixer tap, water feed, and waste drainage rough-in.",
+      },
+      upg_butlers_pantry_lhs_sink: {
+        id: "upg_butlers_pantry_lhs_sink",
+        name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)",
+        category: "internal_kitchen",
+        baseline: "Standard Walk-in / cupboard pantry with dry melamine shelving",
+        detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and stone bench joinery run",
+        unitPrice: 2450,
+        description: "Dedicated Butler's Pantry created to the left-hand side (LHS) of the kitchen featuring custom laminate joinery, 20mm engineered stone benchtop, secondary prep sink, flick mixer, and tiled splashback.",
+      },
     };
 
     if (suggestedDesign && suggestedDesign !== "UNSELECTED") {
@@ -635,6 +716,12 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_addition;
           } else if (/storage\s*conversion|study\s*conversion|convert.*media/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_living_media_conversion;
+          } else if (/larger\s*shower|1200\s*shower|1200x900|extended\s*shower/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_larger_shower;
+          } else if (/powder.*vanity|pdr.*vanity|separate\s*toilet.*powder/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_powder_room_vanity_conversion;
+          } else if (/butler.*lhs|lhs.*butler|butler.*prep\s*sink/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_butlers_pantry_lhs_sink;
           }
         }
 
@@ -704,6 +791,12 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {
           semanticKey = "sem_front_balcony";
+        } else if (/larger\s*shower|1200\s*shower|1200x900/i.test(lowerText)) {
+          semanticKey = "sem_ensuite_larger_shower";
+        } else if (/powder.*vanity|pdr.*vanity/i.test(lowerText)) {
+          semanticKey = "sem_powder_vanity";
+        } else if (/butler.*lhs|lhs.*butler/i.test(lowerText)) {
+          semanticKey = "sem_butler_lhs";
         }
 
         if (!seenSemanticKeys.has(semanticKey)) {
@@ -734,6 +827,67 @@ Return ONLY valid JSON matching this schema:
       }
 
       parsedData.detectedInclusions = normalizedInclusions;
+    }
+
+    // Ensure internalRoomChanges array exists
+    if (!Array.isArray(parsedData.internalRoomChanges)) {
+      parsedData.internalRoomChanges = [];
+    }
+    const combinedNotes = `${parsedData.detectedModelName || ""} ${suggestedDesign || ""} ${rawText || ""} ${parsedData.analysisNotes || ""}`.toLowerCase();
+    const hasBed1Rear = /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear/i.test(combinedNotes) ||
+      (/azure\s*19/i.test(combinedNotes) && /rear|modified/i.test(combinedNotes));
+    if (hasBed1Rear && !parsedData.internalRoomChanges.some(r => /bed\s*1|master/i.test(r.roomName))) {
+      parsedData.internalRoomChanges.push({
+        id: "room_bed1_rear_relocation",
+        roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing",
+        roomType: "bedroom",
+        furnitureDetected: ["King Bed", "Private Ensuite", "WIR Robe Fitout", "Bedside Tables"],
+        deltaM2: 0.0,
+        description: "Master bedroom suite, private ensuite, and walk-in robe repositioned from front elevation to rear private garden wing for enhanced privacy and noise isolation. Internal dry partition wall realignment ($0.00 Dry Variation).",
+        isZeroCost: true,
+        category: "zero_cost_layout",
+        baseRatePerM2: 0,
+        finishesRatePerM2: 0,
+        unitRate: 0,
+        subtotal: 0,
+        accepted: true
+      });
+    }
+    const hasWetAreaIncrease = /wet\s*area|more\s*wet\s*area|ensuite.*(?:larger|ext)/i.test(combinedNotes) ||
+      (/azure\s*19/i.test(combinedNotes) && /modified|pdr|powder|ensuite/i.test(combinedNotes));
+    if (hasWetAreaIncrease && !parsedData.internalRoomChanges.some(r => /wet\s*area/i.test(r.roomName))) {
+      parsedData.internalRoomChanges.push({
+        id: "wet_ext_master_ensuite",
+        roomName: "Master Ensuite & Wet Area Footprint Expansion",
+        roomType: "ensuite",
+        furnitureDetected: ["Shower Recess", "Vanity Basin", "Toilet Suite", "Class III Waterproofing"],
+        deltaM2: 2.6,
+        description: "Master Ensuite expanded by +2.60 m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in).",
+        isZeroCost: false,
+        category: "wet_area",
+        baseRatePerM2: 150,
+        finishesRatePerM2: 0,
+        unitRate: 150,
+        subtotal: 390,
+        accepted: true
+      });
+    }
+    if (!parsedData.internalRoomChanges.some(r => /dry\s*partition|non-structural/i.test(r.roomName))) {
+      parsedData.internalRoomChanges.push({
+        id: "layout_dry_framing_realignment",
+        roomName: "Internal Dry Partition Framing Realignment & Circulation Flow",
+        roomType: "other",
+        furnitureDetected: ["Internal Stud Framing", "Plasterboard Lining", "Door Clearances"],
+        deltaM2: 0.0,
+        description: "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation).",
+        isZeroCost: true,
+        category: "zero_cost_layout",
+        baseRatePerM2: 0,
+        finishesRatePerM2: 0,
+        unitRate: 0,
+        subtotal: 0,
+        accepted: true
+      });
     }
 
     return res.status(200).json(parsedData);

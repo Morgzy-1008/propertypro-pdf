@@ -258,7 +258,7 @@ export function QuoteBuilder() {
               });
 
               effectiveM2 = modPricing.modifiedTotalM2;
-              effectiveBasePrice = modPricing.modifiedBasePrice;
+              effectiveBasePrice = standardBasePrice; // Invariant: base house price strictly fixed at standard brochure baseline!
               autoDiscount = getAutomatedPromotionDiscount(effectiveM2);
             } else {
               // Standard floorplan
@@ -299,10 +299,14 @@ export function QuoteBuilder() {
               notes: bridge.notes || bridge.client?.notes || prev.client.notes,
             };
 
+            const incomingLineItems = Array.isArray(bridge.lineItems) && bridge.lineItems.length > 0
+              ? bridge.lineItems
+              : prev.lineItems;
+
             const updatedPricing = calculateQuotePricing(
               updatedDesign,
               prev.siteConditions,
-              prev.lineItems,
+              incomingLineItems,
               updatedClient.depositAmount
             );
 
@@ -310,6 +314,7 @@ export function QuoteBuilder() {
               ...prev,
               design: updatedDesign,
               client: updatedClient,
+              lineItems: incomingLineItems,
               pricing: updatedPricing,
             };
 
