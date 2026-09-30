@@ -520,7 +520,11 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Carmine 17": {"livingM2":120.48,"garageM2":33,"alfrescoM2":7.25,"porchM2":1.38,"totalM2":162.11},
   "Carmine 19": {"livingM2":138.13,"garageM2":33,"alfrescoM2":7.51,"porchM2":1.38,"totalM2":180.02},
   "Carmine 21 MKII": {"livingM2":150.82,"garageM2":33,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":193.57},
+  "Carmine 21 MK2": {"livingM2":150.82,"garageM2":33,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":193.57},
+  "Carmine 21": {"livingM2":150.82,"garageM2":33,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":193.57},
   "Carmine 23 MKII": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
+  "Carmine 23 MK2": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
+  "Carmine 23": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
   "Carolina 22": {"groundLivingM2":72.48,"firstLivingM2":83.37,"garageM2":33.17,"alfrescoM2":9,"porchM2":4.56,"balconyM2":0,"totalM2":202.58},
   "Carolina 24": {"groundLivingM2":99.87,"firstLivingM2":75.16,"garageM2":33.17,"alfrescoM2":9.72,"porchM2":4.56,"balconyM2":0,"totalM2":222.48},
   "Carolina 26": {"groundLivingM2":84.88,"firstLivingM2":109.59,"garageM2":33.17,"alfrescoM2":10.43,"porchM2":4.56,"balconyM2":0,"totalM2":242.63},
@@ -1411,11 +1415,7 @@ export function calculateQuotePricing(
           (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
         );
         if (!hasExisting) {
-          const detailedDesc = z.key === "garageM2"
-            ? `Garage extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²)`
-            : (z.key === "livingM2" || z.key === "groundLivingM2"
-              ? `Living area extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1480).toLocaleString()}/m²)`
-              : `${z.label} extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m² @ $${(z.ratePerM2 || 1300).toLocaleString()}/m²)`);
+          const detailedDesc = `${z.label} Extension (+${z.deltaM2.toFixed(2)} m²)`;
 
           categoryGroups.structural.push({
             id: `mod_area_${z.key}`,

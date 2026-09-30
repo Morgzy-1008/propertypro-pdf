@@ -8,6 +8,7 @@ import {
   HUDSON_STANDARD_AREAS,
 } from "@/lib/quoting/quoteEngine";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
+import { getActiveDivision } from "@/lib/divisionContext";
 import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
 import {
   calculateScaleCalibration,
@@ -528,7 +529,12 @@ async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<
         const json = await resp.json();
         const candidateText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
         if (candidateText) {
-          return JSON.parse(candidateText);
+          let clean = candidateText.trim();
+          if (clean.includes("```")) {
+            const match = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+            clean = match ? match[1].trim() : clean.replace(/```(?:json)?/g, "").replace(/```/g, "").trim();
+          }
+          return JSON.parse(clean);
         }
       } else {
         console.warn(`[Gemini client] ${model} returned HTTP ${resp.status}, trying fallback model...`);
@@ -643,23 +649,82 @@ Return ONLY valid JSON:
 /**
  * Helper to fetch a local image or PDF and convert it to Base64
  */
-async function fetchImageAsBase64(url: string): Promise<{ mimeType: string; base64: string } | null> {
+async function fetchImageAsBase64(url: string, designName?: string): Promise<{ mimeType: string; base64: string } | null> {
   if (typeof window === "undefined" || !url) return null;
   try {
     const res = await fetch(encodeURI(url));
     if (!res.ok) return null;
     const blob = await res.blob();
-    const mimeType = blob.type || (url.endsWith(".pdf") ? "application/pdf" : "image/png");
-    const base64 = await new Promise<string>((resolve, reject) => {
+    const rawDataUrl = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        const str = String(reader.result);
-        resolve(str.includes(",") ? str.split(",")[1] : str);
-      };
+      reader.onload = () => resolve(String(reader.result));
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
-    return { mimeType, base64 };
+
+    // Check if we have registered cropBoxes for this design in HUDSON_FLOORPLANS
+    let cropBox: { x: number; y: number; w: number; h: number } | null = null;
+    if (designName) {
+      const clean = designName.toLowerCase().replace(/classic|brochure|rh|sh/g, "").replace(/\s*mk\s*(?:2|ii|\d+)/g, "").trim();
+      const fp = HUDSON_FLOORPLANS.find(f => {
+        const lbl = f.label.toLowerCase().replace(/classic|brochure|rh|sh/g, "").replace(/\s*mk\s*(?:2|ii|\d+)/g, "").trim();
+        return lbl === clean || clean.startsWith(lbl) || lbl.startsWith(clean);
+      });
+      if (fp?.cropBoxes?.[0]) {
+        cropBox = fp.cropBoxes[0];
+      }
+    }
+
+    // Load image into canvas to crop and compress
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const image = new Image();
+        image.crossOrigin = "anonymous";
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = rawDataUrl;
+      });
+
+      const canvas = document.createElement("canvas");
+      let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+      if (cropBox && cropBox.w > 0 && cropBox.h > 0) {
+        sx = Math.floor(cropBox.x * img.naturalWidth);
+        sy = Math.floor(cropBox.y * img.naturalHeight);
+        sw = Math.floor(cropBox.w * img.naturalWidth);
+        sh = Math.floor(cropBox.h * img.naturalHeight);
+      }
+
+      // Scale to max dimension 1600px
+      const maxDim = 1600;
+      let targetW = sw;
+      let targetH = sh;
+      if (sw > maxDim || sh > maxDim) {
+        if (sw > sh) {
+          targetW = maxDim;
+          targetH = Math.round((sh * maxDim) / sw);
+        } else {
+          targetH = maxDim;
+          targetW = Math.round((sw * maxDim) / sh);
+        }
+      }
+
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+        const jpegDataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const b64 = jpegDataUrl.includes(",") ? jpegDataUrl.split(",")[1] : jpegDataUrl;
+        return { mimeType: "image/jpeg", base64: b64 };
+      }
+    } catch (cropErr) {
+      console.warn("Canvas crop fallback for baseline:", cropErr);
+    }
+
+    const b64 = rawDataUrl.includes(",") ? rawDataUrl.split(",")[1] : rawDataUrl;
+    return { mimeType: blob.type || "image/png", base64: b64 };
   } catch (err) {
     console.warn("Failed to fetch baseline floorplan image:", url, err);
     return null;
@@ -941,7 +1006,7 @@ async function callGeminiFloorplanAnalysis(
 
     // 1. Fetch the Official Baseline Blueprint image for side-by-side visual diffing
     const baselineUrl = getBaselineFloorplanImageUrl(suggestedDesign);
-    const baselineImg = await fetchImageAsBase64(baselineUrl);
+    const baselineImg = await fetchImageAsBase64(baselineUrl, suggestedDesign);
     const hasBaseline = !!baselineImg && !!baselineImg.base64;
 
     const standardTotalM2 = cadSpec?.totalM2 || 192.24;
@@ -1053,6 +1118,10 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
    - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
      id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: number, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: deltaM2 * 150, description: "Master Ensuite expanded wet area footprint (+2.60 m² @ $150/m² base wet area preparation)."
 
+8. DOORS & WINDOWS SCHEDULE AUDIT (Include in openingTags list):
+   - Transcribe every explicit door and window callout text printed on Image 2 (e.g. "STACKER 21.36", "SD 21.12", "CSD 820", "EXT 870", "EXT 820", "Panel Door 21.48", "SW 12.24", "PW 06.30", "AWN 12.18").
+   - If an opening code or tag is visible, add it to "openingTags": ["STACKER 21.36", "CSD 820", ...]
+
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
 
@@ -1065,6 +1134,7 @@ Return ONLY valid JSON matching this schema:
   "externalFootprintChanged": boolean,
   "ceilingHeightM": number,
   "analysisNotes": string,
+  "openingTags": string[],
   "scheduleTable": {
     "livingM2": number,
     "groundLivingM2": number,
@@ -1487,6 +1557,9 @@ export async function identifyBaseDesignCandidate(
       const parsed = await pdfDocumentToPagesAndText(file, 2);
       rawText = parsed.rawText || "";
       dataUrl = parsed.compositeFloorplanDataUrl || parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+      if (dataUrl) {
+        dataUrl = await compressImageDataUrl(dataUrl, 1600, 1600, 0.85);
+      }
     } catch (err: any) {
       console.warn("PDF parsing error during base candidate detection:", err);
     }
@@ -1687,6 +1760,9 @@ export async function analyzeModifiedFloorplanFile(
       rawText = parsed.rawText || "";
       if (!dataUrl) {
         dataUrl = parsed.compositeFloorplanDataUrl || parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+      }
+      if (dataUrl) {
+        dataUrl = await compressImageDataUrl(dataUrl, 1600, 1600, 0.85);
       }
     } catch (err: any) {
       console.warn("PDF parsing error:", err);
@@ -1956,10 +2032,13 @@ export async function analyzeModifiedFloorplanFile(
 
   // 1. DIRECT CANDIDATE SCHEDULE TABLE MATHEMATICAL DIFFING:
   // If the plan has a printed schedule table from drafting/Presight, compute exact deltas!
+  const activeDiv = typeof window !== "undefined" ? getActiveDivision() : "QLD";
   const isQld =
+    activeDiv === "QLD" ||
     (typeof window !== "undefined" && (
       localStorage.getItem("hudson_staff_state") === "QLD" ||
       localStorage.getItem("hudson_quote_state") === "QLD" ||
+      localStorage.getItem("hudson_active_division") === "QLD" ||
       JSON.parse(localStorage.getItem("hudson_active_staff_user") || "{}")?.state === "QLD" ||
       JSON.parse(localStorage.getItem("hudson_active_staff_user") || "{}")?.division === "QLD"
     )) ||
@@ -2094,20 +2173,26 @@ export async function analyzeModifiedFloorplanFile(
         accepted: true,
       });
     } else if (z === "garage" || z === "carport") {
-      const rate = DATABUILD_RECIPE_RATES.garage_m2;
       const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
       const modM2 = (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > standardGarageM2)
         ? candidateTableSpec.garageM2
         : Math.round((standardGarageM2 + delta) * 100) / 100;
+      
+      const isStandardQldGarage = isQld && (modM2 <= 36.05 || delta <= 3.5);
+      const rate = isStandardQldGarage ? 0 : DATABUILD_RECIPE_RATES.garage_m2;
+      const subtotal = isStandardQldGarage ? 0 : Math.round(delta * rate);
+
       areaDeltas.push({
         zoneKey: "garageM2",
-        zoneLabel: isWorkshop ? "Garage & Integrated Workshop Footprint Extension" : "Garage Footprint Extension",
-        standardM2: standardGarageM2,
+        zoneLabel: isStandardQldGarage
+          ? "Double Garage 5.7m × 6.0m (QLD Standard $0 Adjustment)"
+          : (isWorkshop ? "Garage & Integrated Workshop Footprint Extension" : "Garage Footprint Extension"),
+        standardM2: isStandardQldGarage ? modM2 : standardGarageM2,
         modifiedM2: modM2,
-        deltaM2: delta,
+        deltaM2: isStandardQldGarage ? 0 : delta,
         recipeId: "recipe_garage_ext_m2",
         unitRate: rate,
-        subtotal: Math.round(delta * rate),
+        subtotal,
         accepted: true,
       });
     } else if (z === "porch" || z === "entry_porch" || z === "portico") {
@@ -2639,7 +2724,8 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // 1. Presight Opening Tags & Master Schedule diffing
-  const presightTags = parsePresightOpeningTags(rawText);
+  const combinedOpeningText = `${rawText} ${geminiResult?.analysisNotes || ""} ${(geminiResult?.openingTags || []).join(" ")} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.detected}`).join(" ") || ""}`;
+  const presightTags = parsePresightOpeningTags(combinedOpeningText);
   const tierCode: "H1" | "H2" | "H3" = specTier?.includes("H3") ? "H3" : specTier?.includes("H1") ? "H1" : "H2";
   const openingUpgrades = diffOpeningsAgainstMaster(presightTags, detectedModelName, tierCode);
   for (const upg of openingUpgrades) {

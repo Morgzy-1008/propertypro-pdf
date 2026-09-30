@@ -191,16 +191,21 @@ Return ONLY valid JSON:
         const floorplansDir = path.resolve(process.cwd(), "public", "floorplans");
         let baseFile = "";
         const cleanDesign = suggestedDesign.toLowerCase().replace(/classic|brochure|rh|sh/g, "").trim();
+        const coreDesign = cleanDesign.replace(/\s*mk\s*(?:2|ii|\d+)/g, "").replace(/\s*custom|\s*modified/g, "").trim();
 
         if (fs.existsSync(floorplansDir)) {
           const files = fs.readdirSync(floorplansDir);
           const match = files.find((f) => {
-            const fn = f.toLowerCase();
+            const fn = f.toLowerCase().replace(/\.png$/, "").trim();
+            const coreFn = fn.replace(/classic|brochure|rh|sh/g, "").replace(/\s*mk\s*(?:2|ii|\d+)/g, "").trim();
             return (
-              fn.replace(/\.png$/, "").trim() === cleanDesign ||
+              fn === cleanDesign ||
+              fn === coreDesign ||
+              coreFn === coreDesign ||
               fn.startsWith(cleanDesign + " ") ||
-              fn.startsWith(cleanDesign + "_") ||
-              fn.startsWith(cleanDesign + ".")
+              fn.startsWith(coreDesign + " ") ||
+              fn.startsWith(coreDesign + "_") ||
+              coreDesign.startsWith(fn)
             );
           });
           if (match) baseFile = match;
@@ -309,6 +314,10 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
      id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: 2.6, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: 390, description: "Master Ensuite expanded by +2.60 m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)."
 
+8. DOORS & WINDOWS SCHEDULE AUDIT (Include in openingTags list):
+   - Transcribe every explicit door and window callout text printed on Image 2 (e.g. "STACKER 21.36", "SD 21.12", "CSD 820", "EXT 870", "EXT 820", "Panel Door 21.48", "SW 12.24", "PW 06.30", "AWN 12.18").
+   - If an opening code or tag is visible, add it to "openingTags": ["STACKER 21.36", "CSD 820", ...]
+
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
 
@@ -321,6 +330,7 @@ Return ONLY valid JSON matching this schema:
   "externalFootprintChanged": boolean,
   "ceilingHeightM": number,
   "analysisNotes": string,
+  "openingTags": string[],
   "scheduleTable": {
     "livingM2": number,
     "groundLivingM2": number,
@@ -405,7 +415,12 @@ Return ONLY valid JSON matching this schema:
       return res.status(502).json({ error: "Gemini API error during visual diffing", details: geminiRes.error });
     }
 
-    const parsedData = JSON.parse(geminiRes.text);
+    let cleanJson = (geminiRes.text || "").trim();
+    if (cleanJson.includes("```")) {
+      const match = cleanJson.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      cleanJson = match ? match[1].trim() : cleanJson.replace(/```(?:json)?/g, "").replace(/```/g, "").trim();
+    }
+    const parsedData = JSON.parse(cleanJson);
 
     // Catalog normalization and deduplication
     const FIXTURE_UPGRADE_MAP = {

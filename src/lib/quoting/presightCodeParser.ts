@@ -51,6 +51,66 @@ export const MASTER_OPENING_SCHEDULES: Record<string, {
       D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
     },
   },
+  "Carmine 23": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W3: { code: "W3", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W4: { code: "W4", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W5: { code: "W5", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W6: { code: "W6", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W7: { code: "W7", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W8: { code: "W8", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W9: { code: "W9", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W10: { code: "W10", type: "AS 1216", heightMm: 1200, widthMm: 1570, glazing: "Luminamist" },
+      W11: { code: "W11", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "ASDI 2122", heightMm: 2100, widthMm: 2170, glazing: "Clear" },
+      D3: { code: "D3", type: "Laundry/Garage", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+    },
+  },
+  "Carmine 23 MK2": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W3: { code: "W3", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W4: { code: "W4", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W5: { code: "W5", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W6: { code: "W6", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W7: { code: "W7", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W8: { code: "W8", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W9: { code: "W9", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W10: { code: "W10", type: "AS 1216", heightMm: 1200, widthMm: 1570, glazing: "Luminamist" },
+      W11: { code: "W11", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "ASDI 2122", heightMm: 2100, widthMm: 2170, glazing: "Clear" },
+      D3: { code: "D3", type: "Laundry/Garage", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+    },
+  },
+  "Carmine 23 MKII": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W3: { code: "W3", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W4: { code: "W4", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W5: { code: "W5", type: "AST 1809", heightMm: 1800, widthMm: 850, glazing: "Clear" },
+      W6: { code: "W6", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W7: { code: "W7", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W8: { code: "W8", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W9: { code: "W9", type: "AS 0906", heightMm: 860, widthMm: 610, glazing: "Luminamist" },
+      W10: { code: "W10", type: "AS 1216", heightMm: 1200, widthMm: 1570, glazing: "Luminamist" },
+      W11: { code: "W11", type: "AS 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "ASDI 2122", heightMm: 2100, widthMm: 2170, glazing: "Clear" },
+      D3: { code: "D3", type: "Laundry/Garage", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+    },
+  },
   "Azure 23": {
     windows: {
       W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
@@ -247,8 +307,8 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 10. Roller Door & Sectional Panel Lift Doors
-  const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*(?:21\.?48|21\.?24))?|RD\s*(?:21\.?48|21\.?24)|PANEL\s*LIFT(?:\s*(?:21\.?48|21\.?24))?)\b/gi;
+  // 10. Roller Door & Sectional Panel Lift Doors: PANEL LIFT 21.48, PANEL DOOR 21.48, etc.
+  const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*(?:21\.?48|21\.?24))?|RD\s*(?:21\.?48|21\.?24)|PANEL\s*(?:LIFT|DOOR)(?:\s*(?:21\.?48|21\.?24))?)\b/gi;
   while ((match = rollerRegex.exec(rawText)) !== null) {
     const isDouble = /48/i.test(match[0]);
     tags.push({
