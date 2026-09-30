@@ -12,6 +12,10 @@ import {
   createBlankTenderSubmission,
 } from "@/lib/tender/tenderStorage";
 import { canFitA3At1to100 } from "./zoningRulesEngine";
+import {
+  calculateEarthworks,
+  type EarthworksAnalysis,
+} from "./autoSitingEngine";
 
 export interface SitingPdfExportOptions {
   parcel: CadastreParcel;
@@ -19,6 +23,7 @@ export interface SitingPdfExportOptions {
   rules: SetbackRules;
   compliance: ComplianceReport;
   scale: DrawingScale;
+  earthworks?: EarthworksAnalysis;
   clientName?: string;
   consultantName?: string;
 }
@@ -32,6 +37,7 @@ export async function generateSitingPlanPdf({
   rules,
   compliance,
   scale,
+  earthworks,
   clientName = "Hudson Homes Client",
   consultantName = "New Home Consultant",
 }: SitingPdfExportOptions): Promise<{ pdf: jsPDF; dataUrl: string; fileName: string }> {
@@ -138,6 +144,18 @@ export async function generateSitingPlanPdf({
   const drawingOriginX = margin + 15 + Math.max(0, (260 - lotWidthMm) / 2);
   const drawingOriginY = margin + 50 + Math.max(0, (200 - lotLengthMm) / 2);
 
+  // Surveyor Boundary Bearings (Metes & Bounds)
+  const frontSegment = parcel.boundarySegments?.find((s) => s.type === "front");
+  const rearSegment = parcel.boundarySegments?.find((s) => s.type === "rear");
+  const sideSegments = parcel.boundarySegments?.filter((s) => s.type === "side") || [];
+  const leftSegment = sideSegments[0];
+  const rightSegment = sideSegments[1] || sideSegments[0];
+
+  const frontBearing = frontSegment?.bearingStr || "90°00'00\"";
+  const rearBearing = rearSegment?.bearingStr || "270°00'00\"";
+  const leftBearing = leftSegment?.bearingStr || "00°00'00\"";
+  const rightBearing = rightSegment?.bearingStr || "180°00'00\"";
+
   // Draw Lot Boundary
   pdf.setDrawColor(217, 119, 6); // amber-600
   pdf.setLineWidth(0.6);
@@ -148,7 +166,7 @@ export async function generateSitingPlanPdf({
   pdf.setFontSize(8);
   pdf.setTextColor(217, 119, 6);
   pdf.text(
-    `STREET FRONTAGE: ${parcel.frontageM}m (BEARING: 90°00'00")`,
+    `STREET FRONTAGE: ${parcel.frontageM}m • ${frontBearing}`,
     drawingOriginX + lotWidthMm / 2,
     drawingOriginY - 3,
     { align: "center" }
@@ -157,18 +175,18 @@ export async function generateSitingPlanPdf({
   // Rear Boundary Marker
   pdf.setTextColor(100, 116, 139);
   pdf.text(
-    `REAR BOUNDARY: ${parcel.rearWidthM || parcel.frontageM}m`,
+    `REAR BOUNDARY: ${parcel.rearWidthM || parcel.frontageM}m • ${rearBearing}`,
     drawingOriginX + lotWidthMm / 2,
     drawingOriginY + lotLengthMm + 5,
     { align: "center" }
   );
 
   // Left & Right Boundary Markers
-  pdf.text(`LEFT: ${parcel.depthM}m`, drawingOriginX - 3, drawingOriginY + lotLengthMm / 2, {
+  pdf.text(`LEFT: ${parcel.depthM}m • ${leftBearing}`, drawingOriginX - 3, drawingOriginY + lotLengthMm / 2, {
     align: "center",
     angle: 90,
   });
-  pdf.text(`RIGHT: ${parcel.depthM}m`, drawingOriginX + lotWidthMm + 5, drawingOriginY + lotLengthMm / 2, {
+  pdf.text(`RIGHT: ${parcel.depthM}m • ${rightBearing}`, drawingOriginX + lotWidthMm + 5, drawingOriginY + lotLengthMm / 2, {
     align: "center",
     angle: 270,
   });
@@ -369,9 +387,53 @@ export async function generateSitingPlanPdf({
     currentY += 6.5;
   });
 
+  // 5B. Earthworks & Retaining Wall Schedule (AS 2870 Parity)
+  const ew = earthworks || calculateEarthworks(parcel, sitedHouse);
+  const ewTableY = currentY + 4;
+
+  pdf.setFillColor(15, 23, 42); // slate-900
+  pdf.rect(tableX, ewTableY, tableW, 6.5, "F");
+  pdf.setTextColor(212, 175, 55);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(7.5);
+  pdf.text("EARTHWORKS & RETAINING WALL SCHEDULE (AS 2870)", tableX + 3, ewTableY + 4.5);
+
+  const ewRows = [
+    { label: "Site Fall & Slope", value: `${ew.naturalFallM}m Fall (${ew.slopePct}% - ${ew.slopeDirection})`, status: ew.slopePct <= 7 ? "STANDARD" : "ENGINEERED" },
+    { label: "Finished Pad Level (RL)", value: `RL ${ew.finishedPadLevelM.toFixed(2)}m AHD`, status: "OPTIMIZED" },
+    { label: "Excavation (Cut)", value: `${ew.cutVolumeM3} m³ (${(ew.cutVolumeM3 * 48).toLocaleString("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 })})`, status: "CALCULATED" },
+    { label: "Fill Material", value: `${ew.fillVolumeM3} m³ (${(ew.fillVolumeM3 * 55).toLocaleString("en-AU", { style: "currency", currency: "AUD", maximumFractionDigits: 0 })})`, status: "CALCULATED" },
+    { label: "Net Earth Balance", value: `${Math.abs(ew.netBalanceM3)} m³ ${ew.netBalanceM3 >= 0 ? "Export" : "Import"}`, status: "BALANCED" },
+    { label: "Retaining Wall (Cut)", value: `${ew.retainingWalls.find(w => w.type === "cut")?.heightM || 0}m Max H (${ew.retainingWalls.find(w => w.type === "cut")?.lengthM || 0}m L)`, status: "SCHEDULED" },
+    { label: "Retaining Wall (Fill)", value: `${ew.retainingWalls.find(w => w.type === "fill")?.heightM || 0}m Max H (${ew.retainingWalls.find(w => w.type === "fill")?.lengthM || 0}m L)`, status: "SCHEDULED" },
+  ];
+
+  let ewCurrentY = ewTableY + 6.5;
+  pdf.setFontSize(6.5);
+  ewRows.forEach((row, i) => {
+    const isEven = i % 2 === 0;
+    pdf.setFillColor(isEven ? 248 : 255, isEven ? 250 : 255, isEven ? 252 : 255);
+    pdf.rect(tableX, ewCurrentY, tableW, 5.5, "F");
+    pdf.setDrawColor(226, 232, 240);
+    pdf.line(tableX, ewCurrentY + 5.5, tableX + tableW, ewCurrentY + 5.5);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(51, 65, 85);
+    pdf.text(row.label, tableX + 3, ewCurrentY + 3.8);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.text(row.value, tableX + 46, ewCurrentY + 3.8);
+
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(16, 185, 129);
+    pdf.text(row.status, tableX + tableW - 4, ewCurrentY + 3.8, { align: "right" });
+
+    ewCurrentY += 5.5;
+  });
+
   // True North Arrow Graphic on PDF
   const northX = pageWidth - margin - 35;
-  const northY = currentY + 25;
+  const northY = ewCurrentY + 16;
 
   pdf.setDrawColor(212, 175, 55);
   pdf.setFillColor(212, 175, 55);
@@ -412,6 +474,7 @@ export async function pushSitingToActiveTender({
   rules,
   compliance,
   scale,
+  earthworks,
   clientName = "Hudson Homes Client",
   consultantName = "New Home Consultant",
 }: SitingPdfExportOptions): Promise<{ tenderId: string; submissionNumber: string; fileName: string }> {
@@ -422,6 +485,7 @@ export async function pushSitingToActiveTender({
     rules,
     compliance,
     scale,
+    earthworks,
     clientName,
     consultantName,
   });

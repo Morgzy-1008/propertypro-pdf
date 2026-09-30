@@ -612,18 +612,18 @@ export function SiteStudioCanvas({
                       </>
                     )}
 
-                    {/* Boundary Dimensions */}
-                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-mono font-bold text-amber-500 whitespace-nowrap">
-                      <span>STREET FRONTAGE: {p.frontageM}m (90°00'00")</span>
+                    {/* Boundary Dimensions with Metes and Bounds (Archistar/CanBuild Parity) */}
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-mono font-bold text-amber-500 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded border border-amber-500/30 shadow-md">
+                      <span>STREET FRONTAGE: {p.frontageM}m ({p.boundarySegments?.find((s) => s.type === "front")?.bearingStr || "90°15'00\""})</span>
                     </div>
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
-                      <span>REAR BOUNDARY: {p.rearWidthM || p.frontageM}m (270°00'00")</span>
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 text-xs font-mono font-bold text-slate-300 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700/50 shadow-md">
+                      <span>REAR BOUNDARY: {p.rearWidthM || p.frontageM}m ({p.boundarySegments?.find((s) => s.type === "rear")?.bearingStr || "270°15'00\""})</span>
                     </div>
-                    <div className="absolute top-1/2 -left-12 -translate-y-1/2 -rotate-90 text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
-                      <span>LEFT: {p.depthM}m</span>
+                    <div className="absolute top-1/2 -left-16 -translate-y-1/2 -rotate-90 text-xs font-mono font-bold text-slate-300 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700/50 shadow-md">
+                      <span>LEFT: {p.depthM}m ({p.boundarySegments?.find((s) => s.type === "left")?.bearingStr || "0°15'00\""})</span>
                     </div>
-                    <div className="absolute top-1/2 -right-12 -translate-y-1/2 rotate-90 text-xs font-mono font-bold text-slate-400 whitespace-nowrap">
-                      <span>RIGHT: {p.depthM}m</span>
+                    <div className="absolute top-1/2 -right-16 -translate-y-1/2 rotate-90 text-xs font-mono font-bold text-slate-300 whitespace-nowrap bg-slate-950/80 px-2 py-0.5 rounded border border-slate-700/50 shadow-md">
+                      <span>RIGHT: {p.depthM}m ({p.boundarySegments?.find((s) => s.type === "right")?.bearingStr || "180°15'00\""})</span>
                     </div>
                   </>
                 )}

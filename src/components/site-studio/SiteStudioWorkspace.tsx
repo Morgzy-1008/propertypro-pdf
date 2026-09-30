@@ -20,6 +20,11 @@ import {
   ESTATE_ZONING_PRESETS,
 } from "@/lib/site-studio/zoningRulesEngine";
 import { HUDSON_DESIGNS_CATALOG } from "@/lib/site-studio/hudsonDesignCatalog";
+import {
+  autoSiteCatalogForLot,
+  calculateEarthworks,
+  type AutoSiteResult,
+} from "@/lib/site-studio/autoSitingEngine";
 import { calculateSolarOrientation } from "@/lib/site-studio/solarCalculator";
 import { generateSitingPlanPdf, pushSitingToActiveTender } from "@/lib/site-studio/sitingPdfExporter";
 import { SiteStudioCanvas } from "./SiteStudioCanvas";
@@ -115,6 +120,54 @@ export function SiteStudioWorkspace() {
     });
   }, [parcel, rules, sitedHouse]);
 
+  // Automated Catalog Siting Engine (Archistar & CanBuild Parity)
+  const autoSiteResults = useMemo(() => {
+    return autoSiteCatalogForLot(parcel, rules);
+  }, [parcel, rules]);
+
+  // Digital Elevation Model (DEM) & Cut/Fill Earthworks (AS 2870)
+  const earthworks = useMemo(() => {
+    return calculateEarthworks(parcel, sitedHouse);
+  }, [parcel, sitedHouse]);
+
+  // Filter Catalog by Compliant Fit
+  const [filterOnlyCompliant, setFilterOnlyCompliant] = useState(false);
+
+  // 1-Click Auto-Site Best Fit Design
+  const handleAutoSite = (targetDesignId?: string) => {
+    let match = targetDesignId
+      ? autoSiteResults.find((r) => r.design.id === targetDesignId)
+      : autoSiteResults.find((r) => r.canFit);
+
+    if (!match && targetDesignId) {
+      match = autoSiteResults.find((r) => r.design.id === targetDesignId);
+    }
+
+    if (!match) {
+      toast.warning("No design fully complies with this lot's setbacks and maximum coverage.");
+      return;
+    }
+
+    const { design, optimalPosition } = match;
+    setSitedHouse({
+      designId: design.id,
+      designName: design.name,
+      source: "hudson-catalog",
+      totalM2: design.totalM2,
+      widthM: design.widthM,
+      lengthM: design.lengthM,
+      posX: optimalPosition.posX,
+      posY: optimalPosition.posY,
+      rotationDeg: optimalPosition.rotationDeg,
+      isMirrored: optimalPosition.isMirrored,
+      isBtb: optimalPosition.isBtb,
+      btbSide: optimalPosition.btbSide,
+      customPlanUrl: undefined,
+    });
+
+    toast.success(`Auto-sited ${design.name} (${match.fitScore}/100 match score)!`);
+  };
+
   // Solar Orientation
   const solar = useMemo(() => {
     if (!sitedHouse) return null;
@@ -127,13 +180,14 @@ export function SiteStudioWorkspace() {
   }, [parcel.frontageM, parcel.depthM]);
 
   // Handle Search Submission
-  const handleSearch = async (e?: React.FormEvent) => {
+  const handleSearch = async (e?: React.FormEvent, overrideQuery?: string) => {
     if (e) e.preventDefault();
-    if (!searchQuery.trim()) return;
+    const query = (overrideQuery ?? searchQuery).trim();
+    if (!query) return;
 
     setIsSearching(true);
     try {
-      const found = await lookupCadastreParcel(searchQuery);
+      const found = await lookupCadastreParcel(query);
       setParcel(found);
 
       // Re-center house on new lot if already placed
@@ -159,6 +213,17 @@ export function SiteStudioWorkspace() {
       setIsSearching(false);
     }
   };
+
+  // Auto-load address passed from Land Scout via URL parameter (?address=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const incomingAddress = params.get("address") || params.get("q") || params.get("lot");
+    if (incomingAddress) {
+      setSearchQuery(incomingAddress);
+      handleSearch(undefined, incomingAddress);
+    }
+  }, []);
 
   // Select Quick Chip Address
   const handleSelectQuickChip = (address: string) => {
@@ -246,6 +311,7 @@ export function SiteStudioWorkspace() {
         rules,
         compliance,
         scale,
+        earthworks,
         clientName,
         consultantName,
       });
@@ -275,6 +341,7 @@ export function SiteStudioWorkspace() {
         rules,
         compliance,
         scale,
+        earthworks,
         clientName,
         consultantName,
       });
@@ -382,10 +449,11 @@ export function SiteStudioWorkspace() {
         <div className="flex items-center gap-1.5 overflow-x-auto">
           <span className="text-[11px] font-semibold text-slate-400 mr-1">Quick Lots:</span>
           {[
-            { label: "Flagstone (450m²)", addr: "61 Paradise Road, Flagstone" },
-            { label: "Jimboomba Acreage (2450m²)", addr: "14 Elegance Drive, Jimboomba" },
-            { label: "Everleigh Greenbank (400m²)", addr: "22 Everleigh Drive, Greenbank" },
-            { label: "South Ripley (375m²)", addr: "8 Ripley Way, South Ripley" },
+            { label: "Flagstone QLD (306m²)", addr: "61 Paradise Road, Flagstone QLD" },
+            { label: "The Gables Box Hill NSW (450m²)", addr: "The Gables, Box Hill NSW" },
+            { label: "Austral NSW (400m²)", addr: "Edmondson Ave, Austral NSW" },
+            { label: "South Ripley QLD (375m²)", addr: "8 Ripley Way, South Ripley QLD" },
+            { label: "Jimboomba Acreage (2450m²)", addr: "14 Elegance Drive, Jimboomba QLD" },
           ].map((chip, idx) => (
             <button
               key={idx}
@@ -537,20 +605,58 @@ export function SiteStudioWorkspace() {
             )}
           </div>
 
-          {/* Hudson Homes Design Selector */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
+          {/* Hudson Homes Design Selector with Automated Siting (Archistar & CanBuild Parity) */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                Hudson Homes Designs
+                Hudson Design Library
               </h4>
               <span className="text-[10px] text-brand-gold font-semibold">
                 CAD Geometry Preloaded
               </span>
             </div>
 
-            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {HUDSON_DESIGNS_CATALOG.map((design) => {
+            {/* 1-Click Auto-Site Best Fit Button */}
+            <Button
+              onClick={() => handleAutoSite()}
+              className="w-full h-9 bg-gradient-to-r from-amber-500 via-brand-gold to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer border border-amber-400/40"
+            >
+              <Sparkles className="h-4 w-4 text-slate-950 animate-spin-slow" />
+              <span>Auto-Site Best Design ({autoSiteResults.filter((r) => r.canFit).length} Fit Lot)</span>
+            </Button>
+
+            {/* Filter Toggle: All vs Compliant Only */}
+            <div className="flex items-center p-0.5 rounded-lg bg-slate-900 border border-slate-800 text-[10px] font-semibold">
+              <button
+                type="button"
+                onClick={() => setFilterOnlyCompliant(false)}
+                className={`flex-1 py-1 rounded transition-all cursor-pointer ${
+                  !filterOnlyCompliant ? "bg-brand-gold text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                All ({HUDSON_DESIGNS_CATALOG.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterOnlyCompliant(true)}
+                className={`flex-1 py-1 rounded transition-all cursor-pointer ${
+                  filterOnlyCompliant ? "bg-emerald-500 text-slate-950 shadow-xs" : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Compliant Fits ({autoSiteResults.filter((r) => r.canFit).length})
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+              {HUDSON_DESIGNS_CATALOG.filter((d) => {
+                if (!filterOnlyCompliant) return true;
+                const match = autoSiteResults.find((r) => r.design.id === d.id);
+                return match?.canFit;
+              }).map((design) => {
                 const isSelected = sitedHouse?.designId === design.id;
+                const autoRes = autoSiteResults.find((r) => r.design.id === design.id);
+                const canFit = autoRes?.canFit ?? false;
+
                 return (
                   <div
                     key={design.id}
@@ -569,9 +675,34 @@ export function SiteStudioWorkspace() {
                         {design.totalM2}m²
                       </span>
                     </div>
+
                     <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
                       <span>{design.widthM}m W × {design.lengthM}m L</span>
                       <span>Min Lot: {design.minLotFrontageM}m</span>
+                    </div>
+
+                    {/* Siting Compliance Status Pill & 1-Click Auto-Site */}
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-slate-800/60">
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          canFit
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                            : "bg-red-500/10 border-red-500/30 text-red-400"
+                        }`}
+                      >
+                        {canFit ? `Fits Lot (${autoRes?.fitScore}/100)` : "Exceeds Setback"}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAutoSite(design.id);
+                        }}
+                        className="text-[9px] font-bold px-2 py-0.5 rounded bg-brand-gold/20 hover:bg-brand-gold hover:text-slate-950 text-brand-gold border border-brand-gold/40 transition-colors"
+                      >
+                        Auto-Site
+                      </button>
                     </div>
                   </div>
                 );
@@ -823,11 +954,60 @@ export function SiteStudioWorkspace() {
               <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
                 <div className="flex items-center gap-1.5 text-amber-400 font-bold text-xs mb-1.5">
                   <Sun className="h-4 w-4" />
-                  <span>Solar &amp; Aspect Analysis</span>
+                  <span>Solar &amp; Aspect Analysis (June 21 Solstice)</span>
                 </div>
                 <p className="text-[11px] text-slate-300 leading-relaxed">
                   {solar.orientationNotes}
                 </p>
+              </div>
+
+              {/* Earthworks, Contours & Cut/Fill Schedule (Archistar & CanBuild Parity) */}
+              <div className={`p-3.5 rounded-2xl border ${isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"}`}>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-cyan-400 font-bold text-xs">
+                    <Layers className="h-4 w-4" />
+                    <span>Earthworks &amp; Cut/Fill (AS 2870)</span>
+                  </div>
+                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">
+                    Pad RL {earthworks.finishedPadLevelM}m
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center text-xs mb-2.5">
+                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block">Cut Volume</span>
+                    <span className="font-mono font-bold text-amber-400">{earthworks.cutVolumeM3} m³</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block">Fill Volume</span>
+                    <span className="font-mono font-bold text-cyan-400">{earthworks.fillVolumeM3} m³</span>
+                  </div>
+                  <div className="p-2 rounded-xl bg-slate-950/40 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 block">Net Balance</span>
+                    <span className="font-mono font-bold text-emerald-400">
+                      {earthworks.netBalanceM3 >= 0 ? `+${earthworks.netBalanceM3}` : earthworks.netBalanceM3} m³
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] space-y-1.5 border-t border-slate-800/60 pt-2 text-slate-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Slope Gradient:</span>
+                    <span className="font-semibold text-slate-200">{earthworks.slopePct}% ({earthworks.naturalFallM}m natural fall)</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Slope Direction:</span>
+                    <span className="font-semibold text-slate-200">{earthworks.slopeDirection}</span>
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-slate-400">Retaining Walls:</span>
+                    <span className="font-semibold text-amber-300 text-[10px]">
+                      {earthworks.retainingWalls.length > 0
+                        ? `${earthworks.retainingWalls[0].heightM}m (${earthworks.retainingWalls[0].lengthM}m len)`
+                        : "Standard Batter (None Required)"}
+                    </span>
+                  </div>
+                </div>
               </div>
             </>
           ) : (

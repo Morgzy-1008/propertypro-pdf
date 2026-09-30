@@ -15,6 +15,8 @@ import {
   Phone,
   Mail,
   ArrowRight,
+  PlusCircle,
+  FileUp,
 } from "lucide-react";
 import {
   type LandParcel,
@@ -34,6 +36,11 @@ import {
   clearGeminiApiKey,
 } from "@/lib/land-scout/landScoutWebSearch";
 import { LandParcelCard } from "./LandParcelCard";
+import { LandScoutMapView } from "./LandScoutMapView";
+import { PriceListImportModal } from "./PriceListImportModal";
+import { LandValuationDrawer } from "./LandValuationDrawer";
+import { AgentOutreachModal } from "./AgentOutreachModal";
+import { AddCustomLotModal } from "./AddCustomLotModal";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
@@ -57,8 +64,14 @@ export function LandScoutDashboard() {
   // Data State
   const [parcels, setParcels] = useState<LandParcel[]>([]);
 
-  // View Mode: grid | table
-  const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
+  // View Mode: grid | table | map
+  const [viewMode, setViewMode] = useState<"grid" | "table" | "map">("grid");
+
+  // Interactive Modals & Drawers State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isAddLotModalOpen, setIsAddLotModalOpen] = useState(false);
+  const [selectedValuationParcel, setSelectedValuationParcel] = useState<LandParcel | null>(null);
+  const [selectedContactParcel, setSelectedContactParcel] = useState<LandParcel | null>(null);
 
   // Web Search State
   const [isWebSearching, setIsWebSearching] = useState(false);
@@ -73,6 +86,41 @@ export function LandScoutDashboard() {
   });
 
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+
+  // Cross-Navigation & Action Handlers
+  const handleSiteLot = (parcel: LandParcel) => {
+    const addr = parcel.streetAddress || `${parcel.lotNumber}, ${parcel.suburb}`;
+    navigate({
+      to: "/site-studio",
+      search: { address: addr },
+    });
+  };
+
+  const handlePackageInFlyer = (parcel: LandParcel) => {
+    navigate({ to: "/flyer" });
+    toast.info(`Packaging Lot ${parcel.lotNumber} into Marketing Flyer`);
+  };
+
+  const handleImportComplete = (imported: LandParcel[]) => {
+    bulkAddOrUpdateParcels(imported);
+    const updated = getLandParcels();
+    const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
+    setParcels(deduped);
+  };
+
+  const handleCustomLotAdded = (newParcel: LandParcel) => {
+    const updated = getLandParcels();
+    const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
+    setParcels(deduped);
+    toast.success(`Added ${newParcel.lotNumber} (${newParcel.suburb})`);
+  };
+
+  const handleOutreachLogged = (updated: LandParcel) => {
+    const all = getLandParcels();
+    setParcels(all);
+    setSelectedContactParcel(null);
+    toast.success(`Outreach activity logged for ${updated.lotNumber}`);
+  };
 
   // Load parcels on mount - Purge any old test items first
   useEffect(() => {
@@ -382,6 +430,30 @@ export function LandScoutDashboard() {
               <SlidersHorizontal className="h-4 w-4" />
               <span>Filter Specs</span>
             </button>
+
+            {/* Import Developer Price List */}
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Import developer release price list or OCR sheet"
+            >
+              <FileUp className="h-4 w-4 text-brand-gold" />
+              <span className="hidden md:inline">Import Price List</span>
+              <span className="md:hidden">Import</span>
+            </button>
+
+            {/* Add Custom Lot */}
+            <button
+              type="button"
+              onClick={() => setIsAddLotModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Add a custom or off-market lot"
+            >
+              <PlusCircle className="h-4 w-4 text-emerald-400" />
+              <span className="hidden md:inline">Add Custom Lot</span>
+              <span className="md:hidden">Add Lot</span>
+            </button>
           </div>
 
           {/* Search In-Progress Notice */}
@@ -598,6 +670,18 @@ export function LandScoutDashboard() {
                 <TableIcon className="h-3.5 w-3.5" />
                 <span>Table</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("map")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
+                  viewMode === "map"
+                    ? "bg-brand-gold text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                <span>Map</span>
+              </button>
             </div>
           </div>
         )}
@@ -688,6 +772,10 @@ export function LandScoutDashboard() {
                 key={parcel.id}
                 parcel={parcel}
                 isLight={isLight}
+                onSiteLot={handleSiteLot}
+                onViewValuation={(p) => setSelectedValuationParcel(p)}
+                onContactAgent={(p) => setSelectedContactParcel(p)}
+                onPackageInFlyer={handlePackageInFlyer}
               />
             ))}
           </div>
@@ -709,6 +797,7 @@ export function LandScoutDashboard() {
                   <th className="p-3 text-right">$/m²</th>
                   <th className="p-3 text-center">Registration</th>
                   <th className="p-3">Agent / Agency</th>
+                  <th className="p-3 text-center">Actions</th>
                   <th className="p-3 pr-4 text-right">Listing</th>
                 </tr>
               </thead>
@@ -754,6 +843,34 @@ export function LandScoutDashboard() {
                       <span className="font-medium block">{parcel.agentName}</span>
                       <span className="text-[10px] text-slate-400">{parcel.agentAgency}</span>
                     </td>
+                    <td className="p-3 text-center">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleSiteLot(parcel)}
+                          className="px-2 py-1 rounded-md bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-[10px] font-bold transition-all cursor-pointer"
+                          title="Site Hudson House Designs on this Lot"
+                        >
+                          Site
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedValuationParcel(parcel)}
+                          className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-emerald-400 hover:border-emerald-500 text-[10px] font-bold transition-all cursor-pointer"
+                          title="Appraise land valuation & equity"
+                        >
+                          Appraise
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedContactParcel(parcel)}
+                          className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-cyan-300 hover:border-cyan-500 text-[10px] font-bold transition-all cursor-pointer"
+                          title="Contact selling agent"
+                        >
+                          Contact
+                        </button>
+                      </div>
+                    </td>
                     <td className="p-3 pr-4 text-right">
                       {parcel.listingUrl ? (
                         <a
@@ -775,6 +892,41 @@ export function LandScoutDashboard() {
             </table>
           </div>
         )}
+
+        {/* View 3: Interactive Growth Corridors Map View */}
+        {viewMode === "map" && filteredParcels.length > 0 && (
+          <LandScoutMapView
+            parcels={filteredParcels}
+            onPackageInFlyer={handlePackageInFlyer}
+            onContactAgent={(p) => setSelectedContactParcel(p)}
+            onViewValuation={(p) => setSelectedValuationParcel(p)}
+          />
+        )}
+
+        {/* Interactive Modals & Drawers */}
+        <PriceListImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onImportComplete={handleImportComplete}
+        />
+
+        <AddCustomLotModal
+          isOpen={isAddLotModalOpen}
+          onClose={() => setIsAddLotModalOpen(false)}
+          onLotAdded={handleCustomLotAdded}
+        />
+
+        <LandValuationDrawer
+          parcel={selectedValuationParcel}
+          onClose={() => setSelectedValuationParcel(null)}
+          onPackageInFlyer={handlePackageInFlyer}
+        />
+
+        <AgentOutreachModal
+          parcel={selectedContactParcel}
+          onClose={() => setSelectedContactParcel(null)}
+          onOutreachLogged={handleOutreachLogged}
+        />
       </main>
     </div>
   );

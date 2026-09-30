@@ -4,17 +4,29 @@ import {
   User,
   Phone,
   Mail,
+  Compass,
+  TrendingUp,
+  Send,
+  FileText,
 } from "lucide-react";
 import { type LandParcel, type AvailabilityStatus } from "@/lib/land-scout/landScoutTypes";
 
 interface LandParcelCardProps {
   parcel: LandParcel;
   isLight?: boolean;
+  onViewValuation?: (parcel: LandParcel) => void;
+  onContactAgent?: (parcel: LandParcel) => void;
+  onSiteLot?: (parcel: LandParcel) => void;
+  onPackageInFlyer?: (parcel: LandParcel) => void;
 }
 
 export function LandParcelCard({
   parcel,
   isLight = false,
+  onViewValuation,
+  onContactAgent,
+  onSiteLot,
+  onPackageInFlyer,
 }: LandParcelCardProps) {
   const getStatusBadge = (status: AvailabilityStatus) => {
     switch (status) {
@@ -181,6 +193,45 @@ export function LandParcelCard({
               </a>
             )}
           </div>
+        </div>
+
+        {/* Action Buttons Toolbar */}
+        <div className="pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2">
+          {onSiteLot && (
+            <button
+              type="button"
+              onClick={() => onSiteLot(parcel)}
+              className="py-1.5 px-2 rounded-lg bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 font-bold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              title="Site Hudson House Designs on this Lot"
+            >
+              <Compass className="h-3.5 w-3.5" />
+              <span>Site Lot</span>
+            </button>
+          )}
+
+          {onViewValuation && (
+            <button
+              type="button"
+              onClick={() => onViewValuation(parcel)}
+              className="py-1.5 px-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:border-emerald-500/50 hover:text-emerald-300 font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title="Appraise land valuation & equity"
+            >
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Appraise</span>
+            </button>
+          )}
+
+          {onContactAgent && (
+            <button
+              type="button"
+              onClick={() => onContactAgent(parcel)}
+              className="py-1.5 px-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300 font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title="Contact selling agent with inquiry"
+            >
+              <Send className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Contact</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -333,7 +333,7 @@ export async function searchLiveWebForLand(
   // This utilizes the active system-configured Gemini key in the background with zero user setup.
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
 
     const proxyRes = await fetch("/api/land-scout-search", {
       method: "POST",
@@ -408,7 +408,7 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
     for (const model of models) {
       try {
         const clientController = new AbortController();
-        const clientTimeout = setTimeout(() => clientController.abort(), 6000);
+        const clientTimeout = setTimeout(() => clientController.abort(), 30000);
 
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
