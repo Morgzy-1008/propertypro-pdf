@@ -2611,13 +2611,15 @@ export function QuoteDesignStep({
       {/* MODE 2: CUSTOM ARCHITECTURAL FLOORPLAN */}
       {design.mode === "custom_floorplan" && (
         <div className="space-y-6">
-          <div className="p-4 rounded-xl bg-cyan-950/20 border border-cyan-800/40 text-xs text-cyan-200">
+          <div className={`p-4 rounded-xl text-xs border ${
+            isLight ? "bg-cyan-50/80 border-cyan-300 text-cyan-950 font-medium" : "bg-cyan-950/20 border-cyan-800/40 text-cyan-200"
+          }`}>
             <strong>Custom Architectural Quoting Engine:</strong> Select the target inclusion specification tier and enter individual floor area dimensions below. The dynamic rates and base price calculate automatically using the Hudson QLD price list gradient calibration.
           </div>
 
           {/* 1. Custom Inclusion Specification Tier Selector */}
           <div className="space-y-2">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
+            <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-slate-300"}`}>
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
               Inclusion Specification Range (Drives Dynamic Area Rates)
             </Label>
@@ -2641,22 +2643,28 @@ export function QuoteDesignStep({
                     }}
                     className={`p-3 rounded-xl border cursor-pointer transition-all ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/50 shadow-md"
-                        : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+                        ? (isLight
+                            ? "border-emerald-600 bg-emerald-50 ring-1 ring-emerald-500 shadow-sm"
+                            : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/50 shadow-md")
+                        : (isLight
+                            ? "border-slate-200 bg-white hover:border-slate-300 shadow-sm"
+                            : "border-slate-800 bg-slate-950/60 hover:border-slate-700")
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-white block truncate">{tier.label}</span>
-                      {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />}
+                      <span className={`font-bold text-xs block truncate ${isLight ? "text-slate-900" : "text-white"}`}>{tier.label}</span>
+                      {isSelected && <CheckCircle2 className={`h-3.5 w-3.5 shrink-0 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />}
                     </div>
-                    <span className="text-[9px] uppercase font-mono px-1 py-0.5 rounded bg-slate-800 text-slate-300 inline-block mt-1">
+                    <span className={`text-[9px] uppercase font-mono px-1 py-0.5 rounded inline-block mt-1 ${
+                      isLight ? "bg-slate-100 text-slate-700 border border-slate-200" : "bg-slate-800 text-slate-300"
+                    }`}>
                       {tier.tag}
                     </span>
-                    <p className="text-[10px] text-slate-400 mt-1 line-clamp-2 leading-tight">
+                    <p className={`text-[10px] mt-1 line-clamp-2 leading-tight ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       {tier.desc}
                     </p>
-                    <div className="mt-2 pt-1.5 border-t border-slate-800 text-right">
-                      <span className="text-xs font-bold text-emerald-400 font-mono">
+                    <div className={`mt-2 pt-1.5 border-t text-right ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                      <span className={`text-xs font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                         {formatAud(tierPrice)}
                       </span>
                     </div>
@@ -2667,28 +2675,32 @@ export function QuoteDesignStep({
           </div>
 
           {/* 2. Storey Configuration & Area Dimensions */}
-          <div className="space-y-4 bg-slate-950/50 p-4 rounded-xl border border-slate-800/80">
+          <div className={`space-y-4 p-4 rounded-xl border ${
+            isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/50 border-slate-800/80"
+          }`}>
             <div className="flex items-center justify-between">
-              <Label className="text-xs text-slate-200 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-cyan-400" />
+              <Label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                isLight ? "text-slate-900" : "text-slate-200"
+              }`}>
+                <Building2 className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                 Floorplan Areas &amp; Architectural Dimensions
               </Label>
-              <span className="text-[11px] text-slate-400 font-mono">
-                Total: <strong className="text-white">{calculateCustomTotalM2(customSpec)} m²</strong>
+              <span className={`text-[11px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                Total: <strong className={isLight ? "text-slate-900" : "text-white"}>{calculateCustomTotalM2(customSpec)} m²</strong>
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Storey Configuration</Label>
+                <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Storey Configuration</Label>
                 <Select
                   value={customSpec.storeys}
                   onValueChange={(v: any) => handleCustomSpecChange("storeys", v)}
                 >
-                  <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200">
+                  <SelectTrigger className={`text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950 text-slate-200"}`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  <SelectContent className={`text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"}`}>
                     <SelectItem value="single">Single Storey</SelectItem>
                     <SelectItem value="double">Two Storey / Double</SelectItem>
                   </SelectContent>
@@ -2696,25 +2708,29 @@ export function QuoteDesignStep({
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Ground Living Area (m²)</Label>
+                <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Ground Living Area (m²)</Label>
                 <Input
                   type="number"
                   value={customSpec.groundLivingM2 || ""}
                   onChange={(e) => handleCustomSpecChange("groundLivingM2", Number(e.target.value))}
                   placeholder="0"
-                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
+                  className={`h-9 text-xs font-bold font-mono ${
+                    isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                  }`}
                 />
               </div>
 
               {customSpec.storeys === "double" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-300">First Floor Living Area (m²)</Label>
+                  <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>First Floor Living Area (m²)</Label>
                   <Input
                     type="number"
                     value={customSpec.firstLivingM2 || ""}
                     onChange={(e) => handleCustomSpecChange("firstLivingM2", Number(e.target.value))}
                     placeholder="0"
-                    className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-bold font-mono"
+                    className={`h-9 text-xs font-bold font-mono ${
+                      isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                    }`}
                   />
                 </div>
               )}
@@ -2722,47 +2738,55 @@ export function QuoteDesignStep({
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Garage Area (m²)</Label>
+                <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Garage Area (m²)</Label>
                 <Input
                   type="number"
                   value={customSpec.garageM2 || ""}
                   onChange={(e) => handleCustomSpecChange("garageM2", Number(e.target.value))}
                   placeholder="0"
-                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                  className={`h-9 text-xs font-mono ${
+                    isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                  }`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Alfresco Area (m²)</Label>
+                <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Alfresco Area (m²)</Label>
                 <Input
                   type="number"
                   value={customSpec.alfrescoM2 || ""}
                   onChange={(e) => handleCustomSpecChange("alfrescoM2", Number(e.target.value))}
                   placeholder="0"
-                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                  className={`h-9 text-xs font-mono ${
+                    isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                  }`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-300">Porch Area (m²)</Label>
+                <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Porch Area (m²)</Label>
                 <Input
                   type="number"
                   value={customSpec.porchM2 || ""}
                   onChange={(e) => handleCustomSpecChange("porchM2", Number(e.target.value))}
                   placeholder="0"
-                  className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                  className={`h-9 text-xs font-mono ${
+                    isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                  }`}
                 />
               </div>
 
               {customSpec.storeys === "double" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-300">Balcony Area (m²)</Label>
+                  <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Balcony Area (m²)</Label>
                   <Input
                     type="number"
                     value={customSpec.balconyM2 || ""}
                     onChange={(e) => handleCustomSpecChange("balconyM2", Number(e.target.value))}
                     placeholder="0"
-                    className="h-9 text-xs border-slate-800 bg-slate-950 text-slate-100 font-mono"
+                    className={`h-9 text-xs font-mono ${
+                      isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950 text-slate-100"
+                    }`}
                   />
                 </div>
               )}
@@ -2874,13 +2898,17 @@ export function QuoteDesignStep({
           {/* 4. Facade Selection & Managers Discount for Custom Design */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Architectural Facade Selector */}
-            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+            <div className={`space-y-3 p-4 rounded-xl border ${
+              isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"
+            }`}>
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                  <PenTool className="h-3.5 w-3.5 text-cyan-400" />
+                <Label className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  isLight ? "text-slate-900" : "text-slate-300"
+                }`}>
+                  <PenTool className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                   Architectural Facade ({isDouble ? "Double Storey" : "Single Storey"} Range)
                 </Label>
-                <span className="text-xs font-mono font-bold text-amber-400">
+                <span className={`text-xs font-mono font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
                   {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}
                 </span>
               </div>
@@ -3036,36 +3064,42 @@ export function QuoteDesignStep({
             </div>
 
             {/* Builder Promotion / Managers Discount Allowance */}
-            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+            <div className={`space-y-3 p-4 rounded-xl border ${
+              isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tag className="h-3.5 w-3.5 text-emerald-400" />
-                  <Label className="text-xs text-slate-300 font-semibold">
+                  <Tag className={`h-3.5 w-3.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                  <Label className={`text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                     Managers Discount / Promotional Allowance
                   </Label>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                    isLight ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-emerald-950 text-emerald-300 border-emerald-800/40"
+                  }`}>
                     $10k Closer Safety Net
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">
+                <span className={`text-xs font-mono font-bold ${isLight ? "text-emerald-600" : "text-emerald-400"}`}>
                   {design.promotionsDiscount > 0 ? `-${formatAud(design.promotionsDiscount)}` : "$0 (Standard)"}
                 </span>
               </div>
 
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-slate-400">Discount Title</Label>
+                  <Label className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Discount Title</Label>
                   <Input
                     value={design.promotionName ?? "Managers Discount"}
                     onChange={(e) => onChange({ promotionName: e.target.value })}
                     placeholder="Managers Discount"
-                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100 font-medium"
+                    className={`h-8.5 text-xs font-medium ${
+                      isLight ? "border-slate-300 bg-slate-50 text-slate-900 focus:bg-white" : "border-slate-800 bg-slate-900 text-slate-100"
+                    }`}
                   />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px] text-slate-400">Managers Discretionary Discount ($)</Label>
+                    <Label className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Managers Discretionary Discount ($)</Label>
                     <span className="text-[9px] text-slate-500 font-mono">Autofills $0 &bull; $10k buffer</span>
                   </div>
                   <Input
@@ -3073,7 +3107,9 @@ export function QuoteDesignStep({
                     value={design.promotionsDiscount ?? 0}
                     onChange={(e) => onChange({ promotionsDiscount: Number(e.target.value) || 0 })}
                     placeholder="0"
-                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
+                    className={`h-8.5 text-xs font-bold font-mono ${
+                      isLight ? "border-slate-300 bg-slate-50 text-emerald-700 focus:bg-white" : "border-slate-800 bg-slate-900 text-emerald-400"
+                    }`}
                   />
                 </div>
               </div>

@@ -516,7 +516,7 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Burgundy 27": {"groundLivingM2":101.54,"firstLivingM2":103.62,"garageM2":36,"alfrescoM2":11.88,"porchM2":3.88,"balconyM2":0,"totalM2":256.92},
   "Burgundy 30": {"groundLivingM2":115.35,"firstLivingM2":113.61,"garageM2":36,"alfrescoM2":14.73,"porchM2":4.37,"balconyM2":0,"totalM2":284.06},
   "Burgundy 32": {"groundLivingM2":124.76,"firstLivingM2":123.65,"garageM2":36,"alfrescoM2":14.73,"porchM2":4.37,"balconyM2":0,"totalM2":303.51},
-  "Burgundy 34": {"groundLivingM2":133.91,"firstLivingM2":131.5,"garageM2":36.67,"alfrescoM2":15.68,"porchM2":4.37,"balconyM2":0,"totalM2":319.13},
+  "Burgundy 34": {"groundLivingM2":133.91,"firstLivingM2":131.5,"garageM2":36.67,"alfrescoM2":15.68,"porchM2":4.37,"balconyM2":0,"totalM2":322.13},
   "Canary 1": {"livingM2":88.73,"garageM2":18.56,"alfrescoM2":8.93,"porchM2":1.42,"totalM2":117.64},
   "Canary 2": {"livingM2":84.99,"garageM2":18.56,"alfrescoM2":8.06,"porchM2":1.42,"totalM2":113.03},
   "Canary 3": {"livingM2":97.86,"garageM2":18.56,"alfrescoM2":9.36,"porchM2":1.42,"totalM2":127.2},

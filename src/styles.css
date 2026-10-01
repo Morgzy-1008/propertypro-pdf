@@ -1257,11 +1257,11 @@ body:not(.dark) .text-slate-500 {
 }
 
 .dark .text-slate-400 {
-  color: #94a3b8 !important; /* bright clear slate-400 in dark mode */
+  color: #cbd5e1 !important; /* crisp, high-contrast readable light slate in dark mode */
 }
 
 .dark .text-slate-500 {
-  color: #cbd5e1 !important; /* highly legible light slate in dark mode */
+  color: #94a3b8 !important; /* clear secondary slate maintaining visual hierarchy in dark mode */
 }
 
 
