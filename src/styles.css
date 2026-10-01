@@ -1241,5 +1241,28 @@ html.normal-mode,
   scrollbar-width: none !important;
 }
 
+/* Global Text Readability & High-Contrast Legibility Enhancements */
+.normal-mode, body:not(.dark) {
+  --muted-foreground: oklch(0.40 0.04 257.417);
+}
+
+.normal-mode .text-slate-400,
+body:not(.dark) .text-slate-400 {
+  color: #475569 !important; /* upgrade faint slate-400 to crisp slate-600 */
+}
+
+.normal-mode .text-slate-500,
+body:not(.dark) .text-slate-500 {
+  color: #334155 !important; /* upgrade slate-500 to slate-700 */
+}
+
+.dark .text-slate-400 {
+  color: #94a3b8 !important; /* bright clear slate-400 in dark mode */
+}
+
+.dark .text-slate-500 {
+  color: #cbd5e1 !important; /* highly legible light slate in dark mode */
+}
+
 
 

@@ -34,7 +34,7 @@ const SUBURB_CENTROIDS = {
   greenbank: { lat: -27.73, lon: 152.98, state: "QLD", council: "Logan City Council", postcode: "4124", estate: "Everleigh Greenbank" },
 };
 
-// Curated active master-planned estate releases
+// Curated active master-planned estate releases across all major growth corridors
 const MASTER_ESTATE_INVENTORY = {
   "box hill": [
     { lotNumber: "Lot 4607", streetAddress: "4 Gelderland Ave", estate: "The Hills of Carmel", landSizeM2: 250, frontageM: 10, depthM: 25, price: 722000, isRegistered: true, agentName: "Catherine Cao", agentAgency: "The Hills of Carmel Sales Centre", agentPhone: "1800 227 635" },
@@ -45,6 +45,34 @@ const MASTER_ESTATE_INVENTORY = {
     { lotNumber: "Lot 214", streetAddress: "Box Road", estate: "Box Hill Rise", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 840000, isRegistered: true, agentName: "Agency Team", agentAgency: "Box Hill Rise", agentPhone: "02 8888 8888" },
     { lotNumber: "Lot 108", streetAddress: "Terry Road", estate: "Box Hill Quarter", landSizeM2: 400, frontageM: 13, depthM: 30.8, price: 920000, isRegistered: true, agentName: "Land Specialist", agentAgency: "Box Hill Land Co", agentPhone: "02 9999 9999" },
     { lotNumber: "Lot 703", streetAddress: "Boundary Road", estate: "The Gables", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 1080000, isRegistered: true, agentName: "Stockland Sales", agentAgency: "Stockland", agentPhone: "13 52 63" },
+  ],
+  austral: [
+    { lotNumber: "Lot 112", streetAddress: "Fifteenth Ave", estate: "Austral Central", landSizeM2: 300, frontageM: 10, depthM: 30, price: 680000, isRegistered: true, agentName: "Local Agency", agentAgency: "Ray White Austral", agentPhone: "02 9600 0000" },
+    { lotNumber: "Lot 125", streetAddress: "Edmondson Ave", estate: "Austral Estate", landSizeM2: 350, frontageM: 11.5, depthM: 30.5, price: 740000, isRegistered: true, agentName: "Sales Team", agentAgency: "First National", agentPhone: "02 9822 0000" },
+    { lotNumber: "Lot 204", streetAddress: "Craik Ave", estate: "Austral Green", landSizeM2: 420, frontageM: 14, depthM: 30, price: 825000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Ingenia Land", agentAgency: "Austral Living", agentPhone: "1300 123 456" },
+    { lotNumber: "Lot 318", streetAddress: "Gurner Ave", estate: "Austral Parklands", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 775000, isRegistered: true, agentName: "Sales Office", agentAgency: "Austral Parklands", agentPhone: "02 9600 1111" },
+    { lotNumber: "Lot 405", streetAddress: "Fourth Ave", estate: "Austral Estate", landSizeM2: 450, frontageM: 15, depthM: 30, price: 860000, isRegistered: true, agentName: "Ray White Team", agentAgency: "Ray White Austral", agentPhone: "02 9600 0000" },
+  ],
+  calderwood: [
+    { lotNumber: "Lot 1204", streetAddress: "12 Rosebank Drive", estate: "Calderwood Valley", landSizeM2: 450, frontageM: 15, depthM: 30, price: 545000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
+    { lotNumber: "Lot 1218", streetAddress: "Escarpment Way", estate: "Calderwood Valley", landSizeM2: 520, frontageM: 16, depthM: 32.5, price: 595000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
+    { lotNumber: "Lot 845", streetAddress: "Illawarra View Circuit", estate: "Calderwood Valley", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 495000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
+    { lotNumber: "Lot 852", streetAddress: "Valley Vista Street", estate: "Calderwood Valley", landSizeM2: 420, frontageM: 14, depthM: 30, price: 520000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
+    { lotNumber: "Lot 910", streetAddress: "Calderwood Road", estate: "Calderwood Heights", landSizeM2: 600, frontageM: 18, depthM: 33.3, price: 650000, isRegistered: true, agentName: "Project Sales Team", agentAgency: "Calderwood Heights", agentPhone: "02 4230 0000" },
+  ],
+  wilton: [
+    { lotNumber: "Lot 305", streetAddress: "Wilton Park Road", estate: "Wilton Greens", landSizeM2: 450, frontageM: 15, depthM: 30, price: 560000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838" },
+    { lotNumber: "Lot 312", streetAddress: "Macarthur Circuit", estate: "Wilton Greens", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 515000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838" },
+    { lotNumber: "Lot 418", streetAddress: "Fairway Drive", estate: "Bingara Gorge", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 630000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888" },
+    { lotNumber: "Lot 425", streetAddress: "Pembroke Way", estate: "Bingara Gorge", landSizeM2: 550, frontageM: 17, depthM: 32.4, price: 675000, isRegistered: true, agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888" },
+    { lotNumber: "Lot 110", streetAddress: "Greenmeadow Blvd", estate: "Wilton West", landSizeM2: 400, frontageM: 13, depthM: 30.8, price: 535000, isRegistered: true, agentName: "Wilton Greens Team", agentAgency: "Risland", agentPhone: "133 838" },
+  ],
+  "marsden park": [
+    { lotNumber: "Lot 2408", streetAddress: "Northbourne Drive", estate: "Elara", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 795000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
+    { lotNumber: "Lot 2415", streetAddress: "Elara Boulevard", estate: "Elara", landSizeM2: 450, frontageM: 15, depthM: 30, price: 890000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
+    { lotNumber: "Lot 1502", streetAddress: "Richmond Road", estate: "Newpark", landSizeM2: 300, frontageM: 10, depthM: 30, price: 710000, isRegistered: true, agentName: "Winten Property Group", agentAgency: "Newpark Sales", agentPhone: "1300 122 600" },
+    { lotNumber: "Lot 1510", streetAddress: "Horizon Way", estate: "Newpark", landSizeM2: 350, frontageM: 11.5, depthM: 30.4, price: 760000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Winten Property Group", agentAgency: "Newpark Sales", agentPhone: "1300 122 600" },
+    { lotNumber: "Lot 604", streetAddress: "Glengarrie Road", estate: "Marsden Central", landSizeM2: 400, frontageM: 13.5, depthM: 29.6, price: 830000, isRegistered: true, agentName: "Agency Partner", agentAgency: "Marsden Living", agentPhone: "02 8800 0000" },
   ],
   flagstone: [
     { lotNumber: "Lot 2577", streetAddress: "61 Paradise Road", estate: "Flagstone City", landSizeM2: 306, frontageM: 10.2, depthM: 30, price: 295000, isRegistered: true, agentName: "Peet Sales Office", agentAgency: "Peet Limited", agentPhone: "1800 638 360" },
@@ -57,11 +85,28 @@ const MASTER_ESTATE_INVENTORY = {
     { lotNumber: "Lot 412", streetAddress: "Monterea Circuit", estate: "Monterea Ripley", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 340000, isRegistered: true, agentName: "Monterea Sales", agentAgency: "Monterea Ripley", agentPhone: "07 3810 0000" },
     { lotNumber: "Lot 805", streetAddress: "Harmony Way", estate: "Providence Ripley", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 375000, isRegistered: true, agentName: "Sekisui House Team", agentAgency: "Sekisui House", agentPhone: "1800 004 774" },
     { lotNumber: "Lot 816", streetAddress: "Soul Street", estate: "Providence Ripley", landSizeM2: 480, frontageM: 16, depthM: 30, price: 420000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Sekisui House Team", agentAgency: "Sekisui House", agentPhone: "1800 004 774" },
+    { lotNumber: "Lot 920", streetAddress: "Green Valley Road", estate: "Ripley Valley", landSizeM2: 450, frontageM: 15, depthM: 30, price: 395000, isRegistered: true, agentName: "Ripley Valley Sales", agentAgency: "Ripley Land Team", agentPhone: "07 3810 1111" },
   ],
-  austral: [
-    { lotNumber: "Lot 112", streetAddress: "Fifteenth Ave", estate: "Austral Central", landSizeM2: 300, frontageM: 10, depthM: 30, price: 680000, isRegistered: true, agentName: "Local Agency", agentAgency: "Ray White Austral", agentPhone: "02 9600 0000" },
-    { lotNumber: "Lot 125", streetAddress: "Edmondson Ave", estate: "Austral Estate", landSizeM2: 350, frontageM: 11.5, depthM: 30.5, price: 740000, isRegistered: true, agentName: "Sales Team", agentAgency: "First National", agentPhone: "02 9822 0000" },
-    { lotNumber: "Lot 204", streetAddress: "Craik Ave", estate: "Austral Green", landSizeM2: 420, frontageM: 14, depthM: 30, price: 825000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Ingenia Land", agentAgency: "Austral Living", agentPhone: "1300 123 456" },
+  "south maclean": [
+    { lotNumber: "Lot 104", streetAddress: "Olley Way", estate: "Lilywood Landings", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 325000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588" },
+    { lotNumber: "Lot 118", streetAddress: "Lilywood Road", estate: "Lilywood Landings", landSizeM2: 450, frontageM: 15, depthM: 30, price: 365000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588" },
+    { lotNumber: "Lot 202", streetAddress: "Teviot Road", estate: "Logan Riverfront", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 395000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Estate Sales Team", agentAgency: "Riverfront Releases", agentPhone: "1300 246 700" },
+    { lotNumber: "Lot 215", streetAddress: "Loganview Circuit", estate: "Pebble Creek South", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 345000, isRegistered: true, agentName: "Orchard Team", agentAgency: "Orchard Property", agentPhone: "1300 056 848" },
+    { lotNumber: "Lot 308", streetAddress: "Flagstone Creek Road", estate: "South Maclean Rise", landSizeM2: 420, frontageM: 14, depthM: 30, price: 350000, isRegistered: true, agentName: "Land Acquisitions", agentAgency: "Hudson Land Partner", agentPhone: "1300 246 700" },
+  ],
+  yarrabilba: [
+    { lotNumber: "Lot 3204", streetAddress: "Darnell Street", estate: "Yarrabilba", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 320000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+    { lotNumber: "Lot 3218", streetAddress: "Yarrabilba Drive", estate: "The Parks", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 355000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+    { lotNumber: "Lot 4102", streetAddress: "Highlands Way", estate: "The Highlands Yarrabilba", landSizeM2: 480, frontageM: 16, depthM: 30, price: 395000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+    { lotNumber: "Lot 4115", streetAddress: "Sandstone Blvd", estate: "Sandstone Release", landSizeM2: 512, frontageM: 16, depthM: 32, price: 415000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+    { lotNumber: "Lot 105", streetAddress: "Shaw Street", estate: "Yarrabilba Central", landSizeM2: 300, frontageM: 10, depthM: 30, price: 285000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+  ],
+  greenbank: [
+    { lotNumber: "Lot 1402", streetAddress: "Everleigh Drive", estate: "Everleigh", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 345000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960" },
+    { lotNumber: "Lot 1410", streetAddress: "Kessels Way", estate: "Everleigh", landSizeM2: 450, frontageM: 15, depthM: 30, price: 385000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960" },
+    { lotNumber: "Lot 1505", streetAddress: "Amberley Court", estate: "Covella", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 360000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "Covella by AVID", agentPhone: "1800 875 588" },
+    { lotNumber: "Lot 1520", streetAddress: "Pub Lane", estate: "Covella", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 410000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "AVID Property Group", agentAgency: "Covella by AVID", agentPhone: "1800 875 588" },
+    { lotNumber: "Lot 208", streetAddress: "Teviot Road", estate: "Greenbank Rise", landSizeM2: 600, frontageM: 18, depthM: 33.3, price: 450000, isRegistered: true, agentName: "Sales Team", agentAgency: "Greenbank Land Hub", agentPhone: "1300 246 700" },
   ],
 };
 
@@ -312,7 +357,7 @@ CRITICAL: Output ONLY a valid JSON object matching:
   "parcels": [ ... ]
 }`;
 
-    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"];
+    const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
     for (const model of models) {
       try {
         const upstream = await fetch(
@@ -324,30 +369,35 @@ CRITICAL: Output ONLY a valid JSON object matching:
               contents: [{ parts: [{ text: prompt }] }],
               tools: [{ googleSearch: {} }],
             }),
-            signal: AbortSignal.timeout(18000),
+            signal: AbortSignal.timeout(3500),
           }
         );
 
-        if (upstream.ok) {
-          const data = await upstream.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          if (rawText) {
-            const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
-            const firstBrace = cleanJson.indexOf("{");
-            const lastBrace = cleanJson.lastIndexOf("}");
-            if (firstBrace !== -1 && lastBrace !== -1) {
-              const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
-              if (Array.isArray(parsed.parcels)) {
-                for (const p of parsed.parcels) {
-                  addParcel(p);
-                }
+        if (!upstream.ok) {
+          if (upstream.status === 400 || upstream.status === 401 || upstream.status === 403) {
+            break; // Stop immediately on invalid key
+          }
+          continue;
+        }
+
+        const data = await upstream.json();
+        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (rawText) {
+          const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
+          const firstBrace = cleanJson.indexOf("{");
+          const lastBrace = cleanJson.lastIndexOf("}");
+          if (firstBrace !== -1 && lastBrace !== -1) {
+            const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
+            if (Array.isArray(parsed.parcels)) {
+              for (const p of parsed.parcels) {
+                addParcel(p);
               }
-              break; // successfully retrieved from this model
             }
+            break; // successfully retrieved from this model
           }
         }
       } catch (err) {
-        console.warn(`[land-scout-search] Gemini ${model} failed, trying next:`, err.message);
+        break; // Timeout or network error, proceed swiftly
       }
     }
   }

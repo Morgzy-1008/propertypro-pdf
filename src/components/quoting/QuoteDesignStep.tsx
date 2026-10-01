@@ -2329,13 +2329,17 @@ export function QuoteDesignStep({
           {/* Facade Dropdown & Custom Facade Options */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Facade Dropdown for this specific Housing Type */}
-            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                  <PenTool className="h-3.5 w-3.5 text-cyan-400" />
+            <div className={`space-y-3 p-4 rounded-xl border ${
+              isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"
+            }`}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Label className={`text-xs font-semibold flex items-center gap-1.5 ${
+                  isLight ? "text-slate-900" : "text-slate-300"
+                }`}>
+                  <PenTool className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                   Architectural Facade ({isCinnamon ? "Double Storey" : design.housingType} Range)
                 </Label>
-                <span className="text-xs font-mono font-bold text-amber-400">
+                <span className={`text-xs font-mono font-bold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
                   {design.facadePrice === 0 ? "Standard Included ($0)" : `+${formatAud(design.facadePrice)}`}
                 </span>
               </div>
@@ -2550,36 +2554,42 @@ export function QuoteDesignStep({
             </div>
 
             {/* Builder Promotion / Managers Discount Allowance */}
-            <div className="space-y-3 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
+            <div className={`space-y-3 p-4 rounded-xl border ${
+              isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"
+            }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <Tag className="h-3.5 w-3.5 text-emerald-400" />
-                  <Label className="text-xs text-slate-300 font-semibold">
+                  <Tag className={`h-3.5 w-3.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                  <Label className={`text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                     Managers Discount / Promotional Allowance
                   </Label>
-                  <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/40">
+                  <span className={`text-[9px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                    isLight ? "bg-emerald-50 text-emerald-700 border-emerald-300" : "bg-emerald-950 text-emerald-300 border-emerald-800/40"
+                  }`}>
                     $10k Closer Safety Net
                   </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-emerald-400">
+                <span className={`text-xs font-mono font-bold ${isLight ? "text-emerald-600" : "text-emerald-400"}`}>
                   {design.promotionsDiscount > 0 ? `-${formatAud(design.promotionsDiscount)}` : "$0 (Standard)"}
                 </span>
               </div>
 
               <div className="space-y-2">
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-slate-400">Discount Title</Label>
+                  <Label className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Discount Title</Label>
                   <Input
                     value={design.promotionName ?? "Managers Discount"}
                     onChange={(e) => onChange({ promotionName: e.target.value })}
                     placeholder="Managers Discount"
-                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-slate-100 font-medium"
+                    className={`h-8.5 text-xs font-medium ${
+                      isLight ? "border-slate-300 bg-slate-50 text-slate-900 focus:bg-white" : "border-slate-800 bg-slate-900 text-slate-100"
+                    }`}
                   />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <Label className="text-[10px] text-slate-400">Managers Discretionary Discount ($)</Label>
+                    <Label className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Managers Discretionary Discount ($)</Label>
                     <span className="text-[9px] text-slate-500 font-mono">Autofills $0 &bull; $10k buffer</span>
                   </div>
                   <Input
@@ -2587,7 +2597,9 @@ export function QuoteDesignStep({
                     value={design.promotionsDiscount ?? 0}
                     onChange={(e) => onChange({ promotionsDiscount: Number(e.target.value) || 0 })}
                     placeholder="0"
-                    className="h-8.5 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
+                    className={`h-8.5 text-xs font-bold font-mono ${
+                      isLight ? "border-slate-300 bg-slate-50 text-emerald-700 focus:bg-white" : "border-slate-800 bg-slate-900 text-emerald-400"
+                    }`}
                   />
                 </div>
               </div>

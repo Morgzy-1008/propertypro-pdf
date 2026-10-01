@@ -9,6 +9,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
 import { getActiveDivision } from "@/lib/divisionContext";
+import { isSingleGarageDesign } from "./facadeLookup";
 import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
 import {
   calculateScaleCalibration,
@@ -2089,7 +2090,8 @@ export async function analyzeModifiedFloorplanFile(
     /5\.7\s*[xX*×]\s*6\.0|5\.7m\s*[xX*×]\s*6\.0m/i.test(rawText) ||
     /5\.7\s*[xX*×]\s*6\.0|5\.7m\s*[xX*×]\s*6\.0m/i.test(geminiResult?.analysisNotes || "");
 
-  const effectiveStandardGarageM2 = isQld ? Math.max(standardGarageM2, 36.00) : standardGarageM2;
+  const isSingleGarage = isSingleGarageDesign(detectedModelName, housingType) || standardGarageM2 < 25;
+  const effectiveStandardGarageM2 = isSingleGarage ? standardGarageM2 : Math.max(standardGarageM2, 36.00);
 
   if (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2 + 0.5) {
     const deltaM2 = Math.round((candidateTableSpec.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
@@ -2220,18 +2222,18 @@ export async function analyzeModifiedFloorplanFile(
         ? candidateTableSpec.garageM2
         : Math.round((standardGarageM2 + delta) * 100) / 100;
       
-      const isStandardQldGarage = isQld && (modM2 <= 36.05 || delta <= 3.5);
-      const rate = isStandardQldGarage ? 0 : DATABUILD_RECIPE_RATES.garage_m2;
-      const subtotal = isStandardQldGarage ? 0 : Math.round(delta * rate);
+      const isStandardDoubleGarage = !isSingleGarage && (modM2 <= 36.05 || (delta <= 3.5 && standardGarageM2 <= 33.5));
+      const rate = isStandardDoubleGarage ? 0 : DATABUILD_RECIPE_RATES.garage_m2;
+      const subtotal = isStandardDoubleGarage ? 0 : Math.round(delta * rate);
 
       areaDeltas.push({
         zoneKey: "garageM2",
-        zoneLabel: isStandardQldGarage
-          ? "Double Garage 5.7m × 6.0m (QLD Standard $0 Adjustment)"
+        zoneLabel: isStandardDoubleGarage
+          ? "Double Garage 5.7m × 6.0m (Standard Base Minimum $0 Adjustment)"
           : (isWorkshop ? "Garage & Integrated Workshop Footprint Extension" : "Garage Footprint Extension"),
-        standardM2: isStandardQldGarage ? modM2 : standardGarageM2,
+        standardM2: isStandardDoubleGarage ? modM2 : effectiveStandardGarageM2,
         modifiedM2: modM2,
-        deltaM2: isStandardQldGarage ? 0 : delta,
+        deltaM2: isStandardDoubleGarage ? 0 : Math.max(0, modM2 - effectiveStandardGarageM2),
         recipeId: "recipe_garage_ext_m2",
         unitRate: rate,
         subtotal,
