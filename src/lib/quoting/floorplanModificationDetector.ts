@@ -1952,18 +1952,60 @@ export async function analyzeModifiedFloorplanFile(
     garageDims: cadRegistryEntry?.garageDims || "5.5m × 5.5m",
   };
 
+  // If user edited standard baseline sqm in the confirmation modal, apply them directly:
+  if (pendingCandidate?.customStandardAreas) {
+    const c = pendingCandidate.customStandardAreas;
+    if (c.totalM2 !== undefined && c.totalM2 > 0) cadSpec.totalM2 = c.totalM2;
+    if (c.livingM2 !== undefined && c.livingM2 > 0) cadSpec.livingM2 = c.livingM2;
+    if (c.garageM2 !== undefined && c.garageM2 >= 0) cadSpec.garageM2 = c.garageM2;
+    if (c.alfrescoM2 !== undefined && c.alfrescoM2 >= 0) cadSpec.alfrescoM2 = c.alfrescoM2;
+    if (c.porchM2 !== undefined && c.porchM2 >= 0) cadSpec.porchM2 = c.porchM2;
+  }
+
   const isDoubleStorey =
     housingType === "Double Storey" ||
     /double|two\s*stor/i.test(detectedModelName) ||
     cadSpec.totalM2 > 280;
 
   // The true standard brochure baseline breakdown:
-  const standardTotalM2 = cadSpec.totalM2;
+  const standardTotalM2 = pendingCandidate?.customStandardAreas?.totalM2 ?? cadSpec.totalM2;
   const stdAreas = getStandardAreaBreakdown(detectedModelName, housingType, standardTotalM2);
-  const standardLivingM2 = Number(stdAreas.livingM2 || stdAreas.groundLivingM2 || cadSpec.livingM2);
-  const standardAlfrescoM2 = Number(stdAreas.alfrescoM2 || cadSpec.alfrescoM2);
-  const standardGarageM2 = Number(stdAreas.garageM2 || cadSpec.garageM2);
-  const standardPorchM2 = Number(stdAreas.porchM2 || cadSpec.porchM2);
+  if (pendingCandidate?.customStandardAreas) {
+    const c = pendingCandidate.customStandardAreas;
+    if (c.livingM2 !== undefined && c.livingM2 > 0) {
+      if (isDoubleStorey && stdAreas.groundLivingM2) {
+        stdAreas.groundLivingM2 = c.livingM2;
+      } else {
+        stdAreas.livingM2 = c.livingM2;
+      }
+    }
+    if (c.garageM2 !== undefined && c.garageM2 >= 0) stdAreas.garageM2 = c.garageM2;
+    if (c.alfrescoM2 !== undefined && c.alfrescoM2 >= 0) stdAreas.alfrescoM2 = c.alfrescoM2;
+    if (c.porchM2 !== undefined && c.porchM2 >= 0) stdAreas.porchM2 = c.porchM2;
+    if (c.totalM2 !== undefined && c.totalM2 > 0) stdAreas.totalM2 = c.totalM2;
+  }
+
+  const standardLivingM2 = Number(
+    pendingCandidate?.customStandardAreas?.livingM2 ??
+      stdAreas.livingM2 ??
+      stdAreas.groundLivingM2 ??
+      cadSpec.livingM2
+  );
+  const standardAlfrescoM2 = Number(
+    pendingCandidate?.customStandardAreas?.alfrescoM2 ??
+      stdAreas.alfrescoM2 ??
+      cadSpec.alfrescoM2
+  );
+  const standardGarageM2 = Number(
+    pendingCandidate?.customStandardAreas?.garageM2 ??
+      stdAreas.garageM2 ??
+      cadSpec.garageM2
+  );
+  const standardPorchM2 = Number(
+    pendingCandidate?.customStandardAreas?.porchM2 ??
+      stdAreas.porchM2 ??
+      cadSpec.porchM2
+  );
 
   // 3. Attempt Multimodal Gemini Vision AI Analysis & In-Browser Canvas Geometric Diffing in Parallel
   const baselineUrl = getBaselineFloorplanImageUrl(detectedModelName);
@@ -2976,6 +3018,7 @@ export async function analyzeModifiedFloorplanFile(
       netTotalCost: totalAreaCost + totalInclusionsCost + totalOpeningsCost + totalInternalRoomsCost,
       floorplanDataUrl: dataUrl,
       fileName: file.name,
+      candidateBaseDesign: pendingCandidate,
       detectionSource: source,
       geminiNotes: geminiResult?.analysisNotes,
       canvasNotes: canvasResult?.notes,
@@ -3222,6 +3265,7 @@ export async function analyzeModifiedFloorplanFile(
     netTotalCost: totalAreaCost + totalInclusionsCost + totalOpeningsCost + totalInternalRoomsCost,
     floorplanDataUrl: dataUrl,
     fileName: file.name,
+    candidateBaseDesign: pendingCandidate,
     detectionSource: "deterministic",
   };
 }

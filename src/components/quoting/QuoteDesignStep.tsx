@@ -27,7 +27,7 @@ import {
   analyzeModifiedFloorplanFile,
   identifyBaseDesignCandidate,
 } from "@/lib/quoting/floorplanModificationDetector";
-import type { BaseDesignCandidate } from "@/lib/quoting/quoteTypes";
+import type { BaseDesignCandidate, CustomStandardAreas } from "@/lib/quoting/quoteTypes";
 import {
   Select,
   SelectContent,
@@ -946,9 +946,22 @@ export function QuoteDesignStep({
     }
   };
 
-  const handleConfirmBaseDesign = async (confirmedDesignName: string, confirmedHousingType: string) => {
+  const handleConfirmBaseDesign = async (
+    confirmedDesignName: string,
+    confirmedHousingType: string,
+    customStandardAreas?: CustomStandardAreas
+  ) => {
     setIsBaseConfirmOpen(false);
     if (!pendingCandidate || !pendingCandidate.file) return;
+
+    const updatedCandidate: BaseDesignCandidate = {
+      ...pendingCandidate,
+      designName: confirmedDesignName,
+      housingType: confirmedHousingType as any,
+      customStandardAreas: customStandardAreas || pendingCandidate.customStandardAreas,
+      standardTotalM2: customStandardAreas?.totalM2 ?? pendingCandidate.standardTotalM2,
+    };
+    setPendingCandidate(updatedCandidate);
 
     setIsAnalyzingModifiedFile(true);
     setScanStageLabel(`Running Full Scan for ${confirmedDesignName}: diffing structural walls, internal rooms & openings...`);
@@ -958,7 +971,7 @@ export function QuoteDesignStep({
         confirmedDesignName,
         confirmedHousingType,
         design.specTier,
-        pendingCandidate
+        updatedCandidate
       );
       setPendingAnalysis(analysis);
       setIsReviewModalOpen(true);

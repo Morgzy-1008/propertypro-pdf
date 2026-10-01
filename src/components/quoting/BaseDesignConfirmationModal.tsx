@@ -18,6 +18,9 @@ import {
   FileText,
   Home,
   Scan,
+  Pencil,
+  RotateCcw,
+  Check,
 } from "lucide-react";
 import {
   SINGLE_STOREY_PRICES,
@@ -27,13 +30,17 @@ import {
 } from "@/lib/pricelist.data";
 import { LOCAL_FLOORPLAN_MAP } from "@/lib/quoting/localFloorplanMap.data";
 import { getStandardAreaBreakdown } from "@/lib/quoting/quoteEngine";
-import type { BaseDesignCandidate } from "@/lib/quoting/quoteTypes";
+import type { BaseDesignCandidate, CustomStandardAreas } from "@/lib/quoting/quoteTypes";
 
 interface BaseDesignConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
   candidate: BaseDesignCandidate | null;
-  onConfirm: (confirmedDesignName: string, confirmedHousingType: string) => void;
+  onConfirm: (
+    confirmedDesignName: string,
+    confirmedHousingType: string,
+    customStandardAreas?: CustomStandardAreas
+  ) => void;
   isLight?: boolean;
 }
 
@@ -46,13 +53,43 @@ export function BaseDesignConfirmationModal({
 }: BaseDesignConfirmationModalProps) {
   const [selectedDesignName, setSelectedDesignName] = useState<string>(candidate?.designName || "");
   const [isChangingModel, setIsChangingModel] = useState<boolean>(false);
+  const [isEditingStandardAreas, setIsEditingStandardAreas] = useState<boolean>(false);
+  const [customAreas, setCustomAreas] = useState<CustomStandardAreas>({
+    livingM2: undefined,
+    garageM2: undefined,
+    alfrescoM2: undefined,
+    porchM2: undefined,
+    totalM2: undefined,
+  });
 
   React.useEffect(() => {
     if (candidate?.designName) {
       setSelectedDesignName(candidate.designName);
       setIsChangingModel(false);
+      setCustomAreas(
+        candidate.customStandardAreas || {
+          livingM2: undefined,
+          garageM2: undefined,
+          alfrescoM2: undefined,
+          porchM2: undefined,
+          totalM2: undefined,
+        }
+      );
+      setIsEditingStandardAreas(false);
     }
   }, [candidate]);
+
+  React.useEffect(() => {
+    // When manually selecting a different base model, reset custom areas
+    setCustomAreas({
+      livingM2: undefined,
+      garageM2: undefined,
+      alfrescoM2: undefined,
+      porchM2: undefined,
+      totalM2: undefined,
+    });
+    setIsEditingStandardAreas(false);
+  }, [selectedDesignName]);
 
   if (!candidate) return null;
 
@@ -81,8 +118,79 @@ export function BaseDesignConfirmationModal({
     currentSelection.m2
   );
 
+  const defaultLiving = Number((stdAreas.livingM2 || stdAreas.groundLivingM2 || 0).toFixed(2));
+  const defaultGarage = Number((stdAreas.garageM2 || 0).toFixed(2));
+  const defaultAlfresco = Number((stdAreas.alfrescoM2 || 0).toFixed(2));
+  const defaultPorch = Number((stdAreas.porchM2 || 0).toFixed(2));
+  const defaultTotal = Number(currentSelection.m2.toFixed(2));
+
+  const effectiveLiving = customAreas.livingM2 !== undefined ? customAreas.livingM2 : defaultLiving;
+  const effectiveGarage = customAreas.garageM2 !== undefined ? customAreas.garageM2 : defaultGarage;
+  const effectiveAlfresco = customAreas.alfrescoM2 !== undefined ? customAreas.alfrescoM2 : defaultAlfresco;
+  const effectivePorch = customAreas.porchM2 !== undefined ? customAreas.porchM2 : defaultPorch;
+  const effectiveTotal = customAreas.totalM2 !== undefined ? customAreas.totalM2 : defaultTotal;
+
+  const hasCustomizedStd =
+    customAreas.livingM2 !== undefined ||
+    customAreas.garageM2 !== undefined ||
+    customAreas.alfrescoM2 !== undefined ||
+    customAreas.porchM2 !== undefined ||
+    customAreas.totalM2 !== undefined;
+
+  const handleStartEditing = () => {
+    if (!hasCustomizedStd) {
+      setCustomAreas({
+        livingM2: defaultLiving,
+        garageM2: defaultGarage,
+        alfrescoM2: defaultAlfresco,
+        porchM2: defaultPorch,
+        totalM2: defaultTotal,
+      });
+    }
+    setIsEditingStandardAreas(true);
+  };
+
+  const handleResetStandardAreas = () => {
+    setCustomAreas({
+      livingM2: undefined,
+      garageM2: undefined,
+      alfrescoM2: undefined,
+      porchM2: undefined,
+      totalM2: undefined,
+    });
+    setIsEditingStandardAreas(false);
+  };
+
+  const handleAreaInputChange = (field: keyof CustomStandardAreas, val: string) => {
+    const num = parseFloat(val);
+    const updated = {
+      ...customAreas,
+      [field]: isNaN(num) ? 0 : Math.round(num * 100) / 100,
+    };
+    if (field !== "totalM2") {
+      const liv = field === "livingM2" ? (isNaN(num) ? 0 : num) : (updated.livingM2 ?? defaultLiving);
+      const gar = field === "garageM2" ? (isNaN(num) ? 0 : num) : (updated.garageM2 ?? defaultGarage);
+      const alf = field === "alfrescoM2" ? (isNaN(num) ? 0 : num) : (updated.alfrescoM2 ?? defaultAlfresco);
+      const por = field === "porchM2" ? (isNaN(num) ? 0 : num) : (updated.porchM2 ?? defaultPorch);
+      updated.totalM2 = Math.round((liv + gar + alf + por) * 100) / 100;
+    }
+    setCustomAreas(updated);
+  };
+
   const handleConfirmClick = () => {
-    onConfirm(currentSelection.name, currentSelection.type);
+    onConfirm(
+      currentSelection.name,
+      currentSelection.type,
+      hasCustomizedStd
+        ? {
+            livingM2: effectiveLiving,
+            garageM2: effectiveGarage,
+            alfrescoM2: effectiveAlfresco,
+            porchM2: effectivePorch,
+            totalM2: effectiveTotal,
+          }
+        : undefined
+    );
   };
 
   return (
@@ -201,27 +309,157 @@ export function BaseDesignConfirmationModal({
                 </div>
               </div>
 
-              {/* Standard Dimensions Breakdown */}
-              <div className="grid grid-cols-4 gap-2 text-center text-xs bg-black/20 p-2.5 rounded-lg border border-slate-800/60">
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase">Living</div>
-                  <div className="font-bold text-white">
-                    {(stdAreas.livingM2 || stdAreas.groundLivingM2 || 0).toFixed(1)}m²
+              {/* Standard Dimensions Breakdown & Editable Specifications */}
+              {!isEditingStandardAreas ? (
+                <div className="bg-black/20 p-2.5 rounded-lg border border-slate-800/60 space-y-2">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-semibold text-slate-300 flex items-center gap-1">
+                      <Layers className="w-3.5 h-3.5 text-cyan-400" /> Standard Baseline Areas
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {hasCustomizedStd && (
+                        <button
+                          type="button"
+                          onClick={handleResetStandardAreas}
+                          className="text-amber-400 hover:text-amber-300 text-[10px] inline-flex items-center gap-1 underline"
+                          title="Revert to master catalogue specifications"
+                        >
+                          <RotateCcw className="w-3 h-3" /> Reset
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={handleStartEditing}
+                        className="text-cyan-400 hover:text-cyan-300 text-[11px] font-bold inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors"
+                        title="Adjust standard m² if catalogue specifications differ"
+                      >
+                        <Pencil className="w-3 h-3" /> Edit Standard m²
+                      </button>
+                    </div>
+                  </div>
+
+                  {hasCustomizedStd && (
+                    <div className="px-2 py-1 rounded bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center justify-between">
+                      <span className="font-semibold">✨ Custom Standard Baseline active</span>
+                      <span className="font-mono font-bold text-amber-400">Total {effectiveTotal.toFixed(2)} m²</span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-5 gap-1.5 text-center text-xs">
+                    <div className="bg-slate-900/60 p-1.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Living</div>
+                      <div className="font-bold text-white">{effectiveLiving.toFixed(1)}m²</div>
+                    </div>
+                    <div className="bg-slate-900/60 p-1.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Garage</div>
+                      <div className="font-bold text-white">{effectiveGarage.toFixed(1)}m²</div>
+                    </div>
+                    <div className="bg-slate-900/60 p-1.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Alfresco</div>
+                      <div className="font-bold text-white">{effectiveAlfresco.toFixed(1)}m²</div>
+                    </div>
+                    <div className="bg-slate-900/60 p-1.5 rounded border border-slate-800">
+                      <div className="text-[10px] text-slate-400 uppercase">Porch</div>
+                      <div className="font-bold text-white">{effectivePorch.toFixed(1)}m²</div>
+                    </div>
+                    <div className="bg-cyan-950/40 p-1.5 rounded border border-cyan-800/40">
+                      <div className="text-[10px] text-cyan-300 uppercase font-semibold">Total</div>
+                      <div className="font-bold text-cyan-300">{effectiveTotal.toFixed(1)}m²</div>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase">Garage</div>
-                  <div className="font-bold text-white">{(stdAreas.garageM2 || 0).toFixed(1)}m²</div>
+              ) : (
+                <div className="bg-slate-900/90 p-3 rounded-xl border border-cyan-500/40 space-y-2.5 animate-in fade-in duration-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                      <Pencil className="w-3.5 h-3.5 text-amber-400" /> Edit Standard Design Baseline m²
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleResetStandardAreas}
+                        className="text-slate-400 hover:text-slate-200 text-[10px] underline inline-flex items-center gap-1"
+                      >
+                        <RotateCcw className="w-3 h-3" /> Reset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingStandardAreas(false)}
+                        className="text-xs font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30 px-2.5 py-0.5 rounded inline-flex items-center gap-1 transition-colors"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Done
+                      </button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-slate-400 leading-tight">
+                    Tweak standard areas if the brochure spec differs from your specific plan sheet revision.
+                  </p>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                        Living m²
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={customAreas.livingM2 ?? defaultLiving}
+                        onChange={(e) => handleAreaInputChange("livingM2", e.target.value)}
+                        className="w-full px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-slate-700 rounded text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                        Garage m²
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={customAreas.garageM2 ?? defaultGarage}
+                        onChange={(e) => handleAreaInputChange("garageM2", e.target.value)}
+                        className="w-full px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-slate-700 rounded text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                        Alfresco m²
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={customAreas.alfrescoM2 ?? defaultAlfresco}
+                        onChange={(e) => handleAreaInputChange("alfrescoM2", e.target.value)}
+                        className="w-full px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-slate-700 rounded text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase text-slate-400 mb-1">
+                        Porch m²
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={customAreas.porchM2 ?? defaultPorch}
+                        onChange={(e) => handleAreaInputChange("porchM2", e.target.value)}
+                        className="w-full px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-slate-700 rounded text-white focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold uppercase text-cyan-300 mb-1">
+                        Total m²
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={customAreas.totalM2 ?? defaultTotal}
+                        onChange={(e) => handleAreaInputChange("totalM2", e.target.value)}
+                        className="w-full px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-cyan-500/60 rounded text-cyan-300 focus:border-cyan-400 focus:outline-none"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase">Alfresco</div>
-                  <div className="font-bold text-white">{(stdAreas.alfrescoM2 || 0).toFixed(1)}m²</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 uppercase">Total</div>
-                  <div className="font-bold text-cyan-400">{currentSelection.m2.toFixed(1)}m²</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 

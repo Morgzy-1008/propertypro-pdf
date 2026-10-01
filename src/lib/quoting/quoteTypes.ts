@@ -408,6 +408,16 @@ export interface InternalRoomChange {
   accepted: boolean;
 }
 
+export interface CustomStandardAreas {
+  livingM2?: number;
+  garageM2?: number;
+  alfrescoM2?: number;
+  porchM2?: number;
+  totalM2?: number;
+  groundLivingM2?: number;
+  firstLivingM2?: number;
+}
+
 export interface BaseDesignCandidate {
   designName: string;
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
@@ -420,6 +430,7 @@ export interface BaseDesignCandidate {
   rawTextSnippet?: string;
   file?: File;
   scheduleTable?: any;
+  customStandardAreas?: CustomStandardAreas;
 }
 
 export interface PlanModificationAnalysis {

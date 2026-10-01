@@ -32,6 +32,10 @@ import {
   Utensils,
   Sofa,
   Percent,
+  Pencil,
+  Plus,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 import { formatAud } from "@/lib/pricing";
 import { saveLearnedFeature } from "@/lib/quoting/featureMemoryRegistry";
@@ -65,9 +69,25 @@ export function ModifiedPlanReviewModal({
   const [learningForm, setLearningForm] = useState<Record<string, { name: string; category: any; price: number }>>({});
   const [activeTab, setActiveTab] = useState<"structural" | "internal" | "openings" | "inclusions">("structural");
 
+  // State for editing standard total m² and individual area rows in Tab 1
+  const [editingAreaIndex, setEditingAreaIndex] = useState<number | null>(null);
+  const [isAddingCustomArea, setIsAddingCustomArea] = useState<boolean>(false);
+  const [newAreaLabel, setNewAreaLabel] = useState<string>("Living & Family Room Extension");
+  const [newAreaStd, setNewAreaStd] = useState<string>("132.4");
+  const [newAreaMod, setNewAreaMod] = useState<string>("140.0");
+  const [newAreaRate, setNewAreaRate] = useState<string>("1420");
+
+  const [isEditingStandardTotal, setIsEditingStandardTotal] = useState<boolean>(false);
+  const [customStandardTotalInput, setCustomStandardTotalInput] = useState<string>(
+    analysis?.standardTotalM2 ? String(analysis.standardTotalM2) : ""
+  );
+
   useEffect(() => {
     setLocalAnalysis(analysis);
     setUnconfirmedItems(analysis?.unconfirmedFeatures || []);
+    if (analysis?.standardTotalM2) {
+      setCustomStandardTotalInput(String(analysis.standardTotalM2));
+    }
   }, [analysis]);
 
   if (!localAnalysis) return null;
@@ -82,6 +102,98 @@ export function ModifiedPlanReviewModal({
       localAnalysis.openingReplacements || [],
       localAnalysis.internalRoomChanges || []
     );
+  };
+
+  const handleUpdateAreaDelta = (
+    index: number,
+    field: "standardM2" | "modifiedM2" | "unitRate" | "zoneLabel",
+    val: string
+  ) => {
+    if (!localAnalysis) return;
+    const updated = [...localAnalysis.areaDeltas];
+    const item = { ...updated[index] };
+
+    if (field === "zoneLabel") {
+      item.zoneLabel = val;
+    } else {
+      const num = parseFloat(val);
+      const safeNum = isNaN(num) ? 0 : Math.round(num * 100) / 100;
+      if (field === "standardM2") item.standardM2 = safeNum;
+      if (field === "modifiedM2") item.modifiedM2 = safeNum;
+      if (field === "unitRate") item.unitRate = safeNum;
+
+      item.deltaM2 = Math.max(0, Math.round((item.modifiedM2 - item.standardM2) * 100) / 100);
+      item.subtotal = Math.round(item.deltaM2 * item.unitRate);
+    }
+
+    updated[index] = item;
+    recalculateAll(
+      updated,
+      localAnalysis.inclusionUpgrades,
+      localAnalysis.openingReplacements || [],
+      localAnalysis.internalRoomChanges || []
+    );
+  };
+
+  const handleSaveStandardTotal = () => {
+    if (!localAnalysis) return;
+    const num = parseFloat(customStandardTotalInput);
+    if (!isNaN(num) && num > 0) {
+      const acceptedNetDeltaM2 = localAnalysis.areaDeltas
+        .filter((a) => a.accepted)
+        .reduce((acc, a) => acc + a.deltaM2, 0);
+
+      const roundedStd = Math.round(num * 100) / 100;
+      setLocalAnalysis({
+        ...localAnalysis,
+        standardTotalM2: roundedStd,
+        modifiedTotalM2: Math.round((roundedStd + acceptedNetDeltaM2) * 100) / 100,
+      });
+      setIsEditingStandardTotal(false);
+      toast.success(`Standard baseline total updated to ${roundedStd} m²`);
+    }
+  };
+
+  const handleAddCustomAreaSubmit = () => {
+    if (!localAnalysis) return;
+    const std = parseFloat(newAreaStd) || 0;
+    const mod = parseFloat(newAreaMod) || 0;
+    const rate = parseFloat(newAreaRate) || 1420;
+    const delta = Math.max(0, Math.round((mod - std) * 100) / 100);
+
+    const newArea: DetectedAreaDelta = {
+      zoneKey: `custom_area_${Date.now()}`,
+      zoneLabel: newAreaLabel.trim() || "Custom Area Extension",
+      standardM2: std,
+      modifiedM2: mod,
+      deltaM2: delta,
+      recipeId: "recipe_custom_ext",
+      unitRate: rate,
+      subtotal: Math.round(delta * rate),
+      accepted: true,
+    };
+
+    const updated = [...localAnalysis.areaDeltas, newArea];
+    recalculateAll(
+      updated,
+      localAnalysis.inclusionUpgrades,
+      localAnalysis.openingReplacements || [],
+      localAnalysis.internalRoomChanges || []
+    );
+    setIsAddingCustomArea(false);
+    toast.success(`Added ${newArea.zoneLabel} (+${delta} m²)`);
+  };
+
+  const handleDeleteAreaDelta = (index: number) => {
+    if (!localAnalysis) return;
+    const updated = localAnalysis.areaDeltas.filter((_, i) => i !== index);
+    recalculateAll(
+      updated,
+      localAnalysis.inclusionUpgrades,
+      localAnalysis.openingReplacements || [],
+      localAnalysis.internalRoomChanges || []
+    );
+    setEditingAreaIndex(null);
   };
 
   const handleToggleInclusion = (index: number) => {
@@ -345,9 +457,90 @@ export function ModifiedPlanReviewModal({
           </div>
         </DialogHeader>
 
-        {/* Tab 1: Structural Footprint */}
+        {/* Tab 1: Structural Footprint & External Extensions */}
         {activeTab === "structural" && (
           <div className="space-y-4 py-4">
+            {/* Master Baseline Header Banner with Standard Total m² Quick Edit */}
+            <div
+              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                isLight ? "bg-amber-50/70 border-amber-200" : "bg-amber-950/20 border-amber-500/30"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      Master Baseline Design:
+                    </span>
+                    <span className="text-xs font-mono font-bold text-amber-400">
+                      {localAnalysis.baseDesignName}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 mt-0.5 flex flex-wrap items-center gap-2">
+                    <span>
+                      Standard Total:{" "}
+                      <strong className="text-white">{localAnalysis.standardTotalM2} m²</strong>
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span>
+                      Modified:{" "}
+                      <strong className="text-amber-400">{localAnalysis.modifiedTotalM2} m²</strong>
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span>
+                      Net Variance:{" "}
+                      <strong className="text-emerald-400">
+                        {localAnalysis.netDeltaM2 >= 0 ? `+${localAnalysis.netDeltaM2}` : localAnalysis.netDeltaM2} m²
+                      </strong>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                {!isEditingStandardTotal ? (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingStandardTotal(true)}
+                    className="text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/20 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Edit standard total m² if brochure specification is incorrect"
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> Edit Standard Total
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-amber-500/50">
+                    <span className="text-[10px] text-slate-400 px-1 font-semibold uppercase">Std m²:</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={customStandardTotalInput}
+                      onChange={(e) => setCustomStandardTotalInput(e.target.value)}
+                      className="w-20 px-2 py-0.5 text-xs font-mono font-bold bg-slate-900 border border-slate-700 rounded text-amber-400 focus:outline-none focus:border-amber-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSaveStandardTotal}
+                      className="px-2 py-0.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 border border-emerald-800 rounded cursor-pointer"
+                      title="Save standard total"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingStandardTotal(false)}
+                      className="px-1.5 py-0.5 text-xs text-slate-400 hover:text-white cursor-pointer"
+                      title="Cancel"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -358,10 +551,103 @@ export function ModifiedPlanReviewModal({
                   External walls, covered alfresco, porches, garages, and major structural variations.
                 </p>
               </div>
-              <span className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
-                Subtotal: {formatAud(localAnalysis.totalAreaCost)}
-              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCustomArea(true)}
+                  className="text-xs font-bold text-cyan-400 hover:text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Extension
+                </button>
+                <span className="text-xs text-amber-400 font-mono font-bold bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-lg">
+                  Subtotal: {formatAud(localAnalysis.totalAreaCost)}
+                </span>
+              </div>
             </div>
+
+            {/* Add Custom Area Form */}
+            {isAddingCustomArea && (
+              <div className="p-3.5 rounded-xl border border-cyan-500/40 bg-slate-900/90 space-y-3 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-cyan-400" /> Add Structural Footprint Extension
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingCustomArea(false)}
+                    className="text-slate-400 hover:text-white text-xs cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="sm:col-span-4">
+                    <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                      Zone / Extension Description
+                    </label>
+                    <input
+                      type="text"
+                      value={newAreaLabel}
+                      onChange={(e) => setNewAreaLabel(e.target.value)}
+                      placeholder="e.g. Living Room Extension, Alfresco Extension"
+                      className="w-full px-2.5 py-1 text-xs bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                      Standard m²
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newAreaStd}
+                      onChange={(e) => setNewAreaStd(e.target.value)}
+                      className="w-full px-2.5 py-1 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                      Modified m²
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newAreaMod}
+                      onChange={(e) => setNewAreaMod(e.target.value)}
+                      className="w-full px-2.5 py-1 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-1">
+                      Rate ($/m²)
+                    </label>
+                    <input
+                      type="number"
+                      step="10"
+                      value={newAreaRate}
+                      onChange={(e) => setNewAreaRate(e.target.value)}
+                      className="w-full px-2.5 py-1 text-xs font-mono bg-slate-950 border border-slate-700 rounded text-white focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+                  <div className="sm:col-span-4 flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingCustomArea(false)}
+                      className="px-3 py-1 text-xs text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddCustomAreaSubmit}
+                      className="px-4 py-1 text-xs font-bold text-white bg-cyan-600 hover:bg-cyan-500 rounded-lg shadow-sm cursor-pointer"
+                    >
+                      Add &amp; Apply Rate
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {localAnalysis.areaDeltas.length === 0 ? (
               <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/40 text-center text-xs text-slate-400">
@@ -372,7 +658,7 @@ export function ModifiedPlanReviewModal({
                 {localAnalysis.areaDeltas.map((area, idx) => (
                   <div
                     key={idx}
-                    className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    className={`p-3.5 rounded-xl border transition-all ${
                       area.accepted
                         ? isLight
                           ? "bg-amber-50/50 border-amber-200"
@@ -380,33 +666,132 @@ export function ModifiedPlanReviewModal({
                         : "opacity-50 border-dashed border-slate-800 bg-slate-950/40"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={area.accepted}
-                        onChange={() => handleToggleArea(idx)}
-                        className="h-4 w-4 rounded border-slate-700 text-amber-500 focus:ring-amber-400"
-                      />
-                      <div>
-                        <span className={`text-xs font-bold ${area.accepted ? "text-white" : "text-slate-500 line-through"}`}>
-                          {area.zoneLabel}
-                        </span>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          {area.standardM2} m² standard &rarr;{" "}
-                          <span className="text-amber-400 font-semibold">{area.modifiedM2} m²</span> (
-                          +{area.deltaM2} m² @ ${area.unitRate}/m²)
-                        </p>
-                      </div>
-                    </div>
+                    {editingAreaIndex !== idx ? (
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={area.accepted}
+                            onChange={() => handleToggleArea(idx)}
+                            className="h-4 w-4 rounded border-slate-700 text-amber-500 focus:ring-amber-400"
+                          />
+                          <div>
+                            <span className={`text-xs font-bold ${area.accepted ? "text-white" : "text-slate-500 line-through"}`}>
+                              {area.zoneLabel}
+                            </span>
+                            <p className="text-[11px] text-slate-400 mt-0.5">
+                              {area.standardM2} m² standard &rarr;{" "}
+                              <span className="text-amber-400 font-semibold">{area.modifiedM2} m²</span> (
+                              +{area.deltaM2} m² @ ${area.unitRate}/m²)
+                            </p>
+                          </div>
+                        </div>
 
-                    <div className="flex items-center gap-3 self-end sm:self-auto">
-                      <span className="font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
-                        +{area.deltaM2} m²
-                      </span>
-                      <span className="text-xs font-mono font-bold min-w-20 text-right text-white">
-                        {formatAud(area.subtotal)}
-                      </span>
-                    </div>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <span className="font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
+                            +{area.deltaM2} m²
+                          </span>
+                          <span className="text-xs font-mono font-bold min-w-20 text-right text-white">
+                            {formatAud(area.subtotal)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingAreaIndex(idx)}
+                            className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors ml-1 cursor-pointer"
+                            title="Edit standard m², modified m², or rate"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Inline Editing Mode for this Area Row */
+                      <div className="space-y-2.5 bg-slate-950/80 p-3 rounded-lg border border-amber-500/40">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                            <Pencil className="w-3.5 h-3.5" /> Edit Area Specification
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteAreaDelta(idx)}
+                              className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 cursor-pointer"
+                              title="Delete this area line item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> Delete
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditingAreaIndex(null)}
+                              className="px-2.5 py-0.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 rounded inline-flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Done
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                          <div className="sm:col-span-4">
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                              Label / Description
+                            </label>
+                            <input
+                              type="text"
+                              value={area.zoneLabel}
+                              onChange={(e) => handleUpdateAreaDelta(idx, "zoneLabel", e.target.value)}
+                              className="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                              Standard m²
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={area.standardM2}
+                              onChange={(e) => handleUpdateAreaDelta(idx, "standardM2", e.target.value)}
+                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                              Modified m²
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={area.modifiedM2}
+                              onChange={(e) => handleUpdateAreaDelta(idx, "modifiedM2", e.target.value)}
+                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                              Delta m² (auto)
+                            </label>
+                            <input
+                              type="text"
+                              disabled
+                              value={`+${area.deltaM2} m²`}
+                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900/50 border border-slate-800 rounded text-emerald-400"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                              Rate ($/m²)
+                            </label>
+                            <input
+                              type="number"
+                              step="10"
+                              value={area.unitRate}
+                              onChange={(e) => handleUpdateAreaDelta(idx, "unitRate", e.target.value)}
+                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
