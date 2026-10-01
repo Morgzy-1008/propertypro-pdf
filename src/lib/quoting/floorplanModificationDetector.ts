@@ -52,10 +52,10 @@ export const DATABUILD_RECIPE_RATES = {
   living_ss_m2: 1480,
   living_ds_ground_m2: 1520,
   living_ds_upper_m2: 1650,
-  alfresco_m2: 920,
+  alfresco_m2: 870,
   garage_m2: 1300,
   wet_area_m2: 2350,
-  porch_m2: 850,
+  porch_m2: 700,
   structural_beam_ds: 1850,
   ceiling_2590_living_m2: 24, // lump sum ~$3,650
   ceiling_2740_living_m2: 46, // lump sum ~$6,850

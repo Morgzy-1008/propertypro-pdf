@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
 import { ModifiedFloorplanModal } from "./ModifiedFloorplanModal";
 import { ModifiedPlanReviewModal } from "./ModifiedPlanReviewModal";
 import { BaseDesignConfirmationModal } from "./BaseDesignConfirmationModal";
@@ -400,6 +401,8 @@ export function QuoteDesignStep({
   onChange,
   onAddInclusionLineItems,
 }: QuoteDesignStepProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [isCropperOpen, setIsCropperOpen] = useState(false);
   const [isSecondCropperOpen, setIsSecondCropperOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -831,10 +834,54 @@ export function QuoteDesignStep({
     }
   };
 
+  const handleStandardZoneAreaChange = (zoneKey: string, val: string) => {
+    const numVal = parseFloat(val);
+    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
+    const baseStd = (design.standardAreas && Object.keys(design.standardAreas).length > 0)
+      ? { ...design.standardAreas }
+      : getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
+
+    const updatedStandardAreas = {
+      ...baseStd,
+      [zoneKey]: isNaN(numVal) ? 0 : Math.max(0, numVal),
+    };
+
+    // Calculate sum of updated standard areas for new standardDesignM2
+    const newStandardM2 = Number(
+      Object.values(updatedStandardAreas).reduce((acc: number, v: any) => acc + (Number(v) || 0), 0).toFixed(2)
+    );
+
+    const currentModAreas = design.modifiedAreas || { ...baseStd };
+
+    const tempDesign: QuoteDesignSelection = {
+      ...design,
+      isModifiedFloorplan: true,
+      standardDesignM2: newStandardM2,
+      standardAreas: updatedStandardAreas,
+      modifiedAreas: currentModAreas,
+    };
+
+    const pricing = calculateModifiedFloorplanPricing(tempDesign);
+    const autoDiscount = getAutomatedPromotionDiscount(pricing.modifiedTotalM2);
+    const stdPrice = design.standardBasePrice || (currentModel ? getTierPrice(currentModel, design.specTier, design.housingType) : design.basePrice || 0);
+
+    onChange({
+      isModifiedFloorplan: true,
+      standardDesignM2: newStandardM2,
+      standardAreas: updatedStandardAreas,
+      modifiedAreas: currentModAreas,
+      modifiedDesignM2: pricing.modifiedTotalM2,
+      basePrice: stdPrice,
+      promotionsDiscount: autoDiscount,
+    });
+  };
+
   const handleZoneAreaChange = (zoneKey: string, val: string) => {
     const numVal = parseFloat(val);
     const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
-    const currentStd = getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
+    const currentStd = (design.standardAreas && Object.keys(design.standardAreas).length > 0)
+      ? { ...design.standardAreas }
+      : getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
 
     const updatedModifiedAreas = {
       ...currentStd,
@@ -852,6 +899,7 @@ export function QuoteDesignStep({
 
     const pricing = calculateModifiedFloorplanPricing(tempDesign);
     const autoDiscount = getAutomatedPromotionDiscount(pricing.modifiedTotalM2);
+    const stdPrice = design.standardBasePrice || (currentModel ? getTierPrice(currentModel, design.specTier, design.housingType) : design.basePrice || 0);
 
     onChange({
       isModifiedFloorplan: true,
@@ -859,27 +907,33 @@ export function QuoteDesignStep({
       standardAreas: currentStd,
       modifiedAreas: updatedModifiedAreas,
       modifiedDesignM2: pricing.modifiedTotalM2,
-      basePrice: design.standardBasePrice || stdPrice,
+      basePrice: stdPrice,
       promotionsDiscount: autoDiscount,
     });
   };
 
   const handleResetModifiedAreas = () => {
-    const stdM2 = design.standardDesignM2 || (currentModel ? currentModel.m2 : design.designM2) || 198.08;
+    const stdM2 = (currentModel ? currentModel.m2 : design.designM2) || 198.08;
     const stdAreas = getStandardAreaBreakdown(design.designName, design.housingType, stdM2);
     const tempDesign: QuoteDesignSelection = {
       ...design,
       isModifiedFloorplan: true,
+      standardDesignM2: stdM2,
       standardAreas: stdAreas,
       modifiedAreas: { ...stdAreas },
     };
     const pricing = calculateModifiedFloorplanPricing(tempDesign);
+    const stdPrice = design.standardBasePrice || (currentModel ? getTierPrice(currentModel, design.specTier, design.housingType) : design.basePrice || 0);
+
     onChange({
+      standardDesignM2: stdM2,
+      standardAreas: stdAreas,
       modifiedAreas: { ...stdAreas },
       modifiedDesignM2: pricing.modifiedTotalM2,
-      basePrice: design.standardBasePrice || stdPrice,
+      basePrice: stdPrice,
+      promotionsDiscount: getAutomatedPromotionDiscount(pricing.modifiedTotalM2),
     });
-    toast.info("Room dimensions reset to standard design baseline.");
+    toast.info("Standard & modified room areas reset to official brochure baseline.");
   };
 
   const handleFacadeSelect = (facadeName: string) => {
@@ -1352,15 +1406,15 @@ export function QuoteDesignStep({
           {/* Housing Type & Model Selection */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Housing Type</Label>
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Housing Type</Label>
               <Select
                 value={design.housingType}
                 onValueChange={(v: any) => handleHousingTypeChange(v)}
               >
-                <SelectTrigger className="border-slate-800 bg-slate-950/70 text-xs text-slate-200">
+                <SelectTrigger className={`text-xs ${isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950/70 text-slate-200"}`}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-900 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>
                   <SelectItem value="Single Storey">Single Storey</SelectItem>
                   <SelectItem value="Double Storey">Double Storey</SelectItem>
                   <SelectItem value="Split Level">Split Level</SelectItem>
@@ -1370,15 +1424,15 @@ export function QuoteDesignStep({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Home Design Model</Label>
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Home Design Model</Label>
               <Select
                 value={design.designName || "UNSELECTED"}
                 onValueChange={(v) => v !== "UNSELECTED" && handleDesignModelChange(v)}
               >
-                <SelectTrigger className={`border-slate-800 text-xs ${!design.designName ? "bg-slate-950/90 text-amber-400 border-amber-500/40 font-semibold" : "bg-slate-950/70 text-slate-200"}`}>
+                <SelectTrigger className={`text-xs ${!design.designName ? (isLight ? "bg-amber-50 text-amber-900 border-amber-400 font-semibold" : "bg-slate-950/90 text-amber-400 border-amber-500/40 font-semibold") : (isLight ? "border-slate-300 bg-white text-slate-900 shadow-sm" : "border-slate-800 bg-slate-950/70 text-slate-200")}`}>
                   <SelectValue placeholder="Select a Home Design..." />
                 </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200 max-h-64">
+                <SelectContent className={`max-h-64 ${isLight ? "border-slate-200 bg-white text-slate-900 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}`}>
                   <SelectItem value="UNSELECTED" disabled>
                     -- Select a Home Design Model --
                   </SelectItem>
@@ -1392,7 +1446,7 @@ export function QuoteDesignStep({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 {design.isModifiedFloorplan ? "Total Floor Area (Modified)" : "Total Floor Area"}
               </Label>
               <Input
@@ -1402,10 +1456,10 @@ export function QuoteDesignStep({
                     ? `${design.isModifiedFloorplan && design.modifiedDesignM2 ? design.modifiedDesignM2 : design.designM2} m² (${(((design.isModifiedFloorplan && design.modifiedDesignM2 ? design.modifiedDesignM2 : design.designM2)) * 0.107639).toFixed(1)} sq)`
                     : "— Select design model —"
                 }
-                className={`border-slate-800 text-xs font-medium cursor-not-allowed ${
+                className={`text-xs font-medium cursor-not-allowed ${
                   design.isModifiedFloorplan
-                    ? "bg-emerald-950/30 text-emerald-300 border-emerald-500/40 font-bold"
-                    : "bg-slate-950/50 text-slate-400"
+                    ? (isLight ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-bold" : "bg-emerald-950/30 text-emerald-300 border-emerald-500/40 font-bold")
+                    : (isLight ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-slate-950/50 text-slate-400 border-slate-800")
                 }`}
               />
             </div>
@@ -1416,8 +1470,12 @@ export function QuoteDesignStep({
             <div
               className={`rounded-2xl border p-4 transition-all ${
                 design.isModifiedFloorplan
-                  ? "border-emerald-500/80 bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-slate-950 ring-1 ring-emerald-500/40 shadow-xl"
-                  : "border-slate-800 bg-slate-950/60 hover:border-slate-700"
+                  ? (isLight
+                      ? "border-emerald-500/70 bg-white ring-1 ring-emerald-500/30 shadow-md"
+                      : "border-emerald-500/80 bg-gradient-to-r from-emerald-950/40 via-slate-900/90 to-slate-950 ring-1 ring-emerald-500/40 shadow-xl")
+                  : (isLight
+                      ? "border-slate-200 bg-white hover:border-slate-300"
+                      : "border-slate-800 bg-slate-950/60 hover:border-slate-700")
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1427,27 +1485,28 @@ export function QuoteDesignStep({
                     className={`cursor-pointer p-2.5 rounded-xl border transition-all mt-0.5 ${
                       design.isModifiedFloorplan
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-lg shadow-emerald-500/20"
-                        : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
+                        : (isLight ? "bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900" : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white")
                     }`}
                   >
                     <PenTool className="h-5 w-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">
+                      <span className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>
                         {design.isModifiedFloorplan ? "✓ Modified Floorplan Active" : "Modified Floorplan / Custom Area Sizing"}
                       </span>
                       <span
                         className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                           design.isModifiedFloorplan
-                            ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono"
-                            : "bg-slate-800 text-slate-400"
+                            ? (isLight
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono"
+                                : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono")
+                            : (isLight ? "bg-slate-100 text-slate-700 border border-slate-200" : "bg-slate-800 text-slate-400")
                         }`}
                       >
-                        {design.isModifiedFloorplan ? `${design.designName} Modified` : "Personalized Area Sizing"}
+                        {design.isModifiedFloorplan ? `${cleanDesignName(design.designName)} Modified` : "Personalized Area Sizing"}
                       </span>
                     </div>
-                    
                   </div>
                 </div>
 
@@ -1459,7 +1518,9 @@ export function QuoteDesignStep({
                     className={`text-xs font-bold gap-1.5 ${
                       design.isModifiedFloorplan
                         ? "bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/20"
-                        : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                        : (isLight
+                            ? "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300"
+                            : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700")
                     }`}
                   >
                     {design.isModifiedFloorplan ? (
@@ -1491,16 +1552,16 @@ export function QuoteDesignStep({
                 const maxZoneM2 = Math.max(...modCalc.zones.map((z) => Math.max(z.standardM2, z.modifiedM2)), 1);
 
                 return (
-                  <div className="mt-4 pt-4 border-t border-slate-800/90 space-y-4">
+                  <div className={`mt-4 pt-4 border-t space-y-4 ${isLight ? "border-slate-200" : "border-slate-800/90"}`}>
                     {/* Header & Subtitle */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <h4 className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                          <Layers className="h-3.5 w-3.5 text-emerald-400" />
+                        <h4 className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>
+                          <Layers className={`h-3.5 w-3.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                           Room &amp; Zone Area Sizing Schedule
                         </h4>
-                        <p className="text-[11px] text-slate-400">
-                          Adjust individual areas below. Base rates calculate per Hudson schedule (reductions credited at 80%).
+                        <p className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          Select and edit either Standard or Modified sizes. Base rates calculate per Hudson schedule (reductions credited at 80%).
                         </p>
                       </div>
                       <Button
@@ -1508,46 +1569,82 @@ export function QuoteDesignStep({
                         variant="outline"
                         size="sm"
                         onClick={handleResetModifiedAreas}
-                        className="h-7 text-[10px] border-slate-700 bg-slate-900 text-slate-300 hover:text-white gap-1 self-start sm:self-auto"
+                        className={`h-7 text-[10px] gap-1 self-start sm:self-auto ${
+                          isLight
+                            ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 shadow-sm"
+                            : "border-slate-700 bg-slate-900 text-slate-300 hover:text-white"
+                        }`}
                       >
                         <RotateCcw className="h-3 w-3" /> Reset to Standard Areas
                       </Button>
                     </div>
 
                     {/* Interactive Table of Room Zones */}
-                    <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/80">
+                    <div className={`overflow-x-auto rounded-xl border transition-all ${
+                      isLight
+                        ? "border-slate-300 bg-white shadow-sm"
+                        : "border-slate-800 bg-slate-950/80"
+                    }`}>
                       <table className="w-full text-left text-xs">
                         <thead>
-                          <tr className="border-b border-slate-800 bg-slate-900/90 text-[10px] uppercase font-bold text-slate-400">
-                            <th className="py-2.5 px-3">Area / Zone</th>
-                            <th className="py-2.5 px-3 text-center">Standard Size</th>
-                            <th className="py-2.5 px-3 text-center min-w-[130px]">Modified Size (m²)</th>
-                            <th className="py-2.5 px-3 text-center">Variance (Δ)</th>
-                            <th className="py-2.5 px-3 text-right">Cost Adjustment</th>
+                          <tr className={`border-b text-[10px] uppercase font-bold tracking-wider ${
+                            isLight
+                              ? "bg-slate-100/95 border-slate-300 text-slate-900 font-extrabold"
+                              : "bg-slate-900/90 border-slate-800 text-slate-200"
+                          }`}>
+                            <th className={`py-2.5 px-3 font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>Area / Zone</th>
+                            <th className={`py-2.5 px-3 text-center font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>Standard Size</th>
+                            <th className={`py-2.5 px-3 text-center min-w-[130px] font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>Modified Size (m²)</th>
+                            <th className={`py-2.5 px-3 text-center font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>Variance (Δ)</th>
+                            <th className={`py-2.5 px-3 text-right font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>Cost Adjustment</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800/60 font-mono text-xs">
+                        <tbody className={`divide-y font-mono text-xs ${
+                          isLight ? "divide-slate-200" : "divide-slate-800/60"
+                        }`}>
                           {modCalc.zones.map((z) => {
                             return (
-                              <tr key={z.key} className="hover:bg-slate-900/40 transition-colors">
+                              <tr key={z.key} className={`transition-colors ${
+                                isLight
+                                  ? "hover:bg-slate-50/80 bg-white"
+                                  : "hover:bg-slate-900/40 bg-slate-950/40"
+                              }`}>
                                 {/* Zone Name & Visual Bar */}
                                 <td className="py-2.5 px-3 font-sans">
-                                  <div className="font-bold text-slate-200 text-xs">{z.label}</div>
+                                  <div className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-slate-200"}`}>{z.label}</div>
                                   {/* Mini proportional comparison bar */}
-                                  <div className="w-28 bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5 flex">
+                                  <div className={`w-28 h-1.5 rounded-full overflow-hidden mt-1.5 flex ${isLight ? "bg-slate-200" : "bg-slate-800"}`}>
                                     <div
-                                      className="bg-emerald-500/80 h-full transition-all"
+                                      className="bg-emerald-500 h-full transition-all"
                                       style={{ width: `${Math.min(100, (z.modifiedM2 / maxZoneM2) * 100)}%` }}
                                       title={`Modified: ${z.modifiedM2} m² (Standard: ${z.standardM2} m²)`}
                                     />
                                   </div>
                                 </td>
 
-                                {/* Standard Brochure Size */}
-                                <td className="py-2.5 px-3 text-center text-slate-400">
-                                  <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-[11px]">
-                                    {z.standardM2.toFixed(2)} m²
-                                  </span>
+                                {/* Standard Brochure Size - EDITABLE! (Circled in photo) */}
+                                <td className="py-2 px-3 text-center">
+                                  <div className="relative inline-flex items-center">
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max="500"
+                                      value={z.standardM2}
+                                      onChange={(e) => handleStandardZoneAreaChange(z.key, e.target.value)}
+                                      className={`h-8 w-28 text-center text-xs font-mono font-bold transition-all ${
+                                        isLight
+                                          ? "bg-white border-slate-300 text-slate-900 hover:border-slate-400 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-500 shadow-sm"
+                                          : "bg-slate-900 border-slate-700 text-white hover:border-slate-600 focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
+                                      }`}
+                                      title="Click to edit standard brochure sqm for this zone"
+                                    />
+                                    <span className={`absolute right-2 text-[10px] font-sans pointer-events-none ${
+                                      isLight ? "text-slate-500 font-medium" : "text-slate-400"
+                                    }`}>
+                                      m²
+                                    </span>
+                                  </div>
                                 </td>
 
                                 {/* Interactive Modified Size Input */}
@@ -1555,18 +1652,24 @@ export function QuoteDesignStep({
                                   <div className="relative inline-flex items-center">
                                     <Input
                                       type="number"
-                                      step="0.1"
+                                      step="0.01"
                                       min="0"
                                       max="500"
                                       value={z.modifiedM2}
                                       onChange={(e) => handleZoneAreaChange(z.key, e.target.value)}
-                                      className={`h-8 w-28 text-center text-xs font-mono font-bold bg-slate-900 transition-all ${
+                                      className={`h-8 w-28 text-center text-xs font-mono font-bold transition-all ${
                                         z.deltaM2 !== 0
-                                          ? "border-emerald-500/70 text-emerald-300 ring-1 ring-emerald-500/30"
-                                          : "border-slate-700 text-white"
+                                          ? (isLight
+                                              ? "border-emerald-600 text-emerald-800 bg-emerald-50/80 ring-1 ring-emerald-500/30"
+                                              : "border-emerald-500/70 text-emerald-300 bg-slate-900 ring-1 ring-emerald-500/30")
+                                          : (isLight
+                                              ? "border-slate-300 text-slate-900 bg-white hover:border-slate-400 shadow-sm"
+                                              : "border-slate-700 text-white bg-slate-900 hover:border-slate-600")
                                       }`}
                                     />
-                                    <span className="absolute right-2 text-[10px] text-slate-500 font-sans pointer-events-none">
+                                    <span className={`absolute right-2 text-[10px] font-sans pointer-events-none ${
+                                      isLight ? "text-slate-500 font-medium" : "text-slate-400"
+                                    }`}>
                                       m²
                                     </span>
                                   </div>
@@ -1575,29 +1678,45 @@ export function QuoteDesignStep({
                                 {/* Variance (Δ m²) */}
                                 <td className="py-2.5 px-3 text-center">
                                   {z.deltaM2 > 0 ? (
-                                    <span className="inline-flex items-center gap-0.5 text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
+                                    <span className={`inline-flex items-center gap-0.5 font-bold px-2 py-0.5 rounded text-[11px] ${
+                                      isLight
+                                        ? "text-emerald-800 bg-emerald-100 border border-emerald-300"
+                                        : "text-emerald-400 bg-emerald-950/60 border border-emerald-800"
+                                    }`}>
                                       +{z.deltaM2.toFixed(2)} m²
                                     </span>
                                   ) : z.deltaM2 < 0 ? (
                                     <span
-                                      className="inline-flex items-center gap-0.5 text-amber-400 font-bold bg-amber-950/60 border border-amber-800 px-2 py-0.5 rounded text-[11px]"
+                                      className={`inline-flex items-center gap-0.5 font-bold px-2 py-0.5 rounded text-[11px] ${
+                                        isLight
+                                          ? "text-amber-800 bg-amber-100 border border-amber-300"
+                                          : "text-amber-400 bg-amber-950/60 border border-amber-800"
+                                      }`}
                                       title="Reduction credited at 80%"
                                     >
                                       {z.deltaM2.toFixed(2)} m²
                                     </span>
                                   ) : (
-                                    <span className="text-slate-500 text-[11px]">0.00 m²</span>
+                                    <span className={`text-[11px] font-mono ${isLight ? "text-slate-500 font-medium" : "text-slate-400"}`}>
+                                      0.00 m²
+                                    </span>
                                   )}
                                 </td>
 
                                 {/* Cost Adjustment */}
                                 <td className="py-2.5 px-3 text-right font-bold">
                                   {z.costAdjustment > 0 ? (
-                                    <span className="text-emerald-400 font-mono">+{formatAud(z.costAdjustment)}</span>
+                                    <span className={`font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                                      +{formatAud(z.costAdjustment)}
+                                    </span>
                                   ) : z.costAdjustment < 0 ? (
-                                    <span className="text-amber-400 font-mono">-{formatAud(Math.abs(z.costAdjustment))}</span>
+                                    <span className={`font-mono font-extrabold ${isLight ? "text-amber-700" : "text-amber-400"}`}>
+                                      -{formatAud(Math.abs(z.costAdjustment))}
+                                    </span>
                                   ) : (
-                                    <span className="text-slate-500 font-mono">$0</span>
+                                    <span className={`font-mono font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                                      $0
+                                    </span>
                                   )}
                                 </td>
                               </tr>
@@ -1605,39 +1724,63 @@ export function QuoteDesignStep({
                           })}
                         </tbody>
 
-                        {/* Table Footer Total Row */}
+                        {/* Table Footer Total Row - High Contrast (Arrow 2 in photo) */}
                         <tfoot>
-                          <tr className="border-t-2 border-slate-700 bg-slate-900/95 font-bold text-xs">
-                            <td className="py-3 px-3 text-white font-sans flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-                              <span>Total Floor Area (All Zones)</span>
+                          <tr className={`border-t-2 font-bold text-xs ${
+                            isLight
+                              ? "border-slate-300 bg-slate-100 text-slate-900"
+                              : "border-slate-700 bg-slate-900/95 text-white"
+                          }`}>
+                            <td className={`py-3 px-3 font-sans font-extrabold flex items-center gap-1.5 ${
+                              isLight ? "text-slate-900" : "text-white"
+                            }`}>
+                              <Sparkles className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
+                              <span className="tracking-wide">Total Floor Area (All Zones)</span>
                             </td>
-                            <td className="py-3 px-3 text-center text-slate-400 font-mono">
+                            <td className={`py-3 px-3 text-center font-mono font-extrabold ${
+                              isLight ? "text-slate-900" : "text-slate-200"
+                            }`}>
                               {modCalc.standardTotalM2.toFixed(2)} m²
                             </td>
-                            <td className="py-3 px-3 text-center text-emerald-300 font-mono font-extrabold text-sm">
-                              {modCalc.modifiedTotalM2.toFixed(2)} m²
-                              <span className="block text-[10px] text-slate-400 font-sans font-normal">
+                            <td className="py-3 px-3 text-center font-mono font-extrabold text-sm">
+                              <span className={isLight ? "text-emerald-800 font-extrabold" : "text-emerald-300 font-extrabold"}>
+                                {modCalc.modifiedTotalM2.toFixed(2)} m²
+                              </span>
+                              <span className={`block text-[10px] font-sans font-normal ${
+                                isLight ? "text-slate-600" : "text-slate-400"
+                              }`}>
                                 ({(modCalc.modifiedTotalM2 * 0.107639).toFixed(1)} sq)
                               </span>
                             </td>
                             <td className="py-3 px-3 text-center font-mono">
                               {modCalc.netDeltaM2 > 0 ? (
-                                <span className="text-emerald-400 font-extrabold">+{modCalc.netDeltaM2.toFixed(2)} m²</span>
+                                <span className={`font-extrabold ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
+                                  +{modCalc.netDeltaM2.toFixed(2)} m²
+                                </span>
                               ) : modCalc.netDeltaM2 < 0 ? (
-                                <span className="text-amber-400 font-extrabold">{modCalc.netDeltaM2.toFixed(2)} m²</span>
+                                <span className={`font-extrabold ${isLight ? "text-amber-800" : "text-amber-400"}`}>
+                                  {modCalc.netDeltaM2.toFixed(2)} m²
+                                </span>
                               ) : (
-                                <span className="text-slate-400">0.00 m²</span>
+                                <span className={`font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>0.00 m²</span>
                               )}
                             </td>
                             <td className="py-3 px-3 text-right font-mono text-sm font-extrabold">
-                              <span className="text-[10px] text-slate-400 font-normal font-sans mr-2">Net Adjustment:</span>
+                              <span className={`text-[10px] font-normal font-sans mr-2 ${
+                                isLight ? "text-slate-600" : "text-slate-400"
+                              }`}>
+                                Net Adjustment:
+                              </span>
                               {modCalc.totalCostAdjustment > 0 ? (
-                                <span className="text-emerald-400">+{formatAud(modCalc.totalCostAdjustment)}</span>
+                                <span className={isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-extrabold"}>
+                                  +{formatAud(modCalc.totalCostAdjustment)}
+                                </span>
                               ) : modCalc.totalCostAdjustment < 0 ? (
-                                <span className="text-amber-400">-{formatAud(Math.abs(modCalc.totalCostAdjustment))}</span>
+                                <span className={isLight ? "text-amber-800 font-extrabold" : "text-amber-400 font-extrabold"}>
+                                  -{formatAud(Math.abs(modCalc.totalCostAdjustment))}
+                                </span>
                               ) : (
-                                <span className="text-slate-400">$0</span>
+                                <span className={isLight ? "text-slate-600 font-medium" : "text-slate-400 font-medium"}>$0</span>
                               )}
                             </td>
                           </tr>
@@ -1647,38 +1790,60 @@ export function QuoteDesignStep({
 
                     {/* Summary KPI Cards */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/90">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        isLight ? "border-slate-300 bg-white shadow-sm" : "border-slate-800 bg-slate-950/90"
+                      }`}>
+                        <span className={`text-[10px] uppercase font-bold block tracking-wider ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
                           Standard House Baseline
                         </span>
-                        <div className="text-xs font-mono text-slate-300 mt-1 flex items-baseline justify-between">
-                          <span>{currentModel.name} ({modCalc.standardTotalM2} m²)</span>
-                          <span className="font-bold text-white">{formatAud(modCalc.standardBasePrice)}</span>
+                        <div className={`text-xs font-mono mt-1 flex items-baseline justify-between ${
+                          isLight ? "text-slate-800" : "text-slate-300"
+                        }`}>
+                          <span className="font-medium">{currentModel.name} ({modCalc.standardTotalM2} m²)</span>
+                          <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{formatAud(modCalc.standardBasePrice)}</span>
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-xl border border-emerald-500/50 bg-emerald-950/30">
-                        <span className="text-[10px] uppercase font-bold text-emerald-400 block tracking-wider flex items-center justify-between">
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        isLight ? "border-emerald-300 bg-emerald-50/70 shadow-sm" : "border-emerald-500/50 bg-emerald-950/30"
+                      }`}>
+                        <span className={`text-[10px] uppercase font-bold block tracking-wider flex items-center justify-between ${
+                          isLight ? "text-emerald-800" : "text-emerald-400"
+                        }`}>
                           <span>Structural Extensions Subtotal</span>
-                          <span className="font-mono text-[9px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300">
+                          <span className={`font-mono text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                            isLight ? "bg-emerald-200 text-emerald-900 border border-emerald-300" : "bg-emerald-500/20 text-emerald-300"
+                          }`}>
                             {modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}
                           </span>
                         </span>
-                        <div className="text-base font-mono font-extrabold text-emerald-300 mt-0.5 flex items-baseline justify-between">
+                        <div className={`text-base font-mono font-extrabold mt-0.5 flex items-baseline justify-between ${
+                          isLight ? "text-emerald-800" : "text-emerald-300"
+                        }`}>
                           <span>{modCalc.totalCostAdjustment >= 0 ? "+" : ""}{formatAud(modCalc.totalCostAdjustment)}</span>
-                          <span className="text-[11px] font-sans font-bold text-slate-300">
+                          <span className={`text-[11px] font-sans font-bold ${
+                            isLight ? "text-slate-700" : "text-slate-300"
+                          }`}>
                             {modCalc.modifiedTotalM2} m² ({(modCalc.modifiedTotalM2 * 0.107639).toFixed(1)} sq)
                           </span>
                         </div>
                       </div>
 
-                      <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/90">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <div className={`p-3 rounded-xl border transition-all ${
+                        isLight ? "border-slate-300 bg-white shadow-sm" : "border-slate-800 bg-slate-950/90"
+                      }`}>
+                        <span className={`text-[10px] uppercase font-bold block tracking-wider ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
                           Active Estimate Floorplan Name
                         </span>
-                        <div className="text-sm font-bold text-amber-400 mt-1 flex items-center gap-1.5">
-                          <PenTool className="h-3.5 w-3.5 text-amber-400" />
-                          <span>{design.designName} Modified</span>
+                        <div className={`text-sm font-bold mt-1 flex items-center gap-1.5 ${
+                          isLight ? "text-amber-700" : "text-amber-400"
+                        }`}>
+                          <PenTool className="h-3.5 w-3.5" />
+                          <span>{cleanDesignName(design.designName)} Modified</span>
                         </div>
                       </div>
                     </div>

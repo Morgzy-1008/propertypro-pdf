@@ -957,31 +957,42 @@ html.normal-mode,
   color: #0f172a !important;
 }
 
-/* 5. Database Page Normal Mode Overrides (Scoped so PDF & Print sheets are not overridden) */
+/* 5. Table Normal Mode Overrides (Scoped so PDF & Print sheets are not overridden) */
 .normal-mode:not(:has(.quote-pdf-root)) table {
-  background-color: #ffffff !important;
+  background-color: #ffffff;
 }
 
 .normal-mode:not(:has(.quote-pdf-root)) table thead tr {
-  background-color: #f8fafc !important;
-  border-color: #e2e8f0 !important;
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
 }
 
 .normal-mode:not(:has(.quote-pdf-root)) table thead th {
-  color: #475569 !important;
-  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+  font-weight: 700 !important;
+  border-color: #cbd5e1 !important;
 }
 
 .normal-mode:not(:has(.quote-pdf-root)) table tbody tr {
-  border-color: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
 }
 
 .normal-mode:not(:has(.quote-pdf-root)) table tbody tr:hover {
   background-color: #f8fafc !important;
 }
 
-.normal-mode:not(:has(.quote-pdf-root)) table td {
+.normal-mode:not(:has(.quote-pdf-root)) table tfoot tr {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.normal-mode:not(:has(.quote-pdf-root)) table tfoot td {
   color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+.normal-mode:not(:has(.quote-pdf-root)) table td:not([class*="text-"]) {
+  color: #0f172a;
 }
 
 /* 6. Quote Builder & Tender Request Normal Mode Overrides */

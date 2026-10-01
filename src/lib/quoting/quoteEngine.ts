@@ -161,9 +161,9 @@ export function getCustomAreaRates(
   const isSS = tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE");
 
   // Non-habitable area rates
-  // Calibrated rates: Garage is $1,300/m², Porch is $870/m², Balcony is $1,350/m²
+  // Calibrated rates: Garage is $1,300/m², Porch is $700/m², Balcony is $1,350/m²
   const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 && spec.ancillaryRateM2 !== 1050 && spec.ancillaryRateM2 !== 1150 && spec.ancillaryRateM2 !== 1400 ? spec.ancillaryRateM2 : 1300;
-  const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 870;
+  const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 700;
   const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1350;
 
   // Alfresco: Base $850/m², H2 $870/m², H3 $900/m² (+$30/m² for 600x600 tiles)
@@ -383,18 +383,21 @@ export function resolveItemCategory(item: { name: string; description?: string; 
  * Standard SQM Additional Rates as specified:
  * Single Storey:
  *  - Living Area: $1,420 / m²
- *  - Alfresco & Porch: $870 / m²
+ *  - Alfresco: $870 / m²
+ *  - Porch: $700 / m²
  *  - Garage: $1,300 / m²
  * Double Storey:
  *  - Ground Floor Living: $1,480 / m²
  *  - First Floor Living: $1,780 / m²
- *  - Alfresco and Porch: $870 / m²
+ *  - Alfresco: $870 / m²
+ *  - Porch: $700 / m²
  *  - Balcony (if added): $2,000 / m²
  *  - Garage: $1,300 / m²
  * Duplex and Split Level:
  *  - Lower Ground and Ground Floor Living: $1,480 / m²
  *  - First Floor or Upper Level Living: $1,780 / m²
- *  - Alfresco and Porch: $870 / m²
+ *  - Alfresco: $870 / m²
+ *  - Porch: $700 / m²
  *  - Balcony (if added): $2,000 / m²
  *  - Garage: $1,300 / m²
  * Reductions are discounted at 80% (i.e. deduction = deltaM2 * rate * 0.8)
@@ -404,14 +407,14 @@ export const MODIFIED_SQM_RATES = {
     livingM2: 1420,
     garageM2: 1300,
     alfrescoM2: 870,
-    porchM2: 870,
+    porchM2: 700,
   },
   "Double Storey": {
     groundLivingM2: 1480,
     firstLivingM2: 1780,
     garageM2: 1300,
     alfrescoM2: 870,
-    porchM2: 870,
+    porchM2: 700,
     balconyM2: 2000,
   },
   "Split Level": {
@@ -419,7 +422,7 @@ export const MODIFIED_SQM_RATES = {
     firstLivingM2: 1780,
     garageM2: 1300,
     alfrescoM2: 870,
-    porchM2: 870,
+    porchM2: 700,
     balconyM2: 2000,
   },
   "Dual Living": {
@@ -427,7 +430,7 @@ export const MODIFIED_SQM_RATES = {
     firstLivingM2: 1780,
     garageM2: 1300,
     alfrescoM2: 870,
-    porchM2: 870,
+    porchM2: 700,
     balconyM2: 2000,
   },
 } as const;
@@ -841,7 +844,7 @@ export function calculateModifiedFloorplanPricing(
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 870,
+        rate: rateConfig.porchM2 || 700,
       },
       {
         key: "balconyM2",
@@ -900,7 +903,7 @@ export function calculateModifiedFloorplanPricing(
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 870,
+        rate: rateConfig.porchM2 || 700,
       },
     ];
 
@@ -1261,7 +1264,7 @@ export function calculateQuotePricing(
       const livingCost = livingDelta >= 0 ? livingDelta * 1420 : livingDelta * 1420 * 0.8;
       const garageCost = garageDelta >= 0 ? garageDelta * 1300 : garageDelta * 1300 * 0.8;
       const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * 870 : alfrescoDelta * 870 * 0.8;
-      const porchCost = porchDelta >= 0 ? porchDelta * 870 : porchDelta * 870 * 0.8;
+      const porchCost = porchDelta >= 0 ? porchDelta * 700 : porchDelta * 700 * 0.8;
 
       sdBase += Math.round(livingCost + garageCost + alfrescoCost + porchCost);
     }

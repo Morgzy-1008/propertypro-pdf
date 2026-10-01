@@ -8,7 +8,8 @@ export const DEFAULT_CUSTOM_RATES = {
   doubleGroundLivingH3M2Rate: 1650,
   doubleUpperLivingH3M2Rate: 1950,
   garageM2Rate: 1300,
-  ancillaryM2Rate: 869, // Alfresco, Porch
+  ancillaryM2Rate: 870, // Alfresco ($870/m²)
+  porchM2Rate: 700, // Porch ($700/m²)
   doubleScaffoldingAllowance: 8500,
 };
 
@@ -202,7 +203,25 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Porch / Alfresco Under-Roof Area",
     description: "Integrated concrete slab and roofline framing extension for outdoor porch or alfresco entertaining footprint.",
     unitType: "per_m2",
-    unitRate: 869,
+    unitRate: 870,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_custom_alfresco",
+    category: "floorplan_extensions",
+    name: "Custom Alfresco Footprint Extension (H2)",
+    description: "Integrated reinforced slab, structural posts/piers, under-roof framing and external ceiling lining ($870/m² in H2).",
+    unitType: "per_m2",
+    unitRate: 870,
+    isClientSelectable: true,
+  },
+  {
+    id: "str_custom_porch",
+    category: "floorplan_extensions",
+    name: "Custom Entry Porch Footprint Extension (H2)",
+    description: "Integrated concrete foundation and covered roofline extension for front entry porch ($700/m² in H2).",
+    unitType: "per_m2",
+    unitRate: 700,
     isClientSelectable: true,
   },
   {
