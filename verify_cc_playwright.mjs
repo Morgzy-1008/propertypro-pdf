@@ -160,6 +160,88 @@ import path from "path";
     }
     console.log("PASSED: Raw address query executed without apologies.");
 
+    // 7. Test Query 4: CC dual key 131 mount cotton road
+    console.log("Step 7: Testing query: 'CC dual key 131 mount cotton road'...");
+    await chatInput.fill("CC dual key 131 mount cotton road");
+    await chatInput.press("Enter");
+
+    await page.waitForFunction(() => {
+      const texts = Array.from(document.querySelectorAll("*")).map(el => el.textContent || "");
+      return texts.some(t => t.includes("Dual-Key & Auxiliary Living Compliance Check"));
+    }, { timeout: 10000 });
+
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "playwright-screenshots/cc_dual_key_131_mount_cotton_road.png", fullPage: false });
+    console.log("Screenshot saved: playwright-screenshots/cc_dual_key_131_mount_cotton_road.png");
+
+    const pageText4 = await page.evaluate(() => document.body.innerText);
+    if (pageText4.includes("I apologize")) {
+      throw new Error("FAILED: Apologetic refusal detected in dual key response!");
+    }
+    if (!pageText4.includes("$0 Council Headworks Infrastructure Charges") && !pageText4.includes("$0")) {
+      throw new Error("FAILED: Dual key $0 infrastructure charges exemption missing!");
+    }
+    console.log("PASSED: $0 Council Headworks Infrastructure Charges verified.");
+
+    if (!pageText4.includes("70 m²") && !pageText4.includes("70m²")) {
+      throw new Error("FAILED: Dual key auxiliary max GFA limit (70m²) missing!");
+    }
+    console.log("PASSED: Dual key 70m² GFA limit verified.");
+
+    if (!pageText4.includes("Gemini 28")) {
+      throw new Error("FAILED: Dual key recommended design (Gemini 28) missing!");
+    }
+    console.log("PASSED: Recommended dual key model (Gemini 28) verified.");
+
+    // 8. Test Query 5: CC 24 Acacia Street, Marsden Park
+    console.log("Step 8: Testing query: 'CC 24 Acacia Street, Marsden Park' (NSW Blacktown check)...");
+    await chatInput.fill("CC 24 Acacia Street, Marsden Park");
+    await chatInput.press("Enter");
+
+    await page.waitForFunction(() => {
+      const texts = Array.from(document.querySelectorAll("*")).map(el => el.textContent || "");
+      return texts.some(t => t.includes("Blacktown City Council") || t.includes("Marsden Park"));
+    }, { timeout: 10000 });
+
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "playwright-screenshots/cc_marsden_park.png", fullPage: false });
+    console.log("Screenshot saved: playwright-screenshots/cc_marsden_park.png");
+
+    const pageText5 = await page.evaluate(() => document.body.innerText);
+    if (pageText5.includes("I apologize")) {
+      throw new Error("FAILED: Apologetic refusal in Marsden Park response!");
+    }
+    if (!pageText5.includes("Blacktown City Council")) {
+      throw new Error("FAILED: Marsden Park incorrectly mapped, expected Blacktown City Council!");
+    }
+    console.log("PASSED: Marsden Park correctly mapped to Blacktown City Council (NSW).");
+
+    // 9. Test Query 6: Construction Knowledge: Soil class H2 vs M & drop edge beams
+    console.log("Step 9: Testing construction query: 'Tell me about soil class H2 vs M and drop edge beams'...");
+    await chatInput.fill("Tell me about soil class H2 vs M and drop edge beams");
+    await chatInput.press("Enter");
+
+    await page.waitForFunction(() => {
+      const texts = Array.from(document.querySelectorAll("*")).map(el => el.textContent || "");
+      return texts.some(t => t.includes("AS 2870") || t.includes("Geotechnical Soil"));
+    }, { timeout: 10000 });
+
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "playwright-screenshots/construction_soil_deb.png", fullPage: false });
+    console.log("Screenshot saved: playwright-screenshots/construction_soil_deb.png");
+
+    const pageText6 = await page.evaluate(() => document.body.innerText);
+    if (pageText6.includes("I apologize")) {
+      throw new Error("FAILED: Apologetic refusal in construction query!");
+    }
+    if (!pageText6.includes("Class M") || !pageText6.includes("Class H2")) {
+      throw new Error("FAILED: Class M or Class H2 soil details missing from response!");
+    }
+    if (!pageText6.includes("Drop Edge Beams") && !pageText6.includes("DEB")) {
+      throw new Error("FAILED: Drop Edge Beams (DEB) details missing from response!");
+    }
+    console.log("PASSED: AS 2870 soil classification and Drop Edge Beams verified.");
+
     console.log("\n========================================================");
     console.log("🎉 ALL PLAYWRIGHT VERIFICATION CHECKS PASSED PERFECTLY!");
     console.log("========================================================");

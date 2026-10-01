@@ -99,6 +99,14 @@ export function detectCouncilForSuburb(suburb: string, state: string, postcode: 
   const s = (suburb || "").toLowerCase().trim();
   const p = (postcode || "").trim();
 
+  // Redland City Council ($2,500 / QLD)
+  if (
+    /mount cotton|mt cotton|capalaba|sheldon|alexandra hills|birkdale|cleveland|victoria point|redland bay|thornlands|wellington point|ormiston|thorneside|burbank/i.test(s) ||
+    /^(4165|4157|4161|4163|4164|4159|4160)$/.test(p)
+  ) {
+    return "Redland City Council";
+  }
+
   // Logan City Council ($2,227 / QLD)
   if (
     /flagstone|greenbank|yarrabilba|jimboomba|new beith|chambers flat|park ridge|logan village|undullah|bahrs scrub|cedar creek|waterford|woodridge|springwood|daisy hill|rochedale south|shailer park|browns plains|boronia heights|crestmead|heritage park|hillcrest|regents park/i.test(s) ||

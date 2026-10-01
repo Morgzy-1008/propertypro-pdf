@@ -782,6 +782,442 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       { name: "Wisteria 36", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Spacious dual living popular in Hunter growth corridors." },
       { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "High-yield Hunter Valley investor package." }
     ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 13. NEW SOUTH WALES — THE HILLS SHIRE (BOX HILL, THE GABLES, CASTLE HILL)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_the_hills",
+    name: "The Hills Shire Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "The Hills LEP 2019, Box Hill North Precinct DCP & NSW Housing SEPP",
+    statutoryAuthority: "The Hills Shire Council",
+    coveredSuburbs: [
+      "box hill", "the gables", "gables", "castle hill", "baulkham hills", "bella vista", 
+      "norwest", "kellyville", "north kellyville", "beaumont hills", "rouse hill", 
+      "kenthurst", "dural", "annangrove", "glenhaven", "maraylya"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential / R3 Medium Density Residential",
+      description: "High-demand North West Sydney growth corridor renowned for masterplanned community estates, generous executive residences, and strong capital growth."
+    },
+    duplexRules: {
+      minLotSizeM2: 600,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.5,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 20000,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 600m² with 15m frontage under The Hills LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 7200,
+      notes: "Secondary dwelling (granny flat) is permitted under NSW Housing SEPP up to 60m² GFA on lots ≥ 450m²."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in new masterplanned sectors (The Gables); BAL-12.5 to BAL-29 along Cattai Creek / rural interface",
+      floodRisk: "Cattai Creek & tributary overland flow management; minimum 500mm freeboard",
+      acousticRisk: "Windsor Road & Annangrove Road arterial corridors (Category 2 acoustic laminated glazing)",
+      soilReactivity: "Class M to Class H1 reactive clay (Bringelly Shale)",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Burgundy 34 / 37", type: "Double Storey", minLotWidthM: 14.0, minLotDepthM: 26.0, summary: "Flagship luxury double storey tailored for prestigious Box Hill and The Gables executive blocks." },
+      { name: "Wisteria 33 / 36", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 28.0, summary: "High-yield dual living floorplan meeting CDC frontage standards." },
+      { name: "Jasper 26", type: "Single Storey", minLotWidthM: 14.0, minLotDepthM: 25.0, summary: "Popular 4-bedroom single storey with grand alfresco." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 14. NEW SOUTH WALES — CITY OF PENRITH
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_penrith",
+    name: "Penrith City Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Penrith LEP 2010 & NSW Housing SEPP (Low Rise Housing Diversity Code)",
+    statutoryAuthority: "Penrith City Council",
+    coveredSuburbs: [
+      "penrith", "jordan springs", "cadence", "glenmore park", "mulgoa", "orchard hills", 
+      "st marys", "kingswood", "cranebrook", "emu plains", "caddens", "cambridge park", 
+      "cambridge gardens", "werrington", "werrington county", "werrington downs", "st clair", "colyton"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "Western Sydney growth corridor surrounding the Western Sydney Aerotropolis with active masterplans in Jordan Springs and Glenmore Park."
+    },
+    duplexRules: {
+      minLotSizeM2: 650,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.2,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 19500,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 650m² under Penrith LEP with 15m frontage)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 6800,
+      notes: "Secondary dwelling (granny flat) CDC compliant up to 60m² GFA on lots ≥ 450m²."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5 in suburban releases; BAL-19/29 near Castlereagh woodlands and Nepean riverbank",
+      floodRisk: "Nepean River / South Creek catchment overland flow controls; FFL 500mm above 1% AEP",
+      acousticRisk: "Western Sydney Airport (ANEF noise contours) & Northern Road corridor",
+      soilReactivity: "Class M to Class H1 expansive alluvial clays",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Turnkey duplex meeting Penrith CDC requirements." },
+      { name: "Azure 25", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "High-efficiency 4-bedroom home fitting standard Jordan Springs lots." },
+      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Investor dual-key configuration with separate entries." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 15. NEW SOUTH WALES — LIVERPOOL CITY COUNCIL (AUSTRAL, EDMONDSON PARK)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_liverpool",
+    name: "Liverpool City Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Liverpool LEP 2008 & South West Growth Centre SEPP",
+    statutoryAuthority: "Liverpool City Council",
+    coveredSuburbs: [
+      "liverpool", "austral", "austral estate", "edmondson park", "moorebank", "casula", 
+      "prestons", "warwick farm", "chipping norton", "hoxton park", "carnes hill", 
+      "hinchinbrook", "middleton grange", "cecil hills", "cecil park", "kemps creek", "badgerys creek"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential / R3 Medium Density Residential",
+      description: "Major South West Sydney growth precinct adjoining Western Sydney International Airport, with massive residential development in Austral and Edmondson Park."
+    },
+    duplexRules: {
+      minLotSizeM2: 600,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.2,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 20000,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 600m² under Liverpool LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 7000,
+      notes: "Granny flat CDC up to 60m² GFA on lots ≥ 450m²."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in Austral suburban precincts; BAL-12.5 near Kemps Creek conservation buffers",
+      floodRisk: "Kemps Creek / Cabramatta Creek overland flow lines; minimum 500mm freeboard",
+      acousticRisk: "M7 Motorway, Bringelly Road & Western Sydney Airport flight corridors",
+      soilReactivity: "Class M to Class H1 Bringelly Shale reactive clay",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 34", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 28.0, summary: "High-yield dual living design engineered for Austral investor allotments." },
+      { name: "Amber 21", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 22.0, summary: "Turnkey single storey fitting compact 350m²-450m² suburban parcels." },
+      { name: "Burgundy 30", type: "Double Storey", minLotWidthM: 13.0, minLotDepthM: 24.0, summary: "Spacious two-storey executive layout." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 16. NEW SOUTH WALES — CAMPBELLTOWN CITY COUNCIL (MENANGLE PARK, MACARTHUR)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_campbelltown",
+    name: "Campbelltown City Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Campbelltown LEP 2015 & Greater Macarthur Growth Area Scheme",
+    statutoryAuthority: "Campbelltown City Council",
+    coveredSuburbs: [
+      "campbelltown", "menangle park", "macarthur", "glenfield", "ingleburn", "minto", 
+      "leumeah", "raby", "rosemeadow", "bardia", "blair athol", "blairmount", 
+      "denham court", "ambarvale", "airds", "bradbury", "st helens park", "englorie park"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "Macarthur region growth corridor featuring premier masterplanned communities like Menangle Park."
+    },
+    duplexRules: {
+      minLotSizeM2: 700,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.2,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 19000,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 700m² under Campbelltown LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 6800,
+      notes: "Secondary dwelling CDC up to 60m² GFA."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in core suburban parcels; BAL-12.5/29 near Georges River bushland corridor",
+      floodRisk: "Bow Bowing Creek catchment controls; minimum 500mm freeboard",
+      acousticRisk: "Hume Motorway & Southern Rail corridor noise management",
+      soilReactivity: "Class M to Class H1 reactive clay",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Display-proven dual occupancy with private alfresco zones." },
+      { name: "Cedar 26", type: "Single Storey", minLotWidthM: 13.5, minLotDepthM: 24.0, summary: "Expansive 4-bed family design with home theatre." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 17. NEW SOUTH WALES — WOLLONDILLY SHIRE COUNCIL (WILTON, BINGARA GORGE)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_wollondilly",
+    name: "Wollondilly Shire Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Wollondilly LEP 2011, Wilton Growth Area DCP & NSW Housing SEPP",
+    statutoryAuthority: "Wollondilly Shire Council",
+    coveredSuburbs: [
+      "wollondilly", "wilton", "wilton greens", "bingara gorge", "appin", "tahmoor", 
+      "picton", "bargo", "thirlmere", "silverdale", "the oaks", "warragamba", 
+      "douglas park", "pheasants nest", "menangle"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "Picturesque semi-rural and emerging masterplanned corridor (Wilton New Town) featuring generous building envelopes."
+    },
+    duplexRules: {
+      minLotSizeM2: 800,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 5.0,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.5,
+      rearSetbackM: 4.0,
+      infrastructureChargePerDwelling: 18500,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 800m² under Wollondilly LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 6500,
+      notes: "Secondary dwelling permitted under NSW Housing SEPP up to 60m²."
+    },
+    overlayProfile: {
+      bushfireRisk: "Moderate / High (BAL-12.5 to BAL-29 common near gorges and conservation bushland)",
+      floodRisk: "Overland flow and stormwater drainage swale management",
+      acousticRisk: "Hume Highway & Picton Road transport corridors",
+      soilReactivity: "Class M to Class H1 Hawkesbury sandstone/clay profile",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Mulberry 28", type: "Single Storey", minLotWidthM: 25.0, minLotDepthM: 20.0, summary: "Grand acreage ranch home ideal for Bingara Gorge and Wilton acreage lots." },
+      { name: "Wisteria 36", type: "Duplex", minLotWidthM: 16.0, minLotDepthM: 28.0, summary: "Spacious dual living configuration." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 18. QUEENSLAND — SUNSHINE COAST COUNCIL (HARMONY, AURA, PELICAN WATERS)
+  // --------------------------------------------------------------------------
+  {
+    id: "council_sunshine_coast",
+    name: "Sunshine Coast Council",
+    state: "QLD",
+    isPDA: false,
+    governingInstrument: "Sunshine Coast Planning Scheme 2014 & Caloundra South (Aura) PDA Scheme",
+    statutoryAuthority: "Sunshine Coast Council",
+    coveredSuburbs: [
+      "sunshine coast", "palmview", "harmony", "harmony estate", "pelican waters", 
+      "caloundra", "baringa", "nirimba", "aura", "aura estate", "maroochydore", 
+      "buderim", "sippy downs", "kawana", "coolum", "mooloolaba", "marcoola", 
+      "currimundi", "golden beach", "little mountain"
+    ],
+    zoningDefaults: {
+      primaryZoning: "Low Density Residential / Caloundra South Urban Living PDA",
+      description: "Premier coastal lifestyle corridor with high-volume masterplans in Harmony (Palmview) and Aura (Baringa/Nirimba)."
+    },
+    duplexRules: {
+      minLotSizeM2: 800,
+      minFrontageM: 18.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Code Assessable",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 6.0,
+      garageSetbackM: 6.0,
+      sideSetbackM: 1.5,
+      rearSetbackM: 2.0,
+      infrastructureChargePerDwelling: 31000,
+      notes: "Dual occupancy (duplex) is Code Assessable in Low Density Residential Zone on lots ≥ 800m² with 18m frontage (or ≥ 600m² in Medium Density and Aura PoD designated lots)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 14.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 0,
+      notes: "Secondary dwelling is Accepted Development on lots ≥ 450m² with max 60m² GFA. Exempt from council infrastructure charges when built under single title."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in suburban estates; BAL-12.5/19 near coastal heath and wallum reserves",
+      floodRisk: "Mooloolah River & Pumicestone Passage catchment flood planning controls",
+      acousticRisk: "Bruce Highway & Sunshine Motorway noise corridors (QDC MP 4.4 Category 2/3)",
+      soilReactivity: "Class S to Class M coastal sands and sandy clays",
+      sewerAuthority: "Unitywater"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "High-yield dual living design compliant with Sunshine Coast frontage guidelines." },
+      { name: "Azure 25", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Modern 4-bedroom coastal family design." },
+      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 26.0, summary: "Complies with 60m² auxiliary limit with $0 infrastructure charges." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 19. NEW SOUTH WALES — CESSNOCK CITY COUNCIL (HUNTLEE / NORTH ROTHBURY)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_cessnock",
+    name: "Cessnock City Council (Hunter Valley NSW)",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Cessnock LEP 2011, Huntlee DCP & NSW Housing SEPP",
+    statutoryAuthority: "Cessnock City Council",
+    coveredSuburbs: [
+      "cessnock", "huntlee", "huntlee new town", "north rothbury", "branxton", 
+      "kurri kurri", "bellbird", "cliftleigh", "weston", "aberdare", "kitchener", "millfield", "greta"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential / Huntlee Masterplanned Estate",
+      description: "Hunter Valley wine country corridor featuring the Huntlee New Town masterplanned community."
+    },
+    duplexRules: {
+      minLotSizeM2: 600,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.2,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 18000,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 600m² under Cessnock LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 6200,
+      notes: "Secondary dwelling CDC up to 60m² GFA."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in new Huntlee villages; BAL-12.5/29 near Pokolbin State Forest borders",
+      floodRisk: "Black Creek catchment overland flow management",
+      acousticRisk: "Hunter Expressway corridor (Category 2 acoustic glazing)",
+      soilReactivity: "Class M to Class H1 reactive clay",
+      sewerAuthority: "Hunter Water"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Investor dual-occupancy design meeting Huntlee design standards." },
+      { name: "Amber 21", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 22.0, summary: "Affordable family floorplan." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 20. NEW SOUTH WALES — SHELLHARBOUR & WOLLONGONG (CALDERWOOD VALLEY)
+  // --------------------------------------------------------------------------
+  {
+    id: "nsw_shellharbour",
+    name: "Shellharbour City & Wollongong City Council",
+    state: "NSW",
+    isPDA: false,
+    governingInstrument: "Shellharbour LEP 2013, Calderwood VPA & NSW Housing SEPP",
+    statutoryAuthority: "Shellharbour City Council / Wollongong City Council",
+    coveredSuburbs: [
+      "shellharbour", "calderwood", "calderwood valley", "albion park", "albion park rail", 
+      "wollongong", "dapto", "figtree", "bulli", "corrimal", "flinders", "shell cove", 
+      "warilla", "oak flats", "barrack heights", "horsley", "haywards bay"
+    ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential / Calderwood Masterplan",
+      description: "Illawarra coastal and escarpment corridor with premier masterplanned living in Lendlease Calderwood Valley."
+    },
+    duplexRules: {
+      minLotSizeM2: 600,
+      minFrontageM: 15.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Complying Development (CDC)",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 4.5,
+      garageSetbackM: 5.5,
+      sideSetbackM: 1.2,
+      rearSetbackM: 3.0,
+      infrastructureChargePerDwelling: 19500,
+      notes: "Dual occupancy attached is Complying Development (CDC) on lots ≥ 500m² under Low Rise Housing Diversity Code (or ≥ 600m² under Shellharbour LEP)."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 60,
+      minFrontageM: 12.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 6800,
+      notes: "Secondary dwelling CDC up to 60m² GFA."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19/29 near Illawarra Escarpment bush corridors",
+      floodRisk: "Macquarie Rivulet & Lake Illawarra catchment management",
+      acousticRisk: "Princes Highway / Albion Park Rail bypass corridor",
+      soilReactivity: "Class M to Class H1 Illawarra clay profile",
+      sewerAuthority: "Sydney Water"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 34", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 28.0, summary: "High-yield dual living design suited for Calderwood Valley." },
+      { name: "Azure 25", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Smart 4-bed family home." }
+    ]
   }
 ];
 
@@ -848,41 +1284,61 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
   let detectedSuburb: string | undefined;
   let detectedState: PlanningState | undefined;
 
-  // Mount Cotton Corridor Resolution (Mt Cotton / Sheldon / Capalaba -> Redland City Council)
-  if (norm.includes("mount cotton") || norm.includes("mt cotton")) {
-    detectedSuburb = "Mount Cotton";
-    detectedState = "QLD";
-    if (!streetName && norm.includes("road")) {
-      streetName = "Mount Cotton Road";
+  // Compile all covered suburbs across all jurisdictions and sort by length descending
+  // This guarantees longer compound names match first (e.g. "marsden park" before "marsden")
+  const candidates: Array<{ suburb: string; state: PlanningState; councilId: string }> = [];
+  for (const jur of JURISDICTIONS) {
+    for (const sub of jur.coveredSuburbs) {
+      candidates.push({ suburb: sub, state: jur.state, councilId: jur.id });
     }
-  } else if (norm.includes("61 paradise") || (norm.includes("paradise") && norm.includes("flagstone"))) {
-    streetNumber = "61";
-    streetName = "Paradise Road";
-    detectedSuburb = "Flagstone";
-    detectedState = "QLD";
-    lotSizeM2 = 450;
-    frontageM = 15.0;
   }
 
-  if (!detectedSuburb) {
-    for (const j of JURISDICTIONS) {
-      for (const sub of j.coveredSuburbs) {
-        const regex = new RegExp(`\\b${sub}\\b`, "i");
-        if (regex.test(norm)) {
-          detectedSuburb = sub.charAt(0).toUpperCase() + sub.slice(1);
-          detectedState = j.state;
-          break;
-        }
-      }
-      if (detectedSuburb) break;
+  // Also include key landmark estates
+  candidates.push(
+    { suburb: "the gables", state: "NSW", councilId: "nsw_the_hills" },
+    { suburb: "elara", state: "NSW", councilId: "nsw_blacktown" },
+    { suburb: "harmony", state: "QLD", councilId: "council_sunshine_coast" },
+    { suburb: "aura", state: "QLD", councilId: "council_sunshine_coast" },
+    { suburb: "huntlee", state: "NSW", councilId: "nsw_cessnock" },
+    { suburb: "bingara gorge", state: "NSW", councilId: "nsw_wollondilly" },
+    { suburb: "calderwood valley", state: "NSW", councilId: "nsw_shellharbour" }
+  );
+
+  candidates.sort((a, b) => b.suburb.length - a.suburb.length);
+
+  // If the query mentions NSW or QLD explicitly, prioritize candidates for that state
+  const queryMentionsNSW = /\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast|illawarra)\b/i.test(norm);
+  const queryMentionsQLD = /\b(?:qld|queensland|brisbane|gold\s*coast|sunshine\s*coast|moreton|redland|logan|ipswich)\b/i.test(norm);
+
+  const sortedCandidates = candidates.slice().sort((a, b) => {
+    if (queryMentionsNSW) {
+      if (a.state === "NSW" && b.state !== "NSW") return -1;
+      if (b.state === "NSW" && a.state !== "NSW") return 1;
+    } else if (queryMentionsQLD) {
+      if (a.state === "QLD" && b.state !== "QLD") return -1;
+      if (b.state === "QLD" && a.state !== "QLD") return 1;
+    }
+    return b.suburb.length - a.suburb.length;
+  });
+
+  for (const cand of sortedCandidates) {
+    const escaped = cand.suburb.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\b${escaped}\\b`, "i");
+    if (regex.test(norm)) {
+      detectedSuburb = cand.suburb
+        .split(" ")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      detectedState = cand.state;
+      break;
     }
   }
 
   // Fallback state detection
   if (!detectedState) {
-    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton|redland|logan|ipswich)\b/i.test(norm)) {
+    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton|redland|logan|ipswich|sunshine\s*coast)\b/i.test(norm)) {
       detectedState = "QLD";
-    } else if (/\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast|camden|blacktown)\b/i.test(norm)) {
+    } else if (/\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast|camden|blacktown|penrith|liverpool|hills)\b/i.test(norm)) {
       detectedState = "NSW";
     }
   }
@@ -925,20 +1381,40 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
       jurisdiction = JURISDICTIONS.find((j) => j.id === "pda_greater_flagstone");
     } else if (norm.includes("ripley") || norm.includes("providence")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "pda_ripley_valley");
-    } else if (norm.includes("logan") || norm.includes("carbrook") || norm.includes("cornubia")) {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_logan");
-    } else if (norm.includes("ipswich")) {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_ipswich");
-    } else if (norm.includes("moreton") || norm.includes("morayfield") || norm.includes("caboolture")) {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_moreton_bay");
-    } else if (norm.includes("camden") || norm.includes("oran park")) {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_camden");
+    } else if (norm.includes("box hill") || norm.includes("the gables") || norm.includes("hills")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_the_hills");
+    } else if (norm.includes("penrith") || norm.includes("jordan springs") || norm.includes("caddens")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_penrith");
+    } else if (norm.includes("austral") || norm.includes("liverpool") || norm.includes("edmondson park")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_liverpool");
+    } else if (norm.includes("campbelltown") || norm.includes("menangle")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_campbelltown");
+    } else if (norm.includes("wilton") || norm.includes("bingara gorge") || norm.includes("wollondilly")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_wollondilly");
+    } else if (norm.includes("sunshine coast") || norm.includes("palmview") || norm.includes("harmony") || norm.includes("aura")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_sunshine_coast");
+    } else if (norm.includes("huntlee") || norm.includes("cessnock") || norm.includes("rothbury")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_cessnock");
+    } else if (norm.includes("calderwood") || norm.includes("shellharbour") || norm.includes("wollongong")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_shellharbour");
     } else if (norm.includes("blacktown") || norm.includes("marsden park") || norm.includes("schofields")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_blacktown");
+    } else if (norm.includes("logan") || norm.includes("greenbank") || norm.includes("yarrabilba")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_logan");
+    } else if (norm.includes("ipswich") || norm.includes("springfield")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_ipswich");
+    } else if (norm.includes("moreton") || norm.includes("morayfield") || norm.includes("caboolture") || norm.includes("north harbour")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_moreton_bay");
+    } else if (norm.includes("gold coast") || norm.includes("coomera") || norm.includes("pimpama")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_gold_coast");
+    } else if (norm.includes("brisbane") || norm.includes("rochedale") || norm.includes("pallara")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_brisbane");
     } else if (norm.includes("warnervale") || norm.includes("central coast")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_central_coast");
     } else if (norm.includes("hunter") || norm.includes("maitland") || norm.includes("lochinvar")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_maitland");
+    } else if (norm.includes("camden") || norm.includes("oran park")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_camden");
     } else if (parsed.state === "NSW") {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_camden");
     } else {
@@ -946,10 +1422,9 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
     }
   }
 
-  const j = jurisdiction!;
+  const j = jurisdiction || JURISDICTIONS[0];
   const isDuplex = parsed.targetTypology === "duplex";
   const isAuxiliary = parsed.targetTypology === "dual_key" || parsed.targetTypology === "secondary_dwelling";
-  const isFullCompliance = parsed.targetTypology === "compliance_check";
 
   const rules = isDuplex ? j.duplexRules : isAuxiliary ? {
     minLotSizeM2: j.auxiliaryUnitRules.minLotSizeM2,
@@ -968,7 +1443,7 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
 
   // Check lot size pass/fail
   let lotSizePass: boolean | "Unknown" = "Unknown";
-  let lotSizeExplanation = `Statutory minimum lot size for ${isDuplex ? "duplex / dual occupancy" : "residential development"} in ${j.name} is ${rules.minLotSizeM2} m².`;
+  let lotSizeExplanation = `Statutory minimum lot size for ${isDuplex ? "duplex / dual occupancy" : isAuxiliary ? "auxiliary dwelling / dual key" : "residential development"} in ${j.name} is ${rules.minLotSizeM2} m².`;
   if (parsed.lotSizeM2) {
     if (parsed.lotSizeM2 >= rules.minLotSizeM2) {
       lotSizePass = true;
@@ -987,7 +1462,7 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
   if (parsed.frontageM) {
     if (parsed.frontageM >= rules.minFrontageM) {
       frontagePass = true;
-      frontageExplanation += ` Street frontage (${parsed.frontageM}m) satisfies dual crossover access standards.`;
+      frontageExplanation += ` Street frontage (${parsed.frontageM}m) satisfies access standards.`;
     } else {
       frontagePass = false;
       frontageExplanation += ` Street frontage (${parsed.frontageM}m) is narrower than required ${rules.minFrontageM}m.`;
@@ -1111,6 +1586,79 @@ ${modelsList.map((m) => `- **${m.name}** (*${m.type}*): ${m.dimensions}\n  ${m.s
 1. **Cadastral Check**: Confirm exact boundary dimensions and easement location via Hudson Land Scout or cadastral search.
 2. **Soil & Contour Survey**: Order official soil classification and contour survey to establish exact cut/fill and sewer invert levels.
 3. **Select Model**: Choose between Hudson Homes Wisteria 33 / 34 / 36 / 40 or Gemini 28 Dual-Key.
+4. **Draft Tender**: Open Quote Builder V2 (\`/quote-builder\`) to generate a fixed-price turnkey tender with guaranteed construction timeframes!`;
+
+  } else if (isAuxiliary) {
+    // ------------------------------------------------------------------------
+    // DUAL-KEY / AUXILIARY LIVING / GRANNY FLAT COMPLIANCE CHECK
+    // ------------------------------------------------------------------------
+    markdownReport = `### 🏛️ Dual-Key & Auxiliary Living Compliance Check: ${addressLabel}
+
+> ✅ **Statutory Determination**: **${verdict}** (100% Planning Framework Verified)
+> **Governing Council**: **${j.statutoryAuthority}** (${j.name})
+> **Statutory Planning Instrument**: ${j.governingInstrument}
+> **Assessment Category**: **${rules.assessmentCategory}** ($0 Council Headworks Infrastructure Charges)
+
+Here is the verified statutory planning framework, auxiliary dwelling siting envelope, and technical overlays for this property:
+
+---
+
+#### 1. Auxiliary Living & Dual-Key Siting Envelope Controls
+- **Statutory Permissibility**: Auxiliary dwelling / secondary suite under single continuous title is **ACCEPTED DEVELOPMENT** without requiring a protracted planning DA.
+- **Maximum Gross Floor Area (GFA)**: **≤ ${j.auxiliaryUnitRules.maxGfaM2} m²** (auxiliary dwelling unit internal area limit).
+- **Minimum Lot Size Required**: **≥ ${j.auxiliaryUnitRules.minLotSizeM2} m²** (${lotSizeExplanation}).
+- **Minimum Street Frontage**: **≥ ${j.auxiliaryUnitRules.minFrontageM}m**.
+- **Maximum Site Coverage**: **${j.duplexRules.maxSiteCoveragePct}%** across main residence and secondary suite combined.
+- **Boundary Setbacks**: Identical to primary single dwelling envelope (Front: **${j.duplexRules.frontSetbackM}m**, Garage: **${j.duplexRules.garageSetbackM}m**, Sides: **${j.duplexRules.sideSetbackM}m**, Rear: **${j.duplexRules.rearSetbackM}m**).
+- **Parking Allocation**: **${j.auxiliaryUnitRules.parkingSpacesRequired} dedicated on-site car space** required for the auxiliary unit in addition to primary garage.
+
+---
+
+#### 2. Key Investor & Regulatory Advantages
+1. **$0 Council Trunk Infrastructure Charges**:
+   - Unlike a duplex which triggers $30,000 to $35,000+ in headworks infrastructure charges, compliant auxiliary units (under ${j.auxiliaryUnitRules.maxGfaM2}m² GFA) are **100% exempt from council infrastructure contributions**!
+2. **Single Title / Zero Subdivisional Costs**:
+   - Single rates notice, single water connection fee, and no strata titling or titling legal fees.
+3. **Acoustic & Fire Separation**:
+   - Independent external entrance for tenant privacy.
+   - Internal inter-tenancy dividing wall built with discontinuous cavity studs and high-density acoustic insulation achieving **$R_w + C_{tr} \\ge 50$**.
+   - Sub-metering for power and sub-water metering for effortless tenant utility pass-through.
+
+---
+
+#### 3. Site Overlays & Technical Construction Constraints
+- **Bushfire Attack Level (AS 3959 BAL Assessment)**:
+  - ${j.overlayProfile.bushfireRisk}.
+  - Requirements: Ember screening ($\le 2\\text{mm}$) to weep holes, openable windows, and cowl vents; toughened safety glass; non-combustible sarking.
+- **Flooding & Overland Flow Freeboard**:
+  - ${j.overlayProfile.floodRisk}.
+  - Siting Rule: Habitable finished floor level (FFL) must achieve **300mm to 500mm freeboard** above the 1% AEP flood/overland flow crest.
+- **Acoustic & Transport Noise Corridor (QDC MP 4.4 / NSW SEPP Transport)**:
+  - ${j.overlayProfile.acousticRisk}.
+  - Upgraded 6.38mm acoustic laminated glass, perimeter acoustic door drop seals, and mechanical ventilation allowances.
+- **Sewer & Stormwater Zone of Influence (ZOI)**:
+  - **Governing Water Utility**: **${j.overlayProfile.sewerAuthority}**.
+  - **45° Angle of Repose**: Any building footing within the 45-degree angle of repose from the pipe invert must be supported on bored reinforced concrete piers drilled minimum **300mm below the pipe invert level**.
+- **Slope, Earthworks & Drop Edge Beams**:
+  - Cut/fill limits: Maximum 1.0m uncertified. Cross-fall across building pad utilizes Hudson engineered drop edge beams (DEB).
+- **Geotechnical & Soil Reactivity (AS 2870)**:
+  - **Classification**: ${j.overlayProfile.soilReactivity}.
+  - Foundation System: Hudson Homes engineered reinforced concrete waffle pod slab (or stiffened raft slab) with bored concrete piers founded into solid bearing strata.
+
+---
+
+#### 4. Recommended Hudson Homes Dual-Living & Auxiliary Designs
+- **Gemini 28 (Dual-Key Investor Specification)** (*Dual Key*): Min Width: 14.0m | Min Depth: 28.0m
+  Engineered specifically for maximum rental yield with a 3-bed primary home + 1-bed auxiliary suite under a single roofline, complying with the ${j.auxiliaryUnitRules.maxGfaM2}m² limit with $0 council infrastructure charges.
+- **Wisteria 33 / 34 / 36 / 40** (*Duplex / Dual Living*): Min Width: 18.0m | Min Depth: 28.0m
+  Flagship dual-living floorplan adaptable for auxiliary or full duplex configurations with independent dual entries.
+
+---
+
+#### 5. Next Steps for NHC & Client Tender Handoff
+1. **Cadastral Check**: Confirm exact boundary dimensions and easement location via Hudson Land Scout or cadastral search.
+2. **Order Soil Test & Contour Survey**: Confirms bearing strata, natural ground fall, and sewer pipe inverts.
+3. **Select Inclusion Package**: Choose between **H1 Smart**, **H2 Designer**, **H3 Luxury**, or **IP Investment** (100% turn-key).
 4. **Draft Tender**: Open Quote Builder V2 (\`/quote-builder\`) to generate a fixed-price turnkey tender with guaranteed construction timeframes!`;
 
   } else {
