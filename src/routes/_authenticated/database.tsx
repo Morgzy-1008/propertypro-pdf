@@ -1010,7 +1010,7 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
         {busy && (
           <div className="flex items-center gap-2 text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-md p-3">
             <Loader2 className="h-4 w-4 animate-spin text-amber-400 shrink-0" />
-            <span>{busyMessage || "Scanning price lists with Gemini 3.6 Flash & verifying columns…"}</span>
+            <span>{busyMessage || "Scanning price lists with Hudson AI Engine & verifying columns…"}</span>
           </div>
         )}
 

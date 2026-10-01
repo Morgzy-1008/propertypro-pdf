@@ -45,7 +45,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
       if (res.valid) {
         toast.success(
           trimmed
-            ? "Custom API key verified active with Google Gemini!"
+            ? "Custom API key verified active with Hudson Engine!"
             : "Hudson System AI Key verified active!"
         );
       } else {
@@ -91,8 +91,8 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
 
     try {
       saveGeminiApiKey(trimmed);
-      toast.success("Gemini API key saved to browser!", {
-        description: "Live web search with Google Grounding is now enabled.",
+      toast.success("AI API key saved to browser!", {
+        description: "Live web search with Search Grounding is now enabled.",
       });
       onKeySaved(trimmed);
       onClose();
@@ -121,7 +121,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
               <Key className="h-5 w-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Gemini Web Search Engine</h2>
+              <h2 className="text-base font-bold text-white">Hudson Web Search & Planning Engine</h2>
               <p className="text-xs text-slate-400">Live AI Google Grounding for Australian Land Portals</p>
             </div>
           </div>
@@ -148,7 +148,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
                 </span>
               </div>
               <p className="text-[11px] text-slate-300 leading-normal">
-                Your workspace is already equipped with an authorized Google Gemini API key running via the backend search service. You do not need to provide an API key.
+                Your workspace is already equipped with an authorized Hudson AI Engine running via the backend search service. You do not need to provide an API key.
               </p>
               <div className="pt-0.5">
                 <button
@@ -171,14 +171,14 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
               </p>
             </div>
             <p className="text-[11px] text-slate-400 pl-6">
-              Hudson Land Scout uses Google Gemini with <strong>Google Search Grounding</strong> to discover active land releases online, auto-extract pricing/dimensions, and calculate turn-key home packages.
+              Hudson Land Scout uses Hudson AI with <strong>Search Grounding</strong> to discover active land releases online, auto-extract pricing/dimensions, and calculate turn-key home packages.
             </p>
           </div>
 
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold text-slate-300">
-                Custom Google Gemini API Key <span className="text-slate-500 font-normal">(Optional Override)</span>
+                Custom AI Engine Key <span className="text-slate-500 font-normal">(Optional Override)</span>
               </label>
               {apiKey && (
                 <button
@@ -230,7 +230,7 @@ export function GeminiApiKeyModal({ isOpen, onClose, onKeySaved }: GeminiApiKeyM
                 )}
                 <span>
                   {validationResult.valid
-                    ? "API Key Verified & Active (Gemini 3.6 Flash Ready)"
+                    ? "API Key Verified & Active (Hudson Engine Ready)"
                     : isServiceAccountError
                     ? "Service Account Deleted or Disabled"
                     : "API Key Test Failed"}

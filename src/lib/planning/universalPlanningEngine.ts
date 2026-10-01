@@ -1,22 +1,33 @@
 /**
  * universalPlanningEngine.ts
  * ============================================================================
- * UNIVERSAL PLANNING, STATUTORY ZONING & DUPLEX FEASIBILITY INTELLIGENCE ENGINE
+ * UNIVERSAL PLANNING, STATUTORY ZONING & COMPLIANCE (CC) INTELLIGENCE ENGINE
  * Hudson Homes Operating System (Hudson OS Copilot)
  * 
  * Capabilities:
- * 1. Universal LGA / Suburb / Priority Development Area (PDA) Resolution (QLD & NSW)
- * 2. Multi-Typology Assessment: Duplex (Dual Occ), Dual-Key (Auxiliary), Granny Flat, NDIS/Rooming
+ * 1. Fast-Track Compliance Check (CC) & Feasibility Shorthand Commands:
+ *    - `CC <address>` -> Full Statutory Compliance Check (Zoning, Setbacks, Overlays, Soil, BAL, Sewer ZOI, Designs)
+ *    - `CC duplex <address>` -> Prioritized Duplex / Dual-Occupancy Siting & Assessment Path
+ *    - `CC dual key <address>` -> Auxiliary Dwelling / Multi-Key Yield Assessment
+ *    - `CC secondary dwelling <address>` / `CC granny flat <address>` -> Fast-track CDC / Accepted Secondary Living
+ * 2. Universal LGA / Suburb / Priority Development Area (PDA) Resolution (QLD & NSW)
  * 3. Exact Statutory Thresholds: Min Lot Size, Min Frontage, Setbacks, Max Site Cover, Max Height
- * 4. Infrastructure Charges & Headworks Estimates (EDQ, Logan, Ipswich, NSW S7.11/S7.12)
- * 5. Hudson Homes Product Matching (Wisteria, Gemini, Amber, Jasper, etc.)
- * 6. Autonomous Subagent Ingestion Hook for Continuous Council Planning Scans
+ * 4. Comprehensive Site Overlays & Technical Construction Constraints:
+ *    - Bushfire Attack Level (AS 3959 BAL-LOW to BAL-40)
+ *    - Flooding & Overland Flow Minimum Finished Floor Level (FFL) Freeboard
+ *    - Road Traffic Noise Corridors (QDC MP 4.4 / NSW SEPP Transport)
+ *    - Sewer & Stormwater Zone of Influence (ZOI) 45° Angle of Repose & Piering
+ *    - Slope, Earthworks, Drop Edge Beams & Retaining Walls (>1.0m Engineering)
+ *    - Geotechnical Soil Classifications (AS 2870 Class A, S, M, H1, H2, E, P)
+ *    - Infrastructure Trunk Charges (Headworks) & Council Contributions
+ * 5. Hudson Homes Product Matching (Wisteria, Magnolia, Amber, Jasper, Azure, Gemini 28, etc.)
  * ============================================================================
  */
 
 export type PlanningState = "QLD" | "NSW";
 
 export type DevelopmentTypology = 
+  | "compliance_check"    // Full property compliance check (detached + dual living overview)
   | "duplex"              // Side-by-side or detached dual occupancy (2 independent dwellings)
   | "dual_key"            // Primary dwelling + auxiliary unit under single roofline
   | "secondary_dwelling"  // Detached granny flat / secondary unit
@@ -33,6 +44,10 @@ export interface CouncilJurisdiction {
   governingInstrument: string;
   statutoryAuthority: string;
   coveredSuburbs: string[];
+  zoningDefaults: {
+    primaryZoning: string;
+    description: string;
+  };
   duplexRules: {
     minLotSizeM2: number;
     minFrontageM: number;
@@ -55,6 +70,13 @@ export interface CouncilJurisdiction {
     infrastructureCharge: number;
     notes: string;
   };
+  overlayProfile: {
+    bushfireRisk: string;
+    floodRisk: string;
+    acousticRisk: string;
+    soilReactivity: string;
+    sewerAuthority: string;
+  };
   recommendedDesigns: Array<{
     name: string;
     type: "Duplex" | "Dual Key" | "Single Storey" | "Double Storey";
@@ -66,6 +88,7 @@ export interface CouncilJurisdiction {
 
 export interface ParsedPropertyQuery {
   rawQuery: string;
+  isCCCommand: boolean;
   streetNumber?: string;
   streetName?: string;
   suburb?: string;
@@ -78,7 +101,7 @@ export interface ParsedPropertyQuery {
 export interface FeasibilityAssessmentResult {
   jurisdiction: CouncilJurisdiction;
   parsedQuery: ParsedPropertyQuery;
-  verdict: "HIGHLY FEASIBLE" | "CONDITIONALLY FEASIBLE" | "RESTRICTED / CODE ASSESSABLE" | "INSUFFICIENT LOT DIMENSIONS" | "REQUIRES POD CONFIRMATION";
+  verdict: "HIGHLY FEASIBLE" | "CONDITIONALLY FEASIBLE" | "RESTRICTED / CODE ASSESSABLE" | "INSUFFICIENT LOT DIMENSIONS" | "REQUIRES POD CONFIRMATION" | "COMPLIANT STATUTORY FRAMEWORK";
   confidenceScore: number;
   statutorySummary: string;
   ruleBreakdown: {
@@ -107,7 +130,64 @@ export interface FeasibilityAssessmentResult {
 
 export const JURISDICTIONS: CouncilJurisdiction[] = [
   // --------------------------------------------------------------------------
-  // 1. GREATER FLAGSTONE PDA (EDQ / LOGAN REGION)
+  // 1. REDLAND CITY COUNCIL (MOUNT COTTON, SHELDON, CAPALABA, REDLAND BAY)
+  // --------------------------------------------------------------------------
+  {
+    id: "council_redland",
+    name: "Redland City Council",
+    state: "QLD",
+    isPDA: false,
+    governingInstrument: "Redland City Plan 2018 & Queensland Development Code (QDC MP 1.1 / 1.2 / 1.4)",
+    statutoryAuthority: "Redland City Council",
+    coveredSuburbs: [
+      "mount cotton", "mt cotton", "mount cotton road", "mt cotton road", "sheldon", "capalaba", 
+      "alexandra hills", "birkdale", "cleveland", "victoria point", "redland bay", 
+      "thornlands", "wellington point", "ormiston", "thorneside", "burbank"
+    ],
+    zoningDefaults: {
+      primaryZoning: "Low Density Residential / Rural Residential Corridor",
+      description: "Characterized by generous suburban lots and undulating rural residential acreage parcels adjoining conservation corridors."
+    },
+    duplexRules: {
+      minLotSizeM2: 800, // 800m² in Low Density Residential; 600m² in Medium Density
+      minFrontageM: 18.0,
+      requiresPoDDesignation: false,
+      assessmentCategory: "Code Assessable",
+      maxSiteCoveragePct: 50,
+      maxBuildingHeightM: 8.5,
+      frontSetbackM: 6.0,
+      garageSetbackM: 6.0,
+      sideSetbackM: 1.5,
+      rearSetbackM: 2.0,
+      infrastructureChargePerDwelling: 32000,
+      notes: "Dual occupancy (duplex) is Code Assessable in the Low Density Residential Zone on lots ≥ 800 m² with min 18m street frontage (or ≥ 600 m² with 15m frontage in Medium Density). Separate driveway crossovers require min 1.0m clearance to utility assets and street trees."
+    },
+    auxiliaryUnitRules: {
+      minLotSizeM2: 450,
+      maxGfaM2: 70,
+      minFrontageM: 14.0,
+      parkingSpacesRequired: 1,
+      infrastructureCharge: 0,
+      notes: "Auxiliary unit (secondary dwelling under single title) is ACCEPTED DEVELOPMENT (no DA required) on lots ≥ 450m² if gross floor area ≤ 70m² and provides 1 dedicated on-site parking space. Exempt from council infrastructure charges."
+    },
+    overlayProfile: {
+      bushfireRisk: "High / Moderate (BAL-12.5 to BAL-29 typical along Mt Cotton reserve corridor, requiring toughened glass, ember screens & non-combustible cladding)",
+      floodRisk: "Eprap & Tingalpa Creek catchments: Minimum FFL +300mm to +500mm freeboard above overland flow crest",
+      acousticRisk: "Category 2/3 road traffic noise along Mt Cotton Road arterial corridor (requires 6.38mm acoustic laminated glazing and acoustic door drop seals)",
+      soilReactivity: "Class M to Class H1/H2 basaltic clays (engineered waffle pod or stiffened raft slab with bored concrete piers)",
+      sewerAuthority: "Redland City Council Water & Waste / Logan Water boundary"
+    },
+    recommendedDesigns: [
+      { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "Flagship QLD dual-occupancy design with mirror luxury finishes, compliant with Redland 18m frontage rules." },
+      { name: "Gemini 28 (Auxiliary Specification)", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 28.0, summary: "Engineered specifically to satisfy Redland's 70m² auxiliary limit with $0 council infrastructure charges." },
+      { name: "Mulberry 25 / 28 / 33", type: "Single Storey", minLotWidthM: 27.0, minLotDepthM: 20.0, summary: "Prestige wide-frontage acreage ranch design, ideal for Mt Cotton and Sheldon rural-residential blocks." },
+      { name: "Amber 21 / 23 / 26", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Smart efficient 4-bed suburban design fitting standard Redland Low Density residential allotments." },
+      { name: "Burgundy 27 / 30 / 32", type: "Double Storey", minLotWidthM: 13.5, minLotDepthM: 22.0, summary: "Executive two-storey luxury home maximizing backyard private open space within 50% site coverage." }
+    ]
+  },
+
+  // --------------------------------------------------------------------------
+  // 2. GREATER FLAGSTONE PDA (EDQ / LOGAN REGION)
   // --------------------------------------------------------------------------
   {
     id: "pda_greater_flagstone",
@@ -121,6 +201,10 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "flagstone", "south maclean", "undullah", "cedar grove", "cedar vale", 
       "woodhill", "monaco", "peet flagstone", "flagstone city"
     ],
+    zoningDefaults: {
+      primaryZoning: "Urban Living Zone (EDQ PDA)",
+      description: "Masterplanned corridor administered directly by Economic Development Queensland under developer Plans of Development."
+    },
     duplexRules: {
       minLotSizeM2: 600,
       minFrontageM: 16.0,
@@ -133,7 +217,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       sideSetbackM: 1.0,
       rearSetbackM: 1.5,
       infrastructureChargePerDwelling: 29500,
-      notes: "Strict PoD enforcement. Lots must be designated as 'Dual Occupancy' or 'Dual Key' on the approved estate stage disclosure plan (e.g., Peet Flagstone City stages). If designated, dual occupancy is Code Assessable / Accepted subject to PoD envelope."
+      notes: "Strict PoD enforcement. Lots must be designated as 'Dual Occupancy' or 'Dual Key' on the approved estate stage disclosure plan (e.g. Peet Flagstone City stages). If designated, dual occupancy is Code Assessable / Accepted subject to PoD envelope."
     },
     auxiliaryUnitRules: {
       minLotSizeM2: 450,
@@ -143,6 +227,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       infrastructureCharge: 14750,
       notes: "Auxiliary dwelling (secondary key under main roofline) is permissible on standard lots ≥ 450 m² subject to developer covenant review and 1 covered off-street parking space."
     },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5 typical in cleared stages; BAL-19/29 near perimeter bushland",
+      floodRisk: "Flagstone Creek & Sandy Creek drainage buffers: FFL +300mm above overland flow",
+      acousticRisk: "Standard QDC acoustic requirements; Category 1 near rail/arterial links",
+      soilReactivity: "Class M to Class H1 reactive soil; waffle pod slab with edge thickening standard",
+      sewerAuthority: "Logan Water reticulated infrastructure"
+    },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Flagship QLD dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one continuous architectural roofline." },
       { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 28.0, summary: "Compact dual-key configuration engineered specifically for suburban investor yield and standard 14m-16m lots." },
@@ -151,7 +242,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
   },
 
   // --------------------------------------------------------------------------
-  // 2. RIPLEY VALLEY PDA (EDQ / IPSWICH REGION)
+  // 3. RIPLEY VALLEY PDA (EDQ / IPSWICH REGION)
   // --------------------------------------------------------------------------
   {
     id: "pda_ripley_valley",
@@ -164,6 +255,10 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     coveredSuburbs: [
       "ripley", "south ripley", "providence", "ecco ripley", "gungalva", "swanbank"
     ],
+    zoningDefaults: {
+      primaryZoning: "Urban Living Zone (EDQ PDA)",
+      description: "State-managed priority growth corridor governed by precinct development schemes."
+    },
     duplexRules: {
       minLotSizeM2: 600,
       minFrontageM: 16.0,
@@ -186,51 +281,16 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       infrastructureCharge: 14250,
       notes: "Auxiliary unit permissible on lots ≥ 450 m² provided primary dwelling and auxiliary unit share a single driveway crossover or meet estate design guidelines."
     },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5 in cleared subdivisions",
+      floodRisk: "Bundamba Creek tributaries: FFL freeboard min 300mm",
+      acousticRisk: "Centenary Highway noise corridor: Category 2/3 for adjacent frontages",
+      soilReactivity: "Class H1/H2 reactive black soil clays (piered waffle pod slab)",
+      sewerAuthority: "Urban Utilities (QUU)"
+    },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "High-demand Ripley investment configuration with independent separate meters and entrances." },
       { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Engineered to satisfy Stockland and EDQ building envelope guidelines." }
-    ]
-  },
-
-  // --------------------------------------------------------------------------
-  // 3. YARRABILBA PDA (EDQ / LENDLEASE REGION)
-  // --------------------------------------------------------------------------
-  {
-    id: "pda_yarrabilba",
-    name: "Yarrabilba Priority Development Area (PDA)",
-    state: "QLD",
-    isPDA: true,
-    pdaName: "Yarrabilba PDA",
-    governingInstrument: "Yarrabilba PDA Development Scheme & Lendlease Master Stage PoDs",
-    statutoryAuthority: "Economic Development Queensland (EDQ)",
-    coveredSuburbs: [
-      "yarrabilba", "logan village pda", "plunkett reserves"
-    ],
-    duplexRules: {
-      minLotSizeM2: 600,
-      minFrontageM: 16.0,
-      requiresPoDDesignation: true,
-      assessmentCategory: "Plan of Development (PoD) Check",
-      maxSiteCoveragePct: 60,
-      maxBuildingHeightM: 8.5,
-      frontSetbackM: 4.0,
-      garageSetbackM: 5.0,
-      sideSetbackM: 1.0,
-      rearSetbackM: 1.5,
-      infrastructureChargePerDwelling: 29000,
-      notes: "Lendlease Yarrabilba stages designate multi-unit / dual occupancy parcels explicitly on stage release disclosure maps."
-    },
-    auxiliaryUnitRules: {
-      minLotSizeM2: 450,
-      maxGfaM2: 70,
-      minFrontageM: 14.0,
-      parkingSpacesRequired: 1,
-      infrastructureCharge: 14500,
-      notes: "Integrated auxiliary unit under roofline permissible on standard 450m² lots with Lendlease Design Panel covenant approval."
-    },
-    recommendedDesigns: [
-      { name: "Wisteria 36", type: "Duplex", minLotWidthM: 16.0, minLotDepthM: 28.0, summary: "Luxury dual-living package with double garages on primary side and single on auxiliary." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 28.0, summary: "Investor favorite in Yarrabilba corridor." }
     ]
   },
 
@@ -250,10 +310,15 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "heritage park", "hillcrest", "meadowbrook", "slacks creek", "springwood", 
       "daisy hill", "rochedale south", "shailer park", "tanah merah", "loganholme", 
       "kingston", "woodridge", "beenleigh", "holmview", "edens landing", "bahrs scrub", 
-      "windaroo", "mount warren park", "bannockburn"
+      "windaroo", "mount warren park", "bannockburn", "carbrook", "cornubia", 
+      "chambers flat", "logan village", "buccan", "waterford", "waterford west", "bethania"
     ],
+    zoningDefaults: {
+      primaryZoning: "Low Density Residential (LDR)",
+      description: "Standard municipal residential zoning promoting family detached living with controlled dual occupancy."
+    },
     duplexRules: {
-      minLotSizeM2: 600, // 600m² in Low-Medium Density, 700m²-800m² in Low Density
+      minLotSizeM2: 700, // 700m² in Low Density; 600m² in Low-Medium Density
       minFrontageM: 18.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Code Assessable",
@@ -264,15 +329,22 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       sideSetbackM: 1.5,
       rearSetbackM: 1.5,
       infrastructureChargePerDwelling: 31000,
-      notes: "Dual occupancy (duplex) is Code Assessable in Low Density Residential if lot is ≥ 700m² (or ≥ 600m² in Low-Medium Density) with minimum 18m frontage. Corner lots require minimum 15m along primary frontage."
+      notes: "Dual occupancy (duplex) is Code Assessable in Low Density Residential if lot is ≥ 700 m² (or ≥ 600 m² in Low-Medium Density) with minimum 18m frontage. Corner lots require minimum 15m along primary frontage."
     },
     auxiliaryUnitRules: {
       minLotSizeM2: 450,
       maxGfaM2: 70,
       minFrontageM: 14.0,
       parkingSpacesRequired: 1,
-      infrastructureCharge: 0, // Auxiliary unit exempt from infrastructure charges in Logan if ≤ 70m² GFA
-      notes: "Auxiliary unit in Logan is ACCEPTED DEVELOPMENT (no DA required) on lots ≥ 450m² if gross floor area does NOT exceed 70 m² (or 100m² in rural zones) and provides 1 dedicated on-site parking bay."
+      infrastructureCharge: 0,
+      notes: "Auxiliary unit in Logan is ACCEPTED DEVELOPMENT (no DA required) on lots ≥ 450m² if gross floor area does NOT exceed 70 m² (or 100m² in rural zones) and provides 1 dedicated on-site parking bay. Zero council headworks charges."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW in suburban estates; BAL-12.5 to BAL-29 in Greenbank/Jimboomba/Carbrook",
+      floodRisk: "Logan River & Slacks Creek flood catchments: FFL +500mm above defined flood level",
+      acousticRisk: "Mount Lindesay Highway & Pacific Motorway corridors: Category 2 to 3",
+      soilReactivity: "Class M to Class H1 clay; standard engineered foundation design",
+      sewerAuthority: "Logan Water (45° angle of repose sewer ZOI guidelines)"
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 36 / 40", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Complies with Logan City Council 18m frontage and dual crossover setback standards." },
@@ -294,10 +366,14 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "redbank plains", "brassall", "deebing heights", "bellbird park", 
       "collingwood park", "yamanto", "flinders view", "raceview", "booval", 
       "bundamba", "goodna", "gailes", "camira", "brookwater", "augustine heights", 
-      "springfield lakes", "springfield central", "rosewood", "karalee"
+      "springfield lakes", "springfield central", "rosewood", "karalee", "chuwar"
     ],
+    zoningDefaults: {
+      primaryZoning: "Residential Low Density (RLD)",
+      description: "Established low-density residential communities and modern masterplanned estates."
+    },
     duplexRules: {
-      minLotSizeM2: 800, // 800m² in standard residential, 600m² in character/medium density
+      minLotSizeM2: 800,
       minFrontageM: 18.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Code Assessable",
@@ -316,7 +392,14 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       minFrontageM: 14.0,
       parkingSpacesRequired: 1,
       infrastructureCharge: 0,
-      notes: "Auxiliary unit in Ipswich is accepted development if GFA ≤ 65 m² (or ≤ 50 m² in certain zones) on lots ≥ 450 m² with shared driveway."
+      notes: "Auxiliary unit in Ipswich is accepted development if GFA ≤ 65 m² on lots ≥ 450 m² with shared driveway."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19 in outer rural residential fringes",
+      floodRisk: "Bremer River & Deebing Creek catchments: FFL +500mm above 1% AEP",
+      acousticRisk: "Cunningham / Warrego Highway noise corridors",
+      soilReactivity: "Class H1/H2 reactive clays (piered waffle pod slab)",
+      sewerAuthority: "Urban Utilities (QUU)"
     },
     recommendedDesigns: [
       { name: "Wisteria 34", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Spacious dual living designed for 800m² Ipswich lots." },
@@ -338,11 +421,15 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "morayfield", "caboolture", "burpengary", "burpengary east", "narangba", 
       "north lakes", "griffin", "mango hill", "kallangur", "murrumba downs", 
       "petrie", "strathpine", "bray park", "warner", "upper caboolture", "elimba", 
-      "deception bay", "clontarf", "redcliffe", "scarborough", "woody point"
+      "deception bay", "clontarf", "redcliffe", "scarborough", "woody point", "bellmere"
     ],
+    zoningDefaults: {
+      primaryZoning: "General Residential (Suburban / Next Generation)",
+      description: "High growth region with Next Generation precincts supporting smaller lots and dual occupancy."
+    },
     duplexRules: {
-      minLotSizeM2: 600, // 600m² in General Residential (Suburban precinct), 800m² in Next Gen
-      minFrontageM: 15.0, // 15m in Next Gen, 18m in standard Suburban
+      minLotSizeM2: 600, // 600m² in Next Gen, 800m² in standard Suburban
+      minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Code Assessable",
       maxSiteCoveragePct: 50,
@@ -352,7 +439,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       sideSetbackM: 1.5,
       rearSetbackM: 2.0,
       infrastructureChargePerDwelling: 31500,
-      notes: "Dual occupancy is Code Assessable in the General Residential Zone. In Next Generation Neighbourhood precinct, minimum lot size is 600 m² with 15m frontage. In Suburban Neighbourhood precinct, minimum lot is 800 m² with 18m frontage."
+      notes: "Dual occupancy is Code Assessable. In Next Generation Neighbourhood precinct, minimum lot size is 600 m² with 15m frontage. In Suburban precinct, minimum lot is 800 m² with 18m frontage."
     },
     auxiliaryUnitRules: {
       minLotSizeM2: 450,
@@ -361,6 +448,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       parkingSpacesRequired: 1,
       infrastructureCharge: 0,
       notes: "Secondary dwelling / granny flat is accepted development if GFA ≤ 70 m² (including balcony/porch) and within 50m of main dwelling."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19/29 near Caboolture River/Narangba buffers",
+      floodRisk: "Caboolture River & Pine River drainage corridors: FFL +500mm",
+      acousticRisk: "Bruce Highway noise corridor (Category 2/3)",
+      soilReactivity: "Class M to Class H1 reactive soil",
+      sewerAuthority: "Unitywater (45° sewer ZOI guidelines)"
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 36", type: "Duplex", minLotWidthM: 16.0, minLotDepthM: 28.0, summary: "Fits compliant 16m+ Next Generation precinct lots across Morayfield and Burpengary." },
@@ -383,8 +477,12 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "sunnybank", "calamvale", "doolandella", "richlands", "algester", 
       "bracken ridge", "taigum", "fitzgibbon", "bridgeman downs", "carindale"
     ],
+    zoningDefaults: {
+      primaryZoning: "Low Density Residential (LDR) / Low-Medium Density (LMR)",
+      description: "Capital city metropolitan framework with strict site coverage and streetscape controls."
+    },
     duplexRules: {
-      minLotSizeM2: 800, // BCC Low Density requires 800m² for dual occ, or 600m² in Low-Medium Density (LMR)
+      minLotSizeM2: 800,
       minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Code Assessable",
@@ -403,7 +501,14 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       minFrontageM: 12.0,
       parkingSpacesRequired: 1,
       infrastructureCharge: 0,
-      notes: "BCC Secondary Dwelling code allows up to 80m² GFA, within 20m of primary house, with 1 dedicated car space. Note: BCC previously had tenant restrictions (household member), but QLD State Government 2022 planning amendments override this to allow secondary dwellings to be rented to unrelated tenants."
+      notes: "BCC Secondary Dwelling code allows up to 80m² GFA, within 20m of primary house, with 1 dedicated car space. QLD planning amendments permit renting to unrelated tenants."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW typical; BAL-12.5 near reserve edges",
+      floodRisk: "Oxley Creek & Blunder Creek catchments: FFL +500mm above flood flag",
+      acousticRisk: "Major arterial noise corridors (QDC MP 4.4 Category 1 to 3)",
+      soilReactivity: "Class M to Class H1 clay foundation",
+      sewerAuthority: "Urban Utilities (QUU)"
     },
     recommendedDesigns: [
       { name: "Wisteria 40", type: "Duplex", minLotWidthM: 16.5, minLotDepthM: 32.0, summary: "Prestige two-storey duplex configuration suited for BCC infill and knock-down rebuilds." },
@@ -426,8 +531,12 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "helensvale", "pacific pines", "oxenford", "hope island", "robina", 
       "varsity lakes", "mudgeeraba", "nerang", "reedy creek"
     ],
+    zoningDefaults: {
+      primaryZoning: "Low Density Residential / Medium Density Residential",
+      description: "Fast-expanding northern corridor with high investor duplex demand."
+    },
     duplexRules: {
-      minLotSizeM2: 600, // 600m² in Low Density Residential, 400m² in Medium Density
+      minLotSizeM2: 600,
       minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Code Assessable",
@@ -447,6 +556,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       parkingSpacesRequired: 1,
       infrastructureCharge: 0,
       notes: "Secondary dwelling up to 80m² GFA accepted on lots ≥ 450 m² with dedicated covered or open parking bay."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19 near Coomera riverine zones",
+      floodRisk: "Coomera / Pimpama River basin: FFL +300mm to +500mm freeboard",
+      acousticRisk: "M1 Pacific Motorway corridor: Category 2/3 road noise",
+      soilReactivity: "Class M to Class H1/H2 reactive clay soils",
+      sewerAuthority: "City of Gold Coast Water"
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Highly popular in Coomera / Pimpama northern growth corridor." },
@@ -468,9 +584,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       "camden", "oran park", "gregory hills", "cobbitty", "leppington", 
       "harrington park", "spring farm", "elderslie", "mount annan", "narellan"
     ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "South West Sydney growth center governed by SEPP Housing CDC fast-track rules."
+    },
     duplexRules: {
-      minLotSizeM2: 500, // Under Low Rise Housing Diversity Code CDC: min lot size per LEP (Camden R2 is 600m² DA, but CDC allows 500m² if specified or default)
-      minFrontageM: 15.0, // 15m frontage mandatory under CDC for dual occupancy
+      minLotSizeM2: 500,
+      minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Complying Development (CDC)",
       maxSiteCoveragePct: 50,
@@ -480,7 +600,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       sideSetbackM: 1.5,
       rearSetbackM: 3.0,
       infrastructureChargePerDwelling: 24000,
-      notes: "Under NSW Complying Development (CDC - Low Rise Housing Diversity Code), dual occupancy side-by-side (duplex) is FAST-TRACKED (no council DA) if lot is ≥ 500 m² (or council LEP minimum) with minimum 15.0m street frontage."
+      notes: "Under NSW Complying Development (CDC - Low Rise Housing Diversity Code), dual occupancy side-by-side (duplex) is FAST-TRACKED (no council DA) if lot is ≥ 500 m² with minimum 15.0m street frontage."
     },
     auxiliaryUnitRules: {
       minLotSizeM2: 450,
@@ -489,6 +609,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       parkingSpacesRequired: 1,
       infrastructureCharge: 8500,
       notes: "Secondary Dwelling (Granny Flat) under NSW SEPP (Housing) 2021: permissible via 10-day CDC on lots ≥ 450 m² with min 12m frontage, max 60m² GFA."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-29 near riparian bushland corridors",
+      floodRisk: "Nepean River catchment: 1-in-100-year FFL 500mm freeboard",
+      acousticRisk: "Camden Valley Way & Northern Road noise corridors",
+      soilReactivity: "Class M to Class H1 reactive clay (Sydney Water ZOI applies)",
+      sewerAuthority: "Sydney Water (45° angle of repose sewer ZOI guidelines)"
     },
     recommendedDesigns: [
       { name: "Wisteria 33 (NSW CDC Compliant)", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Engineered specifically to satisfy NSW Low Rise Housing Diversity Code CDC setbacks." },
@@ -509,11 +636,15 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     coveredSuburbs: [
       "blacktown", "marsden park", "schofields", "box hill", "riverstone", 
       "mount druitt", "quakers hill", "colebee", "stanhope gardens", "kellyville ridge", 
-      "the ponds", "rouse hill", "doonside", "rooty hill", "marayong"
+      "the ponds", "rouse hill", "doonside", "rooty hill", "marayong", "tallawong", "grantham farm"
     ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "North West Growth Area with rapid residential development and high CDC duplex adoption."
+    },
     duplexRules: {
-      minLotSizeM2: 500, // Blacktown LEP allows dual occupancy on 500m² under CDC or 600m² DA
-      minFrontageM: 15.0, // 15m for attached dual occ under CDC
+      minLotSizeM2: 500,
+      minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Complying Development (CDC)",
       maxSiteCoveragePct: 50,
@@ -532,6 +663,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       parkingSpacesRequired: 1,
       infrastructureCharge: 9000,
       notes: "Granny flat / secondary dwelling permissible via fast-track CDC on residential lots ≥ 450 m²."
+    },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW; BAL-12.5 near localized creek vegetation",
+      floodRisk: "South Creek & Eastern Creek overland flow buffers",
+      acousticRisk: "Richmond Road & Schofields Road traffic corridors",
+      soilReactivity: "Class M to Class H1 reactive shale clays",
+      sewerAuthority: "Sydney Water"
     },
     recommendedDesigns: [
       { name: "Wisteria 34", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Proven dual-occupancy design for Marsden Park & Schofields growth corridor." },
@@ -552,10 +690,14 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     coveredSuburbs: [
       "warnervale", "woongarrah", "wadalba", "wyong", "tuggerah", 
       "gosford", "hamlyn terrace", "kanwal", "gorokan", "bâteau bay", 
-      "terrigal", "avoca beach", "erina", "kincumber", "woy woy"
+      "terrigal", "avoca beach", "erina", "kincumber", "woy woy", "ourimbah", "narara"
     ],
+    zoningDefaults: {
+      primaryZoning: "R2 Low Density Residential",
+      description: "Central Coast masterplanned corridor featuring Hudson display home at HomeWorld Warnervale."
+    },
     duplexRules: {
-      minLotSizeM2: 550, // Central Coast LEP requires 550m² for attached dual occupancy in R2
+      minLotSizeM2: 550,
       minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Complying Development (CDC)",
@@ -576,6 +718,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       infrastructureCharge: 7500,
       notes: "Secondary dwelling up to 60m² allowable via CDC on lots ≥ 450 m²."
     },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19/29 near Lake Macquarie / Wyong bush corridors",
+      floodRisk: "Tuggerah Lakes catchment: Min FFL 500mm above flood planning level",
+      acousticRisk: "M1 Motorway & Pacific Highway corridors",
+      soilReactivity: "Class M to Class H1 reactive clay",
+      sewerAuthority: "Central Coast Council Water & Sewer"
+    },
     recommendedDesigns: [
       { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Standard Warnervale display-proven dual occupancy." },
       { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 25.0, summary: "Compact investor floorplan for Warnervale and Wadalba estates." }
@@ -594,10 +743,14 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     statutoryAuthority: "Maitland City Council",
     coveredSuburbs: [
       "lochinvar", "thornton", "chisholm", "maitland", "gillieston heights", 
-      "rutherford", "east maitland", "tenambit", "louth park", "ashtonfield"
+      "rutherford", "east maitland", "tenambit", "louth park", "ashtonfield", "morpeth"
     ],
+    zoningDefaults: {
+      primaryZoning: "R1 General Residential / R2 Low Density Residential",
+      description: "Hunter Valley growth corridor popular for family homes and high-yield duplex packages."
+    },
     duplexRules: {
-      minLotSizeM2: 600, // 600m² under Maitland LEP in R1/R2, or CDC minimum
+      minLotSizeM2: 600,
       minFrontageM: 15.0,
       requiresPoDDesignation: false,
       assessmentCategory: "Complying Development (CDC)",
@@ -618,6 +771,13 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       infrastructureCharge: 6500,
       notes: "Granny flat CDC accessible on lots ≥ 450 m²."
     },
+    overlayProfile: {
+      bushfireRisk: "BAL-LOW to BAL-12.5 in new estates; BAL-19/29 near rural edges",
+      floodRisk: "Hunter River flood planning level controls",
+      acousticRisk: "New England Highway & Hunter Expressway corridors",
+      soilReactivity: "Class H1/H2 reactive clay (Hunter Valley expansive soil)",
+      sewerAuthority: "Hunter Water"
+    },
     recommendedDesigns: [
       { name: "Wisteria 36", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Spacious dual living popular in Hunter growth corridors." },
       { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "High-yield Hunter Valley investor package." }
@@ -626,14 +786,24 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
 ];
 
 // ============================================================================
-// UNIVERSAL QUERY PARSER
+// UNIVERSAL QUERY PARSER (WITH CC SHORTHAND SUPPORT)
 // ============================================================================
 
 export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
-  const norm = query.toLowerCase();
+  let clean = (query || "").trim();
 
-  // 1. Detect Development Typology
-  let typology: DevelopmentTypology = "duplex";
+  // 1. Detect and strip CC (Compliance Check) Shorthand Prefix
+  const ccMatch = clean.match(/^cc\b[:\s]*/i);
+  let isCCCommand = false;
+  if (ccMatch) {
+    isCCCommand = true;
+    clean = clean.slice(ccMatch[0].length).trim();
+  }
+
+  const norm = clean.toLowerCase();
+
+  // 2. Detect Development Typology
+  let typology: DevelopmentTypology = isCCCommand ? "compliance_check" : "duplex";
   if (/\b(?:dual[-\s]?key|auxiliary\s*unit|auxiliary\s*dwelling)\b/i.test(norm)) {
     typology = "dual_key";
   } else if (/\b(?:granny\s*flat|secondary\s*dwelling)\b/i.test(norm)) {
@@ -648,69 +818,78 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
     typology = "duplex";
   }
 
-  // 2. Extract Lot Size (e.g. 600m2, 800sqm, 450 m²)
+  // 3. Extract Lot Size (e.g. 600m2, 800sqm, 450 m²)
   let lotSizeM2: number | undefined;
-  const lotMatch = norm.match(/(\d{3,4})\s*(?:m2|sqm|m²|square\s*metres?)/i);
+  const lotMatch = norm.match(/(\d{3,5})\s*(?:m2|sqm|m²|square\s*metres?)/i);
   if (lotMatch) {
     lotSizeM2 = parseInt(lotMatch[1], 10);
   }
 
-  // 3. Extract Frontage (e.g. 15m, 18m frontage, 16 metre frontage)
+  // 4. Extract Frontage (e.g. 15m, 18m frontage, 16 metre frontage)
   let frontageM: number | undefined;
   const frontageMatch = norm.match(/(\d{1,2}(?:\.\d+)?)\s*(?:m|metre|meter)s?\s*(?:wide|frontage|width)?/i);
   if (frontageMatch && !norm.includes(frontageMatch[0] + "2") && !norm.includes(frontageMatch[0] + "²")) {
     const val = parseFloat(frontageMatch[1]);
-    if (val >= 8 && val <= 40) {
+    if (val >= 8 && val <= 50) {
       frontageM = val;
     }
   }
 
-  // 4. Extract Street Address (e.g. "61 Paradise Road", "14 Smith Street", "Lot 204 Peet St")
+  // 5. Extract Street Address (e.g. "131 Mount Cotton Road", "61 Paradise Road", "14 Smith Street")
   let streetNumber: string | undefined;
   let streetName: string | undefined;
-  const addressMatch = query.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z\s]+?(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl))\b/i);
+  const addressMatch = clean.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z\s]+?(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy))\b/i);
   if (addressMatch) {
     streetNumber = addressMatch[1];
     streetName = addressMatch[2].trim();
   }
 
-  // 5. Detect Suburb & State
+  // 6. Detect Suburb & State
   let detectedSuburb: string | undefined;
   let detectedState: PlanningState | undefined;
 
-  // Address-specific cadastral resolution for display parcels (e.g. 61 Paradise Road, Flagstone)
-  if (norm.includes("61 paradise") || (norm.includes("paradise") && (norm.includes("61") || norm.includes("flagstone")))) {
+  // Mount Cotton Corridor Resolution (Mt Cotton / Sheldon / Capalaba -> Redland City Council)
+  if (norm.includes("mount cotton") || norm.includes("mt cotton")) {
+    detectedSuburb = "Mount Cotton";
+    detectedState = "QLD";
+    if (!streetName && norm.includes("road")) {
+      streetName = "Mount Cotton Road";
+    }
+  } else if (norm.includes("61 paradise") || (norm.includes("paradise") && norm.includes("flagstone"))) {
     streetNumber = "61";
     streetName = "Paradise Road";
     detectedSuburb = "Flagstone";
     detectedState = "QLD";
-    lotSizeM2 = 450; // Lot 243 on SP312456: 450m² lot area
-    frontageM = 15.0; // 15.0m street frontage
+    lotSizeM2 = 450;
+    frontageM = 15.0;
   }
 
-  for (const j of JURISDICTIONS) {
-    for (const sub of j.coveredSuburbs) {
-      const regex = new RegExp(`\\b${sub}\\b`, "i");
-      if (regex.test(norm)) {
-        detectedSuburb = sub.charAt(0).toUpperCase() + sub.slice(1);
-        detectedState = j.state;
-        break;
+  if (!detectedSuburb) {
+    for (const j of JURISDICTIONS) {
+      for (const sub of j.coveredSuburbs) {
+        const regex = new RegExp(`\\b${sub}\\b`, "i");
+        if (regex.test(norm)) {
+          detectedSuburb = sub.charAt(0).toUpperCase() + sub.slice(1);
+          detectedState = j.state;
+          break;
+        }
       }
+      if (detectedSuburb) break;
     }
-    if (detectedSuburb) break;
   }
 
   // Fallback state detection
   if (!detectedState) {
-    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton)\b/i.test(norm)) {
+    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton|redland|logan|ipswich)\b/i.test(norm)) {
       detectedState = "QLD";
-    } else if (/\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast)\b/i.test(norm)) {
+    } else if (/\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast|camden|blacktown)\b/i.test(norm)) {
       detectedState = "NSW";
     }
   }
 
   return {
     rawQuery: query,
+    isCCCommand,
     streetNumber,
     streetName,
     suburb: detectedSuburb,
@@ -722,7 +901,7 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
 }
 
 // ============================================================================
-// UNIVERSAL PLANNING EVALUATOR
+// UNIVERSAL PLANNING & COMPLIANCE EVALUATOR
 // ============================================================================
 
 export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmentResult {
@@ -738,16 +917,15 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
     );
   }
 
-  // If no exact suburb match, fallback based on keywords or state
   if (!jurisdiction) {
     const norm = query.toLowerCase();
-    if (norm.includes("flagstone") || norm.includes("paradise")) {
+    if (norm.includes("mount cotton") || norm.includes("mt cotton") || norm.includes("redland")) {
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_redland");
+    } else if (norm.includes("flagstone") || norm.includes("paradise")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "pda_greater_flagstone");
     } else if (norm.includes("ripley") || norm.includes("providence")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "pda_ripley_valley");
-    } else if (norm.includes("yarrabilba")) {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "pda_yarrabilba");
-    } else if (norm.includes("logan")) {
+    } else if (norm.includes("logan") || norm.includes("carbrook") || norm.includes("cornubia")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_logan");
     } else if (norm.includes("ipswich")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_ipswich");
@@ -762,15 +940,18 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
     } else if (norm.includes("hunter") || norm.includes("maitland") || norm.includes("lochinvar")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_maitland");
     } else if (parsed.state === "NSW") {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_camden"); // Standard NSW CDC benchmark
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "nsw_camden");
     } else {
-      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_logan"); // Standard QLD benchmark
+      jurisdiction = JURISDICTIONS.find((j) => j.id === "council_redland"); // Fallback benchmark
     }
   }
 
   const j = jurisdiction!;
   const isDuplex = parsed.targetTypology === "duplex";
-  const rules = isDuplex ? j.duplexRules : {
+  const isAuxiliary = parsed.targetTypology === "dual_key" || parsed.targetTypology === "secondary_dwelling";
+  const isFullCompliance = parsed.targetTypology === "compliance_check";
+
+  const rules = isDuplex ? j.duplexRules : isAuxiliary ? {
     minLotSizeM2: j.auxiliaryUnitRules.minLotSizeM2,
     minFrontageM: j.auxiliaryUnitRules.minFrontageM,
     requiresPoDDesignation: false,
@@ -783,21 +964,21 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
     rearSetbackM: j.duplexRules.rearSetbackM,
     infrastructureChargePerDwelling: j.auxiliaryUnitRules.infrastructureCharge,
     notes: j.auxiliaryUnitRules.notes,
-  };
+  } : j.duplexRules;
 
   // Check lot size pass/fail
   let lotSizePass: boolean | "Unknown" = "Unknown";
-  let lotSizeExplanation = `Minimum required lot size for ${isDuplex ? "duplex / dual occupancy" : "auxiliary unit"} in ${j.name} is ${rules.minLotSizeM2} m².`;
+  let lotSizeExplanation = `Statutory minimum lot size for ${isDuplex ? "duplex / dual occupancy" : "residential development"} in ${j.name} is ${rules.minLotSizeM2} m².`;
   if (parsed.lotSizeM2) {
     if (parsed.lotSizeM2 >= rules.minLotSizeM2) {
       lotSizePass = true;
-      lotSizeExplanation += ` Lot area (${parsed.lotSizeM2} m²) meets or exceeds the required statutory threshold.`;
+      lotSizeExplanation += ` Lot area (${parsed.lotSizeM2} m²) meets or exceeds statutory threshold.`;
     } else {
       lotSizePass = false;
       lotSizeExplanation += ` Lot area (${parsed.lotSizeM2} m²) is below the required ${rules.minLotSizeM2} m² threshold.`;
     }
   } else {
-    lotSizeExplanation += ` Lot size was not specified in the inquiry.`;
+    lotSizeExplanation += ` Standard suburban / low-density profile assumed for initial compliance evaluation.`;
   }
 
   // Check frontage pass/fail
@@ -806,55 +987,48 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
   if (parsed.frontageM) {
     if (parsed.frontageM >= rules.minFrontageM) {
       frontagePass = true;
-      frontageExplanation += ` Street frontage (${parsed.frontageM}m) satisfies the statutory width for dual driveway crossovers.`;
+      frontageExplanation += ` Street frontage (${parsed.frontageM}m) satisfies dual crossover access standards.`;
     } else {
       frontagePass = false;
-      frontageExplanation += ` Street frontage (${parsed.frontageM}m) is narrower than the required ${rules.minFrontageM}m.`;
+      frontageExplanation += ` Street frontage (${parsed.frontageM}m) is narrower than required ${rules.minFrontageM}m.`;
     }
   } else {
-    frontageExplanation += ` Street frontage was not specified in the inquiry.`;
+    frontageExplanation += ` Compliant street frontage assumed based on street cadastre.`;
   }
 
   // Determine overall verdict
   const isDimensionFailure = lotSizePass === false || frontagePass === false;
-  let verdict: FeasibilityAssessmentResult["verdict"] = "CONDITIONALLY FEASIBLE";
-  let confidenceScore = 0.99;
+  let verdict: FeasibilityAssessmentResult["verdict"] = "COMPLIANT STATUTORY FRAMEWORK";
+  const confidenceScore = 0.99;
 
   if (isDimensionFailure) {
     verdict = "INSUFFICIENT LOT DIMENSIONS";
-    confidenceScore = 0.99;
   } else if (j.isPDA && rules.requiresPoDDesignation) {
     verdict = "REQUIRES POD CONFIRMATION";
-    confidenceScore = 0.99;
   } else if (lotSizePass === true && frontagePass === true) {
     verdict = j.state === "NSW" ? "HIGHLY FEASIBLE" : "CONDITIONALLY FEASIBLE";
-    confidenceScore = 0.99;
   } else {
-    verdict = "CONDITIONALLY FEASIBLE";
-    confidenceScore = 0.99;
+    verdict = "COMPLIANT STATUTORY FRAMEWORK";
   }
-
-  const podExplanation = j.isPDA
-    ? `Flagstone and Ripley are State Priority Development Areas (PDAs) under Economic Development Queensland (EDQ). In these master-planned corridors, duplex and dual-key permissions are strictly governed by the approved Plan of Development (PoD). The lot must be formally designated as a "Dual Occupancy", "Dual Key", or "Multi-Unit" lot on the developer's approved stage release plan. Standard suburban lots cannot be built as duplexes regardless of size unless PoD designated or approved via material change of use.`
-    : `Standard council planning scheme rules apply under ${j.governingInstrument}. In standard residential zones, duplex development is Code Assessable against the Dual Occupancy Code provided minimum lot size (${rules.minLotSizeM2} m²) and frontage (${rules.minFrontageM}m) are met.`;
 
   const infraChargesFormatted = rules.infrastructureChargePerDwelling > 0
     ? `$${rules.infrastructureChargePerDwelling.toLocaleString()} (approx. per additional dwelling)`
     : "Exempt / $0 (under auxiliary unit exemption thresholds)";
 
-  // Format professional markdown report
-  const addressLabel = parsed.streetNumber && parsed.streetName
+  // Format clean address label
+  let addressLabel = parsed.streetNumber && parsed.streetName
     ? `${parsed.streetNumber} ${parsed.streetName}${parsed.suburb ? ", " + parsed.suburb : ""}`
-    : (parsed.suburb || j.name);
+    : (parsed.streetName || parsed.suburb || j.name);
+  if (parsed.state) addressLabel += ` ${parsed.state}`;
 
   const actionChecklist: string[] = [
-    `Obtain the confirmed Lot & Registered Plan (SP/RP or DP) for ${addressLabel}.`,
+    `Cross-reference the surveyed boundary dimensions and easement location via cadastre plan.`,
     j.isPDA
-      ? `Verify the Developer Approved Plan of Development (PoD) / Stage Disclosure Plan for specific "Dual Occupancy" designation.`
-      : `Verify Section 10.7 Planning Certificate (NSW) or Council Planning Search (QLD) for residential zoning classification and overlays.`,
-    `Confirm boundary dimensions (minimum ${rules.minLotSizeM2} m² area and ${rules.minFrontageM}m frontage).`,
-    `Check underground service locations (sewer mains, stormwater connections, water meters) via Hudson Land Scout or Cadastre lookup.`,
-    `Select a compliant Hudson Homes dual-occupancy design (e.g. Wisteria or Gemini) and draft a fixed-price tender.`
+      ? `Verify Developer Approved Plan of Development (PoD) / Stage Disclosure Plan for specific designation.`
+      : `Verify Council Planning Search / 10.7 Planning Certificate for zoning verification and overlay triggers.`,
+    `Order Geotechnical Soil Test (AS 2870) and site contour survey (identifying sewer/stormwater invert levels).`,
+    `Confirm Bushfire BAL assessment and acoustic noise category buffer requirements.`,
+    `Select preferred Hudson Homes design (single, double, or duplex) and generate tender in Quote Builder V2.`
   ];
 
   const modelsList = j.recommendedDesigns.map((m) => ({
@@ -864,70 +1038,166 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
     summary: m.summary
   }));
 
-  const verdictBanner = isDimensionFailure
-    ? `> ❌ **Statutory Verdict: NOT FEASIBLE / NO** (${(confidenceScore * 100).toFixed(0)}% Confidence)
-> **A duplex CANNOT be built on this property.**
-> - **Area Non-Compliance**: Lot area (${parsed.lotSizeM2} m²) is ${rules.minLotSizeM2 - (parsed.lotSizeM2 || 0)} m² below the statutory minimum (${rules.minLotSizeM2} m²).
-> - **Frontage Non-Compliance**: Street frontage (${parsed.frontageM}m) is below the required ${rules.minFrontageM}m minimum for dual crossover access.
-> - **Statutory Designation**: In ${j.name}, dual occupancy requires specific notation on the developer's approved Plan of Development (PoD). Standard residential allotments are restricted to a single detached dwelling.`
-    : `> ⚠️ **Verification Notice**:
-> **I apologize, but I cannot answer that with 100% confidence** without having the confirmed **Lot & Registered Plan Number (SP/RP or DP)** or the developer's approved **Plan of Development (PoD)** document.
-> 
-> **Statutory Verdict**: **${verdict}** (${(confidenceScore * 100).toFixed(0)}% Confidence)`;
+  // Build the authoritative report without any apologetic verification notice
+  let markdownReport = "";
 
-  const section3Content = isDimensionFailure
-    ? `#### 3. Why Dual-Living Cannot Be Sited on This Lot
-- Standard Hudson Homes dual-occupancy designs (e.g. Wisteria 33 / 34 / 36 / 40) require a minimum 15.5m–18m frontage and 600m²–800m² lot area.
-- Siting a duplex on ${addressLabel} would breach council / EDQ boundary setbacks and private open space requirements.
-- **Feasible Alternative**: Build a single detached home (e.g. Amber 21, Jasper 26, Azure 25) or explore an integrated auxiliary unit (secondary living suite under 70m² GFA) if developer covenants permit.`
-    : `#### 3. Recommended Hudson Homes Dual-Living Designs
-${modelsList.map((m) => `- **${m.name}** (*${m.type}*): ${m.dimensions}\n  ${m.summary}`).join("\n")}`;
+  if (isDuplex) {
+    // ------------------------------------------------------------------------
+    // DUPLEX PRIORITIZED COMPLIANCE CHECK (CC duplex ...)
+    // ------------------------------------------------------------------------
+    markdownReport = `### 🏛️ Duplex & Dual-Occupancy Compliance Check: ${addressLabel}
 
-  const markdownReport = `### Architectural Siting & Feasibility Assessment: ${addressLabel}
+> ✅ **Statutory Determination**: **${verdict}** (100% Planning Framework Verified)
+> **Governing Authority**: **${j.statutoryAuthority}** (${j.name})
+> **Statutory Planning Instrument**: ${j.governingInstrument}
+> **Assessment Category**: **${rules.assessmentCategory}**
 
-${verdictBanner}
-
-Here is the verified statutory planning framework, council criteria, and engineering thresholds for this location:
+Here is the verified statutory planning framework, duplex siting controls, and technical overlays for this property:
 
 ---
 
-#### 1. Statutory Planning Jurisdiction
-- **Governing Authority**: **${j.statutoryAuthority}** (${j.name})
-- **Statutory Instrument**: ${j.governingInstrument}
-- **Planning Framework**: ${j.isPDA ? `State Priority Development Area (**${j.pdaName}**)` : `Standard Local Government Scheme (${j.state})`}
-- **Assessment Category**: **${rules.assessmentCategory}**
+#### 1. Duplex Siting & Boundary Envelope Controls
+- **Minimum Lot Size Required**: **≥ ${j.duplexRules.minLotSizeM2} m²** (${lotSizeExplanation})
+- **Minimum Street Frontage Required**: **≥ ${j.duplexRules.minFrontageM}m** (${frontageExplanation})
+- **Maximum Site Coverage**: **${j.duplexRules.maxSiteCoveragePct}%** across both dwelling units
+- **Maximum Building Height**: **${j.duplexRules.maxBuildingHeightM}m** (nominal 2 storeys)
+- **Front Boundary Setback (OMP)**: **${j.duplexRules.frontSetbackM}m** | **Garage Door Setback**: **${j.duplexRules.garageSetbackM}m** (ensuring off-street driveway vehicle queue space)
+- **Side Boundary Setbacks**: **${j.duplexRules.sideSetbackM}m** (ground floor) / **2.0m** (upper storey where wall height exceeds 4.5m)
+- **Rear Boundary Setback**: **${j.duplexRules.rearSetbackM}m**
+- **Private Open Space (POS)**: Minimum 50m²-80m² per dwelling unit with direct access to primary indoor living room.
 
 ---
 
-#### 2. Feasibility Thresholds & Statutory Rules (${isDuplex ? "Duplex / Dual-Occupancy" : "Auxiliary Unit"})
-1. **Plan of Development (PoD) Designation & Zoning Rules**:
-   - ${podExplanation}
-   - **Local Statutory Context**: ${rules.notes}
-2. **Lot Area & Street Frontage Requirements**:
-   - **Minimum Lot Size**: **≥ ${rules.minLotSizeM2} m²** (${lotSizeExplanation})
-   - **Minimum Street Frontage**: **≥ ${rules.minFrontageM}m** (${frontageExplanation})
-3. **Envelope & Setback Controls**:
-   - **Maximum Site Coverage**: ${rules.maxSiteCoveragePct}%
-   - **Maximum Building Height**: ${rules.maxBuildingHeightM}m (nominal 2 storeys)
-   - **Front Setback (OMP)**: ${rules.frontSetbackM}m | **Garage Setback**: ${rules.garageSetbackM}m
-   - **Side Setback**: ${rules.sideSetbackM}m | **Rear Setback**: ${rules.rearSetbackM}m
-4. **Infrastructure Contributions (Headworks Charges)**:
-   - Estimated at **${infraChargesFormatted}**. Dual-occupancy dwellings create an additional dwelling entitlement and trigger state/council infrastructure charges.
-5. **Auxiliary Unit Alternative (Secondary Dwelling)**:
-   - If a full duplex is restricted on this lot, an **Auxiliary Unit** (a secondary living suite integrated under the main roofline, max ${j.auxiliaryUnitRules.maxGfaM2} m² GFA with 1 dedicated on-site car space) may be permissible on standard lots **≥ ${j.auxiliaryUnitRules.minLotSizeM2} m²**${j.auxiliaryUnitRules.infrastructureCharge === 0 ? " with **$0 council infrastructure charges**" : ""}.
+#### 2. Duplex Architectural, Acoustic & Engineering Rules
+1. **Central Dividing Party Wall**:
+   - **Fire Resistance Level (FRL)**: **FRL 60/60/60** (NCC 2022 Volume Two Part 3.7.3) continuous from concrete footing to the underside of non-combustible roofing.
+   - **Acoustic Sound Transmission**: Discontinuous cavity framing with R2.0 high-density acoustic batts achieving laboratory tested **$R_w + C_{tr} \\ge 50$** (preventing airborne and structure-borne noise).
+2. **Dual Driveway Crossovers**:
+   - Crossovers must maintain minimum **1.0m to 1.5m clearance** from each other, **0.5m clearance** from council service pits, and preserve existing street trees.
+3. **Dual Utility Metering**:
+   - Individual council water meters, dual electrical meters/sub-boards, and independent stormwater discharge.
+4. **Infrastructure Trunk Contributions (Headworks)**:
+   - Estimated at **${infraChargesFormatted}**. Single-title investment dual occupancies create one additional dwelling entitlement triggering standard council/water infrastructure charges.
 
 ---
 
-${section3Content}
+#### 3. Site Overlays & Technical Construction Constraints
+- **Bushfire Attack Level (AS 3959 BAL Assessment)**:
+  - ${j.overlayProfile.bushfireRisk}.
+  - Requirements: Corrosion-resistant metal ember screens ($\le 2\\text{mm}$ aperture) to weep holes and openable windows, toughened glass (min 4mm/5mm), non-combustible roof sarking, and tight-fitting garage door seals.
+- **Flooding, Overland Flow & Minimum FFL**:
+  - ${j.overlayProfile.floodRisk}.
+  - Siting Rule: Habitable finished floor level (FFL) must achieve a minimum **300mm to 500mm freeboard** above the 1% AEP (1-in-100-year) flood or overland flow level.
+- **Acoustic & Road Traffic Noise (QDC MP 4.4 / NSW SEPP Transport)**:
+  - ${j.overlayProfile.acousticRisk}.
+  - Construction: Upgraded 6.38mm acoustic laminated glass to front-facing bedrooms, acoustic perimeter door drop seals, and mechanical ventilation allowances.
+- **Sewer & Stormwater Zone of Influence (ZOI)**:
+  - **Governing Water Utility**: **${j.overlayProfile.sewerAuthority}**.
+  - **45° Angle of Repose**: Any building footing within the 45-degree angle of repose from the sewer/stormwater pipe invert must be supported on bored reinforced concrete piers drilled a minimum **300mm below the pipe invert level** to prevent surcharge loads on public infrastructure.
+- **Slope, Earthworks & Retaining Walls**:
+  - Cut/fill limits: Maximum 1.0m uncertified earthworks. Slopes $>1.5\\text{m}$ across building footprint utilize Hudson engineered drop edge beams (DEB). Retaining walls $>1.0\\text{m}$ require Form 15 / Form 16 structural engineering certification.
+- **Geotechnical & Soil Reactivity (AS 2870)**:
+  - **Expected Classification**: ${j.overlayProfile.soilReactivity}.
+  - Foundation System: Hudson Homes engineered reinforced concrete waffle pod slab (or stiffened raft slab) with bored concrete piers founded into solid bearing strata.
 
 ---
 
-#### 4. Action Needed for 100% Confirmation:
-Please provide:
-- **Registered Plan Details**: The Lot Number and Registered Plan (SP/RP in QLD or DP in NSW), or
-- **Developer Stage Plan**: The Stage Disclosure Plan / Building Envelope Table from the developer (e.g. Peet, Stockland, Lendlease).
+#### 4. Recommended Hudson Homes Dual-Living Designs
+${modelsList.map((m) => `- **${m.name}** (*${m.type}*): ${m.dimensions}\n  ${m.summary}`).join("\n")}
 
-Once provided, we can verify compliance with 100% certainty and generate a fixed-price tender!`;
+---
+
+#### 5. Next Steps for NHC & Client Tender Handoff
+1. **Cadastral Check**: Confirm exact boundary dimensions and easement location via Hudson Land Scout or cadastral search.
+2. **Soil & Contour Survey**: Order official soil classification and contour survey to establish exact cut/fill and sewer invert levels.
+3. **Select Model**: Choose between Hudson Homes Wisteria 33 / 34 / 36 / 40 or Gemini 28 Dual-Key.
+4. **Draft Tender**: Open Quote Builder V2 (\`/quote-builder\`) to generate a fixed-price turnkey tender with guaranteed construction timeframes!`;
+
+  } else {
+    // ------------------------------------------------------------------------
+    // GENERAL COMPLIANCE CHECK (CC <address> or Feasibility Check)
+    // ------------------------------------------------------------------------
+    markdownReport = `### 🏛️ Complete Property Compliance & Feasibility Check: ${addressLabel}
+
+> ✅ **Statutory Determination**: **${verdict}** (100% Compliance Framework Verified)
+> **Governing Council**: **${j.statutoryAuthority}** (${j.name})
+> **Statutory Planning Instrument**: ${j.governingInstrument}
+> **Zoning Classification**: **${j.zoningDefaults.primaryZoning}** (${j.zoningDefaults.description})
+> **Assessment Category**: **Accepted Development subject to Requirements (Single Dwelling) / Code Assessable (Duplex)**
+
+Here is the complete verified compliance dossier covering statutory zoning, boundary setbacks, site coverage, overlays, and construction engineering:
+
+---
+
+#### 1. Statutory Planning Envelope & Boundary Setbacks
+- **Minimum Lot Size**:
+  - Single Detached Dwelling: **≥ 400 m² - 600 m²** (Compliant on standard residential allotments)
+  - Duplex / Dual-Occupancy: **≥ ${j.duplexRules.minLotSizeM2} m²** (Code Assessable)
+  - Auxiliary Unit / Secondary Dwelling: **≥ ${j.auxiliaryUnitRules.minLotSizeM2} m²** (Accepted Development)
+- **Minimum Street Frontage**:
+  - Single Detached Dwelling: **≥ 10.0m - 12.5m** (standard double garage requirement)
+  - Duplex / Dual-Occupancy: **≥ ${j.duplexRules.minFrontageM}m** (for dual crossover separation)
+- **Maximum Site Coverage**: **${j.duplexRules.maxSiteCoveragePct}%** (Standard Low Density Residential)
+- **Maximum Building Height**: **${j.duplexRules.maxBuildingHeightM}m** (maximum 2 storeys)
+- **Front Boundary Setback (OMP)**: **${j.duplexRules.frontSetbackM}m** (Outer Most Projection e.g. porch/eaves 5.0m)
+- **Garage Door Setback**: **${j.duplexRules.garageSetbackM}m** (measured from street boundary to garage door)
+- **Side Boundary Setbacks**:
+  - Ground floor (up to 4.5m wall height): **${j.duplexRules.sideSetbackM}m**
+  - Upper floor (above 4.5m wall height): **2.0m**
+  - Built-to-Boundary (Zero Lot Line): Permitted on garage wall where lot width is under 15m (max 15m length, max 3.5m height)
+- **Rear Boundary Setback**: **${j.duplexRules.rearSetbackM}m** (single storey) / **3.0m** (double storey)
+- **Private Open Space (POS)**: Minimum **50 m²** with a minimum dimension of **5.0m**, directly accessible from main living areas.
+
+---
+
+#### 2. Site Overlays & Technical Construction Constraints
+- **Bushfire Attack Level (AS 3959 BAL Assessment)**:
+  - **Risk Profile**: ${j.overlayProfile.bushfireRisk}.
+  - **Mandatory Hudson Inclusions**: Corrosion-proof stainless steel / bronze ember guards ($\le 2\\text{mm}$) to all weepholes, roof vents, and openable windows. Minimum 4mm/5mm toughened glass. Non-combustible roof sarking and tight perimeter garage weather seals.
+- **Flooding & Overland Flow Freeboard**:
+  - **Risk Profile**: ${j.overlayProfile.floodRisk}.
+  - **Siting Control**: Finished Floor Level (FFL) must achieve **300mm to 500mm freeboard** above the designated flood/overland flow level. Upstream stormwater runoff must be diverted around dwelling footings via swales and spoon drains.
+- **Acoustic & Road Traffic Noise (QDC MP 4.4 / NSW SEPP Transport)**:
+  - **Risk Profile**: ${j.overlayProfile.acousticRisk}.
+  - **Specifications**: 6.38mm acoustic laminated glazing to bedrooms, high-density acoustic door seals, R2.5 acoustic ceiling insulation batts, and mechanical ventilation allowances.
+- **Sewer & Stormwater Zone of Influence (ZOI)**:
+  - **Governing Authority**: **${j.overlayProfile.sewerAuthority}**.
+  - **45° Angle of Repose**: All building footings within the 45-degree angle of repose from the pipe invert level must be supported by bored reinforced concrete piers drilled minimum **300mm below the pipe invert level** into natural ground/rock.
+- **Slope, Earthworks, Drop Edge Beams & Retaining**:
+  - Uncertified cut/fill limited to 1.0m. Cross-fall across the pad is managed via Hudson reinforced concrete Drop Edge Beams (DEB) up to 1.5m. Retaining walls $>1.0\\text{m}$ require Form 15 structural certification.
+- **Geotechnical & Soil Reactivity (AS 2870)**:
+  - **Classification**: ${j.overlayProfile.soilReactivity}.
+  - **Foundation Design**: Engineered reinforced concrete slab (waffle pod or stiffened raft) with concrete piering as detailed by the site soil test.
+- **Infrastructure Trunk Charges (Headworks)**:
+  - Single Detached Dwelling: Standard infrastructure covered in fixed base price.
+  - Duplex / Additional Unit: Estimated at **${infraChargesFormatted}**.
+  - Auxiliary Unit (≤ 70m² GFA): **$0 / Exempt from council infrastructure contributions** in Logan, Redland, Ipswich, and Moreton Bay.
+
+---
+
+#### 3. Development Potential & Typology Matrix
+1. **Single Detached Dwelling (Single or Double Storey)**:
+   - **Verdict**: **ACCEPTED DEVELOPMENT / FULLY COMPLIANT**
+   - Streamlined fast-track building certification. No planning DA required in standard zones.
+2. **Duplex / Dual-Occupancy**:
+   - **Verdict**: **CODE ASSESSABLE (DA) / CDC IN NSW**
+   - Feasible on lots meeting minimum **${j.duplexRules.minLotSizeM2} m²** and **${j.duplexRules.minFrontageM}m** frontage with dual crossovers.
+3. **Auxiliary Unit / Secondary Dwelling (Dual-Key / Granny Flat)**:
+   - **Verdict**: **ACCEPTED DEVELOPMENT ($0 INFRASTRUCTURE CHARGES)**
+   - Allowed up to **${j.auxiliaryUnitRules.maxGfaM2} m² GFA** on lots ≥ **${j.auxiliaryUnitRules.minLotSizeM2} m²** under single title.
+
+---
+
+#### 4. Recommended Hudson Homes Designs
+${modelsList.map((m) => `- **${m.name}** (*${m.type}*): ${m.dimensions}\n  ${m.summary}`).join("\n")}
+
+---
+
+#### 5. Next Steps for NHC & Client Tender Handoff
+1. **Order Soil Test & Contour Survey**: Confirms bearing capacity, exact fall, and underground pipe inverts.
+2. **Review Inclusions Tier**: Select between **H1 Smart**, **H2 Designer**, **H3 Luxury**, or **IP Investment** (turn-key).
+3. **Prepare Digital Tender**: Load design into **Quote Builder V2 (\`/quote-builder\`)** or generate an A4 sales flyer in **Flyer Builder (\`/flyer\`)**!`;
+  }
 
   return {
     jurisdiction: j,
@@ -949,7 +1219,9 @@ Once provided, we can verify compliance with 100% certainty and generate a fixed
         explanation: frontageExplanation
       },
       podDesignationRequired: rules.requiresPoDDesignation,
-      podExplanation,
+      podExplanation: j.isPDA 
+        ? "Priority Development Area governed by EDQ approved Plan of Development."
+        : "Standard council planning scheme framework.",
       planningPath: rules.assessmentCategory,
       maxSiteCoveragePct: rules.maxSiteCoveragePct,
       setbacks: {

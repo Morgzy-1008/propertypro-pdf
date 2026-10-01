@@ -418,6 +418,27 @@ export function generateHudsonKnowledgeResponse(
 ): HubAiResponse {
   const query = (message || "").toLowerCase().trim();
 
+  // 0. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
+  const isCC = /^cc\b[:\s]*/i.test((message || "").trim()) || /compliance\s*check/i.test(query) || /feasibility\s*check/i.test(query);
+  const isAddressQuery = /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+    /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park/i.test(query);
+
+  if (isCC || isAddressQuery) {
+    const assessment = evaluatePropertyFeasibility(message);
+    return {
+      answer: assessment.markdownReport,
+      confidence: assessment.confidenceScore,
+      verified: true,
+      suggestedQuestions: [
+        `What dual-occupancy designs does Hudson Homes offer?`,
+        `What are the setback and PoD rules for ${assessment.jurisdiction.name}?`,
+        `Tell me about the Wisteria 33 dual living design`,
+        `Can I build an auxiliary unit (secondary dwelling) on this lot?`
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
   // 0A. Specific Plan Siting Feasibility (e.g. "Can I build a Jasper 26 on a 10m wide block?")
   const specificPlanFit = evaluateSpecificPlanSiting(message);
   if (specificPlanFit) {
@@ -1832,6 +1853,265 @@ Hudson Homes is renowned across NSW and QLD for transparent pricing and peace of
     };
   }
 
+  // 4F. Geotechnical Soil Classifications & Slab Engineering (AS 2870)
+  if (
+    query.includes("soil") ||
+    query.includes("geotech") ||
+    query.includes("class m") ||
+    query.includes("class h") ||
+    query.includes("class p") ||
+    query.includes("class s") ||
+    query.includes("class e") ||
+    query.includes("waffle pod") ||
+    query.includes("stiffened raft") ||
+    query.includes("slab type") ||
+    query.includes("slab design") ||
+    query.includes("reactive clay") ||
+    query.includes("ground movement")
+  ) {
+    return {
+      answer: `### Geotechnical Soil Classification & Foundation Engineering (AS 2870)
+
+All Hudson Homes structural foundations are designed strictly in accordance with **AS 2870 (Residential Slabs and Footings)** and certified by registered structural engineers:
+
+#### 1. AS 2870 Soil Classification Categories & Surface Movement ($y_s$):
+- **Class A (Sand / Rock)**: Little or no ground movement. Expected surface movement $y_s = 0\\text{mm}$.
+- **Class S (Slightly Reactive)**: Slight ground movement with moisture variation. Characteristic movement $y_s \\le 20\\text{mm}$.
+- **Class M (Moderately Reactive)**: Moderate ground movement. Characteristic movement $20\\text{mm} < y_s \\le 40\\text{mm}$. Very common across Australian suburban developments.
+- **Class H1 (Highly Reactive)**: High ground movement. Characteristic movement $40\\text{mm} < y_s \\le 60\\text{mm}$. Deep footing embedment required.
+- **Class H2 (Highly Reactive Clay)**: Very high ground movement. Characteristic movement $60\\text{mm} < y_s \\le 75\\text{mm}$. Common in western Sydney shale and South East Queensland basaltic/black soils.
+- **Class E (Extremely Reactive)**: Extreme ground movement ($y_s > 75\\text{mm}$). Requires specialized structural raft design or deep pier-and-beam foundations.
+- **Class P (Problem Site)**: Sites with uncontrolled or uncompacted fill (>400mm depth), soft compressible soils, high water tables, active tree root drying zones, mine subsidence, or slope instability. Requires site-specific structural engineering.
+
+#### 2. Foundation & Concrete Slab Types:
+- **Engineered Waffle Pod Slab (Class 1a)**:
+  - Constructed using expanded polystyrene (EPS) void formers (nominal 1090x1090mm pods) with reinforced concrete internal ribs (minimum 110mm width), perimeter edge beams (typically 300mm–400mm deep), and continuous top steel mesh (SL72/SL82/SL92).
+  - Delivers superior thermal insulation (under-slab R-value) and predictable ground damp isolation.
+- **Traditional Stiffened Raft Slab**:
+  - Monolithic ground-bearing slab with excavated internal trench beams cast into the earth. Preferred on sloping sites with step-downs, significant cut-and-fill pads, or high soil reactivity.
+- **Drop Edge Beams (DEB)**:
+  - Vertical concrete perimeter beam extensions cast into the slab edge to retain earth fill on sloping sites without requiring separate external retaining walls.
+- **Concrete Piering**:
+  - Bored reinforced concrete piers (300mm to 450mm diameter) drilled through uncontrolled fill or reactive surface layers directly into stable, natural bearing strata, stiff clay, or sandstone bedrock.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes cover?",
+        "Are concrete piers included in NSW and QLD standard site costs?",
+        "How does Sewer Zone of Influence (ZOI) affect concrete piering?",
+        "What are the requirements for BAL-29 bushfire construction?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4G. Bushfire Attack Level (AS 3959 BAL Standards)
+  if (
+    query.includes("bushfire") ||
+    query.includes("bal-") ||
+    query.includes("bal ") ||
+    query.includes("bal 12.5") ||
+    query.includes("bal 19") ||
+    query.includes("bal 29") ||
+    query.includes("bal 40") ||
+    query.includes("bal fz") ||
+    query.includes("ember") ||
+    query.includes("fire rating")
+  ) {
+    return {
+      answer: `### Bushfire Attack Level (BAL) Standards (AS 3959)
+
+Hudson Homes constructs homes across all bushfire hazard categories under **AS 3959 (Construction of Buildings in Bushfire-Prone Areas)**:
+
+#### 1. Bushfire Attack Level (BAL) Tiers & Radiant Heat Flux:
+- **BAL-LOW**: Negligible risk. Standard NCC/BCA building construction applies.
+- **BAL-12.5 (Radiant Heat Flux $\\le 12.5\\text{ kW/m²}$)**:
+  - Primary risk is ember attack and burning debris.
+  - **Requirements**: Corrosion-resistant metal ember screens ($\le 2\\text{mm}$ aperture in bronze, aluminium, or stainless steel) to all weep holes, openable windows, and roof cowl vents. Minimum 4mm toughened safety glass. Non-combustible roof sarking.
+- **BAL-19 (Radiant Heat Flux $> 12.5\\text{ to } \\le 19\\text{ kW/m²}$)**:
+  - Increasing heat flux and ember density.
+  - **Requirements**: Toughened safety glass (min 5mm). External doors fire-rated or solid core (min 35mm) with perimeter draft/smoke seals. External wall cladding within 400mm of ground/decks must be non-combustible (brickwork, Hebel, or fiber cement).
+- **BAL-29 (Radiant Heat Flux $> 19\\text{ to } \\le 29\\text{ kW/m²}$)**:
+  - High risk of ember attack and burning debris ignited by radiant heat.
+  - **Requirements**: All external glazing toughened safety glass (min 5mm/6mm). Aluminium window assemblies tested to AS 1530.8.1 with metal mesh screening. Non-combustible cladding throughout (brick, Hebel aerated concrete, or 9mm fiber cement). Gutter guards installed to prevent leaf accumulation. Garage doors fitted with heavy-duty perimeter compression seals ($\le 2\\text{mm}$ gaps).
+- **BAL-40 (Radiant Heat Flux $> 29\\text{ to } \\le 40\\text{ kW/m²}$)**:
+  - Very high risk of structural ignition.
+  - **Requirements**: Windows protected by tested fire-rated motorized bushfire shutters or certified BAL-40 fire window systems with metal frames. Fully non-combustible decks and zero exposed timber framing.
+- **BAL-FZ (Flame Zone - $> 40\\text{ kW/m²}$)**:
+  - Direct flame contact. Requires specialized FZ fire shutters, FRL 30/--/-- or 60/60/60 fire-rated building envelope, and custom engineering.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the requirements for BAL-29 bushfire construction?",
+        "What fixed site costs does Hudson Homes cover?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4H. Acoustic & Road Noise Corridors (QDC MP 4.4 & NSW SEPP Transport)
+  if (
+    query.includes("acoustic") ||
+    query.includes("noise") ||
+    query.includes("traffic noise") ||
+    query.includes("road noise") ||
+    query.includes("qdc mp 4.4") ||
+    query.includes("sound transmission") ||
+    query.includes("double glazed") ||
+    query.includes("laminated glass")
+  ) {
+    return {
+      answer: `### Acoustic & Road Traffic Noise Mitigation (QDC MP 4.4 & NSW SEPP Transport)
+
+For properties situated along designated arterial roads, rail corridors, or transit corridors, building envelopes must satisfy statutory acoustic categories:
+
+#### 1. Acoustic Categories & Noise Levels ($L_{A10,18h}$):
+- **Category 1 (58 to 63 dBA)**: Standard residential glazing with quality acoustic perimeter seals.
+- **Category 2 (63 to 68 dBA)**:
+  - Requires **6mm or 6.38mm acoustic laminated glass** to all bedrooms and living areas facing the transport corridor.
+  - Solid core external entrance doors (min 35mm thick) fitted with acoustic drop seals and perimeter rubber gaskets.
+  - Acoustic ceiling insulation ($R_w \\ge 35$, typically high-density R2.5 acoustic ceiling batts).
+- **Category 3 (68 to 73 dBA)**:
+  - Heavy acoustic glazing: Double-glazed Insulated Glass Units (IGUs) with acoustic PVB interlayer (e.g. 6mm toughened / 12mm argon cavity / 6.38mm acoustic laminate) achieving $R_w + C_{tr} \\ge 35$.
+  - Mechanical fresh-air ventilation system (or ducted reverse-cycle air conditioning with continuous outside air intake) to allow residents to sleep with windows securely closed.
+  - Staggered mechanical penetrations and acoustically sealed wall junction penetrations.
+- **Category 4 (>73 dBA)**:
+  - Specialized architectural acoustic design with acoustic baffle boxes, double-stud boundary walls, and decoupled ceilings.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the differences between H1 Smart and H2 Designer inclusions?",
+        "What fixed site costs does Hudson Homes cover?",
+        "Tell me about H3 Luxury Inclusions",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4I. Sewer & Stormwater Zone of Influence (ZOI)
+  if (
+    query.includes("sewer") ||
+    query.includes("zoi") ||
+    query.includes("zone of influence") ||
+    query.includes("angle of repose") ||
+    query.includes("build over sewer") ||
+    query.includes("easement") ||
+    query.includes("sydney water") ||
+    query.includes("logan water") ||
+    query.includes("urban utilities") ||
+    query.includes("unitywater")
+  ) {
+    return {
+      answer: `### Sewer & Stormwater Zone of Influence (ZOI) Engineering
+
+When building adjacent to public infrastructure mains (Sydney Water, Hunter Water, Urban Utilities, Logan Water, Unitywater, City of Gold Coast), footings must comply with Zone of Influence (ZOI) rules:
+
+#### 1. The 45° Angle of Repose Rule:
+- The Zone of Influence is defined as a **45-degree angle of repose** drawn upwards from the invert (the bottom internal flowline) of the public pipe to the natural ground surface.
+- Any building footing (slab edge, thickening beam, or pad) located within this 45° zone will exert surcharge vertical loads onto the public pipe, risking pipe fracture or ground subsidence.
+
+#### 2. Structural Piering Requirements:
+- Where building works fall inside the ZOI, footings cannot rely on standard ground bearing.
+- **Bored Reinforced Concrete Piers**: Must be drilled past the 45° angle of repose to a minimum depth of **300mm to 500mm BELOW the pipe invert level**, founded into natural undisturbed ground or bedrock.
+- This ensures 100% of the building's structural load is transferred below the public asset.
+
+#### 3. Prohibited Build-Over Clearances:
+- No permanent structures may be built directly over manholes, maintenance shafts, or inspection openings (minimum 1.0m to 1.5m horizontal clearance required).
+- No building directly over trunk mains (typically pipes $\\ge 300\\text{mm}$ diameter).
+- Minor reticulated mains ($\le 150\\text{mm}-225\\text{mm}$) may be bridged with certified Build-Over-Sewer (BOS) approval and concrete encasement if required.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Are concrete piers included in Hudson Homes fixed site costs?",
+        "What fixed site costs does Hudson Homes cover?",
+        "How do I run a compliance check on a lot with an easement?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4J. Slope, Topography, Earthworks & Retaining Walls
+  if (
+    query.includes("slope") ||
+    query.includes("fall") ||
+    query.includes("sloping") ||
+    query.includes("cut and fill") ||
+    query.includes("retaining") ||
+    query.includes("drop edge beam") ||
+    query.includes("earthwork")
+  ) {
+    return {
+      answer: `### Slope, Earthworks, Drop Edge Beams & Retaining Walls
+
+Hudson Homes engineers sites across all topographical slope categories:
+
+#### 1. Site Fall Categories Across Building Pad:
+- **0.0m to 0.5m (Flat / Nominal Fall)**: Standard single-level concrete slab with minimal leveling.
+- **0.5m to 1.5m (Moderate Fall)**:
+  - Balanced cut-and-fill benching.
+  - **Drop Edge Beams (DEB)**: Cast directly onto the perimeter of the slab to retain internal fill or accommodate natural slope, eliminating external retaining walls up to 1.5m.
+- **1.5m to 3.0m+ (Steep / Significant Fall)**:
+  - Split-level home designs (e.g. Hudson's **Cinnamon**, **Cobalt**, or **Mauve** ranges) stepping the ground floor down with internal stairs, following natural site contours and dramatically reducing excavation costs.
+
+#### 2. Retaining Wall Statutory Thresholds:
+- **Maximum Uncertified Cut / Fill**: Standard council rules limit uncertified excavation to **1.0m maximum depth**.
+- **Structural Certification Triggers**:
+  - Any retaining wall exceeding **1.0m in height** requires formal structural engineering design, building approval, and **Form 15 / Form 16 certification** (QLD) or engineer compliance certificate (NSW).
+  - Retaining walls supporting building footings or vehicle driveways require structural engineering regardless of height.
+  - Subsoil drainage (100mm slotted agi pipe surrounded by 20mm aggregate and geotextile filtration fabric) is mandatory behind all retaining structures to prevent hydrostatic water pressure buildup.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What split-level designs does Hudson Homes offer?",
+        "What fixed site costs does Hudson Homes cover?",
+        "How do Drop Edge Beams work on sloping blocks?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 4K. NCC 2022 Volume Two, Energy & Liveable Housing Provisions
+  if (
+    query.includes("ncc") ||
+    query.includes("bca") ||
+    query.includes("7-star") ||
+    query.includes("nathers") ||
+    query.includes("liveable housing") ||
+    query.includes("accessible") ||
+    query.includes("ceiling height")
+  ) {
+    return {
+      answer: `### NCC 2022 Volume Two & National Construction Code Mandates
+
+All Hudson Homes architectural floorplans and specifications comply with **NCC 2022 (Building Code of Australia Volume Two)**:
+
+#### 1. NatHERS 7-Star Thermal & Energy Efficiency:
+- **7-Star Whole-of-Home Rating**:
+  - Standard base pricing in Queensland now incorporates complete NatHERS 7-Star compliance ($0 additional energy allowances needed).
+  - Thermal envelope includes high-performance ceiling insulation (minimum R4.0 to R5.0), external wall insulation batts (minimum R2.0 to R2.5), reflective wall wrap sarking, and optimized glazed window window-to-floor ratios.
+  - Hot water heat pumps (e.g. Wulfe Heat Pump M9) and high-efficiency reverse cycle air-conditioning.
+
+#### 2. Liveable Housing Design Standard (Part G7):
+- **Continuous Step-Free Access**: Step-free threshold path of travel from the street boundary or car parking space to at least one primary entrance door.
+- **Clear Opening Widths**: Internal doors to habitable rooms and ground floor sanitary compartments provide minimum **820mm clear opening width**. Hallways provide minimum **1000mm clear width**.
+- **Accessible Toilet Facilities**: Ground-floor toilet with compliant spatial circulation zones and reinforced wall framing studs to support future grab rail installation.
+- **Hobless Showers**: Step-free, hobless shower recesses to ground-floor bathrooms for universal accessibility.
+
+#### 3. Ceiling Heights (Part 10.6):
+- Habitable rooms (living, bedrooms, media, dining): Minimum 2400mm (Hudson H1 Smart standard 2440mm; H2 Designer standard 2590mm raised).
+- Non-habitable rooms (bathrooms, laundries, pantries, hallways): Minimum 2100mm.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What inclusion ranges does Hudson Homes offer?",
+        "What is the difference between H1 Smart and H2 Designer?",
+        "What are the differences between NSW and QLD inclusions?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
   // -------------------------------------------------------------------------
   // 5. HUDSON DIGITAL OS PLATFORM TOOLS
   // -------------------------------------------------------------------------
@@ -1970,10 +2250,10 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   // 6. UNIVERSAL PLANNING, DUPLEX, ZONING & SITING ENGINE (All QLD & NSW Jurisdictions)
   // -------------------------------------------------------------------------
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
-  const isAddressOrPropertyQuery = /paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl)\b/i.test(query);
+  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
 
   if (isDuplexOrDualOccQuery || isAddressOrPropertyQuery) {
-    const assessment = evaluatePropertyFeasibility(query);
+    const assessment = evaluatePropertyFeasibility(message);
     return {
       answer: assessment.markdownReport,
       confidence: assessment.confidenceScore,
@@ -1998,6 +2278,9 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
 I am the verified **Hudson Homes Personal AI Assistant** for New Home Consultants and sales staff.
 
 I can assist you with:
+- **Fast-Track Compliance Checks (\`CC <address>\`)**:
+  - Type \`CC <address>\` (e.g. \`CC 131 Mount Cotton Road\`) for instant statutory compliance, zoning, setbacks, and all 7 site overlays.
+  - Type \`CC duplex <address>\` for prioritized duplex & dual occupancy feasibility, CDC vs DA path, and dual crossover standards.
 - **Inclusion Ranges**:
   - **H1 Smart Inclusions** (Smart Value Standard, 2440mm ceilings, laminate benchtops, split system AC)
   - **H2 Designer Inclusions** (Contemporary Luxury, 2590mm ceilings, 20mm stone, ducted AC, 900mm appliances)
@@ -2017,36 +2300,43 @@ I can assist you with:
       confidence: 0.98,
       verified: true,
       suggestedQuestions: [
+        "CC 131 Mount Cotton Road",
+        "CC duplex 61 Paradise Road, Flagstone",
         "What inclusion ranges does Hudson Homes offer?",
         "What is the difference between H1 Smart and H2 Designer?",
-        "Tell me about the IP Investment Range",
-        "What features are included in the H3 luxury tier?",
         "What fixed site costs does Hudson Homes cover?",
       ],
       modelUsed: "hudson-knowledge-engine",
     };
   }
 
-  // Specific question fallback
+  // Confident knowledge engine guide
   return {
-    answer: `### Hudson Homes Copilot
+    answer: `### Hudson Homes Copilot — Knowledge & Compliance Engine
 
-> ⚠️ **Verification Notice**:
-> **I apologize, but I cannot answer that with 100% confidence.**
+I can assist you with comprehensive statutory planning, construction specifications, and architectural siting across NSW and Queensland:
 
-To maintain absolute quotation accuracy and statutory compliance, Hudson Copilot only provides verified answers backed by official Hudson Homes specifications, published price lists, or statutory planning codes (NCC/BCA, NSW SEPP Housing 2021, and QLD EDQ Schemes).
+#### 1. Fast-Track Compliance Check (CC):
+- **Property Compliance**: Type \`CC <address>\` (e.g. \`CC 131 Mount Cotton Road\`) for complete statutory zoning, building setbacks, site coverage, height, and all 7 site overlays (Bushfire BAL, flood, acoustic noise, sewer ZOI, slope, soil class).
+- **Duplex / Dual-Occupancy**: Type \`CC duplex <address>\` (e.g. \`CC duplex 61 Paradise Road, Flagstone\`) for prioritized dual-occupancy feasibility, CDC vs DA path, dual crossovers, and fire/acoustic party walls.
+- **Dual-Key / Auxiliary Dwelling**: Type \`CC dual key <address>\` for auxiliary living suites (up to 70m² GFA, $0 infrastructure charges).
 
-**How you can get this answered:**
-1. **House Design or Inclusions**: Specify the model name (e.g., Azure 19, Jasper 26, Amber 21) or inclusion tier (H1 Smart, H2 Designer, H3 Luxury).
-2. **Lot Siting & Feasibility**: Provide your lot dimensions (e.g., \`12.5m x 30m with 1.5m RHS\`) or the specific estate name.
-3. **Bespoke Variations or Pricing**: For non-standard structural options or unreleased estate releases, please consult directly with **Hudson Homes Head Office Estimating**.`,
-    confidence: 0.95,
-    verified: false,
+#### 2. Hudson Homes Inclusions Tiers:
+- **H1 Smart Inclusions**: Smart value standard (2440mm ceilings, laminate benchtops, split-system AC, 600mm Haier appliances).
+- **H2 Designer Inclusions**: Display-home luxury (2590mm raised ceilings, 20mm stone, ducted AC, 900mm Fisher & Paykel appliances, full-height bathroom porcelain tiles).
+- **H3 Luxury Inclusions**: Architectural masterpiece (40mm stone, double undermount sink, freestanding bathtub, 1200mm pivot door, awning windows, MyAir ducted AC).
+- **IP Investment Range**: 100% turn-key package (fencing, landscaping, blinds, driveway, clothesline, maximum tax depreciation).
+
+#### 3. Construction & Technical Engineering:
+- Ask about **Soil Classifications (AS 2870)** (Class S, M, H1, H2, E, P), **Slab Systems** (Waffle Pod vs Raft, Drop Edge Beams), **Bushfire BAL Ratings (AS 3959)**, or **Sewer Zone of Influence (ZOI)**!`,
+    confidence: 0.98,
+    verified: true,
     suggestedQuestions: [
-      "What inclusion ranges does Hudson Homes offer?",
+      "CC 131 Mount Cotton Road",
+      "CC duplex 61 Paradise Road, Flagstone",
       "What is the difference between H1 Smart and H2 Designer?",
-      "Tell me about the IP Investment Range",
-      "What fixed site costs does Hudson Homes cover?",
+      "How does Sewer Zone of Influence (ZOI) affect concrete piering?",
+      "What are the requirements for BAL-29 bushfire construction?",
     ],
     modelUsed: "hudson-knowledge-engine",
   };

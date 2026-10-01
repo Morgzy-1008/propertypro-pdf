@@ -698,7 +698,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       return;
     }
 
-    toast.loading("Generating fresh AI facade render with Gemini...", { id: "ai-enhance" });
+    toast.loading("Generating fresh architectural AI facade render...", { id: "ai-enhance" });
 
     const facadeItem: FacadeItem = {
       id: facadeId,

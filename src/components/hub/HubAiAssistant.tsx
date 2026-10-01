@@ -146,6 +146,8 @@ interface HubAiAssistantProps {
 }
 
 const DEFAULT_SUGGESTIONS = [
+  "CC 131 Mount Cotton Road",
+  "CC duplex 61 Paradise Road, Flagstone",
   "What inclusion ranges does Hudson Homes offer?",
   "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
   "Tell me about the IP Investment & FHB ranges",
@@ -283,7 +285,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
           confidence: data.confidence,
           verified: data.verified,
           suggestedQuestions: data.suggestedQuestions || [],
-          modelUsed: data.modelUsed || "gemini-3.8-flash",
+          modelUsed: data.modelUsed ? data.modelUsed.replace(/^gemini.*/i, "hudson-enterprise-3.8") : "hudson-enterprise-3.8",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
         },
       ]);
@@ -531,7 +533,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
                 Hudson Homes Copilot
               </h3>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-brand-gold/10 text-brand-gold border border-brand-gold/20">
-                Gemini 3.8 Flash
+                Hudson Copilot Engine
               </span>
             </div>
 
@@ -615,7 +617,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
                           </span>
                         )}
                         <span className="text-[10px] text-slate-500 font-mono">
-                          {m.modelUsed || "gemini-3.8-flash"}
+                          {(m.modelUsed || "Hudson Enterprise Intelligence").replace(/^gemini.*/i, "Hudson Enterprise Intelligence")}
                         </span>
                       </div>
 
@@ -689,7 +691,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
                 >
                   <Cpu className="h-4 w-4 text-brand-gold animate-spin" />
                   <span className="text-xs">
-                    Cross-referencing Hudson Homes specs with Gemini 3.8 Flash (checking &gt;95% accuracy)...
+                    Cross-referencing Hudson Homes architectural specs & statutory planning controls...
                   </span>
                 </div>
               </div>

@@ -258,7 +258,7 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
 
       if (lastErrorMessage.toLowerCase().includes("api key") || lastErrorMessage.toLowerCase().includes("key")) {
         setShowKeyInput(true);
-        toast.error("Gemini API key is required for AI calibration. Please enter your key below.", { id: "recalibrate" });
+        toast.error("AI calibration key is required. Please enter your key below.", { id: "recalibrate" });
       } else {
         toast.error(lastErrorMessage ? `AI calibration error: ${lastErrorMessage}` : "Could not complete AI re-calibration. Keeping current render.", { id: "recalibrate" });
       }
@@ -450,12 +450,12 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
           <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/20 p-3.5 space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
-                Gemini API Key Setup
+                Hudson AI Engine Setup
               </span>
               <span className="text-[10px] text-slate-400">Stored safely in browser</span>
             </div>
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              To calibrate facade renders on-the-fly, enter your Google Gemini API key:
+              To calibrate facade renders on-the-fly, enter your Hudson AI API key:
             </p>
             <div className="flex gap-2">
               <Input
