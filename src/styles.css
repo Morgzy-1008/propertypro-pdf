@@ -652,7 +652,18 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
+  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
+  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
+  [class*="bg-black"], [class*="bg-black"] *,
+  [class*="from-slate-9"], [class*="from-slate-9"] *,
+  [class*="from-slate-8"], [class*="from-slate-8"] *,
+  [class*="bg-[#0"], [class*="bg-[#0"] *,
+  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
+  header[class*="bg-slate"], header[class*="bg-slate"] *,
+  section[class*="from-slate"], section[class*="from-slate"] *
 )) {
   color: #0f172a !important;
 }
@@ -686,7 +697,18 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
+  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
+  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
+  [class*="bg-black"], [class*="bg-black"] *,
+  [class*="from-slate-9"], [class*="from-slate-9"] *,
+  [class*="from-slate-8"], [class*="from-slate-8"] *,
+  [class*="bg-[#0"], [class*="bg-[#0"] *,
+  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
+  header[class*="bg-slate"], header[class*="bg-slate"] *,
+  section[class*="from-slate"], section[class*="from-slate"] *
 )) {
   color: #334155 !important;
 }
@@ -720,14 +742,28 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
+  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
+  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
+  [class*="bg-black"], [class*="bg-black"] *,
+  [class*="from-slate-9"], [class*="from-slate-9"] *,
+  [class*="from-slate-8"], [class*="from-slate-8"] *,
+  [class*="bg-[#0"], [class*="bg-[#0"] *,
+  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
+  header[class*="bg-slate"], header[class*="bg-slate"] *,
+  section[class*="from-slate"], section[class*="from-slate"] *
 )) {
   color: #475569 !important;
 }
 
 .normal-mode label:not(:is(
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
+  [class*="bg-black"], [class*="bg-black"] *
 )) {
   color: #334155 !important;
 }
@@ -1241,27 +1277,278 @@ html.normal-mode,
   scrollbar-width: none !important;
 }
 
-/* Global Text Readability & High-Contrast Legibility Enhancements */
-.normal-mode, body:not(.dark) {
-  --muted-foreground: oklch(0.40 0.04 257.417);
+/* ========================================================================= */
+/* 11. Universal Contrast & Readability Engine (Zero Black-on-Black or Dim Grey) */
+/* ========================================================================= */
+
+/* --- A. DARK MODE / NIGHT MODE GLOBAL CONTRAST RULES --- */
+:is(.dark, .night-mode, [data-theme="night"]) {
+  --muted-foreground: #cbd5e1;
 }
 
-.normal-mode .text-slate-400,
-body:not(.dark) .text-slate-400 {
-  color: #475569 !important; /* upgrade faint slate-400 to crisp slate-600 */
+/* Ensure any slate/zinc/gray/neutral text in dark mode is bright, crisp and readable */
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-400, .text-zinc-400, .text-gray-400, .text-neutral-400) {
+  color: #cbd5e1 !important; /* Slate 300 - High Contrast 7:1 against dark */
 }
 
-.normal-mode .text-slate-500,
-body:not(.dark) .text-slate-500 {
-  color: #334155 !important; /* upgrade slate-500 to slate-700 */
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-500, .text-zinc-500, .text-gray-500, .text-neutral-500) {
+  color: #94a3b8 !important; /* Slate 400 - Crisp readable secondary 5.5:1 */
 }
 
-.dark .text-slate-400 {
-  color: #cbd5e1 !important; /* crisp, high-contrast readable light slate in dark mode */
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-600, .text-zinc-600, .text-gray-600, .text-neutral-600) {
+  color: #cbd5e1 !important; /* Prevent pitch dark slate-600 on black */
 }
 
-.dark .text-slate-500 {
-  color: #94a3b8 !important; /* clear secondary slate maintaining visual hierarchy in dark mode */
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-700, .text-zinc-700, .text-gray-700, .text-neutral-700) {
+  color: #e2e8f0 !important; /* Prevent pitch dark slate-700 on black */
+}
+
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-800, .text-zinc-800, .text-gray-800, .text-neutral-800) {
+  color: #f1f5f9 !important; /* Prevent black on black */
+}
+
+:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900) {
+  color: #f8fafc !important; /* Prevent black on black */
+}
+
+/* In dark mode, ensure placeholders are clearly visible but subtle */
+:is(.dark, .night-mode, [data-theme="night"]) :is(input, textarea)::placeholder,
+:is(.dark, .night-mode, [data-theme="night"]) [class*="placeholder:text-slate-500"]::placeholder,
+:is(.dark, .night-mode, [data-theme="night"]) [class*="placeholder:text-slate-600"]::placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.8 !important;
+}
+
+/* --- B. DARK CONTAINERS IN NORMAL / LIGHT MODE --- */
+/* Any container with dark background (bg-slate-900, bg-slate-950, bg-black, bg-zinc-900, gradients, etc.)
+   must ALWAYS have bright text, NEVER dark text, even when running in Normal Mode! */
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(
+  h1, h2, h3, h4, h5, h6,
+  strong, b,
+  .text-white, [class*="text-white"],
+  .text-slate-50, .text-slate-100, .text-slate-200
+) {
+  color: #ffffff !important;
+}
+
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(.text-slate-300, .text-zinc-300, .text-gray-300) {
+  color: #e2e8f0 !important;
+}
+
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(.text-slate-400, .text-zinc-400, .text-gray-400) {
+  color: #cbd5e1 !important;
+}
+
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(.text-slate-500, .text-zinc-500, .text-gray-500) {
+  color: #94a3b8 !important;
+}
+
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(.text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900) {
+  color: #cbd5e1 !important;
+}
+
+:is(.normal-mode, body) :is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-gray-9"],
+  [class*="bg-black"],
+  [class*="bg-[#0"],
+  [class*="from-slate-9"],
+  [class*="from-slate-8"],
+  [class*="from-zinc-9"],
+  [class*="from-[#0"],
+  [class*="to-slate-9"],
+  [class*="to-slate-8"],
+  [class*="bg-brand-navy"],
+  header[class*="bg-slate"],
+  header[class*="bg-zinc"],
+  section[class*="from-slate"],
+  section[class*="bg-slate"],
+  div[class*="bg-slate-9"]
+) :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-200, .text-yellow-300, .text-yellow-400, .text-brand-gold) {
+  color: #fbbf24 !important;
+}
+
+/* --- C. NORMAL MODE LIGHT SURFACES --- */
+/* On light backgrounds, faint slate-400 & slate-500 are strengthened to crisp readable charcoal */
+:is(.normal-mode, body:not(.dark)) :not(:is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-black"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-[#0b"],
+  [class*="bg-[#02"],
+  .quote-pdf-root,
+  .quote-page,
+  .tender-master-pdf-root,
+  .flyer-page,
+  [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"] *,
+  [class*="bg-black"] *,
+  [class*="bg-zinc-9"] *,
+  [class*="bg-[#0b"] *
+)) > .text-slate-400,
+:is(.normal-mode, body:not(.dark)) :not(:is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-black"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-[#0b"],
+  [class*="bg-[#02"],
+  .quote-pdf-root,
+  .quote-page,
+  .tender-master-pdf-root,
+  .flyer-page,
+  [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"] *,
+  [class*="bg-black"] *,
+  [class*="bg-zinc-9"] *,
+  [class*="bg-[#0b"] *
+)).text-slate-400 {
+  color: #475569 !important; /* Slate 600 - High Contrast 5.6:1 against white */
+}
+
+:is(.normal-mode, body:not(.dark)) :not(:is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-black"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-[#0b"],
+  [class*="bg-[#02"],
+  .quote-pdf-root,
+  .quote-page,
+  .tender-master-pdf-root,
+  .flyer-page,
+  [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"] *,
+  [class*="bg-black"] *,
+  [class*="bg-zinc-9"] *,
+  [class*="bg-[#0b"] *
+)) > .text-slate-500,
+:is(.normal-mode, body:not(.dark)) :not(:is(
+  [class*="bg-slate-9"],
+  [class*="bg-slate-8"],
+  [class*="bg-black"],
+  [class*="bg-zinc-9"],
+  [class*="bg-zinc-8"],
+  [class*="bg-[#0b"],
+  [class*="bg-[#02"],
+  .quote-pdf-root,
+  .quote-page,
+  .tender-master-pdf-root,
+  .flyer-page,
+  [class*="bg-slate-9"] *,
+  [class*="bg-slate-8"] *,
+  [class*="bg-black"] *,
+  [class*="bg-zinc-9"] *,
+  [class*="bg-[#0b"] *
+)).text-slate-500 {
+  color: #334155 !important; /* Slate 700 - High Contrast 7.5:1 against white */
 }
 
 

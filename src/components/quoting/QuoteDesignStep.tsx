@@ -2197,7 +2197,7 @@ export function QuoteDesignStep({
                         <Check className="h-3 w-3" /> Selected
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      <span className="text-[10px] text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 font-medium">
                         Optional
                       </span>
                     )}
@@ -2279,7 +2279,7 @@ export function QuoteDesignStep({
                         <Check className="h-3 w-3" /> Selected
                       </span>
                     ) : (
-                      <span className="text-[10px] text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      <span className="text-[10px] text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700 font-medium">
                         Optional
                       </span>
                     )}
@@ -2815,55 +2815,55 @@ export function QuoteDesignStep({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-center">
                   <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block font-medium">Ground Living</span>
-                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.groundLivingRate)}/m²</span>
-                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.groundLivingM2 || 0} m²</span>
+                    <span className="text-[10px] text-slate-300 block font-medium">Ground Living</span>
+                    <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.groundLivingRate)}/m²</span>
+                    <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.groundLivingM2 || 0} m²</span>
                   </div>
 
                   {customSpec.storeys === "double" && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block font-medium">First Floor Living</span>
-                      <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.firstLivingRate)}/m²</span>
-                      <span className="text-[9px] text-slate-500 block font-mono">{customSpec.firstLivingM2 || 0} m²</span>
+                      <span className="text-[10px] text-slate-300 block font-medium">First Floor Living</span>
+                      <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.firstLivingRate)}/m²</span>
+                      <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.firstLivingM2 || 0} m²</span>
                     </div>
                   )}
 
                   <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block font-medium">Garage</span>
-                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.garageRate)}/m²</span>
-                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.garageM2 || 0} m²</span>
+                    <span className="text-[10px] text-slate-300 block font-medium">Garage</span>
+                    <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.garageRate)}/m²</span>
+                    <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.garageM2 || 0} m²</span>
                   </div>
 
                   <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
                     <div className="flex items-center justify-center gap-1">
-                      <span className="text-[10px] text-slate-400 font-medium">Alfresco</span>
+                      <span className="text-[10px] text-slate-300 font-medium">Alfresco</span>
                       {design.specTier?.includes("H3") && (
                         <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 rounded font-bold">+600x600</span>
                       )}
                     </div>
-                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.alfrescoRate)}/m²</span>
-                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.alfrescoM2 || 0} m²</span>
+                    <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.alfrescoRate)}/m²</span>
+                    <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.alfrescoM2 || 0} m²</span>
                   </div>
 
                   <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                    <span className="text-[10px] text-slate-400 block font-medium">Porch</span>
-                    <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.porchRate)}/m²</span>
-                    <span className="text-[9px] text-slate-500 block font-mono">{customSpec.porchM2 || 0} m²</span>
+                    <span className="text-[10px] text-slate-300 block font-medium">Porch</span>
+                    <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.porchRate)}/m²</span>
+                    <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.porchM2 || 0} m²</span>
                   </div>
 
                   {customSpec.storeys === "double" && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block font-medium">Balcony</span>
-                      <span className="text-xs font-bold text-slate-200 font-mono">{formatAud(rates.balconyRate)}/m²</span>
-                      <span className="text-[9px] text-slate-500 block font-mono">{customSpec.balconyM2 || 0} m²</span>
+                      <span className="text-[10px] text-slate-300 block font-medium">Balcony</span>
+                      <span className="text-xs font-bold text-slate-100 font-mono">{formatAud(rates.balconyRate)}/m²</span>
+                      <span className="text-[9px] text-slate-300 block font-mono font-medium">{customSpec.balconyM2 || 0} m²</span>
                     </div>
                   )}
 
                   {customSpec.storeys === "double" && (
                     <div className="bg-slate-900/80 p-2 rounded-lg border border-slate-800/60">
-                      <span className="text-[10px] text-slate-400 block font-medium">Scaffolding</span>
+                      <span className="text-[10px] text-slate-300 block font-medium">Scaffolding</span>
                       <span className="text-xs font-bold text-emerald-400 font-mono">{formatAud(rates.scaffoldingAllowance)}</span>
-                      <span className="text-[9px] text-slate-500 block font-mono">Allowance</span>
+                      <span className="text-[9px] text-slate-300 block font-mono font-medium">Allowance</span>
                     </div>
                   )}
                 </div>

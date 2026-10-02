@@ -2607,7 +2607,7 @@ function DatabasePage() {
 
                       <td className="p-3 text-xs whitespace-nowrap">
                         <div className={isLight ? "text-slate-700" : "text-slate-300"}>{lastUpdated(l.updated_at).rel}</div>
-                        <div className={isLight ? "text-slate-400" : "text-slate-500"}>
+                        <div className={isLight ? "text-slate-600" : "text-slate-400"}>
                           {lastUpdated(l.updated_at).exact}
                         </div>
                       </td>

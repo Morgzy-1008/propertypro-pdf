@@ -23,13 +23,14 @@ import {
 import { isSingleGarageDesign } from "./facadeLookup";
 
 export const DATABUILD_RECIPE_RATES = {
-  living_ss_m2: 1480,
-  living_ds_ground_m2: 1520,
-  living_ds_upper_m2: 1650,
-  alfresco_m2: 870,
-  garage_m2: 1300,
+  living_ss_m2: 1420,
+  living_ds_ground_m2: 1420,
+  living_ds_upper_m2: 1630,
+  alfresco_m2: 920,
+  garage_m2: 1330,
   wet_area_m2: 2350,
-  porch_m2: 700,
+  porch_m2: 740,
+  balcony_m2: 2050,
 };
 
 export interface RoomSizingDetail {

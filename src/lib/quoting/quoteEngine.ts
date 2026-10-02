@@ -162,19 +162,21 @@ export function getCustomAreaRates(
   const isSS = tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE");
 
   // Non-habitable area rates
-  // Calibrated rates: Garage is $1,300/m², Porch is $700/m², Balcony is $1,350/m²
-  const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 && spec.ancillaryRateM2 !== 1050 && spec.ancillaryRateM2 !== 1150 && spec.ancillaryRateM2 !== 1400 ? spec.ancillaryRateM2 : 1300;
-  const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 700;
-  const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 ? spec.ancillaryRateM2 : 1350;
+  // Calibrated rates:
+  // H1: Porch $700, Alfresco $870, Balcony $2000, Garage $1300
+  // H2: Porch $740, Alfresco $920, Balcony $2050, Garage $1330
+  // H3: Porch $870, Alfresco $1050, Balcony $2150, Garage $1370
+  const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 && spec.ancillaryRateM2 !== 1050 && spec.ancillaryRateM2 !== 1150 && spec.ancillaryRateM2 !== 1400 
+    ? spec.ancillaryRateM2 
+    : (isH3 ? 1370 : isH1 ? 1300 : 1330);
+  const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 
+    ? spec.ancillaryRateM2 
+    : (isH3 ? 870 : isH1 ? 700 : 740);
+  const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 
+    ? spec.ancillaryRateM2 
+    : (isH3 ? 2150 : isH1 ? 2000 : 2050);
 
-  // Alfresco: Base $850/m², H2 $870/m², H3 $900/m² (+$30/m² for 600x600 tiles)
-  let alfrescoRate = 850;
-  if (isH3) {
-    alfrescoRate = 900;
-  } else if (!isH1 && !isHBS && !isSS) {
-    // H2 default
-    alfrescoRate = 870;
-  }
+  let alfrescoRate = isH3 ? 1050 : isH1 ? 870 : 920;
   if (spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869) {
     alfrescoRate = spec.ancillaryRateM2;
   }
@@ -406,33 +408,33 @@ export function resolveItemCategory(item: { name: string; description?: string; 
 export const MODIFIED_SQM_RATES = {
   "Single Storey": {
     livingM2: 1420,
-    garageM2: 1300,
-    alfrescoM2: 870,
-    porchM2: 700,
+    garageM2: 1330,
+    alfrescoM2: 920,
+    porchM2: 740,
   },
   "Double Storey": {
-    groundLivingM2: 1480,
-    firstLivingM2: 1780,
-    garageM2: 1300,
-    alfrescoM2: 870,
-    porchM2: 700,
-    balconyM2: 2000,
+    groundLivingM2: 1420,
+    firstLivingM2: 1630,
+    garageM2: 1330,
+    alfrescoM2: 920,
+    porchM2: 740,
+    balconyM2: 2050,
   },
   "Split Level": {
-    groundLivingM2: 1480,
-    firstLivingM2: 1780,
-    garageM2: 1300,
-    alfrescoM2: 870,
-    porchM2: 700,
-    balconyM2: 2000,
+    groundLivingM2: 1420,
+    firstLivingM2: 1630,
+    garageM2: 1330,
+    alfrescoM2: 920,
+    porchM2: 740,
+    balconyM2: 2050,
   },
   "Dual Living": {
-    groundLivingM2: 1480,
-    firstLivingM2: 1780,
-    garageM2: 1300,
-    alfrescoM2: 870,
-    porchM2: 700,
-    balconyM2: 2000,
+    groundLivingM2: 1420,
+    firstLivingM2: 1630,
+    garageM2: 1330,
+    alfrescoM2: 920,
+    porchM2: 740,
+    balconyM2: 2050,
   },
 } as const;
 
@@ -821,42 +823,42 @@ export function calculateModifiedFloorplanPricing(
         label: housingType === "Split Level" ? "Lower/Ground Living" : "Ground Floor Living",
         std: stdAreas.groundLivingM2 ?? 0,
         mod: modAreas.groundLivingM2 !== undefined ? Number(modAreas.groundLivingM2) : (stdAreas.groundLivingM2 ?? 0),
-        rate: rateConfig.groundLivingM2 || 1480,
+        rate: rateConfig.groundLivingM2 || 1420,
       },
       {
         key: "firstLivingM2",
         label: housingType === "Split Level" ? "Upper Level Living" : "First Floor Living",
         std: stdAreas.firstLivingM2 ?? 0,
         mod: modAreas.firstLivingM2 !== undefined ? Number(modAreas.firstLivingM2) : (stdAreas.firstLivingM2 ?? 0),
-        rate: rateConfig.firstLivingM2 || 1780,
+        rate: rateConfig.firstLivingM2 || 1630,
       },
       {
         key: "garageM2",
         label: "Garage Area",
         std: effectiveStdGarage,
         mod: modGarage,
-        rate: rateConfig.garageM2 || 1300,
+        rate: rateConfig.garageM2 || 1330,
       },
       {
         key: "alfrescoM2",
         label: "Alfresco Area",
         std: stdAreas.alfrescoM2 ?? 0,
         mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
-        rate: rateConfig.alfrescoM2 || 870,
+        rate: rateConfig.alfrescoM2 || 920,
       },
       {
         key: "porchM2",
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 700,
+        rate: rateConfig.porchM2 || 740,
       },
       {
         key: "balconyM2",
         label: "Balcony",
         std: stdAreas.balconyM2 ?? 0,
         mod: modAreas.balconyM2 !== undefined ? Number(modAreas.balconyM2) : (stdAreas.balconyM2 ?? 0),
-        rate: rateConfig.balconyM2 || 2000,
+        rate: rateConfig.balconyM2 || 2050,
       },
     ];
 
@@ -894,21 +896,21 @@ export function calculateModifiedFloorplanPricing(
         label: "Garage Area",
         std: effectiveStdGarage,
         mod: modGarage,
-        rate: rateConfig.garageM2 || 1300,
+        rate: rateConfig.garageM2 || 1330,
       },
       {
         key: "alfrescoM2",
         label: "Alfresco Area",
         std: stdAreas.alfrescoM2 ?? 0,
         mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
-        rate: rateConfig.alfrescoM2 || 870,
+        rate: rateConfig.alfrescoM2 || 920,
       },
       {
         key: "porchM2",
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 700,
+        rate: rateConfig.porchM2 || 740,
       },
     ];
 
@@ -1267,9 +1269,9 @@ export function calculateQuotePricing(
       const porchDelta = (Number(sd.modifiedAreas.porchM2) || 0) - (Number(sd.standardAreas.porchM2) || 0);
 
       const livingCost = livingDelta >= 0 ? livingDelta * 1420 : livingDelta * 1420 * 0.8;
-      const garageCost = garageDelta >= 0 ? garageDelta * 1300 : garageDelta * 1300 * 0.8;
-      const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * 870 : alfrescoDelta * 870 * 0.8;
-      const porchCost = porchDelta >= 0 ? porchDelta * 700 : porchDelta * 700 * 0.8;
+      const garageCost = garageDelta >= 0 ? garageDelta * 1330 : garageDelta * 1330 * 0.8;
+      const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * 920 : alfrescoDelta * 920 * 0.8;
+      const porchCost = porchDelta >= 0 ? porchDelta * 740 : porchDelta * 740 * 0.8;
 
       sdBase += Math.round(livingCost + garageCost + alfrescoCost + porchCost);
     }

@@ -349,11 +349,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
 
         <div className={`px-4 py-2 rounded-xl border text-xs flex items-center gap-3 self-start ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950 border-slate-800"}`}>
           <div>
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Ground Slab GFA:</span>
+            <span className={`text-[10px] uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Ground Slab GFA:</span>
             <span className={`font-bold font-mono ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>{gfaM2} m²</span>
           </div>
           <div className={`border-l pl-3 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Total Site Investment:</span>
+            <span className={`text-[10px] uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Total Site Investment:</span>
             <span className={`font-extrabold font-mono text-sm ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>{formatAud(totalSiteAndStatutory)}</span>
           </div>
         </div>
@@ -973,8 +973,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               ) : (
                 <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                   isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-slate-950 text-slate-500 border-slate-800"
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
                 }`}>
                   Optional
                 </span>
@@ -1045,8 +1045,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               ) : (
                 <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                   isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-slate-950 text-slate-500 border-slate-800"
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
                 }`}>
                   Optional
                 </span>
@@ -1154,8 +1154,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 ) : (
                   <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                     isLight
-                      ? "bg-slate-100 text-slate-600 border-slate-300"
-                      : "bg-slate-950 text-slate-500 border-slate-800"
+                      ? "bg-slate-100 text-slate-700 border-slate-300"
+                      : "bg-slate-900/80 text-slate-300 border-slate-700"
                   }`}>
                     Optional
                   </span>
@@ -1459,8 +1459,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               ) : (
                 <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                   isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-slate-950 text-slate-500 border-slate-800"
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
                 }`}>
                   Optional
                 </span>
@@ -1538,8 +1538,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               ) : (
                 <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                   isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-slate-950 text-slate-500 border-slate-800"
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
                 }`}>
                   Optional
                 </span>
@@ -1620,8 +1620,8 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               ) : (
                 <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
                   isLight
-                    ? "bg-slate-100 text-slate-600 border-slate-300"
-                    : "bg-slate-950 text-slate-500 border-slate-800"
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
                 }`}>
                   Optional
                 </span>

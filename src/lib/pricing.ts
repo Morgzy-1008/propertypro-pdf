@@ -78,12 +78,30 @@ export function designsFor(type: HousingType, division?: Division): PriceRow[] {
   return lists[type] ?? [];
 }
 
+function normalizeDesignLookup(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/\s*\((?:single|two)\s*stor(?:y|ey)[^)]*\)/gi, "")
+    .replace(/\s*-\s*td\s*(?:single|two)\s*stor(?:y|ey)/gi, " - td")
+    .replace(/\s*-\s*sd\s*(?:single|two)\s*stor(?:y|ey)/gi, " - sd")
+    .replace(/\s*-\s*\((?:attached|dettached|detached)\s*garage\)/gi, "")
+    .replace(/\s+(?:attached|detached)$/gi, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export function findDesign(name: string, division?: Division): PriceRow | undefined {
   const lists = getPriceLists(division);
-  const norm = name.trim().toLowerCase();
+  const rawNorm = name.trim().toLowerCase();
   for (const list of Object.values(lists)) {
-    const found = list.find((r) => r.name.trim().toLowerCase() === norm);
-    if (found) return found;
+    const exact = list.find((r) => r.name.trim().toLowerCase() === rawNorm);
+    if (exact) return exact;
+  }
+  const cleanNorm = normalizeDesignLookup(name);
+  for (const list of Object.values(lists)) {
+    const loose = list.find((r) => normalizeDesignLookup(r.name) === cleanNorm);
+    if (loose) return loose;
   }
   return undefined;
 }

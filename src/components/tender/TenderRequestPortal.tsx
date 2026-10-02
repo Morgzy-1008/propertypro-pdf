@@ -1721,11 +1721,11 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                 {/* Consultant Contact Details preview */}
                 <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] font-mono text-slate-400">
                   <div>
-                    <span className="text-[9px] uppercase text-slate-500 block">Mobile:</span>
+                    <span className="text-[9px] uppercase text-slate-400 block font-medium">Mobile:</span>
                     <span className="text-slate-300 font-semibold">{tender.consultantPhone || tender.atp.consultantPhone || "0417 571 864"}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] uppercase text-slate-500 block">Email:</span>
+                    <span className="text-[9px] uppercase text-slate-400 block font-medium">Email:</span>
                     <span className="text-slate-300 truncate block font-semibold">{tender.consultantEmail || tender.atp.consultantEmail || "morgan.hales@hudsonhomes.com.au"}</span>
                   </div>
                 </div>
@@ -2884,7 +2884,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   {tender.atp.client1SignatureDataUrl ? (
                     <img src={tender.atp.client1SignatureDataUrl} alt="Client 1 Signature" className="max-h-full max-w-full object-contain p-2" />
                   ) : (
-                    <span className="text-slate-500 text-xs italic">No digital signature attached yet</span>
+                    <span className="text-slate-400 text-xs italic">No digital signature attached yet</span>
                   )}
                 </div>
 
@@ -2912,7 +2912,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                       <CheckCircle2 className="h-3 w-3" /> Signed &bull; {tender.atp.client2SignatureDate}
                     </span>
                   ) : (
-                    <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                    <span className="text-[10px] uppercase font-bold text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
                       {tender.hasCustomer2 ? "Signature Required" : "Optional"}
                     </span>
                   )}
@@ -2922,7 +2922,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                   {tender.atp.client2SignatureDataUrl ? (
                     <img src={tender.atp.client2SignatureDataUrl} alt="Client 2 Signature" className="max-h-full max-w-full object-contain p-2" />
                   ) : (
-                    <span className="text-slate-500 text-xs italic">
+                    <span className="text-slate-400 text-xs italic">
                       {tender.hasCustomer2 ? "No digital signature attached yet" : "Single applicant job"}
                     </span>
                   )}

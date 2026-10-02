@@ -50,13 +50,14 @@ import type {
  * High-confidence Databuild Recipe Unit Rates ($/m²)
  */
 export const DATABUILD_RECIPE_RATES = {
-  living_ss_m2: 1480,
-  living_ds_ground_m2: 1520,
-  living_ds_upper_m2: 1650,
-  alfresco_m2: 870,
-  garage_m2: 1300,
+  living_ss_m2: 1420,
+  living_ds_ground_m2: 1420,
+  living_ds_upper_m2: 1630,
+  alfresco_m2: 920,
+  garage_m2: 1330,
   wet_area_m2: 2350,
-  porch_m2: 700,
+  porch_m2: 740,
+  balcony_m2: 2050,
   structural_beam_ds: 1850,
   ceiling_2590_living_m2: 24, // lump sum ~$3,650
   ceiling_2740_living_m2: 46, // lump sum ~$6,850
@@ -2270,7 +2271,7 @@ export async function analyzeModifiedFloorplanFile(
     const allocatedDelta = areaDeltas.reduce((sum, d) => sum + d.deltaM2, 0);
     const unallocatedM2 = Math.round((totalNetDelta - allocatedDelta) * 100) / 100;
     if (unallocatedM2 >= 1.0) {
-      const rate = isDoubleStorey ? 1480 : 1420;
+      const rate = 1420;
       areaDeltas.push({
         zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
         zoneLabel: "Living & Structural Envelope Extension",
@@ -2418,7 +2419,7 @@ export async function analyzeModifiedFloorplanFile(
       const allocatedDelta = areaDeltas.reduce((sum, d) => sum + d.deltaM2, 0);
       const unallocatedM2 = Math.round((totalNetDelta - allocatedDelta) * 100) / 100;
       if (unallocatedM2 >= 1.0) {
-        const rate = isDoubleStorey ? 1480 : 1420;
+        const rate = 1420;
         areaDeltas.push({
           zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
           zoneLabel: "Living & Structural Envelope Extension",
@@ -2969,7 +2970,7 @@ export async function analyzeModifiedFloorplanFile(
       const allocatedDelta = areaDeltas.reduce((sum, d) => sum + d.deltaM2, 0);
       const unallocatedM2 = Math.round((totalNetDelta - allocatedDelta) * 100) / 100;
       if (unallocatedM2 >= 1.0) {
-        const rate = isDoubleStorey ? 1480 : 1420;
+        const rate = 1420;
         areaDeltas.push({
           zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
           zoneLabel: "Living & Structural Envelope Extension",

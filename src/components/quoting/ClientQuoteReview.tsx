@@ -524,23 +524,23 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
           <div className="mt-6 pt-6 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div>
-              <span className="text-slate-500 block text-[11px]">Selected Model:</span>
+              <span className="text-slate-400 block text-[11px] font-medium">Selected Model:</span>
               <span className="font-bold text-white text-sm">
                 {getEffectiveDesignName(quote.design)}
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">Floor Area:</span>
+              <span className="text-slate-400 block text-[11px] font-medium">Floor Area:</span>
               <span className="font-bold text-white text-sm font-mono">
                 {getEffectiveDesignM2(quote.design)} m² ({(getEffectiveDesignM2(quote.design) * 0.107639).toFixed(1)} sq)
               </span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">Facade Style:</span>
+              <span className="text-slate-400 block text-[11px] font-medium">Facade Style:</span>
               <span className="font-bold text-white text-sm">{quote.design.facadeName || "Classic"}</span>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">Total Estimated Cost:</span>
+              <span className="text-slate-400 block text-[11px] font-medium">Total Estimated Cost:</span>
               <span className="font-bold text-emerald-400 text-sm font-mono">
                 {formatAud(quote.pricing.grossEstimatedInvestment)}
               </span>
@@ -1438,7 +1438,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     {/* Account Name */}
                     <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-slate-500 text-[10px] block">Account Name:</span>
+                        <span className="text-slate-300 text-[10px] block font-medium">Account Name:</span>
                         <span className="font-semibold text-white">
                           {company.bankName}
                         </span>
@@ -1455,14 +1455,14 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
 
                     {/* Bank */}
                     <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
-                      <span className="text-slate-500 text-[10px] block">Bank Institution:</span>
+                      <span className="text-slate-300 text-[10px] block font-medium">Bank Institution:</span>
                       <span className="font-semibold text-white">National Australia Bank (NAB)</span>
                     </div>
 
                     {/* BSB Number */}
                     <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-slate-500 text-[10px] block">BSB Number:</span>
+                        <span className="text-slate-300 text-[10px] block font-medium">BSB Number:</span>
                         <span className="font-bold font-mono text-base text-emerald-400 tracking-wider">{company.bsb}</span>
                       </div>
                       <button
@@ -1478,7 +1478,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     {/* Account Number */}
                     <div className="bg-slate-900/60 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-slate-500 text-[10px] block">Account Number:</span>
+                        <span className="text-slate-300 text-[10px] block font-medium">Account Number:</span>
                         <span className="font-bold font-mono text-base text-white tracking-wider">
                           {company.accountNumber}
                         </span>
@@ -1496,7 +1496,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     {/* EFT Reference */}
                     <div className="col-span-1 sm:col-span-2 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
                       <div>
-                        <span className="text-slate-500 text-[10px] block">EFT Payment Remittance Reference:</span>
+                        <span className="text-slate-300 text-[10px] block font-medium">EFT Payment Remittance Reference:</span>
                         <span className="font-bold font-mono text-emerald-400 text-sm">
                           {paymentReference}
                         </span>

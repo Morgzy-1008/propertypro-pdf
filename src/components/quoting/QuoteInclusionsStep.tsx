@@ -524,19 +524,22 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const targetTierCode: "H1" | "H2" | "H3" = isTargetH3 ? "H3" : isTargetH1 ? "H1" : "H2";
   const targetTierLabel = targetTierCode === "H3" ? "H3 Luxury" : targetTierCode === "H1" ? "H1 Smart" : "H2 Designer";
 
-  // Calibrated extension sqm rates for single storey & double storey
-  const ssGfLivingRate = targetTierCode === "H3" ? 1810 : targetTierCode === "H1" ? 1420 : 1660;
-  const ssPorticoRate = 870;
-  const ssGarageRate = 1300;
-  const ssAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
+  // Calibrated extension sqm rates for single storey & double storey per prompt:
+  // H1: GF $1370, FF $1580, Porch $700, Alfresco $870, Balcony $2000, Garage $1300
+  // H2: GF $1420, FF $1630, Porch $740, Alfresco $920, Balcony $2050, Garage $1330
+  // H3: GF $1550, FF $1760, Porch $870, Alfresco $1050, Balcony $2150, Garage $1370
+  const ssGfLivingRate = targetTierCode === "H3" ? 1550 : targetTierCode === "H1" ? 1370 : 1420;
+  const ssPorticoRate = targetTierCode === "H3" ? 870 : targetTierCode === "H1" ? 700 : 740;
+  const ssGarageRate = targetTierCode === "H3" ? 1370 : targetTierCode === "H1" ? 1300 : 1330;
+  const ssAlfrescoRate = targetTierCode === "H3" ? 1050 : targetTierCode === "H1" ? 870 : 920;
   const ssWetAreaRate = 150; // $150/m² wet area add-on
 
-  const dsGfLivingRate = targetTierCode === "H3" ? 1650 : targetTierCode === "H1" ? 1480 : 1500;
-  const dsFfLivingRate = targetTierCode === "H3" ? 1950 : targetTierCode === "H1" ? 1780 : 1800;
-  const dsPorchRate = 870;
-  const dsAlfrescoRate = targetTierCode === "H3" ? 900 : targetTierCode === "H1" ? 850 : 870;
-  const dsGarageRate = 1300;
-  const dsBalconyRate = 2000;
+  const dsGfLivingRate = targetTierCode === "H3" ? 1550 : targetTierCode === "H1" ? 1370 : 1420;
+  const dsFfLivingRate = targetTierCode === "H3" ? 1760 : targetTierCode === "H1" ? 1580 : 1630;
+  const dsPorchRate = targetTierCode === "H3" ? 870 : targetTierCode === "H1" ? 700 : 740;
+  const dsAlfrescoRate = targetTierCode === "H3" ? 1050 : targetTierCode === "H1" ? 870 : 920;
+  const dsGarageRate = targetTierCode === "H3" ? 1370 : targetTierCode === "H1" ? 1300 : 1330;
+  const dsBalconyRate = targetTierCode === "H3" ? 2150 : targetTierCode === "H1" ? 2000 : 2050;
   const dsWetAreaRate = 150; // $150/m² wet area add-on (ground or top floor)
 
   const extGfLivingItem = lineItems.find((i) => i.id === `pop_ext_gf_living${pfx}` || i.catalogueItemId === "str_custom_ss_h2" || i.catalogueItemId === "str_custom_ss_h3" || i.catalogueItemId === "str_custom_ds_h2_gf" || i.catalogueItemId === "str_custom_ds_h3_gf" || i.catalogueItemId === "str_add_gf_ss" || i.catalogueItemId === "str_add_gf_ds");
@@ -842,7 +845,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className={`font-bold text-xs font-mono px-1 min-w-[54px] text-center ${isInc ? "text-emerald-400" : "text-slate-500"}`}>
+                        <span className={`font-bold text-xs font-mono px-1 min-w-[54px] text-center ${isInc ? "text-emerald-400" : "text-slate-400"}`}>
                           {isInc ? `${qty} m²` : "0 m²"}
                         </span>
                         <button
@@ -933,7 +936,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${covenantItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                  <span className={`font-bold text-xs font-mono px-1 ${covenantItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                     {formatAud(covenantItem?.isIncluded ? covenantItem.subtotal : 0)}
                   </span>
                   <button
@@ -1140,7 +1143,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <Minus className="h-3 w-3" />
                     </button>
-                    <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                    <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                       {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
                     </span>
                     <button
@@ -1423,7 +1426,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                       >
                         <Minus className="h-3 w-3" />
                       </button>
-                      <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                      <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                         {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
                       </span>
                       <button
@@ -1574,7 +1577,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${stone40Item?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                  <span className={`font-bold text-xs font-mono px-1 ${stone40Item?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                     {formatAud((stone40Item?.quantity || 6) * 245)} ({stone40Item?.quantity || 6} lm)
                   </span>
                   <button
@@ -1645,7 +1648,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${laundryItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                  <span className={`font-bold text-xs font-mono px-1 ${laundryItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                     {formatAud(laundryItem?.isIncluded ? laundryItem.subtotal : 0)}
                   </span>
                   <button
@@ -1724,7 +1727,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${tilesItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                  <span className={`font-bold text-xs font-mono px-1 ${tilesItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                     {formatAud(tilesItem?.isIncluded ? tilesItem.subtotal : 0)} ({tilesItem?.quantity || 0} rooms)
                   </span>
                   <button
@@ -1831,7 +1834,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   >
                     <Minus className="h-3 w-3" />
                   </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${spectrumItem?.isIncluded ? "text-emerald-400" : "text-slate-500"}`}>
+                  <span className={`font-bold text-xs font-mono px-1 ${spectrumItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
                     {formatAud(spectrumItem?.isIncluded ? spectrumItem.subtotal : 0)}
                   </span>
                   <button

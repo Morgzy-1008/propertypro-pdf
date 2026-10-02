@@ -1,15 +1,43 @@
 import type { CatalogueCategory, CatalogueItem } from "./quoteTypes";
 
+export const EXTENSION_RATES_BY_TIER = {
+  H1: {
+    gf: 1370,
+    ff: 1580,
+    porch: 700,
+    alfresco: 870,
+    balcony: 2000,
+    garage: 1300,
+  },
+  H2: {
+    gf: 1420,
+    ff: 1630,
+    porch: 740,
+    alfresco: 920,
+    balcony: 2050,
+    garage: 1330,
+  },
+  H3: {
+    gf: 1550,
+    ff: 1760,
+    porch: 870,
+    alfresco: 1050,
+    balcony: 2150,
+    garage: 1370,
+  },
+} as const;
+
 export const DEFAULT_CUSTOM_RATES = {
-  singleGroundLivingM2Rate: 1660,
-  singleGroundLivingH3M2Rate: 1810,
-  doubleGroundLivingM2Rate: 1500,
-  doubleUpperLivingM2Rate: 1800,
-  doubleGroundLivingH3M2Rate: 1650,
-  doubleUpperLivingH3M2Rate: 1950,
-  garageM2Rate: 1300,
-  ancillaryM2Rate: 870, // Alfresco ($870/m²)
-  porchM2Rate: 700, // Porch ($700/m²)
+  singleGroundLivingM2Rate: 1420,
+  singleGroundLivingH3M2Rate: 1550,
+  doubleGroundLivingM2Rate: 1420,
+  doubleUpperLivingM2Rate: 1630,
+  doubleGroundLivingH3M2Rate: 1550,
+  doubleUpperLivingH3M2Rate: 1760,
+  garageM2Rate: 1330,
+  ancillaryM2Rate: 920, // Alfresco ($920/m² in H2)
+  porchM2Rate: 740, // Porch ($740/m² in H2)
+  balconyM2Rate: 2050, // Balcony ($2,050/m² in H2)
   doubleScaffoldingAllowance: 8500,
 };
 
@@ -176,7 +204,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Single Storey Living Area (H2 Inclusions)",
     description: "Custom ground floor enclosed living area framing, insulation, plasterboard, and finishes based on H2 Builder specification.",
     unitType: "per_m2",
-    unitRate: 1660,
+    unitRate: 1420,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -185,7 +214,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Single Storey Living Area (H3 Inclusions)",
     description: "Custom ground floor enclosed living area framing, insulation, plasterboard, and finishes based on H3 Luxury specification.",
     unitType: "per_m2",
-    unitRate: 1810,
+    unitRate: 1550,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -194,7 +224,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Garage Floor Footprint Extension",
     description: "Reinforced concrete slab, timber/steel wall framing, exterior brickwork/cladding, and engineered roof trusses for garage.",
     unitType: "per_m2",
-    unitRate: 1300,
+    unitRate: 1330,
+    tierRates: { H1: 1300, H2: 1330, H3: 1370 },
     isClientSelectable: true,
   },
   {
@@ -203,25 +234,28 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Custom Porch / Alfresco Under-Roof Area",
     description: "Integrated concrete slab and roofline framing extension for outdoor porch or alfresco entertaining footprint.",
     unitType: "per_m2",
-    unitRate: 870,
+    unitRate: 920,
+    tierRates: { H1: 870, H2: 920, H3: 1050 },
     isClientSelectable: true,
   },
   {
     id: "str_custom_alfresco",
     category: "floorplan_extensions",
     name: "Custom Alfresco Footprint Extension (H2)",
-    description: "Integrated reinforced slab, structural posts/piers, under-roof framing and external ceiling lining ($870/m² in H2).",
+    description: "Integrated reinforced slab, structural posts/piers, under-roof framing and external ceiling lining ($920/m² in H2).",
     unitType: "per_m2",
-    unitRate: 870,
+    unitRate: 920,
+    tierRates: { H1: 870, H2: 920, H3: 1050 },
     isClientSelectable: true,
   },
   {
     id: "str_custom_porch",
     category: "floorplan_extensions",
     name: "Custom Entry Porch Footprint Extension (H2)",
-    description: "Integrated concrete foundation and covered roofline extension for front entry porch ($700/m² in H2).",
+    description: "Integrated concrete foundation and covered roofline extension for front entry porch ($740/m² in H2).",
     unitType: "per_m2",
-    unitRate: 700,
+    unitRate: 740,
+    tierRates: { H1: 700, H2: 740, H3: 870 },
     isClientSelectable: true,
   },
   {
@@ -230,7 +264,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Double Storey Ground Floor Living (H2 Inclusions)",
     description: "Ground floor structural living area construction with engineered floor joists above for double storey custom home.",
     unitType: "per_m2",
-    unitRate: 1500,
+    unitRate: 1420,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -239,7 +274,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Double Storey First Floor Living (H2 Inclusions)",
     description: "Upper floor structural living area framing, floor sheeting, insulation, and roofline based on H2 Builder specification.",
     unitType: "per_m2",
-    unitRate: 1800,
+    unitRate: 1630,
+    tierRates: { H1: 1580, H2: 1630, H3: 1760 },
     isClientSelectable: true,
   },
   {
@@ -248,7 +284,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Double Storey Ground Floor Living (H3 Inclusions)",
     description: "Ground floor structural living area construction with engineered upper joist framing for double storey custom home (H3 spec).",
     unitType: "per_m2",
-    unitRate: 1650,
+    unitRate: 1550,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -257,7 +294,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Double Storey First Floor Living (H3 Inclusions)",
     description: "Upper floor structural living area framing, premium acoustic floor sheeting, and roofline based on H3 Luxury specification.",
     unitType: "per_m2",
-    unitRate: 1950,
+    unitRate: 1760,
+    tierRates: { H1: 1580, H2: 1630, H3: 1760 },
     isClientSelectable: true,
   },
   {
@@ -266,7 +304,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Uncovered Balcony Structure with H2 Range Tiles",
     description: "External cantilevered or post-supported balcony structure, waterproofed and finished with H2 range ceramic floor tiles.",
     unitType: "per_m2",
-    unitRate: 2000,
+    unitRate: 2050,
+    tierRates: { H1: 2000, H2: 2050, H3: 2150 },
     isClientSelectable: true,
   },
   {
@@ -275,7 +314,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Covered Balcony Structure with H2 Range Tiles",
     description: "Covered upper floor balcony structure with extended roofline, ceiling lining, waterproofing, and H2 range floor tiles.",
     unitType: "per_m2",
-    unitRate: 2500,
+    unitRate: 2050,
+    tierRates: { H1: 2000, H2: 2050, H3: 2150 },
     isClientSelectable: true,
   },
   {
@@ -285,6 +325,7 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     description: "Extended ground floor enclosed living area with integrated roof trusses, insulation, and external cladding.",
     unitType: "per_m2",
     unitRate: 1420,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -293,7 +334,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Additional Ground Floor Living Area (Double Storey)",
     description: "Extended ground floor structural footprint with intermediate engineered floor joists and load-bearing framing.",
     unitType: "per_m2",
-    unitRate: 1480,
+    unitRate: 1420,
+    tierRates: { H1: 1370, H2: 1420, H3: 1550 },
     isClientSelectable: true,
   },
   {
@@ -302,7 +344,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Additional First Floor Living Area (Double Storey)",
     description: "Extended upper floor structural living area including structural joists, wall framing, and roof structure.",
     unitType: "per_m2",
-    unitRate: 1780,
+    unitRate: 1630,
+    tierRates: { H1: 1580, H2: 1630, H3: 1760 },
     isClientSelectable: true,
   },
   {
@@ -311,7 +354,8 @@ export const DEFAULT_CATALOGUE: CatalogueItem[] = [
     name: "Additional Alfresco Footprint Area",
     description: "Extended under-roof alfresco slab and roofline for enlarged outdoor entertaining space.",
     unitType: "per_m2",
-    unitRate: 869,
+    unitRate: 920,
+    tierRates: { H1: 870, H2: 920, H3: 1050 },
     isClientSelectable: true,
   },
   {

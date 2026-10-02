@@ -458,7 +458,7 @@ function PackagesBrowse() {
                               </span>
                             </div>
                             <div className="text-right flex-none">
-                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider block">
+                              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">
                                 Fixed Package From
                               </span>
                               <span className="text-lg font-black text-emerald-400 font-mono">
@@ -468,7 +468,7 @@ function PackagesBrowse() {
                           </div>
 
                           {p.address && (
-                            <p className="text-xs text-slate-400 line-clamp-1">
+                            <p className="text-xs text-slate-300 line-clamp-1">
                               {p.address}
                             </p>
                           )}
@@ -476,19 +476,19 @@ function PackagesBrowse() {
                           {/* Specification Strip */}
                           <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-800/80 text-center text-xs">
                             <div className="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60">
-                              <span className="text-[10px] text-slate-500 block">Beds</span>
+                              <span className="text-[10px] text-slate-400 block font-medium">Beds</span>
                               <span className="font-bold text-white font-mono">{p.beds || "4"}</span>
                             </div>
                             <div className="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60">
-                              <span className="text-[10px] text-slate-500 block">Baths</span>
+                              <span className="text-[10px] text-slate-400 block font-medium">Baths</span>
                               <span className="font-bold text-white font-mono">{p.baths || "2"}</span>
                             </div>
                             <div className="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60">
-                              <span className="text-[10px] text-slate-500 block">Cars</span>
+                              <span className="text-[10px] text-slate-400 block font-medium">Cars</span>
                               <span className="font-bold text-white font-mono">{p.cars || "2"}</span>
                             </div>
                             <div className="bg-slate-950/60 p-1.5 rounded-lg border border-slate-800/60">
-                              <span className="text-[10px] text-slate-500 block">House</span>
+                              <span className="text-[10px] text-slate-400 block font-medium">House</span>
                               <span className="font-bold text-emerald-400 font-mono text-[11px]">
                                 {p.homeSize ? `${p.homeSize} m²` : "—"}
                               </span>
@@ -501,7 +501,7 @@ function PackagesBrowse() {
                           {p.consultantName && (
                             <div className="flex items-center justify-between text-[11px] text-slate-400">
                               <span>Consultant: <strong className="text-slate-200">{p.consultantName}</strong></span>
-                              <span className="text-slate-500">{p.consultantOffice}</span>
+                              <span className="text-slate-400 font-medium">{p.consultantOffice}</span>
                             </div>
                           )}
 
@@ -657,11 +657,11 @@ function PackagesBrowse() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-8 px-6 text-center text-xs text-slate-500 space-y-2">
+      <footer className="border-t border-slate-900 bg-slate-950 py-8 px-6 text-center text-xs text-slate-400 space-y-2">
         <p>
           Hudson Homes (QLD) Pty Ltd · ABN 49 163 189 071 · QBCC Licence 259372C
         </p>
-        <p className="text-[11px] text-slate-600">
+        <p className="text-[11px] text-slate-400">
           Prices, floorplans, land availability and registration dates are subject to change. Terms &amp; conditions apply.
         </p>
       </footer>
