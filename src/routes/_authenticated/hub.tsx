@@ -673,7 +673,7 @@ function WelcomeHubPage() {
       {/* Footer Branding Bar with Optical Laser Divider */}
       <footer
         className={`border-t ${
-          isLight ? "border-slate-200/80 bg-white/70 text-slate-500" : "border-slate-800/80 bg-slate-950/70 text-slate-500"
+          isLight ? "border-slate-200/80 bg-white/70 text-slate-500" : "border-slate-800/80 bg-slate-950/70 text-slate-400"
         } py-4 text-center text-xs relative backdrop-blur-md`}
       >
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />

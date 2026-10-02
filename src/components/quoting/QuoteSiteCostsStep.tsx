@@ -1422,7 +1422,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 </div>
               </div>
             ) : (
-              <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+              <span className={`font-bold text-xs font-mono mt-2 block text-right ${isLight ? "text-slate-400" : "text-slate-400"}`}>
                 +{formatAud(site.screwPieringCost ?? defaultScrewPiering)}
               </span>
             )}

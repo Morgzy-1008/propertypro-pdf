@@ -1471,6 +1471,110 @@ html.normal-mode,
   color: #fbbf24 !important;
 }
 
+/* Explicit protection for nested light surfaces/cards/modals/badges:
+   Dark text inside a light surface must NEVER be forced to light/white! */
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
+) :is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900, .text-slate-950, .text-black) {
+  color: #0f172a !important;
+}
+
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
+) :is(.text-slate-800, .text-zinc-800, .text-gray-800, .text-neutral-800) {
+  color: #1e293b !important;
+}
+
+:is(.dark, .night-mode, [data-theme="night"], .normal-mode, body) :is(
+  .bg-white,
+  [class*="bg-white"],
+  .bg-slate-50,
+  [class*="bg-slate-50"],
+  .bg-slate-100,
+  [class*="bg-slate-100"],
+  .bg-slate-200,
+  [class*="bg-slate-200"],
+  .bg-amber-50,
+  .bg-amber-100,
+  .bg-amber-200,
+  .bg-amber-300,
+  .bg-amber-400,
+  .bg-amber-500,
+  .bg-yellow-100,
+  .bg-yellow-200,
+  .bg-yellow-300,
+  .bg-yellow-400,
+  .bg-emerald-100,
+  .bg-emerald-200,
+  .bg-emerald-300,
+  .bg-emerald-400,
+  .bg-emerald-500,
+  .bg-emerald-50,
+  .bg-green-100,
+  .bg-sky-100,
+  .bg-cyan-100,
+  [class*="bg-amber-100"],
+  [class*="bg-emerald-100"]
+) :is(.text-slate-700, .text-zinc-700, .text-gray-700, .text-neutral-700) {
+  color: #334155 !important;
+}
+
 /* --- C. NORMAL MODE LIGHT SURFACES --- */
 /* On light backgrounds, faint slate-400 & slate-500 are strengthened to crisp readable charcoal */
 :is(.normal-mode, body:not(.dark)) :not(:is(

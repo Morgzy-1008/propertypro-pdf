@@ -465,7 +465,7 @@ export function CrmCommissionDashboard({
         >
           <div className={`flex items-center justify-between text-xs mb-2 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
             <span className="font-semibold">Base Annual Salary</span>
-            <Briefcase className={`h-4 w-4 ${isLight ? "text-slate-400" : "text-slate-500"}`} />
+            <Briefcase className={`h-4 w-4 ${isLight ? "text-slate-400" : "text-slate-400"}`} />
           </div>
           <div className={`text-2xl font-black ${isLight ? "text-slate-900" : "text-white"}`}>
             {formatAud(currentSettings.baseSalaryYearly || 75000)}
@@ -635,7 +635,7 @@ export function CrmCommissionDashboard({
                             : "bg-blue-950/70 text-blue-300 border-blue-800"
                           : isLight
                           ? "text-slate-400 bg-slate-100 border-slate-200"
-                          : "text-slate-600 bg-slate-900 border-slate-800"
+                          : "text-slate-300 bg-slate-900 border-slate-800"
                       }`}
                     >
                       {row.leadsCount}
@@ -652,7 +652,7 @@ export function CrmCommissionDashboard({
                             : "bg-emerald-950/70 text-emerald-300 border-emerald-800"
                           : isLight
                           ? "text-slate-400 bg-slate-100 border-slate-200"
-                          : "text-slate-600 bg-slate-900 border-slate-800"
+                          : "text-slate-300 bg-slate-900 border-slate-800"
                       }`}
                     >
                       {row.atpCount}
@@ -669,7 +669,7 @@ export function CrmCommissionDashboard({
                             : "bg-cyan-950/70 text-cyan-300 border-cyan-800"
                           : isLight
                           ? "text-slate-400 bg-slate-100 border-slate-200"
-                          : "text-slate-600 bg-slate-900 border-slate-800"
+                          : "text-slate-300 bg-slate-900 border-slate-800"
                       }`}
                     >
                       {row.contractCount}
@@ -811,7 +811,7 @@ export function CrmCommissionDashboard({
             <tbody className={`divide-y ${isLight ? "divide-slate-200 text-slate-700" : "divide-slate-800/80 text-slate-200"}`}>
               {summary.deals.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className={`py-8 text-center text-xs italic ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                  <td colSpan={6} className={`py-8 text-center text-xs italic ${isLight ? "text-slate-400" : "text-slate-400"}`}>
                     No active deals found for {summary.consultantName}.
                   </td>
                 </tr>
@@ -823,7 +823,7 @@ export function CrmCommissionDashboard({
                   >
                     <td className={`py-3.5 px-4 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {deal.clientName}
-                      <span className={`block text-[10px] font-normal ${isLight ? "text-slate-500" : "text-slate-500"}`}>
+                      <span className={`block text-[10px] font-normal ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         Stage: {deal.stage.replace(/_/g, " ")}
                       </span>
                     </td>
@@ -835,12 +835,12 @@ export function CrmCommissionDashboard({
                           <span className={isLight ? "text-slate-900" : "text-white"}>
                             {formatAud(deal.dealValueIncGst)}
                           </span>
-                          <span className={`block text-[10px] ${isLight ? "text-slate-500" : "text-slate-500"}`}>
+                          <span className={`block text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                             Ex GST: {formatAud(deal.dealValueExGst)}
                           </span>
                         </>
                       ) : (
-                        <span className={`italic text-[11px] ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+                        <span className={`italic text-[11px] ${isLight ? "text-slate-400" : "text-slate-400"}`}>
                           Pending Tender Received
                         </span>
                       )}
@@ -851,7 +851,7 @@ export function CrmCommissionDashboard({
                       {deal.hasTenderPrice ? (
                         formatAud(deal.grossCommission)
                       ) : (
-                        <span className={isLight ? "text-slate-400" : "text-slate-600"}>—</span>
+                        <span className={isLight ? "text-slate-400" : "text-slate-400"}>—</span>
                       )}
                     </td>
 
@@ -877,12 +877,12 @@ export function CrmCommissionDashboard({
                                 : "bg-slate-900 text-slate-400 border-slate-800"
                             }`}
                           >
-                            <Clock className={`h-3 w-3 ${isLight ? "text-slate-400" : "text-slate-500"}`} />
+                            <Clock className={`h-3 w-3 ${isLight ? "text-slate-400" : "text-slate-400"}`} />
                             {formatAud(deal.tranche1Amount)} (Pending ATP)
                           </span>
                         )
                       ) : (
-                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-600"}`}>—</span>
+                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-400"}`}>—</span>
                       )}
                     </td>
 
@@ -908,12 +908,12 @@ export function CrmCommissionDashboard({
                                 : "bg-slate-900 text-slate-400 border-slate-800"
                             }`}
                           >
-                            <Clock className={`h-3 w-3 ${isLight ? "text-slate-400" : "text-slate-500"}`} />
+                            <Clock className={`h-3 w-3 ${isLight ? "text-slate-400" : "text-slate-400"}`} />
                             {formatAud(deal.tranche2Amount)} (Pending Contract)
                           </span>
                         )
                       ) : (
-                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-600"}`}>—</span>
+                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-400"}`}>—</span>
                       )}
                     </td>
 
@@ -929,13 +929,13 @@ export function CrmCommissionDashboard({
                             +{formatAud(deal.realizedCommission)}
                           </span>
                           {deal.pendingCommission > 0 && (
-                            <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-slate-500"}`}>
+                            <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                               {formatAud(deal.pendingCommission)} pending
                             </span>
                           )}
                         </>
                       ) : (
-                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-600"}`}>
+                        <span className={`text-[11px] ${isLight ? "text-slate-400" : "text-slate-400"}`}>
                           Tender Awaiting
                         </span>
                       )}

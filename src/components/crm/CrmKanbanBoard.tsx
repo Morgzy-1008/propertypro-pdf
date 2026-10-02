@@ -90,7 +90,7 @@ export function CrmKanbanBoard({
               <div className="flex-1 p-2.5 space-y-2.5 overflow-y-auto max-h-[580px]">
                 {stageLeads.length === 0 ? (
                   <div className={`h-28 flex items-center justify-center text-center text-xs border-2 border-dashed rounded-xl ${
-                    isLight ? "border-slate-300 text-slate-400" : "border-slate-800/40 text-slate-500"
+                    isLight ? "border-slate-300 text-slate-500" : "border-slate-800/40 text-slate-400"
                   }`}>
                     No deals in {stage.shortLabel}
                   </div>
@@ -129,7 +129,7 @@ export function CrmKanbanBoard({
                         <div className="flex items-center gap-1 truncate">
                           <Home className="h-3 w-3 text-amber-500 flex-none" />
                           <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>{lead.preferredDesign}</span>
-                          <span className={isLight ? "text-slate-400" : "text-slate-500"}>•</span>
+                          <span className={isLight ? "text-slate-400" : "text-slate-400"}>•</span>
                           <span className="truncate">{lead.facadeName}</span>
                         </div>
                         <div className="flex items-center gap-1 truncate">

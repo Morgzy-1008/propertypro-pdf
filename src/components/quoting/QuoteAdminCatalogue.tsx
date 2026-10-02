@@ -924,7 +924,7 @@ export function QuoteAdminCatalogue({
                           <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-cyan-800" : "text-cyan-400"}`}>
                             Assembly Details
                           </span>
-                          <span className={isLight ? "text-slate-400" : "text-slate-600"}>·</span>
+                          <span className={isLight ? "text-slate-400" : "text-slate-400"}>·</span>
                           <span className={`text-xs font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                             Linked Catalogue ID: <code className="font-bold">{activeRecipe.syncedCatalogueItemId || "none"}</code>
                           </span>

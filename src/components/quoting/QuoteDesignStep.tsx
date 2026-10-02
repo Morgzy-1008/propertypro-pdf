@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatAud } from "@/lib/pricing";
+import { formatAud, findDesign, normalizeDesignLookup } from "@/lib/pricing";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import {
   DOUBLE_STOREY_PRICES,
@@ -444,7 +444,9 @@ export function QuoteDesignStep({
       ? (customSpec.storeys === "double" ? "Double Storey" : "Single Storey")
       : getHousingTypeForDesign(design.designName, design.housingType);
   const models = housingTypePrices[effectiveHousingType] || housingTypePrices["Single Storey"] || SINGLE_STOREY_PRICES;
-  const currentModel = models.find((m) => m.name === design.designName);
+  const currentModel = models.find((m) => m.name === design.designName) ||
+    models.find((m) => normalizeDesignLookup(m.name) === normalizeDesignLookup(design.designName)) ||
+    findDesign(design.designName, division);
 
   // Subscribe to division changes (e.g. from top-bar state switcher)
   React.useEffect(() => {
@@ -454,7 +456,9 @@ export function QuoteDesignStep({
         const detectedType = getHousingTypeForDesign(design.designName, design.housingType);
         const divPrices = getHousingTypePrices(newDiv);
         const typeModels = divPrices[detectedType] || divPrices["Single Storey"] || SINGLE_STOREY_PRICES;
-        const m = typeModels.find((x) => x.name === design.designName);
+        const m = typeModels.find((x) => x.name === design.designName) ||
+          typeModels.find((x) => normalizeDesignLookup(x.name) === normalizeDesignLookup(design.designName)) ||
+          findDesign(design.designName, newDiv);
         if (m) {
           const newBasePrice = getTierPrice(m, design.specTier, detectedType);
           const facades = getFacadesForDesignAndHousingType(design.designName, detectedType, newDiv);
@@ -706,7 +710,10 @@ export function QuoteDesignStep({
   const handleDesignModelChange = (modelName: string) => {
     const detectedHousingType = getHousingTypeForDesign(modelName, design.housingType);
     const typeModels = housingTypePrices[detectedHousingType] || SINGLE_STOREY_PRICES;
-    const m = typeModels.find((x) => x.name === modelName) || models.find((x) => x.name === modelName);
+    const m = typeModels.find((x) => x.name === modelName) ||
+      models.find((x) => x.name === modelName) ||
+      typeModels.find((x) => normalizeDesignLookup(x.name) === normalizeDesignLookup(modelName)) ||
+      findDesign(modelName, division);
     if (!m) return;
 
     const facadesForType = getFacadesForDesignAndHousingType(modelName, detectedHousingType, division);
@@ -1113,7 +1120,10 @@ export function QuoteDesignStep({
     const effectiveHousingType = approved.housingType;
     const modelName = approved.baseDesignName;
     const divModels = housingTypePrices[effectiveHousingType] || SINGLE_STOREY_PRICES;
-    const matchedModel = divModels.find((m) => m.name === modelName) || currentModel;
+    const matchedModel = divModels.find((m) => m.name === modelName) ||
+      divModels.find((m) => normalizeDesignLookup(m.name) === normalizeDesignLookup(modelName)) ||
+      findDesign(modelName, division) ||
+      currentModel;
     const stdPrice = matchedModel
       ? getTierPrice(matchedModel, design.specTier, effectiveHousingType)
       : design.standardBasePrice || design.basePrice;
@@ -1459,7 +1469,7 @@ export function QuoteDesignStep({
                 className={`text-xs font-medium cursor-not-allowed ${
                   design.isModifiedFloorplan
                     ? (isLight ? "bg-emerald-50 text-emerald-900 border-emerald-300 font-bold" : "bg-emerald-950/30 text-emerald-300 border-emerald-500/40 font-bold")
-                    : (isLight ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-slate-950/50 text-slate-400 border-slate-800")
+                    : (isLight ? "bg-slate-100 text-slate-700 border-slate-300" : "bg-slate-950/50 text-slate-200 border-slate-800")
                 }`}
               />
             </div>
@@ -1485,7 +1495,7 @@ export function QuoteDesignStep({
                     className={`cursor-pointer p-2.5 rounded-xl border transition-all mt-0.5 ${
                       design.isModifiedFloorplan
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold shadow-lg shadow-emerald-500/20"
-                        : (isLight ? "bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900" : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white")
+                        : (isLight ? "bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-900" : "bg-slate-900 border-slate-700 text-slate-200 hover:text-white")
                     }`}
                   >
                     <PenTool className="h-5 w-5" />
@@ -1501,7 +1511,7 @@ export function QuoteDesignStep({
                             ? (isLight
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300 font-mono"
                                 : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono")
-                            : (isLight ? "bg-slate-100 text-slate-700 border border-slate-200" : "bg-slate-800 text-slate-400")
+                            : (isLight ? "bg-slate-100 text-slate-700 border border-slate-200" : "bg-slate-800 text-slate-200")
                         }`}
                       >
                         {design.isModifiedFloorplan ? `${cleanDesignName(design.designName)} Modified` : "Personalized Area Sizing"}

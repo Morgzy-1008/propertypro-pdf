@@ -45,23 +45,30 @@ import type {
   InternalRoomChange,
   BaseDesignCandidate,
 } from "./quoteTypes";
+import { EXTENSION_RATES_BY_TIER, normalizeInclusionTier } from "./quoteCatalogue";
 
 /**
- * High-confidence Databuild Recipe Unit Rates ($/m²)
+ * High-confidence Databuild Recipe Unit Rates ($/m²) calibrated across specification tiers (H1, H2, H3).
  */
-export const DATABUILD_RECIPE_RATES = {
-  living_ss_m2: 1420,
-  living_ds_ground_m2: 1420,
-  living_ds_upper_m2: 1630,
-  alfresco_m2: 920,
-  garage_m2: 1330,
-  wet_area_m2: 2350,
-  porch_m2: 740,
-  balcony_m2: 2050,
-  structural_beam_ds: 1850,
-  ceiling_2590_living_m2: 24, // lump sum ~$3,650
-  ceiling_2740_living_m2: 46, // lump sum ~$6,850
-};
+export function getDatabuildRates(tier?: string) {
+  const norm = normalizeInclusionTier(tier);
+  const t = EXTENSION_RATES_BY_TIER[norm];
+  return {
+    living_ss_m2: t.gf,
+    living_ds_ground_m2: t.gf,
+    living_ds_upper_m2: t.ff,
+    alfresco_m2: t.alfresco,
+    garage_m2: t.garage,
+    wet_area_m2: 2350,
+    porch_m2: t.porch,
+    balcony_m2: t.balcony,
+    structural_beam_ds: 1850,
+    ceiling_2590_living_m2: 24, // lump sum ~$3,650
+    ceiling_2740_living_m2: 46, // lump sum ~$6,850
+  };
+}
+
+export const DATABUILD_RECIPE_RATES = getDatabuildRates("H2");
 
 /**
  * Standard brochure fixtures vs upgrade definitions across H1, H2, H3 tiers.
@@ -1752,6 +1759,7 @@ export async function analyzeModifiedFloorplanFile(
   specTier: InclusionTier = "H2 Design Inclusions",
   pendingCandidate?: BaseDesignCandidate
 ): Promise<PlanModificationAnalysis> {
+  const databuildRates = getDatabuildRates(specTier);
   let rawText = "";
   let dataUrl = pendingCandidate?.candidateFloorplanUrl || "";
 
@@ -2169,7 +2177,7 @@ export async function analyzeModifiedFloorplanFile(
 
     const z = mod.zone as string;
     if (z === "living" || z === "groundLivingM2" || z === "living_ground" || z === "envelope" || z === "structural") {
-      const rate = isDoubleStorey ? DATABUILD_RECIPE_RATES.living_ds_ground_m2 : DATABUILD_RECIPE_RATES.living_ss_m2;
+      const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
       const modM2 = (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2)
         ? candidateTableSpec.livingM2
         : Math.round((standardLivingM2 + delta) * 100) / 100;
@@ -2187,7 +2195,7 @@ export async function analyzeModifiedFloorplanFile(
         accepted: true,
       });
     } else if (z === "firstLivingM2" || z === "upper_living" || z === "first_floor") {
-      const rate = DATABUILD_RECIPE_RATES.living_ds_upper_m2 || 1650;
+      const rate = databuildRates.living_ds_upper_m2 || 1650;
       const stdFirst = stdAreasLookup?.firstLivingM2 || cadRegistryEntry?.firstLivingM2 || 70;
       const modM2 = Math.round((stdFirst + delta) * 100) / 100;
       areaDeltas.push({
@@ -2202,7 +2210,7 @@ export async function analyzeModifiedFloorplanFile(
         accepted: true,
       });
     } else if (z === "alfresco" || z === "outdoor_living") {
-      const rate = DATABUILD_RECIPE_RATES.alfresco_m2;
+      const rate = databuildRates.alfresco_m2;
       const modM2 = (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2)
         ? candidateTableSpec.alfrescoM2
         : Math.round((standardAlfrescoM2 + delta) * 100) / 100;
@@ -2224,7 +2232,7 @@ export async function analyzeModifiedFloorplanFile(
         : Math.round((standardGarageM2 + delta) * 100) / 100;
       
       const isStandardDoubleGarage = !isSingleGarage && (modM2 <= 36.05 || (delta <= 3.5 && standardGarageM2 <= 33.5));
-      const rate = isStandardDoubleGarage ? 0 : DATABUILD_RECIPE_RATES.garage_m2;
+      const rate = isStandardDoubleGarage ? 0 : databuildRates.garage_m2;
       const subtotal = isStandardDoubleGarage ? 0 : Math.round(delta * rate);
 
       areaDeltas.push({
@@ -2241,7 +2249,7 @@ export async function analyzeModifiedFloorplanFile(
         accepted: true,
       });
     } else if (z === "porch" || z === "entry_porch" || z === "portico") {
-      const rate = DATABUILD_RECIPE_RATES.porch_m2;
+      const rate = databuildRates.porch_m2;
       const modM2 = (candidateTableSpec.porchM2 && candidateTableSpec.porchM2 > standardPorchM2)
         ? candidateTableSpec.porchM2
         : Math.round((standardPorchM2 + delta) * 100) / 100;
@@ -2304,8 +2312,8 @@ export async function analyzeModifiedFloorplanFile(
           modifiedM2: Math.round((standardAlfrescoM2 + delta) * 100) / 100,
           deltaM2: delta,
           recipeId: "recipe_alfresco_m2",
-          unitRate: DATABUILD_RECIPE_RATES.alfresco_m2,
-          subtotal: Math.round(delta * DATABUILD_RECIPE_RATES.alfresco_m2),
+          unitRate: databuildRates.alfresco_m2,
+          subtotal: Math.round(delta * databuildRates.alfresco_m2),
           accepted: true,
         });
       }
@@ -2327,8 +2335,8 @@ export async function analyzeModifiedFloorplanFile(
           modifiedM2: Math.round((standardGarageM2 + delta) * 100) / 100,
           deltaM2: delta,
           recipeId: "recipe_garage_ext_m2",
-          unitRate: DATABUILD_RECIPE_RATES.garage_m2,
-          subtotal: Math.round(delta * DATABUILD_RECIPE_RATES.garage_m2),
+          unitRate: databuildRates.garage_m2,
+          subtotal: Math.round(delta * databuildRates.garage_m2),
           accepted: true,
         });
       }
@@ -2343,7 +2351,7 @@ export async function analyzeModifiedFloorplanFile(
       const famDiff = actualLivingM2 - stdFam;
       if (famDiff > 1.0) {
         const delta = Math.round(famDiff * 100) / 100;
-        const rate = isDoubleStorey ? DATABUILD_RECIPE_RATES.living_ds_ground_m2 : DATABUILD_RECIPE_RATES.living_ss_m2;
+        const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
         areaDeltas.push({
           zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
           zoneLabel: isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension",
@@ -2363,7 +2371,7 @@ export async function analyzeModifiedFloorplanFile(
       if (lowerTxt.includes("living ext +") || lowerTxt.includes("living extended") || lowerTxt.includes("family ext")) {
         const numMatch = lowerTxt.match(/(?:living|family)\s*(?:ext|extended)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
         const delta = numMatch ? parseFloat(numMatch[1]) : 7.2;
-        const rate = isDoubleStorey ? DATABUILD_RECIPE_RATES.living_ds_ground_m2 : DATABUILD_RECIPE_RATES.living_ss_m2;
+        const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
         areaDeltas.push({
           zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
           zoneLabel: isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension",
@@ -2389,8 +2397,8 @@ export async function analyzeModifiedFloorplanFile(
           modifiedM2: Math.round((standardAlfrescoM2 + delta) * 100) / 100,
           deltaM2: delta,
           recipeId: "recipe_alfresco_m2",
-          unitRate: DATABUILD_RECIPE_RATES.alfresco_m2,
-          subtotal: Math.round(delta * DATABUILD_RECIPE_RATES.alfresco_m2),
+          unitRate: databuildRates.alfresco_m2,
+          subtotal: Math.round(delta * databuildRates.alfresco_m2),
           accepted: true,
         });
       }
@@ -2406,8 +2414,8 @@ export async function analyzeModifiedFloorplanFile(
           modifiedM2: Math.round((standardGarageM2 + delta) * 100) / 100,
           deltaM2: delta,
           recipeId: "recipe_garage_ext_m2",
-          unitRate: DATABUILD_RECIPE_RATES.garage_m2,
-          subtotal: Math.round(delta * DATABUILD_RECIPE_RATES.garage_m2),
+          unitRate: databuildRates.garage_m2,
+          subtotal: Math.round(delta * databuildRates.garage_m2),
           accepted: true,
         });
       }
@@ -3120,7 +3128,7 @@ export async function analyzeModifiedFloorplanFile(
 
   // Populate Area Deltas (Only non-zero!)
   if (livingDelta > 0) {
-    const rate = isDoubleStorey ? DATABUILD_RECIPE_RATES.living_ds_ground_m2 : DATABUILD_RECIPE_RATES.living_ss_m2;
+    const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
     areaDeltas.push({
       zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
       zoneLabel: isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension",
@@ -3135,7 +3143,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   if (alfrescoDelta > 0) {
-    const rate = DATABUILD_RECIPE_RATES.alfresco_m2;
+    const rate = databuildRates.alfresco_m2;
     areaDeltas.push({
       zoneKey: "alfrescoM2",
       zoneLabel: "Covered Alfresco Extension",
@@ -3150,7 +3158,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   if (garageDelta > 0) {
-    const rate = DATABUILD_RECIPE_RATES.garage_m2;
+    const rate = databuildRates.garage_m2;
     areaDeltas.push({
       zoneKey: "garageM2",
       zoneLabel: "Garage Footprint Extension",

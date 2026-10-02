@@ -693,7 +693,7 @@ export function QuoteBuilder() {
             <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               Hudson Quoting System
             </span>
-            <span className={isLight ? "text-slate-400" : "text-slate-600"}>·</span>
+            <span className={isLight ? "text-slate-400" : "text-slate-400"}>·</span>
             <span className={`text-xs font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>Estimate #{quote.quoteNumber}</span>
           </div>
           <h1 className={`text-xl sm:text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>

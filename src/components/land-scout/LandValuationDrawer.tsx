@@ -213,7 +213,7 @@ export function LandValuationDrawer({
                 ))}
               </div>
             ) : (
-              <div className={`p-4 rounded-xl border text-center text-xs ${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "border-slate-800 bg-slate-950/40 text-slate-500"}`}>
+              <div className={`p-4 rounded-xl border text-center text-xs ${isLight ? "bg-slate-50 border-slate-200 text-slate-500" : "border-slate-800 bg-slate-950/40 text-slate-300"}`}>
                 No recent vacant land settlements recorded in this immediate pocket within the last 90 days.
               </div>
             )}

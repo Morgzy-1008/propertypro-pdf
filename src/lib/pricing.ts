@@ -78,14 +78,22 @@ export function designsFor(type: HousingType, division?: Division): PriceRow[] {
   return lists[type] ?? [];
 }
 
-function normalizeDesignLookup(str: string): string {
+export function normalizeDesignLookup(str: string): string {
   return str
     .toLowerCase()
     .replace(/\s*\((?:single|two)\s*stor(?:y|ey)[^)]*\)/gi, "")
-    .replace(/\s*-\s*td\s*(?:single|two)\s*stor(?:y|ey)/gi, " - td")
-    .replace(/\s*-\s*sd\s*(?:single|two)\s*stor(?:y|ey)/gi, " - sd")
+    .replace(/\s*\((?:new|old)\s*design\)/gi, "")
+    .replace(/\s*-\s*\((?:new|old)\s*design\)/gi, "")
+    .replace(/\b(?:new|old)\s*design\b/gi, "")
+    .replace(/\s*corner\s*lot\b/gi, "")
+    .replace(/\s*-\s*(?:td|sd)\b/gi, "")
+    .replace(/\b(?:td|sd)\b/gi, "")
     .replace(/\s*-\s*\((?:attached|dettached|detached)\s*garage\)/gi, "")
-    .replace(/\s+(?:attached|detached)$/gi, "")
+    .replace(/\s*\((?:attached|detached)\)/gi, "")
+    .replace(/\b(?:attached|detached)\b/gi, "")
+    .replace(/\s*\([sSdD]\/[gG]\)/gi, "")
+    .replace(/\s*\((?:qld|nsw)\)/gi, "")
+    .replace(/\bmk\s*ii\b|\bmkii\b/gi, "mk2")
     .replace(/[^a-z0-9]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -102,6 +110,14 @@ export function findDesign(name: string, division?: Division): PriceRow | undefi
   for (const list of Object.values(lists)) {
     const loose = list.find((r) => normalizeDesignLookup(r.name) === cleanNorm);
     if (loose) return loose;
+  }
+  // Try prefix matching on model name + number (e.g. "magnolia 34")
+  for (const list of Object.values(lists)) {
+    const prefix = list.find((r) => {
+      const rowNorm = normalizeDesignLookup(r.name);
+      return rowNorm.startsWith(cleanNorm) || cleanNorm.startsWith(rowNorm);
+    });
+    if (prefix) return prefix;
   }
   return undefined;
 }

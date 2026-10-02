@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS, DEFAULT_CATALOGUE, getItemRateForInclusion } from "./quoteCatalogue";
+import { CATEGORY_LABELS, DEFAULT_CATALOGUE, getItemRateForInclusion, EXTENSION_RATES_BY_TIER, normalizeInclusionTier } from "./quoteCatalogue";
 import { isSingleGarageDesign } from "./facadeLookup";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import {
@@ -397,46 +397,52 @@ export function resolveItemCategory(item: { name: string; description?: string; 
  *  - Balcony (if added): $2,000 / m²
  *  - Garage: $1,300 / m²
  * Duplex and Split Level:
- *  - Lower Ground and Ground Floor Living: $1,480 / m²
- *  - First Floor or Upper Level Living: $1,780 / m²
- *  - Alfresco: $870 / m²
- *  - Porch: $700 / m²
- *  - Balcony (if added): $2,000 / m²
- *  - Garage: $1,300 / m²
+/**
+ * Dynamic spatial modification rates per housing type according to the active specification tier (H1, H2, H3).
+ * Calibrated rates:
+ *  - H1: GF: $1370, FF: $1580, Porch: $700, Alfresco: $870, Balcony: $2000, Garage: $1300
+ *  - H2: GF: $1420, FF: $1630, Porch: $740, Alfresco: $920, Balcony: $2050, Garage: $1330
+ *  - H3: GF: $1550, FF: $1760, Porch: $870, Alfresco: $1050, Balcony: $2150, Garage: $1370
  * Reductions are discounted at 80% (i.e. deduction = deltaM2 * rate * 0.8)
  */
-export const MODIFIED_SQM_RATES = {
-  "Single Storey": {
-    livingM2: 1420,
-    garageM2: 1330,
-    alfrescoM2: 920,
-    porchM2: 740,
-  },
-  "Double Storey": {
-    groundLivingM2: 1420,
-    firstLivingM2: 1630,
-    garageM2: 1330,
-    alfrescoM2: 920,
-    porchM2: 740,
-    balconyM2: 2050,
-  },
-  "Split Level": {
-    groundLivingM2: 1420,
-    firstLivingM2: 1630,
-    garageM2: 1330,
-    alfrescoM2: 920,
-    porchM2: 740,
-    balconyM2: 2050,
-  },
-  "Dual Living": {
-    groundLivingM2: 1420,
-    firstLivingM2: 1630,
-    garageM2: 1330,
-    alfrescoM2: 920,
-    porchM2: 740,
-    balconyM2: 2050,
-  },
-} as const;
+export function getModifiedSqmRates(specTier?: string) {
+  const norm = normalizeInclusionTier(specTier);
+  const t = EXTENSION_RATES_BY_TIER[norm];
+  return {
+    "Single Storey": {
+      livingM2: t.gf,
+      garageM2: t.garage,
+      alfrescoM2: t.alfresco,
+      porchM2: t.porch,
+    },
+    "Double Storey": {
+      groundLivingM2: t.gf,
+      firstLivingM2: t.ff,
+      garageM2: t.garage,
+      alfrescoM2: t.alfresco,
+      porchM2: t.porch,
+      balconyM2: t.balcony,
+    },
+    "Split Level": {
+      groundLivingM2: t.gf,
+      firstLivingM2: t.ff,
+      garageM2: t.garage,
+      alfrescoM2: t.alfresco,
+      porchM2: t.porch,
+      balconyM2: t.balcony,
+    },
+    "Dual Living": {
+      groundLivingM2: t.gf,
+      firstLivingM2: t.ff,
+      garageM2: t.garage,
+      alfrescoM2: t.alfresco,
+      porchM2: t.porch,
+      balconyM2: t.balcony,
+    },
+  };
+}
+
+export const MODIFIED_SQM_RATES = getModifiedSqmRates("H2");
 
 /**
  * Detects whether a design is a double storey design, including standard Double Storey,
@@ -799,8 +805,11 @@ export function calculateModifiedFloorplanPricing(
     (design as any)?.division === "QLD" ||
     getActiveDivision() === "QLD";
 
-  const rateConfig = (MODIFIED_SQM_RATES[housingType as keyof typeof MODIFIED_SQM_RATES] ||
-    MODIFIED_SQM_RATES["Single Storey"]) as Record<string, number>;
+  const tierKey = normalizeInclusionTier(design?.specTier);
+  const activeTierRates = EXTENSION_RATES_BY_TIER[tierKey];
+  const tierRatesConfig = getModifiedSqmRates(design?.specTier);
+  const rateConfig = (tierRatesConfig[housingType as keyof typeof tierRatesConfig] ||
+    tierRatesConfig["Single Storey"]) as Record<string, number>;
 
   const zones: ZoneVarianceResult[] = [];
 
@@ -823,42 +832,42 @@ export function calculateModifiedFloorplanPricing(
         label: housingType === "Split Level" ? "Lower/Ground Living" : "Ground Floor Living",
         std: stdAreas.groundLivingM2 ?? 0,
         mod: modAreas.groundLivingM2 !== undefined ? Number(modAreas.groundLivingM2) : (stdAreas.groundLivingM2 ?? 0),
-        rate: rateConfig.groundLivingM2 || 1420,
+        rate: rateConfig.groundLivingM2 || activeTierRates.gf,
       },
       {
         key: "firstLivingM2",
         label: housingType === "Split Level" ? "Upper Level Living" : "First Floor Living",
         std: stdAreas.firstLivingM2 ?? 0,
         mod: modAreas.firstLivingM2 !== undefined ? Number(modAreas.firstLivingM2) : (stdAreas.firstLivingM2 ?? 0),
-        rate: rateConfig.firstLivingM2 || 1630,
+        rate: rateConfig.firstLivingM2 || activeTierRates.ff,
       },
       {
         key: "garageM2",
         label: "Garage Area",
         std: effectiveStdGarage,
         mod: modGarage,
-        rate: rateConfig.garageM2 || 1330,
+        rate: rateConfig.garageM2 || activeTierRates.garage,
       },
       {
         key: "alfrescoM2",
         label: "Alfresco Area",
         std: stdAreas.alfrescoM2 ?? 0,
         mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
-        rate: rateConfig.alfrescoM2 || 920,
+        rate: rateConfig.alfrescoM2 || activeTierRates.alfresco,
       },
       {
         key: "porchM2",
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 740,
+        rate: rateConfig.porchM2 || activeTierRates.porch,
       },
       {
         key: "balconyM2",
         label: "Balcony",
         std: stdAreas.balconyM2 ?? 0,
         mod: modAreas.balconyM2 !== undefined ? Number(modAreas.balconyM2) : (stdAreas.balconyM2 ?? 0),
-        rate: rateConfig.balconyM2 || 2050,
+        rate: rateConfig.balconyM2 || activeTierRates.balcony,
       },
     ];
 
@@ -889,28 +898,28 @@ export function calculateModifiedFloorplanPricing(
         label: "Living Area",
         std: stdAreas.livingM2 ?? 0,
         mod: modAreas.livingM2 !== undefined ? Number(modAreas.livingM2) : (stdAreas.livingM2 ?? 0),
-        rate: rateConfig.livingM2 || 1420,
+        rate: rateConfig.livingM2 || activeTierRates.gf,
       },
       {
         key: "garageM2",
         label: "Garage Area",
         std: effectiveStdGarage,
         mod: modGarage,
-        rate: rateConfig.garageM2 || 1330,
+        rate: rateConfig.garageM2 || activeTierRates.garage,
       },
       {
         key: "alfrescoM2",
         label: "Alfresco Area",
         std: stdAreas.alfrescoM2 ?? 0,
         mod: modAreas.alfrescoM2 !== undefined ? Number(modAreas.alfrescoM2) : (stdAreas.alfrescoM2 ?? 0),
-        rate: rateConfig.alfrescoM2 || 920,
+        rate: rateConfig.alfrescoM2 || activeTierRates.alfresco,
       },
       {
         key: "porchM2",
         label: "Porch Area",
         std: stdAreas.porchM2 ?? 0,
         mod: modAreas.porchM2 !== undefined ? Number(modAreas.porchM2) : (stdAreas.porchM2 ?? 0),
-        rate: rateConfig.porchM2 || 740,
+        rate: rateConfig.porchM2 || activeTierRates.porch,
       },
     ];
 

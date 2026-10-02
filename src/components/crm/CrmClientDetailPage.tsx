@@ -348,7 +348,7 @@ export function CrmClientDetailPage({
                     onClick={() => handleToggleTask(t.id)}
                     className={`flex items-center justify-between p-2 rounded-lg border text-xs cursor-pointer transition-colors ${
                       t.completed
-                        ? isLight ? "bg-slate-100 border-slate-200 text-slate-400 line-through" : "bg-slate-900/40 border-slate-800/40 text-slate-500 line-through"
+                        ? isLight ? "bg-slate-100 border-slate-200 text-slate-500 line-through" : "bg-slate-900/40 border-slate-800/40 text-slate-400 line-through"
                         : isLight ? "bg-white border-slate-200 text-slate-800 hover:border-cyan-400" : "bg-slate-900 border-slate-700 text-slate-200 hover:border-cyan-500"
                     }`}
                   >
