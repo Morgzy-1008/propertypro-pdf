@@ -78,6 +78,21 @@ const SEED_LEARNED_FEATURES: LearnedFeatureDefinition[] = [
 let inMemoryFeatures: LearnedFeatureDefinition[] = [...SEED_LEARNED_FEATURES];
 
 /**
+ * Resets or clears feature memory/cache dynamically so every floorplan analysis
+ * runs genuinely on the current design without relying on prior artifacts or cached memory.
+ */
+export function clearLearnedFeatureMemory(): void {
+  inMemoryFeatures = [...SEED_LEARNED_FEATURES];
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (err) {
+      console.warn("[featureMemoryRegistry] Could not clear storage:", err);
+    }
+  }
+}
+
+/**
  * Retrieves all learned features from persistent memory.
  */
 export function getLearnedFeatures(): LearnedFeatureDefinition[] {

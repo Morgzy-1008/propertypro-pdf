@@ -682,14 +682,18 @@ export function ModifiedPlanReviewModal({
                             <p className="text-[11px] text-slate-400 mt-0.5">
                               {area.standardM2} m² standard &rarr;{" "}
                               <span className="text-amber-400 font-semibold">{area.modifiedM2} m²</span> (
-                              +{area.deltaM2} m² @ ${area.unitRate}/m²)
+                              {area.deltaM2 > 0 ? `+${area.deltaM2}` : `${area.deltaM2}`} m² @ ${area.unitRate}/m²)
                             </p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <span className="font-mono font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-2 py-0.5 rounded text-[11px]">
-                            +{area.deltaM2} m²
+                          <span className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                            area.deltaM2 >= 0
+                              ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800"
+                              : "text-amber-400 bg-amber-950/60 border border-amber-800"
+                          }`}>
+                            {area.deltaM2 > 0 ? `+${area.deltaM2}` : `${area.deltaM2}`} m²
                           </span>
                           <span className="text-xs font-mono font-bold min-w-20 text-right text-white">
                             {formatAud(area.subtotal)}

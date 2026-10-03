@@ -28,6 +28,7 @@ import {
   analyzeModifiedFloorplanFile,
   identifyBaseDesignCandidate,
 } from "@/lib/quoting/floorplanModificationDetector";
+import { clearLearnedFeatureMemory } from "@/lib/quoting/featureMemoryRegistry";
 import type { BaseDesignCandidate, CustomStandardAreas } from "@/lib/quoting/quoteTypes";
 import {
   Select,
@@ -987,9 +988,16 @@ export function QuoteDesignStep({
   };
 
   const handleProcessModifiedFile = async (file: File) => {
+    console.log("[Detector Debug] handleProcessModifiedFile starting for file:", file.name, file.size);
+    // Dynamically reset memory and cache each time so each new design is evaluated genuinely without prior artifacts
+    clearLearnedFeatureMemory();
+    setPendingAnalysis(null);
+    setPendingCandidate(null);
+
     setIsAnalyzingModifiedFile(true);
     setScanStageLabel("Step 1: Identifying base floorplan model from sheet title block...");
     try {
+      console.log("[Detector Debug] calling identifyBaseDesignCandidate...");
       const candidate = await identifyBaseDesignCandidate(
         file,
         design.designName,
@@ -1315,20 +1323,23 @@ export function QuoteDesignStep({
       {/* MODE 1 & 2: STANDARD OR MODIFIED HUDSON DESIGN */}
       {(design.mode === "standard" || design.mode === "modified") && (
         <div className="space-y-6">
+          <input
+            type="file"
+            ref={modifiedFileInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleProcessModifiedFile(file);
+              // Reset input value so re-uploading the same file still fires onChange
+              e.target.value = "";
+            }}
+            accept=".pdf,image/png,image/jpeg,image/jpg"
+            className="hidden"
+            id="modified-floorplan-input"
+          />
+
           {/* Modified Design Floorplan Vision Ingestion Dropzone */}
           {(design.mode === "modified" || design.isModifiedFloorplan) && (
             <div className="rounded-2xl border-2 border-dashed border-cyan-500/50 bg-gradient-to-br from-cyan-950/30 via-slate-900/60 to-slate-950 p-5 transition-all hover:border-cyan-400/80 shadow-lg shadow-cyan-950/20">
-              <input
-                type="file"
-                ref={modifiedFileInputRef}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleProcessModifiedFile(file);
-                }}
-                accept=".pdf,image/png,image/jpeg,image/jpg"
-                className="hidden"
-                id="modified-floorplan-input"
-              />
 
               {isAnalyzingModifiedFile ? (
                 <div className="flex flex-col items-center justify-center py-6 space-y-3">
@@ -1547,7 +1558,7 @@ export function QuoteDesignStep({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => setIsCropperOpen(true)}
+                    onClick={() => modifiedFileInputRef.current?.click()}
                     className="text-xs font-bold gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-md shadow-amber-500/20"
                   >
                     <Upload className="h-3.5 w-3.5" />
@@ -3326,6 +3337,7 @@ export function QuoteDesignStep({
         onClose={() => setIsBaseConfirmOpen(false)}
         candidate={pendingCandidate}
         onConfirm={handleConfirmBaseDesign}
+        isLight={isLight}
       />
 
       {/* Automated Modified Floorplan Recognition & Discrepancies Review Modal */}
@@ -3334,6 +3346,7 @@ export function QuoteDesignStep({
         onClose={() => setIsReviewModalOpen(false)}
         analysis={pendingAnalysis}
         onApply={handleApplyModifiedPlan}
+        isLight={isLight}
       />
     </div>
   );

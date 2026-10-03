@@ -15,6 +15,7 @@ import {
   NSW_DUAL_OC_PRICES,
 } from "@/lib/pricelist.nsw.data";
 import { facadePriceForDesign } from "@/components/flyer/facadePricing";
+import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
 import type {
   CategorySubtotal,
@@ -516,9 +517,9 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Amber 23": {"livingM2":164.26,"garageM2":36,"alfrescoM2":11.23,"porchM2":2.25,"totalM2":213.74},
   "Amber 26": {"livingM2":194.14,"garageM2":36,"alfrescoM2":12.11,"porchM2":2.14,"totalM2":244.39},
   "Amber 30": {"livingM2":231.69,"garageM2":36,"alfrescoM2":16.16,"porchM2":2.14,"totalM2":285.99},
-  "Azure 19": {"livingM2":132.4,"garageM2":36,"alfrescoM2":10.11,"porchM2":1.68,"totalM2":180.19},
+  "Azure 19": {"livingM2":132.4,"garageM2":32.89,"alfrescoM2":10.11,"porchM2":1.68,"totalM2":177.08},
   "Azure 21": {"livingM2":148.28,"garageM2":36,"alfrescoM2":11.23,"porchM2":2.84,"totalM2":198.35},
-  "Azure 23": {"livingM2":161.31,"garageM2":36,"alfrescoM2":11.4,"porchM2":1.73,"totalM2":210.44},
+  "Azure 23": {"livingM2":161.31,"garageM2":34.27,"alfrescoM2":11.4,"porchM2":1.73,"totalM2":208.71},
   "Azure 25": {"livingM2":187.12,"garageM2":36,"alfrescoM2":11.76,"porchM2":2.18,"totalM2":237.06},
   "Blanc 27": {"livingM2":199.46,"garageM2":36,"alfrescoM2":12.24,"porchM2":1.98,"totalM2":249.68},
   "Burgundy 27": {"groundLivingM2":101.54,"firstLivingM2":103.62,"garageM2":36,"alfrescoM2":11.88,"porchM2":3.88,"balconyM2":0,"totalM2":256.92},
@@ -534,9 +535,9 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Carmine 21 MKII": {"livingM2":150.82,"garageM2":36,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":196.57},
   "Carmine 21 MK2": {"livingM2":150.82,"garageM2":36,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":196.57},
   "Carmine 21": {"livingM2":150.82,"garageM2":36,"alfrescoM2":7.51,"porchM2":2.24,"totalM2":196.57},
-  "Carmine 23 MKII": {"livingM2":172.09,"garageM2":36,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":218.3},
-  "Carmine 23 MK2": {"livingM2":172.09,"garageM2":36,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":218.3},
-  "Carmine 23": {"livingM2":172.09,"garageM2":36,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":218.3},
+  "Carmine 23 MKII": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
+  "Carmine 23 MK2": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
+  "Carmine 23": {"livingM2":172.09,"garageM2":32.89,"alfrescoM2":8.79,"porchM2":1.42,"totalM2":215.19},
   "Carolina 22": {"groundLivingM2":72.48,"firstLivingM2":83.37,"garageM2":36,"alfrescoM2":9,"porchM2":4.56,"balconyM2":0,"totalM2":205.41},
   "Carolina 24": {"groundLivingM2":99.87,"firstLivingM2":75.16,"garageM2":36,"alfrescoM2":9.72,"porchM2":4.56,"balconyM2":0,"totalM2":225.31},
   "Carolina 26": {"groundLivingM2":84.88,"firstLivingM2":109.59,"garageM2":36,"alfrescoM2":10.43,"porchM2":4.56,"balconyM2":0,"totalM2":245.46},
@@ -720,6 +721,21 @@ export function getStandardAreaBreakdown(
     return { ...HUDSON_STANDARD_AREAS[altName] };
   }
 
+  // Check official architectural CAD registry
+  const cadEntry =
+    (designName && HUDSON_CAD_REGISTRY[designName]) ||
+    (cleanName && HUDSON_CAD_REGISTRY[cleanName]) ||
+    (altName && HUDSON_CAD_REGISTRY[altName]);
+  if (cadEntry) {
+    return {
+      livingM2: cadEntry.livingM2,
+      garageM2: cadEntry.garageM2,
+      alfrescoM2: cadEntry.alfrescoM2,
+      porchM2: cadEntry.porchM2,
+      totalM2: cadEntry.totalM2,
+    };
+  }
+
   const isDouble = isDoubleStoreyDesign(designName, housingType);
   const isSplit = housingType === "Split Level";
   const isSingle = isSingleGarageDesign(designName, housingType) || totalM2 < 140;
@@ -816,14 +832,7 @@ export function calculateModifiedFloorplanPricing(
   const rawStdGarage = stdAreas.garageM2 ?? 0;
   const modGarage = modAreas.garageM2 !== undefined ? Number(modAreas.garageM2) : rawStdGarage;
   const isSingle = isSingleGarageDesign(design?.designName, housingType) || rawStdGarage < 25;
-  // All double garage designs base minimum is calibrated for 5.7m x 6.0m (36.00 m² schedule).
-  // If garage was already larger than this, keep it unchanged.
-  let effectiveStdGarage = isSingle ? rawStdGarage : Math.max(rawStdGarage, 36.00);
-  if (!isSingle) {
-    if (modGarage <= 36.05) {
-      effectiveStdGarage = Math.max(effectiveStdGarage, modGarage);
-    }
-  }
+  const effectiveStdGarage = rawStdGarage;
 
   if (isDoubleOrSplit) {
     const zoneDefs: { key: string; label: string; std: number; mod: number; rate: number }[] = [

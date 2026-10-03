@@ -72,7 +72,7 @@ export interface DetectedFloorplan {
   extractedTable?: ExtractedAreaTable;
 }
 
-const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" }[] = [
+export const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" }[] = [
   ...SINGLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Single Storey" as const })),
   ...DOUBLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Double Storey" as const })),
   ...SPLIT_LEVEL_PRICES.map((r) => ({ row: r, housingType: "Split Level" as const })),

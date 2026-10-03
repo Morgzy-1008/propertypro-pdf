@@ -1,5 +1,5 @@
 import { pdfDocumentToPagesAndText, compressImageDataUrl } from "@/lib/pdfPages";
-import { findHudsonModelByName, detectFloorplanFromText } from "@/lib/floorplan/floorplanDetector";
+import { findHudsonModelByName, detectFloorplanFromText, ALL_PRICE_ROWS } from "@/lib/floorplan/floorplanDetector";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { HUDSON_FLOORPLANS } from "@/components/flyer/floorplans.data";
 import {
@@ -1473,6 +1473,10 @@ Return ONLY valid JSON matching this schema:
  * including client names, cursive scripts, revision markers, and Foresight Concept headers.
  * e.g. "Haidyn & Kristen's New Residence / Azure 19 Modified" -> "Azure 19"
  */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function extractModelFromCandidateTitle(
   titleStr?: string
 ): { designName: string; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
@@ -2100,44 +2104,60 @@ export async function analyzeModifiedFloorplanFile(
     /5\.7\s*[xX*×]\s*6\.0|5\.7m\s*[xX*×]\s*6\.0m/i.test(geminiResult?.analysisNotes || "");
 
   const isSingleGarage = isSingleGarageDesign(detectedModelName, housingType) || standardGarageM2 < 25;
-  const effectiveStandardGarageM2 = isSingleGarage ? standardGarageM2 : Math.max(standardGarageM2, 36.00);
+  const effectiveStandardGarageM2 = standardGarageM2;
 
-  if (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2 + 0.5) {
+  if (candidateTableSpec.alfrescoM2 !== undefined && candidateTableSpec.alfrescoM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
-    spatialModsToApply.push({
-      zone: "alfresco",
-      deltaM2,
-      estimatedLinearExtensionM: candidateTableSpec.lengthM ? Math.round((candidateTableSpec.lengthM - cadSpec.length) * 10) / 10 : undefined,
-      reason: `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $920/m²)`,
-    });
+    if (Math.abs(deltaM2) >= 0.05) {
+      spatialModsToApply.push({
+        zone: "alfresco",
+        deltaM2,
+        estimatedLinearExtensionM: candidateTableSpec.lengthM ? Math.round((candidateTableSpec.lengthM - cadSpec.length) * 10) / 10 : undefined,
+        reason: deltaM2 > 0
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m² with 80% trade credit)`,
+      });
+    }
   }
 
-  if (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > effectiveStandardGarageM2 + 0.5) {
+  if (candidateTableSpec.garageM2 !== undefined && candidateTableSpec.garageM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
-    spatialModsToApply.push({
-      zone: "garage",
-      deltaM2,
-      estimatedLinearExtensionM: candidateTableSpec.widthM ? Math.round((candidateTableSpec.widthM - cadSpec.width) * 10) / 10 : undefined,
-      reason: `Garage extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $1,300/m²)`,
-    });
+    if (Math.abs(deltaM2) >= 0.05) {
+      spatialModsToApply.push({
+        zone: "garage",
+        deltaM2,
+        estimatedLinearExtensionM: candidateTableSpec.widthM ? Math.round((candidateTableSpec.widthM - cadSpec.width) * 10) / 10 : undefined,
+        reason: deltaM2 > 0
+          ? `Garage extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+          : `Garage reduced from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m² with 80% trade credit)`,
+      });
+    }
   }
 
-  if (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2 + 0.5) {
+  if (candidateTableSpec.livingM2 !== undefined && candidateTableSpec.livingM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.livingM2 - standardLivingM2) * 100) / 100;
-    spatialModsToApply.push({
-      zone: "living",
-      deltaM2,
-      reason: `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`,
-    });
+    if (Math.abs(deltaM2) >= 0.05) {
+      spatialModsToApply.push({
+        zone: "living",
+        deltaM2,
+        reason: deltaM2 > 0
+          ? `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m²)`
+          : `Living area reduced from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m²)`,
+      });
+    }
   }
 
-  if (candidateTableSpec.porchM2 && candidateTableSpec.porchM2 > standardPorchM2 + 0.5) {
+  if (candidateTableSpec.porchM2 !== undefined && candidateTableSpec.porchM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.porchM2 - standardPorchM2) * 100) / 100;
-    spatialModsToApply.push({
-      zone: "porch",
-      deltaM2,
-      reason: `Front Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $850/m²)`,
-    });
+    if (Math.abs(deltaM2) >= 0.05) {
+      spatialModsToApply.push({
+        zone: "porch",
+        deltaM2,
+        reason: deltaM2 > 0
+          ? `Front Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${deltaM2.toFixed(2)} m² @ $${databuildRates.porch_m2}/m²)`
+          : `Front Porch reduced from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (${deltaM2.toFixed(2)} m²)`,
+      });
+    }
   }
 
   // 2. INCORPORATE GEMINI AI VISION & CANVAS GEOMETRY FOR NON-OVERLAPPING ZONES
@@ -2173,76 +2193,77 @@ export async function analyzeModifiedFloorplanFile(
 
   for (const mod of spatialModsToApply) {
     const delta = Math.round(mod.deltaM2 * 100) / 100;
-    if (delta <= 0) continue;
+    if (Math.abs(delta) < 0.01) continue;
 
     const z = mod.zone as string;
     if (z === "living" || z === "groundLivingM2" || z === "living_ground" || z === "envelope" || z === "structural") {
       const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
-      const modM2 = (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > standardLivingM2)
+      const modM2 = (candidateTableSpec.livingM2 && candidateTableSpec.livingM2 > 0)
         ? candidateTableSpec.livingM2
         : Math.round((standardLivingM2 + delta) * 100) / 100;
+      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
       areaDeltas.push({
         zoneKey: isDoubleStorey ? "groundLivingM2" : "livingM2",
         zoneLabel: z === "envelope" || z === "structural"
           ? "Living & Structural Envelope Extension"
-          : (isDoubleStorey ? "Ground Floor Living Extension" : "Living & Family Room Extension"),
+          : (isDoubleStorey ? "Ground Floor Living Extension" : (delta > 0 ? "Living & Family Room Extension" : "Living Area Reduction")),
         standardM2: standardLivingM2,
         modifiedM2: modM2,
         deltaM2: delta,
         recipeId: "recipe_living_ss_m2",
         unitRate: rate,
-        subtotal: Math.round(delta * rate),
+        subtotal,
         accepted: true,
       });
     } else if (z === "firstLivingM2" || z === "upper_living" || z === "first_floor") {
       const rate = databuildRates.living_ds_upper_m2 || 1650;
       const stdFirst = stdAreasLookup?.firstLivingM2 || cadRegistryEntry?.firstLivingM2 || 70;
       const modM2 = Math.round((stdFirst + delta) * 100) / 100;
+      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
       areaDeltas.push({
         zoneKey: "firstLivingM2",
-        zoneLabel: "First Floor / Upper Living Extension",
+        zoneLabel: delta > 0 ? "First Floor / Upper Living Extension" : "First Floor Living Reduction",
         standardM2: stdFirst,
         modifiedM2: modM2,
         deltaM2: delta,
         recipeId: "recipe_living_ds_upper_m2",
         unitRate: rate,
-        subtotal: Math.round(delta * rate),
+        subtotal,
         accepted: true,
       });
     } else if (z === "alfresco" || z === "outdoor_living") {
       const rate = databuildRates.alfresco_m2;
-      const modM2 = (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > standardAlfrescoM2)
+      const modM2 = (candidateTableSpec.alfrescoM2 && candidateTableSpec.alfrescoM2 > 0)
         ? candidateTableSpec.alfrescoM2
         : Math.round((standardAlfrescoM2 + delta) * 100) / 100;
+      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
       areaDeltas.push({
         zoneKey: "alfrescoM2",
-        zoneLabel: "Covered Alfresco Extension",
+        zoneLabel: delta > 0 ? "Covered Alfresco Extension" : "Covered Alfresco Reduction",
         standardM2: standardAlfrescoM2,
         modifiedM2: modM2,
         deltaM2: delta,
         recipeId: "recipe_alfresco_m2",
         unitRate: rate,
-        subtotal: Math.round(delta * rate),
+        subtotal,
         accepted: true,
       });
     } else if (z === "garage" || z === "carport") {
       const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
-      const modM2 = (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > standardGarageM2)
+      const modM2 = (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 > 0)
         ? candidateTableSpec.garageM2
         : Math.round((standardGarageM2 + delta) * 100) / 100;
-      
-      const isStandardDoubleGarage = !isSingleGarage && (modM2 <= 36.05 || (delta <= 3.5 && standardGarageM2 <= 33.5));
-      const rate = isStandardDoubleGarage ? 0 : databuildRates.garage_m2;
-      const subtotal = isStandardDoubleGarage ? 0 : Math.round(delta * rate);
+      const rate = databuildRates.garage_m2;
+      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
 
       areaDeltas.push({
         zoneKey: "garageM2",
-        zoneLabel: isStandardDoubleGarage
-          ? "Double Garage 5.7m × 6.0m (Standard Base Minimum $0 Adjustment)"
-          : (isWorkshop ? "Garage & Integrated Workshop Footprint Extension" : "Garage Footprint Extension"),
-        standardM2: isStandardDoubleGarage ? modM2 : effectiveStandardGarageM2,
+        zoneLabel: isWorkshop
+          ? "Garage & Integrated Workshop Footprint Extension"
+          : (delta > 0 ? "Garage Footprint Extension" : "Garage Footprint Reduction"),
+        standardM2: effectiveStandardGarageM2,
         modifiedM2: modM2,
-        deltaM2: isStandardDoubleGarage ? 0 : Math.max(0, modM2 - effectiveStandardGarageM2),
+        deltaM2: delta,
         recipeId: "recipe_garage_ext_m2",
         unitRate: rate,
         subtotal,
@@ -2250,18 +2271,19 @@ export async function analyzeModifiedFloorplanFile(
       });
     } else if (z === "porch" || z === "entry_porch" || z === "portico") {
       const rate = databuildRates.porch_m2;
-      const modM2 = (candidateTableSpec.porchM2 && candidateTableSpec.porchM2 > standardPorchM2)
+      const modM2 = (candidateTableSpec.porchM2 && candidateTableSpec.porchM2 > 0)
         ? candidateTableSpec.porchM2
         : Math.round((standardPorchM2 + delta) * 100) / 100;
+      const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
       areaDeltas.push({
         zoneKey: "porchM2",
-        zoneLabel: "Entry Porch Extension",
+        zoneLabel: delta > 0 ? "Entry Porch Extension" : "Entry Porch Reduction",
         standardM2: standardPorchM2,
         modifiedM2: modM2,
         deltaM2: delta,
         recipeId: "recipe_porch_m2",
         unitRate: rate,
-        subtotal: Math.round(delta * rate),
+        subtotal,
         accepted: true,
       });
     } else if (z === "wet_area") {

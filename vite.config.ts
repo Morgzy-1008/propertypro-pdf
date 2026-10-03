@@ -444,6 +444,9 @@ export default defineConfig({
     apiDevPlugin(),
     versionPlugin(),
   ],
+  optimizeDeps: {
+    include: ["pdfjs-dist", "tesseract.js"],
+  },
   build: {
     outDir: "dist",
   },
