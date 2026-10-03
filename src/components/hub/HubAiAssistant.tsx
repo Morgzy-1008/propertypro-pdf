@@ -13,11 +13,20 @@ import {
   ArrowRight,
   ExternalLink,
   Cpu,
+  FileDown,
+  FileText,
+  Download,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { type StaffProfile } from "@/lib/authSession";
 import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
-import { generateHudsonKnowledgeResponse } from "@/lib/hubKnowledgeEngine";
+import {
+  generateHudsonKnowledgeResponse,
+  getLastAssessment,
+} from "@/lib/hubKnowledgeEngine";
+import { downloadComplianceReportPdf } from "@/lib/planning/compliancePdfExporter";
+import { type FeasibilityAssessmentResult } from "@/lib/planning/universalPlanningEngine";
 
 const HUDSON_KNOWLEDGE_INSTRUCTION = `
 You are the Hudson Homes Personal AI Assistant (Hudson Copilot).
@@ -149,6 +158,8 @@ interface ChatMessage {
   suggestedQuestions?: string[];
   modelUsed?: string;
   timestamp: string;
+  assessmentData?: FeasibilityAssessmentResult | null;
+  pdfDownloadReady?: boolean;
 }
 
 interface HubAiAssistantProps {
@@ -159,10 +170,12 @@ interface HubAiAssistantProps {
 const DEFAULT_SUGGESTIONS = [
   "CC 131 Mount Cotton Road",
   "CC duplex 61 Paradise Road, Flagstone",
-  "What inclusion ranges does Hudson Homes offer?",
+  "Hudson AI, put this compliance check into a downloaded PDF for me",
+  "What wind classification does Hudson Homes build for?",
+  "Tell me about slab edge rebates and damp-proofing",
+  "What are the fire and acoustic requirements for duplex party walls?",
   "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
   "Tell me about the IP Investment & FHB ranges",
-  "How does the Quote Builder Modified Plan Engine work?",
   "What fixed site costs does Hudson Homes cover?",
 ];
 
@@ -280,19 +293,47 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
         }
       }
 
+      const assessmentData = data?.assessmentData || getLastAssessment();
+      const pdfDownloadReady = Boolean(data?.pdfDownloadReady || data?.assessmentData);
+
       setMessages((prev) => [
         ...prev,
         {
           id: `ai_${Date.now()}`,
           role: "assistant",
-          text: data.answer || "No response received.",
-          confidence: data.confidence,
-          verified: data.verified,
-          suggestedQuestions: data.suggestedQuestions || [],
-          modelUsed: data.modelUsed ? data.modelUsed.replace(/^gemini.*/i, "hudson-enterprise-3.8") : "hudson-enterprise-3.8",
+          text: data?.answer || "No response received.",
+          confidence: data?.confidence,
+          verified: data?.verified,
+          suggestedQuestions: data?.suggestedQuestions || [],
+          modelUsed: data?.modelUsed ? data.modelUsed.replace(/^gemini.*/i, "hudson-enterprise-3.8") : "hudson-enterprise-3.8",
           timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          assessmentData: assessmentData || null,
+          pdfDownloadReady,
         },
       ]);
+
+      // If user specifically requested PDF export, automatically trigger browser download
+      const isPdfIntent =
+        (trimmed.toLowerCase().includes("pdf") ||
+          trimmed.toLowerCase().includes("download") ||
+          trimmed.toLowerCase().includes("export")) &&
+        (trimmed.toLowerCase().includes("compliance") ||
+          trimmed.toLowerCase().includes("check") ||
+          trimmed.toLowerCase().includes("report") ||
+          trimmed.toLowerCase().includes("dossier") ||
+          trimmed.toLowerCase().includes("put this") ||
+          trimmed.toLowerCase().includes("feasibility"));
+
+      if (isPdfIntent && assessmentData) {
+        try {
+          const fileName = downloadComplianceReportPdf(assessmentData, staffUser);
+          toast.success("Executive Compliance Report PDF downloaded!", {
+            description: fileName,
+          });
+        } catch (pdfErr) {
+          console.warn("[HubAiAssistant] Automatic PDF export trigger notice:", pdfErr);
+        }
+      }
     } catch (err: any) {
       toast.error("Could not complete request", {
         description: err.message || "Failed to reach Hudson AI service.",
@@ -313,6 +354,27 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
     }
   };
 
+  const handleDownloadPdf = (assessment?: FeasibilityAssessmentResult | null) => {
+    try {
+      const targetAssessment = assessment || getLastAssessment();
+      if (!targetAssessment) {
+        toast.error("No active compliance check found", {
+          description: "Please run a compliance check (e.g. 'CC 131 Mount Cotton Road') first.",
+        });
+        return;
+      }
+      const fileName = downloadComplianceReportPdf(targetAssessment, staffUser);
+      toast.success("Executive Compliance Report PDF downloaded!", {
+        description: fileName,
+      });
+    } catch (err: any) {
+      console.error("[HubAiAssistant] PDF download error:", err);
+      toast.error("Could not generate PDF", {
+        description: err?.message || "Internal error generating PDF dossier.",
+      });
+    }
+  };
+
   const handleClearHistory = () => {
     setMessages([]);
     setIsExpanded(false);
@@ -329,81 +391,278 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  /** Formats markdown lines cleanly without extra dependencies */
+  /** Formats markdown content cleanly with support for tables, callout blocks, headings and lists */
   const renderFormattedMarkdown = (content: string) => {
-    const lines = content.split("\n");
-    return lines.map((line, idx) => {
+    const rawLines = content.split("\n");
+    interface ParsedBlock {
+      type: "heading" | "subheading" | "hr" | "bullet" | "numbered" | "table" | "quote" | "paragraph" | "empty";
+      text?: string;
+      headers?: string[];
+      rows?: string[][];
+      quoteLines?: string[];
+      calloutType?: "note" | "tip" | "warning" | "success" | "danger" | "default";
+    }
+
+    const blocks: ParsedBlock[] = [];
+    let i = 0;
+
+    while (i < rawLines.length) {
+      const line = rawLines[i];
       const trimmed = line.trim();
 
-      // Heading 3: ### Title
-      if (trimmed.startsWith("### ")) {
-        return (
-          <h4
-            key={idx}
-            className={`font-bold text-sm tracking-wide mt-3 mb-1.5 ${
-              isLight ? "text-amber-800" : "text-amber-400"
-            }`}
-          >
-            {trimmed.replace("### ", "")}
-          </h4>
-        );
-      }
-
-      // Heading 4 / Sub: #### Title
-      if (trimmed.startsWith("#### ")) {
-        return (
-          <h5
-            key={idx}
-            className={`font-semibold text-xs tracking-wider uppercase mt-2 mb-1 ${
-              isLight ? "text-slate-800" : "text-amber-200"
-            }`}
-          >
-            {trimmed.replace("#### ", "")}
-          </h5>
-        );
-      }
-
-      // Divider: ---
-      if (trimmed === "---") {
-        return <hr key={idx} className={`my-2 border-t ${isLight ? "border-slate-200" : "border-slate-800"}`} />;
-      }
-
-      // Bullet points: * or -
-      if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
-        const bulletText = trimmed.replace(/^[\*\-]\s+/, "");
-        return (
-          <li key={idx} className="ml-4 list-disc my-1 leading-relaxed">
-            {formatBoldText(bulletText)}
-          </li>
-        );
-      }
-
-      // Numbered items: 1. 2.
-      if (/^\d+\.\s+/.test(trimmed)) {
-        const itemText = trimmed.replace(/^\d+\.\s+/, "");
-        return (
-          <li key={idx} className="ml-4 list-decimal my-1 leading-relaxed">
-            {formatBoldText(itemText)}
-          </li>
-        );
-      }
-
-      // Empty line
       if (!trimmed) {
-        return <div key={idx} className="h-1.5" />;
+        blocks.push({ type: "empty" });
+        i++;
+        continue;
       }
 
-      return (
-        <p key={idx} className="my-1 leading-relaxed">
-          {formatBoldText(trimmed)}
-        </p>
-      );
+      if (trimmed === "---") {
+        blocks.push({ type: "hr" });
+        i++;
+        continue;
+      }
+
+      // Markdown Table: lines starting and ending with | or containing multiple |
+      if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.split("|").length >= 3) {
+        const tableLines: string[] = [];
+        while (i < rawLines.length && rawLines[i].trim().startsWith("|") && rawLines[i].trim().endsWith("|")) {
+          tableLines.push(rawLines[i].trim());
+          i++;
+        }
+
+        if (tableLines.length >= 2) {
+          const rawHeaders = tableLines[0].slice(1, -1).split("|").map((c) => c.trim());
+          let bodyStartIndex = 1;
+          if (/^\|[\s\-:]+(\|[\s\-:]+)+\|$/.test(tableLines[1])) {
+            bodyStartIndex = 2;
+          }
+          const rows: string[][] = [];
+          for (let r = bodyStartIndex; r < tableLines.length; r++) {
+            const cols = tableLines[r].slice(1, -1).split("|").map((c) => c.trim());
+            rows.push(cols);
+          }
+          blocks.push({
+            type: "table",
+            headers: rawHeaders,
+            rows,
+          });
+          continue;
+        }
+      }
+
+      // Blockquote / Callout box: lines starting with >
+      if (trimmed.startsWith(">")) {
+        const quoteLines: string[] = [];
+        while (i < rawLines.length && rawLines[i].trim().startsWith(">")) {
+          const ql = rawLines[i].trim().replace(/^>\s?/, "");
+          quoteLines.push(ql);
+          i++;
+        }
+
+        let calloutType: "note" | "tip" | "warning" | "success" | "danger" | "default" = "default";
+        const firstLine = quoteLines[0] || "";
+        if (firstLine.includes("[!NOTE]")) calloutType = "note";
+        else if (firstLine.includes("[!TIP]")) calloutType = "tip";
+        else if (firstLine.includes("[!WARNING]")) calloutType = "warning";
+        else if (firstLine.includes("✅") || firstLine.includes("PASS") || firstLine.includes("COMPLIANT")) calloutType = "success";
+        else if (firstLine.includes("❌") || firstLine.includes("FAIL") || firstLine.includes("NON-COMPLIANT")) calloutType = "danger";
+
+        const cleanQuoteLines = quoteLines
+          .map((l) => l.replace(/^\[!(?:NOTE|TIP|WARNING|CAUTION)\]/i, "").trim())
+          .filter(Boolean);
+
+        blocks.push({
+          type: "quote",
+          quoteLines: cleanQuoteLines,
+          calloutType,
+        });
+        continue;
+      }
+
+      // Headings
+      if (trimmed.startsWith("### ")) {
+        blocks.push({ type: "heading", text: trimmed.replace("### ", "") });
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith("#### ")) {
+        blocks.push({ type: "subheading", text: trimmed.replace("#### ", "") });
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith("## ")) {
+        blocks.push({ type: "heading", text: trimmed.replace("## ", "") });
+        i++;
+        continue;
+      }
+      if (trimmed.startsWith("# ")) {
+        blocks.push({ type: "heading", text: trimmed.replace("# ", "") });
+        i++;
+        continue;
+      }
+
+      // Bullet points
+      if (trimmed.startsWith("* ") || trimmed.startsWith("- ")) {
+        blocks.push({ type: "bullet", text: trimmed.replace(/^[\*\-]\s+/, "") });
+        i++;
+        continue;
+      }
+
+      // Numbered items
+      if (/^\d+\.\s+/.test(trimmed)) {
+        blocks.push({ type: "numbered", text: trimmed.replace(/^\d+\.\s+/, "") });
+        i++;
+        continue;
+      }
+
+      // Default paragraph
+      blocks.push({ type: "paragraph", text: trimmed });
+      i++;
+    }
+
+    return blocks.map((block, idx) => {
+      switch (block.type) {
+        case "heading":
+          return (
+            <h4
+              key={idx}
+              className={`font-bold text-sm tracking-wide mt-3 mb-1.5 ${
+                isLight ? "text-amber-800" : "text-amber-400"
+              }`}
+            >
+              {block.text}
+            </h4>
+          );
+        case "subheading":
+          return (
+            <h5
+              key={idx}
+              className={`font-semibold text-xs tracking-wider uppercase mt-2 mb-1 ${
+                isLight ? "text-slate-800" : "text-amber-200"
+              }`}
+            >
+              {block.text}
+            </h5>
+          );
+        case "hr":
+          return (
+            <hr
+              key={idx}
+              className={`my-2 border-t ${isLight ? "border-slate-200" : "border-slate-800"}`}
+            />
+          );
+        case "bullet":
+          return (
+            <li key={idx} className="ml-4 list-disc my-1 leading-relaxed">
+              {formatBoldText(block.text || "")}
+            </li>
+          );
+        case "numbered":
+          return (
+            <li key={idx} className="ml-4 list-decimal my-1 leading-relaxed">
+              {formatBoldText(block.text || "")}
+            </li>
+          );
+        case "table":
+          return (
+            <div
+              key={idx}
+              className={`overflow-x-auto my-3 rounded-xl border shadow-xs ${
+                isLight ? "border-slate-200 bg-white" : "border-slate-800 bg-slate-950/60"
+              }`}
+            >
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr
+                    className={`border-b ${
+                      isLight
+                        ? "bg-slate-100/90 text-slate-800 border-slate-200"
+                        : "bg-slate-900/90 text-amber-300 border-slate-800"
+                    }`}
+                  >
+                    {block.headers?.map((h, hi) => (
+                      <th key={hi} className="py-2 px-3 font-bold text-[11px] uppercase tracking-wider">
+                        {formatBoldText(h)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody
+                  className={`divide-y ${
+                    isLight ? "divide-slate-200/80" : "divide-slate-800/60"
+                  }`}
+                >
+                  {block.rows?.map((row, ri) => (
+                    <tr
+                      key={ri}
+                      className={`transition-colors ${
+                        isLight ? "hover:bg-slate-50/80" : "hover:bg-slate-900/40"
+                      }`}
+                    >
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="py-2 px-3 leading-relaxed">
+                          {formatBoldText(cell)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        case "quote":
+          const quoteBg =
+            block.calloutType === "tip"
+              ? isLight
+                ? "bg-emerald-50 border-emerald-300/80 text-emerald-950"
+                : "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+              : block.calloutType === "warning" || block.calloutType === "danger"
+              ? isLight
+                ? "bg-rose-50 border-rose-300/80 text-rose-950"
+                : "bg-rose-950/30 border-rose-500/30 text-rose-300"
+              : block.calloutType === "success"
+              ? isLight
+                ? "bg-emerald-50/90 border-emerald-300 text-emerald-950"
+                : "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
+              : isLight
+              ? "bg-amber-50/90 border-brand-gold/40 text-slate-900"
+              : "bg-amber-950/20 border-brand-gold/30 text-amber-200";
+
+          return (
+            <div
+              key={idx}
+              className={`my-2.5 p-3 rounded-xl border text-xs leading-relaxed shadow-2xs ${quoteBg}`}
+            >
+              {block.quoteLines?.map((ql, qli) => (
+                <p key={qli} className={qli > 0 ? "mt-1" : ""}>
+                  {formatBoldText(ql)}
+                </p>
+              ))}
+            </div>
+          );
+        case "empty":
+          return <div key={idx} className="h-1.5" />;
+        default:
+          return (
+            <p key={idx} className="my-1 leading-relaxed">
+              {formatBoldText(block.text || "")}
+            </p>
+          );
+      }
     });
   };
 
-  /** Handles **bold** and `code` spans */
+  /** Handles **bold** and `code` spans, cleans mathematical/LaTeX symbols */
   const formatBoldText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+    const cleaned = text
+      .replace(/\\(?:ge|gte)/g, "≥")
+      .replace(/\\(?:le|lte)/g, "≤")
+      .replace(/\$R_w\s*(?:\\ge|≥)\s*(\d+)\$/g, "Rw ≥ $1")
+      .replace(/\$R_w\s*\+\s*C_\{?tr\}?\s*(?:\\ge|≥)\s*(\d+)\$/g, "Rw + Ctr ≥ $1")
+      .replace(/\$([^\$]+)\$/g, "$1")
+      .replace(/\\text\{([^\}]+)\}/g, "$1");
+
+    const parts = cleaned.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return (
@@ -517,7 +776,31 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
           </div>
         </form>
 
-
+        {/* Quick Suggestion Chips Carousel */}
+        <div className="flex items-center gap-1.5 px-3 pb-2.5 overflow-x-auto no-scrollbar">
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-1 flex-shrink-0 ${isLight ? "text-slate-400" : "text-slate-500"}`}>
+            Suggested:
+          </span>
+          {DEFAULT_SUGGESTIONS.map((s, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setQuery(s);
+                handleSend(s);
+              }}
+              disabled={isLoading}
+              className={`whitespace-nowrap inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all cursor-pointer flex-shrink-0 ${
+                isLight
+                  ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-brand-gold hover:bg-amber-50/50"
+                  : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-brand-gold/60 hover:text-amber-300 hover:bg-brand-gold/5"
+              }`}
+            >
+              <Sparkles className="h-3 w-3 text-brand-gold flex-shrink-0" />
+              <span>{s}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Expandable Conversational Window */}
@@ -604,6 +887,50 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
                   }`}
                 >
                   {m.role === "assistant" ? renderFormattedMarkdown(m.text) : <p>{m.text}</p>}
+
+                  {/* Interactive Executive Compliance PDF Card */}
+                  {m.role === "assistant" && (m.pdfDownloadReady || m.assessmentData) && (
+                    <div
+                      className={`mt-4 p-3.5 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md ${
+                        isLight
+                          ? "border-amber-300 bg-gradient-to-r from-amber-50 to-orange-50/70 text-slate-800"
+                          : "border-brand-gold/40 bg-gradient-to-r from-amber-950/40 via-slate-900/95 to-slate-950 text-slate-100"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            isLight
+                              ? "bg-amber-100 text-amber-800 border border-amber-300"
+                              : "bg-brand-gold/15 text-brand-gold border border-brand-gold/30"
+                          }`}
+                        >
+                          <FileText className="h-5 w-5 text-brand-gold" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold flex items-center gap-1.5 flex-wrap">
+                            <span className={isLight ? "text-amber-900" : "text-amber-300"}>
+                              Executive Statutory Compliance & Feasibility Dossier
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-brand-gold border border-brand-gold/30 font-mono font-semibold">
+                              2-Page A4 PDF
+                            </span>
+                          </div>
+                          <p className={`text-[11px] mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                            Statutory authority, setbacks, 7 site overlays, matching Hudson plans & 50-Year Warranty endorsement.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadPdf(m.assessmentData)}
+                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-amber-500 via-brand-gold to-amber-600 text-slate-950 font-bold text-xs shadow-md shadow-brand-gold/25 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex-shrink-0"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        <span>Download Report (PDF)</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Verification / Confidence Badge for AI Messages */}
                   {m.role === "assistant" && (

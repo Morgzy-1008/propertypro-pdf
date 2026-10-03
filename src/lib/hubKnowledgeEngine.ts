@@ -8,7 +8,10 @@ import {
 } from "@/lib/hudsonDetailedInclusions.data";
 import { type StaffProfile } from "@/lib/authSession";
 import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
-import { evaluatePropertyFeasibility } from "@/lib/planning/universalPlanningEngine";
+import {
+  evaluatePropertyFeasibility,
+  type FeasibilityAssessmentResult,
+} from "@/lib/planning/universalPlanningEngine";
 
 export interface HubAiResponse {
   answer: string;
@@ -16,6 +19,13 @@ export interface HubAiResponse {
   verified: boolean;
   suggestedQuestions: string[];
   modelUsed: string;
+  assessmentData?: FeasibilityAssessmentResult | null;
+  pdfDownloadReady?: boolean;
+}
+
+let _lastAssessment: FeasibilityAssessmentResult | null = null;
+export function getLastAssessment(): FeasibilityAssessmentResult | null {
+  return _lastAssessment;
 }
 
 export interface SitingParams {
@@ -418,13 +428,62 @@ export function generateHudsonKnowledgeResponse(
 ): HubAiResponse {
   const query = (message || "").toLowerCase().trim();
 
-  // 0. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
+  // 0. PDF EXPORT INTENT (e.g. "Hudson AI, put this compliance check into a downloaded PDF for me")
+  const isPdfExportRequest =
+    (query.includes("pdf") || query.includes("download") || query.includes("export")) &&
+    (query.includes("compliance") ||
+      query.includes("check") ||
+      query.includes("report") ||
+      query.includes("dossier") ||
+      query.includes("put this") ||
+      query.includes("feasibility"));
+
+  if (isPdfExportRequest) {
+    const assessment = _lastAssessment || evaluatePropertyFeasibility(message);
+    _lastAssessment = assessment;
+    const j = assessment.jurisdiction;
+    const prop = assessment.parsedQuery.streetName
+      ? `${assessment.parsedQuery.streetNumber || ""} ${assessment.parsedQuery.streetName}, ${assessment.parsedQuery.suburb || j.name}`.trim()
+      : "131 Mount Cotton Road, Redland";
+
+    return {
+      answer: `### 📄 Executive Statutory Compliance & Feasibility Summary PDF Generated!
+
+Hudson AI has compiled your formal, executive **Hudson Homes Statutory Compliance & Feasibility Dossier** for **${prop}** (${j.name}):
+
+#### Dossier Summary & Statutory Findings:
+- **Governing Council**: **${j.statutoryAuthority}** (${j.name}, ${j.state})
+- **Governing Planning Scheme**: ${j.governingInstrument}
+- **Statutory Zoning**: **${j.zoningDefaults.primaryZoning}**
+- **Statutory Determination**: **${assessment.verdict}** (${assessment.ruleBreakdown.planningPath})
+- **Boundary Setback Controls**: Front ${j.duplexRules.frontSetbackM}m, Garage ${j.duplexRules.garageSetbackM}m, Side ${j.duplexRules.sideSetbackM}m, Rear ${j.duplexRules.rearSetbackM}m, Max Site Coverage ${j.duplexRules.maxSiteCoveragePct}%, Max Height ${j.duplexRules.maxBuildingHeightM}m
+- **7-Site Overlays**: Bushfire (AS 3959 BAL), Flood FFL, Acoustic Noise (QDC MP 4.4), Sewer ZOI (45° angle of repose & bored piering), Slope/DEB, Soil Reactivity (AS 2870 Class M/H1/H2), and Headworks Charges
+- **Recommended Hudson Models**: ${assessment.recommendedHudsonModels.slice(0, 3).map((m) => m.name).join(", ")}
+- **Warranties & Guarantees**: Endorsed with Hudson's **50-Year Structural Warranty** and **Fixed Price Contract Guarantee**
+
+Your executive PDF has been compiled and is ready for immediate download. Click the **"Download Compliance Report (PDF)"** button below to save the official PDF document!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What dual-occupancy designs does Hudson Homes offer?",
+        "What is the difference between H1 Smart and H2 Designer?",
+        "What wind classification does Hudson Homes build for?",
+        "How does Sewer Zone of Influence (ZOI) affect concrete piering?",
+      ],
+      modelUsed: "hudson-pdf-engine",
+      assessmentData: assessment,
+      pdfDownloadReady: true,
+    };
+  }
+
+  // 0A. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
   const isCC = /^cc\b[:\s]*/i.test((message || "").trim()) || /compliance\s*check/i.test(query) || /feasibility\s*check/i.test(query);
   const isAddressQuery = /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
     /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park|ashmore|ahsmore|warrigal|gold\s*coast|southport|carrara|benowa/i.test(query);
 
   if (isCC || isAddressQuery) {
     const assessment = evaluatePropertyFeasibility(message);
+    _lastAssessment = assessment;
     return {
       answer: assessment.markdownReport,
       confidence: assessment.confidenceScore,
@@ -433,9 +492,12 @@ export function generateHudsonKnowledgeResponse(
         `What dual-occupancy designs does Hudson Homes offer?`,
         `What are the setback and PoD rules for ${assessment.jurisdiction.name}?`,
         `Tell me about the Wisteria 33 dual living design`,
-        `Can I build an auxiliary unit (secondary dwelling) on this lot?`
+        `Can I build an auxiliary unit (secondary dwelling) on this lot?`,
+        `Download this compliance check as a PDF`,
       ],
       modelUsed: "universal-planning-engine",
+      assessmentData: assessment,
+      pdfDownloadReady: true,
     };
   }
 
@@ -1906,6 +1968,424 @@ Hudson Homes is a leading specialist in dual-occupancy and high-yield multi-dwel
         "Tell me about the Wisteria 33 dual living design",
         "What are the rules for building a duplex in Greater Flagstone PDA?",
         "How does the two-part contract save money on stamp duty?",
+      ],
+      modelUsed: "hudson-knowledge-engine",
+    };
+  }
+
+  // 3W. Wind Classifications & Structural Tie-Down Engineering (AS 4055 & AS 1170.2)
+  if (
+    query.includes("wind") ||
+    query.includes("cyclone") ||
+    query.includes("cyclonic") ||
+    query.includes("n1") ||
+    query.includes("n2") ||
+    query.includes("n3") ||
+    query.includes("n4") ||
+    query.includes("c1") ||
+    query.includes("c2") ||
+    query.includes("as 4055") ||
+    query.includes("as 1170") ||
+    query.includes("tie down") ||
+    query.includes("hold down") ||
+    query.includes("wind pressure")
+  ) {
+    return {
+      answer: `### Wind Classifications & Structural Tie-Down Engineering (AS 4055 & AS 1170.2)
+
+Hudson Homes engineers every home strictly to site-specific wind classifications under **AS 4055 (Wind Loads for Housing)** and **AS 1170.2 (Structural Design Actions - Wind Actions)**:
+
+#### 1. Australian Wind Classification Categories:
+| Classification | Type | Design Gust Wind Speed ($V_{u,min} - V_{u,max}$) | Typical Site Conditions |
+|---|---|---|---|
+| **N1** | Non-Cyclonic | **Up to 28 m/s (101 km/h)** | Heavily sheltered, inland valleys, low-density surrounded by dense suburban developments. |
+| **N2** | Non-Cyclonic | **28 to 33 m/s (119 km/h)** | Standard suburban housing developments with standard suburban shielding. **Hudson's standard baseline**. |
+| **N3** | Non-Cyclonic | **33 to 41 m/s (148 km/h)** | Elevated terrain, hill slopes, semi-open suburban fringes, or acreage lots (common across SEQ ridgelines, Redland, and Camden). |
+| **N4** | Non-Cyclonic | **41 to 50 m/s (180 km/h)** | High-exposure escarpments, exposed rural ridges, and cliff-top sites. |
+| **C1** | Cyclonic | **Up to 50 m/s (180 km/h)** | Tropical coastal regions subject to tropical cyclone events (sheltered terrain). |
+| **C2** | Cyclonic | **50 to 61 m/s (220 km/h)** | Exposed coastal tropical areas with high cyclonic vulnerability. |
+
+#### 2. Key Structural Engineering Differences (N2 vs N3):
+- **Roof Truss Tie-Downs**:
+  - **N2**: Standard triple-grip brackets and framing anchors fastening trusses to top wall plates.
+  - **N3 Upgrades**: Heavy-duty structural tie-down brackets (M10/M12 high-tensile cyclone tie-down rods extending continuously from top plate down into floor slab anchors, or engineered multigrips with heavy gauge helical nails).
+- **Glazing & Window Pressures (AS 2047)**:
+  - Windows must resist higher Serviceability Limit State (SLS) and Ultimate Limit State (ULS) positive and negative wind pressures.
+  - Upgraded window glass thickness (minimum 5mm/6mm toughened or laminated glass) and reinforced structural window mullions to prevent frame deflection and water penetration under driving rain.
+- **Wall & Roof Bracing (AS 1684)**:
+  - Higher wind classifications mandate increased bracing units (Type A / Type B plywood or structural hardboard bracing sheets fixed with dense nailing patterns) to resist lateral shear loads.
+- **Eaves & Cladding Fixings**:
+  - Fiber cement soffit linings and external wall claddings fixed at reduced fastener spacing with annular-grooved stainless steel nails or heavy-duty screws to resist wind uplift suction.
+
+> [!NOTE]
+> Every Hudson Homes tender includes a site-specific wind classification assessment calculated from your site's Region, Terrain Category, Topographic Class, and Shielding Factor!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What timber framing specifications does Hudson Homes use?",
+        "What is included in Hudson Homes fixed site costs?",
+        "What are the requirements for BAL-29 bushfire construction?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3X. Slab Edge Rebates, Damp-Proofing & Weep Hole Clearances
+  if (
+    query.includes("slab edge rebate") ||
+    query.includes("edge rebate") ||
+    query.includes("slab rebate") ||
+    query.includes("rebate") ||
+    query.includes("damp proofing") ||
+    query.includes("dpc") ||
+    query.includes("weephole") ||
+    query.includes("weep hole") ||
+    query.includes("ffl height") ||
+    query.includes("finished floor level height")
+  ) {
+    return {
+      answer: `### Slab Edge Rebates, Damp-Proofing & Weep Hole Clearances (AS 2870 & NCC 2022)
+
+Hudson Homes foundation slabs incorporate precision-engineered edge rebates and damp-proofing systems complying with **AS 2870 (Residential Slabs and Footings, Part 5.3)** and **NCC 2022 Part 3.2**:
+
+#### 1. What is a Slab Edge Rebate & Why is it Critical?
+- A **slab edge rebate** is a step-down recess (typically **20mm to 50mm drop**) formed in the perimeter of the concrete slab where the external masonry veneer sits.
+- **Purpose**:
+  1. Prevents horizontal rainwater ingress tracking under the structural bottom timber framing plate into interior flooring and habitable rooms.
+  2. Ensures that any moisture penetrating the external brick veneer drains down the cavity, hits the rebate flashing, and is discharged safely to the outside.
+  3. Provides a continuous physical step separating interior dry finished floor level (FFL) from external ground and wet cavities.
+
+#### 2. Damp-Proof Course (DPC) & Continuous Flashings:
+- Heavy-duty embossed polyethylene or bitumen-coated **Damp-Proof Course (DPC)** is installed continuously beneath the timber bottom plate and built into the brick veneer.
+- Stepped cavity flashings are installed under all window and door sills, bridging the cavity and terminating with open perpends (**weep holes**) to expel moisture.
+- Weep holes are spaced at **maximum 1.2m centres** along the bottom course of brickwork above the slab rebate.
+
+#### 3. Statutory Finished Floor Level (FFL) Height Clearances:
+To prevent moisture, mud, and water pooling from entering homes during heavy rainfall:
+- **150mm Minimum Clearance**: Finished floor level must be at least **150mm above finished bare ground** or landscaped garden beds.
+- **100mm Minimum Clearance**: In low-rainfall areas or sandy free-draining soils.
+- **50mm Minimum Clearance**: Above permanently paved, concrete, or tiled surfaces that slope away from the dwelling at minimum 1:20 (50mm fall over the first 1.0m).
+
+> [!TIP]
+> Keep external weep holes and the 75mm exposed slab edge completely clear of garden soil, mulch, and turf to maintain AS 3660.1 termite inspection compliance and moisture drainage!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What termite protection system does Hudson Homes use?",
+        "What soil classifications are covered in fixed site costs?",
+        "How do Drop Edge Beams work on sloping sites?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3Y. Timber Framing & Engineered Roof Truss Spans
+  if (
+    query.includes("timber framing") ||
+    query.includes("framing") ||
+    query.includes("stud centre") ||
+    query.includes("stud spacing") ||
+    query.includes("truss span") ||
+    query.includes("roof truss") ||
+    query.includes("as 1684") ||
+    query.includes("mgp10") ||
+    query.includes("mgp12") ||
+    query.includes("lintel") ||
+    query.includes("engineered timber")
+  ) {
+    return {
+      answer: `### Timber Framing & Engineered Roof Truss Spans (AS 1684 & AS 1720.1)
+
+All Hudson Homes structural framing is manufactured off-site in precision computer-controlled prefabrication facilities in accordance with **AS 1684 (Residential Timber-Framed Construction)** and **AS 1720.1 (Timber Structures Code)**:
+
+#### 1. Wall Framing Specifications:
+- **Timber Grade**: Machine Graded Pine (**MGP10 / MGP12**) seasoned radiata pine, engineered for high bending strength and structural rigidity.
+- **Termite Treatment**:
+  - **Queensland (QLD)**: **'T2' blue termite-treated** timber frames and trusses standard across **ALL tiers** (single and double storey).
+  - **New South Wales (NSW)**: Radiata Pine standard on IP, SS, HBS, H1; **'T2' termite-treated** framing standard on **H2 Designer & H3 Luxury**.
+- **Stud Spacing (Centres)**:
+  - **450mm Centres**: Standard on all double-storey ground floors, heavy concrete tiled roof loads, and high wind zones (N3).
+  - **600mm Centres**: Utilized on non-load-bearing internal partition walls and single-storey lightweight sheet-roof designs where engineered.
+- **Framing Depth**: Standard 70mm or 90mm external stud wall depth providing maximum cavity space for high-performance acoustic and thermal wall insulation batts (R2.0 to R2.5).
+
+#### 2. Engineered Roof Trusses:
+- **Prefabricated Gang-Nail Trusses**: Custom engineered using high-tensile multi-tooth galvanized steel connector plates pressed into timber joints under hydraulic pressure.
+- **Truss Pitch**: Standard 22.5° or 25° architectural pitch (with custom pitches available for Hamptons or modern facades).
+- **Truss Spans**: Clear span trusses capable of spanning up to **10m to 14m+** without intermediate internal load-bearing walls, creating expansive open-plan kitchen, dining, and living zones.
+- **Ceiling Battens**:
+  - **Queensland (QLD)**: High-tensile metal ceiling battens fixed at **450mm centres** standard.
+  - **NSW**: Metal battens or timber ceiling joists engineered for plasterboard stability and sag resistance.
+
+#### 3. Lintel Sizing & Structural Openings:
+- **Engineered Laminated Veneer Lumber (LVL)** or hot-dip galvanized steel PFC/flange lintels span above wide openings:
+  - Double garage door openings (up to 5.4m wide clear span).
+  - Expansive corner and sliding stacker doors leading to outdoor alfresco areas.
+- Every lintel is calculated for dead loads, live loads, and roof tie-down uplift to prevent ceiling sag and ensure smooth door operation.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between NSW and QLD inclusions?",
+        "What ceiling heights come standard in H1 vs H2?",
+        "Tell me about the 50-Year Structural Warranty",
+        "What wind classification does Hudson Homes build for?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3Z. Brick Articulation Joints (AS 3700 & AS 4773)
+  if (
+    query.includes("articulation joint") ||
+    query.includes("expansion joint") ||
+    query.includes("control joint") ||
+    query.includes("brick cracking") ||
+    query.includes("brick crack") ||
+    query.includes("masonry joint") ||
+    query.includes("as 3700") ||
+    query.includes("as 4773") ||
+    query.includes("joint spacing")
+  ) {
+    return {
+      answer: `### Brick Articulation Joints & Masonry Movement Control (AS 3700 & AS 4773)
+
+Hudson Homes external brickwork incorporates engineered vertical articulation joints complying strictly with **AS 3700 (Masonry Structures)** and **AS 4773 (Masonry in Small Buildings)**:
+
+#### 1. What are Articulation Joints & Why are they Essential?
+- An **articulation joint (AJ)** is a continuous, vertical 10mm gap built cleanly through the external brickwork from the concrete footing/slab rebate up to the eaves line.
+- **Purpose**:
+  1. Absorbs natural foundation and ground movement caused by seasonal moisture changes in reactive clay soils (AS 2870 Class M, H1, H2).
+  2. Accommodates thermal expansion and contraction of clay brickwork during extreme summer and winter temperatures.
+  3. **Prevents unsightly step-cracking**: Without articulation joints, natural foundation settling forces bricks and mortar joints to shear diagonally. Articulation joints localize movement into controlled, sealed joints.
+
+#### 2. Statutory Spacing & Placement Rules:
+- **Straight Wall Spacing**: Articulation joints are placed at regular intervals of no more than **5.0m to 6.0m** along straight external walls.
+- **Corner Proximity**: Located within **1.5m to 2.0m** of external or re-entrant building corners, where stress concentration is highest.
+- **Openings & Changes in Height**: Built adjacent to large window/door openings or transitions between single and double-storey sections.
+
+#### 3. Joint Sealant & Construction Detail:
+- Joints are never bridged by rigid mortar.
+- A circular closed-cell polyethylene foam **backing rod** is pressed into the 10mm joint at a consistent depth (typically 6mm–10mm from face).
+- Sealed externally with high-performance, UV-stabilized, flexible **polyurethane or neutral-cure silicone mastic**, colour-matched to the brick or mortar color for a sleek, discreet architectural finish.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What soil classifications does Hudson Homes cover?",
+        "What slab edge rebates are required in foundation design?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3AA. On-Site Stormwater Detention (OSD) & Hydraulic Drainage
+  if (
+    query.includes("osd") ||
+    query.includes("on-site stormwater detention") ||
+    query.includes("stormwater detention") ||
+    query.includes("permissible site discharge") ||
+    query.includes("psd") ||
+    query.includes("site storage requirement") ||
+    query.includes("ssr") ||
+    query.includes("orifice plate") ||
+    query.includes("detention tank")
+  ) {
+    return {
+      answer: `### On-Site Stormwater Detention (OSD) & Hydraulic Engineering
+
+For properties in suburban renewal corridors or councils with strict stormwater constraints, Hudson Homes integrates engineered **On-Site Stormwater Detention (OSD)** systems:
+
+#### 1. What is On-Site Stormwater Detention (OSD)?
+- OSD temporarily holds back peak stormwater runoff generated by a newly built home, duplex, or enlarged roof footprint during severe rainfall events, releasing it slowly into council's stormwater drainage network at a controlled rate.
+- **Permissible Site Discharge (PSD)**: The maximum allowable discharge flow rate (in litres per second) into council's street drainage, calculated to match pre-development levels.
+- **Site Storage Requirement (SSR)**: The total volume of stormwater (in cubic metres) that must be temporarily stored on-site during a 1-in-100-year storm.
+
+#### 2. When is OSD Required?
+- Common in municipal councils such as Camden, Blacktown, Penrith, Parramatta, City of Gold Coast, and Brisbane City Council.
+- Triggered when:
+  1. Constructing a duplex or dual-occupancy development.
+  2. Subdividing or building on lots where total impervious site coverage (roof + driveway) exceeds council thresholds.
+  3. Upstream drainage capacity in the street is constrained.
+
+#### 3. System Components:
+- **Below-Ground Modular Detention Cells**: High-strength underground structural tanks (such as Atlantis cells or concrete retention tanks) buried beneath turf or driveways.
+- **Above-Ground Dual-Purpose Rainwater / Detention Tanks**: A multi-chamber tank where the lower section stores rainwater for household reuse (BASIX compliance) and the upper air space serves as temporary storm detention.
+- **Orifice Restrictor Plate**: A precision-machined stainless steel plate with a calibrated aperture (e.g. 50mm to 90mm diameter) controlling the discharge rate to the street gutter or legal point of discharge (LPOD).
+- **Trash Screen & Silt Sump**: High-capacity galvanized mesh basket preventing leaves and debris from clogging the orifice plate.
+- **High-Level Surcharge Overflow**: Direct emergency overflow pipe to the street reserve in events exceeding the design storm.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes cover?",
+        "How do rainwater tanks work with BASIX in NSW?",
+        "What are the infrastructure charges for building a duplex?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3AB. Party Walls & Dual-Occupancy Compliance (NCC 2022 Part 3.7.3 & AS 1530.4)
+  if (
+    query.includes("party wall") ||
+    query.includes("fire wall") ||
+    query.includes("separating wall") ||
+    query.includes("frl 60/60/60") ||
+    query.includes("part 3.7.3") ||
+    query.includes("as 1530.4") ||
+    query.includes("rw+ctr") ||
+    query.includes("acoustic rw") ||
+    query.includes("fire separation") ||
+    query.includes("acoustic separation") ||
+    query.includes("sound insulation duplex")
+  ) {
+    return {
+      answer: `### Dual-Occupancy Party Walls: Fire & Acoustic Separation (NCC 2022 Part 3.7.3 & AS 1530.4)
+
+When constructing attached dual-occupancy homes, duplexes, and townhouses, the central separating wall (**party wall**) must satisfy rigorous statutory fire and acoustic performance standards:
+
+#### 1. Fire Resistance Level (FRL 60/60/60):
+- Under **NCC 2022 Part 3.7.3** and **AS 1530.4 (Fire-resistance tests of elements of construction)**, the separating wall must achieve an **FRL of 60/60/60**:
+  - **Structural Adequacy: 60 minutes** (the wall supports structural load without collapsing during fire).
+  - **Integrity: 60 minutes** (prevents fire, flames, and hot toxic gases from passing through cracks or openings).
+  - **Insulation: 60 minutes** (limits heat transmission so unexposed wall surfaces do not ignite adjacent materials).
+- **Vertical Continuity**: The fire-rated barrier must extend continuously from the foundation concrete slab, through ceiling cavities, and finish tight against the underside of non-combustible roof covering (Colorbond or concrete tiles) or extend through as a fire parapet.
+
+#### 2. Acoustic Separation ($R_w + C_{tr} \ge 50$):
+- **Airborne Sound Insulation**: The wall system must achieve a weighted sound reduction index of **$R_w + C_{tr} \ge 50$** under AS/NZS ISO 717.1.
+- **Discontinuous Construction**:
+  - Twin independent timber stud frames separated by a minimum **20mm continuous air gap**.
+  - High-density acoustic glasswool or polyester insulation batts (minimum $R_w 2.5$) installed inside both stud cavities.
+  - A central fire-rated acoustic barrier (such as a 25mm fire-rated shaftliner or certified Knauf / CSR Bradford Partiwall / Promat system).
+  - High-density 13mm or 16mm fire-rated plasterboard linings.
+- Discontinuous construction mechanically isolates one dwelling from the other, preventing vibration and footstep impact noise transmission.
+
+#### 3. Service Penetrations & Electrical Layout:
+- **No Back-to-Back Outlets**: Electrical powerpoints, switches, and recessed light switches must never be installed back-to-back in the same stud bay. A minimum **300mm horizontal separation** is required.
+- **Intumescent Fire & Acoustic Sealant**: All perimeter junctions, plumbing pipes, and cabling penetrations are sealed with fire-rated mastic that expands dramatically when exposed to heat, sealing air gaps.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What dual occupancy designs does Hudson Homes offer?",
+        "What are the rules for building a duplex in Queensland vs NSW?",
+        "Tell me about the Wisteria 33 dual living design",
+        "What are the infrastructure charges for building a duplex?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3AC. Facade Options & Architectural Finishes
+  if (
+    query.includes("facade") ||
+    query.includes("facades") ||
+    query.includes("facade options") ||
+    query.includes("hamptons") ||
+    query.includes("coastal") ||
+    query.includes("modern facade") ||
+    query.includes("executive facade") ||
+    query.includes("grande facade") ||
+    query.includes("vogue facade") ||
+    query.includes("contempo facade") ||
+    query.includes("scyon") ||
+    query.includes("linea") ||
+    query.includes("exterior cladding")
+  ) {
+    return {
+      answer: `### Hudson Homes Architectural Facade Collections & Exterior Finishes
+
+Hudson Homes offers an inspiring portfolio of designer facades engineered to maximize street appeal, property valuation, and developer covenant compliance:
+
+#### 1. Master Facade Collections:
+1. **Traditional / Classic Facade**:
+   - Timeless, elegant Australian suburban design.
+   - Symmetrical front elevation, exposed face brickwork from Austral or PGH, painted feature piers, symmetrical window layouts, and Colorbond or concrete tile hip roof.
+2. **Coastal / Hamptons Facade**:
+   - One of Hudson's most popular luxury styles.
+   - Characterized by **James Hardie Scyon Linea weatherboard cladding**, decorative coastal gable vents, crisp white timber mouldings, painted veranda posts, and light seaside tones.
+3. **Modern / Contemporary Facade**:
+   - Clean architectural lines and mixed material palettes.
+   - Contrasting combinations of face brick, smooth rendered feature bands, vertical groove cladding, and architectural awning windows.
+4. **Executive / Grande / Vogue Facade (Double Storey)**:
+   - Statement luxury with commanding street presence.
+   - Grand two-storey entrance portico, rendered or natural stone feature columns, expansive upper-floor cantilevered balcony with semi-frameless glass or powder-coated aluminium balustrades.
+5. **Contempo / Metro Facade**:
+   - High-end urban architectural aesthetic.
+   - Geometric parapet roof forms, concealed gutters, architectural box windows, cantilevered roof eaves, and 1200mm grand pivot entrance doors.
+
+#### 2. Premium Cladding & Material Partners:
+- **Bricks**: PGH Bricks & Pavers, Austral Bricks (full range of smooth, textured, and glazed finishes).
+- **Lightweight Cladding**: James Hardie Linea weatherboards, Scyon Axon vertical grooved cladding, and Matrix panels.
+- **Hebel Aerated Concrete**: CSR Hebel 75mm PowerPanel systems delivering superior thermal insulation (R-value) and acoustic dampening.
+- **Roofing**: Genuine BlueScope Colorbond steel (contemporary palette: Monument, Surfmist, Basalt, Dune) and Boral designer concrete roof tiles.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What ceiling heights come standard in H1 vs H2?",
+        "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
+        "What inclusion ranges does Hudson Homes offer?",
+      ],
+      modelUsed: "hudson-inclusions-engine",
+    };
+  }
+
+  // 3AD. Fixed Price Tender Process & Step-by-Step Milestones
+  if (
+    query.includes("tender process") ||
+    query.includes("fixed price tender") ||
+    query.includes("tender steps") ||
+    query.includes("how does tender work") ||
+    query.includes("quote to tender") ||
+    query.includes("building process") ||
+    query.includes("stages of building") ||
+    query.includes("steps to build") ||
+    query.includes("tender presentation")
+  ) {
+    return {
+      answer: `### Hudson Homes Fixed Price Tender Journey & 8-Step Building Process
+
+Hudson Homes provides a transparent, structured pathway from initial concept through to key handover, eliminating surprises:
+
+#### Step 1: Initial Consultation & Design Selection
+- Meet with your dedicated New Home Consultant (NHC) at our display centres (e.g. HomeWorld Warnervale, Sydney Metro, Hunter, or SEQ).
+- Select your ideal home design (single storey, double storey, duplex, dual living) and match with inclusions (H1 Smart, H2 Designer, H3 Luxury, or IP Turn-Key).
+
+#### Step 2: Preliminary Agreement & Comprehensive Site Investigations
+- Preliminary deposit placed to initiate site due diligence.
+- Hudson commissions registered site investigations:
+  - **Site Contour & Detail Survey**: Accurately maps boundary pegs, natural contours, fall across the pad, trees, and existing services.
+  - **Geotechnical Soil Test**: Borehole drilling and laboratory testing determining AS 2870 soil reactivity classification (Class S, M, H1, H2, P).
+  - **Service Asset Locates**: Identifies underground water, sewer, and stormwater main depths and easements (Zone of Influence).
+
+#### Step 3: Architectural Siting & Foundation Engineering
+- In-house drafting and structural engineers position the dwelling within statutory council setback envelopes.
+- Foundation design engineered (waffle pod vs stiffened raft slab, Drop Edge Beams for slope, concrete piering depths).
+
+#### Step 4: Formal Fixed Price Tender Presentation
+- An itemized, 100% comprehensive tender document is prepared:
+  - Base house price.
+  - Guaranteed fixed site costs (slab engineering, earthworks, council DA/CDC fees, BASIX / NatHERS 7-Star compliance).
+  - Custom modifications from the Modified Plan Engine (alfresco extensions, garage widening, door/window upgrades).
+
+#### Step 5: Tender Acceptance & Fixed Price Lock-In
+- Client reviews and accepts the tender, locking in their contract price with zero price escalation clauses!
+
+#### Step 6: Contract Signing & Master Working Drawings
+- HIA or Master Builders standard building contract executed.
+- Final detailed architectural working drawings, structural engineering Form 15, and colour selections finalized.
+
+#### Step 7: Statutory Planning & Certifier Approvals
+- Hudson handles 100% of council approvals: Fast-track Complying Development Certificate (CDC) via private certifier or Development Application (DA) via Local Council.
+
+#### Step 8: Construction Milestones & Handover
+- Dedicated Site Supervisor manages construction through standard milestone stages:
+  1. Base Stage (15%) -> 2. Frame Stage (20%) -> 3. Lock-Up Stage (25%) -> 4. Fixing Stage (20%) -> 5. Practical Completion (15%) and key handover with our 50-Year Structural Warranty!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "Tell me about the 50-Year Structural Warranty",
+        "What fixed site costs does Hudson Homes cover?",
+        "What are the HIA contract progress payment stages?",
+        "How does the Quote Builder work?",
       ],
       modelUsed: "hudson-knowledge-engine",
     };

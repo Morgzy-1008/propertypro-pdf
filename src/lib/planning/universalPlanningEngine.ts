@@ -1589,14 +1589,16 @@ Here is the verified statutory planning framework, duplex siting controls, and t
 ---
 
 #### 1. Duplex Siting & Boundary Envelope Controls
-- **Minimum Lot Size Required**: **≥ ${j.duplexRules.minLotSizeM2} m²** (${lotSizeExplanation})
-- **Minimum Street Frontage Required**: **≥ ${j.duplexRules.minFrontageM}m** (${frontageExplanation})
-- **Maximum Site Coverage**: **${j.duplexRules.maxSiteCoveragePct}%** across both dwelling units
-- **Maximum Building Height**: **${j.duplexRules.maxBuildingHeightM}m** (nominal 2 storeys)
-- **Front Boundary Setback (OMP)**: **${j.duplexRules.frontSetbackM}m** | **Garage Door Setback**: **${j.duplexRules.garageSetbackM}m** (ensuring off-street driveway vehicle queue space)
-- **Side Boundary Setbacks**: **${j.duplexRules.sideSetbackM}m** (ground floor) / **2.0m** (upper storey where wall height exceeds 4.5m)
-- **Rear Boundary Setback**: **${j.duplexRules.rearSetbackM}m**
-- **Private Open Space (POS)**: Minimum 50m²-80m² per dwelling unit with direct access to primary indoor living room.
+| Planning Parameter | Council Statutory Standard | Siting Outcome & Requirements |
+| :--- | :--- | :--- |
+| **Minimum Lot Size** | **≥ ${j.duplexRules.minLotSizeM2} m²** | ${lotSizeExplanation} |
+| **Minimum Street Frontage** | **≥ ${j.duplexRules.minFrontageM}m** | ${frontageExplanation} |
+| **Maximum Site Coverage** | **${j.duplexRules.maxSiteCoveragePct}%** | Combined footprint across both dwelling units |
+| **Maximum Building Height** | **${j.duplexRules.maxBuildingHeightM}m** | Nominal 2 storeys compliant |
+| **Front Boundary Setback (OMP)** | **${j.duplexRules.frontSetbackM}m** | Main building facade / front articulation |
+| **Garage Door Setback** | **${j.duplexRules.garageSetbackM}m** | Ensures dedicated off-street vehicle queue space |
+| **Side Boundary Setbacks** | **${j.duplexRules.sideSetbackM}m (GF) / 2.0m (UF)** | 1.0m ground floor / 2.0m upper storey where height > 4.5m |
+| **Rear Boundary Setback** | **${j.duplexRules.rearSetbackM}m** | Deep soil and private open space reserve |
 
 ---
 
@@ -1737,23 +1739,17 @@ Here is the complete verified compliance dossier covering statutory zoning, boun
 ---
 
 #### 1. Statutory Planning Envelope & Boundary Setbacks
-- **Minimum Lot Size**:
-  - Single Detached Dwelling: **≥ 400 m² - 600 m²** (Compliant on standard residential allotments)
-  - Duplex / Dual-Occupancy: **≥ ${j.duplexRules.minLotSizeM2} m²** (Code Assessable)
-  - Auxiliary Unit / Secondary Dwelling: **≥ ${j.auxiliaryUnitRules.minLotSizeM2} m²** (Accepted Development)
-- **Minimum Street Frontage**:
-  - Single Detached Dwelling: **≥ 10.0m - 12.5m** (standard double garage requirement)
-  - Duplex / Dual-Occupancy: **≥ ${j.duplexRules.minFrontageM}m** (for dual crossover separation)
-- **Maximum Site Coverage**: **${j.duplexRules.maxSiteCoveragePct}%** (Standard Low Density Residential)
-- **Maximum Building Height**: **${j.duplexRules.maxBuildingHeightM}m** (maximum 2 storeys)
-- **Front Boundary Setback (OMP)**: **${j.duplexRules.frontSetbackM}m** (Outer Most Projection e.g. porch/eaves 5.0m)
-- **Garage Door Setback**: **${j.duplexRules.garageSetbackM}m** (measured from street boundary to garage door)
-- **Side Boundary Setbacks**:
-  - Ground floor (up to 4.5m wall height): **${j.duplexRules.sideSetbackM}m**
-  - Upper floor (above 4.5m wall height): **2.0m**
-  - Built-to-Boundary (Zero Lot Line): Permitted on garage wall where lot width is under 15m (max 15m length, max 3.5m height)
-- **Rear Boundary Setback**: **${j.duplexRules.rearSetbackM}m** (single storey) / **3.0m** (double storey)
-- **Private Open Space (POS)**: Minimum **50 m²** with a minimum dimension of **5.0m**, directly accessible from main living areas.
+| Planning Control | Statutory Requirement | Hudson Compliance Guidance |
+| :--- | :--- | :--- |
+| **Front Boundary Setback (OMP)** | **${j.duplexRules.frontSetbackM}m** | Minimum 4.5m-5.0m to main facade / front porch articulation |
+| **Garage Door Setback** | **${j.duplexRules.garageSetbackM}m** | Dedicated 5.4m-5.5m vehicle queue space in front of garage door |
+| **Side Boundary (Ground Floor)** | **${j.duplexRules.sideSetbackM}m** | Standard 1.0m to 1.2m clearance (or built-to-boundary zero-lot if permitted) |
+| **Side Boundary (Upper Storey)** | **2.0m** | Required where wall height exceeds 4.5m (visual privacy envelope) |
+| **Rear Boundary Setback** | **${j.duplexRules.rearSetbackM}m** | Single storey: ${j.duplexRules.rearSetbackM}m / Double storey: 3.0m deep soil zone |
+| **Maximum Site Coverage** | **${j.duplexRules.maxSiteCoveragePct}%** | Standard residential building footprint limit |
+| **Maximum Building Height** | **${j.duplexRules.maxBuildingHeightM}m** | Standard 2 storeys compliant |
+| **Minimum Lot Size** | **≥ 400 m² - ${j.duplexRules.minLotSizeM2} m²** | Detached: ≥ 400 m² / Duplex: ≥ ${j.duplexRules.minLotSizeM2} m² / Secondary: ≥ ${j.auxiliaryUnitRules.minLotSizeM2} m² |
+| **Minimum Frontage** | **≥ 10.0m - ${j.duplexRules.minFrontageM}m** | Detached: ≥ 10.0m - 12.5m / Duplex: ≥ ${j.duplexRules.minFrontageM}m |
 
 ---
 
