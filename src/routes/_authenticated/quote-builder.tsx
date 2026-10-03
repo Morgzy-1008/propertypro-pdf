@@ -9,12 +9,7 @@ import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { getActiveStaffUser } from "@/lib/authSession";
 
 export const Route = createFileRoute("/_authenticated/quote-builder")({
-  beforeLoad: async () => {
-    const staffUser = getActiveStaffUser();
-    if (staffUser?.role === "marketing") {
-      throw redirect({ to: "/hub", replace: true });
-    }
-  },
+
   head: () => ({
     meta: [
       { title: "Hudson Quoting System | Technical House & Land Quoting" },

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { LandScoutDashboard } from "@/components/land-scout/LandScoutDashboard";
 import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
@@ -7,6 +7,12 @@ import { Lock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/land-scout")({
+  beforeLoad: async () => {
+    const staffUser = getActiveStaffUser();
+    if (!canAccessLandScout(staffUser)) {
+      throw redirect({ to: "/hub", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Hudson Land Scout | Vacant Land Intelligence & Acquisition" },

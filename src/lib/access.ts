@@ -174,70 +174,42 @@ export function canAccessFloorplanEditor(staffUser?: {
   name?: string | null;
   role?: string | null;
 } | null): boolean {
-  if (!staffUser) return false;
-
-  const email = normalizeStaffEmail(staffUser.email);
-  const id = (staffUser.id || "").trim().toLowerCase();
-  const name = (staffUser.name || "").trim().toLowerCase();
-
-  // Explicitly excluded: Christine, Gary, and Marketing Team
-  if (
-    staffUser?.role === "marketing" ||
-    email === "cheryl.rong@hudsonhomes.com.au" ||
-    email === "zoe.hogbin@hudsonhomes.com.au" ||
-    id === "cheryl-rong" ||
-    id === "zoe-hogbin" ||
-    email === "christine.hunt@hudsonhomes.com.au" ||
-    email.includes("christine.hunt") ||
-    id === "christine-hunt" ||
-    name.includes("christine") ||
-    email === "gary.rees@hudsonhomes.com.au" ||
-    email.includes("gary.rees") ||
-    id === "gary-rees" ||
-    name.includes("gary")
-  ) {
-    return false;
-  }
-
-  // Explicitly allowed: Steve, Aaron, Alyssa, Shelley, Adrian, Ben, and Morgan
-  if (
-    email === "morgan.hales@hudsonhomes.com.au" ||
-    id === "morgan-hales" ||
-    name.includes("morgan") ||
-    staffUser.role === "admin"
-  ) {
-    return true;
-  }
-
-  return (
-    FLOORPLAN_EDITOR_ALLOWED_EMAILS.some((e) => normalizeStaffEmail(e) === email) ||
-    id === "steve-slisar" ||
-    id === "steve-silsar" ||
-    id === "aaron-martin" ||
-    id === "alyssa-hales" ||
-    id === "shelley-lay" ||
-    id === "adrian-baxter" ||
-    id === "ben-grill" ||
-    name.includes("steve") ||
-    name.includes("aaron") ||
-    name.includes("alyssa") ||
-    name.includes("shelley") ||
-    name.includes("adrian") ||
-    name.includes("ben")
-  );
+  // All authenticated logins now have access to Concept Floorplan Editor
+  return !!staffUser;
 }
 
 /**
- * Access control for Hudson Land Scout (Vacant Land Intelligence & Acquisition).
- * Fully enabled for all authenticated Hudson team members.
+ * Checks if a staff user is Morgan Hales (System Administration / Owner).
  */
-export function canAccessLandScout(staffUser: {
+export function isMorganHales(staffUser?: {
   id?: string | null;
   name?: string | null;
   email?: string | null;
   role?: string | null;
 } | null): boolean {
   if (!staffUser) return false;
-  return true;
+  const id = (staffUser.id || "").toLowerCase();
+  const email = (staffUser.email || "").toLowerCase();
+  const name = (staffUser.name || "").toLowerCase();
+  return (
+    id === "morgan-hales" ||
+    email === "morgan.hales@hudsonhomes.com.au" ||
+    email.includes("morgan.hales") ||
+    name.includes("morgan hales") ||
+    staffUser.role === "admin"
+  );
+}
+
+/**
+ * Access control for Hudson Land Scout (Vacant Land Intelligence & Acquisition).
+ * Strictly restricted to Morgan Hales (System Administration / Owner).
+ */
+export function canAccessLandScout(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
 }
 

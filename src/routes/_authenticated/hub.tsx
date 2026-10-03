@@ -15,6 +15,7 @@ import {
   Compass,
   UserCheck,
   Radio,
+  Clock,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -29,7 +30,7 @@ import {
 import { getPendingAccessRequests, getUnreadAlertCount, onAdminAlertsChanged } from "@/lib/adminAlerts";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
-import { canAccessFloorplanEditor } from "@/lib/access";
+import { canAccessFloorplanEditor, isMorganHales } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
 
 export const Route = createFileRoute("/_authenticated/hub")({
@@ -74,6 +75,7 @@ interface PortalCardProps {
   };
   isLight: boolean;
   isWide?: boolean;
+  isComingSoon?: boolean;
 }
 
 function PortalCard({
@@ -94,112 +96,166 @@ function PortalCard({
   statusBadge,
   isLight,
   isWide = false,
+  isComingSoon = false,
 }: PortalCardProps) {
-  return (
-    <div
-      className={`group relative flex flex-col transition-transform duration-300 ease-out hover:-translate-y-1.5 ${
-        isWide ? "md:col-span-2 lg:col-span-3" : ""
-      }`}
-    >
-      {/* Layer 1: Ambient Outer Radiant Glow (diffuse neon aura behind the portal) */}
+  const cardContent = (
+    <>
+      {/* Top Edge Laser Optical Highlight */}
       <div
-        className={`absolute -inset-1 rounded-[26px] bg-gradient-to-r ${glowGradient} opacity-20 blur-xl group-hover:opacity-75 group-hover:blur-2xl transition-all duration-500 pointer-events-none -z-10`}
+        className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${lightBeam} ${
+          isComingSoon ? "opacity-25" : "opacity-40 group-hover:opacity-100"
+        } transition-opacity duration-300`}
       />
 
-      {/* Layer 2: Precision Laser Perimeter Outline */}
+      {/* Specular Ambient Corner Bloom */}
       <div
-        className={`absolute -inset-[1px] rounded-[22px] bg-gradient-to-r ${glowGradient} opacity-35 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none -z-10`}
+        className={`absolute -top-10 -right-10 h-44 w-44 rounded-full bg-gradient-to-br ${innerGlow} blur-3xl ${
+          isComingSoon ? "opacity-10" : "opacity-20 group-hover:opacity-50"
+        } transition-opacity duration-500 pointer-events-none`}
       />
 
-      {/* Layer 3: Glassmorphic Floating Core */}
-      <Link
-        to={to}
-        className={`relative h-full rounded-[21px] p-6 sm:p-7 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-2xl ${
-          isLight
-            ? "bg-white/92 text-slate-900 group-hover:bg-white shadow-xl shadow-slate-300/40"
-            : "bg-slate-950/85 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
-        } ${isWide ? "lg:flex-row lg:items-center lg:gap-8" : ""}`}
-      >
-        {/* Top Edge Laser Optical Highlight */}
-        <div
-          className={`absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r ${lightBeam} opacity-40 group-hover:opacity-100 transition-opacity duration-300`}
-        />
-
-        {/* Specular Ambient Corner Bloom */}
-        <div
-          className={`absolute -top-10 -right-10 h-44 w-44 rounded-full bg-gradient-to-br ${innerGlow} blur-3xl opacity-20 group-hover:opacity-50 transition-opacity duration-500 pointer-events-none`}
-        />
-
-        {/* Content Block */}
-        <div className={`relative z-10 flex-1 ${isWide ? "lg:max-w-3xl" : ""}`}>
-          {/* Top Telemetry Header */}
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-3">
-              {/* Futuristic Glowing Icon Pod */}
-              <div
-                className={`h-11 w-11 rounded-xl bg-gradient-to-br ${iconBg} border flex items-center justify-center ${iconColor} group-hover:scale-110 group-hover:rotate-1 transition-all duration-300 shadow-inner`}
-              >
-                <Icon className="h-5 w-5" />
-              </div>
-
-              {/* Portal Coordinate Telemetry */}
-              <span className="font-mono text-[9px] uppercase tracking-[0.22em] font-semibold text-slate-400 group-hover:text-white transition-colors">
-                {portalNumber}
-              </span>
+      {/* Content Block */}
+      <div className={`relative z-10 flex-1 ${isWide ? "lg:max-w-3xl" : ""}`}>
+        {/* Top Telemetry Header */}
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div className="flex items-center gap-3">
+            {/* Futuristic Glowing Icon Pod */}
+            <div
+              className={`h-11 w-11 rounded-xl bg-gradient-to-br ${iconBg} border flex items-center justify-center ${iconColor} ${
+                isComingSoon ? "" : "group-hover:scale-110 group-hover:rotate-1"
+              } transition-all duration-300 shadow-inner`}
+            >
+              <Icon className="h-5 w-5" />
             </div>
 
-            {/* Badges Container */}
-            <div className="flex items-center gap-1.5 flex-wrap justify-end">
-              {statusBadge && (
+            {/* Portal Coordinate Telemetry */}
+            <span className="font-mono text-[9px] uppercase tracking-[0.22em] font-semibold text-slate-400 group-hover:text-slate-300 transition-colors">
+              {portalNumber}
+            </span>
+          </div>
+
+          {/* Badges Container */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {isComingSoon ? (
+              <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border flex items-center gap-1 shadow-xs text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono">
+                <Clock className="h-3 w-3 text-amber-400 shrink-0" />
+                Coming Soon
+              </span>
+            ) : (
+              statusBadge && (
                 <span
                   className={`text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border flex items-center gap-1 shadow-xs ${statusBadge.style}`}
                 >
                   {statusBadge.pulse && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
                   {statusBadge.text}
                 </span>
-              )}
-              <span
-                className={`text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full border font-mono ${badgeStyle}`}
-              >
-                {categoryBadge}
-              </span>
-            </div>
-          </div>
-
-          {/* Title & Description */}
-          <div>
-            <h2
-              className={`text-lg font-extrabold tracking-tight transition-colors duration-200 ${
-                isLight ? "text-slate-900 group-hover:text-amber-700" : "text-white group-hover:text-amber-200"
-              }`}
+              )
+            )}
+            <span
+              className={`text-[10px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full border font-mono ${badgeStyle}`}
             >
-              {title}
-            </h2>
-            <p className={`mt-2 text-xs leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"} line-clamp-2`}>
-              {description}
-            </p>
+              {categoryBadge}
+            </span>
           </div>
         </div>
 
-        {/* Bottom Feature & Action Bar */}
-        <div
-          className={`relative z-10 mt-5 pt-4 border-t ${
-            isLight ? "border-slate-100" : "border-slate-800/80"
-          } flex items-center justify-between gap-3 text-xs ${
-            isWide ? "lg:mt-0 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-8 lg:flex-col lg:items-end lg:justify-center lg:gap-3" : ""
-          }`}
-        >
-          <div className={`flex items-center gap-1.5 min-w-0 flex-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-            <span className="truncate">{features}</span>
-          </div>
+        {/* Title & Description */}
+        <div>
+          <h2
+            className={`text-lg font-extrabold tracking-tight transition-colors duration-200 ${
+              isLight
+                ? isComingSoon
+                  ? "text-slate-800"
+                  : "text-slate-900 group-hover:text-amber-700"
+                : isComingSoon
+                ? "text-slate-200"
+                : "text-white group-hover:text-amber-200"
+            }`}
+          >
+            {title}
+          </h2>
+          <p className={`mt-2 text-xs leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"} line-clamp-2`}>
+            {description}
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom Feature & Action Bar */}
+      <div
+        className={`relative z-10 mt-5 pt-4 border-t ${
+          isLight ? "border-slate-100" : "border-slate-800/80"
+        } flex items-center justify-between gap-3 text-xs ${
+          isWide ? "lg:mt-0 lg:pt-0 lg:border-t-0 lg:border-l lg:border-slate-800/80 lg:pl-8 lg:flex-col lg:items-end lg:justify-center lg:gap-3" : ""
+        }`}
+      >
+        <div className={`flex items-center gap-1.5 min-w-0 flex-1 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+          <span className="truncate">{features}</span>
+        </div>
+        {isComingSoon ? (
+          <span className="font-semibold text-amber-400/80 inline-flex items-center shrink-0 pl-1 text-xs cursor-default">
+            Coming Soon <Clock className="ml-1.5 h-3.5 w-3.5 shrink-0" />
+          </span>
+        ) : (
           <span
             className={`font-semibold ${iconColor} group-hover:translate-x-1.5 transition-transform duration-300 inline-flex items-center shrink-0 pl-1`}
           >
             {actionText} <ArrowRight className="ml-1.5 h-3.5 w-3.5 shrink-0" />
           </span>
+        )}
+      </div>
+    </>
+  );
+
+  const cardClasses = `relative h-full rounded-[21px] p-6 sm:p-7 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-2xl ${
+    isLight
+      ? isComingSoon
+        ? "bg-white/85 text-slate-800 shadow-md shadow-slate-200/50"
+        : "bg-white/92 text-slate-900 group-hover:bg-white shadow-xl shadow-slate-300/40"
+      : isComingSoon
+      ? "bg-slate-950/80 text-slate-200 shadow-lg shadow-black/50"
+      : "bg-slate-950/85 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
+  } ${isWide ? "lg:flex-row lg:items-center lg:gap-8" : ""}`;
+
+  return (
+    <div
+      className={`group relative flex flex-col transition-transform duration-300 ease-out ${
+        isComingSoon ? "cursor-default select-none opacity-90" : "hover:-translate-y-1.5"
+      } ${isWide ? "md:col-span-2 lg:col-span-3" : ""}`}
+    >
+      {/* Layer 1: Ambient Outer Radiant Glow */}
+      <div
+        className={`absolute -inset-1 rounded-[26px] bg-gradient-to-r ${glowGradient} ${
+          isComingSoon ? "opacity-10 blur-md" : "opacity-20 blur-xl group-hover:opacity-75 group-hover:blur-2xl"
+        } transition-all duration-500 pointer-events-none -z-10`}
+      />
+
+      {/* Layer 2: Precision Laser Perimeter Outline */}
+      <div
+        className={`absolute -inset-[1px] rounded-[22px] bg-gradient-to-r ${glowGradient} ${
+          isComingSoon ? "opacity-20" : "opacity-35 group-hover:opacity-100"
+        } transition-opacity duration-300 pointer-events-none -z-10`}
+      />
+
+      {/* Layer 3: Glassmorphic Floating Core */}
+      {isComingSoon ? (
+        <div
+          role="button"
+          aria-disabled="true"
+          tabIndex={0}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          className={`${cardClasses} cursor-default`}
+        >
+          {cardContent}
         </div>
-      </Link>
+      ) : (
+        <Link to={to} className={cardClasses}>
+          {cardContent}
+        </Link>
+      )}
     </div>
   );
 }
@@ -266,11 +322,7 @@ function WelcomeHubPage() {
   const isLight = mode === "normal";
   const isAdmin = staffUser?.role === "admin" || staffUser?.id === "morgan-hales";
   const isMarketing = staffUser?.role === "marketing";
-  const isMorgan =
-    staffUser?.id === "morgan-hales" ||
-    staffUser?.email?.toLowerCase() === "morgan.hales@hudsonhomes.com.au" ||
-    staffUser?.email?.toLowerCase().includes("morgan.hales") ||
-    staffUser?.name?.toLowerCase().includes("morgan hales");
+  const isMorgan = isMorganHales(staffUser);
   const hasFloorplanAccess = canAccessFloorplanEditor(staffUser);
 
   const isImpersonating =
@@ -328,23 +380,16 @@ function WelcomeHubPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            <Link
-              to="/land-scout"
-              className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-              title="Hudson Land Scout - Vacant Land Search"
-            >
-              <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-              <span>Land Scout</span>
-            </Link>
-
-            <Link
-              to="/site-studio"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-500/15 border border-teal-500/40 text-teal-400 hover:bg-teal-500 hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer"
-              title="Hudson Site Studio - Cadastre Siting"
-            >
-              <Layers className="h-4 w-4 shrink-0" />
-              <span>Site Studio</span>
-            </Link>
+            {isMorgan && (
+              <Link
+                to="/land-scout"
+                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
+                title="Hudson Land Scout - Vacant Land Search"
+              >
+                <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
+                <span>Land Scout</span>
+              </Link>
+            )}
 
             <ThemeToggle />
 
@@ -517,7 +562,7 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 03: Hudson Land Scout (Vacant Land Intelligence & Acquisition) */}
+          {/* Portal 03: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
             to="/land-scout"
             portalNumber="PORTAL // 03"
@@ -539,125 +584,95 @@ function WelcomeHubPage() {
             iconBg="from-amber-500/20 to-yellow-500/10 border-brand-gold/30"
             badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
             isLight={isLight}
+            isComingSoon={!isMorgan}
           />
 
-          {/* Portal 04: Hudson Quoting System (Restricted from Marketing Team) */}
-          {!isMarketing && (
-            <PortalCard
-              to="/quote-builder"
-              portalNumber="PORTAL // 04"
-              categoryBadge="Estimating Engine"
-              title="Hudson Quoting System"
-              description="Calculate precise client tenders with dynamic m² area extensions, piering allowances, and live variation subtotals."
-              icon={Layers}
-              features="Delta Area Pricing • Tender PDF"
-              actionText="Launch Quoting"
-              glowGradient="from-emerald-400 via-teal-400 to-green-500"
-              lightBeam="from-transparent via-emerald-400 to-transparent"
-              innerGlow="from-emerald-500/25 to-transparent"
-              iconColor="text-emerald-400"
-              iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
-              badgeStyle="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-              isLight={isLight}
-            />
-          )}
-
-          {/* Portal 05: Concept Floorplan Editor (Allowed Staff) */}
-          {hasFloorplanAccess && (
-            <PortalCard
-              to="/floorplan-editor"
-              portalNumber="PORTAL // 05"
-              categoryBadge="Concept Studio"
-              title="Concept Floorplan Editor"
-              description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
-              icon={Sliders}
-              features="Connected Web App • Live Canvas"
-              actionText="Launch Editor"
-              glowGradient="from-blue-500 via-indigo-500 to-violet-500"
-              lightBeam="from-transparent via-indigo-400 to-transparent"
-              innerGlow="from-indigo-500/25 to-transparent"
-              iconColor="text-indigo-400"
-              iconBg="from-blue-500/20 to-indigo-500/10 border-indigo-500/30"
-              badgeStyle="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
-              isLight={isLight}
-            />
-          )}
-
-          {/* Portal 06: Submit Your Tender Request (Restricted to Morgan Hales) */}
-          {isMorgan && (
-            <PortalCard
-              to="/tender-request"
-              portalNumber="PORTAL // 06"
-              categoryBadge="Tender Portal"
-              statusBadge={{
-                text: "Under Development",
-                pulse: true,
-                style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
-              }}
-              title="Submit Your Tender Request"
-              description="Draft automated tender request packages (ATP), export OnSite ZIP archives, and sync specifications directly."
-              icon={Send}
-              features="OnSite Ready • ZIP Archive"
-              actionText="Open Tender"
-              glowGradient="from-amber-500 via-orange-500 to-rose-500"
-              lightBeam="from-transparent via-orange-400 to-transparent"
-              innerGlow="from-orange-500/25 to-transparent"
-              iconColor="text-amber-400"
-              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-              badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
-              isLight={isLight}
-            />
-          )}
-
-          {/* Portal 07: Hudson Horizon CRM (Restricted to Morgan Hales) */}
-          {isMorgan && (
-            <PortalCard
-              to="/crm"
-              portalNumber="PORTAL // 07"
-              categoryBadge="Builder CRM"
-              statusBadge={{
-                text: "Under Development",
-                pulse: true,
-                style: "text-purple-400 bg-purple-500/15 border-purple-500/30 font-mono",
-              }}
-              title="Hudson Horizon CRM"
-              description="Manage client pipelines, follow up display home registrations, and forecast contract conversions across regions."
-              icon={Users}
-              features="Client Pipeline & Deals"
-              actionText="Open CRM"
-              glowGradient="from-purple-500 via-fuchsia-500 to-pink-500"
-              lightBeam="from-transparent via-purple-400 to-transparent"
-              innerGlow="from-purple-500/25 to-transparent"
-              iconColor="text-purple-400"
-              iconBg="from-purple-500/20 to-fuchsia-500/10 border-purple-500/30"
-              badgeStyle="text-purple-400 bg-purple-500/10 border-purple-500/20"
-              isLight={isLight}
-            />
-          )}
-
-          {/* Portal 08: Hudson Site Studio (Flagship Siting Engine - Archistar & CanBuild Parity) */}
+          {/* Portal 04: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
-            to="/site-studio"
-            portalNumber="PORTAL // 08"
-            categoryBadge="Siting Studio"
-            statusBadge={{
-              text: "Archistar Replacement",
-              pulse: false,
-              style: "text-emerald-400 bg-emerald-500/15 border-emerald-500/30 font-mono",
-            }}
-            title="Hudson Site Studio"
-            description="Full 1:200 cadastre lot siting, building envelope setbacks, auto-catalog optimization, cut & fill earthworks, and PDF export."
-            icon={Compass}
-            features="1:200 Cadastre Siting • Vector Canvas"
-            actionText="Launch Site Studio"
-            glowGradient="from-emerald-400 via-teal-400 to-cyan-500"
-            lightBeam="from-transparent via-teal-400 to-transparent"
-            innerGlow="from-teal-500/25 to-transparent"
-            iconColor="text-teal-400"
+            to="/quote-builder"
+            portalNumber="PORTAL // 04"
+            categoryBadge="Estimating Engine"
+            title="Hudson Quoting System"
+            description="Calculate precise client tenders with dynamic m² area extensions, piering allowances, and live variation subtotals."
+            icon={Layers}
+            features="Delta Area Pricing • Tender PDF"
+            actionText="Launch Quoting"
+            glowGradient="from-emerald-400 via-teal-400 to-green-500"
+            lightBeam="from-transparent via-emerald-400 to-transparent"
+            innerGlow="from-emerald-500/25 to-transparent"
+            iconColor="text-emerald-400"
             iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
-            badgeStyle="text-teal-400 bg-teal-500/10 border-teal-500/20"
+            badgeStyle="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             isLight={isLight}
-            isWide={true}
+          />
+
+          {/* Portal 05: Concept Floorplan Editor (Accessible to all logins) */}
+          <PortalCard
+            to="/floorplan-editor"
+            portalNumber="PORTAL // 05"
+            categoryBadge="Concept Studio"
+            title="Concept Floorplan Editor"
+            description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
+            icon={Sliders}
+            features="Connected Web App • Live Canvas"
+            actionText="Launch Editor"
+            glowGradient="from-blue-500 via-indigo-500 to-violet-500"
+            lightBeam="from-transparent via-indigo-400 to-transparent"
+            innerGlow="from-indigo-500/25 to-transparent"
+            iconColor="text-indigo-400"
+            iconBg="from-blue-500/20 to-indigo-500/10 border-indigo-500/30"
+            badgeStyle="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+            isLight={isLight}
+          />
+
+          {/* Portal 06: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
+          <PortalCard
+            to="/tender-request"
+            portalNumber="PORTAL // 06"
+            categoryBadge="Tender Portal"
+            statusBadge={{
+              text: "Tender Archive Engine",
+              pulse: true,
+              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+            }}
+            title="Submit Your Tender Request"
+            description="Draft automated tender request packages (ATP), export OnSite ZIP archives, and sync specifications directly."
+            icon={Send}
+            features="OnSite Ready • ZIP Archive"
+            actionText="Open Tender"
+            glowGradient="from-amber-500 via-orange-500 to-rose-500"
+            lightBeam="from-transparent via-orange-400 to-transparent"
+            innerGlow="from-orange-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+            isComingSoon={!isMorgan}
+          />
+
+          {/* Portal 07: Hudson Horizon CRM (Only accessible by Morgan Hales; Coming Soon for others) */}
+          <PortalCard
+            to="/crm"
+            portalNumber="PORTAL // 07"
+            categoryBadge="Builder CRM"
+            statusBadge={{
+              text: "Pipeline Management",
+              pulse: true,
+              style: "text-purple-400 bg-purple-500/15 border-purple-500/30 font-mono",
+            }}
+            title="Hudson Horizon CRM"
+            description="Manage client pipelines, follow up display home registrations, and forecast contract conversions across regions."
+            icon={Users}
+            features="Client Pipeline & Deals"
+            actionText="Open CRM"
+            glowGradient="from-purple-500 via-fuchsia-500 to-pink-500"
+            lightBeam="from-transparent via-purple-400 to-transparent"
+            innerGlow="from-purple-500/25 to-transparent"
+            iconColor="text-purple-400"
+            iconBg="from-purple-500/20 to-fuchsia-500/10 border-purple-500/30"
+            badgeStyle="text-purple-400 bg-purple-500/10 border-purple-500/20"
+            isLight={isLight}
+            isComingSoon={!isMorgan}
           />
         </div>
       </main>
