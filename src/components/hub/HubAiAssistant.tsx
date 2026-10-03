@@ -171,10 +171,14 @@ const DEFAULT_SUGGESTIONS = [
   "CC 131 Mount Cotton Road",
   "CC duplex 61 Paradise Road, Flagstone",
   "Hudson AI, put this compliance check into a downloaded PDF for me",
+  "What is the difference between CDC and DA in NSW?",
   "What wind classification does Hudson Homes build for?",
   "Tell me about slab edge rebates and damp-proofing",
   "What are the fire and acoustic requirements for duplex party walls?",
+  "What are balustrade and barrier requirements?",
+  "What are the rules for swimming pools and pool fencing?",
   "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?",
+  "What is Hudson Homes 50-year structural warranty?",
   "Tell me about the IP Investment & FHB ranges",
   "What fixed site costs does Hudson Homes cover?",
 ];
@@ -324,7 +328,7 @@ export function HubAiAssistant({ isLight, staffUser }: HubAiAssistantProps) {
           trimmed.toLowerCase().includes("put this") ||
           trimmed.toLowerCase().includes("feasibility"));
 
-      if (isPdfIntent && assessmentData) {
+      if (isPdfIntent && data?.pdfDownloadReady && assessmentData) {
         try {
           const fileName = downloadComplianceReportPdf(assessmentData, staffUser);
           toast.success("Executive Compliance Report PDF downloaded!", {

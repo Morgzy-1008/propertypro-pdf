@@ -63,7 +63,7 @@ import path from "path";
     console.log("Step 3: Running CC 131 Mount Cotton Road...");
     await page.fill(inputSelector, "CC 131 Mount Cotton Road");
     await page.keyboard.press("Enter");
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
 
     // Verify compliance card & markdown tables rendered
     const tablesCount = await page.locator("table").count();
@@ -81,8 +81,6 @@ import path from "path";
 
     // 4. Test "Hudson AI, put this compliance check into a downloaded PDF for me"
     console.log("Step 4: Testing prompt 'Hudson AI, put this compliance check into a downloaded PDF for me'...");
-    
-    // Set up download listener
     const downloadPromise = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
 
     await page.fill(inputSelector, "Hudson AI, put this compliance check into a downloaded PDF for me");
@@ -116,36 +114,69 @@ import path from "path";
       }
     }
 
-    // 6. Test Wind Classifications
-    console.log("Step 6: Asking 'What wind classification does Hudson Homes build for?'...");
-    await page.fill(inputSelector, "What wind classification does Hudson Homes build for?");
+    // 6. Test Fresh Address PDF prompt: Penrith
+    console.log("Step 6: Asking 'put compliance check for 45 Smith Street, Penrith into a PDF'...");
+    const penrithDownloadPromise = page.waitForEvent("download", { timeout: 10000 }).catch(() => null);
+    await page.fill(inputSelector, "put compliance check for 45 Smith Street, Penrith into a PDF");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(2500);
+    const penrithDownload = await penrithDownloadPromise;
+    if (penrithDownload) {
+      console.log(`SUCCESS: Fresh address PDF triggered! Filename: ${penrithDownload.suggestedFilename()}`);
+    }
+    await page.screenshot({ path: "playwright-screenshots/04_pdf_penrith_fresh_response.png" });
+    console.log("Screenshot 4 saved: 04_pdf_penrith_fresh_response.png");
+
+    // 7. Test Inclusions Comparison (H1 vs H2 vs H3) Side-by-side Table
+    console.log("Step 7: Asking 'What is the difference between H1 Smart, H2 Designer, and H3 Luxury?'...");
+    await page.fill(inputSelector, "What is the difference between H1 Smart, H2 Designer, and H3 Luxury?");
     await page.keyboard.press("Enter");
     await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/05_h1_h2_h3_comparison.png" });
+    console.log("Screenshot 5 saved: 05_h1_h2_h3_comparison.png");
 
-    await page.screenshot({ path: "playwright-screenshots/04_wind_classification_response.png" });
-    console.log("Screenshot 4 saved: 04_wind_classification_response.png");
-
-    // 7. Test Slab Edge Rebates & Damp Proofing
-    console.log("Step 7: Asking 'Tell me about slab edge rebates and damp-proofing'...");
-    await page.fill(inputSelector, "Tell me about slab edge rebates and damp-proofing");
+    // 8. Test CDC vs DA
+    console.log("Step 8: Asking 'What is the difference between CDC and DA in NSW?'...");
+    await page.fill(inputSelector, "What is the difference between CDC and DA in NSW?");
     await page.keyboard.press("Enter");
     await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/06_cdc_vs_da_response.png" });
+    console.log("Screenshot 6 saved: 06_cdc_vs_da_response.png");
 
-    await page.screenshot({ path: "playwright-screenshots/05_slab_edge_rebates_response.png" });
-    console.log("Screenshot 5 saved: 05_slab_edge_rebates_response.png");
+    // 9. Test Duplex vs Auxiliary Unit ($0 infrastructure charge in QLD)
+    console.log("Step 9: Asking 'What is the difference between a duplex and an auxiliary unit?'...");
+    await page.fill(inputSelector, "What is the difference between a duplex and an auxiliary unit?");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/07_duplex_vs_auxiliary_response.png" });
+    console.log("Screenshot 7 saved: 07_duplex_vs_auxiliary_response.png");
 
-    // 8. Test Duplex Party Walls FRL 60/60/60
-    console.log("Step 8: Asking 'What are the fire and acoustic requirements for duplex party walls?'...");
+    // 10. Test Balustrades and Barriers
+    console.log("Step 10: Asking 'What are the balustrade requirements for a balcony?'...");
+    await page.fill(inputSelector, "What are the balustrade requirements for a balcony?");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/08_balustrades_response.png" });
+    console.log("Screenshot 8 saved: 08_balustrades_response.png");
+
+    // 11. Test Swimming Pool Fencing Laws
+    console.log("Step 11: Asking 'What are the pool fencing laws in NSW and QLD?'...");
+    await page.fill(inputSelector, "What are the pool fencing laws in NSW and QLD?");
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/09_pool_fencing_response.png" });
+    console.log("Screenshot 9 saved: 09_pool_fencing_response.png");
+
+    // 12. Test Duplex Party Walls FRL 60/60/60
+    console.log("Step 12: Asking 'What are the fire and acoustic requirements for duplex party walls?'...");
     await page.fill(inputSelector, "What are the fire and acoustic requirements for duplex party walls?");
     await page.keyboard.press("Enter");
     await page.waitForTimeout(2000);
+    await page.screenshot({ path: "playwright-screenshots/10_duplex_party_walls_response.png" });
+    console.log("Screenshot 10 saved: 10_duplex_party_walls_response.png");
 
-    await page.screenshot({ path: "playwright-screenshots/06_duplex_party_walls_response.png" });
-    console.log("Screenshot 6 saved: 06_duplex_party_walls_response.png");
-
-    // 9. Verify No "Gemini" or apologetic refusal notices anywhere on the page
-    console.log("Step 9: Verifying strict compliance rules (No Gemini, No apologies)...");
-    const pageContent = await page.content();
+    // 13. Verify No "Gemini" or apologetic refusal notices anywhere on the page
+    console.log("Step 13: Verifying strict compliance rules (No Gemini, No apologies)...");
     
     // Check for Gemini in user-facing text
     const hasGeminiMention = /Gemini/i.test(

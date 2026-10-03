@@ -1368,7 +1368,9 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
       detectedSuburb = cand.suburb
         .split(" ")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+        .join(" ")
+        .replace(/\s+(?:Road|Rd|Street|St|Avenue|Ave|Drive|Dr|Lane|Way|Crescent|Cres)\b/i, "")
+        .trim();
       detectedState = cand.state;
       break;
     }

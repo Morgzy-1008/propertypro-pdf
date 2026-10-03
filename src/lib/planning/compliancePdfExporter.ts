@@ -36,8 +36,19 @@ export function generateComplianceSummaryPdf({
   const j = assessment.jurisdiction;
   const p = assessment.parsedQuery;
   const r = assessment.ruleBreakdown;
+  let cleanSuburb = p.suburb || j.name;
+  if (cleanSuburb) {
+    cleanSuburb = cleanSuburb.replace(/\s+(?:Road|Rd|Street|St|Avenue|Ave|Drive|Dr|Lane|Way|Crescent|Cres)\b/i, "").trim();
+  }
+  if (p.streetName && cleanSuburb) {
+    const sLower = p.streetName.toLowerCase();
+    const subLower = cleanSuburb.toLowerCase();
+    if (sLower === subLower || sLower.includes(subLower) || subLower.includes(sLower)) {
+      cleanSuburb = j.name.replace(/ City Council| Shire Council| Council/i, "").trim();
+    }
+  }
   const propertyLabel = p.streetName
-    ? `${p.streetNumber || ""} ${p.streetName}, ${p.suburb || j.name}`.trim()
+    ? `${p.streetNumber ? p.streetNumber + " " : ""}${p.streetName}, ${cleanSuburb}`.trim()
     : p.rawQuery.replace(/^cc\s*(?:duplex|dual key)?\s*/i, "").trim() || "Target Property";
 
   const refId = `HH-CC-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;

@@ -439,12 +439,59 @@ export function generateHudsonKnowledgeResponse(
       query.includes("feasibility"));
 
   if (isPdfExportRequest) {
-    const assessment = _lastAssessment || evaluatePropertyFeasibility(message);
-    _lastAssessment = assessment;
+    const hasSpecificAddressOrLGA =
+      /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+      /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara|penrith|huntlee|cessnock|rothbury|calderwood|shellharbour|wollongong|harmony|aura/i.test(query);
+
+    let assessment: FeasibilityAssessmentResult | null = null;
+    if (hasSpecificAddressOrLGA) {
+      assessment = evaluatePropertyFeasibility(message);
+      _lastAssessment = assessment;
+    } else if (_lastAssessment) {
+      assessment = _lastAssessment;
+    }
+
+    if (!assessment) {
+      return {
+        answer: `### 📄 Compliance Report PDF Export — Property Address Required
+
+I am ready to generate an executive, Hudson-branded **Statutory Compliance & Feasibility Dossier PDF**, but there is no active property assessment in your current session.
+
+Please provide a property address to evaluate and export:
+- Type \`CC <address>\` (e.g. \`CC 131 Mount Cotton Road\` or \`CC 45 Smith Street, Penrith\`)
+- Or specify an address directly (e.g. *"Hudson AI, put the compliance check for 131 Mount Cotton Road into a downloaded PDF for me"*).
+
+Once evaluated, I will compile your executive 2-page PDF summary complete with setbacks, 7 site overlays, matching Hudson master designs, and our 50-Year Structural Warranty!`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "CC 131 Mount Cotton Road",
+          "CC duplex 61 Paradise Road, Flagstone",
+          "CC 45 Smith Street, Penrith",
+          "What inclusion ranges does Hudson Homes offer?",
+        ],
+        modelUsed: "hudson-pdf-engine",
+        assessmentData: null,
+        pdfDownloadReady: false,
+      };
+    }
+
     const j = assessment.jurisdiction;
-    const prop = assessment.parsedQuery.streetName
-      ? `${assessment.parsedQuery.streetNumber || ""} ${assessment.parsedQuery.streetName}, ${assessment.parsedQuery.suburb || j.name}`.trim()
-      : "131 Mount Cotton Road, Redland";
+    const p = assessment.parsedQuery;
+    let cleanSub = p.suburb || j.name;
+    if (cleanSub) {
+      cleanSub = cleanSub.replace(/\s+(?:Road|Rd|Street|St|Avenue|Ave|Drive|Dr|Lane|Way|Crescent|Cres)\b/i, "").trim();
+    }
+    if (p.streetName && cleanSub) {
+      const sLower = p.streetName.toLowerCase();
+      const subLower = cleanSub.toLowerCase();
+      if (sLower === subLower || sLower.includes(subLower) || subLower.includes(sLower)) {
+        cleanSub = j.name.replace(/ City Council| Shire Council| Council/i, "").trim();
+      }
+    }
+    const prop = p.streetName
+      ? `${p.streetNumber ? p.streetNumber + " " : ""}${p.streetName}, ${cleanSub}`.trim()
+      : j.name;
 
     return {
       answer: `### 📄 Executive Statutory Compliance & Feasibility Summary PDF Generated!
@@ -917,7 +964,18 @@ Hudson Homes protects every home with an engineered physical termite management 
   }
 
   // 3G. Energy Efficiency (NatHERS 7-Star & BASIX) & Insulation
-  if (query.includes("nathers") || query.includes("7 star") || query.includes("7-star") || query.includes("energy") || query.includes("basix") || query.includes("thermal") || query.includes("insulation") || query.includes("batts")) {
+  if (
+    (query.includes("nathers") ||
+      query.includes("7 star") ||
+      query.includes("7-star") ||
+      query.includes("energy") ||
+      query.includes("basix") ||
+      query.includes("thermal") ||
+      query.includes("insulation") ||
+      query.includes("batts")) &&
+    !query.includes("tank") &&
+    !query.includes("rainwater")
+  ) {
     return {
       answer: `### Energy Efficiency, NatHERS 7-Star & BASIX Compliance
 
@@ -1007,18 +1065,331 @@ All Hudson Homes structural foundations are designed strictly in accordance with
     };
   }
 
+  // 3H_PARTY_WALL. Duplex Party Walls & Fire/Acoustic Separation (NCC 2022 Part 3.7.3 & AS 1530.4)
+  if (
+    query.includes("party wall") ||
+    query.includes("fire wall") ||
+    query.includes("separating wall") ||
+    query.includes("frl 60") ||
+    query.includes("part 3.7.3") ||
+    query.includes("as 1530.4") ||
+    query.includes("rw+ctr") ||
+    query.includes("rw + ctr") ||
+    ((query.includes("duplex") || query.includes("dual occ")) &&
+      (query.includes("fire") || query.includes("acoustic") || query.includes("sound") || query.includes("separation") || query.includes("party")))
+  ) {
+    return {
+      answer: `### Dual-Occupancy Party Walls: Fire & Acoustic Separation (NCC 2022 Part 3.7.3 & AS 1530.4)
+
+When constructing attached dual-occupancy homes, duplexes, and townhouses, the central separating wall (**party wall**) must satisfy rigorous statutory fire and acoustic performance standards:
+
+#### 1. Fire Resistance Level (FRL 60/60/60):
+- Under **NCC 2022 Part 3.7.3** and **AS 1530.4 (Fire-resistance tests of elements of construction)**, the separating wall must achieve an **FRL of 60/60/60**:
+  - **Structural Adequacy: 60 minutes** (the wall supports structural load without collapsing during fire).
+  - **Integrity: 60 minutes** (prevents fire, flames, and hot toxic gases from passing through cracks or openings).
+  - **Insulation: 60 minutes** (limits heat transmission so unexposed wall surfaces do not ignite adjacent materials).
+- **Vertical Continuity**: The fire-rated barrier must extend continuously from the foundation concrete slab, through ceiling cavities, and finish tight against the underside of non-combustible roof covering (Colorbond or concrete tiles) or extend through as a fire parapet.
+
+#### 2. Acoustic Separation ($R_w + C_{tr} \\ge 50$):
+- **Airborne Sound Insulation**: The wall system must achieve a weighted sound reduction index of **$R_w + C_{tr} \\ge 50$** under AS/NZS ISO 717.1.
+- **Discontinuous Construction**:
+  - Twin independent timber stud frames separated by a minimum **20mm continuous air gap**.
+  - High-density acoustic glasswool or polyester insulation batts (minimum $R_w 2.5$) installed inside both stud cavities.
+  - A central fire-rated acoustic barrier (such as a 25mm fire-rated shaftliner or certified Knauf / CSR Bradford Partiwall / Promat system).
+  - High-density 13mm or 16mm fire-rated plasterboard linings.
+- Discontinuous construction mechanically isolates one dwelling from the other, preventing vibration and footstep impact noise transmission.
+
+#### 3. Service Penetrations & Electrical Layout:
+- **No Back-to-Back Outlets**: Electrical powerpoints, switches, and recessed light switches must never be installed back-to-back in the same stud bay. A minimum **300mm horizontal separation** is required.
+- **Intumescent Fire & Acoustic Sealant**: All perimeter junctions, plumbing pipes, and cabling penetrations are sealed with fire-rated mastic that expands dramatically when exposed to heat, sealing air gaps.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What dual occupancy designs does Hudson Homes offer?",
+        "What are the rules for building a duplex in Queensland vs NSW?",
+        "Tell me about the Wisteria 33 dual living design",
+        "What are the infrastructure charges for building a duplex?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3H_BALUSTRADE. Balustrades, Handrails & Fall Prevention (NCC 2022 Part 11.2 & AS 1170.1)
+  if (
+    query.includes("balustrade") ||
+    query.includes("barrier") ||
+    query.includes("handrail") ||
+    query.includes("stair rail") ||
+    query.includes("balcony rail") ||
+    query.includes("fall prevention")
+  ) {
+    return {
+      answer: `### Balustrades, Barriers & Fall Prevention Compliance (NCC 2022 Part 11.2 & AS 1170.1)
+
+All Hudson Homes balconies, elevated decks, external landings, and internal staircases comply strictly with **NCC 2022 Volume Two Part 11.2** and **AS 1170.1 (Structural Design Actions)**:
+
+#### 1. When is a Balustrade / Barrier Legally Mandated?
+- A continuous barrier is mandatory along the edge of any trafficable surface (balcony, deck, veranda, landing, stair, or mezzanine) where the finished floor level is **1.0 metre or more above the ground or surface below**.
+
+#### 2. Height Clearances & Dimensions:
+- **Balconies, Decks & Landings**: Minimum height of **1000mm (1.0m)** measured vertically above the finished surface level.
+- **Staircases & Ramps**: Minimum height of **865mm** measured vertically above the nosing line of stair treads.
+- **Transitional Landings**: Where a stair landing exceeds 500mm length, the barrier height must transition to **1000mm**.
+
+#### 3. Openings & Spherical Clearance:
+- **125mm Maximum Opening**: Openings between balusters, intermediate rails, or bottom rails must not permit a **125mm diameter sphere** to pass through at any point.
+- Prevents children from slipping through or becoming trapped between balusters.
+
+#### 4. Anti-Climb Zone for Elevated Falls (> 4.0m):
+- Where the potential fall height exceeds **4.0 metres** (such as upper-floor double-storey balconies or grand facades):
+  - Any horizontal or near-horizontal climbable elements (transoms or intermediate rails) between **150mm and 760mm above the floor** are strictly prohibited.
+  - Balustrades must feature vertical uprights or flush solid panels to prevent children climbing.
+
+#### 5. Material Specifications:
+- **Semi-Frameless & Frameless Glazing**: Toughened safety glass (minimum 10mm to 12mm thickness) or structural laminated glass certified to **AS 1288 (Glass in Buildings)** with stainless steel spigots or aluminium base channels.
+- **Architectural Aluminium**: Corrosion-resistant powder-coated aluminium vertical balusters fixed with concealed stainless steel fasteners.
+- **Engineered Structural Load Testing**: Sized to resist minimum **0.75 kN/m point loads** and **0.6 kN/m distributed lateral forces** without permanent deflection.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What facade options are available for double storey homes?",
+        "Tell me about H3 Luxury Inclusions",
+        "What are the rules for swimming pools and pool fencing?",
+        "What wind classification does Hudson Homes build for?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3H_POOL. Swimming Pools & Pool Safety Barriers (AS 1926.1, AS 1926.2 & NCC Part 3.9.3)
+  if (
+    query.includes("pool fence") ||
+    query.includes("pool fencing") ||
+    query.includes("swimming pool") ||
+    query.includes("pool barrier") ||
+    query.includes("pool safety") ||
+    query.includes("as 1926") ||
+    (query.includes("pool") && (query.includes("fence") || query.includes("fencing") || query.includes("barrier") || query.includes("law") || query.includes("rule") || query.includes("gate") || query.includes("safety") || query.includes("compliance")))
+  ) {
+    return {
+      answer: `### Swimming Pools & Pool Fencing Safety Laws (AS 1926.1, AS 1926.2 & NCC Part 3.9.3)
+
+For properties incorporating a swimming pool, spa, or outdoor plunge pool, safety barriers must satisfy mandatory state legislation (Queensland *Building Act 1975* & NSW *Swimming Pools Act 1992*) and **AS 1926.1 (Safety Barriers for Swimming Pools)**:
+
+#### 1. Minimum Barrier Height & Ground Clearances:
+- **Barrier Height**: Minimum **1200mm (1.2m)** measured continuously on the outside of the barrier from the finished ground surface.
+- **Gap Beneath Barrier**: Maximum **100mm clearance** between the bottom of the fence and any permanent ground surface (turf, pavers, or concrete).
+
+#### 2. Pool Access Gates & Latching Devices:
+- **Outward Opening**: Pool gates must swing **outward away from the pool area** at all times.
+- **Self-Closing & Self-Latching**: Gate must be fitted with a spring hinge mechanism that automatically closes and latches from any open position, including when resting against the latch.
+- **Latch Height**: The latch release mechanism must be positioned at least **1500mm above finished ground level** on the outside of the fence (or inside behind a compliant shield).
+
+#### 3. 900mm Non-Climbable Zone (NCZ):
+- A **900mm radius non-climbable zone** is legally mandated on the outside of the barrier.
+- **Zero Climbable Footholds**: No tree branches, boundary fence rails, barbecues, air conditioning condenser units, retaining walls, potted plants, or taps may be located within this 900mm arc.
+- If an existing boundary fence forms part of the pool barrier:
+  - It must have a minimum height of **1800mm measured from the inside (pool side)**.
+
+#### 4. Dwelling Doors & Windows Facing the Pool:
+- **Direct Dwelling Doors Prohibited**: In modern builds across NSW and QLD, **direct door access from habitable rooms into the pool area is strictly prohibited** without an intervening isolating pool barrier.
+- **Window Openings**: Any window opening directly into the pool area with a sill height < 1800mm must either:
+  1. Be permanently restricted to open no more than **100mm** using security screws or riveted window restrictors.
+  2. Be fitted with heavy-duty security screens complying with **AS 5039**.
+
+#### 5. CPR Resuscitation Signage:
+- A weatherproof cardiopulmonary resuscitation (CPR) sign displaying current DRSABCD emergency guidance must be prominently displayed within direct view of the pool enclosure.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are balustrade and barrier requirements?",
+        "What is included in the Turn-Key Landscape Package (LP)?",
+        "What fixed site costs does Hudson Homes cover?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3H_CDC_DA. Planning Pathways: CDC vs DA in NSW
+  if (
+    (query.includes("cdc") && (query.includes("da") || query.includes("versus") || query.includes("vs") || query.includes("difference") || query.includes("path"))) ||
+    query.includes("complying development") ||
+    (query.includes("difference") && query.includes("cdc")) ||
+    query.includes("private certifier vs council") ||
+    (query.includes("planning path") && query.includes("nsw"))
+  ) {
+    return {
+      answer: `### NSW Planning Approvals: Complying Development (CDC) vs Development Application (DA)
+
+In New South Wales, residential home and dual-occupancy construction proceeds via one of two statutory approval pathways:
+
+#### 1. Complying Development Certificate (CDC) — Fast-Track Private Certifier:
+- **Governing Policy**: NSW State Environmental Planning Policy (Housing) 2021 (**Low Rise Housing Diversity Code** & Codes SEPP).
+- **Approval Authority**: Registered Private Certifier (accredited building surveyor) or Local Council.
+- **Fast-Track Assessment**: Legally approved in **as little as 20 business days** once documentation is lodged.
+- **Strict Pre-Set Code Standards**:
+  - Site must satisfy objective standards: minimum lot size (e.g. 500m² for attached dual occupancy in R2), minimum 15m–18m frontage, standard boundary setbacks, and maximum site coverage.
+  - **Zero Neighbor Objections**: Neighbors receive statutory 14-day pre-approval notification, but the certifier **must approve the application if it complies 100% with the code** (no subjective neighbor objections or council committee politics).
+- **Exclusions**: CDC cannot be utilized on land affected by critical biodiversity, high-risk flood planning areas, uncertified bushfire BAL-40/BAL-FZ, or State Heritage registers.
+
+#### 2. Development Application (DA) — Local Municipal Council Assessment:
+- **Governing Instrument**: Local Council Local Environmental Plan (LEP) & Development Control Plan (DCP) (e.g. Camden LEP, Blacktown LEP, The Hills LEP).
+- **Approval Authority**: Local Municipal Council Planning Department.
+- **Assessment Timeline**: Typically **60 to 120+ business days** (longer if additional information RFI requests or council panels occur).
+- **When is DA Required?**:
+  - Lots seeking variations to standard setback envelopes, building height, or site coverage.
+  - Irregular, narrow, or steeply sloping allotments (> 15% gradient).
+  - Properties subject to local heritage conservation overlays, specific overland flow flood zones, or environmentally sensitive corridors.
+- **Public Exhibition**: Mandatory public notification where neighbors can lodge formal submissions. Council retains subjective discretion to request plan modifications.
+
+#### 3. Hudson Homes Strategy & Value:
+- Hudson Homes architects and siting technicians **design specifically to achieve 100% CDC compliance wherever possible**.
+- This saves homeowners and investors **2 to 4 months of holding costs and construction loan interest**, getting your home out of the ground faster!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the rules for building a duplex under NSW CDC?",
+        "What dual occupancy designs does Hudson Homes offer?",
+        "What fixed site costs does Hudson Homes cover?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3H_DUPLEX_VS_AUXILIARY. Duplex (Dual Occupancy) vs Auxiliary Unit (Secondary Dwelling / Dual Key)
+  if (
+    ((query.includes("duplex") || query.includes("dual occ") || query.includes("dual occupancy")) &&
+      (query.includes("auxiliary") || query.includes("secondary dwelling") || query.includes("dual key") || query.includes("dual-key") || query.includes("granny flat"))) ||
+    ((query.includes("difference") || query.includes("versus") || query.includes("vs") || query.includes("compare") || query.includes("between")) &&
+      (query.includes("duplex") || query.includes("auxiliary") || query.includes("dual key") || query.includes("secondary dwelling")))
+  ) {
+    return {
+      answer: `### Duplex (Dual Occupancy) vs Auxiliary Unit (Secondary Dwelling / Dual-Key)
+
+Understanding the statutory, title, and financial distinctions between a Duplex and an Auxiliary Unit is essential for property investors and developers across Queensland and New South Wales:
+
+| Feature / Metric | **Duplex (Dual Occupancy)** | **Auxiliary Unit (Secondary Dwelling / Dual-Key)** |
+|---|---|---|
+| **Statutory Definition** | Two complete, self-contained residential dwellings on a single cadastral allotment (attached side-by-side or stacked). | A smaller, subordinate self-contained dwelling established in conjunction with a primary dwelling under the same continuous roofline or detached. |
+| **Title & Subdivision** | **Subdivisible**: Can typically be subdivided into two separate Torrens Titles (NSW) or Freehold Titles / Strata Titles (QLD), subject to meeting council minimum lot size (e.g. 500m² under NSW CDC or 600m²–800m² in QLD). Each can be sold individually. | **Single Title Only**: Remains permanently bound to the primary dwelling on one title. Cannot be separately subdivided, strata-titled, or sold off independently. |
+| **Dwelling Size / GFA Limits** | **No statutory cap on GFA**: Both dwellings can be full-sized family homes (e.g., 4 Bed + 4 Bed, 180m² each). Governed only by boundary setbacks and maximum site coverage (50%–60%). | **Strict Floor Area Cap**: <br>• **Queensland**: Maximum **70m² GFA** (Logan, Redland) or **65m² GFA** (Ipswich) or **80m² GFA** (Gold Coast). <br>• **NSW**: Maximum **60m² GFA** under State Environmental Planning Policy (Housing) 2021. |
+| **Council Infrastructure Charges** | **Full Charges Levied**: Local council / EDQ levies full trunk infrastructure headworks contributions on the second dwelling (typically **$25,000 to $33,000+** in QLD; **Section 7.11 / 7.12** in NSW). | **$0 INFRASTRUCTURE EXEMPTION (QLD)**: In most SEQ councils (Logan, Ipswich, Moreton Bay, Redland), an auxiliary unit under 70m² is **100% EXEMPT ($0 charges)** from infrastructure contributions! |
+| **Tenancy & Income Potential** | Both dwellings can be leased to independent, unrelated tenants on separate tenancy agreements, generating two full market rental incomes. | Under QLD planning reforms (September 2022), auxiliary units can now be legally rented to unrelated tenants on separate residential leases, unlocking high-yielding dual cashflow on a single rates notice. |
+| **Utility Metering & Connections** | Mandatory separate water meters, electrical meters (Two-Phase / Three-Phase supply), and telecommunications connections. | Typically shared service mains with optional private sub-metering (check meters) for water and electricity. |
+| **Recommended Hudson Designs** | **Wisteria Range (33, 34, 36, 40)**, **Alabaster Range (31, 36, 40)**, **Magnolia (34, 37)**. | **Amber 21 (Auxiliary Suite)**, **Emerald 23**, or **Wisteria 33 Dual Living Configuration**. |`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the infrastructure charges for building a duplex in Queensland?",
+        "What are the setback rules for building a duplex under NSW CDC?",
+        "Tell me about the Amber 21 Dual Suite design",
+        "What dual occupancy designs does Hudson Homes offer?",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3H_CONDENSATION. NCC 2022 Condensation Management (Part 10.8 & AS 4200)
+  if (
+    query.includes("condensation") ||
+    query.includes("vapour permeable") ||
+    query.includes("vapor permeable") ||
+    query.includes("exhaust duct") ||
+    query.includes("wall wrap") ||
+    query.includes("as 4200") ||
+    (query.includes("ncc") && query.includes("ventilation"))
+  ) {
+    return {
+      answer: `### NCC 2022 Condensation Management & Vapour Permeability (Part 10.8 & AS 4200)
+
+Under **NCC 2022 Volume Two Part 10.8** and **AS 4200.1 / AS 4200.2 (Pliable Building Membranes and Underlays)**, Australian residential homes must integrate engineered condensation control to safeguard structural timbers and indoor air quality:
+
+#### 1. Mandatory Vapour-Permeable Wall Wraps:
+- In cooler southern regions and humid coastal sub-tropical zones (Climate Zones 2, 6, 7, 8):
+  - External framed walls must be wrapped with a certified **Class 3 or Class 4 vapour-permeable pliable membrane** (such as Bradford Enviroseal or James Hardie Weather Barrier).
+  - **How it Works**: Allows internal moisture vapour (from cooking, showering, and breathing) to escape naturally outward through the building envelope without condensing into liquid water on structural timber studs, avoiding dry rot, framing decay, and toxic mould.
+
+#### 2. Dedicated Exhaust Ducting Directly to Outside Atmosphere:
+- **Zero Ceiling Space Discharges**: Discharging bathroom, ensuite, laundry, or kitchen rangehood exhaust into an unvented roof space or ceiling cavity is **strictly prohibited**.
+- **Ducted to Outside Air**:
+  - All exhaust systems must be ducted continuously to the external atmosphere via an external wall louvre, eave vent, or roof penetration cowl.
+  - **Minimum Airflow Rates**:
+    - Bathrooms & Sanitary Compartments: Minimum **25 L/s** (intermittent) or **21 L/s** (continuous).
+    - Kitchen Cooktops & Rangehoods: Minimum **40 L/s** (intermittent).
+  - All exhaust ductwork must incorporate a self-closing non-return backdraft damper to prevent cold outside air or driving rain entering when the fan is switched off.
+
+#### 3. Roof Space Ventilation Requirements:
+- Where metal sheet roofing (e.g. Colorbond) or concrete tiles are installed with ceiling insulation batts:
+  - Roof cavities must provide balanced air circulation.
+  - A minimum **25,000 mm² of open ventilation area per 100 m² of ceiling area** is mandated, achieved through eaves soffit slot vents and ventilated ridge capping cowls.
+  - Continuous airflow expels moist warm air before it can contact cold metal roof sheets during winter nights.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What energy efficiency star rating do Hudson homes achieve?",
+        "What timber framing specifications does Hudson Homes use?",
+        "What is the difference between H1 Smart and H2 Designer?",
+        "Tell me about the 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3H_WATER_TANK. Rainwater Harvesting & BASIX Water Conservation
+  if (
+    query.includes("rainwater") ||
+    query.includes("water tank") ||
+    query.includes("basix water") ||
+    (query.includes("tank") && (query.includes("water") || query.includes("size") || query.includes("capacity") || query.includes("plumbed")))
+  ) {
+    return {
+      answer: `### Rainwater Harvesting & BASIX Water Conservation (NSW & QLD)
+
+Hudson Homes integrates water-saving systems calibrated to statutory state benchmarks and developer estate covenants:
+
+#### 1. New South Wales (NSW) BASIX Certificate Mandates:
+- **Standard Rainwater Tank Capacity**:
+  - **2,000 to 5,000 Litres** (typically a 3,000L slimline poly or Colorbond steel tank with automatic submersible or external pump).
+- **Mandatory Plumbing Connections**:
+  - Plumbed directly to **all toilet cisterns**.
+  - Plumbed to the **cold water washing machine tap** in the laundry.
+  - Plumbed to at least **one external garden hose tap** for landscaping irrigation.
+- **Mains Water Top-Up**:
+  - Equipped with an automatic mains-water diverter valve (e.g. Davey RainBank or Bianco Rainsaver) that seamlessly switches to town water when rainwater is depleted.
+- **BASIX 40%+ Target**: Satisfies NSW BASIX requirements to reduce potable mains water consumption by at least 40% compared to benchmark homes.
+
+#### 2. Queensland (QLD) Water Management (QDC MP 4.2):
+- **High-Efficiency WELS Fixtures**:
+  - Standard builds utilize WELS 3-Star rated showerheads (<= 9 L/min), WELS 4-Star dual flush toilets (4.5L/3L), and WELS 4-Star tapware.
+- **Estate Covenants & Rainwater Tanks**:
+  - Where required by specific local council planning schemes or master-planned estates (e.g. Redland, Ipswich, or acreage estates), a 5,000L poly tank is installed and plumbed to internal sanitary fixtures.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What fixed site costs does Hudson Homes cover in NSW vs QLD?",
+        "What is included in the Turn-Key Landscape Package (LP)?",
+        "What is the difference between H1 Smart and H2 Designer?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
   // 3H_BAL. Bushfire Attack Level (AS 3959 BAL Standards)
   if (
-    query.includes("bushfire") ||
-    query.includes("bal-") ||
-    query.includes("bal ") ||
-    query.includes("bal 12.5") ||
-    query.includes("bal 19") ||
-    query.includes("bal 29") ||
-    query.includes("bal 40") ||
-    query.includes("bal fz") ||
-    query.includes("ember") ||
-    query.includes("fire rating")
+    (query.includes("bushfire") ||
+      query.includes("bal-") ||
+      /\bbal\s*(?:low|12\.5|19|29|40|fz)\b/i.test(query) ||
+      /\bbal[-\s]?\d+/i.test(query) ||
+      query.includes("ember attack") ||
+      query.includes("as 3959") ||
+      query.includes("flame zone") ||
+      (query.includes("fire") && (query.includes("bal") || query.includes("bushfire")))) &&
+    !query.includes("balustrade") &&
+    !query.includes("balcony") &&
+    !query.includes("party wall") &&
+    !query.includes("duplex")
   ) {
     return {
       answer: `### Bushfire Attack Level (BAL) Standards (AS 3959)
@@ -1054,14 +1425,13 @@ Hudson Homes constructs homes across all bushfire hazard categories under **AS 3
 
   // 3H_ACOUSTIC. Acoustic & Road Noise Corridors (QDC MP 4.4 & NSW SEPP Transport)
   if (
-    query.includes("acoustic") ||
-    query.includes("noise") ||
-    query.includes("traffic noise") ||
-    query.includes("road noise") ||
-    query.includes("qdc mp 4.4") ||
-    query.includes("sound transmission") ||
-    query.includes("double glazed") ||
-    query.includes("laminated glass")
+    (query.includes("traffic noise") ||
+      query.includes("road noise") ||
+      query.includes("qdc mp 4.4") ||
+      query.includes("noise corridor") ||
+      query.includes("sound transmission") ||
+      (query.includes("acoustic") && !query.includes("party wall") && !query.includes("duplex") && !query.includes("separating wall")) ||
+      (query.includes("noise") && !query.includes("party wall") && !query.includes("duplex")))
   ) {
     return {
       answer: `### Acoustic & Road Traffic Noise Mitigation (QDC MP 4.4 & NSW SEPP Transport)
@@ -1381,36 +1751,50 @@ The **IP Investment Range** is our purpose-built, 100% turn-key solution designe
     };
   }
 
-  // 3H5. Infrastructure Charges & Council Headworks (QLD & NSW)
+  // 3H5. Infrastructure Charges, Section 7.11 & Council Headworks (QLD & NSW)
   if (
     query.includes("infrastructure charge") ||
     query.includes("headworks") ||
     query.includes("headwork") ||
-    (query.includes("charge") && (query.includes("duplex") || query.includes("auxiliary") || query.includes("queensland") || query.includes("qld")))
+    query.includes("7.11") ||
+    query.includes("7.12") ||
+    query.includes("developer contribution") ||
+    query.includes("section 7") ||
+    (query.includes("charge") && (query.includes("council") || query.includes("duplex") || query.includes("auxiliary") || query.includes("lga") || query.includes("queensland") || query.includes("qld") || query.includes("nsw") || query.includes("moreton") || query.includes("logan") || query.includes("brisbane") || query.includes("ipswich") || query.includes("blacktown") || query.includes("camden") || query.includes("hills")))
   ) {
     return {
-      answer: `### Infrastructure Charges & Council Headworks in Queensland & NSW
+      answer: `### Infrastructure Charges, Section 7.11 / 7.12 & Council Headworks (QLD & NSW)
 
-When building a dual occupancy or duplex, local councils and statutory authorities levy infrastructure charges (headworks) for the additional dwelling entitlement:
+When building a dual occupancy, duplex, or secondary dwelling, local municipal councils and statutory economic development authorities levy infrastructure contributions (headworks) for additional trunk water, sewer, stormwater, transport, and community infrastructure networks:
 
-1. **Queensland Council & PDA Rates**:
-   - In Queensland, infrastructure charges for a second duplex dwelling typically range between **$25,000 to $33,000+** per additional dwelling:
-     - **EDQ Priority Development Areas (Flagstone / Ripley / Yarrabilba)**: Approx. **$28,500 – $29,500** per additional dwelling under EDQ infrastructure charging schedules.
-     - **Logan City Council**: Approx. **$31,000** per additional dwelling.
-     - **Ipswich City Council**: Approx. **$30,000** per additional dwelling.
-     - **City of Moreton Bay**: Approx. **$31,500** per additional dwelling.
-     - **Brisbane City Council**: Approx. **$33,000** per additional dwelling.
+#### 1. Queensland Council & PDA Infrastructure Charges:
+Under the *Planning Act 2016* and local State Planning Regulatory Provisions, statutory capped infrastructure charges apply to any second duplex dwelling:
+- **City of Moreton Bay**: Approx. **$31,500** per additional dwelling.
+- **Brisbane City Council**: Approx. **$33,000** per additional dwelling.
+- **Logan City Council**: Approx. **$31,000** per additional dwelling.
+- **Ipswich City Council**: Approx. **$30,000** per additional dwelling.
+- **City of Gold Coast**: Approx. **$22,000 to $25,000** per additional dwelling.
+- **EDQ Priority Development Areas (Flagstone / Ripley / Yarrabilba)**: Approx. **$28,500 to $29,500** per additional dwelling under EDQ infrastructure charging schedules.
 
-2. **$0 Auxiliary Unit Exemption (Massive Investor Advantage)**:
-   - In most Queensland councils (such as Logan, Ipswich, and Moreton Bay), an **Auxiliary Unit** (a secondary living dwelling under the main roofline, maximum 65m²–70m² GFA) is **EXEMPT ($0 charges)** from council infrastructure contributions! This saves investors ~$30,000 in upfront costs compared to a full duplex.
+#### 2. The $0 Auxiliary Unit Exemption (Huge Investor Advantage in QLD):
+- Across most South East Queensland local governments (including **Logan, Ipswich, Moreton Bay, and Redland**), an **Auxiliary Unit** (a secondary living dwelling under the primary roofline, maximum 65m²–70m² GFA under single title) is **100% EXEMPT ($0 charges)** from council infrastructure contributions!
+- This provides an immediate **$30,000+ upfront cashflow saving** for investors building dual living compared to a full Torrens/strata subdivisible duplex.
 
-3. **New South Wales Section 7.11 / 7.12**:
-   - In NSW, council contributions under Section 7.11 or 7.12 typically range between **$20,000 to $35,000** depending on the LGA (e.g. Camden, Blacktown, Central Coast).`,
+#### 3. New South Wales Section 7.11 & 7.12 Developer Contributions:
+Under the *Environmental Planning and Assessment Act 1979 (EP&A Act)*, NSW local councils levy local infrastructure contributions prior to the release of the Construction Certificate (CC):
+- **Blacktown City Council (Contributions Plan No. 24 - CP24 / Schofields & Marsden Park)**: Historically capped at **$45,000 to $50,000+** per residential lot/dwelling under NSW ministerial directions for greenfield land release.
+- **Camden Council (Section 7.11 / South West Growth Centre)**: Approx. **$20,000 to $35,000** per additional dwelling.
+- **The Hills Shire (CP15 / Box Hill & North Kellyville)**: Typically **$30,000 to $45,000+** per dwelling.
+- **Liverpool City Council**: Approx. **$20,000 to $25,000** per dwelling.
+- **Penrith City Council**: Approx. **$19,000 to $22,000** per dwelling.
+- **Central Coast Council & Hunter (Maitland / Cessnock)**: Approx. **$15,000 to $22,000** per additional dwelling.
+- **Secondary Dwellings (Granny Flats in NSW)**: Subject to concessional Section 7.11/7.12 contributions ranging between **$6,000 to $9,000** depending on the specific LGA contribution plan.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
         "What is the difference between a duplex and a dual-key auxiliary dwelling?",
         "What are the rules for building a duplex in Greater Flagstone PDA?",
+        "What are the setback rules for building a duplex under NSW CDC?",
         "Tell me about the Wisteria 33 dual living design",
       ],
       modelUsed: "universal-planning-engine",
@@ -1580,9 +1964,10 @@ Hudson Homes includes high-quality acrylic bathtubs and sanitaryware suited to e
       query.includes("clothesline") ||
       query.includes("letterbox") ||
       query.includes("turnkey package") ||
-      (query.includes("fencing") && !query.includes("site") && !query.includes("security"))) &&
+      (query.includes("fencing") && !query.includes("site") && !query.includes("security") && !query.includes("pool"))) &&
     !query.includes("ip") &&
-    !query.includes("invest")
+    !query.includes("invest") &&
+    !query.includes("pool")
   ) {
     return {
       answer: `### Hudson Homes Turn-Key Landscape Package (LP)
@@ -1638,121 +2023,6 @@ Hudson Homes House & Land packages operate under a streamlined **two-part contra
     };
   }
 
-  // 3K. Progress Payment Schedule (HIA Contract Milestones & Percentages)
-  if (query.includes("progress payment") || query.includes("payment stage") || query.includes("drawdown") || query.includes("claim stage") || query.includes("percentage") || query.includes("percent") || query.includes("base stage") || query.includes("lock-up") || query.includes("lock up") || query.includes("practical completion")) {
-    return {
-      answer: `### Hudson Homes HIA Construction Progress Payment Schedule
-
-Hudson Homes follows standard HIA (Housing Industry Association) and Master Builders milestone payment stages:
-
-1. **Deposit / Preliminary Stage (5%)**:
-   - Initial deposit upon tender signing and preliminary work (soil test, survey, architectural drafting, council DA/CDC submission).
-
-2. **Base Stage (15%)**:
-   - **15% payable at Base stage**: Earthworks completed, underground plumbing/drainage laid, vapour barrier and steel reinforcement placed, and concrete slab poured and inspected.
-
-3. **Frame Stage (20%)**:
-   - Wall frames, structural posts, and engineered roof trusses fully erected, tied down, and certified by a structural certifier.
-
-4. **Enclosed / Lock-Up Stage (25%)**:
-   - **25% payable at Lock-Up stage**: External brickwork/cladding installed, roof tiles or Colorbond sheeted, windows and external doors installed and locked.
-
-5. **Fixing Stage (20%)**:
-   - Plasterboard wall and ceiling linings, skirting, architraves, waterproofing, wet area tiling, kitchen cabinetry, and bathroom vanities installed.
-
-6. **Practical Completion / Final Handover (15%)**:
-   - **15% payable at Practical Completion**: Painting, plumbing & electrical fit-off, appliances installed, final quality QA inspection, occupancy certificate issued, and keys handed over!`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "Tell me about the 50-Year Structural Warranty",
-        "What fixed site costs does Hudson Homes include?",
-        "How does the Quote Builder work?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 3L. Knock-Down Rebuild (KDRB)
-  if (query.includes("kdrb") || query.includes("knock down") || query.includes("knockdown") || query.includes("demolition")) {
-    return {
-      answer: `### Knock-Down Rebuild (KDRB) Specialists
-
-Hudson Homes is a recognized Knock-Down Rebuild specialist across Sydney Metro, Central Coast, Hunter, and South East Queensland:
-
-1. **Why Choose KDRB with Hudson**:
-   - Stay in the suburb, street, and school catchment you love while upgrading to an expansive, 7-Star energy-rated luxury home.
-   - Often more cost-effective per square metre than major renovations or buying an expensive established home (with heavy stamp duty).
-
-2. **Complete End-to-End Service**:
-   - **Site Feasibility & Topography**: Contour survey, boundary check, and hydraulic stormwater discharge evaluation.
-   - **Demolition Advisory**: Recommendations and coordination with licensed demolition contractors.
-   - **Fast-Track CDC Approvals**: We design to comply with NSW Housing SEPP (Complying Development Certificate), avoiding council DA delays.
-   - **Fixed Price Site Costs**: Piering, foundation engineering, and council fees all locked in upfront.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What is the difference between CDC and DA in NSW?",
-        "What inclusion ranges does Hudson Homes offer?",
-        "Tell me about H3 Luxury inclusions",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 3M. NCC 2022 Livable Housing Design Standard
-  if (query.includes("livable") || query.includes("ncc 2022") || query.includes("accessibility") || query.includes("step free") || query.includes("step-free")) {
-    return {
-      answer: `### NCC 2022 Livable Housing Design Standard
-
-Every Hudson home meets the mandatory National Construction Code (NCC 2022) **Silver-level Livable Housing provisions**:
-
-1. **Accessible Siting & Entrance**:
-   - At least one step-free continuous path of travel from street or garage through to the dwelling entrance.
-   - Stepless threshold doorway at the primary entrance for smooth pram and mobility access.
-
-2. **Wider Internal Doorways & Hallways**:
-   - Minimum 820mm clear opening width for all ground-floor habitable doors and corridors.
-
-3. **Ground-Floor Bathroom Accessibility**:
-   - Hobless / level flush threshold shower stall on ground floor.
-   - Reinforced structural bathroom and toilet walls with timber blocking installed behind walls to permit future grab rail installation.
-   - Generous clear circulation space around sanitary fixtures.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What energy efficiency star rating do Hudson homes achieve?",
-        "What ceiling heights come standard in H1 vs H2?",
-        "What fixed site costs does Hudson Homes cover?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 3N. Bushfire (BAL) & Acoustic Overlays
-  if (query.includes("bal") || query.includes("bushfire") || query.includes("acoustic") || query.includes("noise") || query.includes("sound")) {
-    return {
-      answer: `### Bushfire Attack Levels (BAL) & Acoustic Overlays
-
-Hudson Homes has extensive experience constructing in bushfire and acoustic hazard overlays across NSW and QLD:
-
-1. **Bushfire Attack Level (BAL) Compliance**:
-   - Engineered for all ratings: **BAL-LOW, BAL-12.5, BAL-19, BAL-29, and BAL-40**.
-   - Specifications include: corrosion-resistant metal mesh ember guards (≤2mm aperture) to openable windows, weep holes, and roof vents; toughened safety glass; fire-retardant seals to garage sectional doors; and non-combustible external wall linings and eaves.
-
-2. **Acoustic Noise Overlays**:
-   - For properties near arterial roads, freight corridors, or rail lines (Category 1, 2, 3 acoustic overlays), Hudson incorporates certified acoustic glazing (6.38mm / 10.38mm laminated glass), solid core external doors with acoustic seals, and SoundScreen acoustic wall batts.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What fixed site costs does Hudson Homes include?",
-        "What soil classifications are covered up to H-class?",
-        "What is the difference between CDC and DA in NSW?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
   // 3O. First Home Owner Grants & Stamp Duty Concessions
   if (query.includes("fhog") || query.includes("grant") || query.includes("30,000") || query.includes("10,000") || query.includes("first home grant") || (query.includes("stamp duty") && (query.includes("exempt") || query.includes("first home")))) {
     return {
@@ -1782,7 +2052,12 @@ Hudson Homes packages are designed and priced to maximize state first-home buyer
   }
 
   // 3P. Roofing & Roof Coverings
-  if (query.includes("roof") || query.includes("roofing") || query.includes("colorbond") || query.includes("tile")) {
+  if (
+    (query.includes("roof") || query.includes("roofing") || query.includes("colorbond") || query.includes("tile")) &&
+    !query.includes("damp") &&
+    !query.includes("rebate") &&
+    !query.includes("proofing")
+  ) {
     return {
       answer: `### Hudson Homes Roofing Specifications
 
@@ -2224,56 +2499,6 @@ For properties in suburban renewal corridors or councils with strict stormwater 
     };
   }
 
-  // 3AB. Party Walls & Dual-Occupancy Compliance (NCC 2022 Part 3.7.3 & AS 1530.4)
-  if (
-    query.includes("party wall") ||
-    query.includes("fire wall") ||
-    query.includes("separating wall") ||
-    query.includes("frl 60/60/60") ||
-    query.includes("part 3.7.3") ||
-    query.includes("as 1530.4") ||
-    query.includes("rw+ctr") ||
-    query.includes("acoustic rw") ||
-    query.includes("fire separation") ||
-    query.includes("acoustic separation") ||
-    query.includes("sound insulation duplex")
-  ) {
-    return {
-      answer: `### Dual-Occupancy Party Walls: Fire & Acoustic Separation (NCC 2022 Part 3.7.3 & AS 1530.4)
-
-When constructing attached dual-occupancy homes, duplexes, and townhouses, the central separating wall (**party wall**) must satisfy rigorous statutory fire and acoustic performance standards:
-
-#### 1. Fire Resistance Level (FRL 60/60/60):
-- Under **NCC 2022 Part 3.7.3** and **AS 1530.4 (Fire-resistance tests of elements of construction)**, the separating wall must achieve an **FRL of 60/60/60**:
-  - **Structural Adequacy: 60 minutes** (the wall supports structural load without collapsing during fire).
-  - **Integrity: 60 minutes** (prevents fire, flames, and hot toxic gases from passing through cracks or openings).
-  - **Insulation: 60 minutes** (limits heat transmission so unexposed wall surfaces do not ignite adjacent materials).
-- **Vertical Continuity**: The fire-rated barrier must extend continuously from the foundation concrete slab, through ceiling cavities, and finish tight against the underside of non-combustible roof covering (Colorbond or concrete tiles) or extend through as a fire parapet.
-
-#### 2. Acoustic Separation ($R_w + C_{tr} \ge 50$):
-- **Airborne Sound Insulation**: The wall system must achieve a weighted sound reduction index of **$R_w + C_{tr} \ge 50$** under AS/NZS ISO 717.1.
-- **Discontinuous Construction**:
-  - Twin independent timber stud frames separated by a minimum **20mm continuous air gap**.
-  - High-density acoustic glasswool or polyester insulation batts (minimum $R_w 2.5$) installed inside both stud cavities.
-  - A central fire-rated acoustic barrier (such as a 25mm fire-rated shaftliner or certified Knauf / CSR Bradford Partiwall / Promat system).
-  - High-density 13mm or 16mm fire-rated plasterboard linings.
-- Discontinuous construction mechanically isolates one dwelling from the other, preventing vibration and footstep impact noise transmission.
-
-#### 3. Service Penetrations & Electrical Layout:
-- **No Back-to-Back Outlets**: Electrical powerpoints, switches, and recessed light switches must never be installed back-to-back in the same stud bay. A minimum **300mm horizontal separation** is required.
-- **Intumescent Fire & Acoustic Sealant**: All perimeter junctions, plumbing pipes, and cabling penetrations are sealed with fire-rated mastic that expands dramatically when exposed to heat, sealing air gaps.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What dual occupancy designs does Hudson Homes offer?",
-        "What are the rules for building a duplex in Queensland vs NSW?",
-        "Tell me about the Wisteria 33 dual living design",
-        "What are the infrastructure charges for building a duplex?",
-      ],
-      modelUsed: "hudson-engineering-engine",
-    };
-  }
-
   // 3AC. Facade Options & Architectural Finishes
   if (
     query.includes("facade") ||
@@ -2394,6 +2619,52 @@ Hudson Homes provides a transparent, structured pathway from initial concept thr
   // -------------------------------------------------------------------------
   // 4. BROAD INCLUSION & PRODUCT RANGE HANDLERS
   // -------------------------------------------------------------------------
+
+  // 4A_COMPARE. Inclusions Comparison (H1 Smart vs H2 Designer vs H3 Luxury)
+  const isTierComparison =
+    (query.includes("difference") || query.includes("compare") || query.includes("versus") || query.includes("vs") || query.includes("between")) &&
+    ((query.includes("h1") && query.includes("h2")) ||
+      (query.includes("h2") && query.includes("h3")) ||
+      (query.includes("h1") && query.includes("h3")) ||
+      (query.includes("smart") && query.includes("designer")) ||
+      (query.includes("designer") && query.includes("luxury")) ||
+      (query.includes("smart") && query.includes("luxury")) ||
+      query.includes("tiers") ||
+      query.includes("packages") ||
+      query.includes("ranges"));
+
+  if (isTierComparison) {
+    return {
+      answer: `### Hudson Homes Inclusions Comparison: H1 Smart vs H2 Designer vs H3 Luxury
+
+Here is a side-by-side architectural comparison of Hudson Homes' three core residential inclusion tiers:
+
+| Domain / Specification | **H1 Smart** (Smart Value Standard) | **H2 Designer** (Contemporary Luxury) | **H3 Luxury** (Architectural Masterpiece) |
+|---|---|---|---|
+| **Ceiling Heights** | Nominal **2440mm** throughout | **Raised 2590mm** throughout (2740mm ground floor upgrade option) | **Raised 2590mm** standard with optional 2740mm upgrade + highlight glazing |
+| **Kitchen Benchtops** | Modern laminate benchtops from Laminex / Polytec | **20mm Engineered Stone** to Kitchen, Bathrooms & Laundry | **40mm Edge Engineered Stone** with pencil round or mitred island edges |
+| **Kitchen Appliances** | **Haier 600mm** stainless steel oven, cooktop, rangehood & dishwasher | **Fisher & Paykel 900mm** luxury canopy rangehood, cooktop, 900mm oven & dishwasher | **Fisher & Paykel 900mm / European** appliance suite + scullery/butler's pantry fit-out |
+| **Kitchen Sink** | Top-mount stainless steel double bowl sink | Top-mount double bowl sink with designer gooseneck pull-out mixer | **Double bowl undermount stainless steel sink** ($0 variation) + pantry prep sink |
+| **Air Conditioning** | Reverse-cycle **split-system air conditioner** + ceiling fans to all bedrooms | **Fully ducted reverse-cycle air conditioning** (ActronAir or Daikin) with multi-zone digital controller | **Fully zoned ducted AC with MyAir (MyAir5) smart touchscreen controller** & app control |
+| **Wet Area Tiling** | Standard height ceramic wall tiles to wet areas | **Full-height floor-to-ceiling porcelain wall tiles** to ensuite & main bathroom + tiled shower niche | **Full-height porcelain tiling** to all wet areas + custom LED accent lighting |
+| **Main Bathtub** | Stylus Basis 1675mm acrylic bath | **Caroma Urbane II 1775mm freestanding bath** ($0 variation) | **Caroma Urbane II 1775mm freestanding bath** + frameless 10mm glass shower screens |
+| **Entry Door** | 820mm standard painted entrance door | 820mm designer entrance door with Gainsborough trilock | **1020mm or 1200mm grand pivot entrance door** with architectural pull handle & smart digital keyless lock |
+| **Architectural Glazing** | Standard aluminium sliding windows with flyscreens | Aluminium sliding windows with flyscreens + powder-coated frames | **Architectural awning windows & highlight feature glazing included ($0 variation)** |
+| **Warranty & Peace of Mind** | **50-Year Structural Warranty** & Fixed Price Guarantee | **50-Year Structural Warranty** & Fixed Price Guarantee | **50-Year Structural Warranty** & Fixed Price Guarantee |
+
+> [!NOTE]
+> All three tiers can be selected and compared directly inside **Quote Builder V2** (\`/quote-builder\`), where upgrades flow automatically through to sales contracts and marketing flyers!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What appliances are included in H2 Designer?",
+        "Tell me about H3 Luxury Inclusions",
+        "What is included in the Turn-Key Landscape Package (LP)?",
+        "What is the difference between NSW and QLD inclusions?",
+      ],
+      modelUsed: "hudson-inclusions-engine",
+    };
+  }
 
   // 4A. Specific H3 Luxury Tier Query
   if (query.includes("h3") || query.includes("luxury")) {
@@ -2626,265 +2897,6 @@ Hudson Homes is renowned across NSW and QLD for transparent pricing and peace of
     };
   }
 
-  // 4F. Geotechnical Soil Classifications & Slab Engineering (AS 2870)
-  if (
-    query.includes("soil") ||
-    query.includes("geotech") ||
-    query.includes("class m") ||
-    query.includes("class h") ||
-    query.includes("class p") ||
-    query.includes("class s") ||
-    query.includes("class e") ||
-    query.includes("waffle pod") ||
-    query.includes("stiffened raft") ||
-    query.includes("slab type") ||
-    query.includes("slab design") ||
-    query.includes("reactive clay") ||
-    query.includes("ground movement")
-  ) {
-    return {
-      answer: `### Geotechnical Soil Classification & Foundation Engineering (AS 2870)
-
-All Hudson Homes structural foundations are designed strictly in accordance with **AS 2870 (Residential Slabs and Footings)** and certified by registered structural engineers:
-
-#### 1. AS 2870 Soil Classification Categories & Surface Movement ($y_s$):
-- **Class A (Sand / Rock)**: Little or no ground movement. Expected surface movement $y_s = 0\\text{mm}$.
-- **Class S (Slightly Reactive)**: Slight ground movement with moisture variation. Characteristic movement $y_s \\le 20\\text{mm}$.
-- **Class M (Moderately Reactive)**: Moderate ground movement. Characteristic movement $20\\text{mm} < y_s \\le 40\\text{mm}$. Very common across Australian suburban developments.
-- **Class H1 (Highly Reactive)**: High ground movement. Characteristic movement $40\\text{mm} < y_s \\le 60\\text{mm}$. Deep footing embedment required.
-- **Class H2 (Highly Reactive Clay)**: Very high ground movement. Characteristic movement $60\\text{mm} < y_s \\le 75\\text{mm}$. Common in western Sydney shale and South East Queensland basaltic/black soils.
-- **Class E (Extremely Reactive)**: Extreme ground movement ($y_s > 75\\text{mm}$). Requires specialized structural raft design or deep pier-and-beam foundations.
-- **Class P (Problem Site)**: Sites with uncontrolled or uncompacted fill (>400mm depth), soft compressible soils, high water tables, active tree root drying zones, mine subsidence, or slope instability. Requires site-specific structural engineering.
-
-#### 2. Foundation & Concrete Slab Types:
-- **Engineered Waffle Pod Slab (Class 1a)**:
-  - Constructed using expanded polystyrene (EPS) void formers (nominal 1090x1090mm pods) with reinforced concrete internal ribs (minimum 110mm width), perimeter edge beams (typically 300mm–400mm deep), and continuous top steel mesh (SL72/SL82/SL92).
-  - Delivers superior thermal insulation (under-slab R-value) and predictable ground damp isolation.
-- **Traditional Stiffened Raft Slab**:
-  - Monolithic ground-bearing slab with excavated internal trench beams cast into the earth. Preferred on sloping sites with step-downs, significant cut-and-fill pads, or high soil reactivity.
-- **Drop Edge Beams (DEB)**:
-  - Vertical concrete perimeter beam extensions cast into the slab edge to retain earth fill on sloping sites without requiring separate external retaining walls.
-- **Concrete Piering**:
-  - Bored reinforced concrete piers (300mm to 450mm diameter) drilled through uncontrolled fill or reactive surface layers directly into stable, natural bearing strata, stiff clay, or sandstone bedrock.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What fixed site costs does Hudson Homes cover?",
-        "Are concrete piers included in NSW and QLD standard site costs?",
-        "How does Sewer Zone of Influence (ZOI) affect concrete piering?",
-        "What are the requirements for BAL-29 bushfire construction?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 4G. Bushfire Attack Level (AS 3959 BAL Standards)
-  if (
-    query.includes("bushfire") ||
-    query.includes("bal-") ||
-    query.includes("bal ") ||
-    query.includes("bal 12.5") ||
-    query.includes("bal 19") ||
-    query.includes("bal 29") ||
-    query.includes("bal 40") ||
-    query.includes("bal fz") ||
-    query.includes("ember") ||
-    query.includes("fire rating")
-  ) {
-    return {
-      answer: `### Bushfire Attack Level (BAL) Standards (AS 3959)
-
-Hudson Homes constructs homes across all bushfire hazard categories under **AS 3959 (Construction of Buildings in Bushfire-Prone Areas)**:
-
-#### 1. Bushfire Attack Level (BAL) Tiers & Radiant Heat Flux:
-- **BAL-LOW**: Negligible risk. Standard NCC/BCA building construction applies.
-- **BAL-12.5 (Radiant Heat Flux $\\le 12.5\\text{ kW/m²}$)**:
-  - Primary risk is ember attack and burning debris.
-  - **Requirements**: Corrosion-resistant metal ember screens ($\le 2\\text{mm}$ aperture in bronze, aluminium, or stainless steel) to all weep holes, openable windows, and roof cowl vents. Minimum 4mm toughened safety glass. Non-combustible roof sarking.
-- **BAL-19 (Radiant Heat Flux $> 12.5\\text{ to } \\le 19\\text{ kW/m²}$)**:
-  - Increasing heat flux and ember density.
-  - **Requirements**: Toughened safety glass (min 5mm). External doors fire-rated or solid core (min 35mm) with perimeter draft/smoke seals. External wall cladding within 400mm of ground/decks must be non-combustible (brickwork, Hebel, or fiber cement).
-- **BAL-29 (Radiant Heat Flux $> 19\\text{ to } \\le 29\\text{ kW/m²}$)**:
-  - High risk of ember attack and burning debris ignited by radiant heat.
-  - **Requirements**: All external glazing toughened safety glass (min 5mm/6mm). Aluminium window assemblies tested to AS 1530.8.1 with metal mesh screening. Non-combustible cladding throughout (brick, Hebel aerated concrete, or 9mm fiber cement). Gutter guards installed to prevent leaf accumulation. Garage doors fitted with heavy-duty perimeter compression seals ($\le 2\\text{mm}$ gaps).
-- **BAL-40 (Radiant Heat Flux $> 29\\text{ to } \\le 40\\text{ kW/m²}$)**:
-  - Very high risk of structural ignition.
-  - **Requirements**: Windows protected by tested fire-rated motorized bushfire shutters or certified BAL-40 fire window systems with metal frames. Fully non-combustible decks and zero exposed timber framing.
-- **BAL-FZ (Flame Zone - $> 40\\text{ kW/m²}$)**:
-  - Direct flame contact. Requires specialized FZ fire shutters, FRL 30/--/-- or 60/60/60 fire-rated building envelope, and custom engineering.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What are the requirements for BAL-29 bushfire construction?",
-        "What fixed site costs does Hudson Homes cover?",
-        "What inclusion ranges does Hudson Homes offer?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 4H. Acoustic & Road Noise Corridors (QDC MP 4.4 & NSW SEPP Transport)
-  if (
-    query.includes("acoustic") ||
-    query.includes("noise") ||
-    query.includes("traffic noise") ||
-    query.includes("road noise") ||
-    query.includes("qdc mp 4.4") ||
-    query.includes("sound transmission") ||
-    query.includes("double glazed") ||
-    query.includes("laminated glass")
-  ) {
-    return {
-      answer: `### Acoustic & Road Traffic Noise Mitigation (QDC MP 4.4 & NSW SEPP Transport)
-
-For properties situated along designated arterial roads, rail corridors, or transit corridors, building envelopes must satisfy statutory acoustic categories:
-
-#### 1. Acoustic Categories & Noise Levels ($L_{A10,18h}$):
-- **Category 1 (58 to 63 dBA)**: Standard residential glazing with quality acoustic perimeter seals.
-- **Category 2 (63 to 68 dBA)**:
-  - Requires **6mm or 6.38mm acoustic laminated glass** to all bedrooms and living areas facing the transport corridor.
-  - Solid core external entrance doors (min 35mm thick) fitted with acoustic drop seals and perimeter rubber gaskets.
-  - Acoustic ceiling insulation ($R_w \\ge 35$, typically high-density R2.5 acoustic ceiling batts).
-- **Category 3 (68 to 73 dBA)**:
-  - Heavy acoustic glazing: Double-glazed Insulated Glass Units (IGUs) with acoustic PVB interlayer (e.g. 6mm toughened / 12mm argon cavity / 6.38mm acoustic laminate) achieving $R_w + C_{tr} \\ge 35$.
-  - Mechanical fresh-air ventilation system (or ducted reverse-cycle air conditioning with continuous outside air intake) to allow residents to sleep with windows securely closed.
-  - Staggered mechanical penetrations and acoustically sealed wall junction penetrations.
-- **Category 4 (>73 dBA)**:
-  - Specialized architectural acoustic design with acoustic baffle boxes, double-stud boundary walls, and decoupled ceilings.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What are the differences between H1 Smart and H2 Designer inclusions?",
-        "What fixed site costs does Hudson Homes cover?",
-        "Tell me about H3 Luxury Inclusions",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 4I. Sewer & Stormwater Zone of Influence (ZOI)
-  if (
-    query.includes("sewer") ||
-    query.includes("zoi") ||
-    query.includes("zone of influence") ||
-    query.includes("angle of repose") ||
-    query.includes("build over sewer") ||
-    query.includes("easement") ||
-    query.includes("sydney water") ||
-    query.includes("logan water") ||
-    query.includes("urban utilities") ||
-    query.includes("unitywater")
-  ) {
-    return {
-      answer: `### Sewer & Stormwater Zone of Influence (ZOI) Engineering
-
-When building adjacent to public infrastructure mains (Sydney Water, Hunter Water, Urban Utilities, Logan Water, Unitywater, City of Gold Coast), footings must comply with Zone of Influence (ZOI) rules:
-
-#### 1. The 45° Angle of Repose Rule:
-- The Zone of Influence is defined as a **45-degree angle of repose** drawn upwards from the invert (the bottom internal flowline) of the public pipe to the natural ground surface.
-- Any building footing (slab edge, thickening beam, or pad) located within this 45° zone will exert surcharge vertical loads onto the public pipe, risking pipe fracture or ground subsidence.
-
-#### 2. Structural Piering Requirements:
-- Where building works fall inside the ZOI, footings cannot rely on standard ground bearing.
-- **Bored Reinforced Concrete Piers**: Must be drilled past the 45° angle of repose to a minimum depth of **300mm to 500mm BELOW the pipe invert level**, founded into natural undisturbed ground or bedrock.
-- This ensures 100% of the building's structural load is transferred below the public asset.
-
-#### 3. Prohibited Build-Over Clearances:
-- No permanent structures may be built directly over manholes, maintenance shafts, or inspection openings (minimum 1.0m to 1.5m horizontal clearance required).
-- No building directly over trunk mains (typically pipes $\\ge 300\\text{mm}$ diameter).
-- Minor reticulated mains ($\le 150\\text{mm}-225\\text{mm}$) may be bridged with certified Build-Over-Sewer (BOS) approval and concrete encasement if required.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "Are concrete piers included in Hudson Homes fixed site costs?",
-        "What fixed site costs does Hudson Homes cover?",
-        "How do I run a compliance check on a lot with an easement?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 4J. Slope, Topography, Earthworks & Retaining Walls
-  if (
-    query.includes("slope") ||
-    query.includes("fall") ||
-    query.includes("sloping") ||
-    query.includes("cut and fill") ||
-    query.includes("retaining") ||
-    query.includes("drop edge beam") ||
-    query.includes("earthwork")
-  ) {
-    return {
-      answer: `### Slope, Earthworks, Drop Edge Beams & Retaining Walls
-
-Hudson Homes engineers sites across all topographical slope categories:
-
-#### 1. Site Fall Categories Across Building Pad:
-- **0.0m to 0.5m (Flat / Nominal Fall)**: Standard single-level concrete slab with minimal leveling.
-- **0.5m to 1.5m (Moderate Fall)**:
-  - Balanced cut-and-fill benching.
-  - **Drop Edge Beams (DEB)**: Cast directly onto the perimeter of the slab to retain internal fill or accommodate natural slope, eliminating external retaining walls up to 1.5m.
-- **1.5m to 3.0m+ (Steep / Significant Fall)**:
-  - Split-level home designs (e.g. Hudson's **Cinnamon**, **Cobalt**, or **Mauve** ranges) stepping the ground floor down with internal stairs, following natural site contours and dramatically reducing excavation costs.
-
-#### 2. Retaining Wall Statutory Thresholds:
-- **Maximum Uncertified Cut / Fill**: Standard council rules limit uncertified excavation to **1.0m maximum depth**.
-- **Structural Certification Triggers**:
-  - Any retaining wall exceeding **1.0m in height** requires formal structural engineering design, building approval, and **Form 15 / Form 16 certification** (QLD) or engineer compliance certificate (NSW).
-  - Retaining walls supporting building footings or vehicle driveways require structural engineering regardless of height.
-  - Subsoil drainage (100mm slotted agi pipe surrounded by 20mm aggregate and geotextile filtration fabric) is mandatory behind all retaining structures to prevent hydrostatic water pressure buildup.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What split-level designs does Hudson Homes offer?",
-        "What fixed site costs does Hudson Homes cover?",
-        "How do Drop Edge Beams work on sloping blocks?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
-  // 4K. NCC 2022 Volume Two, Energy & Liveable Housing Provisions
-  if (
-    query.includes("ncc") ||
-    query.includes("bca") ||
-    query.includes("7-star") ||
-    query.includes("nathers") ||
-    query.includes("liveable housing") ||
-    query.includes("accessible") ||
-    query.includes("ceiling height")
-  ) {
-    return {
-      answer: `### NCC 2022 Volume Two & National Construction Code Mandates
-
-All Hudson Homes architectural floorplans and specifications comply with **NCC 2022 (Building Code of Australia Volume Two)**:
-
-#### 1. NatHERS 7-Star Thermal & Energy Efficiency:
-- **7-Star Whole-of-Home Rating**:
-  - Standard base pricing in Queensland now incorporates complete NatHERS 7-Star compliance ($0 additional energy allowances needed).
-  - Thermal envelope includes high-performance ceiling insulation (minimum R4.0 to R5.0), external wall insulation batts (minimum R2.0 to R2.5), reflective wall wrap sarking, and optimized glazed window window-to-floor ratios.
-  - Hot water heat pumps (e.g. Wulfe Heat Pump M9) and high-efficiency reverse cycle air-conditioning.
-
-#### 2. Liveable Housing Design Standard (Part G7):
-- **Continuous Step-Free Access**: Step-free threshold path of travel from the street boundary or car parking space to at least one primary entrance door.
-- **Clear Opening Widths**: Internal doors to habitable rooms and ground floor sanitary compartments provide minimum **820mm clear opening width**. Hallways provide minimum **1000mm clear width**.
-- **Accessible Toilet Facilities**: Ground-floor toilet with compliant spatial circulation zones and reinforced wall framing studs to support future grab rail installation.
-- **Hobless Showers**: Step-free, hobless shower recesses to ground-floor bathrooms for universal accessibility.
-
-#### 3. Ceiling Heights (Part 10.6):
-- Habitable rooms (living, bedrooms, media, dining): Minimum 2400mm (Hudson H1 Smart standard 2440mm; H2 Designer standard 2590mm raised).
-- Non-habitable rooms (bathrooms, laundries, pantries, hallways): Minimum 2100mm.`,
-      confidence: 0.99,
-      verified: true,
-      suggestedQuestions: [
-        "What inclusion ranges does Hudson Homes offer?",
-        "What is the difference between H1 Smart and H2 Designer?",
-        "What are the differences between NSW and QLD inclusions?",
-      ],
-      modelUsed: "hudson-knowledge-engine",
-    };
-  }
-
   // -------------------------------------------------------------------------
   // 5. HUDSON DIGITAL OS PLATFORM TOOLS
   // -------------------------------------------------------------------------
@@ -3025,7 +3037,7 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
   const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
 
-  if (isDuplexOrDualOccQuery || isAddressOrPropertyQuery) {
+  if (isAddressOrPropertyQuery) {
     const assessment = evaluatePropertyFeasibility(message);
     return {
       answer: assessment.markdownReport,
@@ -3036,6 +3048,34 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
         `What are the setback and PoD rules for ${assessment.jurisdiction.name}?`,
         `Tell me about the Wisteria 33 dual living design`,
         `Can I build an auxiliary unit (secondary dwelling) on this lot?`
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  if (isDuplexOrDualOccQuery) {
+    return {
+      answer: `### Hudson Homes Dual Occupancy & Auxiliary Living Feasibility
+
+Hudson Homes specializes in dual-occupancy and high-yield secondary dwelling developments across Queensland and New South Wales.
+
+To evaluate statutory feasibility, permitted planning pathways (CDC vs DA / Accepted vs Code Assessable), boundary setbacks, and all 7 site overlays for your specific lot:
+
+- Please provide the property address or local government area, for example:
+  - \`CC duplex 61 Paradise Road, Flagstone\`
+  - \`CC 131 Mount Cotton Road\`
+  - \`CC duplex 15 Smith Street, Penrith\`
+
+#### Recommended Hudson Dual Living Floorplans:
+- **Wisteria Range (33, 34, 36, 40)**: Flagship dual-occupancy side-by-side design featuring 3+2 or 4+2 bed configurations under one roofline.
+- **Alabaster Range (31, 36, 40)**: Single-storey dual living design with private mirror floorplans.
+- **Amber 21 Dual Suite**: Auxiliary living configuration engineered to comply with Logan, Redland, and Ipswich secondary dwelling thresholds with **$0 infrastructure charges**.`,
+      confidence: 0.98,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between a duplex and an auxiliary unit?",
+        "What are the infrastructure charges for building a duplex?",
+        "What are the fire and acoustic requirements for duplex party walls?",
       ],
       modelUsed: "universal-planning-engine",
     };
