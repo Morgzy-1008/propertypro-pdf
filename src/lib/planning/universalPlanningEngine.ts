@@ -20,7 +20,7 @@
  *    - Slope, Earthworks, Drop Edge Beams & Retaining Walls (>1.0m Engineering)
  *    - Geotechnical Soil Classifications (AS 2870 Class A, S, M, H1, H2, E, P)
  *    - Infrastructure Trunk Charges (Headworks) & Council Contributions
- * 5. Hudson Homes Product Matching (Wisteria, Magnolia, Amber, Jasper, Azure, Gemini 28, etc.)
+ * 5. Hudson Homes Product Matching (Wisteria, Magnolia, Amber, Jasper, Azure, Alabaster, etc.)
  * ============================================================================
  */
 
@@ -179,7 +179,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "Flagship QLD dual-occupancy design with mirror luxury finishes, compliant with Redland 18m frontage rules." },
-      { name: "Gemini 28 (Auxiliary Specification)", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 28.0, summary: "Engineered specifically to satisfy Redland's 70m² auxiliary limit with $0 council infrastructure charges." },
+      { name: "Alabaster 31 / 36", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "Single-storey traditional duplex engineered for Redland 18m frontage thresholds." },
       { name: "Mulberry 25 / 28 / 33", type: "Single Storey", minLotWidthM: 27.0, minLotDepthM: 20.0, summary: "Prestige wide-frontage acreage ranch design, ideal for Mt Cotton and Sheldon rural-residential blocks." },
       { name: "Amber 21 / 23 / 26", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Smart efficient 4-bed suburban design fitting standard Redland Low Density residential allotments." },
       { name: "Burgundy 27 / 30 / 32", type: "Double Storey", minLotWidthM: 13.5, minLotDepthM: 22.0, summary: "Executive two-storey luxury home maximizing backyard private open space within 50% site coverage." }
@@ -236,7 +236,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Flagship QLD dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one continuous architectural roofline." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 28.0, summary: "Compact dual-key configuration engineered specifically for suburban investor yield and standard 14m-16m lots." },
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Single-storey dual-occupancy design engineered for designated investor lots." },
       { name: "Amber 21 (Dual Suite Variation)", type: "Dual Key", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Single-storey design tailored for auxiliary secondary suite under Logan / EDQ 70m² thresholds." }
     ]
   },
@@ -290,7 +290,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "High-demand Ripley investment configuration with independent separate meters and entrances." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Engineered to satisfy Stockland and EDQ building envelope guidelines." }
+      { name: "Magnolia 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 26.0, summary: "Engineered to satisfy Stockland Providence and EDQ building envelope guidelines." }
     ]
   },
 
@@ -348,7 +348,8 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 36 / 40", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Complies with Logan City Council 18m frontage and dual crossover setback standards." },
-      { name: "Gemini 28 (Auxiliary Specification)", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 28.0, summary: "Engineered exactly within Logan's 70m² auxiliary threshold, exempt from $30k+ infrastructure charges!" }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "Single-storey duplex compliant with Logan 18m frontage and dual crossover setback standards." },
+      { name: "Amber 21 (Auxiliary Suite)", type: "Dual Living", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Engineered within Logan's 70m² auxiliary threshold, exempt from $31k+ infrastructure charges!" }
     ]
   },
 
@@ -403,7 +404,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 34", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 30.0, summary: "Spacious dual living designed for 800m² Ipswich lots." },
-      { name: "Gemini 28 (Auxiliary Mode)", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 26.0, summary: "Complies with Ipswich 65m² auxiliary floor area restriction." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Single-storey dual-occupancy layout compliant with Ipswich 18m frontage rules." }
     ]
   },
 
@@ -458,7 +459,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33 / 36", type: "Duplex", minLotWidthM: 16.0, minLotDepthM: 28.0, summary: "Fits compliant 16m+ Next Generation precinct lots across Morayfield and Burpengary." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Highly sought after for Caboolture / Morayfield investor packages." }
+      { name: "Magnolia 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 26.0, summary: "Highly sought after for Caboolture / Morayfield investor packages." }
     ]
   },
 
@@ -512,7 +513,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 40", type: "Duplex", minLotWidthM: 16.5, minLotDepthM: 32.0, summary: "Prestige two-storey duplex configuration suited for BCC infill and knock-down rebuilds." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.5, minLotDepthM: 26.0, summary: "Turnkey secondary dwelling compliant under BCC 80m² limits." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Single-storey traditional duplex with independent utility metering." }
     ]
   },
 
@@ -527,13 +528,20 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     governingInstrument: "City Plan (Gold Coast Planning Scheme)",
     statutoryAuthority: "Council of the City of Gold Coast",
     coveredSuburbs: [
+      "ashmore", "southport", "labrador", "benowa", "bundall", "carrara", 
       "coomera", "pimpama", "upper coomera", "ormeau", "ormeau hills", 
       "helensvale", "pacific pines", "oxenford", "hope island", "robina", 
-      "varsity lakes", "mudgeeraba", "nerang", "reedy creek"
+      "varsity lakes", "mudgeeraba", "nerang", "reedy creek", "molendinar", 
+      "parkwood", "arundel", "runaway bay", "hollywell", "paradise point", 
+      "biggera waters", "surfers paradise", "broadbeach", "mermaid waters", 
+      "mermaid beach", "miami", "burleigh heads", "burleigh waters", "palm beach", 
+      "currumbin", "currumbin waters", "elanora", "tugun", "bilinga", "coolangatta", 
+      "kirra", "worongary", "tallai", "highland park", "maudsland", "gaven", 
+      "jacobs well", "stapylton", "yatala", "gilston", "bonogin", "tallebudgera"
     ],
     zoningDefaults: {
       primaryZoning: "Low Density Residential / Medium Density Residential",
-      description: "Fast-expanding northern corridor with high investor duplex demand."
+      description: "Fast-expanding northern corridor and established central precincts with high duplex demand."
     },
     duplexRules: {
       minLotSizeM2: 600,
@@ -555,18 +563,19 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
       minFrontageM: 13.0,
       parkingSpacesRequired: 1,
       infrastructureCharge: 0,
-      notes: "Secondary dwelling up to 80m² GFA accepted on lots ≥ 450 m² with dedicated covered or open parking bay."
+      notes: "Secondary dwelling up to 80m² GFA accepted on lots ≥ 450 m² with dedicated covered or open parking bay. Exempt from council infrastructure charges."
     },
     overlayProfile: {
-      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19 near Coomera riverine zones",
-      floodRisk: "Coomera / Pimpama River basin: FFL +300mm to +500mm freeboard",
+      bushfireRisk: "BAL-LOW to BAL-12.5; BAL-19 near Coomera/Nerang riverine zones",
+      floodRisk: "Coomera / Nerang / Pimpama River basin: FFL +300mm to +500mm freeboard above defined flood level",
       acousticRisk: "M1 Pacific Motorway corridor: Category 2/3 road noise",
       soilReactivity: "Class M to Class H1/H2 reactive clay soils",
       sewerAuthority: "City of Gold Coast Water"
     },
     recommendedDesigns: [
-      { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Highly popular in Coomera / Pimpama northern growth corridor." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Optimized for Gold Coast investor yield." }
+      { name: "Wisteria 33 / 34 / 36 / 40", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Flagship dual-occupancy design suited for Gold Coast dual crossover standards." },
+      { name: "Alabaster 31 / 36", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "Single-storey traditional duplex with mirror floorplans and separate outdoor living." },
+      { name: "Magnolia 34 / 37", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 26.0, summary: "Contemporary two-storey dual living maximizing site yield on 600m² Gold Coast lots." }
     ]
   },
 
@@ -673,7 +682,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 34", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Proven dual-occupancy design for Marsden Park & Schofields growth corridor." },
-      { name: "Gemini 28 (NSW Investor Spec)", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "High-yield investment design with separate private courtyards." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "High-yield single-storey investment design with separate private courtyards." }
     ]
   },
 
@@ -727,7 +736,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Standard Warnervale display-proven dual occupancy." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 25.0, summary: "Compact investor floorplan for Warnervale and Wadalba estates." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Compact investor floorplan for Warnervale and Wadalba estates." }
     ]
   },
 
@@ -780,7 +789,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     },
     recommendedDesigns: [
       { name: "Wisteria 36", type: "Duplex", minLotWidthM: 15.5, minLotDepthM: 28.0, summary: "Spacious dual living popular in Hunter growth corridors." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "High-yield Hunter Valley investor package." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "High-yield Hunter Valley single-storey dual occupancy." }
     ]
   },
 
@@ -890,7 +899,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     recommendedDesigns: [
       { name: "Wisteria 33", type: "Duplex", minLotWidthM: 15.0, minLotDepthM: 26.0, summary: "Turnkey duplex meeting Penrith CDC requirements." },
       { name: "Azure 25", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "High-efficiency 4-bedroom home fitting standard Jordan Springs lots." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 13.0, minLotDepthM: 26.0, summary: "Investor dual-key configuration with separate entries." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Single-storey dual-occupancy layout with mirror self-contained suites." }
     ]
   },
 
@@ -1109,7 +1118,7 @@ export const JURISDICTIONS: CouncilJurisdiction[] = [
     recommendedDesigns: [
       { name: "Wisteria 33 / 34", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 28.0, summary: "High-yield dual living design compliant with Sunshine Coast frontage guidelines." },
       { name: "Azure 25", type: "Single Storey", minLotWidthM: 12.5, minLotDepthM: 25.0, summary: "Modern 4-bedroom coastal family design." },
-      { name: "Gemini 28", type: "Dual Key", minLotWidthM: 14.0, minLotDepthM: 26.0, summary: "Complies with 60m² auxiliary limit with $0 infrastructure charges." }
+      { name: "Alabaster 31", type: "Duplex", minLotWidthM: 18.0, minLotDepthM: 26.0, summary: "Single-storey duplex compliant with Sunshine Coast dual living standards." }
     ]
   },
 
@@ -1236,7 +1245,38 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
     clean = clean.slice(ccMatch[0].length).trim();
   }
 
-  const norm = clean.toLowerCase();
+  // Common suburb typos and aliases
+  const SUBURB_TYPOS: Record<string, string> = {
+    "ahsmore": "ashmore",
+    "asmore": "ashmore",
+    "ashmor": "ashmore",
+    "morayfeild": "morayfield",
+    "morrayfield": "morayfield",
+    "greenbannk": "greenbank",
+    "grenbank": "greenbank",
+    "warnerval": "warnervale",
+    "warnavale": "warnervale",
+    "marsden prk": "marsden park",
+    "rippley": "ripley",
+    "ripleey": "ripley",
+    "lochinvr": "lochinvar",
+    "lockinvar": "lochinvar",
+    "flagston": "flagstone",
+    "redlnd": "redland",
+    "ipswitch": "ipswich",
+    "caboolturee": "caboolture",
+    "coomra": "coomera",
+    "pimpamaa": "pimpama",
+    "helensval": "helensvale",
+    "nerangg": "nerang",
+    "robinna": "robina"
+  };
+
+  let norm = clean.toLowerCase();
+  for (const [typo, correct] of Object.entries(SUBURB_TYPOS)) {
+    const typoRegex = new RegExp(`\\b${typo}\\b`, "gi");
+    norm = norm.replace(typoRegex, correct);
+  }
 
   // 2. Detect Development Typology
   let typology: DevelopmentTypology = isCCCommand ? "compliance_check" : "duplex";
@@ -1271,7 +1311,7 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
     }
   }
 
-  // 5. Extract Street Address (e.g. "131 Mount Cotton Road", "61 Paradise Road", "14 Smith Street")
+  // 5. Extract Street Address (e.g. "131 Mount Cotton Road", "61 Paradise Road", "29 Warrigal Crescent", "14 Smith Street")
   let streetNumber: string | undefined;
   let streetName: string | undefined;
   const addressMatch = clean.match(/(?:lot\s*)?(\d+[a-z]?)\s+([a-z\s]+?(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy))\b/i);
@@ -1336,7 +1376,7 @@ export function parsePropertyPlanningQuery(query: string): ParsedPropertyQuery {
 
   // Fallback state detection
   if (!detectedState) {
-    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton|redland|logan|ipswich|sunshine\s*coast)\b/i.test(norm)) {
+    if (/\b(?:qld|queensland|brisbane|gold\s*coast|moreton|redland|logan|ipswich|sunshine\s*coast|ashmore|ahsmore)\b/i.test(norm)) {
       detectedState = "QLD";
     } else if (/\b(?:nsw|new\s*south\s*wales|sydney|hunter|newcastle|central\s*coast|camden|blacktown|penrith|liverpool|hills)\b/i.test(norm)) {
       detectedState = "NSW";
@@ -1405,7 +1445,24 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_ipswich");
     } else if (norm.includes("moreton") || norm.includes("morayfield") || norm.includes("caboolture") || norm.includes("north harbour")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_moreton_bay");
-    } else if (norm.includes("gold coast") || norm.includes("coomera") || norm.includes("pimpama")) {
+    } else if (
+      norm.includes("gold coast") ||
+      norm.includes("coomera") ||
+      norm.includes("pimpama") ||
+      norm.includes("ashmore") ||
+      norm.includes("ahsmore") ||
+      norm.includes("southport") ||
+      norm.includes("labrador") ||
+      norm.includes("benowa") ||
+      norm.includes("bundall") ||
+      norm.includes("carrara") ||
+      norm.includes("nerang") ||
+      norm.includes("robina") ||
+      norm.includes("mudgeeraba") ||
+      norm.includes("burleigh") ||
+      norm.includes("palm beach") ||
+      norm.includes("warrigal")
+    ) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_gold_coast");
     } else if (norm.includes("brisbane") || norm.includes("rochedale") || norm.includes("pallara")) {
       jurisdiction = JURISDICTIONS.find((j) => j.id === "council_brisbane");
@@ -1585,7 +1642,7 @@ ${modelsList.map((m) => `- **${m.name}** (*${m.type}*): ${m.dimensions}\n  ${m.s
 #### 5. Next Steps for NHC & Client Tender Handoff
 1. **Cadastral Check**: Confirm exact boundary dimensions and easement location via Hudson Land Scout or cadastral search.
 2. **Soil & Contour Survey**: Order official soil classification and contour survey to establish exact cut/fill and sewer invert levels.
-3. **Select Model**: Choose between Hudson Homes Wisteria 33 / 34 / 36 / 40 or Gemini 28 Dual-Key.
+3. **Select Model**: Choose between Hudson Homes Wisteria 33 / 34 / 36 / 40, Magnolia 34 / 37, or Alabaster 31 / 36.
 4. **Draft Tender**: Open Quote Builder V2 (\`/quote-builder\`) to generate a fixed-price turnkey tender with guaranteed construction timeframes!`;
 
   } else if (isAuxiliary) {
@@ -1648,8 +1705,10 @@ Here is the verified statutory planning framework, auxiliary dwelling siting env
 ---
 
 #### 4. Recommended Hudson Homes Dual-Living & Auxiliary Designs
-- **Gemini 28 (Dual-Key Investor Specification)** (*Dual Key*): Min Width: 14.0m | Min Depth: 28.0m
+- **Amber 21 (Auxiliary Suite Specification)** (*Dual Living / Auxiliary*): Min Width: 12.5m | Min Depth: 25.0m
   Engineered specifically for maximum rental yield with a 3-bed primary home + 1-bed auxiliary suite under a single roofline, complying with the ${j.auxiliaryUnitRules.maxGfaM2}m² limit with $0 council infrastructure charges.
+- **Alabaster 31 / 36** (*Duplex / Dual Living*): Min Width: 18.0m | Min Depth: 28.0m
+  Single-storey dual occupancy featuring two balanced self-contained residences under one continuous roofline with independent entries.
 - **Wisteria 33 / 34 / 36 / 40** (*Duplex / Dual Living*): Min Width: 18.0m | Min Depth: 28.0m
   Flagship dual-living floorplan adaptable for auxiliary or full duplex configurations with independent dual entries.
 

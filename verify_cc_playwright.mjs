@@ -188,10 +188,42 @@ import path from "path";
     }
     console.log("PASSED: Dual key 70m² GFA limit verified.");
 
-    if (!pageText4.includes("Gemini 28")) {
-      throw new Error("FAILED: Dual key recommended design (Gemini 28) missing!");
+    if (!pageText4.includes("Amber 21") && !pageText4.includes("Alabaster") && !pageText4.includes("Wisteria")) {
+      throw new Error("FAILED: Dual key recommended design (Amber 21 / Alabaster / Wisteria) missing!");
     }
-    console.log("PASSED: Recommended dual key model (Gemini 28) verified.");
+    console.log("PASSED: Recommended dual key model (Amber 21 / Alabaster / Wisteria) verified.");
+
+    // 7B. Test Query 4B: "can i build a duplex 29 warrigal crescent ahsmore"
+    console.log("Step 7B: Testing query: 'can i build a duplex 29 warrigal crescent ahsmore'...");
+    await chatInput.fill("can i build a duplex 29 warrigal crescent ahsmore");
+    await chatInput.press("Enter");
+
+    await page.waitForFunction(() => {
+      const texts = Array.from(document.querySelectorAll("*")).map(el => el.textContent || "");
+      return texts.some(t => t.includes("City of Gold Coast") || t.includes("Warrigal"));
+    }, { timeout: 10000 });
+
+    await page.waitForTimeout(1500);
+    await page.screenshot({ path: "playwright-screenshots/cc_duplex_ashmore.png", fullPage: false });
+    console.log("Screenshot saved: playwright-screenshots/cc_duplex_ashmore.png");
+
+    const pageTextAshmore = await page.evaluate(() => document.body.innerText);
+    if (pageTextAshmore.includes("I apologize")) {
+      throw new Error("FAILED: Apologetic refusal detected in Ashmore duplex response!");
+    }
+    if (pageTextAshmore.includes("Verification Notice")) {
+      throw new Error("FAILED: Verification Notice obstruction detected in Ashmore response!");
+    }
+    if (!pageTextAshmore.includes("City of Gold Coast")) {
+      throw new Error("FAILED: Ashmore not correctly identified as City of Gold Coast!");
+    }
+    if (pageTextAshmore.includes("Gemini 28")) {
+      throw new Error("FAILED: Non-existent 'Gemini 28' model mentioned in Ashmore response!");
+    }
+    if (!pageTextAshmore.includes("Code Assessable")) {
+      throw new Error("FAILED: Assessment category 'Code Assessable' missing for Ashmore duplex!");
+    }
+    console.log("PASSED: 29 Warrigal Crescent, Ashmore verified under City of Gold Coast (Code Assessable, 0 apologies, 0 Gemini mentions).");
 
     // 8. Test Query 5: CC 24 Acacia Street, Marsden Park
     console.log("Step 8: Testing query: 'CC 24 Acacia Street, Marsden Park' (NSW Blacktown check)...");

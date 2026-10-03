@@ -421,7 +421,7 @@ export function generateHudsonKnowledgeResponse(
   // 0. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
   const isCC = /^cc\b[:\s]*/i.test((message || "").trim()) || /compliance\s*check/i.test(query) || /feasibility\s*check/i.test(query);
   const isAddressQuery = /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
-    /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park/i.test(query);
+    /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park|ashmore|ahsmore|warrigal|gold\s*coast|southport|carrara|benowa/i.test(query);
 
   if (isCC || isAddressQuery) {
     const assessment = evaluatePropertyFeasibility(message);
@@ -499,8 +499,8 @@ For bespoke developer covenants, non-standard structural variations, or unreleas
   // 2. DIRECT FLOORPLAN / MODEL LOOKUPS (Amber, Jasper, Azure, Cedar, Hazel, Wisteria, Gemini, etc.)
   // -------------------------------------------------------------------------
   const knownDesignNames = [
-    "amber", "azure", "jasper", "cedar", "hazel", "wisteria", "gemini", 
-    "amaranth", "alabaster", "topaz", "sapphire", "emerald", "onyx", 
+    "amber", "azure", "jasper", "cedar", "hazel", "wisteria", "alabaster", 
+    "amaranth", "magnolia", "topaz", "sapphire", "emerald", "onyx", 
     "ruby", "opal", "pearl", "diamond", "quartz", "aspen", "sienna"
   ];
   const matchedDesign = knownDesignNames.find((d) => new RegExp(`\\b${d}\\b`, "i").test(query));
@@ -522,22 +522,25 @@ For bespoke developer covenants, non-standard structural variations, or unreleas
       query.includes("spec") ||
       query.includes("specs"))
   ) {
-    if (matchedDesign === "gemini") {
+    if (matchedDesign === "alabaster") {
       return {
-        answer: `### Hudson Homes Architectural Design: Gemini Dual-Key Range
+        answer: `### Hudson Homes Architectural Design: Alabaster Traditional Duplex Range
 
-Here are the verified architectural specifications for the **Gemini 28 Dual-Key** design:
+Here are the verified architectural specifications for the **Alabaster Traditional Duplex** family:
 
-- **Gemini 28** (260 m², 4 Bed, 3 Bath, 2 Car, Width: 12.8m, Length: 22.4m, Min Lot Frontage: 14.0m)
-- **Dual-Key Investor Configuration**: The Gemini 28 is engineered specifically for suburban investor yield, featuring 3 Bed primary + 1 Bed auxiliary under a single roofline.
-- **Independent Tenancies & High Rental Yield**: Each living zone features private entry, separate utility metering, independent kitchen and laundry facilities, delivering two independent rental revenue streams from a single residential property.
-- **Council Compliance**: Designed to comply with auxiliary unit and secondary dwelling planning standards (such as Logan, Ipswich, Moreton Bay, and NSW Complying Development).`,
+- **Alabaster 31** (284.86 m², 6 Bed, 4 Bath, 2 Car, Width: 18.0m, Length: 22.0m, Min Lot Frontage: 18.0m)
+- **Alabaster 36** (330.66 m², 6 Bed, 4 Bath, 4 Car, Width: 18.0m, Length: 24.5m, Min Lot Frontage: 18.0m)
+- **Alabaster 40** (373.02 m², 8 Bed, 4 Bath, 4 Car, Width: 18.5m, Length: 25.5m, Min Lot Frontage: 19.0m)
+
+- **Single-Storey Traditional Duplex**: The Alabaster is Hudson Homes' premier single-level dual-occupancy design featuring two self-contained side-by-side homes under a continuous architectural roofline.
+- **Independent Tenancies & High Rental Yield**: Each dwelling features its own private porch, foyer, living room, alfresco, and separate utility sub-metering, maximizing yield for investors and multi-generational families.
+- **Council Compliance**: Engineered to satisfy standard 18m frontage dual-occupancy rules across QLD (Logan, Ipswich, Redland, Moreton Bay, Gold Coast) and NSW (CDC Low Rise Housing Diversity Code).`,
         confidence: 0.99,
         verified: true,
         suggestedQuestions: [
           "What is the difference between a duplex and a dual-key auxiliary dwelling?",
-          "How does the two-part contract save money on stamp duty?",
-          "What are the infrastructure charges for an auxiliary unit?",
+          "What are the infrastructure charges for a duplex in Queensland?",
+          "What are the setback rules for building a duplex in City of Gold Coast?",
         ],
         modelUsed: "hudson-floorplan-engine",
       };
@@ -579,8 +582,6 @@ Here are the verified architectural specifications for the **Wisteria Dual Livin
       let extraNote = "";
       if (matchedDesign === "wisteria") {
         extraNote = "\n- **Dual Living / Duplex Design**: The Wisteria range is Hudson's flagship Queensland and NSW dual-occupancy design featuring 3+2 or 4+2 bed duplex layouts under one cohesive roofline with independent entrances and separate utility metering.";
-      } else if (matchedDesign === "gemini") {
-        extraNote = "\n- **Dual-Key Investor Configuration**: The Gemini 28 is engineered specifically for suburban investor yield, featuring 3 Bed primary + 1 Bed auxiliary under a single roofline.";
       }
 
       return {
@@ -1894,11 +1895,11 @@ Hudson Homes is a leading specialist in dual-occupancy and high-yield multi-dwel
    - Our flagship side-by-side duplex design featuring independent 3 Bed + 2 Bed or 4 Bed + 2 Bed configurations under one roofline.
    - Separate entrances, private courtyards, and independent power/water metering.
 
-2. **Gemini 28**:
-   - Compact dual-key configuration engineered specifically for suburban investor yield (3 Bed primary + 1 Bed auxiliary under one continuous roofline).
+2. **Alabaster Traditional Duplex Range (31, 36, 40)**:
+   - Our single-storey dual-occupancy design featuring balanced 3 Bed + 3 Bed or 4 Bed + 4 Bed layouts with independent garages and private alfresco areas.
 
 3. **Amber 21 Dual Suite**:
-   - Single-storey auxiliary living option compliant with Logan and Ipswich secondary dwelling thresholds.`,
+   - Single-storey auxiliary living option compliant with Logan, Redland, and Ipswich secondary dwelling thresholds.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
@@ -2542,7 +2543,7 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   // 6. UNIVERSAL PLANNING, DUPLEX, ZONING & SITING ENGINE (All QLD & NSW Jurisdictions)
   // -------------------------------------------------------------------------
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
-  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
+  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
 
   if (isDuplexOrDualOccQuery || isAddressOrPropertyQuery) {
     const assessment = evaluatePropertyFeasibility(message);
