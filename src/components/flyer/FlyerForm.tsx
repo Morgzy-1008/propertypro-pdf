@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { X, Loader2, Plus, Sparkles, CheckCircle2 } from "lucide-react";
+import { X, Loader2, Plus, Sparkles, CheckCircle2, Pencil, Trash2, RotateCcw, Upload, Building2 } from "lucide-react";
 import { FacadeCheckModal } from "./FacadeCheckModal";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -20,7 +20,17 @@ import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
-import { PARTNER_DEVELOPERS, findPartnerForEstate, getPartnerPreset } from "./partnerDevelopers";
+import {
+  BASE_PARTNER_DEVELOPERS,
+  loadAllPartnerDevelopers,
+  findPartnerForEstate,
+  getPartnerPreset,
+  saveCustomPartner,
+  updatePartnerPreset,
+  resetPartnerPreset,
+  deleteCustomPartner,
+  type PartnerDeveloperPreset,
+} from "./partnerDevelopers";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 
@@ -360,9 +370,132 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   const hasCalculatedPrice = totalPriceNum > 0;
   const formattedTotalPrice = formatAud(totalPriceNum);
 
+  const activeDivision = getActiveDivision();
+  const [developerStateFilter, setDeveloperStateFilter] = useState<"NSW" | "QLD" | "ALL">(activeDivision);
+  const [availableDevelopers, setAvailableDevelopers] = useState<PartnerDeveloperPreset[]>(() =>
+    loadAllPartnerDevelopers(activeDivision)
+  );
+
+  useEffect(() => {
+    const unsub = onDivisionChanged((div) => {
+      setDeveloperStateFilter(div);
+      setAvailableDevelopers(loadAllPartnerDevelopers(div));
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    setAvailableDevelopers(loadAllPartnerDevelopers(developerStateFilter));
+  }, [developerStateFilter]);
+
+  const refreshDevelopers = () => {
+    setAvailableDevelopers(loadAllPartnerDevelopers(developerStateFilter));
+  };
+
+  // Add Developer Partner Modal state
+  const [isAddDevOpen, setIsAddDevOpen] = useState(false);
+  const [newDevName, setNewDevName] = useState("");
+  const [newDevState, setNewDevState] = useState<"NSW" | "QLD" | "ALL">(activeDivision);
+  const [newDevLogoUrl, setNewDevLogoUrl] = useState("");
+  const [newDevEstate, setNewDevEstate] = useState("");
+
+  // Edit / Customise Developer Partner Modal state
+  const [editingDev, setEditingDev] = useState<PartnerDeveloperPreset | null>(null);
+  const [editDevName, setEditDevName] = useState("");
+  const [editDevState, setEditDevState] = useState<"NSW" | "QLD" | "ALL">("ALL");
+  const [editDevLogoUrl, setEditDevLogoUrl] = useState("");
+  const [editDevEstate, setEditDevEstate] = useState("");
+
   const matchedPartnerSuggestion = useMemo(() => {
-    return findPartnerForEstate(data.estate, data.suburb);
-  }, [data.estate, data.suburb]);
+    return findPartnerForEstate(data.estate, data.suburb, developerStateFilter);
+  }, [data.estate, data.suburb, developerStateFilter]);
+
+  const handleSaveNewDeveloper = () => {
+    if (!newDevName.trim()) {
+      toast.error("Please enter a developer name");
+      return;
+    }
+    if (!newDevLogoUrl.trim()) {
+      toast.error("Please provide a developer logo (upload an image or enter a URL)");
+      return;
+    }
+    const created = saveCustomPartner({
+      name: newDevName.trim(),
+      state: newDevState,
+      logoUrl: newDevLogoUrl.trim(),
+      defaultEstate: newDevEstate.trim() || undefined,
+      matchedEstates: newDevEstate ? [newDevEstate.toLowerCase().trim()] : [],
+    });
+    refreshDevelopers();
+    set("partnerEnabled", true);
+    set("partnerDeveloperId", created.id);
+    set("partnerName", created.name);
+    set("partnerLogoUrl", created.logoUrl);
+    setIsAddDevOpen(false);
+    setNewDevName("");
+    setNewDevLogoUrl("");
+    setNewDevEstate("");
+    toast.success(`Developer "${created.name}" created and applied to flyer!`);
+  };
+
+  const handleOpenEditDev = (dev: PartnerDeveloperPreset, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingDev(dev);
+    setEditDevName(dev.name);
+    setEditDevState(dev.state || "ALL");
+    setEditDevLogoUrl(dev.logoUrl);
+    setEditDevEstate(dev.defaultEstate || "");
+  };
+
+  const handleSaveEditDev = () => {
+    if (!editingDev) return;
+    if (!editDevName.trim()) {
+      toast.error("Developer name cannot be empty");
+      return;
+    }
+    updatePartnerPreset(editingDev.id, {
+      name: editDevName.trim(),
+      state: editDevState,
+      logoUrl: editDevLogoUrl.trim() || editingDev.logoUrl,
+      defaultEstate: editDevEstate.trim() || undefined,
+    });
+    refreshDevelopers();
+    if (data.partnerDeveloperId === editingDev.id) {
+      set("partnerName", editDevName.trim());
+      if (editDevLogoUrl.trim()) {
+        set("partnerLogoUrl", editDevLogoUrl.trim());
+      }
+    }
+    setEditingDev(null);
+    toast.success(`Updated developer "${editDevName}"!`);
+  };
+
+  const handleResetDev = () => {
+    if (!editingDev) return;
+    resetPartnerPreset(editingDev.id);
+    refreshDevelopers();
+    const base = BASE_PARTNER_DEVELOPERS.find((b) => b.id === editingDev.id);
+    if (base && data.partnerDeveloperId === base.id) {
+      set("partnerName", base.name);
+      set("partnerLogoUrl", base.logoUrl);
+    }
+    setEditingDev(null);
+    toast.success(`Reset "${editingDev.name}" back to default factory logo.`);
+  };
+
+  const handleDeleteCustomDev = () => {
+    if (!editingDev) return;
+    deleteCustomPartner(editingDev.id);
+    refreshDevelopers();
+    if (data.partnerDeveloperId === editingDev.id) {
+      set("partnerDeveloperId", "");
+      set("partnerName", "");
+      set("partnerLogoUrl", "");
+      set("partnerEnabled", false);
+    }
+    setEditingDev(null);
+    toast.success(`Deleted developer "${editingDev.name}".`);
+  };
 
   useEffect(() => {
     if (data.facadeId || data.facadeName) {
@@ -821,14 +954,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     }
 
     // Auto-detect developer partner if matched
-    const matchedPartner = findPartnerForEstate(estateQuery, suburbQuery);
+    const matchedPartner = findPartnerForEstate(estateQuery, suburbQuery, developerStateFilter);
     if (matchedPartner && !data.partnerEnabled) {
       set("partnerDeveloperId", matchedPartner.id);
       set("partnerName", matchedPartner.name);
       set("partnerLogoUrl", matchedPartner.logoUrl);
-      if (!data.partnerTitle) {
-        set("partnerTitle", matchedPartner.defaultTitleFormat ? matchedPartner.defaultTitleFormat(estateQuery) : `${estateQuery || "Estate"} by ${matchedPartner.name}`);
-      }
     }
   };
 
@@ -1005,7 +1135,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
       <Section
         id="section-partner"
-        title="Developer Co-Branding / Partner"
+        title="Developer Partner & Logo"
         extra={
           data.partnerEnabled && data.partnerName ? (
             <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-semibold border border-amber-500/30">
@@ -1019,7 +1149,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-950/70 shadow-sm">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-200">Enable Developer Co-Branding</span>
+              <span className="text-xs font-semibold text-slate-200">Enable Developer Partner Logo</span>
               {data.partnerEnabled && (
                 <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300">
                   Active
@@ -1027,7 +1157,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               )}
             </div>
             <p className="text-[11px] text-slate-400">
-              Feature developer partner logo & collaborative title across all flyer templates
+              Display developer partner logo seamlessly on the RHS beside the package headline
             </p>
           </div>
           <button
@@ -1039,14 +1169,6 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 set("partnerDeveloperId", matchedPartnerSuggestion.id);
                 set("partnerName", matchedPartnerSuggestion.name);
                 set("partnerLogoUrl", matchedPartnerSuggestion.logoUrl);
-                if (!data.partnerTitle) {
-                  set(
-                    "partnerTitle",
-                    matchedPartnerSuggestion.defaultTitleFormat
-                      ? matchedPartnerSuggestion.defaultTitleFormat(data.estate)
-                      : `${data.estate || "Estate"} by ${matchedPartnerSuggestion.name}`
-                  );
-                }
               }
             }}
             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
@@ -1077,12 +1199,6 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 set("partnerDeveloperId", matchedPartnerSuggestion.id);
                 set("partnerName", matchedPartnerSuggestion.name);
                 set("partnerLogoUrl", matchedPartnerSuggestion.logoUrl);
-                set(
-                  "partnerTitle",
-                  matchedPartnerSuggestion.defaultTitleFormat
-                    ? matchedPartnerSuggestion.defaultTitleFormat(data.estate)
-                    : `${data.estate || "Estate"} by ${matchedPartnerSuggestion.name}`
-                );
               }}
               className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors shadow-sm whitespace-nowrap"
             >
@@ -1093,184 +1209,448 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
         {/* Controls when partner is enabled */}
         {data.partnerEnabled && (
-          <div className="space-y-3.5 pt-1">
-            {/* Developer Preset Badges */}
+          <div className="space-y-3 pt-1">
+            {/* State Personalization Tabs & Add Developer button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-900 border border-slate-800">
+                {(["NSW", "QLD", "ALL"] as const).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={() => setDeveloperStateFilter(st)}
+                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${
+                      developerStateFilter === st
+                        ? "bg-amber-500 text-slate-950 font-bold shadow-xs"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {st === "ALL" ? "All States" : st}
+                    {st === activeDivision && (
+                      <span className="ml-1 text-[9px] opacity-75 font-normal">(Your State)</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setNewDevState(developerStateFilter === "ALL" ? activeDivision : developerStateFilter);
+                  setIsAddDevOpen(true);
+                }}
+                className="h-7 text-xs border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500 hover:text-slate-950 font-semibold gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Developer
+              </Button>
+            </div>
+
+            {/* Developer Selector Grid */}
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium tracking-wide text-slate-300">
-                Select Developer Partner
-              </Label>
-              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
-                {PARTNER_DEVELOPERS.map((dev) => {
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {availableDevelopers.map((dev) => {
                   const isSelected = data.partnerDeveloperId === dev.id;
                   return (
-                    <button
+                    <div
                       key={dev.id}
-                      type="button"
+                      role="button"
+                      tabIndex={0}
+                      data-dev-id={dev.id}
+                      className={`group relative flex flex-col items-center justify-between p-2 rounded-xl border text-center transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? "border-amber-500 bg-amber-500/20 text-amber-200 shadow-sm ring-1 ring-amber-500/50"
+                          : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/90"
+                      }`}
                       onClick={() => {
                         set("partnerDeveloperId", dev.id);
                         set("partnerName", dev.name);
                         set("partnerLogoUrl", dev.logoUrl);
-                        if (dev.id !== "custom" && dev.defaultTitleFormat) {
-                          set("partnerTitle", dev.defaultTitleFormat(data.estate));
-                        } else if (dev.id !== "custom") {
-                          set("partnerTitle", `${data.estate || "Estate"} by ${dev.name}`);
+                        set("partnerEnabled", true);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          set("partnerDeveloperId", dev.id);
+                          set("partnerName", dev.name);
+                          set("partnerLogoUrl", dev.logoUrl);
+                          set("partnerEnabled", true);
                         }
                       }}
-                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
-                        isSelected
-                          ? "border-amber-500 bg-amber-500/20 text-amber-200 shadow-sm"
-                          : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/90"
-                      }`}
                     >
-                      {dev.logoUrl ? (
-                        <div className="h-6 w-full flex items-center justify-center mb-1">
+                      {/* Edit / Customise Button in corner */}
+                      <button
+                        type="button"
+                        title={`Customise ${dev.name} logo & settings`}
+                        onClick={(e) => handleOpenEditDev(dev, e)}
+                        className="absolute top-1 right-1 p-1 rounded-md text-slate-400 hover:text-amber-300 hover:bg-slate-800/90 transition-colors z-10 opacity-70 hover:opacity-100"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+
+                      {/* State or Custom badge */}
+                      <div className="w-full flex items-center justify-start gap-1 mb-1">
+                        {dev.isCustom && (
+                          <span className="text-[8px] font-bold px-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                            Custom
+                          </span>
+                        )}
+                        {dev.isOverridden && (
+                          <span className="text-[8px] font-bold px-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            Edited
+                          </span>
+                        )}
+                        {dev.state && dev.state !== "ALL" && (
+                          <span className="text-[8px] font-bold px-1 rounded bg-slate-800 text-slate-400">
+                            {dev.state}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Logo preview */}
+                      <div className="h-7 w-full flex items-center justify-center my-1 px-1">
+                        {dev.logoUrl ? (
                           <img
                             src={dev.logoUrl}
                             alt={dev.name}
-                            className="max-h-5 max-w-[80%] object-contain"
+                            className="max-h-6 max-w-[85%] object-contain"
                             onError={(e) => {
                               (e.target as HTMLElement).style.display = "none";
                             }}
                           />
-                        </div>
-                      ) : (
-                        <div className="h-6 flex items-center justify-center mb-1">
-                          <span className="text-[10px] font-bold text-slate-400">CUSTOM</span>
-                        </div>
-                      )}
-                      <span className="text-[10px] font-semibold truncate w-full">{dev.name}</span>
-                    </button>
+                        ) : (
+                          <Building2 className="w-5 h-5 text-slate-500" />
+                        )}
+                      </div>
+
+                      <span className="text-[10px] font-bold truncate w-full mt-1">{dev.name}</span>
+                    </div>
                   );
                 })}
               </div>
             </div>
 
-            {/* Partner Title */}
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium tracking-wide text-slate-300">
-                  Co-Branded Title / Header
-                </Label>
-                <div className="flex items-center gap-1">
+            {/* Active Selected Logo Preview Card */}
+            {data.partnerLogoUrl && (
+              <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-800 bg-white/95 text-slate-900 shadow-inner mt-2">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={data.partnerLogoUrl}
+                    alt={data.partnerName || "Partner"}
+                    className="h-6.5 max-w-[130px] object-contain"
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 leading-tight">
+                      {data.partnerName || "Developer Partner"}
+                    </div>
+                    <div className="text-[10px] text-slate-600 font-medium">
+                      Automated on RHS between Hudson Homes and package name
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      const matched = availableDevelopers.find((d) => d.id === data.partnerDeveloperId);
+                      if (matched) handleOpenEditDev(matched, e);
+                    }}
+                    className="h-7 text-xs border-slate-300 text-slate-800 hover:bg-slate-100 gap-1 font-semibold"
+                  >
+                    <Pencil className="w-3 h-3" />
+                    Customise Logo
+                  </Button>
                   <button
                     type="button"
+                    title="Remove developer partner"
                     onClick={() => {
-                      const est = data.estate || "Flagstone";
-                      const dev = data.partnerName || "PEET";
-                      set("partnerTitle", `${est} by ${dev}`);
+                      set("partnerDeveloperId", "");
+                      set("partnerName", "");
+                      set("partnerLogoUrl", "");
+                      set("partnerEnabled", false);
                     }}
-                    className="text-[10px] text-amber-400/90 hover:text-amber-300 underline underline-offset-2"
+                    className="p-1 rounded-md text-slate-500 hover:text-red-600 hover:bg-slate-100 transition-colors"
                   >
-                    "{data.estate || "Estate"} by {data.partnerName || "Developer"}"
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
-              <Input
-                value={data.partnerTitle || ""}
-                onChange={(e) => set("partnerTitle", e.target.value)}
-                placeholder="e.g. Flagstone by PEET"
-                className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all"
-              />
-            </div>
-
-            {/* Logo Preview & Custom Upload */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium tracking-wide text-slate-300">
-                Developer Logo
-              </Label>
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Input
-                    value={data.partnerLogoUrl || ""}
-                    onChange={(e) => {
-                      set("partnerLogoUrl", e.target.value);
-                      if (data.partnerDeveloperId !== "custom") {
-                        set("partnerDeveloperId", "custom");
-                      }
-                    }}
-                    placeholder="Logo URL or upload file..."
-                    className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20"
-                  />
-                </div>
-                <label className="cursor-pointer shrink-0">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const res = reader.result as string;
-                        set("partnerLogoUrl", res);
-                        set("partnerDeveloperId", "custom");
-                        if (!data.partnerName) {
-                          set("partnerName", file.name.replace(/\.[^/.]+$/, ""));
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors">
-                    Upload
-                  </div>
-                </label>
-              </div>
-
-              {/* Logo Live Badge Preview */}
-              {data.partnerLogoUrl && (
-                <div className="flex items-center justify-between p-2 rounded-lg border border-slate-800/80 bg-white/95 text-slate-900 mt-2 shadow-inner">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={data.partnerLogoUrl}
-                      alt={data.partnerName || "Partner"}
-                      className="h-6 max-w-[120px] object-contain"
-                    />
-                    <div className="text-xs font-semibold text-slate-900 leading-tight">
-                      {data.partnerTitle || `${data.partnerName || "Developer"} Co-Branded`}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Active Preview
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Placement Options */}
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium tracking-wide text-slate-300">
-                Logo Placement on Flyer
-              </Label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: "title", label: "Title RHS", desc: "Beside Package Title" },
-                  { id: "header-left", label: "Top Header", desc: "Beside Hudson Logo" },
-                  { id: "both", label: "Both Areas", desc: "Header & Title Lockup" },
-                ].map((opt) => {
-                  const isSelected = (data.partnerPlacement || "title") === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => set("partnerPlacement", opt.id as any)}
-                      className={`p-2 rounded-lg border text-left transition-all ${
-                        isSelected
-                          ? "border-amber-500 bg-amber-500/20 text-amber-200"
-                          : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-                      }`}
-                    >
-                      <div className="text-xs font-bold leading-none mb-1">{opt.label}</div>
-                      <div className="text-[9px] text-slate-400 leading-tight">{opt.desc}</div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            )}
           </div>
         )}
       </Section>
+
+      {/* Add New Developer Modal */}
+      {isAddDevOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-slate-100">Add New Developer Partner</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddDevOpen(false)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <Label className="text-xs text-slate-300">Developer Name</Label>
+                <Input
+                  value={newDevName}
+                  onChange={(e) => setNewDevName(e.target.value)}
+                  placeholder="e.g. Cedar Woods, Stockland, Lendlease"
+                  className="mt-1 h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">State Availability</Label>
+                <div className="grid grid-cols-3 gap-1.5 mt-1">
+                  {(["NSW", "QLD", "ALL"] as const).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setNewDevState(st)}
+                      className={`p-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                        newDevState === st
+                          ? "border-amber-500 bg-amber-500/20 text-amber-200"
+                          : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      {st === "ALL" ? "Both / National" : `${st} Only`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">Developer Logo</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    value={newDevLogoUrl}
+                    onChange={(e) => setNewDevLogoUrl(e.target.value)}
+                    placeholder="Paste image/SVG URL or upload file below..."
+                    className="h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100 flex-1"
+                  />
+                  <label className="cursor-pointer shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*,.svg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setNewDevLogoUrl(reader.result as string);
+                          if (!newDevName) {
+                            setNewDevName(file.name.replace(/\.[^/.]+$/, ""));
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium">
+                      <Upload className="w-3.5 h-3.5" />
+                      Browse
+                    </div>
+                  </label>
+                </div>
+                {newDevLogoUrl && (
+                  <div className="mt-2 p-2 rounded-lg border border-slate-800 bg-white/95 flex items-center justify-center h-12">
+                    <img src={newDevLogoUrl} alt="Preview" className="max-h-9 max-w-[80%] object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">Default Estate (Optional)</Label>
+                <Input
+                  value={newDevEstate}
+                  onChange={(e) => setNewDevEstate(e.target.value)}
+                  placeholder="e.g. Flagstone, Oran Park, Aura"
+                  className="mt-1 h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-800 pt-3">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAddDevOpen(false)}
+                className="text-xs text-slate-400 hover:text-slate-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveNewDeveloper}
+                className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+              >
+                Save &amp; Apply
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Customise Developer Modal */}
+      {editingDev && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Pencil className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold text-slate-100">Customise Developer: {editingDev.name}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingDev(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <Label className="text-xs text-slate-300">Developer Name</Label>
+                <Input
+                  value={editDevName}
+                  onChange={(e) => setEditDevName(e.target.value)}
+                  className="mt-1 h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100"
+                />
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">State Personalisation</Label>
+                <div className="grid grid-cols-3 gap-1.5 mt-1">
+                  {(["NSW", "QLD", "ALL"] as const).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setEditDevState(st)}
+                      className={`p-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                        editDevState === st
+                          ? "border-amber-500 bg-amber-500/20 text-amber-200"
+                          : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700"
+                      }`}
+                    >
+                      {st === "ALL" ? "Both / National" : `${st} Only`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">Replace / Customise Logo</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input
+                    value={editDevLogoUrl}
+                    onChange={(e) => setEditDevLogoUrl(e.target.value)}
+                    placeholder="Image/SVG URL or upload file below..."
+                    className="h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100 flex-1"
+                  />
+                  <label className="cursor-pointer shrink-0">
+                    <input
+                      type="file"
+                      accept="image/*,.svg"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          setEditDevLogoUrl(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium">
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload
+                    </div>
+                  </label>
+                </div>
+                {editDevLogoUrl && (
+                  <div className="mt-2 p-2 rounded-lg border border-slate-800 bg-white/95 flex items-center justify-center h-14">
+                    <img src={editDevLogoUrl} alt="Preview" className="max-h-10 max-w-[85%] object-contain" />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-300">Default Estate (Optional)</Label>
+                <Input
+                  value={editDevEstate}
+                  onChange={(e) => setEditDevEstate(e.target.value)}
+                  placeholder="e.g. Flagstone, Oran Park"
+                  className="mt-1 h-8.5 rounded-lg border-slate-800 bg-slate-900 text-xs text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 border-t border-slate-800 pt-3">
+              <div>
+                {editingDev.isOverridden && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleResetDev}
+                    className="h-7 text-xs border-slate-700 text-slate-300 hover:bg-slate-800 gap-1"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset to Default
+                  </Button>
+                )}
+                {editingDev.isCustom && (
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDeleteCustomDev}
+                    className="h-7 text-xs gap-1"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setEditingDev(null)}
+                  className="text-xs text-slate-400 hover:text-slate-200"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleSaveEditDev}
+                  className="text-xs bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+                >
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Section
         id="section-package"

@@ -246,24 +246,14 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
         <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
           <div className="flex items-center gap-[3.5mm]">
             <LogoV2 size={16} />
-            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both") && (
-              <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
-                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={9} />
-              </div>
-            )}
           </div>
-          <div className="flex items-center justify-end gap-[3mm]">
-            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement) && (
-              <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+          <div className="flex items-center justify-end gap-[3.5mm]">
+            {d.partnerEnabled && d.partnerLogoUrl && (
+              <div className="flex items-center pr-[3mm] border-r border-brand-sand">
                 <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={9} />
               </div>
             )}
             <div className="text-right leading-none">
-              {d.partnerEnabled && d.partnerTitle ? (
-                <div className="text-[2.2mm] font-bold tracking-[0.18em] text-brand-gold-deep uppercase mb-[0.8mm]">
-                  {d.partnerTitle}
-                </div>
-              ) : null}
               <h1 className="font-sans font-black text-[7.5mm] tracking-[0.03em] text-brand-navy uppercase">
                 SITING PLAN
               </h1>
@@ -295,13 +285,8 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
             </div>
             <div className="text-right flex flex-col items-end">
               <span className="text-[2.6mm] font-bold text-brand-navy tracking-wider uppercase">
-                {d.partnerEnabled && d.partnerTitle ? d.partnerTitle.toUpperCase() : (d.estate || d.suburb || "FLAGSTONE").toUpperCase()}
+                {(d.estate || d.suburb || "FLAGSTONE").toUpperCase()}
               </span>
-              {d.partnerEnabled && d.partnerName && (
-                <span className="text-[1.7mm] font-semibold text-brand-gold-deep tracking-widest uppercase">
-                  PARTNER: {d.partnerName}
-                </span>
-              )}
             </div>
           </div>
 

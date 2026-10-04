@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 70" width="280" height="70">
+  <g fill="none" fill-rule="evenodd">
+    <!-- Dahua geometric emblem -->
+    <rect x="14" y="14" width="40" height="40" rx="6" fill="#C62828"/>
+    <path d="M24 24 L44 24 L44 44 L24 44 Z" stroke="#FFFFFF" stroke-width="3" fill="none"/>
+    <circle cx="34" cy="34" r="5" fill="#FFFFFF"/>
+    <!-- Brand Typography -->
+    <text x="66" y="34" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" fill="#212121" letter-spacing="2">DAHUA</text>
+    <text x="68" y="50" font-family="system-ui, -apple-system, sans-serif" font-size="10.5" font-weight="700" fill="#757575" letter-spacing="3.5">GROUP AUSTRALIA</text>
+  </g>
+</svg>

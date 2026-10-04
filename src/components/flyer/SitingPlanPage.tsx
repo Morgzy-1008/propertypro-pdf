@@ -314,24 +314,14 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
         <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
           <div className="flex items-center gap-[3.5mm]">
             <Logo size={14} />
-            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both") && (
-              <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
-                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
-              </div>
-            )}
           </div>
-          <div className="flex items-center justify-end gap-[3mm]">
-            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement) && (
-              <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
-                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+          <div className="flex items-center justify-end gap-[3.5mm]">
+            {d.partnerEnabled && d.partnerLogoUrl && (
+              <div className="flex items-center pr-[3mm] border-r border-brand-sand">
+                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={9} />
               </div>
             )}
             <div className="text-right leading-tight">
-              {d.partnerEnabled && d.partnerTitle ? (
-                <div className="text-[2.2mm] font-extrabold tracking-[0.18em] text-brand-gold-deep uppercase">
-                  {d.partnerTitle}
-                </div>
-              ) : null}
               <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
                 ARCHITECTURAL SITING PLAN
               </div>
