@@ -26,6 +26,7 @@ import {
 } from "./facadePricing";
 import { fileToImageDataUrl } from "./fileToImage";
 import { formatAud } from "@/lib/pricing";
+import { useTheme } from "@/lib/theme";
 
 const CATEGORIES: { id: FacadeStorey | "uploaded"; label: string }[] = [
   { id: "single", label: "Single Storey" },
@@ -290,6 +291,9 @@ export function FacadeLibrary({
     return counts;
   }, [tabs, eligible]);
 
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -297,10 +301,14 @@ export function FacadeLibrary({
           type="button"
           variant="outline"
           disabled={disabled}
-          className="border-brand-gold/40 bg-slate-900/90 text-slate-100 hover:border-brand-gold hover:bg-slate-850 hover:text-white text-xs gap-1.5 shadow-sm"
+          className={`h-9 px-3 w-full justify-center text-xs gap-1.5 shadow-xs font-semibold rounded-lg transition-all ${
+            isLight
+              ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-brand-gold/60 shadow-slate-200/50"
+              : "border-brand-gold/40 bg-slate-900/90 text-slate-100 hover:border-brand-gold hover:bg-slate-850 hover:text-white"
+          }`}
         >
-          <Search className="h-3.5 w-3.5 text-brand-gold" />
-          Browse facade library ({eligible.length})
+          <Search className="h-3.5 w-3.5 text-brand-gold shrink-0" />
+          <span>Browse facade library ({eligible.length})</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">

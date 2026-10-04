@@ -2399,64 +2399,74 @@ export function QuoteDesignStep({
               })()}
 
               <div className="space-y-2">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <Label className="text-[11px] text-slate-400 font-medium">
-                    Select Facade from Price List ({suitableFacades.length} available)
-                  </Label>
-                  <FacadeLibrary
-                    value={design.facadeName || ""}
-                    onSelect={(item) => {
-                      const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
-                      const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
-                      onChange({
-                        isCustomFacade: false,
-                        facadeName: item.name,
-                        facadePrice: uplift,
-                        facadeImageUrl: item.url,
-                      });
-                    }}
-                    storey={isDouble ? "double" : "single"}
-                    designName={design.designName}
-                    garage={isSingleGarageDesign(design.designName, design.housingType) ? 1 : 2}
-                    designFacades={isDuplex ? suitableFacades.filter((f) => f.url).map((f) => ({
-                      id: f.id || f.name,
-                      name: f.name,
-                      range: f.range || f.note || design.housingType,
-                      tags: [f.name.toLowerCase(), "duplex"],
-                      url: f.url!,
-                      originalUrl: f.url,
-                    })) : undefined}
-                  />
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors">
-                    <Upload className="h-3.5 w-3.5" />
-                    <span>Upload Render (PDF / Image)</span>
-                    <input
-                      id="standard-facade-upload-input"
-                      type="file"
-                      accept="image/*,application/pdf,.pdf"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const toastId = toast.loading("Processing facade render (PDF/Image)...");
-                        try {
-                          const dataUrl = await fileToImageDataUrl(file);
-                          if (dataUrl) {
-                            onChange({
-                              isCustomFacade: true,
-                              facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
-                              facadeImageUrl: dataUrl,
-                            });
-                            toast.success("Custom facade render attached!", { id: toastId });
-                          } else {
-                            toast.error("Failed to parse facade file.", { id: toastId });
-                          }
-                        } catch (err: any) {
-                          toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
-                        }
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      Select Facade from Price List ({suitableFacades.length} available)
+                    </Label>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <FacadeLibrary
+                      value={design.facadeName || ""}
+                      onSelect={(item) => {
+                        const match = suitableFacades.find((f) => f.id === item.id || f.name.toLowerCase() === item.name.toLowerCase());
+                        const uplift = match ? match.uplift : (facadePriceForDesign(item.name, isDouble ? "double" : "single", design.designName) ?? 0);
+                        onChange({
+                          isCustomFacade: false,
+                          facadeName: item.name,
+                          facadePrice: uplift,
+                          facadeImageUrl: item.url,
+                        });
                       }}
+                      storey={isDouble ? "double" : "single"}
+                      designName={design.designName}
+                      garage={isSingleGarageDesign(design.designName, design.housingType) ? 1 : 2}
+                      designFacades={isDuplex ? suitableFacades.filter((f) => f.url).map((f) => ({
+                        id: f.id || f.name,
+                        name: f.name,
+                        range: f.range || f.note || design.housingType,
+                        tags: [f.name.toLowerCase(), "duplex"],
+                        url: f.url!,
+                        originalUrl: f.url,
+                      })) : undefined}
                     />
-                  </label>
+                    <label
+                      className={`cursor-pointer flex items-center justify-center gap-1.5 px-3 py-1.5 h-9 w-full rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all ${
+                        isLight
+                          ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
+                          : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
+                      }`}
+                    >
+                      <Upload className={`h-3.5 w-3.5 shrink-0 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
+                      <span>Upload Render (PDF / Image)</span>
+                      <input
+                        id="standard-facade-upload-input"
+                        type="file"
+                        accept="image/*,application/pdf,.pdf"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const toastId = toast.loading("Processing facade render (PDF/Image)...");
+                          try {
+                            const dataUrl = await fileToImageDataUrl(file);
+                            if (dataUrl) {
+                              onChange({
+                                isCustomFacade: true,
+                                facadeName: design.facadeName && design.isCustomFacade ? design.facadeName : file.name.replace(/\.[^/.]+$/, "") || "Custom Facade",
+                                facadeImageUrl: dataUrl,
+                              });
+                              toast.success("Custom facade render attached!", { id: toastId });
+                            } else {
+                              toast.error("Failed to parse facade file.", { id: toastId });
+                            }
+                          } catch (err: any) {
+                            toast.error("Failed to process facade file: " + (err?.message || "Unknown error"), { id: toastId });
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
                 </div>
 
                 {design.facadeImageUrl && design.isCustomFacade && (
@@ -2983,8 +2993,14 @@ export function QuoteDesignStep({
                     />
 
                     {/* Upload Custom Facade Render (Photo or PDF) */}
-                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-cyan-950/70 hover:bg-cyan-900 border border-cyan-500/40 text-cyan-300 text-xs font-semibold shadow-sm transition-colors">
-                      <Upload className="h-3.5 w-3.5" />
+                    <label
+                      className={`cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 h-9 rounded-lg border text-xs font-semibold whitespace-nowrap shadow-xs transition-all ${
+                        isLight
+                          ? "bg-white hover:bg-slate-50 border-slate-300 text-slate-700 hover:text-slate-900 hover:border-cyan-500/60 shadow-slate-200/50"
+                          : "bg-slate-900/90 hover:bg-slate-850 border-slate-700 hover:border-cyan-500/50 text-slate-200 hover:text-white"
+                      }`}
+                    >
+                      <Upload className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                       <span>Upload Render (PDF / Image)</span>
                       <input
                         id="custom-facade-upload-input"
