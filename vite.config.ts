@@ -436,6 +436,12 @@ export default defineConfig({
   define: {
     __APP_BUILD_TIME__: APP_BUILD_TIME,
   },
+  server: {
+    allowedHosts: true,
+  },
+  preview: {
+    allowedHosts: true,
+  },
   plugins: [
     TanStackRouterVite(),
     tailwindcss(),

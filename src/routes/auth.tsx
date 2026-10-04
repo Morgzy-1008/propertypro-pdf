@@ -31,10 +31,10 @@ import {
   CheckCircle2,
   ArrowRight,
   Phone,
-  Users,
 } from "lucide-react";
 import { Logo } from "@/components/flyer/FlyerTemplates";
-import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
+import { useTheme } from "@/lib/theme";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -53,6 +53,8 @@ type AuthMode = "signin" | "create_password" | "reset_password";
 
 function AuthPage() {
   const navigate = useNavigate();
+  const { mode } = useTheme();
+  const isNormal = mode === "normal";
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
 
   // Form states (ALWAYS Blank on load - No prefilled profiles or passwords)
@@ -66,7 +68,6 @@ function AuthPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
-  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
   useEffect(() => {
     // If user already has an active 24-hr session, ensure Supabase auth and redirect directly to /hub
@@ -266,29 +267,62 @@ function AuthPage() {
 
   const currentProfile = email ? findStaffProfileByEmail(normalizeStaffEmail(email)) : undefined;
 
+  const mainClasses = isNormal
+    ? "min-h-screen bg-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 text-slate-900 font-sans relative overflow-hidden transition-colors"
+    : "min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 text-slate-100 font-sans relative overflow-hidden transition-colors";
+
+  const cardClasses = isNormal
+    ? "w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-2xl relative z-10 space-y-6 text-slate-900"
+    : "w-full max-w-md rounded-3xl border border-slate-800/90 bg-slate-900/90 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6 text-slate-100";
+
+  const titleClass = isNormal
+    ? "text-xl sm:text-2xl font-bold text-slate-950 tracking-tight"
+    : "text-xl sm:text-2xl font-bold text-white tracking-tight";
+
+  const subtitleClass = isNormal
+    ? "text-xs text-slate-600 max-w-xs mx-auto"
+    : "text-xs text-slate-400 max-w-xs mx-auto";
+
+  const labelClass = isNormal
+    ? "text-xs text-slate-800 font-medium"
+    : "text-xs text-slate-300 font-medium";
+
+  const inputClass = isNormal
+    ? "pl-9 bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
+    : "pl-9 bg-slate-950/70 border border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10";
+
+  const inputPassClass = isNormal
+    ? "pl-9 pr-10 bg-slate-50 border border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
+    : "pl-9 pr-10 bg-slate-950/70 border border-slate-800 text-slate-100 placeholder:text-slate-500 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10";
+
   return (
-    <main className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 sm:p-6 text-slate-100 font-sans relative overflow-hidden">
+    <main className={mainClasses}>
+      {/* Theme Switcher Toggle */}
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
       {/* Background Ambience */}
       <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-amber-500/10 blur-[140px] pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 h-96 w-96 rounded-full bg-cyan-500/10 blur-[140px] pointer-events-none" />
 
-      <div className="w-full max-w-md rounded-3xl border border-slate-800/90 bg-slate-900/90 backdrop-blur-2xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
+      <div className={cardClasses}>
         {/* Header Branding */}
         <div className="text-center space-y-2">
           <div className="flex justify-center">
-            <Logo light size={14} />
+            <Logo light={!isNormal} size={14} />
           </div>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[11px] font-semibold tracking-wide">
-            <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-[11px] font-semibold tracking-wide">
+            <ShieldCheck className="h-3.5 w-3.5 text-amber-500" />
             <span>Daily Staff Authentication (24h Active Session)</span>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+          <h1 className={titleClass}>
             {authMode === "signin" && "Sign In to Hudson Portal"}
             {authMode === "create_password" && "Create Your Password"}
             {authMode === "reset_password" && "Reset Your Password"}
           </h1>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto">
+          <p className={subtitleClass}>
             {authMode === "signin" && "Enter your work email and password to access Quoting, CRM & Database."}
             {authMode === "create_password" && `Welcome ${currentProfile?.name || ""}! Choose a password to secure your account.`}
             {authMode === "reset_password" && "Verify your registered mobile number to set a new password."}
@@ -297,12 +331,12 @@ function AuthPage() {
 
         {/* Access Denied Warning */}
         {accessDeniedMessage && (
-          <div className="p-3.5 rounded-2xl border border-rose-500/40 bg-rose-950/30 space-y-1.5 text-xs text-rose-200">
-            <div className="flex items-center gap-1.5 font-bold text-rose-400">
-              <AlertTriangle className="h-4 w-4 text-rose-400 flex-none" />
+          <div className="p-3.5 rounded-2xl border border-rose-500/40 bg-rose-50 dark:bg-rose-950/30 space-y-1.5 text-xs text-rose-800 dark:text-rose-200">
+            <div className="flex items-center gap-1.5 font-bold text-rose-600 dark:text-rose-400">
+              <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 flex-none" />
               <span>Restricted Access</span>
             </div>
-            <p className="text-[11px] text-rose-300/90 leading-relaxed">
+            <p className="text-[11px] text-rose-700 dark:text-rose-300/90 leading-relaxed">
               {accessDeniedMessage}
             </p>
           </div>
@@ -312,9 +346,9 @@ function AuthPage() {
         {authMode === "signin" && (
           <form onSubmit={handleSignIn} noValidate className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Hudson Work Email</Label>
+              <Label className={labelClass}>Hudson Work Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
                   inputMode="email"
@@ -327,20 +361,20 @@ function AuthPage() {
                     setAccessDeniedMessage(null);
                   }}
                   placeholder="firstname.lastname@hudsonhomes.com.au"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
               {currentProfile && (
-                <div className="flex items-center justify-between text-[11px] text-amber-400 font-medium pt-0.5">
+                <div className="flex items-center justify-between text-[11px] text-amber-600 dark:text-amber-400 font-medium pt-0.5">
                   <div className="flex items-center gap-1.5 truncate">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-400 flex-none" />
+                    <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 flex-none" />
                     <span className="truncate">{currentProfile.name} • {currentProfile.title} ({currentProfile.displayCentre})</span>
                   </div>
                   {!hasUserConfiguredPassword(email) && (
                     <button
                       type="button"
                       onClick={() => setAuthMode("create_password")}
-                      className="text-[10.5px] text-amber-300 hover:text-amber-200 underline font-semibold flex-none ml-2"
+                      className="text-[10.5px] text-amber-600 dark:text-amber-300 hover:text-amber-700 dark:hover:text-amber-200 underline font-semibold flex-none ml-2"
                     >
                       Set password →
                     </button>
@@ -351,32 +385,32 @@ function AuthPage() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-300 font-medium">Password</Label>
+                <Label className={labelClass}>Password</Label>
                 <button
                   type="button"
                   onClick={() => {
                     setAuthMode("reset_password");
                     setAccessDeniedMessage(null);
                   }}
-                  className="text-[11px] text-amber-400 hover:text-amber-300 hover:underline font-medium"
+                  className="text-[11px] text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 hover:underline font-medium"
                 >
                   Forgot Password?
                 </button>
               </div>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showPassword ? "text" : "password"}
                   required={hasUserConfiguredPassword(email)}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={hasUserConfiguredPassword(email) ? "Enter your password" : "Enter password or click Set password above"}
-                  className="pl-9 pr-10 bg-slate-950/70 border-slate-800 text-slate-100 focus:border-amber-500 focus:ring-amber-500/20 text-xs h-10"
+                  className={inputPassClass}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -406,34 +440,10 @@ function AuthPage() {
                   setAuthMode("create_password");
                   setAccessDeniedMessage(null);
                 }}
-                className="text-xs text-slate-400 hover:text-amber-400 transition-colors"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
               >
-                First time logging in? <span className="text-amber-400 font-semibold underline">Set up password</span>
+                First time logging in? <span className="text-amber-600 dark:text-amber-400 font-semibold underline">Set up password</span>
               </button>
-            </div>
-
-            {/* Quick Staff Login & Profile Switcher */}
-            <div className="pt-2">
-              <div className="relative flex py-2 items-center">
-                <div className="flex-grow border-t border-slate-800"></div>
-                <span className="flex-shrink mx-3 text-[10.5px] uppercase tracking-wider text-slate-500 font-mono">
-                  Or Fast Staff Preview
-                </span>
-                <div className="flex-grow border-t border-slate-800"></div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsSwitcherOpen(true)}
-                className="w-full bg-slate-900/90 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-400 font-semibold text-xs h-10 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Users className="h-4 w-4 text-amber-400" />
-                <span>Select Profile to Preview Login</span>
-              </Button>
-              <p className="text-[10.5px] text-slate-400 text-center mt-1.5">
-                Instantly switch and preview what any staff member or admin sees.
-              </p>
             </div>
           </form>
         )}
@@ -442,9 +452,9 @@ function AuthPage() {
         {authMode === "create_password" && (
           <form onSubmit={handleCreatePassword} noValidate className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Your Work Email</Label>
+              <Label className={labelClass}>Your Work Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
                   inputMode="email"
@@ -456,11 +466,11 @@ function AuthPage() {
                     setAccessDeniedMessage(null);
                   }}
                   placeholder="firstname.lastname@hudsonhomes.com.au"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
               {currentProfile && (
-                <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold pt-0.5">
+                <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold pt-0.5">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   <span>Verified Profile: {currentProfile.name} ({currentProfile.displayCentre})</span>
                 </div>
@@ -468,21 +478,21 @@ function AuthPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Create New Password</Label>
+              <Label className={labelClass}>Create New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showNewPassword ? "text" : "password"}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 5 characters"
-                  className="pl-9 pr-10 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputPassClass}
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   tabIndex={-1}
                 >
                   {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -491,16 +501,16 @@ function AuthPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Confirm New Password</Label>
+              <Label className={labelClass}>Confirm New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showNewPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -508,9 +518,9 @@ function AuthPage() {
             <Button
               type="submit"
               disabled={busy}
-              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-10 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-10 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              <CheckCircle2 className="h-4 w-4 text-slate-950" />
+              <CheckCircle2 className="h-4 w-4 text-white" />
               <span>Save Password &amp; Sign In</span>
             </Button>
 
@@ -521,9 +531,9 @@ function AuthPage() {
                   setAuthMode("signin");
                   setAccessDeniedMessage(null);
                 }}
-                className="text-xs text-slate-400 hover:text-slate-200"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                Already have a password? <span className="text-amber-400 font-semibold underline">Back to Sign In</span>
+                Already have a password? <span className="text-amber-600 dark:text-amber-400 font-semibold underline">Back to Sign In</span>
               </button>
             </div>
           </form>
@@ -533,9 +543,9 @@ function AuthPage() {
         {authMode === "reset_password" && (
           <form onSubmit={handleResetPassword} noValidate className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Hudson Work Email</Label>
+              <Label className={labelClass}>Hudson Work Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type="text"
                   inputMode="email"
@@ -544,45 +554,45 @@ function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="firstname.lastname@hudsonhomes.com.au"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Verify Registered Mobile Number</Label>
+              <Label className={labelClass}>Verify Registered Mobile Number</Label>
               <div className="relative">
-                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Phone className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type="tel"
                   required
                   value={verifyPhone}
                   onChange={(e) => setVerifyPhone(e.target.value)}
                   placeholder="e.g. 0417 571 864"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">
                 Enter your mobile number associated with your Hudson Homes staff profile.
               </span>
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">New Password</Label>
+              <Label className={labelClass}>New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showNewPassword ? "text" : "password"}
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Minimum 5 characters"
-                  className="pl-9 pr-10 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputPassClass}
                 />
                 <button
                   type="button"
                   onClick={() => setShowNewPassword(!showNewPassword)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                   tabIndex={-1}
                 >
                   {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -591,16 +601,16 @@ function AuthPage() {
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300 font-medium">Confirm New Password</Label>
+              <Label className={labelClass}>Confirm New Password</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <Input
                   type={showNewPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter new password"
-                  className="pl-9 bg-slate-950/70 border-slate-800 text-slate-100 text-xs h-10"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -621,26 +631,21 @@ function AuthPage() {
                   setAuthMode("signin");
                   setAccessDeniedMessage(null);
                 }}
-                className="text-xs text-slate-400 hover:text-slate-200"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
               >
-                Back to <span className="text-amber-400 font-semibold underline">Sign In</span>
+                Back to <span className="text-amber-600 dark:text-amber-400 font-semibold underline">Sign In</span>
               </button>
             </div>
           </form>
         )}
 
         {/* Security Footer Note */}
-        <div className="pt-4 border-t border-slate-800/70 text-center">
-          <p className="text-[11px] text-slate-500">
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-800/70 text-center">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
             Protected by Hudson Homes Enterprise Authentication Gate • 24h Session Expiry
           </p>
         </div>
       </div>
-
-      <ProfileSwitcherModal
-        isOpen={isSwitcherOpen}
-        onClose={() => setIsSwitcherOpen(false)}
-      />
     </main>
   );
 }
