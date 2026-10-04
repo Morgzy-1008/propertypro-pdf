@@ -483,22 +483,22 @@ function WelcomeHubPage() {
 
         {/* Portals Grid with Futuristic Gradient Glows */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
-          {/* Portal 01: House & Land Package Studio (Flyer Builder) */}
+          {/* Portal 01: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
-            to="/flyer"
+            to="/quote-builder"
             portalNumber="PORTAL // 01"
-            categoryBadge="Flyer Builder"
-            title="House & Land Package Studio"
-            description="Generate branded 1-page & 2-page package brochures, social marketing tiles, and facade showcase renders."
-            icon={FileText}
-            features="Flyers & Social Renders • PDF Engine"
-            actionText="Open Studio"
-            glowGradient="from-amber-500 via-amber-400 to-orange-500"
-            lightBeam="from-transparent via-amber-400 to-transparent"
-            innerGlow="from-amber-500/25 to-transparent"
-            iconColor="text-amber-400"
-            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            categoryBadge="Estimating Engine"
+            title="Hudson Quoting System"
+            description="Calculate precise client tenders with dynamic m² area extensions, piering allowances, and live variation subtotals."
+            icon={Layers}
+            features="Delta Area Pricing • Tender PDF"
+            actionText="Launch Quoting"
+            glowGradient="from-emerald-400 via-teal-400 to-green-500"
+            lightBeam="from-transparent via-emerald-400 to-transparent"
+            innerGlow="from-emerald-500/25 to-transparent"
+            iconColor="text-emerald-400"
+            iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
+            badgeStyle="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
             isLight={isLight}
           />
 
@@ -521,10 +521,48 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 03: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
+          {/* Portal 03: House & Land Package Studio (Flyer Builder) */}
+          <PortalCard
+            to="/flyer"
+            portalNumber="PORTAL // 03"
+            categoryBadge="Flyer Builder"
+            title="House & Land Package Studio"
+            description="Generate branded 1-page & 2-page package brochures, social marketing tiles, and facade showcase renders."
+            icon={FileText}
+            features="Flyers & Social Renders • PDF Engine"
+            actionText="Open Studio"
+            glowGradient="from-amber-500 via-amber-400 to-orange-500"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+          />
+
+          {/* Portal 04: Concept Floorplan Editor (Accessible to all logins) */}
+          <PortalCard
+            to="/floorplan-editor"
+            portalNumber="PORTAL // 04"
+            categoryBadge="Concept Studio"
+            title="Concept Floorplan Editor"
+            description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
+            icon={Sliders}
+            features="Connected Web App • Live Canvas"
+            actionText="Launch Editor"
+            glowGradient="from-blue-500 via-indigo-500 to-violet-500"
+            lightBeam="from-transparent via-indigo-400 to-transparent"
+            innerGlow="from-indigo-500/25 to-transparent"
+            iconColor="text-indigo-400"
+            iconBg="from-blue-500/20 to-indigo-500/10 border-indigo-500/30"
+            badgeStyle="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+            isLight={isLight}
+          />
+
+          {/* Portal 05: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
             to="/land-scout"
-            portalNumber="PORTAL // 03"
+            portalNumber="PORTAL // 05"
             categoryBadge="Land Intelligence"
             statusBadge={{
               text: "Live Cadastre & Estates",
@@ -544,44 +582,6 @@ function WelcomeHubPage() {
             badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
             isLight={isLight}
             isComingSoon={!isMorgan}
-          />
-
-          {/* Portal 04: Hudson Quoting System (Accessible to all logins) */}
-          <PortalCard
-            to="/quote-builder"
-            portalNumber="PORTAL // 04"
-            categoryBadge="Estimating Engine"
-            title="Hudson Quoting System"
-            description="Calculate precise client tenders with dynamic m² area extensions, piering allowances, and live variation subtotals."
-            icon={Layers}
-            features="Delta Area Pricing • Tender PDF"
-            actionText="Launch Quoting"
-            glowGradient="from-emerald-400 via-teal-400 to-green-500"
-            lightBeam="from-transparent via-emerald-400 to-transparent"
-            innerGlow="from-emerald-500/25 to-transparent"
-            iconColor="text-emerald-400"
-            iconBg="from-emerald-500/20 to-teal-500/10 border-emerald-500/30"
-            badgeStyle="text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-            isLight={isLight}
-          />
-
-          {/* Portal 05: Concept Floorplan Editor (Accessible to all logins) */}
-          <PortalCard
-            to="/floorplan-editor"
-            portalNumber="PORTAL // 05"
-            categoryBadge="Concept Studio"
-            title="Concept Floorplan Editor"
-            description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
-            icon={Sliders}
-            features="Connected Web App • Live Canvas"
-            actionText="Launch Editor"
-            glowGradient="from-blue-500 via-indigo-500 to-violet-500"
-            lightBeam="from-transparent via-indigo-400 to-transparent"
-            innerGlow="from-indigo-500/25 to-transparent"
-            iconColor="text-indigo-400"
-            iconBg="from-blue-500/20 to-indigo-500/10 border-indigo-500/30"
-            badgeStyle="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
-            isLight={isLight}
           />
 
           {/* Portal 06: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
