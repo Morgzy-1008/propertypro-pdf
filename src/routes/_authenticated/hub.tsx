@@ -32,6 +32,7 @@ import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
 import { canAccessFloorplanEditor, isMorganHales } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
+import { isLocalhost } from "@/lib/isLocalhost";
 
 export const Route = createFileRoute("/_authenticated/hub")({
   head: () => ({
@@ -207,14 +208,14 @@ function PortalCard({
     </>
   );
 
-  const cardClasses = `relative h-full rounded-[21px] p-6 sm:p-7 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-2xl ${
+  const cardClasses = `relative h-full rounded-[21px] p-6 sm:p-7 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-xl ${
     isLight
       ? isComingSoon
-        ? "bg-white/85 text-slate-800 shadow-md shadow-slate-200/50"
-        : "bg-white/92 text-slate-900 group-hover:bg-white shadow-xl shadow-slate-300/40"
+        ? "bg-white/70 text-slate-800 shadow-md shadow-slate-200/50"
+        : "bg-white/78 text-slate-900 group-hover:bg-white/90 shadow-xl shadow-slate-300/40"
       : isComingSoon
-      ? "bg-slate-950/80 text-slate-200 shadow-lg shadow-black/50"
-      : "bg-slate-950/85 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
+      ? "bg-slate-950/65 text-slate-200 shadow-lg shadow-black/50"
+      : "bg-slate-950/68 text-slate-100 group-hover:bg-slate-900/80 shadow-2xl shadow-black/80"
   } ${isWide ? "lg:flex-row lg:items-center lg:gap-8" : ""}`;
 
   return (
@@ -331,12 +332,50 @@ function WelcomeHubPage() {
     (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
       localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
 
+  const isLocal = isLocalhost();
+  const [teamBgOpacity, setTeamBgOpacity] = useState<number>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hudson_team_bg_opacity");
+      if (saved) return parseFloat(saved);
+    }
+    return 0.22; // Default elegant translucent opacity
+  });
+  const [isTeamBgVisible, setIsTeamBgVisible] = useState<boolean>(true);
+
   return (
     <div
       className={`min-h-screen ${
         isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"
       } flex flex-col font-sans selection:bg-brand-gold/30 relative overflow-x-hidden`}
     >
+      {/* 2026 Hudson Homes Company Team Photo Translucent Background (Localhost Review) */}
+      {isLocal && isTeamBgVisible && (
+        <div
+          className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none transition-opacity duration-700"
+          style={{
+            opacity: teamBgOpacity,
+            maskImage:
+              "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.5) 100%)",
+            WebkitMaskImage:
+              "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.5) 100%)",
+          }}
+        >
+          <img
+            src="/brand/hudson-team-2026.jpg"
+            alt="Hudson Homes Team 2026"
+            className="w-full h-full object-cover object-[center_50%] filter saturate-[1.15] contrast-[1.05]"
+          />
+          {/* Subtle atmospheric vignette gradient overlay for text readability */}
+          <div
+            className={`absolute inset-0 ${
+              isLight
+                ? "bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/70"
+                : "bg-gradient-to-b from-slate-950/40 via-slate-950/15 to-slate-950/80"
+            }`}
+          />
+        </div>
+      )}
+
       {/* Cybernetic Geometric Grid Background with radial fade */}
       <div
         className={`fixed inset-0 pointer-events-none ${
@@ -390,6 +429,34 @@ function WelcomeHubPage() {
                 <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
                 <span>Land Scout</span>
               </Link>
+            )}
+
+            {/* Localhost 2026 Team Background Review Control */}
+            {isLocal && (
+              <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/70 text-slate-300 text-xs backdrop-blur-md shadow-xs">
+                <Users className="h-3.5 w-3.5 text-brand-gold" />
+                <span className="font-semibold text-white">2026 Team:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = teamBgOpacity <= 0.12 ? 0.22 : teamBgOpacity <= 0.25 ? 0.35 : 0.10;
+                    setTeamBgOpacity(next);
+                    localStorage.setItem("hudson_team_bg_opacity", next.toString());
+                  }}
+                  className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 font-mono font-bold transition-colors cursor-pointer"
+                  title="Click to cycle translucency (10%, 22%, 35%)"
+                >
+                  {Math.round(teamBgOpacity * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsTeamBgVisible(!isTeamBgVisible)}
+                  className="text-slate-400 hover:text-white px-1 font-semibold transition-colors cursor-pointer"
+                  title={isTeamBgVisible ? "Hide Team Photo Background" : "Show Team Photo Background"}
+                >
+                  {isTeamBgVisible ? "Hide" : "Show"}
+                </button>
+              </div>
             )}
 
             <ThemeToggle />

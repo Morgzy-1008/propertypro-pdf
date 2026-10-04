@@ -10,7 +10,6 @@ import {
   DollarSign,
   UserPlus,
   CheckCircle2,
-  FileCheck2,
   MapPinOff,
   Building2,
   Sparkles,
@@ -284,20 +283,20 @@ export function QuoteClientDetails({
   const currentFee = site?.councilFee ?? (isNswDivision ? 2000 : 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       {/* Header */}
-      <div className="border-b border-slate-800/80 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className="border-b border-slate-800/80 pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h3 className="text-base font-bold text-white flex items-center gap-2">
             <User className="h-4 w-4 text-emerald-400" />
             Step 1: Client &amp; Job Information
           </h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 mt-0.5">
             Enter primary client details, secondary applicant information (optional), proposed site address, and initial deposit options.
           </p>
         </div>
         {client.clientName && client.clientName.trim().length >= 2 && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-semibold shadow-xs self-start sm:self-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-semibold shadow-xs self-start sm:self-center">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Synced to CRM &bull; {client.consultantName || "Consultant"}</span>
           </div>
@@ -305,7 +304,7 @@ export function QuoteClientDetails({
       </div>
 
       {/* Primary Client (Client 1) Contact Info */}
-      <div className="space-y-3">
+      <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
             <User className="h-3.5 w-3.5 text-emerald-400" /> Primary Applicant (Client 1)
@@ -314,41 +313,41 @@ export function QuoteClientDetails({
             <button
               type="button"
               onClick={() => onChange({ hasClient2: true, client2Name: "" })}
-              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold"
+              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold cursor-pointer"
             >
               <UserPlus className="h-3.5 w-3.5" /> + Add Second Applicant (Client 2)
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-300">Client 1 Full Name *</Label>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Full Name *</Label>
             <Input
               value={client.clientName}
               onChange={(e) => onChange({ clientName: e.target.value })}
               placeholder="e.g. Jordan Samuel Mitchell"
-              className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-300">Client 1 Phone</Label>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Phone</Label>
             <Input
               value={client.clientPhone}
               onChange={(e) => onChange({ clientPhone: e.target.value })}
               placeholder="e.g. 0417 555 123"
-              className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-300">Client 1 Email</Label>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Email</Label>
             <Input
               value={client.clientEmail}
               onChange={(e) => onChange({ clientEmail: e.target.value })}
               placeholder="e.g. jordan.mitchell@example.com"
-              className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
             />
           </div>
         </div>
@@ -356,7 +355,7 @@ export function QuoteClientDetails({
 
       {/* Secondary Client (Client 2) - Optional */}
       {client.hasClient2 && (
-        <div className="space-y-3">
+        <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
               <UserPlus className="h-3.5 w-3.5 text-cyan-400" /> Second Applicant (Client 2)
@@ -371,40 +370,40 @@ export function QuoteClientDetails({
                   client2Email: "",
                 })
               }
-              className="text-xs text-rose-400 hover:text-rose-300 font-semibold"
+              className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
             >
               Remove Client 2
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Client 2 Full Name</Label>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Full Name</Label>
               <Input
                 value={client.client2Name || ""}
                 onChange={(e) => onChange({ client2Name: e.target.value })}
                 placeholder="e.g. Stephannie Ann Krause"
-                className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Client 2 Phone</Label>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Phone</Label>
               <Input
                 value={client.client2Phone || ""}
                 onChange={(e) => onChange({ client2Phone: e.target.value })}
                 placeholder="e.g. 0418 777 888"
-                className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-300">Client 2 Email</Label>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Email</Label>
               <Input
                 value={client.client2Email || ""}
                 onChange={(e) => onChange({ client2Email: e.target.value })}
                 placeholder="e.g. stephannie.krause@example.com"
-                className="border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
               />
             </div>
           </div>
@@ -412,7 +411,7 @@ export function QuoteClientDetails({
       )}
 
       {/* Proposed Building Site Address with Auto-Council Detection */}
-      <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 space-y-3">
+      <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <MapPin className="h-3.5 w-3.5 text-cyan-400" />
@@ -423,21 +422,21 @@ export function QuoteClientDetails({
           <button
             type="button"
             onClick={handleToggleNoAddressYet}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               isNoAddressActive
                 ? "bg-rose-500/20 border border-rose-500/50 text-rose-300 hover:bg-rose-500/30 shadow-sm"
                 : "bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
             }`}
           >
-            <MapPinOff className={`h-3.5 w-3.5 ${isNoAddressActive ? "text-rose-400" : "text-amber-400"}`} />
+            <MapPinOff className={`h-3 w-3 ${isNoAddressActive ? "text-rose-400" : "text-amber-400"}`} />
             {isNoAddressActive
               ? "✕ Clear 'No Address' / Enter Custom Address"
               : "No Address Yet / Land Not Purchased (Auto $2,200 Council Allowance)"}
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3">
-          <div className="space-y-1.5 md:col-span-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-2.5">
+          <div className="space-y-1 md:col-span-2">
             <Label className="text-[11px] text-slate-400">Lot Number</Label>
             <Input
               value={client.lotNumber}
@@ -620,18 +619,18 @@ export function QuoteClientDetails({
       </div>
 
       {/* Consultant & Initial Deposit Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {/* Sales Consultant */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 space-y-3">
+        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <Shield className="h-3.5 w-3.5 text-brand-gold" />
             New Home Sales Consultant
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-[11px] text-slate-400">Select Consultant</Label>
             <Select value={client.consultantId} onValueChange={handleConsultantChange}>
-              <SelectTrigger className="border-slate-800 bg-slate-950/70 text-xs text-slate-200">
+              <SelectTrigger className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-200">
                 <SelectValue placeholder="Select consultant" />
               </SelectTrigger>
               <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
@@ -644,32 +643,32 @@ export function QuoteClientDetails({
             </Select>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/50 rounded-lg p-2.5 space-y-1">
+          <div className="text-[11px] text-slate-400 bg-slate-950/50 rounded-lg p-2 space-y-0.5">
             <div className="flex justify-between">
               <span>Display Centre:</span>
-              <span className="text-slate-200">{client.consultantOffice}</span>
+              <span className="text-slate-200 font-medium">{client.consultantOffice}</span>
             </div>
             <div className="flex justify-between">
               <span>Direct Phone:</span>
-              <span className="text-slate-200 font-mono">{client.consultantPhone}</span>
+              <span className="text-slate-200 font-mono font-medium">{client.consultantPhone}</span>
             </div>
           </div>
         </div>
 
         {/* Initial Deposit Required for Preliminary Works */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 space-y-3">
+        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
             <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
             Initial Deposit &amp; Preliminary Works
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <Label className="text-[11px] text-slate-400">Site Land Status</Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleDepositTypeChange("greenfield")}
-                className={`p-2.5 rounded-lg border text-left transition-all ${
+                className={`p-2 rounded-lg border text-left transition-all ${
                   client.depositType === "greenfield"
                     ? "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
                     : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
@@ -684,7 +683,7 @@ export function QuoteClientDetails({
               <button
                 type="button"
                 onClick={() => handleDepositTypeChange("brownfield")}
-                className={`p-2.5 rounded-lg border text-left transition-all ${
+                className={`p-2 rounded-lg border text-left transition-all ${
                   client.depositType === "brownfield"
                     ? "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
                     : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
@@ -698,69 +697,42 @@ export function QuoteClientDetails({
             </div>
           </div>
 
-          {/* Custom $800 Fee (3D Virtual Tour Prior to Contract) */}
+          {/* Custom $800 Fee (3D Virtual Tour Prior to Contract) - Just Title */}
           <div
             onClick={() => handleToggleCustom3dTour(!client.custom3dTourSelected)}
-            className={`p-3 rounded-lg border transition-all cursor-pointer flex items-start gap-2.5 ${
+            className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
               client.custom3dTourSelected
                 ? "border-cyan-500/80 bg-cyan-950/40 text-cyan-200 ring-1 ring-cyan-500/40"
                 : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
             }`}
           >
-            <input
-              type="checkbox"
-              checked={!!client.custom3dTourSelected}
-              onChange={(e) => handleToggleCustom3dTour(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-700 text-cyan-500 focus:ring-cyan-500/30"
-              onClick={(e) => e.stopPropagation()}
-            />
-            <div className="flex-1 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-100 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                  Include Custom 3D Virtual Tour
-                </span>
-                <span className="font-mono font-extrabold text-cyan-300 text-xs">+$800 Upfront Deposit</span>
-              </div>
-              <p className="text-[10.5px] text-slate-400 mt-1 leading-snug">
-                Features a 3D interactive virtual tour of your modified/customized design before contract signing.
-              </p>
-              <div className="text-[10px] text-cyan-400/90 font-medium mt-1">
-                *Not an additional fee on the home—part of your total contract price credited upfront to proceed.
-              </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!client.custom3dTourSelected}
+                onChange={(e) => handleToggleCustom3dTour(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-700 text-cyan-500 focus:ring-cyan-500/30"
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+                Include Custom 3D Virtual Tour
+              </span>
             </div>
-          </div>
-
-          <div className="text-[11px] text-slate-400 bg-slate-950/50 rounded-lg p-2.5 space-y-1">
-            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <FileCheck2 className="h-3.5 w-3.5 text-cyan-400" /> Preliminary Works Included with Deposit:
-            </div>
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-slate-400 pt-1">
-              <div>✓ On-site Investigation Report</div>
-              <div>✓ Geotechnical Soil Test</div>
-              <div>✓ Wind Classification Report</div>
-              <div>✓ Registered Contour Survey</div>
-              <div>✓ Covenant Compliance Check</div>
-              <div>✓ In-House Architectural Drafting</div>
-              {client.custom3dTourSelected && (
-                <div className="text-cyan-300 font-bold col-span-2">
-                  ✓ 3D Virtual Tour Prior to Contract (Custom $800 Upgrade)
-                </div>
-              )}
-            </div>
+            <span className="font-mono font-bold text-cyan-300 text-xs shrink-0">+$800 Upfront Deposit</span>
           </div>
         </div>
       </div>
 
       {/* Estimate Notes */}
-      <div className="space-y-1.5">
+      <div className="space-y-1">
         <Label className="text-xs text-slate-300">Builders Estimate Notes &amp; Special Conditions</Label>
         <Textarea
           value={client.notes}
           onChange={(e) => onChange({ notes: e.target.value })}
           placeholder="Special conditions, covenant notes, or client requests..."
           rows={2}
-          className="border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/60"
+          className="border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/60 min-h-[50px]"
         />
       </div>
     </div>

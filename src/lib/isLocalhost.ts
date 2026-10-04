@@ -12,6 +12,7 @@ export function isLocalhost(): boolean {
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname.endsWith(".local") ||
+    hostname.includes("trycloudflare.com") ||
     hostname.startsWith("192.168.") ||
     hostname.startsWith("10.") ||
     hostname.startsWith("172.16.") ||
@@ -34,6 +35,7 @@ export function isLocalhost(): boolean {
   const hasDevQuery =
     window.location.search.includes("dev_v2=true") ||
     window.location.search.includes("dev=true") ||
+    window.location.search.includes("team_bg=true") ||
     window.location.search.includes("localhost=true");
 
   return Boolean(isLocal || hasDevQuery);

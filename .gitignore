@@ -40,6 +40,7 @@ dist-ssr
 *.jpg
 !public/facades/*
 !public/assets/*
+!public/brand/*
 *.pdf
 *.traineddata
 scripts/
