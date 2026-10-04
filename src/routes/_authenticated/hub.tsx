@@ -29,6 +29,7 @@ import {
 } from "@/lib/authSession";
 import { getPendingAccessRequests, getUnreadAlertCount, onAdminAlertsChanged } from "@/lib/adminAlerts";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
 import { canAccessFloorplanEditor, isMorganHales } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
@@ -266,6 +267,7 @@ function WelcomeHubPage() {
   const [staffUser, setStaffUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [greeting, setGreeting] = useState("Good day");
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isProfileSwitcherOpen, setIsProfileSwitcherOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState<number>(() => getPendingAccessRequests().length);
   const [unreadAlerts, setUnreadAlerts] = useState<number>(() => getUnreadAlertCount());
 
@@ -374,7 +376,7 @@ function WelcomeHubPage() {
                 Digital Builder OS
               </span>
               <span className="block text-[10px] tracking-widest text-brand-gold font-semibold uppercase">
-                Queensland Division
+                {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales Division" : "Queensland Division"}
               </span>
             </div>
           </div>
@@ -422,29 +424,41 @@ function WelcomeHubPage() {
                 </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
-                if (morgan) {
-                  sessionStorage.removeItem("hudson_admin_impersonator");
-                  localStorage.removeItem("hudson_admin_impersonator");
-                  sessionStorage.setItem(
-                    "hudson_login_toast",
-                    JSON.stringify({ name: "Morgan Hales", type: "returned" })
-                  );
-                  setActiveStaffUser(morgan, true);
-                  if (morgan.division) {
-                    localStorage.setItem("hudson_active_division", morgan.division);
+            <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <button
+                type="button"
+                data-testid="banner-switch-profile-btn"
+                onClick={() => setIsProfileSwitcherOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-md transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+              >
+                <Users className="h-4 w-4 text-amber-400" />
+                <span>Switch Profile</span>
+              </button>
+              <button
+                type="button"
+                data-testid="banner-return-morgan-btn"
+                onClick={() => {
+                  const morgan = KNOWN_STAFF_PROFILES.find((p) => p.id === "morgan-hales");
+                  if (morgan) {
+                    sessionStorage.removeItem("hudson_admin_impersonator");
+                    localStorage.removeItem("hudson_admin_impersonator");
+                    sessionStorage.setItem(
+                      "hudson_login_toast",
+                      JSON.stringify({ name: "Morgan Hales", type: "returned" })
+                    );
+                    setActiveStaffUser(morgan, true);
+                    if (morgan.division) {
+                      localStorage.setItem("hudson_active_division", morgan.division);
+                    }
+                    window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
                   }
-                  window.location.href = `/hub?returned=admin&_t=${Date.now()}`;
-                }
-              }}
-              className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
-            >
-              <UserCheck className="h-4 w-4" />
-              <span>Return to Morgan Hales (Admin)</span>
-            </button>
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black shadow-md hover:shadow-lg transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95"
+              >
+                <UserCheck className="h-4 w-4" />
+                <span>Return to Morgan Hales (Admin)</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -458,12 +472,12 @@ function WelcomeHubPage() {
           </div>
 
           <h1
-            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-snug sm:leading-tight pb-2 ${
+            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-normal sm:leading-[1.2] pb-4 overflow-visible ${
               isLight ? "text-slate-900" : "text-white"
             }`}
           >
             {greeting},{" "}
-            <span className="relative inline-block py-2 -my-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)]">
+            <span className="relative inline-block px-1 pt-1 pb-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)] align-baseline">
               {displayName}
             </span>.
           </h1>
@@ -492,8 +506,22 @@ function WelcomeHubPage() {
             </div>
           )}
 
-          {isAdmin && (
-            <div className="mt-3.5 flex items-center justify-center">
+          {/* Quick Profile Switcher Trigger */}
+          <div className="mt-3.5 flex items-center justify-center gap-2.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setIsProfileSwitcherOpen(true)}
+              className={`group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md cursor-pointer ${
+                isLight
+                  ? "bg-slate-100/95 border-slate-300 text-slate-800 hover:bg-amber-100 hover:border-amber-400 hover:text-amber-950"
+                  : "bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-amber-950/40 hover:border-amber-500/50 shadow-black/40"
+              }`}
+            >
+              <Users className="h-3.5 w-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
+              <span>Switch Profile &amp; Preview Login</span>
+            </button>
+
+            {isAdmin && (
               <button
                 type="button"
                 onClick={() => setIsAdminModalOpen(true)}
@@ -512,8 +540,8 @@ function WelcomeHubPage() {
                 )}
                 <ArrowRight className="h-3 w-3 text-amber-400 ml-0.5 group-hover:translate-x-1 transition-transform" />
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Hudson Homes Personal AI Assistant with Ambient Aura */}
@@ -685,6 +713,12 @@ function WelcomeHubPage() {
         />
       )}
 
+      {/* Staff Profile Switcher & Login Preview Modal */}
+      <ProfileSwitcherModal
+        isOpen={isProfileSwitcherOpen}
+        onClose={() => setIsProfileSwitcherOpen(false)}
+      />
+
       {/* Footer Branding Bar with Optical Laser Divider */}
       <footer
         className={`border-t ${
@@ -692,7 +726,7 @@ function WelcomeHubPage() {
         } py-4 text-center text-xs relative backdrop-blur-md`}
       >
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
-        Hudson Homes Queensland • Zero Surprises • Powered by Package Studio &amp; Hudson Horizon
+        Hudson Homes {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales" : "Queensland"} • Zero Surprises • Powered by Package Studio &amp; Hudson Horizon
       </footer>
     </div>
   );

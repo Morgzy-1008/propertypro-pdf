@@ -21,6 +21,8 @@ import {
   User,
   FileText,
   Layers,
+  Eye,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -42,7 +44,13 @@ import {
   onActivityLogged,
   type ActivityLogItem,
 } from "@/lib/activityLog";
-import { KNOWN_STAFF_PROFILES, getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
+import {
+  KNOWN_STAFF_PROFILES,
+  getActiveStaffUser,
+  setActiveStaffUser,
+  type StaffProfile,
+} from "@/lib/authSession";
+import { setActiveDivision } from "@/lib/divisionContext";
 
 interface AdminDashboardModalProps {
   isOpen: boolean;
@@ -106,6 +114,26 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
     clearActivityLogs();
     refreshData();
     toast.info("Website activity log cleared.");
+  };
+
+  const handleSwitchToStaff = (staff: StaffProfile) => {
+    if (staff.email !== "morgan.hales@hudsonhomes.com.au") {
+      localStorage.setItem("hudson_admin_impersonator", "morgan.hales@hudsonhomes.com.au");
+    } else {
+      localStorage.removeItem("hudson_admin_impersonator");
+    }
+    setActiveStaffUser(staff);
+    if (staff.division) {
+      setActiveDivision(staff.division);
+    } else if (staff.state === "NSW") {
+      setActiveDivision("NSW");
+    } else if (staff.state === "QLD") {
+      setActiveDivision("QLD");
+    }
+    toast.success(`Switched login to ${staff.name} (${staff.title || staff.role})`);
+    onClose();
+    window.dispatchEvent(new Event("hudson_auth_state_changed"));
+    window.dispatchEvent(new Event("storage"));
   };
 
   return createPortal(
@@ -299,41 +327,70 @@ export function AdminDashboardModal({ isOpen, onClose }: AdminDashboardModalProp
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {KNOWN_STAFF_PROFILES.map((staff) => (
-                  <div
-                    key={staff.id}
-                    className="p-4 rounded-2xl border border-slate-800 bg-slate-950/70 flex items-start gap-3.5 relative overflow-hidden"
-                  >
+                {KNOWN_STAFF_PROFILES.map((staff) => {
+                  const isCurrent = currentUser?.id === staff.id || currentUser?.email?.toLowerCase() === staff.email.toLowerCase();
+                  return (
                     <div
-                      className={`h-11 w-11 rounded-2xl bg-gradient-to-br ${staff.accentColor} flex items-center justify-center text-white text-xs font-black shadow-md flex-none`}
+                      key={staff.id}
+                      className={`p-4 rounded-2xl border ${
+                        isCurrent
+                          ? "border-amber-500/50 bg-amber-950/20 shadow-md shadow-amber-500/10"
+                          : "border-slate-800 bg-slate-950/70 hover:border-slate-750"
+                      } flex flex-col justify-between gap-3 relative overflow-hidden transition-all`}
                     >
-                      {staff.avatarInitials}
-                    </div>
-
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white text-sm truncate">{staff.name}</span>
-                        <span
-                          className={`text-[9.5px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
-                            staff.role === "admin"
-                              ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
-                              : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
-                          }`}
+                      <div className="flex items-start gap-3.5">
+                        <div
+                          className={`h-11 w-11 rounded-2xl bg-gradient-to-br ${staff.accentColor} flex items-center justify-center text-white text-xs font-black shadow-md flex-none`}
                         >
-                          {staff.role === "admin" ? "System Admin" : "NHC"}
-                        </span>
+                          {staff.avatarInitials}
+                        </div>
+
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-white text-sm truncate">{staff.name}</span>
+                            <span
+                              className={`text-[9.5px] px-2 py-0.5 rounded font-mono font-bold uppercase ${
+                                staff.role === "admin"
+                                  ? "bg-amber-500/20 text-amber-300 border border-amber-500/40"
+                                  : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40"
+                              }`}
+                            >
+                              {staff.role === "admin" ? "System Admin" : staff.title || "NHC"}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-slate-300 font-mono truncate">{staff.email}</div>
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
+                            <Phone className="h-3 w-3 text-slate-500" /> {staff.phone}
+                          </div>
+                          <div className="text-[10px] text-amber-400 flex items-center gap-1 pt-0.5">
+                            <Building className="h-3 w-3" /> {staff.displayCentre} ({staff.state})
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="text-xs text-slate-300 font-mono truncate">{staff.email}</div>
-                      <div className="text-[11px] text-slate-400 flex items-center gap-1 font-mono">
-                        <Phone className="h-3 w-3 text-slate-500" /> {staff.phone}
-                      </div>
-                      <div className="text-[10px] text-amber-400 flex items-center gap-1 pt-1">
-                        <Building className="h-3 w-3" /> {staff.displayCentre}
+                      {/* Action Button */}
+                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {staff.division || staff.state} Division
+                        </div>
+                        {isCurrent ? (
+                          <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/50 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Active Profile
+                          </span>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={() => handleSwitchToStaff(staff)}
+                            className="h-7.5 px-3 text-xs bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 font-semibold border border-slate-700 transition-all flex items-center gap-1.5"
+                          >
+                            <Eye className="h-3.5 w-3.5" /> Preview Login
+                          </Button>
+                        )}
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

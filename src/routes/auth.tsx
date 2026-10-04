@@ -31,8 +31,10 @@ import {
   CheckCircle2,
   ArrowRight,
   Phone,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/flyer/FlyerTemplates";
+import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -64,6 +66,7 @@ function AuthPage() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
   useEffect(() => {
     // If user already has an active 24-hr session, ensure Supabase auth and redirect directly to /hub
@@ -408,6 +411,30 @@ function AuthPage() {
                 First time logging in? <span className="text-amber-400 font-semibold underline">Set up password</span>
               </button>
             </div>
+
+            {/* Quick Staff Login & Profile Switcher */}
+            <div className="pt-2">
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-slate-800"></div>
+                <span className="flex-shrink mx-3 text-[10.5px] uppercase tracking-wider text-slate-500 font-mono">
+                  Or Fast Staff Preview
+                </span>
+                <div className="flex-grow border-t border-slate-800"></div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsSwitcherOpen(true)}
+                className="w-full bg-slate-900/90 hover:bg-slate-800 text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-400 font-semibold text-xs h-10 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Users className="h-4 w-4 text-amber-400" />
+                <span>Select Profile to Preview Login</span>
+              </Button>
+              <p className="text-[10.5px] text-slate-400 text-center mt-1.5">
+                Instantly switch and preview what any staff member or admin sees.
+              </p>
+            </div>
           </form>
         )}
 
@@ -609,6 +636,11 @@ function AuthPage() {
           </p>
         </div>
       </div>
+
+      <ProfileSwitcherModal
+        isOpen={isSwitcherOpen}
+        onClose={() => setIsSwitcherOpen(false)}
+      />
     </main>
   );
 }

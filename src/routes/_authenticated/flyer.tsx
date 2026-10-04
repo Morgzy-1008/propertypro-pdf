@@ -28,6 +28,7 @@ import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 import { getLocalLots, upsertLocalPackage, type Pkg } from "@/lib/databaseStorage";
 import { ensureStaffSupabaseAuth, syncPackageToSupabase, syncLotToSupabase } from "@/lib/supabaseSync";
+import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 
 export const Route = createFileRoute("/_authenticated/flyer")({
   head: () => ({
@@ -287,17 +288,22 @@ function Index() {
 
         <header className="flex-shrink-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl sticky top-0 shadow-lg">
           <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 overflow-x-auto no-scrollbar">
-            <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
-              <HudsonMark className="h-8 w-auto text-brand-gold" />
-              <div className="leading-tight border-l border-slate-800 pl-3">
-                <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
-                  Package Studio
-                </h1>
-                <p className="text-[10px] tracking-wider text-brand-gold font-medium uppercase">
-                  Flyer Builder
-                </p>
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
+                <HudsonMark className="h-8 w-auto text-brand-gold" />
+                <div className="leading-tight border-l border-slate-800 pl-3">
+                  <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
+                    Package Studio
+                  </h1>
+                  <p className="text-[10px] tracking-wider text-brand-gold font-medium uppercase">
+                    Flyer Builder
+                  </p>
+                </div>
+              </Link>
+              <div className="hidden sm:block border-l border-slate-800 pl-2">
+                <StaffHeaderProfile isLight={false} />
               </div>
-            </Link>
+            </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
               <Link to="/hub">

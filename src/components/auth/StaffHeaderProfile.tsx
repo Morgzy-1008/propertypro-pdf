@@ -24,10 +24,13 @@ import {
   Users,
   CheckCircle2,
   Sparkles,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { DivisionSwitcher } from "./DivisionSwitcher";
+import { ProfileSwitcherModal } from "./ProfileSwitcherModal";
+import { setActiveDivision } from "@/lib/divisionContext";
 import { useTheme } from "@/lib/theme";
 
 interface StaffHeaderProfileProps {
@@ -43,6 +46,7 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
   const [activeUser, setActiveUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isSwitcherModalOpen, setIsSwitcherModalOpen] = useState(false);
   const [unreadAlerts, setUnreadAlerts] = useState<number>(() => getUnreadAlertCount());
 
   useEffect(() => {
@@ -68,7 +72,8 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
     (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
       localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
 
-  const canSwitchProfiles = isMorgan || isImpersonating;
+  // Always enable profile switching so admin / tester is never trapped
+  const canSwitchProfiles = true;
 
   const handleSwitchToProfile = (profile: StaffProfile) => {
     try {
@@ -83,8 +88,10 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
         } catch {}
       }
       setActiveStaffUser(profile, true);
-      if (profile.division) {
-        localStorage.setItem("hudson_active_division", profile.division);
+      const targetDiv = profile.division || (profile.state === "NSW" ? "NSW" : "QLD");
+      setActiveDivision(targetDiv);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("hudson_active_division", targetDiv);
       }
       setIsDropdownOpen(false);
 
@@ -285,6 +292,26 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
                           Instant Access
                         </span>
                       </div>
+
+                      {/* Button to open Full Profile Switcher Modal */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsDropdownOpen(false);
+                          setIsSwitcherModalOpen(true);
+                        }}
+                        className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between font-bold border transition-all cursor-pointer ${
+                          isLight
+                            ? "bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-950"
+                            : "bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/40 text-amber-300"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Users className="h-3.5 w-3.5 text-amber-500" />
+                          <span>Browse Full Directory &amp; Switch</span>
+                        </span>
+                        <ArrowRight className="h-3 w-3 text-amber-500" />
+                      </button>
 
                       {/* Quick Return to Morgan button if currently previewing as another colleague */}
                       {isImpersonating && activeUser?.id !== "morgan-hales" && (
@@ -517,6 +544,12 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
           onClose={() => setIsAdminModalOpen(false)}
         />
       )}
+
+      {/* Staff Profile Switcher Directory Modal */}
+      <ProfileSwitcherModal
+        isOpen={isSwitcherModalOpen}
+        onClose={() => setIsSwitcherModalOpen(false)}
+      />
     </div>
   );
 }
