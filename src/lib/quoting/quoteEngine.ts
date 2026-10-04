@@ -113,12 +113,13 @@ export function getTierPrice(
 
   if (housingType === "Dual Living") {
     if (isHBS) return (model as any).hbs || model.h1 || 0;
+    if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
     if (isH1) return model.h1 || (model as any).hbs || 0;
     if (isH3) return (model as any).h3 || model.h2 || 0;
     return model.h2 || model.h1 || 0;
   }
   if (isHBS) return (model as any).hbs || model.h1 || 0;
-  if (isSS) return (model as any).ss || model.h1 || 0;
+  if (isSS) return (model as any).ss || (model as any).hbs || model.h1 || 0;
   if (isH1) return model.h1 || (model as any).hbs || 0;
   if (isH3) return (model as any).h3 || model.h2 || 0;
   return model.h2 || model.h1 || 0;

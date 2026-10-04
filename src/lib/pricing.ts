@@ -24,8 +24,10 @@ export const HOUSING_TYPES: { id: HousingType; label: string }[] = [
   { id: "dual-oc", label: "Dual-Oc" },
 ];
 
-/** H1 = Value, H2 = Designer, H3 = Luxury */
-const RANGE_COLUMN: Record<RangeId, "h1" | "h2" | "h3"> = {
+/** HBS = Base, SS = Smart Start, H1 = Value, H2 = Designer, H3 = Luxury */
+const RANGE_COLUMN: Record<RangeId, "hbs" | "ss" | "h1" | "h2" | "h3"> = {
+  hbs: "hbs",
+  ss: "ss",
   value: "h1",
   designer: "h2",
   luxury: "h3",
@@ -131,7 +133,9 @@ export function housePriceFor(name: string, range: RangeId, division?: Division)
   const lists = getPriceLists(division);
   const isDualLiving = lists["dual-oc"].some((r) => r.name.trim().toLowerCase() === name.trim().toLowerCase());
   const discount = isDualLiving ? 0 : PROMO_DISCOUNT;
-  return Math.max(0, row[RANGE_COLUMN[range]] - discount);
+  const col = RANGE_COLUMN[range] || "h2";
+  const rawPrice = (row as any)[col] ?? row.h2 ?? row.h1 ?? 0;
+  return Math.max(0, rawPrice - discount);
 }
 
 export function formatAud(value: number): string {

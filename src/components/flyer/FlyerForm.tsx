@@ -39,6 +39,7 @@ import {
   parseAud,
   type HousingType,
 } from "@/lib/pricing";
+import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
 import {
   Select,
   SelectContent,
@@ -304,7 +305,15 @@ function resolveDefaultFacade(
 }
 
 export function FlyerForm({ data, set, template }: { data: FlyerData; set: Setter; template?: TemplateId }) {
-  const designs = designsFor(data.housingType as HousingType);
+  const [division, setDivision] = useState<Division>(() => getActiveDivision());
+
+  useEffect(() => {
+    return onDivisionChanged((newDiv) => {
+      setDivision(newDiv);
+    });
+  }, []);
+
+  const designs = useMemo(() => designsFor(data.housingType as HousingType, division), [data.housingType, division]);
   const [autoFilterLand, setAutoFilterLand] = useState(true);
 
   const filteredDesigns = useMemo(() => {
@@ -438,13 +447,21 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     landPrice: string,
     facadeUplift: number,
     costs = data.costs,
+    activeDiv: Division = division,
   ) => {
-    const house = housePriceFor(designName, range);
+    const house = housePriceFor(designName, range, activeDiv);
     if (house === null) return;
-    const total = house + facadeUplift + costsTotal(costs);
-    set("housePrice", formatAud(total));
-    set("price", formatAud(total + parseAud(landPrice)));
+    const houseOnlyTotal = house + facadeUplift;
+    const packageTotal = houseOnlyTotal + costsTotal(costs) + parseAud(landPrice);
+    set("housePrice", formatAud(houseOnlyTotal));
+    set("price", formatAud(packageTotal));
   };
+
+  useEffect(() => {
+    if (data.designName) {
+      applyPricing(data.designName, data.range, data.landPrice, uplift, data.costs, division);
+    }
+  }, [division]);
 
   const setCost = (id: (typeof COST_FIELDS)[number]["id"], value: number) => {
     const next = { ...data.costs, [id]: value };
@@ -1367,11 +1384,14 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 />
               </SelectTrigger>
               <SelectContent className="max-h-72">
-                {designs.map((row) => (
-                  <SelectItem key={row.name} value={row.name}>
-                    {row.name} — {row.m2} m²
-                  </SelectItem>
-                ))}
+                {designs.map((row) => {
+                  const p = housePriceFor(row.name, data.range, division);
+                  return (
+                    <SelectItem key={row.name} value={row.name}>
+                      {row.name} — {row.m2} m² {p ? `(${formatAud(p)})` : ""}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
@@ -1396,19 +1416,24 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         )}
 
         <Section title="Inclusions range">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
             {INCLUSION_RANGES.map((r) => (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => selectRange(r.id)}
-                className={`rounded-xl border px-2 py-2.5 text-[11px] font-semibold leading-tight transition-all ${
+                className={`rounded-xl border px-2 py-2 text-center transition-all ${
                   data.range === r.id
                     ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
                     : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
-                {r.label}
+                <span className="block text-[11px] font-bold">{r.label}</span>
+                {r.code && (
+                  <span className="block text-[9px] uppercase tracking-wider opacity-70 font-mono mt-0.5">
+                    {r.code} Spec
+                  </span>
+                )}
               </button>
             ))}
           </div>

@@ -318,9 +318,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       ? secondDwelling?.specTier || "H1 Smart Inclusions"
       : quote.design.specTier;
 
-  const isTargetH1 = activeTargetTier.includes("H1");
-  const isTargetH2 = activeTargetTier.includes("H2");
-  const isTargetH3 = activeTargetTier.includes("H3");
+  const isTargetH3 = activeTargetTier.includes("H3") || activeTargetTier.includes("Luxury");
+  const isTargetH2 = activeTargetTier.includes("H2") || activeTargetTier.includes("Design");
+  const isTargetH1 = !isTargetH3 && !isTargetH2;
 
   const singleStoreyLivingM2 =
     activeDwellingTab === "dwelling2"

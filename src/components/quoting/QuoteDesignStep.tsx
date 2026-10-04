@@ -115,9 +115,19 @@ const HOUSING_TYPE_PRICES = getHousingTypePrices("QLD");
 // Clean titles for Inclusions without paragraph descriptions to save space
 export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[] = [
   {
+    id: "Home Builders Series",
+    label: "HBS Spec (Base)",
+    tag: "Builder Baseline",
+  },
+  {
+    id: "Smart Series",
+    label: "SS Spec (Smart Start)",
+    tag: "Essential Value",
+  },
+  {
     id: "H1 Smart Inclusions",
     label: "H1 Smart Inclusions",
-    tag: "Essential Value",
+    tag: "Quality Turnkey",
   },
   {
     id: "H2 Design Inclusions",
@@ -665,18 +675,23 @@ export function QuoteDesignStep({
     housingType: string = design.housingType,
   ): number => {
     if (!model) return 0;
-    let raw = 0;
-    if (tier === "H3 Luxury Inclusions" || tier === "H3 Inclusions (2025)") {
-      raw = model.h3 || model.hbs || 0;
-    } else if (tier === "H2 Design Inclusions" || tier === "H2 Inclusions (2025)") {
-      raw = model.h2 || model.hbs || 0;
-    } else if (tier === "H1 Smart Inclusions" || tier === "H1 Inclusions (2025)") {
-      raw = model.h1 || model.hbs || 0;
-    } else {
-      raw = model.hbs || 0;
+    const tierStr = String(tier || "H2").toUpperCase();
+    if (tierStr.includes("H3") || tierStr.includes("LUXURY")) {
+      return model.h3 || model.h2 || 0;
     }
-
-    return raw;
+    if (tierStr.includes("H2") || tierStr.includes("DESIGN")) {
+      return model.h2 || model.h1 || 0;
+    }
+    if (tierStr.includes("H1") || tierStr.includes("SMART INCLUSIONS")) {
+      return model.h1 || model.hbs || 0;
+    }
+    if (tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE") || tierStr.includes("SMART START")) {
+      return model.ss || model.hbs || model.h1 || 0;
+    }
+    if (tierStr.includes("HBS") || tierStr.includes("HOME BUILDER") || tierStr.includes("BASE")) {
+      return model.hbs || model.h1 || 0;
+    }
+    return model.h2 || model.h1 || 0;
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
@@ -1878,15 +1893,17 @@ export function QuoteDesignStep({
           <div className="space-y-2">
             <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-              Inclusion Range (H1, H2, H3 Set Pricing)
+              Inclusion Range &amp; Specification Tier (HBS, SS, H1, H2, H3 Set Pricing)
             </Label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
               {INCLUSION_TIERS.map((tier) => {
                 const isSelected =
                   design.specTier === tier.id ||
-                  (tier.id === "H1 Smart Inclusions" && design.specTier === "H1 Inclusions (2025)") ||
-                  (tier.id === "H2 Design Inclusions" && design.specTier === "H2 Inclusions (2025)") ||
-                  (tier.id === "H3 Luxury Inclusions" && design.specTier === "H3 Inclusions (2025)");
+                  (tier.id === "Home Builders Series" && (design.specTier === "Home Builders Series" || design.specTier === "Hudson Base")) ||
+                  (tier.id === "Smart Series" && (design.specTier === "Smart Series" || design.specTier === "Smart Style")) ||
+                  (tier.id === "H1 Smart Inclusions" && (design.specTier === "H1 Smart Inclusions" || design.specTier === "H1 Inclusions (2025)")) ||
+                  (tier.id === "H2 Design Inclusions" && (design.specTier === "H2 Design Inclusions" || design.specTier === "H2 Inclusions (2025)")) ||
+                  (tier.id === "H3 Luxury Inclusions" && (design.specTier === "H3 Luxury Inclusions" || design.specTier === "H3 Inclusions (2025)"));
                 
                 const tierStdPrice = currentModel ? getTierPrice(currentModel, tier.id, design.housingType) : 0;
                 let tierDisplayPrice = tierStdPrice;

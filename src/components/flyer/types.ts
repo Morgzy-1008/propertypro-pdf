@@ -3,15 +3,50 @@ import { LANDSCAPE_INCLUSIONS } from "@/lib/landscaping";
 
 export type TemplateId = "express" | "showcase" | "house-only" | "siting" | "house-only-v2" | "siting-v2";
 
-export type RangeId = "value" | "designer" | "luxury";
+export type RangeId = "hbs" | "ss" | "value" | "designer" | "luxury";
 
 /** Perks offered across every inclusion range. */
 const COMMON_INCLUSIONS = ["$0 Fee Customisation", "Other Plans Available"];
 
-export const INCLUSION_RANGES: { id: RangeId; label: string; items: string[] }[] = [
+export const INCLUSION_RANGES: { id: RangeId; label: string; code: string; items: string[] }[] = [
+  {
+    id: "hbs",
+    label: "HBS Spec",
+    code: "HBS",
+    items: [
+      "Builder Specification",
+      "Standard 2400mm Ceilings",
+      "Quality Finishes",
+      "Ceramic Tiles + Carpet to Bedrooms",
+      "Ceiling Fans",
+      "Site Costs",
+      "7 Star Energy",
+      "Exposed Agg Driveway",
+      "Lifetime Guarantee",
+      ...COMMON_INCLUSIONS,
+    ],
+  },
+  {
+    id: "ss",
+    label: "SS Spec",
+    code: "SS",
+    items: [
+      "Smart Start Inclusions",
+      "2440mm Ceilings",
+      "Split System AC",
+      "Ceramic Tiles + Carpet to Bedrooms",
+      "Ceiling Fans",
+      "Site Costs",
+      "7 Star Energy",
+      "Exposed Agg Driveway",
+      "Lifetime Guarantee",
+      ...COMMON_INCLUSIONS,
+    ],
+  },
   {
     id: "value",
-    label: "Value Range",
+    label: "Value (H1)",
+    code: "H1",
     items: [
       "Laminate Benchtops",
       "2440mm Ceilings",
@@ -27,7 +62,8 @@ export const INCLUSION_RANGES: { id: RangeId; label: string; items: string[] }[]
   },
   {
     id: "designer",
-    label: "Designer Range",
+    label: "Designer (H2)",
+    code: "H2",
     items: [
       "Stone Benchtops",
       "2590mm Ceilings",
@@ -43,7 +79,8 @@ export const INCLUSION_RANGES: { id: RangeId; label: string; items: string[] }[]
   },
   {
     id: "luxury",
-    label: "Luxury Range",
+    label: "Luxury (H3)",
+    code: "H3",
     items: [
       "40mm Stone Benchtops",
       "Zoned Ducted AC",
