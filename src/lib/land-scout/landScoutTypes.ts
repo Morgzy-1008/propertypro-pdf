@@ -94,9 +94,22 @@ export interface LandParcel {
   // Availability
   availabilityStatus: AvailabilityStatus;
   lastVerifiedAt: string;
+  uploadDate?: string;
 
   // Source & Agent Contacts
-  sourcePortal: "OpenLot" | "Domain" | "realestate.com.au" | "Stockland" | "Lendlease" | "Landcom" | "Developer Direct";
+  sourcePortal:
+    | "OpenLot"
+    | "Domain"
+    | "realestate.com.au"
+    | "RealEstate"
+    | "Stockland"
+    | "Lendlease"
+    | "Landcom"
+    | "Developer Direct"
+    | "Peet"
+    | "QLD_Cadastre"
+    | "NSW_SpatialServices"
+    | string;
   listingUrl: string;
   agentName: string;
   agentAgency: string;

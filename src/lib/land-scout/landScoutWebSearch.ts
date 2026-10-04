@@ -278,7 +278,8 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       expectedRegistrationDate: raw.expectedRegistrationDate || (isRegistered ? "Registered" : "Pending"),
       zoning: "Low Density Residential",
       availabilityStatus: "verified_available" as AvailabilityStatus,
-      lastVerifiedAt: new Date().toISOString(),
+      lastVerifiedAt: raw.uploadDate || raw.lastVerifiedAt || new Date().toISOString(),
+      uploadDate: raw.uploadDate || raw.lastVerifiedAt || new Date().toISOString(),
       sourcePortal: (raw.sourcePortal as any) || "OpenLot",
       listingUrl: raw.listingUrl || "",
       agentName: raw.agentName || "Listing Agent",
@@ -323,7 +324,12 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
 export async function searchLiveWebForLand(
   query: string,
   preferredState: "QLD" | "NSW" | "ALL" = "ALL"
-): Promise<{ parcels: LandParcel[]; sourceSummary: string }> {
+): Promise<{
+  parcels: LandParcel[];
+  sourceSummary: string;
+  targetSuburb?: string;
+  targetState?: "QLD" | "NSW";
+}> {
   const customKey =
     typeof window !== "undefined"
       ? (localStorage.getItem("hudson_gemini_api_key") || localStorage.getItem("gemini_api_key") || "").trim()
@@ -355,6 +361,8 @@ export async function searchLiveWebForLand(
         return {
           parcels: hydratedParcels,
           sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online via Google Search Grounding.`,
+          targetSuburb: data.targetSuburb,
+          targetState: data.targetState,
         };
       }
       if (data.isAuthError) {

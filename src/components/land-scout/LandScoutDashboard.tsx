@@ -17,6 +17,9 @@ import {
   ArrowRight,
   PlusCircle,
   FileUp,
+  Calendar,
+  UserCheck,
+  FileText,
 } from "lucide-react";
 import {
   type LandParcel,
@@ -35,7 +38,11 @@ import {
   hasSystemSavedApiKey,
   clearGeminiApiKey,
 } from "@/lib/land-scout/landScoutWebSearch";
-import { LandParcelCard } from "./LandParcelCard";
+import {
+  LandParcelCard,
+  formatUploadDate,
+  getSourceBadgeStyle,
+} from "./LandParcelCard";
 import { LandScoutMapView } from "./LandScoutMapView";
 import { PriceListImportModal } from "./PriceListImportModal";
 import { LandValuationDrawer } from "./LandValuationDrawer";
@@ -44,6 +51,24 @@ import { AddCustomLotModal } from "./AddCustomLotModal";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
+
+const SUBURB_ALIASES: Record<string, string> = {
+  flagsatone: "flagstone",
+  flasgtone: "flagstone",
+  flagston: "flagstone",
+  "flag stone": "flagstone",
+  boxhill: "box hill",
+  ripely: "ripley",
+  riply: "ripley",
+  calderwood: "calderwood",
+  warnervale: "warnervale",
+  marsden: "marsden park",
+  marsdenpark: "marsden park",
+  southmaclean: "south maclean",
+  maclean: "south maclean",
+  yarrabilba: "yarrabilba",
+  greenbank: "greenbank",
+};
 
 const POPULAR_CORRIDORS = [
   "Box Hill",
@@ -144,38 +169,49 @@ export function LandScoutDashboard() {
 
   // Search execution
   const handleExecuteSearch = async (overrideQuery?: string) => {
-    const query = (overrideQuery ?? filterState.searchQuery).trim();
-    if (!query) {
+    const rawQuery = (overrideQuery ?? filterState.searchQuery).trim();
+    if (!rawQuery) {
       toast.info("Please enter a suburb, estate, or area to search (e.g. 'Box Hill' or 'Flagstone').");
       return;
     }
 
     setIsWebSearching(true);
-    setSearchStatusMsg(`Searching available vacant blocks in "${query}"...`);
+    setSearchStatusMsg(`Searching available vacant blocks in "${rawQuery}"...`);
 
     try {
-      const result = await searchLiveWebForLand(query, filterState.state);
+      const result = await searchLiveWebForLand(rawQuery, filterState.state);
       const updated = getLandParcels();
       const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
       setParcels(deduped);
+
       if (result.parcels.length > 0) {
-        toast.success(`Found ${result.parcels.length} available blocks for "${query}"!`);
+        const canonicalSuburb = result.targetSuburb || result.parcels[0].suburb;
+        const resultState = result.targetState || result.parcels[0].state;
+
+        setFilterState((prev) => ({
+          ...prev,
+          searchQuery: canonicalSuburb,
+          suburbOrEstate: "",
+          state: prev.state !== "ALL" && prev.state !== resultState ? "ALL" : prev.state,
+        }));
+
+        toast.success(`Found ${result.parcels.length} available blocks in ${canonicalSuburb} (${resultState})!`);
       } else {
-        toast.info(`No active vacant blocks found for "${query}".`, {
+        toast.info(`No active vacant blocks found for "${rawQuery}".`, {
           description: "Try searching another area like Box Hill, Flagstone, Ripley, or Austral.",
         });
       }
     } catch (err: any) {
       console.warn("Search fallback:", err);
-      const fallbackLots = searchDatabaseLotsAsParcels(query);
+      const fallbackLots = searchDatabaseLotsAsParcels(rawQuery);
       if (fallbackLots.length > 0) {
         bulkAddOrUpdateParcels(fallbackLots);
         const updated = getLandParcels();
         const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
         setParcels(deduped);
-        toast.success(`Loaded ${fallbackLots.length} available blocks for "${query}" from Hudson's database!`);
+        toast.success(`Loaded ${fallbackLots.length} available blocks for "${rawQuery}" from Hudson's database!`);
       } else {
-        toast.info(`No active vacant blocks found matching "${query}".`);
+        toast.info(`No active vacant blocks found matching "${rawQuery}".`);
       }
     } finally {
       setIsWebSearching(false);
@@ -185,7 +221,7 @@ export function LandScoutDashboard() {
 
   // Quick Corridor Click
   const handleQuickCorridorSearch = (suburb: string) => {
-    setFilterState((prev) => ({ ...prev, searchQuery: suburb, suburbOrEstate: suburb }));
+    setFilterState((prev) => ({ ...prev, searchQuery: suburb, suburbOrEstate: "" }));
     handleExecuteSearch(suburb);
   };
 
@@ -230,7 +266,8 @@ export function LandScoutDashboard() {
           const match =
             p.suburb.toLowerCase().includes(needle) ||
             p.estate.toLowerCase().includes(needle) ||
-            p.council.toLowerCase().includes(needle);
+            p.council.toLowerCase().includes(needle) ||
+            needle.includes(p.suburb.toLowerCase());
           if (!match) return false;
         }
 
@@ -251,11 +288,19 @@ export function LandScoutDashboard() {
         // Search Query Text Filter (filter within loaded parcels)
         if (filterState.searchQuery) {
           const q = filterState.searchQuery.toLowerCase().trim();
+          const normQ = SUBURB_ALIASES[q] || q;
           const haystack = `${p.lotNumber} ${p.streetAddress} ${p.suburb} ${p.estate} ${p.postcode} ${p.state} ${p.council} ${p.agentName} ${p.agentAgency} ${p.sourcePortal}`.toLowerCase();
-          if (!haystack.includes(q)) {
+          
+          const directMatch =
+            haystack.includes(q) ||
+            haystack.includes(normQ) ||
+            p.suburb.toLowerCase().includes(normQ) ||
+            normQ.includes(p.suburb.toLowerCase());
+
+          if (!directMatch) {
             // Also test individual tokens (e.g. "Box Hill 450")
             const tokens = q.split(/\s+/).filter((t) => t.length > 2);
-            if (tokens.length === 0 || !tokens.every((t) => haystack.includes(t))) {
+            if (tokens.length === 0 || !tokens.every((t) => haystack.includes(t) || haystack.includes(SUBURB_ALIASES[t] || t))) {
               return false;
             }
           }
@@ -783,72 +828,140 @@ export function LandScoutDashboard() {
 
         {/* View 2: Clean Data Table */}
         {viewMode === "table" && filteredParcels.length > 0 && (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/90 overflow-x-auto shadow-xl">
+          <div className={`rounded-2xl border overflow-x-auto shadow-xl ${
+            isLight ? "border-slate-200 bg-white" : "border-slate-800 bg-slate-900/90"
+          }`}>
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800 bg-slate-950/80 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <tr className={`border-b text-[11px] font-bold uppercase tracking-wider ${
+                  isLight ? "border-slate-200 bg-slate-100/90 text-slate-700" : "border-slate-800 bg-slate-950/80 text-slate-400"
+                }`}>
                   <th className="p-3 pl-4">Lot / Address</th>
                   <th className="p-3">Estate / Suburb</th>
-                  <th className="p-3 text-center">State</th>
+                  <th className="p-3 text-center">Source Portal</th>
+                  <th className="p-3 text-center">Upload Date</th>
                   <th className="p-3 text-right">Size</th>
                   <th className="p-3 text-right">Frontage</th>
                   <th className="p-3 text-right">Depth</th>
                   <th className="p-3 text-right">Price</th>
                   <th className="p-3 text-right">$/m²</th>
                   <th className="p-3 text-center">Registration</th>
-                  <th className="p-3">Agent / Agency</th>
-                  <th className="p-3 text-center">Actions</th>
-                  <th className="p-3 pr-4 text-right">Listing</th>
+                  <th className="p-3">Appointed Contact</th>
+                  <th className="p-3 text-center">Website</th>
+                  <th className="p-3 pr-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-slate-200">
+              <tbody className={`divide-y ${
+                isLight ? "divide-slate-200 text-slate-800" : "divide-slate-800/60 text-slate-200"
+              }`}>
                 {filteredParcels.map((parcel) => (
-                  <tr key={parcel.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3 pl-4 font-bold text-white">
+                  <tr key={parcel.id} className={`transition-colors ${
+                    isLight ? "hover:bg-slate-50" : "hover:bg-slate-800/40"
+                  }`}>
+                    <td className={`p-3 pl-4 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                       Lot {parcel.lotNumber}
-                      <span className="block text-[10px] text-slate-400 font-normal">
+                      <span className={`block text-[10px] font-normal ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {parcel.streetAddress}
                       </span>
                     </td>
                     <td className="p-3">
-                      <span className="font-semibold text-slate-200 block">{parcel.estate || parcel.suburb}</span>
-                      <span className="text-[10px] text-slate-400">{parcel.suburb} {parcel.postcode}</span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] font-bold text-amber-300">
-                        {parcel.state}
+                      <span className={`font-semibold block ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                        {parcel.estate || parcel.suburb}
+                      </span>
+                      <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                        {parcel.suburb} {parcel.postcode}
                       </span>
                     </td>
-                    <td className="p-3 text-right font-semibold">{parcel.landSizeM2} m²</td>
-                    <td className="p-3 text-right">{parcel.frontageM} m</td>
-                    <td className="p-3 text-right text-slate-400">{parcel.depthM} m</td>
-                    <td className="p-3 text-right font-bold text-brand-gold">
+                    <td className="p-3 text-center whitespace-nowrap">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getSourceBadgeStyle(parcel.sourcePortal)}`}>
+                        {parcel.sourcePortal || "RealEstate"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center whitespace-nowrap">
+                      <span className={`text-[11px] inline-flex items-center gap-1 ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        {formatUploadDate(parcel.uploadDate || parcel.lastVerifiedAt)}
+                      </span>
+                    </td>
+                    <td className={`p-3 text-right font-semibold ${isLight ? "text-slate-900" : "text-slate-100"}`}>{parcel.landSizeM2} m²</td>
+                    <td className={`p-3 text-right ${isLight ? "text-slate-800" : "text-slate-200"}`}>{parcel.frontageM} m</td>
+                    <td className={`p-3 text-right ${isLight ? "text-slate-500" : "text-slate-400"}`}>{parcel.depthM} m</td>
+                    <td className="p-3 text-right font-bold text-amber-500">
                       ${parcel.price.toLocaleString()}
                     </td>
-                    <td className="p-3 text-right font-mono text-[11px] text-slate-400">
+                    <td className={`p-3 text-right font-mono text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       ${parcel.pricePerM2}
                     </td>
-                    <td className="p-3 text-center">
+                    <td className="p-3 text-center whitespace-nowrap">
                       <span
                         className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                           parcel.isRegistered
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                            : "bg-cyan-500/10 border-cyan-500/30 text-cyan-300"
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600"
+                            : "bg-cyan-500/10 border-cyan-500/30 text-cyan-600"
                         }`}
                       >
                         {parcel.expectedRegistrationDate || (parcel.isRegistered ? "Registered" : "Pending")}
                       </span>
                     </td>
-                    <td className="p-3 text-slate-300">
-                      <span className="font-medium block">{parcel.agentName}</span>
-                      <span className="text-[10px] text-slate-400">{parcel.agentAgency}</span>
+                    <td className={`p-3 min-w-[210px] ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+                      <span className={`font-bold block truncate ${isLight ? "text-slate-900" : "text-white"}`}>{parcel.agentName}</span>
+                      <span className={`text-[10px] block truncate ${isLight ? "text-slate-500" : "text-slate-400"}`}>{parcel.agentAgency || "Land Specialist"}</span>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        {parcel.agentPhone && (
+                          <a
+                            href={`tel:${parcel.agentPhone.replace(/\s+/g, "")}`}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold transition-all shadow-xs ${
+                              isLight
+                                ? "bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-600 hover:text-white"
+                                : "bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-slate-950"
+                            }`}
+                            title={`Call ${parcel.agentName} at ${parcel.agentPhone}`}
+                          >
+                            <Phone className="h-2.5 w-2.5" />
+                            <span>Call {parcel.agentPhone}</span>
+                          </a>
+                        )}
+                        {parcel.agentEmail && (
+                          <a
+                            href={`mailto:${parcel.agentEmail}`}
+                            className={`inline-flex items-center justify-center h-5 w-5 rounded-md transition-all ${
+                              isLight
+                                ? "bg-slate-100 border border-slate-300 text-slate-600 hover:text-slate-900 hover:border-slate-400"
+                                : "bg-slate-800 border border-slate-700 text-slate-400 hover:text-white"
+                            }`}
+                            title={`Email ${parcel.agentName}`}
+                          >
+                            <Mail className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                    <td className="p-3 text-center whitespace-nowrap">
+                      {parcel.listingUrl ? (
+                        <a
+                          href={parcel.listingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-semibold text-[11px] transition-all ${
+                            isLight
+                              ? "bg-sky-50 border border-sky-300 text-sky-700 hover:bg-sky-500 hover:text-white"
+                              : "bg-sky-500/15 border border-sky-500/40 text-sky-300 hover:bg-sky-500 hover:text-slate-950"
+                          }`}
+                          title="Open listing on external website"
+                        >
+                          <span>View Listing</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic">Direct Release</span>
+                      )}
+                    </td>
+                    <td className="p-3 pr-4 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
                           onClick={() => handleSiteLot(parcel)}
-                          className="px-2 py-1 rounded-md bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-[10px] font-bold transition-all cursor-pointer"
+                          className="px-2 py-1 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-600 hover:bg-amber-500 hover:text-white text-[10px] font-bold transition-all cursor-pointer shadow-xs"
                           title="Site Hudson House Designs on this Lot"
                         >
                           Site
@@ -856,35 +969,28 @@ export function LandScoutDashboard() {
                         <button
                           type="button"
                           onClick={() => setSelectedValuationParcel(parcel)}
-                          className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-emerald-400 hover:border-emerald-500 text-[10px] font-bold transition-all cursor-pointer"
+                          className={`px-2 py-1 rounded-md border text-[10px] font-bold transition-all cursor-pointer ${
+                            isLight
+                              ? "bg-slate-100 border-slate-300 text-emerald-700 hover:border-emerald-500"
+                              : "bg-slate-800 border-slate-700 text-emerald-400 hover:border-emerald-500"
+                          }`}
                           title="Appraise land valuation & equity"
                         >
                           Appraise
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSelectedContactParcel(parcel)}
-                          className="px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-cyan-300 hover:border-cyan-500 text-[10px] font-bold transition-all cursor-pointer"
-                          title="Contact selling agent"
+                          onClick={() => handlePackageInFlyer(parcel)}
+                          className={`px-2 py-1 rounded-md border text-[10px] font-bold transition-all cursor-pointer ${
+                            isLight
+                              ? "bg-slate-100 border-slate-300 text-amber-600 hover:border-amber-500"
+                              : "bg-slate-800 border-slate-700 text-brand-gold hover:border-brand-gold"
+                          }`}
+                          title="Package in Flyer"
                         >
-                          Contact
+                          Package
                         </button>
                       </div>
-                    </td>
-                    <td className="p-3 pr-4 text-right">
-                      {parcel.listingUrl ? (
-                        <a
-                          href={parcel.listingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-cyan-300 hover:underline font-semibold"
-                        >
-                          <span>View</span>
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        <span className="text-[11px] text-slate-500">—</span>
-                      )}
                     </td>
                   </tr>
                 ))}

@@ -8,6 +8,8 @@ import {
   TrendingUp,
   Send,
   FileText,
+  Calendar,
+  UserCheck,
 } from "lucide-react";
 import { type LandParcel, type AvailabilityStatus } from "@/lib/land-scout/landScoutTypes";
 
@@ -18,6 +20,40 @@ interface LandParcelCardProps {
   onContactAgent?: (parcel: LandParcel) => void;
   onSiteLot?: (parcel: LandParcel) => void;
   onPackageInFlyer?: (parcel: LandParcel) => void;
+}
+
+export function formatUploadDate(dateStr?: string): string {
+  if (!dateStr) return "Recently Uploaded";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
+export function getSourceBadgeStyle(source?: string): string {
+  const s = (source || "").toLowerCase();
+  if (s.includes("realestate") || s.includes("rea")) {
+    return "bg-rose-500/15 border-rose-500/40 text-rose-300";
+  }
+  if (s.includes("openlot")) {
+    return "bg-blue-500/15 border-blue-500/40 text-blue-300";
+  }
+  if (s.includes("domain")) {
+    return "bg-emerald-500/15 border-emerald-500/40 text-emerald-300";
+  }
+  if (s.includes("peet")) {
+    return "bg-amber-500/15 border-amber-500/40 text-amber-300";
+  }
+  if (s.includes("stockland")) {
+    return "bg-purple-500/15 border-purple-500/40 text-purple-300";
+  }
+  if (s.includes("cadastre") || s.includes("spatial")) {
+    return "bg-cyan-500/15 border-cyan-500/40 text-cyan-300";
+  }
+  return "bg-slate-800 border-slate-700 text-slate-300";
 }
 
 export function LandParcelCard({
@@ -81,8 +117,8 @@ export function LandParcelCard({
         {/* Top Badges Row */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-              {parcel.sourcePortal || "Hudson DB"}
+            <span className={`text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border ${getSourceBadgeStyle(parcel.sourcePortal)}`}>
+              {parcel.sourcePortal || "RealEstate"}
             </span>
             <span
               className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
@@ -148,55 +184,78 @@ export function LandParcelCard({
           </div>
         </div>
 
-        {/* Agent & Agency Contact Info */}
-        <div className="pt-2.5 border-t border-slate-800/80 text-xs space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 truncate">
-              <User className="h-3.5 w-3.5 text-slate-400 flex-none" />
-              <span className="truncate text-slate-200 font-medium">
-                {parcel.agentName}
-                {parcel.agentAgency && (
-                  <span className="text-slate-400"> ({parcel.agentAgency})</span>
-                )}
-              </span>
-            </div>
-            {parcel.listingUrl && (
-              <a
-                href={parcel.listingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-[11px] text-cyan-300 hover:text-cyan-200 hover:underline flex-none font-semibold ml-2"
-              >
-                <span>View Listing</span>
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
+        {/* Appointed Contact to Call */}
+        <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-2">
+          <div className="flex items-center justify-between text-[11px] gap-2 flex-wrap">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+              <UserCheck className="h-3 w-3 text-brand-gold" />
+              Appointed Contact
+            </span>
+            <span className="text-[10px] text-slate-400 flex items-center gap-1">
+              <Calendar className="h-3 w-3 text-slate-500" />
+              Uploaded: {formatUploadDate(parcel.uploadDate || parcel.lastVerifiedAt)}
+            </span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
-            {parcel.agentPhone && (
-              <a
-                href={`tel:${parcel.agentPhone.replace(/\s+/g, "")}`}
-                className="flex items-center gap-1 hover:text-amber-300 transition-colors"
-              >
-                <Phone className="h-3 w-3 text-brand-gold flex-none" />
-                <span>{parcel.agentPhone}</span>
-              </a>
-            )}
-            {parcel.agentEmail && (
-              <a
-                href={`mailto:${parcel.agentEmail}`}
-                className="flex items-center gap-1 hover:text-amber-300 transition-colors truncate max-w-[220px]"
-              >
-                <Mail className="h-3 w-3 text-brand-gold flex-none" />
-                <span className="truncate">{parcel.agentEmail}</span>
-              </a>
-            )}
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs font-bold text-white block truncate">
+                {parcel.agentName}
+              </span>
+              <span className="text-[11px] text-slate-400 block truncate">
+                {parcel.agentAgency || "Land Specialist"}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 flex-none">
+              {parcel.agentPhone && (
+                <a
+                  href={`tel:${parcel.agentPhone.replace(/\s+/g, "")}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-slate-950 text-xs font-bold transition-all shadow-xs"
+                  title={`Call ${parcel.agentName} on ${parcel.agentPhone}`}
+                >
+                  <Phone className="h-3 w-3" />
+                  <span>Call {parcel.agentPhone}</span>
+                </a>
+              )}
+              {parcel.agentEmail && (
+                <a
+                  href={`mailto:${parcel.agentEmail}`}
+                  className="inline-flex items-center justify-center h-7 w-7 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-slate-600 transition-all"
+                  title={`Email ${parcel.agentName} (${parcel.agentEmail})`}
+                >
+                  <Mail className="h-3 w-3" />
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* Source Portal & Direct Website Link */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+            <span>Portal:</span>
+            <span className="font-semibold text-slate-200">{parcel.sourcePortal || "RealEstate"}</span>
+          </div>
+
+          {parcel.listingUrl ? (
+            <a
+              href={parcel.listingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/15 border border-sky-500/40 text-sky-300 hover:bg-sky-500 hover:text-slate-950 text-xs font-semibold transition-all group/link"
+              title="Open listing on external portal website"
+            >
+              <span>View Website Listing</span>
+              <ExternalLink className="h-3 w-3 transition-transform group-hover/link:translate-x-0.5" />
+            </a>
+          ) : (
+            <span className="text-[11px] text-slate-500 italic">Direct Release</span>
+          )}
+        </div>
+
         {/* Action Buttons Toolbar */}
-        <div className="pt-3 border-t border-slate-800/80 grid grid-cols-3 gap-2">
+        <div className="pt-2.5 border-t border-slate-800/80 grid grid-cols-3 gap-2">
           {onSiteLot && (
             <button
               type="button"
@@ -221,16 +280,28 @@ export function LandParcelCard({
             </button>
           )}
 
-          {onContactAgent && (
+          {onPackageInFlyer ? (
             <button
               type="button"
-              onClick={() => onContactAgent(parcel)}
-              className="py-1.5 px-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300 font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              title="Contact selling agent with inquiry"
+              onClick={() => onPackageInFlyer(parcel)}
+              className="py-1.5 px-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:border-brand-gold/60 hover:text-brand-gold font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+              title="Package this lot into a marketing flyer"
             >
-              <Send className="h-3.5 w-3.5 text-cyan-400" />
-              <span>Contact</span>
+              <FileText className="h-3.5 w-3.5 text-brand-gold" />
+              <span>Package</span>
             </button>
+          ) : (
+            onContactAgent && (
+              <button
+                type="button"
+                onClick={() => onContactAgent(parcel)}
+                className="py-1.5 px-2 rounded-lg bg-slate-800/80 border border-slate-700/80 text-slate-200 hover:border-cyan-500/50 hover:text-cyan-300 font-semibold text-[11px] flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="Draft contact message"
+              >
+                <Send className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Contact</span>
+              </button>
+            )
           )}
         </div>
       </div>
