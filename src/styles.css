@@ -1311,7 +1311,7 @@ html.normal-mode,
   strong, b,
   .text-white, [class*="text-white"],
   .text-slate-50, .text-slate-100, .text-slate-200
-):not(select, select *, input, textarea) {
+):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #ffffff !important;
 }
 
@@ -1335,7 +1335,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-300, .text-zinc-300, .text-gray-300):not(select, select *, input, textarea) {
+) :is(.text-slate-300, .text-zinc-300, .text-gray-300):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #e2e8f0 !important;
 }
 
@@ -1359,7 +1359,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-400, .text-zinc-400, .text-gray-400):not(select, select *, input, textarea) {
+) :is(.text-slate-400, .text-zinc-400, .text-gray-400):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #cbd5e1 !important;
 }
 
@@ -1383,7 +1383,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-500, .text-zinc-500, .text-gray-500) {
+) :is(.text-slate-500, .text-zinc-500, .text-gray-500):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #94a3b8 !important;
 }
 
@@ -1407,7 +1407,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900) {
+) :is(.text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #cbd5e1 !important;
 }
 
@@ -1431,7 +1431,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-200, .text-yellow-300, .text-yellow-400, .text-brand-gold) {
+) :is(.text-amber-200, .text-amber-300, .text-amber-400, .text-yellow-200, .text-yellow-300, .text-yellow-400, .text-brand-gold):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   color: #fbbf24 !important;
 }
 
