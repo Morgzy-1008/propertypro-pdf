@@ -1,5 +1,5 @@
 import { CONSULTANTS } from "@/components/flyer/consultants";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authHeaders } from "@/lib/api-auth";
 
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
@@ -12,6 +12,7 @@ import {
   LogOut,
   Upload,
   Pencil,
+  Edit3,
   ChevronDown,
   ChevronRight,
   ArrowLeftRight,
@@ -85,6 +86,19 @@ import {
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
+import { buildFlyerDataFromPackage, buildCanonicalAddress } from "@/lib/packageAddress";
+import {
+  ExpressFlyer,
+  ExpressFlyerV2,
+  HouseOnlyFlyer,
+  HouseOnlyFlyerV2,
+  ShowcaseCover,
+  ShowcaseDetails,
+} from "@/components/flyer/FlyerTemplates";
+import { SitingPlanPage } from "@/components/flyer/SitingPlanPage";
+import { SitingPlanV2 } from "@/components/flyer/SitingPlanV2";
+import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
+import type { FlyerData } from "@/components/flyer/types";
 
 export const Route = createFileRoute("/_authenticated/database")({
   head: () => ({
@@ -1474,6 +1488,10 @@ function DatabasePage() {
   });
   const isPkgSubOpen = (key: string) => openPkgSuburbs.includes(key);
 
+  const [downloadingPkgId, setDownloadingPkgId] = useState<string | null>(null);
+  const [activeDownloadData, setActiveDownloadData] = useState<FlyerData | null>(null);
+  const printContainerRef = useRef<HTMLDivElement | null>(null);
+
   const load = useCallback(async () => {
     // Instant load from localStorage cache
     const localL = getLocalLots();
@@ -2129,6 +2147,36 @@ function DatabasePage() {
       /* non-fatal */
     }
     navigate({ to: "/flyer" });
+  };
+
+  /** Hand a package to the flyer builder with full, canonical address and specs pre-filled */
+  const openPackageInFlyer = (p: Pkg, lot?: Lot) => {
+    const fullData = buildFlyerDataFromPackage(p, lot);
+    openInFlyer(fullData as unknown as Record<string, unknown>);
+  };
+
+  /** Direct download of high-resolution A4 PDF straight from the database row */
+  const handleDirectPdfDownload = async (p: Pkg, lot?: Lot) => {
+    if (downloadingPkgId) return;
+    setDownloadingPkgId(p.id);
+    const flyerData = buildFlyerDataFromPackage(p, lot);
+    setActiveDownloadData(flyerData);
+
+    try {
+      // Allow React to mount the printable container and wait for layout & fonts
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      if (typeof document !== "undefined" && document.fonts) {
+        await document.fonts.ready;
+      }
+      await downloadA4Pdf(printContainerRef.current || undefined, buildFlyerPdfFilename(flyerData));
+      toast.success(`Downloaded flyer for ${flyerData.floorplanName || flyerData.designName}`);
+    } catch (err) {
+      console.error("[database] Direct PDF download error:", err);
+      toast.error("Failed to generate PDF. Please try again or edit the flyer.");
+    } finally {
+      setDownloadingPkgId(null);
+      setActiveDownloadData(null);
+    }
   };
 
   const signOut = async () => {
@@ -2917,13 +2965,7 @@ function DatabasePage() {
                             onValueChange={(id) => {
                               const pkg = packages.find((item) => item.id === id);
                               if (!pkg) return;
-                              openInFlyer({
-                                ...(pkg.flyer_data && typeof pkg.flyer_data === "object"
-                                  ? (pkg.flyer_data as Record<string, unknown>)
-                                  : {}),
-                                packageId: pkg.id,
-                                id: pkg.id,
-                              });
+                              openPackageInFlyer(pkg, l);
                             }}
                           >
                             <SelectTrigger className={`h-8 w-[170px] text-xs font-medium ${isLight ? "border-slate-200 bg-white text-slate-800 hover:bg-slate-50 shadow-xs" : "border-slate-800 bg-slate-900/80 text-slate-200 hover:border-slate-700"}`}>
@@ -2948,17 +2990,26 @@ function DatabasePage() {
                             size="sm"
                             variant="outline"
                             className={`text-xs gap-1.5 font-medium shadow-xs ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900" : "border-slate-800 bg-slate-900/80 text-slate-200 hover:bg-slate-800 hover:text-white shadow-sm"}`}
-                            onClick={() =>
+                            onClick={() => {
+                              const canonicalAddress = buildCanonicalAddress({
+                                lotNumber: l.lot_number,
+                                address: l.address,
+                                estate: l.estate,
+                                suburb: l.suburb,
+                                state: getLotState(l),
+                                postcode: l.postcode,
+                              });
                               openInFlyer({
                                 lotId: l.id,
                                 suburb: l.suburb,
                                 estate: l.estate,
-                                address: [l.lot_number, l.address].filter(Boolean).join(", "),
+                                address: canonicalAddress,
                                 landSize: l.land_size ? String(l.land_size) : "",
                                 landFrontage: l.frontage ? String(l.frontage) : "",
                                 landPrice: l.land_price ? formatAud(Number(l.land_price)) : "",
-                              })
-                            }
+                                state: getLotState(l),
+                              });
+                            }}
                           >
                             <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Flyer
                           </Button>
@@ -3598,22 +3649,40 @@ function DatabasePage() {
                                           <Button
                                             size="sm"
                                             variant="outline"
-                                            className={`text-xs gap-1.5 ${
+                                            className={`text-xs gap-1.5 font-medium whitespace-nowrap ${
                                               isLight
                                                 ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs"
-                                                : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
+                                                : "border-slate-800 bg-slate-900/70 text-slate-200 hover:bg-slate-800 hover:text-white"
                                             }`}
-                                            onClick={() =>
-                                              openInFlyer({
-                                                ...(p.flyer_data && typeof p.flyer_data === "object"
-                                                  ? (p.flyer_data as Record<string, unknown>)
-                                                  : {}),
-                                                packageId: p.id,
-                                                id: p.id,
-                                              })
-                                            }
+                                            onClick={() => openPackageInFlyer(p, lot)}
+                                            title="Edit flyer in Flyer Studio with full address and specs"
                                           >
-                                            <FileDown className="h-3.5 w-3.5 text-amber-400" /> Flyer
+                                            <Edit3 className="h-3.5 w-3.5 text-brand-gold" />
+                                            <span>Edit Flyer</span>
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={downloadingPkgId === p.id}
+                                            className={`text-xs gap-1.5 font-medium whitespace-nowrap ${
+                                              isLight
+                                                ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs"
+                                                : "border-slate-800 bg-slate-900/70 text-slate-200 hover:bg-slate-800 hover:text-white"
+                                            }`}
+                                            onClick={() => void handleDirectPdfDownload(p, lot)}
+                                            title="Download A4 Flyer PDF directly as is"
+                                          >
+                                            {downloadingPkgId === p.id ? (
+                                              <>
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-400" />
+                                                <span>Downloading...</span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <FileDown className="h-3.5 w-3.5 text-amber-400" />
+                                                <span>Download PDF</span>
+                                              </>
+                                            )}
                                           </Button>
                                           <Button
                                             size="icon"
@@ -3668,6 +3737,49 @@ function DatabasePage() {
           <StatusPill value="nhc_exclusive" isLight={isLight} />
           <span className="text-[11px]">NHC exclusive release</span>
         </div>
+
+      {/* Offscreen host for direct A4 PDF download */}
+      <div
+        ref={printContainerRef}
+        style={{
+          position: "fixed",
+          left: "-9999px",
+          top: 0,
+          width: "794px",
+          opacity: 0,
+          pointerEvents: "none",
+          zIndex: -1,
+        }}
+      >
+        {activeDownloadData && (
+          <div className="flyer-preview-container bg-white">
+            {(() => {
+              const tpl = (activeDownloadData as any).template;
+              if (tpl === "house-only") return <HouseOnlyFlyer d={activeDownloadData} />;
+              if (tpl === "house-only-v2") return <HouseOnlyFlyerV2 d={activeDownloadData} />;
+              if (tpl === "siting") return (
+                <>
+                  <ExpressFlyer d={activeDownloadData} />
+                  <SitingPlanPage d={activeDownloadData} />
+                </>
+              );
+              if (tpl === "siting-v2") return (
+                <>
+                  <ExpressFlyerV2 d={activeDownloadData} />
+                  <SitingPlanV2 d={activeDownloadData} />
+                </>
+              );
+              if (tpl === "showcase") return (
+                <>
+                  <ShowcaseCover d={activeDownloadData} />
+                  <ShowcaseDetails d={activeDownloadData} />
+                </>
+              );
+              return <ExpressFlyer d={activeDownloadData} />;
+            })()}
+          </div>
+        )}
+      </div>
 
       </main>
     </div>
