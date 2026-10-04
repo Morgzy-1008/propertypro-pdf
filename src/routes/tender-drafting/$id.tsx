@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+import { isStaffSessionActive } from "@/lib/authSession";
 import { Logo } from "@/components/flyer/FlyerTemplates";
 import {
   getTenderByIdAsync,
@@ -30,6 +31,11 @@ import { toast } from "sonner";
 import { FloorplanMarkupViewer } from "@/components/tender/FloorplanMarkupViewer";
 
 export const Route = createFileRoute("/tender-drafting/$id")({
+  beforeLoad: async () => {
+    if (!isStaffSessionActive()) {
+      throw redirect({ to: "/auth", replace: true });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Draftsman Review & Working Drawings | Hudson Homes" },

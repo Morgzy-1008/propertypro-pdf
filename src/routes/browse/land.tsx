@@ -3,9 +3,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ListingSheet, PrintBar, paginate } from "@/components/listing/ListingSheet";
 import { listPublicLots, type PublicLot } from "@/lib/public-listings.functions";
 import { formatAud } from "@/lib/pricing";
-import { Globe, MapPin, Filter, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { CustomerPdfExportModal } from "@/components/database/CustomerPdfExportModal";
+import { Globe, MapPin, Search, X, RotateCcw, Sparkles } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/browse/land")({
   head: () => ({
@@ -19,7 +18,7 @@ export const Route = createFileRoute("/browse/land")({
       { property: "og:title", content: "Available Land Across QLD & NSW | Hudson Homes" },
       {
         property: "og:description",
-        content: "Vacant land available now across Queensland and New South Wales, organised by estate and state.",
+        content: "Vacant land available now across Queensland and New South Wales, organised by suburb and state.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -41,110 +40,187 @@ type Block =
   | { kind: "group"; key: string; estate: string; suburb: string; state: "QLD" | "NSW"; lot: PublicLot }
   | { kind: "lot"; key: string; lot: PublicLot };
 
+const LAND_PRICE_PRESETS = [
+  { label: "All Prices", value: null },
+  { label: "<$350k", value: 350000 },
+  { label: "<$450k", value: 450000 },
+  { label: "<$550k", value: 550000 },
+  { label: "<$650k", value: 650000 },
+];
+
 function LandBrowse() {
   const lots = Route.useLoaderData();
-  const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">("All");
 
-  // Check URL search parameters or session storage filter
+  // Filter States
+  const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">(() => {
+    if (typeof window === "undefined") return "All";
+    const s = new URLSearchParams(window.location.search).get("state");
+    return s === "QLD" || s === "NSW" ? s : "All";
+  });
+
+  const [selectedSuburb, setSelectedSuburb] = useState<string>(() => {
+    if (typeof window === "undefined") return "All";
+    const p = new URLSearchParams(window.location.search);
+    return p.get("suburb") || p.get("estate") || "All";
+  });
+
+  const [searchQuery, setSearchQuery] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") || "";
+  });
+
+  const [maxPrice, setMaxPrice] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const p = new URLSearchParams(window.location.search).get("maxPrice");
+    return p ? Number(p) : null;
+  });
+
+  // Custom filter params
   const [filterParams, setFilterParams] = useState<{
     ids?: string[];
     maxPrice?: number | null;
-    estates?: string[];
     suburbs?: string[];
     state?: string;
   } | null>(null);
 
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-
+  // Ingest session storage filter if present
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const search = new URLSearchParams(window.location.search);
-    const idsParam = search.get("ids");
-    const maxPriceParam = search.get("maxPrice");
-    const stateParam = search.get("state");
-    const estateParam = search.get("estate");
-    const suburbParam = search.get("suburb");
-
     let sessionData: any = null;
     try {
       const raw = sessionStorage.getItem("customer_land_pdf_filter");
       if (raw) sessionData = JSON.parse(raw);
     } catch {}
 
-    const ids = idsParam ? idsParam.split(",").map((s) => s.trim()).filter(Boolean) : (sessionData?.ids || undefined);
-    const maxPrice = maxPriceParam ? Number(maxPriceParam) : (sessionData?.maxPrice ?? null);
-    const state = (stateParam as any) || sessionData?.state || undefined;
-    const estates = estateParam ? [estateParam] : (sessionData?.estates || undefined);
-    const suburbs = suburbParam ? [suburbParam] : (sessionData?.suburbs || undefined);
-
-    if (state === "QLD" || state === "NSW" || state === "All") {
-      setSelectedState(state);
-    }
-
-    if (ids?.length || maxPrice || estates?.length || suburbs?.length) {
-      setFilterParams({ ids, maxPrice, estates, suburbs, state });
+    if (sessionData) {
+      if (sessionData.ids?.length) {
+        setFilterParams((prev) => ({ ...(prev || {}), ids: sessionData.ids }));
+      }
+      if (sessionData.maxPrice && maxPrice == null) {
+        setMaxPrice(sessionData.maxPrice);
+      }
+      if (sessionData.state && selectedState === "All") {
+        setSelectedState(sessionData.state);
+      }
+      if (sessionData.suburbs?.length && selectedSuburb === "All") {
+        setSelectedSuburb(sessionData.suburbs[0]);
+      }
     }
   }, []);
+
+  // Sync filters to URL query params
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (selectedState !== "All") params.set("state", selectedState);
+    if (selectedSuburb !== "All") params.set("suburb", selectedSuburb);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (maxPrice != null && maxPrice > 0) params.set("maxPrice", String(maxPrice));
+    if (filterParams?.ids && filterParams.ids.length > 0) {
+      params.set("ids", filterParams.ids.join(","));
+    }
+
+    const query = params.toString();
+    const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [selectedState, selectedSuburb, searchQuery, maxPrice, filterParams]);
 
   const qldCount = useMemo(() => lots.filter((l) => (l.state || "QLD") === "QLD").length, [lots]);
   const nswCount = useMemo(() => lots.filter((l) => (l.state || "QLD") === "NSW").length, [lots]);
 
+  // Extract unique suburbs based on current state selection
+  const uniqueSuburbs = useMemo(() => {
+    const suburbMap = new Map<string, number>();
+    lots.forEach((l) => {
+      if (selectedState !== "All" && (l.state || "QLD") !== selectedState) return;
+      const sub = (l.suburb || "").trim();
+      if (sub) {
+        suburbMap.set(sub, (suburbMap.get(sub) || 0) + 1);
+      }
+    });
+    return Array.from(suburbMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [lots, selectedState]);
+
+  // Active filtered lots
   const activeLots = useMemo(() => {
     let list = lots;
+
+    // Filter by State
     if (selectedState !== "All") {
       list = list.filter((l) => (l.state || "QLD") === selectedState);
     }
 
-    if (filterParams) {
-      if (filterParams.ids && filterParams.ids.length > 0) {
-        const idSet = new Set(filterParams.ids);
-        list = list.filter((l) => idSet.has(l.id || "") || idSet.has(l.lotNumber || "") || idSet.has(l.address || ""));
-      }
-      if (filterParams.maxPrice != null) {
-        list = list.filter((l) => l.landPrice == null || l.landPrice <= filterParams.maxPrice!);
-      }
-      if (filterParams.estates && filterParams.estates.length > 0) {
-        list = list.filter((l) => filterParams.estates!.some((e) => l.estate.toLowerCase().includes(e.toLowerCase())));
-      }
-      if (filterParams.suburbs && filterParams.suburbs.length > 0) {
-        list = list.filter((l) => filterParams.suburbs!.some((s) => l.suburb.toLowerCase().includes(s.toLowerCase())));
-      }
+    // Filter by Suburb
+    if (selectedSuburb !== "All") {
+      const target = selectedSuburb.toLowerCase().trim();
+      list = list.filter((l) => {
+        const sub = (l.suburb || "").toLowerCase().trim();
+        return sub === target || sub.includes(target) || target.includes(sub);
+      });
+    }
+
+    // Filter by Max Price
+    if (maxPrice != null && maxPrice > 0) {
+      list = list.filter((l) => l.landPrice == null || l.landPrice <= maxPrice);
+    }
+
+    // Filter by Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((l) => {
+        const text = `${l.lotNumber || ""} ${l.address || ""} ${l.suburb || ""} ${l.estate || ""} ${l.developer || ""}`.toLowerCase();
+        return text.includes(q);
+      });
+    }
+
+    // Filter by Selected IDs if preset
+    if (filterParams?.ids && filterParams.ids.length > 0) {
+      const idSet = new Set(filterParams.ids);
+      list = list.filter((l) => idSet.has(l.id || "") || idSet.has(l.lotNumber || "") || idSet.has(l.address || ""));
     }
 
     return list;
-  }, [lots, selectedState, filterParams]);
+  }, [lots, selectedState, selectedSuburb, maxPrice, searchQuery, filterParams]);
 
-  const groups = new Map<string, PublicLot[]>();
-  for (const l of activeLots) {
-    const state = l.state || "QLD";
-    const key = `${state} — ${l.estate} — ${l.suburb || ""}`;
-    const arr = groups.get(key);
-    if (arr) arr.push(l);
-    else groups.set(key, [l]);
-  }
+  // Group strictly by Suburb
+  const groups = useMemo(() => {
+    const map = new Map<string, PublicLot[]>();
+    for (const l of activeLots) {
+      const state = l.state || "QLD";
+      const suburb = (l.suburb || l.estate || "Queensland").trim();
+      const key = `${state} — ${suburb}`;
+      const arr = map.get(key);
+      if (arr) arr.push(l);
+      else map.set(key, [l]);
+    }
+    return map;
+  }, [activeLots]);
 
-  const blocks: Block[] = [];
-  for (const [key, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const sorted = [...items].sort((a, b) => (a.landPrice ?? 0) - (b.landPrice ?? 0));
-    const first = sorted[0];
-    blocks.push({
-      kind: "group",
-      key: `g-${key}`,
-      estate: first.estate,
-      suburb: first.suburb,
-      state: (first.state || "QLD") as "QLD" | "NSW",
-      lot: first,
-    });
-    sorted.forEach((l, i) =>
-      blocks.push({ kind: "lot", key: `l-${key}-${i}`, lot: l }),
-    );
-  }
+  const blocks: Block[] = useMemo(() => {
+    const list: Block[] = [];
+    for (const [key, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+      const sorted = [...items].sort((a, b) => (a.landPrice ?? 0) - (b.landPrice ?? 0));
+      const first = sorted[0];
+      list.push({
+        kind: "group",
+        key: `g-${key}`,
+        suburb: first.suburb || first.estate,
+        estate: first.estate,
+        state: (first.state || "QLD") as "QLD" | "NSW",
+        lot: first,
+      });
+      sorted.forEach((l, i) =>
+        list.push({ kind: "lot", key: `l-${key}-${i}`, lot: l }),
+      );
+    }
+    return list;
+  }, [groups]);
 
-  // Safe pagination: capacity 20, group weight 2.5, lot weight 1.0, protecting against orphan headings
+  // Safe pagination: capacity 20, group weight 2.5, lot weight 1.0
   const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 2.5 : 1), 20, (b) => b.kind === "group");
   const basePages = rawPages.length > 0 ? rawPages : [[]];
 
-  // Repeat the estate heading when a group spills onto the next sheet.
+  // Repeat the suburb heading when a group spills onto the next sheet
   let cursor = 0;
   const pages = basePages.map((pageBlocks) => {
     const before = blocks.slice(0, cursor);
@@ -154,85 +230,152 @@ function LandBrowse() {
     return last ? [{ ...last, key: `${last.key}-cont` }, ...pageBlocks] : pageBlocks;
   });
 
-  // Adapt lots for CustomerPdfExportModal
-  const modalLots = useMemo(
-    () =>
-      lots.map((l, idx) => ({
-        id: l.id || `lot-${idx}-${l.estate}-${l.lotNumber}`,
-        estate: l.estate,
-        suburb: l.suburb,
-        state: l.state,
-        developer: l.developer,
-        developer_contact_name: l.developerContactName,
-        developer_contact_phone: l.developerContactPhone,
-        developer_contact_email: l.developerContactEmail,
-        lot_number: l.lotNumber,
-        address: l.address,
-        land_size: l.landSize,
-        frontage: l.frontage,
-        land_price: l.landPrice,
-        titled: l.titled,
-        registration_date: l.registrationDate,
-        status: (l.status || "available") as any,
-        exclusive_consultants: null,
-        deadline: null,
-        notes: null,
-        updated_at: null,
-      })),
-    [lots]
-  );
+  const isAnyFilterActive =
+    selectedState !== "All" ||
+    selectedSuburb !== "All" ||
+    searchQuery.trim() !== "" ||
+    maxPrice !== null ||
+    (filterParams?.ids && filterParams.ids.length > 0);
+
+  const resetFilters = () => {
+    setSelectedState("All");
+    setSelectedSuburb("All");
+    setSearchQuery("");
+    setMaxPrice(null);
+    setFilterParams(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("customer_land_pdf_filter");
+      window.history.replaceState({}, "", "/browse/land");
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-muted/40">
-      {/* Top Controls Header */}
-      <div className="bg-slate-900 border-b border-slate-800 px-6 py-3 print:hidden flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <Globe className="h-4 w-4 text-brand-gold" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">State Filter:</span>
-          <button
-            type="button"
-            onClick={() => setSelectedState("All")}
-            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-              selectedState === "All"
-                ? "bg-brand-gold text-slate-950 font-bold shadow-sm"
-                : "bg-slate-800 text-slate-400 hover:text-white"
-            }`}
-          >
-            All States ({lots.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedState("QLD")}
-            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-              selectedState === "QLD"
-                ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
-                : "bg-slate-800 text-slate-400 hover:text-white"
-            }`}
-          >
-            Queensland ({qldCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setSelectedState("NSW")}
-            className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-              selectedState === "NSW"
-                ? "bg-sky-500 text-slate-950 font-bold shadow-sm"
-                : "bg-slate-800 text-slate-400 hover:text-white"
-            }`}
-          >
-            New South Wales ({nswCount})
-          </button>
+    <div className="min-h-screen bg-muted/40 font-sans">
+      {/* Top Interactive Controls Console (Screen Only) */}
+      <div className="bg-slate-900 border-b border-slate-800 px-4 sm:px-6 py-3 print:hidden shadow-md sticky top-0 z-40">
+        <div className="max-w-[1920px] mx-auto flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* State Filter */}
+              <div className="flex items-center gap-1.5 mr-2">
+                <Globe className="h-4 w-4 text-brand-gold shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">State:</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedState("All")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  selectedState === "All"
+                    ? "bg-brand-gold text-slate-950 font-bold shadow-sm"
+                    : "bg-slate-800 text-slate-400 hover:text-white"
+                }`}
+              >
+                All States ({lots.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedState("QLD")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  selectedState === "QLD"
+                    ? "bg-amber-500 text-slate-950 font-bold shadow-sm"
+                    : "bg-slate-800 text-slate-400 hover:text-white"
+                }`}
+              >
+                Queensland ({qldCount})
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedState("NSW")}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  selectedState === "NSW"
+                    ? "bg-sky-500 text-slate-950 font-bold shadow-sm"
+                    : "bg-slate-800 text-slate-400 hover:text-white"
+                }`}
+              >
+                New South Wales ({nswCount})
+              </button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFilterModalOpen(true)}
-            className="h-7 text-xs border-cyan-500/40 bg-cyan-950/40 text-cyan-300 hover:bg-cyan-900/60 hover:text-white gap-1.5 ml-2"
-          >
-            <Filter className="h-3.5 w-3.5 text-cyan-400" /> Filter &amp; Select Lots
-          </Button>
+              {/* Suburb Selector Dropdown */}
+              <div className="ml-2 flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                <select
+                  value={selectedSuburb}
+                  onChange={(e) => setSelectedSuburb(e.target.value)}
+                  className="h-8 rounded-md border border-slate-700 bg-slate-950 px-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer max-w-[200px]"
+                >
+                  <option value="All">All Suburbs ({uniqueSuburbs.reduce((acc, [, c]) => acc + c, 0)})</option>
+                  {uniqueSuburbs.map(([suburb, count]) => (
+                    <option key={suburb} value={suburb}>
+                      {suburb} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative ml-2">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search suburb, address, or lot..."
+                  className="h-8 pl-8 pr-7 text-xs bg-slate-950 border-slate-700 text-slate-100 placeholder:text-slate-500 w-48 sm:w-56"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* PrintBar Actions */}
+            <div className="flex items-center gap-3">
+              <PrintBar
+                label={`Available land — ${activeLots.length} lot${activeLots.length === 1 ? "" : "s"}`}
+                filename="hudson-homes-available-land"
+              />
+            </div>
+          </div>
+
+          {/* Secondary Filter Row: Price Caps & Reset */}
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-slate-400 font-semibold mr-1">Max Land Price:</span>
+              {LAND_PRICE_PRESETS.map((p) => {
+                const active = p.value === null ? maxPrice == null : maxPrice === p.value;
+                return (
+                  <button
+                    key={p.label}
+                    type="button"
+                    onClick={() => setMaxPrice(p.value)}
+                    className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-all ${
+                      active
+                        ? "bg-cyan-500 text-slate-950 font-bold shadow-xs"
+                        : "bg-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {isAnyFilterActive && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 text-slate-400 hover:text-white underline text-xs transition-colors"
+              >
+                <RotateCcw className="h-3 w-3" /> Reset Filters
+              </button>
+            )}
+          </div>
         </div>
-        <PrintBar label={`Available land — ${activeLots.length} lot${activeLots.length === 1 ? "" : "s"}`} filename="hudson-homes-available-land" />
       </div>
 
       {/* Active Custom Filter Notification Banner */}
@@ -244,18 +387,10 @@ function LandBrowse() {
             <span className="text-cyan-100 font-medium">
               Showing {activeLots.length} lot{activeLots.length === 1 ? "" : "s"}
               {filterParams.maxPrice ? ` under ${formatAud(filterParams.maxPrice)}` : ""}
-              {filterParams.estates?.length ? ` across ${filterParams.estates.length} estate${filterParams.estates.length === 1 ? "" : "s"}` : ""}
+              {filterParams.suburbs?.length ? ` in ${filterParams.suburbs.join(", ")}` : ""}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setFilterModalOpen(true)}
-              className="text-white hover:text-cyan-200 underline font-bold text-xs"
-            >
-              Modify Selection
-            </button>
-            <span className="text-cyan-400">·</span>
             <button
               type="button"
               onClick={() => {
@@ -263,7 +398,7 @@ function LandBrowse() {
                 sessionStorage.removeItem("customer_land_pdf_filter");
                 window.history.replaceState({}, "", "/browse/land");
               }}
-              className="text-cyan-200 hover:text-white underline text-xs"
+              className="text-cyan-200 hover:text-white underline text-xs font-semibold"
             >
               Clear Filters (Show All)
             </button>
@@ -313,8 +448,12 @@ function LandBrowse() {
                             {b.state}
                           </span>
                           <div className="font-display text-[5mm] leading-none tracking-[0.06em] text-brand-navy">
-                            {b.estate}
-                            {b.suburb ? `, ${b.suburb}` : ""}
+                            {b.suburb}
+                            {b.estate && b.estate !== b.suburb ? (
+                              <span className="text-[2.6mm] font-sans font-normal text-brand-ink/50 ml-2">
+                                ({b.estate})
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                         {(b.lot.developer || b.lot.developerContactName) && (
@@ -372,16 +511,6 @@ function LandBrowse() {
           </ListingSheet>
         ))}
       </div>
-
-      {/* Customer Land PDF Export Modal */}
-      {filterModalOpen && (
-        <CustomerPdfExportModal
-          isOpen={filterModalOpen}
-          onClose={() => setFilterModalOpen(false)}
-          mode="land"
-          lots={modalLots}
-        />
-      )}
     </div>
   );
 }

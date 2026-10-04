@@ -33,7 +33,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CustomerPdfExportModal } from "@/components/database/CustomerPdfExportModal";
 
 export const Route = createFileRoute("/browse/packages")({
   head: () => ({
@@ -148,9 +147,10 @@ function PackagesBrowse() {
     return new URLSearchParams(window.location.search).get("beds") || "All";
   });
 
-  const [selectedEstate, setSelectedEstate] = useState<string>(() => {
+  const [selectedSuburb, setSelectedSuburb] = useState<string>(() => {
     if (typeof window === "undefined") return "All";
-    return new URLSearchParams(window.location.search).get("estate") || "All";
+    const p = new URLSearchParams(window.location.search);
+    return p.get("suburb") || p.get("estate") || "All";
   });
 
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -165,19 +165,16 @@ function PackagesBrowse() {
     return "suburb";
   });
 
-  // Custom filter params from staff CustomerPdfExportModal
+  // Custom filter params
   const [filterParams, setFilterParams] = useState<{
     ids?: string[];
     maxPrice?: number | null;
     types?: string[];
-    estates?: string[];
     suburbs?: string[];
     state?: string;
   } | null>(null);
 
-  const [filterModalOpen, setFilterModalOpen] = useState(false);
-
-  // Ingest session storage filters from CustomerPdfExportModal if present
+  // Ingest session storage filters if present
   useEffect(() => {
     if (typeof window === "undefined") return;
     let sessionData: any = null;
@@ -200,8 +197,8 @@ function PackagesBrowse() {
       if (sessionData.state && selectedState === "All") {
         setSelectedState(sessionData.state);
       }
-      if (sessionData.estates?.length && selectedEstate === "All") {
-        setSelectedEstate(sessionData.estates[0]);
+      if (sessionData.suburbs?.length && selectedSuburb === "All") {
+        setSelectedSuburb(sessionData.suburbs[0]);
       }
     }
   }, []);
@@ -217,7 +214,7 @@ function PackagesBrowse() {
       params.set("types", selectedHouseTypes.join(","));
     }
     if (selectedBeds !== "All") params.set("beds", selectedBeds);
-    if (selectedEstate !== "All") params.set("estate", selectedEstate);
+    if (selectedSuburb !== "All") params.set("suburb", selectedSuburb);
     if (searchQuery.trim()) params.set("q", searchQuery.trim());
     if (sortOrder !== "suburb") params.set("sort", sortOrder);
     if (filterParams?.ids && filterParams.ids.length > 0) {
@@ -227,25 +224,23 @@ function PackagesBrowse() {
     const query = params.toString();
     const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
     window.history.replaceState({}, "", newUrl);
-  }, [viewMode, selectedState, maxPrice, selectedHouseTypes, selectedBeds, selectedEstate, searchQuery, sortOrder, filterParams]);
+  }, [viewMode, selectedState, maxPrice, selectedHouseTypes, selectedBeds, selectedSuburb, searchQuery, sortOrder, filterParams]);
 
   // State package counts
   const qldCount = useMemo(() => packages.filter((p) => p.state === "QLD").length, [packages]);
   const nswCount = useMemo(() => packages.filter((p) => p.state === "NSW").length, [packages]);
 
-  // Extract unique estates & suburbs based on current state selection
-  const uniqueEstates = useMemo(() => {
-    const estateMap = new Map<string, number>();
+  // Extract unique suburbs based on current state selection
+  const uniqueSuburbs = useMemo(() => {
+    const suburbMap = new Map<string, number>();
     packages.forEach((p) => {
       if (selectedState !== "All" && p.state && p.state !== selectedState) return;
-      const estate = p.estate && p.estate !== "Queensland" ? p.estate.trim() : "";
-      const suburb = p.suburb ? p.suburb.trim() : "";
-      const label = [estate, suburb].filter(Boolean).join(" · ") || suburb || estate;
-      if (label) {
-        estateMap.set(label, (estateMap.get(label) || 0) + 1);
+      const suburb = (p.suburb || "").trim();
+      if (suburb) {
+        suburbMap.set(suburb, (suburbMap.get(suburb) || 0) + 1);
       }
     });
-    return Array.from(estateMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    return Array.from(suburbMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
   }, [packages, selectedState]);
 
   // Housing Type categories for multi-select
@@ -292,7 +287,7 @@ function PackagesBrowse() {
     (maxPrice != null && maxPrice > 0) ||
     selectedHouseTypes.length > 0 ||
     selectedBeds !== "All" ||
-    selectedEstate !== "All" ||
+    selectedSuburb !== "All" ||
     searchQuery.trim() !== "" ||
     filterParams?.ids?.length
   );
@@ -303,7 +298,7 @@ function PackagesBrowse() {
     setCustomPriceInput("");
     setSelectedHouseTypes([]);
     setSelectedBeds("All");
-    setSelectedEstate("All");
+    setSelectedSuburb("All");
     setSearchQuery("");
     setSortOrder("suburb");
     setFilterParams(null);
@@ -391,19 +386,11 @@ function PackagesBrowse() {
           if (selectedBeds === "5+" && bCount < 5) return false;
         }
 
-        // Estate/Suburb filter
-        if (selectedEstate !== "All") {
-          const target = selectedEstate.toLowerCase();
-          const pEst = (p.estate || "").toLowerCase();
-          const pSub = (p.suburb || "").toLowerCase();
-          const pComb = `${pEst} · ${pSub}`;
-          if (
-            !pEst.includes(target) &&
-            !pSub.includes(target) &&
-            !target.includes(pEst) &&
-            !target.includes(pSub) &&
-            !pComb.includes(target)
-          ) {
+        // Suburb filter
+        if (selectedSuburb !== "All") {
+          const target = selectedSuburb.toLowerCase().trim();
+          const pSub = (p.suburb || "").toLowerCase().trim();
+          if (pSub !== target && !pSub.includes(target) && !target.includes(pSub)) {
             return false;
           }
         }
@@ -411,7 +398,7 @@ function PackagesBrowse() {
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchText = `${p.name} ${p.design} ${p.suburb} ${p.estate} ${p.address} ${p.facadeName} ${p.consultantName}`.toLowerCase();
+          const matchText = `${p.name} ${p.design} ${p.suburb} ${p.address} ${p.facadeName} ${p.consultantName}`.toLowerCase();
           if (!matchText.includes(q)) return false;
         }
 
@@ -439,16 +426,17 @@ function PackagesBrowse() {
     maxPrice,
     selectedHouseTypes,
     selectedBeds,
-    selectedEstate,
+    selectedSuburb,
     searchQuery,
     sortOrder,
   ]);
 
   // Group packages for the printable ListingSheet view
+  // Group packages for the printable ListingSheet view strictly by suburb
   const groups = useMemo(() => {
     const map = new Map<string, PublicPackage[]>();
     for (const p of filteredPackages) {
-      const key = [p.suburb, p.estate].filter(Boolean).join(" — ") || "Queensland";
+      const key = (p.suburb || "Queensland").trim();
       const arr = map.get(key);
       if (arr) arr.push(p);
       else map.set(key, [p]);
@@ -459,7 +447,7 @@ function PackagesBrowse() {
   const blocks: Block[] = useMemo(() => {
     const bList: Block[] = [];
     for (const [key, items] of [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-      bList.push({ kind: "group", key: `g-${key}`, label: key.replace(" — ", ", ") });
+      bList.push({ kind: "group", key: `g-${key}`, label: key });
       [...items]
         .sort((a, b) => (a.totalPrice ?? 0) - (b.totalPrice ?? 0))
         .forEach((p) => bList.push({ kind: "pkg", key: p.id, pkg: p }));
@@ -471,7 +459,7 @@ function PackagesBrowse() {
   const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 0.7 : 1), 3.8, (b) => b.kind === "group");
   const basePages = rawPages.length > 0 ? rawPages : [[]];
 
-  // Repeat the estate heading when a group spills onto the next sheet.
+  // Repeat the suburb heading when a group spills onto the next sheet.
   let cursor = 0;
   const pages = basePages.map((pageBlocks) => {
     const before = blocks.slice(0, cursor);
@@ -480,36 +468,6 @@ function PackagesBrowse() {
     const last = [...before].reverse().find((b) => b.kind === "group");
     return last ? [{ ...last, key: `${last.key}-cont` }, ...pageBlocks] : pageBlocks;
   });
-
-  // Adapt public packages for CustomerPdfExportModal
-  const modalPackages = useMemo(
-    () =>
-      packages.map((p) => ({
-        id: p.id,
-        lot_id: null,
-        name: p.name,
-        housing_type: p.housingType,
-        design: p.design,
-        range_id: p.rangeLabel,
-        facade_name: p.facadeName,
-        house_price: p.housePrice ?? null,
-        land_price: p.landPrice ?? null,
-        total_price: p.totalPrice ?? null,
-        beds: p.beds,
-        baths: p.baths,
-        cars: p.cars,
-        floorplan_size: p.homeSize,
-        state: p.state,
-        status: "live" as any,
-        exclusive_consultants: null,
-        flyer_json: { estate: p.estate, suburb: p.suburb },
-        flyer_data: { estate: p.estate, suburb: p.suburb },
-        notes: null,
-        needs_review: null,
-        updated_at: null,
-      })),
-    [packages]
-  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 flex flex-col">
@@ -525,15 +483,6 @@ function PackagesBrowse() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setFilterModalOpen(true)}
-              className="h-8 text-xs border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white gap-1.5"
-            >
-              <Filter className="h-3.5 w-3.5 text-amber-400" /> Filter &amp; Select Packages
-            </Button>
-
             {/* View Mode Switcher */}
             <div className="flex items-center rounded-lg bg-slate-800/80 p-1 border border-slate-700/60 text-xs">
               <button
@@ -645,7 +594,7 @@ function PackagesBrowse() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search design, suburb, estate, or keyword..."
+                  placeholder="Search design, suburb, or keyword..."
                   className="pl-10 pr-8 bg-slate-950 border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 h-10"
                 />
                 {searchQuery && (
@@ -659,17 +608,17 @@ function PackagesBrowse() {
                 )}
               </div>
 
-              {/* Suburb / Estate Select */}
+              {/* Suburb Select */}
               <div className="md:col-span-4">
                 <select
-                  value={selectedEstate}
-                  onChange={(e) => setSelectedEstate(e.target.value)}
+                  value={selectedSuburb}
+                  onChange={(e) => setSelectedSuburb(e.target.value)}
                   className="w-full h-10 rounded-md border border-slate-800 bg-slate-950 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="All">All Suburbs &amp; Estates</option>
-                  {uniqueEstates.map(([label, count]) => (
-                    <option key={label} value={label}>
-                      {label} ({count})
+                  <option value="All">All Suburbs ({uniqueSuburbs.reduce((acc, [, c]) => acc + c, 0)})</option>
+                  {uniqueSuburbs.map(([suburb, count]) => (
+                    <option key={suburb} value={suburb}>
+                      {suburb} ({count})
                     </option>
                   ))}
                 </select>
@@ -859,10 +808,11 @@ function PackagesBrowse() {
                   </span>
                 )}
 
-                {selectedEstate !== "All" && (
+                {selectedSuburb !== "All" && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-200 border border-slate-700">
-                    {selectedEstate}
-                    <button type="button" onClick={() => setSelectedEstate("All")} className="text-slate-400 hover:text-white">
+                    <MapPin className="h-3 w-3 text-emerald-400" />
+                    {selectedSuburb}
+                    <button type="button" onClick={() => setSelectedSuburb("All")} className="text-slate-400 hover:text-white">
                       <X className="h-3 w-3" />
                     </button>
                   </span>
@@ -902,18 +852,10 @@ function PackagesBrowse() {
               Showing {filteredPackages.length} package{filteredPackages.length === 1 ? "" : "s"}
               {filterParams.types?.length ? ` (${filterParams.types.join(", ")})` : ""}
               {filterParams.maxPrice ? ` under ${formatAud(filterParams.maxPrice)}` : ""}
-              {filterParams.estates?.length ? ` across ${filterParams.estates.length} estate${filterParams.estates.length === 1 ? "" : "s"}` : ""}
+              {filterParams.suburbs?.length ? ` in ${filterParams.suburbs.join(", ")}` : ""}
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setFilterModalOpen(true)}
-              className="text-white hover:text-amber-200 underline font-bold text-xs"
-            >
-              Modify Selection
-            </button>
-            <span className="text-amber-400">·</span>
             <button
               type="button"
               onClick={() => {
@@ -921,7 +863,7 @@ function PackagesBrowse() {
                 sessionStorage.removeItem("customer_packages_pdf_filter");
                 window.history.replaceState({}, "", "/browse/packages");
               }}
-              className="text-amber-200 hover:text-white underline text-xs"
+              className="text-amber-200 hover:text-white underline text-xs font-semibold"
             >
               Clear Filters (Show All)
             </button>
@@ -979,11 +921,11 @@ function PackagesBrowse() {
                           )}
                         </div>
 
-                        {/* Estate Tag */}
+                        {/* Suburb Tag */}
                         <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
                           <span className="text-xs font-semibold text-white flex items-center gap-1 drop-shadow-md">
                             <MapPin className="h-3.5 w-3.5 text-amber-400 flex-none" />
-                            {[p.estate, p.suburb].filter(Boolean).join(", ")}
+                            {p.suburb || p.estate}
                           </span>
                         </div>
                       </div>
@@ -1205,16 +1147,6 @@ function PackagesBrowse() {
         )}
       </main>
 
-      {/* Customer Packages PDF Export Modal */}
-      {filterModalOpen && (
-        <CustomerPdfExportModal
-          isOpen={filterModalOpen}
-          onClose={() => setFilterModalOpen(false)}
-          mode="packages"
-          lots={[]}
-          packages={modalPackages}
-        />
-      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-8 px-6 text-center text-xs text-slate-400 space-y-2">

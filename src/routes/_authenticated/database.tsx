@@ -44,7 +44,6 @@ import logoUrl from "@/assets/hudson-homes-logo.png";
 import { formatAud } from "@/lib/pricing";
 import { pdfDocumentToPagesAndText, pdfPagesToDataUrls } from "@/lib/pdfPages";
 import { DevelopersDialog } from "@/components/database/DevelopersDialog";
-import { CustomerPdfExportModal } from "@/components/database/CustomerPdfExportModal";
 import { devKey, listDevelopers, rememberDeveloper } from "@/lib/developers";
 import { parseDeveloperPriceList, extractLotsFromText, type ParsedLot } from "@/lib/parseLotList";
 import {
@@ -1433,7 +1432,6 @@ function DatabasePage() {
   const [stateFilter, setStateFilter] = useState<"ALL" | "QLD" | "NSW">("ALL");
   const [lots, setLots] = useState<Lot[]>([]);
   const [packages, setPackages] = useState<Pkg[]>([]);
-  const [pdfExportMode, setPdfExportMode] = useState<"land" | "packages" | null>(null);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [lotSort, setLotSort] = useState<"registration" | "land_price" | "land_size">(
@@ -2370,7 +2368,10 @@ function DatabasePage() {
               size="sm"
               variant="outline"
               className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
-              onClick={() => setPdfExportMode("land")}
+              onClick={() => {
+                const url = stateFilter !== "ALL" ? `/browse/land?state=${stateFilter}` : "/browse/land";
+                window.open(url, "_blank", "noopener");
+              }}
             >
               <FileDown className="h-3.5 w-3.5 text-cyan-400" /> Customer land PDF
             </Button>
@@ -2378,7 +2379,10 @@ function DatabasePage() {
               size="sm"
               variant="outline"
               className={`text-xs gap-1.5 ${isLight ? "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-xs" : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"}`}
-              onClick={() => setPdfExportMode("packages")}
+              onClick={() => {
+                const url = stateFilter !== "ALL" ? `/browse/packages?view=sheet&state=${stateFilter}` : "/browse/packages?view=sheet";
+                window.open(url, "_blank", "noopener");
+              }}
             >
               <FileDown className="h-3.5 w-3.5 text-amber-400" /> Customer packages PDF
             </Button>
@@ -3665,16 +3669,6 @@ function DatabasePage() {
           <span className="text-[11px]">NHC exclusive release</span>
         </div>
 
-        {/* Customer PDF Export Modal */}
-        {pdfExportMode && (
-          <CustomerPdfExportModal
-            isOpen={pdfExportMode !== null}
-            onClose={() => setPdfExportMode(null)}
-            mode={pdfExportMode}
-            lots={lots}
-            packages={packages}
-          />
-        )}
       </main>
     </div>
   );
