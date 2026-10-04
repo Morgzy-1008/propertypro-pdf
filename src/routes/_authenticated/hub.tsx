@@ -458,12 +458,12 @@ function WelcomeHubPage() {
           </div>
 
           <h1
-            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight ${
+            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-snug sm:leading-tight pb-2 ${
               isLight ? "text-slate-900" : "text-white"
             }`}
           >
             {greeting},{" "}
-            <span className="relative inline-block text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)]">
+            <span className="relative inline-block py-2 -my-2 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)]">
               {displayName}
             </span>.
           </h1>
