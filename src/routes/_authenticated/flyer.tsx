@@ -14,8 +14,11 @@ import {
   ShowcaseCover,
   ShowcaseDetails,
   HudsonMark,
+  ExpressFlyerV2,
+  HouseOnlyFlyerV2,
 } from "@/components/flyer/FlyerTemplates";
 import { SitingPlanPage } from "@/components/flyer/SitingPlanPage";
+import { SitingPlanV2 } from "@/components/flyer/SitingPlanV2";
 import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flyer/types";
 import { useFitScale } from "@/components/flyer/useFitScale";
 import { parseAud } from "@/lib/pricing";
@@ -54,8 +57,8 @@ function Index() {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const t = sp.get("template") as TemplateId;
-      if (t && ["express", "siting", "showcase", "house_only"].includes(t)) {
-        return t;
+      if (t && ["express", "siting", "showcase", "house-only", "house_only", "house-only-v2", "siting-v2"].includes(t)) {
+        return (t === "house_only" ? "house-only" : t) as TemplateId;
       }
     }
     return "express";
@@ -242,10 +245,17 @@ function Index() {
       <ExpressFlyer d={data} />
     ) : template === "house-only" ? (
       <HouseOnlyFlyer d={data} />
+    ) : template === "house-only-v2" ? (
+      <HouseOnlyFlyerV2 d={data} />
     ) : template === "siting" ? (
       <>
         <ExpressFlyer d={data} />
         <SitingPlanPage d={data} set={set} />
+      </>
+    ) : template === "siting-v2" ? (
+      <>
+        <ExpressFlyerV2 d={data} />
+        <SitingPlanV2 d={data} set={set} />
       </>
     ) : (
       <>
@@ -296,7 +306,7 @@ function Index() {
                 </Button>
               </Link>
 
-              <div className="flex rounded-lg border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner">
+              <div className="flex rounded-lg border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner flex-wrap gap-0.5">
                 <button
                   onClick={() => setTemplate("express")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
@@ -340,6 +350,28 @@ function Index() {
                 >
                   <Home className="h-3.5 w-3.5" />
                   House Only
+                </button>
+                <button
+                  onClick={() => setTemplate("house-only-v2")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                    template === "house-only-v2"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  House Only V2
+                </button>
+                <button
+                  onClick={() => setTemplate("siting-v2")}
+                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                    template === "siting-v2"
+                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Layers className="h-3.5 w-3.5" />
+                  House + Site Plan V2
                 </button>
               </div>
 
@@ -395,7 +427,7 @@ function Index() {
               style={{
                 transform: `scale(${scale})`,
                 transformOrigin: "top center",
-                height: ((template === "showcase" || template === "siting") ? 1123 * 2 + 24 : 1123) * scale,
+                height: ((template === "showcase" || template === "siting" || template === "siting-v2") ? 1123 * 2 + 24 : 1123) * scale,
               }}
             >
               <div className="flyer-preview-container flex flex-col gap-6 [&>.flyer-page]:shadow-[0_24px_60px_-18px_rgba(0,0,0,0.6)] [&>.flyer-page]:rounded-sm">

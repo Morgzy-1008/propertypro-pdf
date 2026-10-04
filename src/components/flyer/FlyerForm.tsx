@@ -18,7 +18,7 @@ import { MULBERRY_FACADES } from "./acreageFacades.data";
 import { HUDSON_FACADES } from "./facades.data";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
-import { INCLUSION_RANGES, PALETTES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
+import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
@@ -75,12 +75,25 @@ function Field({
   );
 }
 
-function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
+function Section({
+  title,
+  children,
+  id,
+  extra,
+}: {
+  title: string;
+  children: React.ReactNode;
+  id?: string;
+  extra?: React.ReactNode;
+}) {
   return (
     <div id={id} className="space-y-3.5 pt-1 scroll-mt-14">
-      <h3 className="text-[11px] font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400 uppercase">
-        {title}
-      </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400 uppercase">
+          {title}
+        </h3>
+        {extra}
+      </div>
       {children}
     </div>
   );
@@ -329,6 +342,14 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   const [canRevertAi, setCanRevertAi] = useState(false);
   const [facadeCheckOpen, setFacadeCheckOpen] = useState(false);
 
+  const housePriceNum = parseAud(data.housePrice);
+  const landPriceNum = parseAud(data.landPrice);
+  const totalPriceNum = (housePriceNum > 0 && landPriceNum > 0)
+    ? housePriceNum + landPriceNum
+    : parseAud(data.price);
+  const hasCalculatedPrice = totalPriceNum > 0;
+  const formattedTotalPrice = formatAud(totalPriceNum);
+
   useEffect(() => {
     if (data.facadeId || data.facadeName) {
       const calculated = facadeUpliftFor(
@@ -564,21 +585,42 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
   const setLandFrontage = (v: string) => {
     set("landFrontage", v);
-    const f = parseFloat(v);
-    const d = parseFloat(String(data.landDepth || ""));
-    if (f > 0 && d > 0) {
-      setLandSize(String(Math.round(f * d)));
+  };
+
+  const setHousePrice = (v: string) => {
+    set("housePrice", v);
+    const h = parseAud(v);
+    const l = parseAud(data.landPrice);
+    if (h > 0 && l > 0) {
+      set("price", formatAud(h + l));
+    } else if (h > 0) {
+      set("price", formatAud(h));
     }
   };
 
-  const setLandDepth = (v: string) => {
-    set("landDepth", v);
-    const d = parseFloat(v);
-    const f = parseFloat(String(data.landFrontage || ""));
-    if (d > 0 && f > 0) {
-      setLandSize(String(Math.round(f * d)));
+  // Automatically derive landDepth from landSize / landFrontage if available
+  useEffect(() => {
+    const size = parseFloat(String(data.landSize || ""));
+    const frontage = parseFloat(String(data.landFrontage || ""));
+    if (size > 0 && frontage > 0) {
+      const derivedDepth = (size / frontage).toFixed(2);
+      if (String(data.landDepth) !== derivedDepth) {
+        set("landDepth", derivedDepth);
+      }
     }
-  };
+  }, [data.landSize, data.landFrontage, data.landDepth, set]);
+
+  // Keep total price automatically calculated whenever house price and land price are filled
+  useEffect(() => {
+    const h = parseAud(data.housePrice);
+    const l = parseAud(data.landPrice);
+    if (h > 0 && l > 0) {
+      const totalStr = formatAud(h + l);
+      if (data.price !== totalStr) {
+        set("price", totalStr);
+      }
+    }
+  }, [data.housePrice, data.landPrice, data.price, set]);
 
   const toggleLandscaping = (on: boolean) => {
     set("landscaping", on);
@@ -599,6 +641,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
   const setLandPrice = (v: string) => {
     set("landPrice", v);
+    const l = parseAud(v);
+    const h = parseAud(data.housePrice);
+    if (h > 0 && l > 0) {
+      set("price", formatAud(h + l));
+    }
     applyPricing(data.designName, data.range, v, uplift);
   };
 
@@ -769,58 +816,71 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     <div className="space-y-7 relative">
       {/* Sticky Quick-Jump Navigation Bar */}
       <div className="sticky -top-5 z-20 -mx-5 -mt-5 mb-3 border-b border-slate-800/80 bg-slate-900/95 px-4 py-2.5 backdrop-blur-xl shadow-md">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-location")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Location
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-package")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Package
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-facade")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Facade
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-costs")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Costs
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-consultant")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Consultant
-          </button>
-          {template === "siting" && (
+        <div className="flex items-center justify-between gap-2 overflow-x-auto no-scrollbar py-0.5 text-[11px]">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <button
               type="button"
-              onClick={() => scrollToSection("section-siting")}
-              className="px-2.5 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm"
+              onClick={() => scrollToSection("section-location")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
             >
-              Siting & Setbacks
+              Location
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-package")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+            >
+              Package
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-facade")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+            >
+              Facade
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-costs")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+            >
+              Costs
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-consultant")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+            >
+              Consultant
+            </button>
+            {(template === "siting" || template === "siting-v2") && (
+              <button
+                type="button"
+                onClick={() => scrollToSection("section-siting")}
+                className="px-2.5 py-1 rounded-md bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:bg-amber-500/35 transition-colors whitespace-nowrap font-semibold text-[11px] shadow-sm"
+              >
+                Siting & Setbacks
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-terms")}
+              className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
+            >
+              Terms
+            </button>
+          </div>
+          {hasCalculatedPrice && (
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-package")}
+              className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-amber-500/25 to-brand-gold/25 border border-brand-gold/50 text-brand-gold font-bold text-xs shadow-sm hover:brightness-110 transition-all cursor-pointer"
+              title="Auto-calculated package total. Click to jump to Package section"
+            >
+              <span className="text-[10px] text-amber-300/80 uppercase font-medium">Total:</span>
+              <span className="text-amber-200">{formattedTotalPrice}</span>
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => scrollToSection("section-terms")}
-            className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
-          >
-            Terms
-          </button>
         </div>
       </div>
 
@@ -888,45 +948,63 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           </div>
           <Field label="Estate" value={data.estate} onChange={(v) => onLocationChange("estate", v)} />
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <Field label="Land m²" value={data.landSize} onChange={setLandSize} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Land m²" value={data.landSize} onChange={setLandSize} placeholder="e.g. 450" />
           <Field
             label="Frontage m"
             value={data.landFrontage}
             onChange={setLandFrontage}
-          />
-          <Field
-            label="Depth m"
-            value={data.landDepth !== undefined ? String(data.landDepth) : ""}
-            onChange={setLandDepth}
-            placeholder="e.g. 30"
+            placeholder="e.g. 14"
           />
         </div>
       </Section>
 
 
-      <Section id="section-package" title="Package">
-        <div className="grid grid-cols-2 gap-3">
-          <Field
-            label="Package price (total)"
-            value={data.price}
-            onChange={(v) => set("price", v)}
-            onBlur={() => {
-              const num = parseAud(data.price);
-              if (num > 0) set("price", formatAud(num));
-            }}
-            placeholder="e.g. $785,900"
-          />
-          <Field label="Headline" value={data.headline} onChange={(v) => set("headline", v)} />
-        </div>
+      <Section
+        id="section-package"
+        title="Package"
+        extra={
+          hasCalculatedPrice ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-brand-gold/20 border border-brand-gold/40 text-brand-gold font-bold text-xs shadow-sm">
+              <span className="text-[10px] uppercase tracking-wider text-amber-300/80 font-medium">Total:</span>
+              <span className="text-amber-200">{formattedTotalPrice}</span>
+            </div>
+          ) : null
+        }
+      >
+        {hasCalculatedPrice && (
+          <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-900/60 p-2.5 shadow-sm">
+            <div className="space-y-0.5">
+              <div className="text-[10px] font-bold tracking-wider text-amber-400 uppercase">
+                Total Package Price
+              </div>
+              <div className="text-[10px] text-slate-400">
+                House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"})
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-base sm:text-lg font-extrabold text-amber-300 tracking-tight">
+                {formattedTotalPrice}
+              </span>
+            </div>
+          </div>
+        )}
+
+        <Field label="Headline" value={data.headline} onChange={(v) => set("headline", v)} placeholder="e.g. Complete Turn-Key Package" />
+
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="House only price"
             value={data.housePrice}
-            onChange={(v) => set("housePrice", v)}
+            onChange={setHousePrice}
             onBlur={() => {
               const num = parseAud(data.housePrice);
-              if (num > 0) set("housePrice", formatAud(num));
+              if (num > 0) {
+                const formatted = formatAud(num);
+                set("housePrice", formatted);
+                const l = parseAud(data.landPrice);
+                if (l > 0) set("price", formatAud(num + l));
+              }
             }}
             placeholder="e.g. $435,900"
           />
@@ -939,6 +1017,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               if (num > 0) {
                 const formatted = formatAud(num);
                 set("landPrice", formatted);
+                const h = parseAud(data.housePrice);
+                if (h > 0) set("price", formatAud(h + num));
                 applyPricing(data.designName, data.range, formatted, uplift);
               }
             }}
@@ -1188,31 +1268,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
-      <Section title="Flyer colour scheme">
-        <div className="grid grid-cols-2 gap-2">
-          {PALETTES.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => set("palette", p.id)}
-              className={`rounded-xl border px-3 py-2.5 text-left text-[11px] leading-tight transition-all ${
-                data.palette === p.id
-                  ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                  : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-              }`}
-            >
-              <span className="block font-semibold text-slate-200">{p.label}</span>
-              <span className="block text-[10px] opacity-70 mt-0.5">{p.hint}</span>
-            </button>
-          ))}
-        </div>
-      </Section>
-
       <Section id="section-consultant" title="Consultant (footer + QR code)">
         <ConsultantPicker data={data} set={set} />
       </Section>
 
-      {template === "siting" && (
+      {(template === "siting" || template === "siting-v2") && (
         <Section id="section-siting" title="Siting & Setbacks (2-Page + Siting Plan)">
           <div className="space-y-3 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
             <div className="space-y-1.5">
@@ -1338,31 +1398,20 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Lot Depth (m)</Label>
-                <Input
-                  className="h-7.5 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
-                  value={data.landDepth !== undefined ? String(data.landDepth) : ""}
-                  onChange={(e) => setLandDepth(e.target.value)}
-                  placeholder="e.g. 30"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
-                <Select
-                  value={data.garageSide || "right"}
-                  onValueChange={(v: "left" | "right") => set("garageSide", v)}
-                >
-                  <SelectTrigger className="h-7.5 text-xs bg-slate-900/80 border-slate-800">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
-                    <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-1">
+              <Label className="text-[11px] text-slate-400">Garage Orientation</Label>
+              <Select
+                value={data.garageSide || "right"}
+                onValueChange={(v: "left" | "right") => set("garageSide", v)}
+              >
+                <SelectTrigger className="h-7.5 text-xs bg-slate-900/80 border-slate-800">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="right" className="text-xs">Right Side (Standard)</SelectItem>
+                  <SelectItem value="left" className="text-xs">Left Side (Mirror)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Changeable Site Coverage & Private Open Space Compliance Thresholds */}
@@ -1408,17 +1457,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
             <div className="rounded-lg bg-slate-900/40 p-2 text-[11px] text-slate-400 border border-slate-800/60 flex items-center justify-between">
               <div>
-                <span className="text-amber-300 font-semibold">Active Lot Depth: </span>
-                {data.landDepth && Number(data.landDepth) > 0
-                  ? `${Number(data.landDepth).toFixed(2)}m (specified)`
-                  : data.landSize && data.landFrontage && Number(data.landFrontage) > 0
-                  ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m (calculated)`
+                <span className="text-amber-300 font-semibold">Calculated Lot Depth: </span>
+                {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
+                  ? `${(Number(data.landSize) / Number(data.landFrontage)).toFixed(2)}m (from ${data.landSize}m² / ${data.landFrontage}m)`
                   : "30.00m"}
               </div>
               <span className="text-slate-500 text-[10px]">
-                {data.landDepth && Number(data.landDepth) > 0
-                  ? `${data.landFrontage || 14}m × ${data.landDepth}m = ${Math.round(Number(data.landFrontage || 14) * Number(data.landDepth))}m²`
-                  : `${data.landSize || 450}m² / ${data.landFrontage || 14}m`}
+                {data.landSize && data.landFrontage && Number(data.landFrontage) > 0
+                  ? `${data.landFrontage}m frontage × ${(Number(data.landSize) / Number(data.landFrontage)).toFixed(1)}m`
+                  : ""}
               </span>
             </div>
           </div>

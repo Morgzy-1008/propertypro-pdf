@@ -4,6 +4,7 @@ import { plansForDesign } from "@/components/flyer/floorplans";
 import { ensureStaffSupabaseAuth } from "@/lib/supabaseSync";
 
 export interface PublicLot {
+  id?: string;
   estate: string;
   suburb: string;
   state?: "QLD" | "NSW";
@@ -18,6 +19,7 @@ export interface PublicLot {
   developerContactName: string | null;
   developerContactPhone: string | null;
   developerContactEmail: string | null;
+  status?: string;
 }
 
 export interface PublicPackage {
@@ -185,7 +187,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
     const { data: rows, error } = await supabase
       .from("land_lots")
       .select(
-        "estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
+        "id, estate, suburb, lot_number, address, land_size, frontage, land_price, titled, registration_date, developer, developer_contact_name, developer_contact_phone, developer_contact_email, status"
       )
       .neq("status", "sold")
       .order("created_at", { ascending: false });
@@ -197,6 +199,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
     const lots: PublicLot[] = (rows || []).map((r) => {
       const state = determineState({ state: (r as any).state, estate: r.estate, suburb: r.suburb, address: r.address });
       return {
+        id: (r as any).id,
         estate: r.estate || (state === "NSW" ? "NSW Estate" : "Queensland"),
         suburb: r.suburb || "",
         state,
@@ -211,6 +214,7 @@ export async function listPublicLots(): Promise<PublicLot[]> {
         developerContactName: r.developer_contact_name,
         developerContactPhone: r.developer_contact_phone,
         developerContactEmail: r.developer_contact_email,
+        status: (r as any).status,
       };
     });
 

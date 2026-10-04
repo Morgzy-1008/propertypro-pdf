@@ -1,7 +1,7 @@
 import { defaultCosts, type AdditionalCosts } from "@/lib/additionalCosts";
 import { LANDSCAPE_INCLUSIONS } from "@/lib/landscaping";
 
-export type TemplateId = "express" | "showcase" | "house-only" | "siting";
+export type TemplateId = "express" | "showcase" | "house-only" | "siting" | "house-only-v2" | "siting-v2";
 
 export type RangeId = "value" | "designer" | "luxury";
 
@@ -99,6 +99,7 @@ export interface FlyerData {
   suburb: string;
   estate: string;
   address: string;
+  state?: "QLD" | "NSW" | string;
 
   costs: AdditionalCosts;
   landscaping: boolean;
@@ -181,13 +182,10 @@ export function getTermsText(d: FlyerData): string {
   return text;
 }
 
-export type PaletteId = "heritage" | "coastal" | "forest" | "slate";
+export type PaletteId = "heritage";
 
 export const PALETTES: { id: PaletteId; label: string; hint: string }[] = [
-  { id: "heritage", label: "Heritage Navy & Gold", hint: "Deep navy, warm gold, cream" },
-  { id: "coastal", label: "Coastal Teal & Copper", hint: "Teal ink, copper accent, ivory" },
-  { id: "forest", label: "Forest & Brass", hint: "Deep eucalypt green, brass, linen" },
-  { id: "slate", label: "Slate & Terracotta", hint: "Charcoal slate, terracotta, chalk" },
+  { id: "heritage", label: "Heritage Navy & Gold", hint: "Signature Hudson Navy & Gold (Standard)" },
 ];
 
 export const defaultFlyer: FlyerData = {

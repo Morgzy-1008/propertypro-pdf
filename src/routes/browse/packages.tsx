@@ -26,9 +26,14 @@ import {
   ExternalLink,
   Loader2,
   Globe,
+  Filter,
+  DollarSign,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CustomerPdfExportModal } from "@/components/database/CustomerPdfExportModal";
 
 export const Route = createFileRoute("/browse/packages")({
   head: () => ({
@@ -108,29 +113,205 @@ function PackagesBrowse() {
     void loadPackages();
   }, [loadPackages]);
 
-  const [viewMode, setViewMode] = useState<"grid" | "sheet">("grid");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">("All");
-  const [selectedType, setSelectedType] = useState<string>("All");
-  const [selectedEstate, setSelectedEstate] = useState<string>("All");
-  const [sortOrder, setSortOrder] = useState<"suburb" | "price-asc" | "price-desc" | "name">("suburb");
+  const [viewMode, setViewMode] = useState<"grid" | "sheet">(() => {
+    if (typeof window === "undefined") return "grid";
+    return new URLSearchParams(window.location.search).get("view") === "sheet" ? "sheet" : "grid";
+  });
+
+  const [selectedState, setSelectedState] = useState<"All" | "QLD" | "NSW">(() => {
+    if (typeof window === "undefined") return "All";
+    const s = new URLSearchParams(window.location.search).get("state");
+    if (s === "QLD" || s === "NSW" || s === "All") return s;
+    return "All";
+  });
+
+  const [maxPrice, setMaxPrice] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const p = new URLSearchParams(window.location.search).get("maxPrice");
+    return p ? Number(p) : null;
+  });
+
+  const [customPriceInput, setCustomPriceInput] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const p = new URLSearchParams(window.location.search).get("maxPrice");
+    return p ? String(p) : "";
+  });
+
+  const [selectedHouseTypes, setSelectedHouseTypes] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    const t = new URLSearchParams(window.location.search).get("types");
+    return t ? t.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  });
+
+  const [selectedBeds, setSelectedBeds] = useState<string>(() => {
+    if (typeof window === "undefined") return "All";
+    return new URLSearchParams(window.location.search).get("beds") || "All";
+  });
+
+  const [selectedEstate, setSelectedEstate] = useState<string>(() => {
+    if (typeof window === "undefined") return "All";
+    return new URLSearchParams(window.location.search).get("estate") || "All";
+  });
+
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("q") || "";
+  });
+
+  const [sortOrder, setSortOrder] = useState<"suburb" | "price-asc" | "price-desc" | "name">(() => {
+    if (typeof window === "undefined") return "suburb";
+    const so = new URLSearchParams(window.location.search).get("sort");
+    if (so === "price-asc" || so === "price-desc" || so === "suburb" || so === "name") return so;
+    return "suburb";
+  });
+
+  // Custom filter params from staff CustomerPdfExportModal
+  const [filterParams, setFilterParams] = useState<{
+    ids?: string[];
+    maxPrice?: number | null;
+    types?: string[];
+    estates?: string[];
+    suburbs?: string[];
+    state?: string;
+  } | null>(null);
+
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
+
+  // Ingest session storage filters from CustomerPdfExportModal if present
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let sessionData: any = null;
+    try {
+      const raw = sessionStorage.getItem("customer_packages_pdf_filter");
+      if (raw) sessionData = JSON.parse(raw);
+    } catch {}
+
+    if (sessionData) {
+      if (sessionData.ids?.length) {
+        setFilterParams((prev) => ({ ...(prev || {}), ids: sessionData.ids }));
+      }
+      if (sessionData.maxPrice && maxPrice == null) {
+        setMaxPrice(sessionData.maxPrice);
+        setCustomPriceInput(String(sessionData.maxPrice));
+      }
+      if (sessionData.houseTypes?.length && selectedHouseTypes.length === 0) {
+        setSelectedHouseTypes(sessionData.houseTypes);
+      }
+      if (sessionData.state && selectedState === "All") {
+        setSelectedState(sessionData.state);
+      }
+      if (sessionData.estates?.length && selectedEstate === "All") {
+        setSelectedEstate(sessionData.estates[0]);
+      }
+    }
+  }, []);
+
+  // Sync state to URL search parameters for link sharing & persistence
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams();
+    if (viewMode === "sheet") params.set("view", "sheet");
+    if (selectedState !== "All") params.set("state", selectedState);
+    if (maxPrice != null && maxPrice > 0) params.set("maxPrice", String(maxPrice));
+    if (selectedHouseTypes.length > 0 && !selectedHouseTypes.includes("All")) {
+      params.set("types", selectedHouseTypes.join(","));
+    }
+    if (selectedBeds !== "All") params.set("beds", selectedBeds);
+    if (selectedEstate !== "All") params.set("estate", selectedEstate);
+    if (searchQuery.trim()) params.set("q", searchQuery.trim());
+    if (sortOrder !== "suburb") params.set("sort", sortOrder);
+    if (filterParams?.ids && filterParams.ids.length > 0) {
+      params.set("ids", filterParams.ids.join(","));
+    }
+
+    const query = params.toString();
+    const newUrl = `${window.location.pathname}${query ? `?${query}` : ""}`;
+    window.history.replaceState({}, "", newUrl);
+  }, [viewMode, selectedState, maxPrice, selectedHouseTypes, selectedBeds, selectedEstate, searchQuery, sortOrder, filterParams]);
 
   // State package counts
   const qldCount = useMemo(() => packages.filter((p) => p.state === "QLD").length, [packages]);
   const nswCount = useMemo(() => packages.filter((p) => p.state === "NSW").length, [packages]);
 
-  // Extract unique estates & suburbs
+  // Extract unique estates & suburbs based on current state selection
   const uniqueEstates = useMemo(() => {
-    const set = new Set<string>();
+    const estateMap = new Map<string, number>();
     packages.forEach((p) => {
-      if (p.suburb) set.add(p.suburb);
-      if (p.estate && p.estate !== "Queensland") set.add(p.estate);
+      if (selectedState !== "All" && p.state && p.state !== selectedState) return;
+      const estate = p.estate && p.estate !== "Queensland" ? p.estate.trim() : "";
+      const suburb = p.suburb ? p.suburb.trim() : "";
+      const label = [estate, suburb].filter(Boolean).join(" · ") || suburb || estate;
+      if (label) {
+        estateMap.set(label, (estateMap.get(label) || 0) + 1);
+      }
     });
-    return ["All", ...Array.from(set).sort()];
-  }, [packages]);
+    return Array.from(estateMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [packages, selectedState]);
 
-  // Housing Type categories
-  const housingTypes = ["All", "Single Storey", "Double Storey", "Dual Living", "Acreage"];
+  // Housing Type categories for multi-select
+  const HOUSE_TYPE_OPTIONS = [
+    { label: "Single Storey (SS)", value: "Single Storey" },
+    { label: "Double Storey (DS)", value: "Double Storey" },
+    { label: "Dual Living / Duplex", value: "Dual Living" },
+    { label: "Split Level", value: "Split Level" },
+    { label: "Acreage", value: "Acreage" },
+  ];
+
+  const PRICE_PRESETS = [
+    { label: "All Prices", value: null },
+    { label: "< $750k", value: 750000 },
+    { label: "< $850k", value: 850000 },
+    { label: "< $950k", value: 950000 },
+    { label: "< $1.1M", value: 1100000 },
+    { label: "< $1.3M", value: 1300000 },
+  ];
+
+  const BEDROOM_OPTIONS = [
+    { label: "All Beds", value: "All" },
+    { label: "3 Beds", value: "3" },
+    { label: "4 Beds", value: "4" },
+    { label: "5+ Beds", value: "5+" },
+  ];
+
+  const toggleHouseType = (typeVal: string) => {
+    if (typeVal === "All") {
+      setSelectedHouseTypes([]);
+      return;
+    }
+    setSelectedHouseTypes((prev) => {
+      if (prev.includes(typeVal)) {
+        return prev.filter((t) => t !== typeVal);
+      } else {
+        return [...prev, typeVal];
+      }
+    });
+  };
+
+  const isAnyFilterActive = Boolean(
+    selectedState !== "All" ||
+    (maxPrice != null && maxPrice > 0) ||
+    selectedHouseTypes.length > 0 ||
+    selectedBeds !== "All" ||
+    selectedEstate !== "All" ||
+    searchQuery.trim() !== "" ||
+    filterParams?.ids?.length
+  );
+
+  const resetAllFilters = () => {
+    setSelectedState("All");
+    setMaxPrice(null);
+    setCustomPriceInput("");
+    setSelectedHouseTypes([]);
+    setSelectedBeds("All");
+    setSelectedEstate("All");
+    setSearchQuery("");
+    setSortOrder("suburb");
+    setFilterParams(null);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("customer_packages_pdf_filter");
+      window.history.replaceState({}, "", "/browse/packages");
+    }
+  };
 
   // Filtered and sorted packages
   const filteredPackages = useMemo(() => {
@@ -142,24 +323,96 @@ function PackagesBrowse() {
           if (pkgState !== selectedState) return false;
         }
 
+        // Whitelisted IDs from Staff Custom Selection
+        if (filterParams?.ids && filterParams.ids.length > 0) {
+          const idSet = new Set(filterParams.ids);
+          if (!idSet.has(p.id) && !idSet.has(p.name)) return false;
+        }
+
+        // Max price filter
+        if (maxPrice != null && maxPrice > 0) {
+          if (p.totalPrice != null && p.totalPrice > maxPrice) return false;
+        }
+
+        // Housing Type filter (Multi-Select support)
+        if (selectedHouseTypes.length > 0 && !selectedHouseTypes.includes("All")) {
+          const pType = (p.housingType || "").toLowerCase();
+          const pDesign = (p.design || p.name || "").toLowerCase();
+          const fullText = `${pType} ${pDesign}`;
+
+          const matchesType = selectedHouseTypes.some((t) => {
+            const tl = t.toLowerCase();
+            if (tl === "ss" || tl.includes("single")) {
+              return (
+                pType.includes("single") ||
+                (!fullText.includes("double") &&
+                  !fullText.includes("two") &&
+                  !fullText.includes("split") &&
+                  !fullText.includes("dual") &&
+                  !fullText.includes("duplex"))
+              );
+            }
+            if (tl === "ds" || tl.includes("double") || tl.includes("two")) {
+              return (
+                fullText.includes("double") ||
+                fullText.includes("two") ||
+                fullText.includes("2 storey") ||
+                fullText.includes("2 story")
+              );
+            }
+            if (tl.includes("dual") || tl.includes("duplex")) {
+              return (
+                fullText.includes("dual") ||
+                fullText.includes("duplex") ||
+                fullText.includes("duet") ||
+                fullText.includes("auxiliary")
+              );
+            }
+            if (tl.includes("split")) {
+              return fullText.includes("split") || fullText.includes("cobalt");
+            }
+            if (tl.includes("acreage")) {
+              return (
+                fullText.includes("acreage") ||
+                fullText.includes("ranch") ||
+                fullText.includes("mulberry")
+              );
+            }
+            return fullText.includes(tl);
+          });
+          if (!matchesType) return false;
+        }
+
+        // Bedrooms filter
+        if (selectedBeds !== "All") {
+          const bCount = parseInt(String(p.beds || "0"), 10);
+          if (selectedBeds === "3" && bCount !== 3) return false;
+          if (selectedBeds === "4" && bCount !== 4) return false;
+          if (selectedBeds === "5+" && bCount < 5) return false;
+        }
+
+        // Estate/Suburb filter
+        if (selectedEstate !== "All") {
+          const target = selectedEstate.toLowerCase();
+          const pEst = (p.estate || "").toLowerCase();
+          const pSub = (p.suburb || "").toLowerCase();
+          const pComb = `${pEst} · ${pSub}`;
+          if (
+            !pEst.includes(target) &&
+            !pSub.includes(target) &&
+            !target.includes(pEst) &&
+            !target.includes(pSub) &&
+            !pComb.includes(target)
+          ) {
+            return false;
+          }
+        }
+
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
           const matchText = `${p.name} ${p.design} ${p.suburb} ${p.estate} ${p.address} ${p.facadeName} ${p.consultantName}`.toLowerCase();
           if (!matchText.includes(q)) return false;
-        }
-
-        // Housing Type filter
-        if (selectedType !== "All") {
-          if (p.housingType.toLowerCase() !== selectedType.toLowerCase()) return false;
-        }
-
-        // Estate/Suburb filter
-        if (selectedEstate !== "All") {
-          const match =
-            p.estate.toLowerCase() === selectedEstate.toLowerCase() ||
-            p.suburb.toLowerCase() === selectedEstate.toLowerCase();
-          if (!match) return false;
         }
 
         return true;
@@ -179,7 +432,17 @@ function PackagesBrowse() {
         }
         return a.name.localeCompare(b.name);
       });
-  }, [packages, selectedState, searchQuery, selectedType, selectedEstate, sortOrder]);
+  }, [
+    packages,
+    selectedState,
+    filterParams,
+    maxPrice,
+    selectedHouseTypes,
+    selectedBeds,
+    selectedEstate,
+    searchQuery,
+    sortOrder,
+  ]);
 
   // Group packages for the printable ListingSheet view
   const groups = useMemo(() => {
@@ -204,8 +467,49 @@ function PackagesBrowse() {
     return bList;
   }, [groups]);
 
-  const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 1.2 : 1), 6);
-  const pages = rawPages.length > 0 ? rawPages : [[]];
+  // Safe pagination: capacity 3.8 ensures at most 3-4 cards per page, never clipping footer or off-screen
+  const rawPages = paginate(blocks, (b) => (b.kind === "group" ? 0.7 : 1), 3.8, (b) => b.kind === "group");
+  const basePages = rawPages.length > 0 ? rawPages : [[]];
+
+  // Repeat the estate heading when a group spills onto the next sheet.
+  let cursor = 0;
+  const pages = basePages.map((pageBlocks) => {
+    const before = blocks.slice(0, cursor);
+    cursor += pageBlocks.length;
+    if (!pageBlocks.length || pageBlocks[0]?.kind === "group") return pageBlocks;
+    const last = [...before].reverse().find((b) => b.kind === "group");
+    return last ? [{ ...last, key: `${last.key}-cont` }, ...pageBlocks] : pageBlocks;
+  });
+
+  // Adapt public packages for CustomerPdfExportModal
+  const modalPackages = useMemo(
+    () =>
+      packages.map((p) => ({
+        id: p.id,
+        lot_id: null,
+        name: p.name,
+        housing_type: p.housingType,
+        design: p.design,
+        range_id: p.rangeLabel,
+        facade_name: p.facadeName,
+        house_price: p.housePrice ?? null,
+        land_price: p.landPrice ?? null,
+        total_price: p.totalPrice ?? null,
+        beds: p.beds,
+        baths: p.baths,
+        cars: p.cars,
+        floorplan_size: p.homeSize,
+        state: p.state,
+        status: "live" as any,
+        exclusive_consultants: null,
+        flyer_json: { estate: p.estate, suburb: p.suburb },
+        flyer_data: { estate: p.estate, suburb: p.suburb },
+        notes: null,
+        needs_review: null,
+        updated_at: null,
+      })),
+    [packages]
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 flex flex-col">
@@ -221,6 +525,15 @@ function PackagesBrowse() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setFilterModalOpen(true)}
+              className="h-8 text-xs border-amber-500/40 bg-amber-950/40 text-amber-300 hover:bg-amber-900/60 hover:text-white gap-1.5"
+            >
+              <Filter className="h-3.5 w-3.5 text-amber-400" /> Filter &amp; Select Packages
+            </Button>
+
             {/* View Mode Switcher */}
             <div className="flex items-center rounded-lg bg-slate-800/80 p-1 border border-slate-700/60 text-xs">
               <button
@@ -286,7 +599,7 @@ function PackagesBrowse() {
           {/* State Division Filter Bar */}
           <div className="flex items-center gap-2 pt-3 flex-wrap">
             <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider flex items-center gap-1.5 mr-1">
-              <Globe className="h-3.5 w-3.5 text-brand-gold" /> State:
+              <Globe className="h-3.5 w-3.5 text-brand-gold" /> State Division:
             </span>
             <button
               type="button"
@@ -323,68 +636,298 @@ function PackagesBrowse() {
             </button>
           </div>
 
-          {/* Search and Filters Bar */}
-          <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by suburb, estate, design name, or consultant..."
-                className="pl-10 bg-slate-900 border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 h-10"
-              />
+          {/* Interactive Customer Filter Console */}
+          <div className="mt-4 rounded-2xl border border-slate-800/90 bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 shadow-2xl space-y-4">
+            {/* Top Row: Search, Estate, & Sort */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div className="relative md:col-span-5">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search design, suburb, estate, or keyword..."
+                  className="pl-10 pr-8 bg-slate-950 border-slate-800 text-xs text-slate-100 placeholder:text-slate-500 h-10"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Suburb / Estate Select */}
+              <div className="md:col-span-4">
+                <select
+                  value={selectedEstate}
+                  onChange={(e) => setSelectedEstate(e.target.value)}
+                  className="w-full h-10 rounded-md border border-slate-800 bg-slate-950 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="All">All Suburbs &amp; Estates</option>
+                  {uniqueEstates.map(([label, count]) => (
+                    <option key={label} value={label}>
+                      {label} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sort Order */}
+              <div className="md:col-span-3">
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as any)}
+                  className="w-full h-10 rounded-md border border-slate-800 bg-slate-950 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="suburb">Suburb: A to Z</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="name">Design: A to Z</option>
+                </select>
+              </div>
             </div>
 
-            <div className="flex flex-wrap sm:flex-nowrap gap-2">
-              {/* Estate filter */}
-              <select
-                value={selectedEstate}
-                onChange={(e) => setSelectedEstate(e.target.value)}
-                className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                {uniqueEstates.map((est) => (
-                  <option key={est} value={est}>
-                    {est === "All" ? "All Suburbs & Estates" : est}
-                  </option>
+            {/* Price Filter Row */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-800/80 text-xs">
+              <span className="text-slate-400 font-semibold flex items-center gap-1.5 mr-1 shrink-0">
+                <DollarSign className="h-3.5 w-3.5 text-emerald-400" /> Max Price:
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {PRICE_PRESETS.map((p) => {
+                  const active = p.value === null ? maxPrice == null : maxPrice === p.value;
+                  return (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setMaxPrice(p.value);
+                        setCustomPriceInput(p.value ? String(p.value) : "");
+                      }}
+                      className={`px-3 py-1 rounded-full text-xs transition-all font-medium ${
+                        active
+                          ? "bg-emerald-500 text-slate-950 font-bold shadow-xs"
+                          : "bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom numeric price input */}
+              <div className="flex items-center gap-1.5 ml-auto sm:ml-2">
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-xs">$</span>
+                  <input
+                    type="number"
+                    value={customPriceInput}
+                    onChange={(e) => setCustomPriceInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        const val = parseInt(customPriceInput, 10);
+                        setMaxPrice(val > 0 ? val : null);
+                      }
+                    }}
+                    placeholder="Custom Max"
+                    className="w-28 pl-6 pr-2 py-1 h-7 rounded-md bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const val = parseInt(customPriceInput, 10);
+                    setMaxPrice(val > 0 ? val : null);
+                  }}
+                  className="px-2 py-1 h-7 rounded-md bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 font-semibold"
+                >
+                  Set
+                </button>
+              </div>
+            </div>
+
+            {/* House Type Multi-Select & Bedrooms Row */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
+              {/* House Types (Multi-select) */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-slate-400 font-semibold flex items-center gap-1.5 mr-1 shrink-0">
+                  <Home className="h-3.5 w-3.5 text-amber-400" /> Storeys / Type:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => toggleHouseType("All")}
+                  className={`px-3 py-1 rounded-full text-xs transition-all font-medium ${
+                    selectedHouseTypes.length === 0
+                      ? "bg-amber-500 text-slate-950 font-bold shadow-xs"
+                      : "bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800"
+                  }`}
+                >
+                  All Types
+                </button>
+                {HOUSE_TYPE_OPTIONS.map((ht) => {
+                  const active = selectedHouseTypes.includes(ht.value);
+                  return (
+                    <button
+                      key={ht.value}
+                      type="button"
+                      onClick={() => toggleHouseType(ht.value)}
+                      className={`px-3 py-1 rounded-full text-xs transition-all font-medium ${
+                        active
+                          ? "bg-amber-400 text-slate-950 font-bold shadow-xs"
+                          : "bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800"
+                      }`}
+                    >
+                      {ht.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Bedrooms Filter */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-slate-400 font-semibold flex items-center gap-1.5 mr-1 shrink-0">
+                  <BedDouble className="h-3.5 w-3.5 text-sky-400" /> Beds:
+                </span>
+                {BEDROOM_OPTIONS.map((b) => (
+                  <button
+                    key={b.value}
+                    type="button"
+                    onClick={() => setSelectedBeds(b.value)}
+                    className={`px-2.5 py-1 rounded-full text-xs transition-all font-medium ${
+                      selectedBeds === b.value
+                        ? "bg-sky-400 text-slate-950 font-bold shadow-xs"
+                        : "bg-slate-950 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800"
+                    }`}
+                  >
+                    {b.label}
+                  </button>
                 ))}
-              </select>
-
-              {/* Sort order */}
-              <select
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as any)}
-                className="h-10 rounded-md border border-slate-800 bg-slate-900 px-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
-              >
-                <option value="suburb">Suburb: A to Z</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="name">Design: A to Z</option>
-              </select>
+              </div>
             </div>
-          </div>
 
-          {/* Housing Type Filter Tabs */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-            {housingTypes.map((ht) => (
-              <button
-                key={ht}
-                type="button"
-                onClick={() => setSelectedType(ht)}
-                className={`px-3.5 py-1.5 rounded-full whitespace-nowrap transition-all font-medium ${
-                  selectedType === ht
-                    ? "bg-emerald-500 text-slate-950 font-bold shadow-xs"
-                    : "bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 border border-slate-800"
-                }`}
-              >
-                {ht}
-              </button>
-            ))}
-            <span className="text-slate-500 text-[11px] ml-auto">
-              Showing {filteredPackages.length} of {packages.length} packages
-            </span>
+            {/* Active Filter Chips & Summary */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 text-xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-slate-400 text-xs mr-1">
+                  Showing <strong className="text-emerald-400">{filteredPackages.length}</strong> of {packages.length} packages
+                  {selectedState !== "All" ? ` in ${selectedState === "QLD" ? "Queensland" : "New South Wales"}` : ""}
+                </span>
+
+                {selectedState !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-200 border border-slate-700">
+                    State: {selectedState}
+                    <button type="button" onClick={() => setSelectedState("All")} className="text-slate-400 hover:text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+
+                {maxPrice != null && maxPrice > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-950/80 text-[11px] text-emerald-300 border border-emerald-800">
+                    Under {formatAud(maxPrice)}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMaxPrice(null);
+                        setCustomPriceInput("");
+                      }}
+                      className="text-emerald-400 hover:text-white"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+
+                {selectedHouseTypes.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-950/80 text-[11px] text-amber-300 border border-amber-800">
+                    {t}
+                    <button type="button" onClick={() => toggleHouseType(t)} className="text-amber-400 hover:text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+
+                {selectedBeds !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-950/80 text-[11px] text-sky-300 border border-sky-800">
+                    {selectedBeds} Beds
+                    <button type="button" onClick={() => setSelectedBeds("All")} className="text-sky-400 hover:text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+
+                {selectedEstate !== "All" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-200 border border-slate-700">
+                    {selectedEstate}
+                    <button type="button" onClick={() => setSelectedEstate("All")} className="text-slate-400 hover:text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+
+                {searchQuery.trim() && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-800 text-[11px] text-slate-200 border border-slate-700">
+                    "{searchQuery}"
+                    <button type="button" onClick={() => setSearchQuery("")} className="text-slate-400 hover:text-white">
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              </div>
+
+              {isAnyFilterActive && (
+                <button
+                  type="button"
+                  onClick={resetAllFilters}
+                  className="inline-flex items-center gap-1 text-slate-400 hover:text-white underline text-xs ml-auto transition-colors"
+                >
+                  <RotateCcw className="h-3 w-3" /> Reset All Filters
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </section>
+
+      {/* Active Custom Filter Notification Banner */}
+      {filterParams && (
+        <div className="bg-amber-900 border-b border-amber-800 px-6 py-2.5 print:hidden flex flex-wrap items-center justify-between gap-3 text-xs text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-300 shrink-0" />
+            <span className="font-bold text-white">Custom Selection Active:</span>
+            <span className="text-amber-100 font-medium">
+              Showing {filteredPackages.length} package{filteredPackages.length === 1 ? "" : "s"}
+              {filterParams.types?.length ? ` (${filterParams.types.join(", ")})` : ""}
+              {filterParams.maxPrice ? ` under ${formatAud(filterParams.maxPrice)}` : ""}
+              {filterParams.estates?.length ? ` across ${filterParams.estates.length} estate${filterParams.estates.length === 1 ? "" : "s"}` : ""}
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setFilterModalOpen(true)}
+              className="text-white hover:text-amber-200 underline font-bold text-xs"
+            >
+              Modify Selection
+            </button>
+            <span className="text-amber-400">·</span>
+            <button
+              type="button"
+              onClick={() => {
+                setFilterParams(null);
+                sessionStorage.removeItem("customer_packages_pdf_filter");
+                window.history.replaceState({}, "", "/browse/packages");
+              }}
+              className="text-amber-200 hover:text-white underline text-xs"
+            >
+              Clear Filters (Show All)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content View */}
       <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1">
@@ -573,36 +1116,42 @@ function PackagesBrowse() {
               <ListingSheet
                 key={pi}
                 title="House &amp; Land Packages"
-                subtitle="South East Queensland"
+                subtitle={
+                  selectedState === "QLD"
+                    ? "Queensland"
+                    : selectedState === "NSW"
+                      ? "New South Wales"
+                      : "Queensland & New South Wales"
+                }
                 page={pi + 1}
                 pages={pages.length}
               >
-                <div className="space-y-[3.5mm]">
+                <div className="space-y-[3mm]">
                   {blocksOnPage.map((b) =>
                     b.kind === "group" ? (
                       <div
                         key={b.key}
-                        className="font-display text-[5mm] leading-none tracking-[0.06em] text-brand-navy"
+                        className="font-display text-[4.6mm] leading-none tracking-[0.06em] text-brand-navy pt-[1mm]"
                       >
                         {b.label}
                       </div>
                     ) : (
                       <div
                         key={b.key}
-                        className="flex items-start justify-between gap-[5mm] rounded-[1.5mm] border border-brand-sand bg-white/70 px-[4mm] py-[3mm]"
+                        className="flex items-start justify-between gap-[4mm] rounded-[1.5mm] border border-brand-sand bg-white/70 px-[4mm] py-[2.8mm]"
                       >
                         <div className="min-w-0">
-                          <div className="flex items-center gap-[2.2mm] flex-wrap">
-                            <span className="inline-flex items-center rounded-[1mm] bg-brand-navy px-[2.2mm] py-[0.8mm] text-[2.4mm] font-bold tracking-[0.14em] text-brand-cream uppercase shadow-xs">
+                          <div className="flex items-center gap-[2mm] flex-wrap">
+                            <span className="inline-flex items-center rounded-[1mm] bg-brand-navy px-[2mm] py-[0.6mm] text-[2.2mm] font-bold tracking-[0.14em] text-brand-cream uppercase shadow-xs">
                               {b.pkg.housingType || "Single Storey"}
                             </span>
-                            <div className="font-display text-[4.8mm] leading-[1.1] text-brand-navy">
+                            <div className="font-display text-[4.5mm] leading-tight text-brand-navy">
                               {b.pkg.name.includes("—")
                                 ? b.pkg.name
                                 : `${b.pkg.housingType || "Single Storey"} — ${b.pkg.design || b.pkg.name}`}
                             </div>
                           </div>
-                          <div className="mt-[1.2mm] text-[2.6mm] text-brand-ink/65">
+                          <div className="mt-[1mm] text-[2.5mm] text-brand-ink/65">
                             {[
                               b.pkg.facadeName ? `${b.pkg.facadeName} facade` : null,
                               b.pkg.rangeLabel,
@@ -611,7 +1160,7 @@ function PackagesBrowse() {
                               .filter(Boolean)
                               .join(" · ")}
                           </div>
-                          <div className="mt-[1.6mm] flex flex-wrap gap-[3.5mm] text-[2.6mm] text-brand-ink/80">
+                          <div className="mt-[1.2mm] flex flex-wrap gap-[3mm] text-[2.5mm] text-brand-ink/80">
                             <span>{b.pkg.beds || "—"} bed</span>
                             <span>{b.pkg.baths || "—"} bath</span>
                             <span>{b.pkg.cars || "—"} car</span>
@@ -619,27 +1168,27 @@ function PackagesBrowse() {
                             {b.pkg.landSize && <span>{b.pkg.landSize} m² land</span>}
                           </div>
                           {b.pkg.consultantName && (
-                            <div className="mt-[1.6mm] text-[2.5mm] text-brand-ink/65">
+                            <div className="mt-[1.2mm] text-[2.4mm] text-brand-ink/65">
                               Enquire: {b.pkg.consultantName}
                               {b.pkg.consultantPhone ? ` · ${b.pkg.consultantPhone}` : ""}
                               {b.pkg.consultantEmail ? ` · ${b.pkg.consultantEmail}` : ""}
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-none items-center gap-[3.5mm]">
+                        <div className="flex flex-none items-center gap-[3mm]">
                           <div className="text-right">
-                            <div className="text-[2.3mm] tracking-[0.2em] text-brand-ink/50">FROM</div>
-                            <div className="font-display text-[7mm] leading-[1] text-brand-navy">
+                            <div className="text-[2.2mm] tracking-[0.2em] text-brand-ink/50">FROM</div>
+                            <div className="font-display text-[6.5mm] leading-[1] text-brand-navy">
                               {money(b.pkg.totalPrice)}
                             </div>
                             <a
                               href={`/package/${b.pkg.id}`}
-                              className="mt-[1mm] block text-[2.3mm] tracking-[0.14em] text-brand-gold-deep uppercase"
+                              className="mt-[0.8mm] block text-[2.2mm] tracking-[0.14em] text-brand-gold-deep uppercase font-semibold"
                             >
                               View full flyer
                             </a>
                           </div>
-                          <QrCode value={`${origin}/package/${b.pkg.id}`} size={16} />
+                          <QrCode value={`${origin}/package/${b.pkg.id}`} size={15} />
                         </div>
                       </div>
                     ),
@@ -655,6 +1204,17 @@ function PackagesBrowse() {
           </div>
         )}
       </main>
+
+      {/* Customer Packages PDF Export Modal */}
+      {filterModalOpen && (
+        <CustomerPdfExportModal
+          isOpen={filterModalOpen}
+          onClose={() => setFilterModalOpen(false)}
+          mode="packages"
+          lots={[]}
+          packages={modalPackages}
+        />
+      )}
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-8 px-6 text-center text-xs text-slate-400 space-y-2">

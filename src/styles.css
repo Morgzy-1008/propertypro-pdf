@@ -211,44 +211,7 @@
   justify-content: space-between;
 }
 
-/* Alternate brand palette: picks up the teal + copper in the Hudson mark. */
-[data-palette="coastal"] {
-  --brand-navy: oklch(0.28 0.048 205);
-  --brand-navy-deep: oklch(0.21 0.042 205);
-  --brand-gold: oklch(0.72 0.135 55);
-  --brand-gold-deep: oklch(0.6 0.145 45);
-  --brand-cream: oklch(0.982 0.006 90);
-  --brand-sand: oklch(0.935 0.016 72);
-  --brand-ink: oklch(0.3 0.024 215);
-  --gradient-gold: linear-gradient(100deg, var(--brand-gold-deep), var(--brand-gold));
-  --gradient-navy: linear-gradient(160deg, var(--brand-navy-deep), var(--brand-navy));
-}
-
-/* Deep eucalypt green with a brass accent — warm, premium, very Australian. */
-[data-palette="forest"] {
-  --brand-navy: oklch(0.3 0.05 152);
-  --brand-navy-deep: oklch(0.22 0.045 152);
-  --brand-gold: oklch(0.76 0.12 85);
-  --brand-gold-deep: oklch(0.63 0.115 80);
-  --brand-cream: oklch(0.978 0.008 95);
-  --brand-sand: oklch(0.932 0.018 95);
-  --brand-ink: oklch(0.3 0.022 155);
-  --gradient-gold: linear-gradient(100deg, var(--brand-gold-deep), var(--brand-gold));
-  --gradient-navy: linear-gradient(160deg, var(--brand-navy-deep), var(--brand-navy));
-}
-
-/* Architectural charcoal slate with a terracotta accent on chalk white. */
-[data-palette="slate"] {
-  --brand-navy: oklch(0.31 0.012 265);
-  --brand-navy-deep: oklch(0.22 0.01 265);
-  --brand-gold: oklch(0.66 0.14 40);
-  --brand-gold-deep: oklch(0.56 0.15 35);
-  --brand-cream: oklch(0.985 0.002 90);
-  --brand-sand: oklch(0.935 0.008 60);
-  --brand-ink: oklch(0.3 0.008 265);
-  --gradient-gold: linear-gradient(100deg, var(--brand-gold-deep), var(--brand-gold));
-  --gradient-navy: linear-gradient(160deg, var(--brand-navy-deep), var(--brand-navy));
-}
+/* Standard Hudson brand palette: Heritage Navy and Gold */
 
 
 @utility gold-bar {
@@ -608,6 +571,7 @@ html.normal-mode,
 .normal-mode input,
 .normal-mode textarea,
 .normal-mode select,
+.normal-mode select option,
 .normal-mode button[role="combobox"] {
   background-color: #ffffff !important;
   border-color: #cbd5e1 !important;
@@ -1347,7 +1311,7 @@ html.normal-mode,
   strong, b,
   .text-white, [class*="text-white"],
   .text-slate-50, .text-slate-100, .text-slate-200
-) {
+):not(select, select *, input, textarea) {
   color: #ffffff !important;
 }
 
@@ -1371,7 +1335,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-300, .text-zinc-300, .text-gray-300) {
+) :is(.text-slate-300, .text-zinc-300, .text-gray-300):not(select, select *, input, textarea) {
   color: #e2e8f0 !important;
 }
 
@@ -1395,7 +1359,7 @@ html.normal-mode,
   section[class*="from-slate"],
   section[class*="bg-slate"],
   div[class*="bg-slate-9"]
-) :is(.text-slate-400, .text-zinc-400, .text-gray-400) {
+) :is(.text-slate-400, .text-zinc-400, .text-gray-400):not(select, select *, input, textarea) {
   color: #cbd5e1 !important;
 }
 

@@ -86,6 +86,42 @@ export function Logo({
   );
 }
 
+/**
+ * V2 Hudson Homes logo:
+ * Clean, bold, larger HUDSON HOMES brand text with no "Zero Surprises" tagline.
+ */
+export function LogoV2({
+  light = false,
+  size = 15,
+  className = "",
+}: {
+  light?: boolean;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <div className={`flex items-center gap-[3.2mm] ${className}`}>
+      {/* Authentic Hudson Homes house mark emblem */}
+      <HudsonMark size={size} />
+      <div
+        className={`border-l pl-[3.5mm] flex items-center justify-center ${
+          light ? "border-brand-cream/40" : "border-brand-navy/25"
+        }`}
+        style={{ minHeight: `${size * 0.85}mm` }}
+      >
+        <div
+          className={`font-sans font-extrabold tracking-[0.18em] uppercase leading-none ${
+            light ? "text-white" : "text-brand-navy"
+          }`}
+          style={{ fontSize: `${size * 0.58}mm` }}
+        >
+          HUDSON HOMES
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /** Facade framing: widescreen display with 100% roof protection, zero blur and zero black boxes */
 function Facade({
   url,
@@ -203,13 +239,20 @@ export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?
   const email = d.contactEmail || "Morgan.hales@hudsonhomes.com.au";
   const office = d.contactOffice || "Hudson Homes Queensland";
 
-  const targetPackageId = d.packageId || d.id;
+  const isNsw = Boolean(
+    d.state === "NSW" ||
+    (d.suburb && /sydney|parramatta|oran park|box hill|marsden park|austral|leppington|calderwood|menangle|the gables|blacktown|penrith|liverpool|hunter|newcastle|central coast|wollongong|nsw/i.test(d.suburb)) ||
+    (d.address && /\bnsw\b/i.test(d.address)) ||
+    (d.estate && /nsw|marsden|parramatta|box hill/i.test(d.estate)) ||
+    (d.contactOffice && /nsw|parramatta|marsden|sydney/i.test(d.contactOffice)) ||
+    (typeof window !== "undefined" && localStorage.getItem("hudson_active_division") === "NSW")
+  );
+  const flyerState = isNsw ? "NSW" : "QLD";
+
   const packagesUrl =
     typeof window !== "undefined"
-      ? (targetPackageId
-          ? `${window.location.origin}/package/${targetPackageId}`
-          : `${window.location.origin}/browse/packages`)
-      : "https://www.hudsonhomeshouselandflyer.dev/browse/packages";
+      ? `${window.location.origin}/browse/packages?state=${flyerState}`
+      : `https://www.hudsonhomeshouselandflyer.dev/browse/packages?state=${flyerState}`;
 
   const consultantSlug =
     d.consultantId ||
@@ -258,22 +301,12 @@ export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?
           </div>
         </div>
 
-        {/* Right Side: Scan to View Customer Package PDF Webpage */}
+        {/* Right Side: Scan to View All Available Packages in this State */}
         <div className="flex flex-none items-center gap-[1.5mm] pl-[1mm]">
           <div className="text-right text-[1.5mm] font-semibold leading-[1.2] tracking-[0.1em] text-brand-cream/80 uppercase whitespace-nowrap">
-            {targetPackageId ? (
-              <>
-                SCAN TO VIEW
-                <br />
-                PACKAGE FLYER
-              </>
-            ) : (
-              <>
-                SCAN TO VIEW
-                <br />
-                OTHER PACKAGES
-              </>
-            )}
+            SCAN TO VIEW
+            <br />
+            {flyerState} PACKAGES
           </div>
           <QrCode value={packagesUrl} size={12} />
         </div>
@@ -606,6 +639,278 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
       <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
         <div>
           <Logo size={14} />
+        </div>
+        <div className="text-right leading-tight">
+          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+            NEW HOME DESIGN
+          </div>
+          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+            <span className="font-display text-[9mm] leading-none text-brand-navy">
+              {formatPrice(d.housePrice)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="gold-bar h-[1.2mm] w-full rounded-full" />
+
+      {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
+      <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+      </div>
+
+      {/* Design Name Banner */}
+      <div className="navy-panel flex items-center justify-between gap-[2mm] px-[6mm] py-[1.8mm] text-brand-cream rounded-[1mm]">
+        <span className="font-sans font-bold text-[3.8mm] leading-tight tracking-[0.02em]">
+          {d.designName || d.floorplanName}
+        </span>
+        {d.facadeName && (
+          <span className="text-[2.6mm] font-semibold tracking-[0.18em] text-brand-gold">
+            {d.facadeName.toUpperCase()} FACADE
+          </span>
+        )}
+      </div>
+
+      {/* Specs Strip */}
+      <div className="flex items-center justify-between border-b border-brand-sand px-[6mm] py-[2.2mm]">
+        <Spec icon={BedDouble} value={d.beds} label="BEDS" />
+        <Spec icon={Bath} value={d.baths} label="BATHS" />
+        <Spec icon={Car} value={d.cars} label="CARS" />
+        <Spec icon={Maximize2} value={`${d.floorplanSize} m²`} label="HOME SIZE" />
+      </div>
+
+      {/* Floorplan & Facade Title Header */}
+      <div className="flex items-baseline gap-[3mm] px-[6mm] pt-[1.5mm] pb-[0.8mm]">
+        <div className="text-[2.6mm] font-bold tracking-[0.28em] text-brand-gold-deep">
+          FLOOR PLAN
+        </div>
+        <div className="text-[2.8mm] font-semibold tracking-[0.12em] text-brand-navy">{d.floorplanName}</div>
+        {d.facadeName && (
+          <>
+            <div className="ml-[3mm] text-[2.6mm] font-bold tracking-[0.28em] text-brand-gold-deep">
+              FACADE
+            </div>
+            <div className="text-[2.8mm] font-semibold tracking-[0.12em] text-brand-navy">{d.facadeName}</div>
+          </>
+        )}
+      </div>
+
+      {/* Floorplan & Inclusions Row */}
+      <div className="grid grid-cols-[48mm_1fr] gap-[3.5mm] px-[2mm] pt-[0.8mm]">
+        <div>
+          <div className="text-[2.4mm] font-bold tracking-[0.16em] text-brand-gold-deep">
+            {getRange(d.range).label.toUpperCase()}
+          </div>
+          <ul className="mt-[1.8mm] space-y-[1.2mm]">
+            {rangeItems(d).map((line) => (
+              <li key={line} className="flex gap-[1.5mm] text-[2.5mm] leading-[1.2]">
+                <span className="mt-[1mm] h-[1mm] w-[1mm] flex-none rounded-full bg-brand-gold" />
+                <span className="text-brand-ink/80">{line}</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-[3mm] rounded-[1.2mm] bg-brand-sand px-[2.2mm] py-[2mm]">
+            <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">BUILD PRICE FROM</div>
+            <div className="font-display text-[5.5mm] leading-[1.1] text-brand-navy">
+              {formatPrice(d.housePrice)}
+            </div>
+            <div className="mt-[0.5mm] text-[1.8mm] leading-[1.2] text-brand-ink/50">
+              Complete turnkey build, inclusions as listed.
+            </div>
+          </div>
+
+          {d.showOtherSizes && d.otherSizes.length > 0 && (
+            <div className="mt-[3mm]">
+              <div className="text-[2.1mm] font-bold tracking-[0.14em] text-brand-gold-deep whitespace-nowrap uppercase">
+                OTHER SIZES AVAILABLE
+              </div>
+              <div className="mt-[1.2mm] divide-y divide-brand-sand border-t border-brand-sand">
+                {d.otherSizes.slice(0, 5).map((o) => (
+                  <div
+                    key={o.label + o.size}
+                    className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
+                  >
+                    <span className="whitespace-nowrap font-medium text-brand-ink/80 flex-none" title={o.label}>
+                      {o.label}
+                    </span>
+                    <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
+                      {o.size}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Floorplan Frame */}
+        <div className="flex h-[130mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
+          {d.floorplanUrl ? (
+            <img
+              src={d.floorplanUrl}
+              alt="Floorplan"
+              className="block max-h-full max-w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "auto" }}
+            />
+          ) : (
+            <div className="text-center text-[3mm] text-brand-ink/40">
+              Select a design to load its floorplan
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ContactStrip d={d} />
+    </div>
+  );
+}
+
+/* ------------------- Express Flyer V2 (Larger Logo, No Zero Surprises) ------------------- */
+export function ExpressFlyerV2({ d }: { d: FlyerData }) {
+  return (
+    <div className="flyer-page font-sans" data-palette={d.palette}>
+      {/* Top Header: 5mm safe margin inside */}
+      <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
+        <div>
+          <LogoV2 size={15} />
+        </div>
+        <div className="text-right leading-tight">
+          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+            {d.headline.toUpperCase()}
+          </div>
+          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+            <span className="font-display text-[9mm] leading-none text-brand-navy">
+              {formatPrice(d.price)}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="gold-bar h-[1.2mm] w-full rounded-full" />
+
+      {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
+      <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+      </div>
+
+      {/* Address Bar */}
+      <div className="navy-panel flex items-center gap-[2mm] px-[6mm] py-[1.8mm] text-[2.8mm] text-brand-cream rounded-[1mm]">
+        <MapPin className="h-[3.2mm] w-[3.2mm] flex-none text-brand-gold" strokeWidth={1.8} />
+        {[d.address, d.estate].filter(Boolean).join(" • ")}
+      </div>
+
+      {/* Specs Strip */}
+      <div className="flex items-center justify-between border-b border-brand-sand px-[6mm] py-[2.2mm]">
+        <Spec icon={BedDouble} value={d.beds} label="BEDS" />
+        <Spec icon={Bath} value={d.baths} label="BATHS" />
+        <Spec icon={Car} value={d.cars} label="CARS" />
+        <Spec icon={Maximize2} value={`${d.floorplanSize} m²`} label="HOME" />
+        <Spec icon={Ruler} value={`${d.landSize} m²`} label="LAND" />
+        <Spec icon={Ruler} value={`${d.landFrontage} m`} label="FRONTAGE" />
+      </div>
+
+      {/* Floorplan & Facade Title Header */}
+      <div className="flex items-baseline gap-[3mm] px-[6mm] pt-[1.5mm] pb-[0.8mm]">
+        <div className="text-[2.6mm] font-bold tracking-[0.28em] text-brand-gold-deep">
+          FLOOR PLAN
+        </div>
+        <div className="text-[2.8mm] font-semibold tracking-[0.12em] text-brand-navy">{d.floorplanName}</div>
+        {d.facadeName && (
+          <>
+            <div className="ml-[3mm] text-[2.6mm] font-bold tracking-[0.28em] text-brand-gold-deep">
+              FACADE
+            </div>
+            <div className="text-[2.8mm] font-semibold tracking-[0.12em] text-brand-navy">{d.facadeName}</div>
+          </>
+        )}
+      </div>
+
+      {/* Floorplan & Inclusions Row */}
+      <div className="grid grid-cols-[48mm_1fr] gap-[3.5mm] px-[2mm] pt-[0.8mm]">
+        <div>
+          <div className="text-[2.4mm] font-bold tracking-[0.16em] text-brand-gold-deep">
+            {getRange(d.range).label.toUpperCase()}
+          </div>
+          <ul className="mt-[1.8mm] space-y-[1.2mm]">
+            {rangeItems(d).map((line) => (
+              <li key={line} className="flex gap-[1.5mm] text-[2.5mm] leading-[1.2]">
+                <span className="mt-[1mm] h-[1mm] w-[1mm] flex-none rounded-full bg-brand-gold" />
+                <span className="text-brand-ink/80">{line}</span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-[3mm] grid grid-cols-2 gap-[1.5mm]">
+            <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
+              <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">LAND ONLY</div>
+              <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
+                {formatPrice(d.landPrice)}
+              </div>
+            </div>
+            <div className="rounded-[1.2mm] bg-brand-sand px-[2mm] py-[2mm]">
+              <div className="text-[1.9mm] font-semibold tracking-[0.14em] text-brand-ink/50 whitespace-nowrap">HOUSE ONLY</div>
+              <div className="font-display text-[4.6mm] leading-[1.1] text-brand-navy">
+                {formatPrice(d.housePrice)}
+              </div>
+            </div>
+          </div>
+
+          {d.showOtherSizes && d.otherSizes.length > 0 && (
+            <div className="mt-[3mm]">
+              <div className="text-[2.1mm] font-bold tracking-[0.14em] text-brand-gold-deep whitespace-nowrap uppercase">
+                OTHER SIZES AVAILABLE
+              </div>
+              <div className="mt-[1.2mm] divide-y divide-brand-sand border-t border-brand-sand">
+                {d.otherSizes.slice(0, 5).map((o) => (
+                  <div
+                    key={o.label + o.size}
+                    className="flex items-center justify-between gap-[2mm] py-[0.8mm] text-[2.3mm] leading-tight"
+                  >
+                    <span className="whitespace-nowrap font-medium text-brand-ink/80 flex-none" title={o.label}>
+                      {o.label}
+                    </span>
+                    <span className="flex-none font-semibold text-brand-navy tabular-nums ml-auto whitespace-nowrap">
+                      {o.size}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Floorplan Frame: 130mm height */}
+        <div className="flex h-[130mm] items-center justify-center overflow-hidden rounded-[1.5mm] border border-brand-sand bg-white p-[1.5mm]">
+          {d.floorplanUrl ? (
+            <img
+              src={d.floorplanUrl}
+              alt="Floorplan"
+              className="block max-h-full max-w-full object-contain mix-blend-multiply"
+              style={{ imageRendering: "auto" }}
+            />
+          ) : (
+            <div className="text-center text-[3mm] text-brand-ink/40">
+              Select a design to load its floorplan
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ContactStrip d={d} />
+    </div>
+  );
+}
+
+/* ----------------- House Only Flyer V2 (Larger Logo, No Zero Surprises) ----------------- */
+export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
+  return (
+    <div className="flyer-page font-sans" data-palette={d.palette}>
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
+        <div>
+          <LogoV2 size={15} />
         </div>
         <div className="text-right leading-tight">
           <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
