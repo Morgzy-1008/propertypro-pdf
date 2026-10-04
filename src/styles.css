@@ -133,6 +133,10 @@
 }
 
 @layer base {
+  html, body {
+    scroll-behavior: auto !important;
+  }
+
   * {
     border-color: var(--color-border);
     -webkit-font-smoothing: antialiased;

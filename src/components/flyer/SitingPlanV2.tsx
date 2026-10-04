@@ -206,6 +206,17 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
     }
   };
 
+  useEffect(() => {
+    if (!isDragging) return;
+    const onWindowMouseUp = () => {
+      handleMouseUp();
+    };
+    window.addEventListener("mouseup", onWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", onWindowMouseUp);
+    };
+  }, [isDragging, lhsMeasured, rhsMeasured, frontRoomMeasured, garageDoorMeasured, rearLhsMeasured]);
+
   const openDimEditor = (
     field: "front" | "garage" | "left" | "right" | "rear",
     label: string,

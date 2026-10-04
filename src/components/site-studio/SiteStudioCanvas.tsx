@@ -175,6 +175,17 @@ export function SiteStudioCanvas({
     dragStartRef.current = null;
   };
 
+  useEffect(() => {
+    if (!isDraggingHouse && !isPanning) return;
+    const onWindowMouseUp = () => {
+      handleMouseUp();
+    };
+    window.addEventListener("mouseup", onWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", onWindowMouseUp);
+    };
+  }, [isDraggingHouse, isPanning]);
+
   // Select a neighboring parcel clicked on the satellite map
   const handleSelectParcel = (p: CadastreParcel, e: React.MouseEvent) => {
     e.stopPropagation();

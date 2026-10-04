@@ -249,6 +249,17 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
     dragStartRef.current = null;
   };
 
+  useEffect(() => {
+    if (!isDragging) return;
+    const onWindowMouseUp = () => {
+      handleMouseUp();
+    };
+    window.addEventListener("mouseup", onWindowMouseUp);
+    return () => {
+      window.removeEventListener("mouseup", onWindowMouseUp);
+    };
+  }, [isDragging, effectiveLeftSetback, frontRoomMeasured, rearLhsMeasured]);
+
   // 2. DIMENSION CLICK-TO-EDIT HANDLER (Auto-Places House where Typed)
   const openDimEditor = (field: "front" | "garage" | "left" | "right" | "rear", label: string, currentVal: number, minVal: number) => {
     setEditingDim({ field, label, currentValue: currentVal, minValue: minVal });

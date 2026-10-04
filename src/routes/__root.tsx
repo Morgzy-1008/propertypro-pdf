@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/theme";
 import { UpdateNotificationPrompt } from "@/components/common/UpdateNotificationPrompt";
+import { PreventGhostAutoscroll } from "@/components/common/PreventGhostAutoscroll";
 
 function NotFoundComponent() {
   return (
@@ -114,6 +115,7 @@ function RootComponent() {
         <Outlet />
         <Toaster />
         <UpdateNotificationPrompt />
+        <PreventGhostAutoscroll />
       </ThemeProvider>
     </QueryClientProvider>
   );
