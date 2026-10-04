@@ -338,7 +338,7 @@ function WelcomeHubPage() {
       const saved = localStorage.getItem("hudson_team_bg_opacity");
       if (saved) return parseFloat(saved);
     }
-    return 0.22; // Default elegant translucent opacity
+    return 0.18; // Default elegant translucent opacity
   });
   const [isTeamBgVisible, setIsTeamBgVisible] = useState<boolean>(true);
 
@@ -348,12 +348,12 @@ function WelcomeHubPage() {
         isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"
       } flex flex-col font-sans selection:bg-brand-gold/30 relative overflow-x-hidden`}
     >
-      {/* 2026 Hudson Homes Company Team Photo Translucent Background (Localhost Review) */}
-      {isLocal && isTeamBgVisible && (
+      {/* 2026 Hudson Homes Company Team Photo Translucent Background */}
+      {isTeamBgVisible && (
         <div
           className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none transition-opacity duration-700"
           style={{
-            opacity: teamBgOpacity,
+            opacity: isLight ? Math.min(teamBgOpacity, 0.13) : teamBgOpacity,
             maskImage:
               "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.5) 100%)",
             WebkitMaskImage:
@@ -363,14 +363,14 @@ function WelcomeHubPage() {
           <img
             src="/brand/hudson-team-2026.jpg"
             alt="Hudson Homes Team 2026"
-            className="w-full h-full object-cover object-[center_50%] filter saturate-[1.15] contrast-[1.05]"
+            className="w-full h-full object-cover object-[center_30%] filter saturate-[1.15] contrast-[1.05]"
           />
           {/* Subtle atmospheric vignette gradient overlay for text readability */}
           <div
             className={`absolute inset-0 ${
               isLight
-                ? "bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/70"
-                : "bg-gradient-to-b from-slate-950/40 via-slate-950/15 to-slate-950/80"
+                ? "bg-gradient-to-b from-slate-50/50 via-transparent to-slate-50/80"
+                : "bg-gradient-to-b from-slate-950/50 via-slate-950/20 to-slate-950/85"
             }`}
           />
         </div>
@@ -431,8 +431,8 @@ function WelcomeHubPage() {
               </Link>
             )}
 
-            {/* Localhost 2026 Team Background Review Control */}
-            {isLocal && (
+            {/* 2026 Team Background Review Control */}
+            {(isLocal || isAdmin) && (
               <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/70 text-slate-300 text-xs backdrop-blur-md shadow-xs">
                 <Users className="h-3.5 w-3.5 text-brand-gold" />
                 <span className="font-semibold text-white">2026 Team:</span>
