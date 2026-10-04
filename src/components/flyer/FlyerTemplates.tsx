@@ -122,6 +122,60 @@ export function LogoV2({
   );
 }
 
+/**
+ * Partner developer logo badge with auto-scaling, image error fallback, and smooth blend
+ */
+export function PartnerLogoBadge({
+  url,
+  name,
+  className = "",
+  size = 8,
+  light = false,
+}: {
+  url?: string;
+  name?: string;
+  className?: string;
+  size?: number;
+  light?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (!url || failed) {
+    if (!name) return null;
+    return (
+      <div
+        className={`inline-flex items-center justify-center font-bold tracking-wider px-[2mm] rounded-[1mm] uppercase ${
+          light
+            ? "bg-white/15 text-white border border-white/20"
+            : "bg-brand-navy/10 text-brand-navy border border-brand-navy/20"
+        } ${className}`}
+        style={{ height: `${size}mm`, fontSize: `${size * 0.36}mm` }}
+      >
+        {name}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt={name || "Developer Partner"}
+      onError={() => setFailed(true)}
+      style={{
+        height: `${size}mm`,
+        maxWidth: `${size * 3.6}mm`,
+        mixBlendMode: light ? "normal" : "multiply",
+      }}
+      className={`object-contain flex-none rounded-[0.5mm] ${className}`}
+      loading="eager"
+    />
+  );
+}
+
 /** Facade framing: widescreen display with 100% roof protection, zero blur and zero black boxes */
 function Facade({
   url,
@@ -323,22 +377,48 @@ export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?
 
 /* ------------------------- 1-Page Express Flyer ------------------------- */
 export function ExpressFlyer({ d }: { d: FlyerData }) {
+  const showPartnerInHeader = d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both");
+  const showPartnerInTitle = d.partnerEnabled && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement);
+
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header: 5mm safe margin inside */}
       <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
-        <div>
+        <div className="flex items-center gap-[3.5mm]">
           <Logo size={14} />
+          {showPartnerInHeader && (
+            <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
         </div>
-        <div className="text-right leading-tight">
-          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
-            {d.headline.toUpperCase()}
-          </div>
-          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {formatPrice(d.price)}
-            </span>
+        <div className="flex items-center justify-end gap-[3mm]">
+          {showPartnerInTitle && d.partnerLogoUrl && (
+            <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
+          <div className="text-right leading-tight">
+            {d.partnerEnabled && d.partnerTitle ? (
+              <div className="flex flex-col items-end">
+                <span className="text-[2.2mm] font-extrabold tracking-[0.18em] text-brand-gold-deep uppercase">
+                  {d.partnerTitle}
+                </span>
+                <span className="text-[2.4mm] font-bold tracking-[0.18em] text-brand-navy uppercase">
+                  {d.headline.toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+                {d.headline.toUpperCase()}
+              </div>
+            )}
+            <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+              <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+              <span className="font-display text-[9mm] leading-none text-brand-navy">
+                {formatPrice(d.price)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -351,9 +431,19 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
       </div>
 
       {/* Address Bar */}
-      <div className="navy-panel flex items-center gap-[2mm] px-[6mm] py-[1.8mm] text-[2.8mm] text-brand-cream rounded-[1mm]">
-        <MapPin className="h-[3.2mm] w-[3.2mm] flex-none text-brand-gold" strokeWidth={1.8} />
-        {[d.address, d.estate].filter(Boolean).join(" • ")}
+      <div className="navy-panel flex items-center justify-between px-[6mm] py-[1.8mm] text-[2.8mm] text-brand-cream rounded-[1mm]">
+        <div className="flex items-center gap-[2mm] min-w-0">
+          <MapPin className="h-[3.2mm] w-[3.2mm] flex-none text-brand-gold" strokeWidth={1.8} />
+          <span className="truncate">
+            {[d.address, d.partnerEnabled && d.partnerTitle ? d.partnerTitle : d.estate].filter(Boolean).join(" • ")}
+          </span>
+        </div>
+        {d.partnerEnabled && d.partnerName && (
+          <div className="flex items-center gap-[1.5mm] flex-none text-[2.1mm] tracking-[0.14em] font-semibold text-brand-gold uppercase">
+            <span className="text-white/60 font-normal">COMMUNITY:</span>
+            <span>{d.partnerName}</span>
+          </div>
+        )}
       </div>
 
       {/* Specs Strip */}
@@ -470,9 +560,23 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header Bar */}
       <div className="navy-panel flex items-center justify-between px-[6mm] py-[2.8mm] rounded-t-[1.5mm]">
-        <Logo light size={13} />
-        <div className="rounded-[1mm] border border-brand-gold/30 bg-brand-gold/10 px-[2.5mm] py-[0.8mm] text-[2.2mm] font-bold tracking-[0.25em] text-brand-gold">
-          PREMIUM SHOWCASE
+        <div className="flex items-center gap-[3.5mm]">
+          <Logo light size={13} />
+          {d.partnerEnabled && d.partnerLogoUrl && (
+            <div className="flex items-center gap-[2mm] border-l border-white/20 pl-[3mm]">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={7.5} light />
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-[2.5mm]">
+          {d.partnerEnabled && d.partnerTitle && (
+            <span className="text-[2.2mm] font-bold tracking-[0.16em] text-brand-gold uppercase">
+              {d.partnerTitle}
+            </span>
+          )}
+          <div className="rounded-[1mm] border border-brand-gold/30 bg-brand-gold/10 px-[2.5mm] py-[0.8mm] text-[2.2mm] font-bold tracking-[0.25em] text-brand-gold">
+            PREMIUM SHOWCASE
+          </div>
         </div>
       </div>
 
@@ -633,22 +737,48 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
 
 /* --------------------- House Only (no land content) --------------------- */
 export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
+  const showPartnerInHeader = d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both");
+  const showPartnerInTitle = d.partnerEnabled && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement);
+
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header */}
       <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
-        <div>
+        <div className="flex items-center gap-[3.5mm]">
           <Logo size={14} />
+          {showPartnerInHeader && (
+            <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
         </div>
-        <div className="text-right leading-tight">
-          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
-            NEW HOME DESIGN
-          </div>
-          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {formatPrice(d.housePrice)}
-            </span>
+        <div className="flex items-center justify-end gap-[3mm]">
+          {showPartnerInTitle && d.partnerLogoUrl && (
+            <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
+          <div className="text-right leading-tight">
+            {d.partnerEnabled && d.partnerTitle ? (
+              <div className="flex flex-col items-end">
+                <span className="text-[2.2mm] font-extrabold tracking-[0.18em] text-brand-gold-deep uppercase">
+                  {d.partnerTitle}
+                </span>
+                <span className="text-[2.4mm] font-bold tracking-[0.18em] text-brand-navy uppercase">
+                  NEW HOME DESIGN
+                </span>
+              </div>
+            ) : (
+              <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+                NEW HOME DESIGN
+              </div>
+            )}
+            <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+              <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+              <span className="font-display text-[9mm] leading-none text-brand-navy">
+                {formatPrice(d.housePrice)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -662,9 +792,16 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
       {/* Design Name Banner */}
       <div className="navy-panel flex items-center justify-between gap-[2mm] px-[6mm] py-[1.8mm] text-brand-cream rounded-[1mm]">
-        <span className="font-sans font-bold text-[3.8mm] leading-tight tracking-[0.02em]">
-          {d.designName || d.floorplanName}
-        </span>
+        <div className="flex items-center gap-[2.5mm]">
+          <span className="font-sans font-bold text-[3.8mm] leading-tight tracking-[0.02em]">
+            {d.designName || d.floorplanName}
+          </span>
+          {d.partnerEnabled && d.partnerTitle && (
+            <span className="text-[2.2mm] font-semibold text-brand-gold">
+              • {d.partnerTitle}
+            </span>
+          )}
+        </div>
         {d.facadeName && (
           <span className="text-[2.6mm] font-semibold tracking-[0.18em] text-brand-gold">
             {d.facadeName.toUpperCase()} FACADE
@@ -769,22 +906,48 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
 /* ------------------- Express Flyer V2 (Larger Logo, No Zero Surprises) ------------------- */
 export function ExpressFlyerV2({ d }: { d: FlyerData }) {
+  const showPartnerInHeader = d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both");
+  const showPartnerInTitle = d.partnerEnabled && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement);
+
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header: 5mm safe margin inside */}
       <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
-        <div>
+        <div className="flex items-center gap-[3.5mm]">
           <LogoV2 size={15} />
+          {showPartnerInHeader && (
+            <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
         </div>
-        <div className="text-right leading-tight">
-          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
-            {d.headline.toUpperCase()}
-          </div>
-          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {formatPrice(d.price)}
-            </span>
+        <div className="flex items-center justify-end gap-[3mm]">
+          {showPartnerInTitle && d.partnerLogoUrl && (
+            <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
+          <div className="text-right leading-tight">
+            {d.partnerEnabled && d.partnerTitle ? (
+              <div className="flex flex-col items-end">
+                <span className="text-[2.2mm] font-extrabold tracking-[0.18em] text-brand-gold-deep uppercase">
+                  {d.partnerTitle}
+                </span>
+                <span className="text-[2.4mm] font-bold tracking-[0.18em] text-brand-navy uppercase">
+                  {d.headline.toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+                {d.headline.toUpperCase()}
+              </div>
+            )}
+            <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+              <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+              <span className="font-display text-[9mm] leading-none text-brand-navy">
+                {formatPrice(d.price)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -797,9 +960,19 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
       </div>
 
       {/* Address Bar */}
-      <div className="navy-panel flex items-center gap-[2mm] px-[6mm] py-[1.8mm] text-[2.8mm] text-brand-cream rounded-[1mm]">
-        <MapPin className="h-[3.2mm] w-[3.2mm] flex-none text-brand-gold" strokeWidth={1.8} />
-        {[d.address, d.estate].filter(Boolean).join(" • ")}
+      <div className="navy-panel flex items-center justify-between px-[6mm] py-[1.8mm] text-[2.8mm] text-brand-cream rounded-[1mm]">
+        <div className="flex items-center gap-[2mm] min-w-0">
+          <MapPin className="h-[3.2mm] w-[3.2mm] flex-none text-brand-gold" strokeWidth={1.8} />
+          <span className="truncate">
+            {[d.address, d.partnerEnabled && d.partnerTitle ? d.partnerTitle : d.estate].filter(Boolean).join(" • ")}
+          </span>
+        </div>
+        {d.partnerEnabled && d.partnerName && (
+          <div className="flex items-center gap-[1.5mm] flex-none text-[2.1mm] tracking-[0.14em] font-semibold text-brand-gold uppercase">
+            <span className="text-white/60 font-normal">COMMUNITY:</span>
+            <span>{d.partnerName}</span>
+          </div>
+        )}
       </div>
 
       {/* Specs Strip */}
@@ -905,22 +1078,48 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
 
 /* ----------------- House Only Flyer V2 (Larger Logo, No Zero Surprises) ----------------- */
 export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
+  const showPartnerInHeader = d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both");
+  const showPartnerInTitle = d.partnerEnabled && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement);
+
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header */}
       <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
-        <div>
+        <div className="flex items-center gap-[3.5mm]">
           <LogoV2 size={15} />
+          {showPartnerInHeader && (
+            <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
         </div>
-        <div className="text-right leading-tight">
-          <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
-            NEW HOME DESIGN
-          </div>
-          <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
-            <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
-            <span className="font-display text-[9mm] leading-none text-brand-navy">
-              {formatPrice(d.housePrice)}
-            </span>
+        <div className="flex items-center justify-end gap-[3mm]">
+          {showPartnerInTitle && d.partnerLogoUrl && (
+            <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+              <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={8.5} />
+            </div>
+          )}
+          <div className="text-right leading-tight">
+            {d.partnerEnabled && d.partnerTitle ? (
+              <div className="flex flex-col items-end">
+                <span className="text-[2.2mm] font-extrabold tracking-[0.18em] text-brand-gold-deep uppercase">
+                  {d.partnerTitle}
+                </span>
+                <span className="text-[2.4mm] font-bold tracking-[0.18em] text-brand-navy uppercase">
+                  NEW HOME DESIGN
+                </span>
+              </div>
+            ) : (
+              <div className="text-[2.6mm] font-bold tracking-[0.24em] text-brand-gold-deep">
+                NEW HOME DESIGN
+              </div>
+            )}
+            <div className="mt-[0.5mm] flex items-baseline justify-end gap-[1.6mm]">
+              <span className="text-[2.5mm] font-semibold tracking-[0.22em] text-brand-ink/50">FROM</span>
+              <span className="font-display text-[9mm] leading-none text-brand-navy">
+                {formatPrice(d.housePrice)}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -934,9 +1133,16 @@ export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
 
       {/* Design Name Banner */}
       <div className="navy-panel flex items-center justify-between gap-[2mm] px-[6mm] py-[1.8mm] text-brand-cream rounded-[1mm]">
-        <span className="font-sans font-bold text-[3.8mm] leading-tight tracking-[0.02em]">
-          {d.designName || d.floorplanName}
-        </span>
+        <div className="flex items-center gap-[2.5mm]">
+          <span className="font-sans font-bold text-[3.8mm] leading-tight tracking-[0.02em]">
+            {d.designName || d.floorplanName}
+          </span>
+          {d.partnerEnabled && d.partnerTitle && (
+            <span className="text-[2.2mm] font-semibold text-brand-gold">
+              • {d.partnerTitle}
+            </span>
+          )}
+        </div>
         {d.facadeName && (
           <span className="text-[2.6mm] font-semibold tracking-[0.18em] text-brand-gold">
             {d.facadeName.toUpperCase()} FACADE

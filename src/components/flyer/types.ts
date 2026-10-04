@@ -151,6 +151,14 @@ export interface FlyerData {
   setbackMeasurement?: "wall" | "omp";
   maxSiteCoverage?: number;
   minPosM2?: number;
+
+  /* Partner / Developer Co-Branding */
+  partnerEnabled?: boolean;
+  partnerDeveloperId?: string;
+  partnerName?: string;
+  partnerLogoUrl?: string;
+  partnerTitle?: string;
+  partnerPlacement?: "title" | "header-left" | "both";
 }
 
 export type TermsType = "concise" | "full" | "custom";
@@ -228,5 +236,11 @@ export const defaultFlyer: FlyerData = {
   consultantId: "morgan",
   termsType: "concise",
   customTerms: "",
+  partnerEnabled: false,
+  partnerDeveloperId: "",
+  partnerName: "",
+  partnerLogoUrl: "",
+  partnerTitle: "",
+  partnerPlacement: "title",
 };
 

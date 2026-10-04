@@ -5,7 +5,7 @@ import {
   CheckCircle2,
   X,
 } from "lucide-react";
-import { LogoV2, ContactStrip } from "./FlyerTemplates";
+import { LogoV2, ContactStrip, PartnerLogoBadge } from "./FlyerTemplates";
 import { type FlyerData } from "./types";
 import { computeSitingPlan } from "./sitingEngine";
 import {
@@ -244,13 +244,30 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
       {/* Top Header Bar: Hudson Homes on LHS, Siting Plan on RHS */}
       <div>
         <div className="flex items-center justify-between px-[4mm] pt-[1mm] pb-[2mm]">
-          <div>
+          <div className="flex items-center gap-[3.5mm]">
             <LogoV2 size={16} />
+            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "header-left" || d.partnerPlacement === "both") && (
+              <div className="flex items-center gap-[2mm] border-l border-brand-navy/20 pl-[3mm]">
+                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={9} />
+              </div>
+            )}
           </div>
-          <div className="text-right leading-none">
-            <h1 className="font-sans font-black text-[7.5mm] tracking-[0.03em] text-brand-navy uppercase">
-              SITING PLAN
-            </h1>
+          <div className="flex items-center justify-end gap-[3mm]">
+            {d.partnerEnabled && d.partnerLogoUrl && (d.partnerPlacement === "title" || d.partnerPlacement === "both" || !d.partnerPlacement) && (
+              <div className="flex items-center pr-[2.5mm] border-r border-brand-sand">
+                <PartnerLogoBadge url={d.partnerLogoUrl} name={d.partnerName} size={9} />
+              </div>
+            )}
+            <div className="text-right leading-none">
+              {d.partnerEnabled && d.partnerTitle ? (
+                <div className="text-[2.2mm] font-bold tracking-[0.18em] text-brand-gold-deep uppercase mb-[0.8mm]">
+                  {d.partnerTitle}
+                </div>
+              ) : null}
+              <h1 className="font-sans font-black text-[7.5mm] tracking-[0.03em] text-brand-navy uppercase">
+                SITING PLAN
+              </h1>
+            </div>
           </div>
         </div>
 
@@ -264,8 +281,8 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
           {/* Top Pill & Title above Blueprint */}
           <div className="flex items-center justify-between border-b border-brand-sand/60 pb-[1.8mm] mb-[1.5mm]">
             <div>
-              <div className="inline-flex items-center px-[3mm] py-[0.8mm] rounded-[1mm] bg-amber-500 text-white font-bold text-[2.4mm] tracking-[0.08em] uppercase shadow-xs">
-                {designDisplayName.toUpperCase()} FLOORPLAN
+              <div className="inline-flex items-center gap-[2mm] px-[3mm] py-[0.8mm] rounded-[1mm] bg-amber-500 text-white font-bold text-[2.4mm] tracking-[0.08em] uppercase shadow-xs">
+                <span>{designDisplayName.toUpperCase()} FLOORPLAN</span>
               </div>
               <div className="mt-[1.2mm]">
                 <span className="text-[2.6mm] font-bold tracking-[0.16em] text-brand-navy uppercase block">
@@ -276,8 +293,15 @@ export function SitingPlanV2({ d, set }: { d: FlyerData; set?: Setter }) {
                 </span>
               </div>
             </div>
-            <div className="text-right text-[2.2mm] font-bold text-brand-navy/70">
-              {d.estate ? `${d.estate.toUpperCase()}` : ""}
+            <div className="text-right flex flex-col items-end">
+              <span className="text-[2.6mm] font-bold text-brand-navy tracking-wider uppercase">
+                {d.partnerEnabled && d.partnerTitle ? d.partnerTitle.toUpperCase() : (d.estate || d.suburb || "FLAGSTONE").toUpperCase()}
+              </span>
+              {d.partnerEnabled && d.partnerName && (
+                <span className="text-[1.7mm] font-semibold text-brand-gold-deep tracking-widest uppercase">
+                  PARTNER: {d.partnerName}
+                </span>
+              )}
             </div>
           </div>
 

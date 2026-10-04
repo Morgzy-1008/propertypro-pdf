@@ -20,6 +20,7 @@ import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
+import { PARTNER_DEVELOPERS, findPartnerForEstate, getPartnerPreset } from "./partnerDevelopers";
 import { landscapingPriceFor } from "@/lib/landscaping";
 import { AddressAutocompleteInput } from "@/components/common/AddressAutocompleteInput";
 
@@ -349,6 +350,10 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     : parseAud(data.price);
   const hasCalculatedPrice = totalPriceNum > 0;
   const formattedTotalPrice = formatAud(totalPriceNum);
+
+  const matchedPartnerSuggestion = useMemo(() => {
+    return findPartnerForEstate(data.estate, data.suburb);
+  }, [data.estate, data.suburb]);
 
   useEffect(() => {
     if (data.facadeId || data.facadeName) {
@@ -797,6 +802,17 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       set("garageSetback", matched.garageSetback);
       set("sideSetback", matched.sideSetback);
     }
+
+    // Auto-detect developer partner if matched
+    const matchedPartner = findPartnerForEstate(estateQuery, suburbQuery);
+    if (matchedPartner && !data.partnerEnabled) {
+      set("partnerDeveloperId", matchedPartner.id);
+      set("partnerName", matchedPartner.name);
+      set("partnerLogoUrl", matchedPartner.logoUrl);
+      if (!data.partnerTitle) {
+        set("partnerTitle", matchedPartner.defaultTitleFormat ? matchedPartner.defaultTitleFormat(estateQuery) : `${estateQuery || "Estate"} by ${matchedPartner.name}`);
+      }
+    }
   };
 
   /** Smoothly scrolls the sidebar to the target section WITHOUT scrolling the window or displacing the top task bar */
@@ -824,6 +840,17 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               className="px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300 transition-colors whitespace-nowrap font-medium text-[11px]"
             >
               Location
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToSection("section-partner")}
+              className={`px-2.5 py-1 rounded-md transition-colors whitespace-nowrap font-medium text-[11px] ${
+                data.partnerEnabled
+                  ? "bg-amber-500/25 text-amber-300 border border-amber-500/40 font-semibold shadow-xs"
+                  : "bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 text-slate-300"
+              }`}
+            >
+              Partner
             </button>
             <button
               type="button"
@@ -959,6 +986,274 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         </div>
       </Section>
 
+      <Section
+        id="section-partner"
+        title="Developer Co-Branding / Partner"
+        extra={
+          data.partnerEnabled && data.partnerName ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-semibold border border-amber-500/30">
+              <CheckCircle2 className="w-3 h-3 text-amber-400" />
+              {data.partnerName}
+            </span>
+          ) : null
+        }
+      >
+        {/* Toggle Switch Card */}
+        <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-950/70 shadow-sm">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-200">Enable Developer Co-Branding</span>
+              {data.partnerEnabled && (
+                <span className="text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300">
+                  Active
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-400">
+              Feature developer partner logo & collaborative title across all flyer templates
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !data.partnerEnabled;
+              set("partnerEnabled", next);
+              if (next && !data.partnerDeveloperId && matchedPartnerSuggestion) {
+                set("partnerDeveloperId", matchedPartnerSuggestion.id);
+                set("partnerName", matchedPartnerSuggestion.name);
+                set("partnerLogoUrl", matchedPartnerSuggestion.logoUrl);
+                if (!data.partnerTitle) {
+                  set(
+                    "partnerTitle",
+                    matchedPartnerSuggestion.defaultTitleFormat
+                      ? matchedPartnerSuggestion.defaultTitleFormat(data.estate)
+                      : `${data.estate || "Estate"} by ${matchedPartnerSuggestion.name}`
+                  );
+                }
+              }
+            }}
+            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+              data.partnerEnabled ? "bg-amber-500" : "bg-slate-700"
+            }`}
+          >
+            <span
+              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                data.partnerEnabled ? "translate-x-4" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Smart Detection Banner when matching partner detected but not enabled */}
+        {matchedPartnerSuggestion && !data.partnerEnabled && (
+          <div className="flex items-center justify-between p-2.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-slate-900/60 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+              <div className="text-xs text-amber-200">
+                Found developer partner <strong>{matchedPartnerSuggestion.name}</strong> for {data.estate || data.suburb}!
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                set("partnerEnabled", true);
+                set("partnerDeveloperId", matchedPartnerSuggestion.id);
+                set("partnerName", matchedPartnerSuggestion.name);
+                set("partnerLogoUrl", matchedPartnerSuggestion.logoUrl);
+                set(
+                  "partnerTitle",
+                  matchedPartnerSuggestion.defaultTitleFormat
+                    ? matchedPartnerSuggestion.defaultTitleFormat(data.estate)
+                    : `${data.estate || "Estate"} by ${matchedPartnerSuggestion.name}`
+                );
+              }}
+              className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors shadow-sm whitespace-nowrap"
+            >
+              1-Click Apply
+            </button>
+          </div>
+        )}
+
+        {/* Controls when partner is enabled */}
+        {data.partnerEnabled && (
+          <div className="space-y-3.5 pt-1">
+            {/* Developer Preset Badges */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium tracking-wide text-slate-300">
+                Select Developer Partner
+              </Label>
+              <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+                {PARTNER_DEVELOPERS.map((dev) => {
+                  const isSelected = data.partnerDeveloperId === dev.id;
+                  return (
+                    <button
+                      key={dev.id}
+                      type="button"
+                      onClick={() => {
+                        set("partnerDeveloperId", dev.id);
+                        set("partnerName", dev.name);
+                        set("partnerLogoUrl", dev.logoUrl);
+                        if (dev.id !== "custom" && dev.defaultTitleFormat) {
+                          set("partnerTitle", dev.defaultTitleFormat(data.estate));
+                        } else if (dev.id !== "custom") {
+                          set("partnerTitle", `${data.estate || "Estate"} by ${dev.name}`);
+                        }
+                      }}
+                      className={`flex flex-col items-center justify-center p-2 rounded-lg border text-center transition-all ${
+                        isSelected
+                          ? "border-amber-500 bg-amber-500/20 text-amber-200 shadow-sm"
+                          : "border-slate-800 bg-slate-900/60 text-slate-300 hover:border-slate-700 hover:bg-slate-900/90"
+                      }`}
+                    >
+                      {dev.logoUrl ? (
+                        <div className="h-6 w-full flex items-center justify-center mb-1">
+                          <img
+                            src={dev.logoUrl}
+                            alt={dev.name}
+                            className="max-h-5 max-w-[80%] object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = "none";
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="h-6 flex items-center justify-center mb-1">
+                          <span className="text-[10px] font-bold text-slate-400">CUSTOM</span>
+                        </div>
+                      )}
+                      <span className="text-[10px] font-semibold truncate w-full">{dev.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Partner Title */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium tracking-wide text-slate-300">
+                  Co-Branded Title / Header
+                </Label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const est = data.estate || "Flagstone";
+                      const dev = data.partnerName || "PEET";
+                      set("partnerTitle", `${est} by ${dev}`);
+                    }}
+                    className="text-[10px] text-amber-400/90 hover:text-amber-300 underline underline-offset-2"
+                  >
+                    "{data.estate || "Estate"} by {data.partnerName || "Developer"}"
+                  </button>
+                </div>
+              </div>
+              <Input
+                value={data.partnerTitle || ""}
+                onChange={(e) => set("partnerTitle", e.target.value)}
+                placeholder="e.g. Flagstone by PEET"
+                className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all"
+              />
+            </div>
+
+            {/* Logo Preview & Custom Upload */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium tracking-wide text-slate-300">
+                Developer Logo
+              </Label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <Input
+                    value={data.partnerLogoUrl || ""}
+                    onChange={(e) => {
+                      set("partnerLogoUrl", e.target.value);
+                      if (data.partnerDeveloperId !== "custom") {
+                        set("partnerDeveloperId", "custom");
+                      }
+                    }}
+                    placeholder="Logo URL or upload file..."
+                    className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20"
+                  />
+                </div>
+                <label className="cursor-pointer shrink-0">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const res = reader.result as string;
+                        set("partnerLogoUrl", res);
+                        set("partnerDeveloperId", "custom");
+                        if (!data.partnerName) {
+                          set("partnerName", file.name.replace(/\.[^/.]+$/, ""));
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-slate-200 text-xs font-medium transition-colors">
+                    Upload
+                  </div>
+                </label>
+              </div>
+
+              {/* Logo Live Badge Preview */}
+              {data.partnerLogoUrl && (
+                <div className="flex items-center justify-between p-2 rounded-lg border border-slate-800/80 bg-white/95 text-slate-900 mt-2 shadow-inner">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={data.partnerLogoUrl}
+                      alt={data.partnerName || "Partner"}
+                      className="h-6 max-w-[120px] object-contain"
+                    />
+                    <div className="text-xs font-semibold text-slate-900 leading-tight">
+                      {data.partnerTitle || `${data.partnerName || "Developer"} Co-Branded`}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Active Preview
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Placement Options */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium tracking-wide text-slate-300">
+                Logo Placement on Flyer
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "title", label: "Title RHS", desc: "Beside Package Title" },
+                  { id: "header-left", label: "Top Header", desc: "Beside Hudson Logo" },
+                  { id: "both", label: "Both Areas", desc: "Header & Title Lockup" },
+                ].map((opt) => {
+                  const isSelected = (data.partnerPlacement || "title") === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => set("partnerPlacement", opt.id as any)}
+                      className={`p-2 rounded-lg border text-left transition-all ${
+                        isSelected
+                          ? "border-amber-500 bg-amber-500/20 text-amber-200"
+                          : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                      }`}
+                    >
+                      <div className="text-xs font-bold leading-none mb-1">{opt.label}</div>
+                      <div className="text-[9px] text-slate-400 leading-tight">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+      </Section>
 
       <Section
         id="section-package"
