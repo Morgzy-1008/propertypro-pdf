@@ -65,7 +65,7 @@ VALUES
     'Single Storey',
     'designer',
     'Aspen',
-    'https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Aspen-Facade-Single-Storey.jpg',
+    '/facades/aspen-single-storey.png',
     349000,
     340000,
     689000,
@@ -74,7 +74,7 @@ VALUES
     '2',
     '192.4',
     'live',
-    '{"id":"11111111-1111-4111-8111-111111111111","packageId":"11111111-1111-4111-8111-111111111111","lotId":"a1111111-1111-4111-a111-111111111111","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1422 Flagstone Estate","housingType":"Single Storey","designName":"Ruby 20","range":"designer","facadeName":"Aspen","facadeUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Aspen-Facade-Single-Storey.jpg","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Ruby-20-Standard-Hudson-Homes.jpg","housePrice":"$349,000","landPrice":"$340,000","price":"$689,000","beds":"4","baths":"2","cars":"2","floorplanSize":"192.4","landSize":"450","landFrontage":"14","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
+    '{"id":"11111111-1111-4111-8111-111111111111","packageId":"11111111-1111-4111-8111-111111111111","lotId":"a1111111-1111-4111-a111-111111111111","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1422 Flagstone Estate","housingType":"Single Storey","designName":"Ruby 20","range":"designer","facadeName":"Aspen","facadeUrl":"/facades/aspen-single-storey.png","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Ruby-20-Standard-Hudson-Homes.jpg","housePrice":"$349,000","landPrice":"$340,000","price":"$689,000","beds":"4","baths":"2","cars":"2","floorplanSize":"192.4","landSize":"450","landFrontage":"14","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
   ),
   (
     '22222222-2222-4222-8222-222222222222',
@@ -84,7 +84,7 @@ VALUES
     'Single Storey',
     'designer',
     'Breeze',
-    'https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Breeze-Facade-Single-Storey.jpg',
+    '/facades/breeze-single-storey.png',
     385000,
     360000,
     745000,
@@ -93,7 +93,7 @@ VALUES
     '2',
     '225.1',
     'live',
-    '{"id":"22222222-2222-4222-8222-222222222222","packageId":"22222222-2222-4222-8222-222222222222","lotId":"a2222222-2222-4222-a222-222222222222","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1845 Flagstone Estate","housingType":"Single Storey","designName":"Sapphire 24","range":"designer","facadeName":"Breeze","facadeUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Breeze-Facade-Single-Storey.jpg","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Sapphire-24-Standard-Hudson-Homes.jpg","housePrice":"$385,000","landPrice":"$360,000","price":"$745,000","beds":"4","baths":"2","cars":"2","floorplanSize":"225.1","landSize":"512","landFrontage":"16","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
+    '{"id":"22222222-2222-4222-8222-222222222222","packageId":"22222222-2222-4222-8222-222222222222","lotId":"a2222222-2222-4222-a222-222222222222","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1845 Flagstone Estate","housingType":"Single Storey","designName":"Sapphire 24","range":"designer","facadeName":"Breeze","facadeUrl":"/facades/breeze-single-storey.png","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Sapphire-24-Standard-Hudson-Homes.jpg","housePrice":"$385,000","landPrice":"$360,000","price":"$745,000","beds":"4","baths":"2","cars":"2","floorplanSize":"225.1","landSize":"512","landFrontage":"16","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
   ),
   (
     '33333333-3333-4333-8333-333333333333',
@@ -122,7 +122,7 @@ VALUES
     'Single Storey',
     'designer',
     'Banksia',
-    'https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Banksia-Facade-Single-Storey.jpg',
+    '/facades/banksia-single-storey.png',
     415000,
     350000,
     765000,
@@ -131,7 +131,7 @@ VALUES
     '2',
     '241.0',
     'live',
-    '{"id":"44444444-4444-4444-8444-444444444444","packageId":"44444444-4444-4444-8444-444444444444","lotId":"b1111111-1111-4111-b111-111111111111","estate":"Lilywood Landings","suburb":"Lilywood","address":"Lot 308 Lilywood Landings","housingType":"Single Storey","designName":"Emerald 26","range":"designer","facadeName":"Banksia","facadeUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Banksia-Facade-Single-Storey.jpg","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Emerald-26-Standard-Hudson-Homes.jpg","housePrice":"$415,000","landPrice":"$350,000","price":"$765,000","beds":"4","baths":"2","cars":"2","floorplanSize":"241.0","landSize":"465","landFrontage":"15","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
+    '{"id":"44444444-4444-4444-8444-444444444444","packageId":"44444444-4444-4444-8444-444444444444","lotId":"b1111111-1111-4111-b111-111111111111","estate":"Lilywood Landings","suburb":"Lilywood","address":"Lot 308 Lilywood Landings","housingType":"Single Storey","designName":"Emerald 26","range":"designer","facadeName":"Banksia","facadeUrl":"/facades/banksia-single-storey.png","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Emerald-26-Standard-Hudson-Homes.jpg","housePrice":"$415,000","landPrice":"$350,000","price":"$765,000","beds":"4","baths":"2","cars":"2","floorplanSize":"241.0","landSize":"465","landFrontage":"15","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
   ),
   (
     '55555555-5555-4555-8555-555555555555',

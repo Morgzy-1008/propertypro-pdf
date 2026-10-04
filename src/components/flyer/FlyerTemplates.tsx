@@ -4,6 +4,7 @@ import { getRange, rangeItems, getTermsText, type FlyerData } from "./types";
 import { consultantVCard } from "./consultants";
 import { QrCode } from "./QrCode";
 import { formatPrice } from "@/lib/pricing";
+import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
 /**
  * Authentic Hudson Homes house mark emblem.
@@ -176,6 +177,57 @@ export function PartnerLogoBadge({
   );
 }
 
+/**
+ * Intercepts any incoming facade image URL and upgrades legacy/2019 WordPress assets
+ * or non-high-res JPGs to the pristine, modern 4K renders.
+ */
+export function resolveUpdatedFacadeRender(url?: string): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  const lower = trimmed.toLowerCase();
+
+  // If already pointing to an updated pre-rendered PNG render, return directly
+  if (lower.startsWith("/facades/") && lower.endsWith(".png")) {
+    return trimmed;
+  }
+
+  // Intercept any Aspen URL (legacy wp-content 2019 JPG or old local assets)
+  if (lower.includes("aspen")) {
+    if (lower.includes("single-garage") || lower.includes("single_garage") || lower.includes("1-car") || lower.includes("1car")) {
+      return PRE_RENDERED_FACADES["aspen-single-garage"] || "/facades/aspen-single-garage.png";
+    }
+    if (lower.includes("double") || lower.includes("2-storey") || lower.includes("2story") || lower.includes("ds")) {
+      return PRE_RENDERED_FACADES["aspen-double"] || "/facades/aspen-double-storey.png";
+    }
+    return PRE_RENDERED_FACADES["aspen"] || "/facades/aspen-single-storey.png";
+  }
+
+  // Intercept any legacy 2019/2021 WordPress URL or old JPG
+  for (const [key, modernUrl] of Object.entries(PRE_RENDERED_FACADES)) {
+    const keyLower = key.toLowerCase();
+    if (lower.includes(keyLower)) {
+      if (
+        lower.includes(`/${keyLower}.`) ||
+        lower.includes(`${keyLower}-facade`) ||
+        lower.includes(`${keyLower}_widescreen`) ||
+        lower.includes(`facade-${keyLower}`)
+      ) {
+        return modernUrl;
+      }
+    }
+  }
+
+  const wpMatch = lower.match(/\/([a-z0-9_-]+)-facade/);
+  if (wpMatch && wpMatch[1]) {
+    const matchedKey = wpMatch[1];
+    if (PRE_RENDERED_FACADES[matchedKey]) {
+      return PRE_RENDERED_FACADES[matchedKey];
+    }
+  }
+
+  return trimmed;
+}
+
 /** Facade framing: widescreen display with 100% roof protection, zero blur and zero black boxes */
 function Facade({
   url,
@@ -188,25 +240,26 @@ function Facade({
   className?: string;
   isDouble?: boolean;
 }) {
-  const [imgSrc, setImgSrc] = useState(url || "");
+  const resolvedUrl = useMemo(() => resolveUpdatedFacadeRender(url), [url]);
+  const [imgSrc, setImgSrc] = useState(resolvedUrl || "");
 
   useEffect(() => {
-    setImgSrc(url || "");
-  }, [url]);
+    setImgSrc(resolvedUrl || "");
+  }, [resolvedUrl]);
 
   const isDoubleOrSplit = Boolean(
     isDouble ||
-    (url && (
-      url.toLowerCase().includes("double") ||
-      url.toLowerCase().includes("2-storey") ||
-      url.toLowerCase().includes("-ds-") ||
-      url.toLowerCase().includes("2stry") ||
-      url.toLowerCase().includes("split") ||
-      url.toLowerCase().includes("cobalt")
+    (resolvedUrl && (
+      resolvedUrl.toLowerCase().includes("double") ||
+      resolvedUrl.toLowerCase().includes("2-storey") ||
+      resolvedUrl.toLowerCase().includes("-ds-") ||
+      resolvedUrl.toLowerCase().includes("2stry") ||
+      resolvedUrl.toLowerCase().includes("split") ||
+      resolvedUrl.toLowerCase().includes("cobalt")
     ))
   );
 
-  if (busy && !url) {
+  if (busy && !resolvedUrl) {
     return (
       <div className={`relative flex h-full w-full flex-col items-center justify-center bg-brand-navy-deep gap-3 p-4 text-white ${className ?? ""}`}>
         <Loader2 className="h-8 w-8 animate-spin text-brand-gold" />
@@ -220,7 +273,7 @@ function Facade({
     );
   }
 
-  if (!url) {
+  if (!resolvedUrl) {
     return (
       <div className={`flex h-full w-full flex-col items-center justify-center bg-slate-50/80 border border-dashed border-slate-300 rounded-[1.5mm] gap-1.5 p-4 ${className ?? ""}`}>
         <span className="text-[2.8mm] tracking-[0.2em] text-brand-navy/60 font-semibold uppercase">
@@ -242,10 +295,10 @@ function Facade({
         crossOrigin="anonymous"
         onError={() => {
           // If direct image fails to load, try first-party proxy
-          if (url && !imgSrc.includes("/api/proxy-image") && !url.startsWith("data:")) {
-            setImgSrc(`/api/proxy-image?url=${encodeURIComponent(url)}`);
-          } else if (url && !imgSrc.includes("weserv.nl") && !url.startsWith("data:")) {
-            setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(url)}&output=jpg`);
+          if (resolvedUrl && !imgSrc.includes("/api/proxy-image") && !resolvedUrl.startsWith("data:")) {
+            setImgSrc(`/api/proxy-image?url=${encodeURIComponent(resolvedUrl)}`);
+          } else if (resolvedUrl && !imgSrc.includes("weserv.nl") && !resolvedUrl.startsWith("data:")) {
+            setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&output=jpg`);
           }
         }}
         className={`h-full w-full object-cover ${

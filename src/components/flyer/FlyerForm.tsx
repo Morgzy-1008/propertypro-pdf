@@ -246,8 +246,14 @@ function resolveDefaultFacade(
   currentFacadeId?: string,
   currentFacadeName?: string,
 ): FacadeItem | null {
+  // If no facade has been explicitly selected, NEVER auto-inject or auto-show a default facade
+  if (!currentFacadeId && !currentFacadeName) {
+    return null;
+  }
+
   const storey = storeyFor(housingType);
   const targetGarage = garageFromCars(planCars) ?? (isSingleGarageDesign(designName, housingType) ? 1 : null);
+  const base = facadeBaseName(currentFacadeName || currentFacadeId || "");
 
   if (housingType === "dual-oc") {
     const list = duplexFacadesForDesign(designName);
@@ -256,7 +262,11 @@ function resolveDefaultFacade(
         const existing = list.find((f) => f.id === currentFacadeId);
         if (existing) return existing;
       }
-      return list[0];
+      if (base) {
+        const match = list.find((f) => facadeBaseName(f.name) === base || facadeBaseName(f.id) === base);
+        if (match) return match;
+      }
+      return null;
     }
   }
 
@@ -265,54 +275,65 @@ function resolveDefaultFacade(
       const existing = MULBERRY_FACADES.find((f) => f.id === currentFacadeId);
       if (existing) return existing;
     }
-    return MULBERRY_FACADES.find((f) => f.id === "classic-ranch") || MULBERRY_FACADES[0] || null;
+    if (base) {
+      const match = MULBERRY_FACADES.find((f) => facadeBaseName(f.name) === base || facadeBaseName(f.id) === base);
+      if (match) return match;
+    }
+    return null;
   }
 
   if (housingType === "split-level") {
-    const match = HUDSON_FACADES.find((f) => f.id === "classic-cobalt");
-    if (match) return match;
+    if (currentFacadeId) {
+      const existing = HUDSON_FACADES.find((f) => f.id === currentFacadeId);
+      if (existing) return existing;
+    }
+    if (base) {
+      const match = HUDSON_FACADES.find((f) => facadeBaseName(f.name) === base || facadeBaseName(f.id) === base);
+      if (match) return match;
+    }
+    return null;
   }
 
   if (storey === "double") {
-    const isNarrow = isNarrowDoubleStorey(designName);
-    const targetId = isNarrow ? "classic-narrow-dg" : "classic-double-garage";
-    if (currentFacadeId && currentFacadeId !== "classic" && currentFacadeId !== "classic-single-garage") {
+    if (currentFacadeId) {
       const existing = HUDSON_FACADES.find(
         (f) => f.id === currentFacadeId && (f.range === "Double Storey" || f.range === "Narrow Double Storey")
       );
       if (existing) return existing;
-      const base = facadeBaseName(currentFacadeName || currentFacadeId);
+    }
+    if (base) {
       const match = HUDSON_FACADES.find(
         (f) => (f.range === "Double Storey" || f.range === "Narrow Double Storey") && facadeBaseName(f.name) === base
       );
       if (match) return match;
     }
-    return HUDSON_FACADES.find((f) => f.id === targetId) || HUDSON_FACADES.find((f) => f.range === "Double Storey") || null;
+    return null;
   }
 
   // Single Storey
   if (targetGarage === 1) {
     if (currentFacadeId) {
-      const base = facadeBaseName(currentFacadeName || currentFacadeId);
       const existing = HUDSON_FACADES.find((f) => f.id === currentFacadeId && facadeGarage(f) === 1);
       if (existing) return existing;
-
+    }
+    if (base) {
       const match = HUDSON_FACADES.find((f) => facadeGarage(f) === 1 && facadeBaseName(f.name) === base);
       if (match) return match;
     }
-    return HUDSON_FACADES.find((f) => f.id === "classic-single-garage") || null;
+    return null;
   } else {
     if (currentFacadeId) {
-      const base = facadeBaseName(currentFacadeName || currentFacadeId);
       const existing = HUDSON_FACADES.find((f) => f.id === currentFacadeId && facadeGarage(f) !== 1 && f.range === "Single Storey");
       if (existing) return existing;
-
+    }
+    if (base) {
       const match = HUDSON_FACADES.find((f) => f.range === "Single Storey" && facadeGarage(f) !== 1 && facadeBaseName(f.name) === base);
       if (match) return match;
     }
-    return HUDSON_FACADES.find((f) => f.id === "classic") || null;
+    return null;
   }
 }
+
 
 export function FlyerForm({ data, set, template }: { data: FlyerData; set: Setter; template?: TemplateId }) {
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
@@ -522,20 +543,21 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     checkRevert();
   }, [data.facadeId, data.facadeUrl]);
 
-  // Auto-sync facade if floorplan/garage spaces change or if design is selected without a facade
+  // Auto-sync facade if garage spaces change for an already-selected facade
   useEffect(() => {
     if (!data.designName && !data.cars) return;
+    if (!data.facadeId && !data.facadeName && !data.facadeUrl) return;
+
     const g = garageFromCars(data.cars) ?? (isSingleGarageDesign(data.designName, data.housingType) ? 1 : null);
     const currentG = data.facadeId || data.facadeName || data.facadeUrl
       ? facadeGarage({ id: data.facadeId, name: data.facadeName, url: data.facadeUrl, tags: [] })
       : null;
 
     const needsSync =
-      !data.facadeUrl ||
       (g === 1 && currentG === 2) ||
       (g === 2 && currentG === 1);
 
-    if (needsSync) {
+    if (needsSync && (data.facadeId || data.facadeName)) {
       const match = resolveDefaultFacade(
         data.cars,
         data.housingType,
@@ -620,30 +642,32 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       set("houseLengthM", parseFloat(plan.houseLength));
     }
 
-    // Auto-select matching facade for this plan & garage spaces
-    const facade = resolveDefaultFacade(
-      plan.cars,
-      data.housingType,
-      data.designName || plan.design,
-      data.facadeId,
-      data.facadeName,
-    );
-
+    // If a facade was already explicitly chosen by the user, keep & adapt it for this plan's garage/storey
     let nextUplift = uplift;
-    if (facade) {
-      set("facadeId", facade.id);
-      set("facadeName", facade.name);
-      set("facadeUrl", facade.url);
-      set("rawFacadeUrl", facade.originalUrl || facade.url);
-
-      nextUplift = facadeUpliftFor(
-        facade.id,
-        facade.name,
-        storeyFor(data.housingType) ?? undefined,
+    if (data.facadeId || data.facadeName) {
+      const facade = resolveDefaultFacade(
+        plan.cars,
+        data.housingType,
         data.designName || plan.design,
+        data.facadeId,
+        data.facadeName,
       );
-      setUplift(nextUplift);
-      setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+
+      if (facade) {
+        set("facadeId", facade.id);
+        set("facadeName", facade.name);
+        set("facadeUrl", facade.url);
+        set("rawFacadeUrl", facade.originalUrl || facade.url);
+
+        nextUplift = facadeUpliftFor(
+          facade.id,
+          facade.name,
+          storeyFor(data.housingType) ?? undefined,
+          data.designName || plan.design,
+        );
+        setUplift(nextUplift);
+        setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+      }
     }
 
     applyPricing(data.designName || plan.design, data.range, data.landPrice, nextUplift);
@@ -679,27 +703,29 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         set("houseLengthM", dim.length);
       }
 
-      const facade = resolveDefaultFacade(
-        data.cars,
-        data.housingType,
-        name,
-        data.facadeId,
-        data.facadeName,
-      );
       let nextUplift = uplift;
-      if (facade) {
-        set("facadeId", facade.id);
-        set("facadeName", facade.name);
-        set("facadeUrl", facade.url);
-        set("rawFacadeUrl", facade.originalUrl || facade.url);
-        nextUplift = facadeUpliftFor(
-          facade.id,
-          facade.name,
-          storeyFor(data.housingType) ?? undefined,
+      if (data.facadeId || data.facadeName) {
+        const facade = resolveDefaultFacade(
+          data.cars,
+          data.housingType,
           name,
+          data.facadeId,
+          data.facadeName,
         );
-        setUplift(nextUplift);
-        setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+        if (facade) {
+          set("facadeId", facade.id);
+          set("facadeName", facade.name);
+          set("facadeUrl", facade.url);
+          set("rawFacadeUrl", facade.originalUrl || facade.url);
+          nextUplift = facadeUpliftFor(
+            facade.id,
+            facade.name,
+            storeyFor(data.housingType) ?? undefined,
+            name,
+          );
+          setUplift(nextUplift);
+          setUpliftInput(nextUplift === 0 ? "0" : String(nextUplift));
+        }
       }
 
       const costs = data.landscaping
@@ -1851,6 +1877,28 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                     <CheckCircle2 className="h-3.5 w-3.5 text-brand-gold" />
                     Facade Check
                   </Button>
+                  {(data.facadeUrl || data.facadeName || data.facadeId) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={facadeBusy}
+                      onClick={() => {
+                        set("facadeId", "");
+                        set("facadeName", "");
+                        set("facadeUrl", "");
+                        set("rawFacadeUrl", "");
+                        setUplift(0);
+                        setUpliftInput("0");
+                        applyPricing(data.designName, data.range, data.landPrice, 0);
+                      }}
+                      className="flex-none gap-1 border-slate-800 bg-slate-900/80 text-slate-400 hover:border-red-900/60 hover:bg-red-950/20 hover:text-red-300 text-xs font-medium cursor-pointer shadow-sm"
+                      title="Clear selected facade"
+                    >
+                      <X className="h-3 w-3" />
+                      Clear
+                    </Button>
+                  )}
                   {canRevertAi && (
                     <Button
                       type="button"

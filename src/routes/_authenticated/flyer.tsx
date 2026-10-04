@@ -16,6 +16,7 @@ import {
   HudsonMark,
   ExpressFlyerV2,
   HouseOnlyFlyerV2,
+  resolveUpdatedFacadeRender,
 } from "@/components/flyer/FlyerTemplates";
 import { SitingPlanPage } from "@/components/flyer/SitingPlanPage";
 import { SitingPlanV2 } from "@/components/flyer/SitingPlanV2";
@@ -116,6 +117,10 @@ function Index() {
       if (!raw) return;
       window.sessionStorage.removeItem("hudson-flyer-handoff");
       const patch = JSON.parse(raw) as Partial<FlyerData>;
+      if (patch.facadeUrl) {
+        patch.facadeUrl = resolveUpdatedFacadeRender(patch.facadeUrl);
+        patch.rawFacadeUrl = resolveUpdatedFacadeRender(patch.rawFacadeUrl || patch.facadeUrl);
+      }
       
       const activeStaff = getActiveStaffUser();
       const staffConsultant = activeStaff ? (findConsultant(activeStaff.id) || findConsultantByEmail(activeStaff.email)) : null;

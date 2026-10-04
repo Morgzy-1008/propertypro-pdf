@@ -502,7 +502,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     design: "Quartz 21",
     housingType: "Single Storey",
     facadeName: "Avalon",
-    facadeUrl: findFacadeUrl("Avalon") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Avalon-Facade-Single-Storey.jpg",
+    facadeUrl: findFacadeUrl("Avalon") || "/facades/avalon-single-storey.png",
     floorplanUrl: plansForDesign("Quartz 21")[0]?.url || "",
     rangeLabel: "Designer",
     estate: "Brookhaven",
@@ -531,7 +531,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
       designName: "Quartz 21",
       range: "designer",
       facadeName: "Avalon",
-      facadeUrl: findFacadeUrl("Avalon") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Avalon-Facade-Single-Storey.jpg",
+      facadeUrl: findFacadeUrl("Avalon") || "/facades/avalon-single-storey.png",
       floorplanUrl: plansForDesign("Quartz 21")[0]?.url || "",
       housePrice: "$396,300",
       landPrice: "$554,000",
@@ -556,7 +556,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     design: "Quartz 21",
     housingType: "Single Storey",
     facadeName: "Pavilion",
-    facadeUrl: findFacadeUrl("Pavilion") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Pavilion-Facade-Single-Storey.jpg",
+    facadeUrl: findFacadeUrl("Pavilion") || "/facades/pavillion-single-storey.png",
     floorplanUrl: plansForDesign("Quartz 21")[0]?.url || "",
     rangeLabel: "Designer",
     estate: "Flagstone",
@@ -585,7 +585,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
       designName: "Quartz 21",
       range: "designer",
       facadeName: "Pavilion",
-      facadeUrl: findFacadeUrl("Pavilion") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Pavilion-Facade-Single-Storey.jpg",
+      facadeUrl: findFacadeUrl("Pavilion") || "/facades/pavillion-single-storey.png",
       floorplanUrl: plansForDesign("Quartz 21")[0]?.url || "",
       housePrice: "$399,800",
       landPrice: "$449,000",
@@ -610,7 +610,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     design: "Ivory 21",
     housingType: "Single Storey",
     facadeName: "Eden",
-    facadeUrl: findFacadeUrl("Eden") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Eden-Facade-Single-Storey.jpg",
+    facadeUrl: findFacadeUrl("Eden") || "/facades/eden-single-storey.png",
     floorplanUrl: plansForDesign("Ivory 21")[0]?.url || "",
     rangeLabel: "Designer",
     estate: "Lilywood Landings",
@@ -629,6 +629,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     consultantPhone: "0417 571 864",
     consultantEmail: "Morgan.hales@hudsonhomes.com.au",
     consultantOffice: "Flagstone Display Home",
+    consultantId: "morgan-hales",
     flyerJson: JSON.stringify({
       id: "pkg-ivory-21-lilywood",
       packageId: "pkg-ivory-21-lilywood",
@@ -639,7 +640,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
       designName: "Ivory 21",
       range: "designer",
       facadeName: "Eden",
-      facadeUrl: findFacadeUrl("Eden") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Eden-Facade-Single-Storey.jpg",
+      facadeUrl: findFacadeUrl("Eden") || "/facades/eden-single-storey.png",
       floorplanUrl: plansForDesign("Ivory 21")[0]?.url || "",
       housePrice: "$408,200",
       landPrice: "$520,000",
@@ -664,7 +665,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     design: "Crimson 24",
     housingType: "Single Storey",
     facadeName: "Serenity",
-    facadeUrl: findFacadeUrl("Serenity") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Serenity-Facade-Single-Storey.jpg",
+    facadeUrl: findFacadeUrl("Serenity") || "/facades/serenity-single-storey.png",
     floorplanUrl: plansForDesign("Crimson 24")[0]?.url || "",
     rangeLabel: "Designer",
     estate: "Lilywood Landings",
@@ -683,6 +684,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
     consultantPhone: "0417 571 864",
     consultantEmail: "Morgan.hales@hudsonhomes.com.au",
     consultantOffice: "Flagstone Display Home",
+    consultantId: "morgan-hales",
     flyerJson: JSON.stringify({
       id: "pkg-crimson-24-lilywood",
       packageId: "pkg-crimson-24-lilywood",
@@ -693,7 +695,7 @@ export const CURRENT_DATABASE_PACKAGES: PublicPackage[] = [
       designName: "Crimson 24",
       range: "designer",
       facadeName: "Serenity",
-      facadeUrl: findFacadeUrl("Serenity") || "https://www.hudsonhomes.com.au/wp-content/uploads/2019/02/Serenity-Facade-Single-Storey.jpg",
+      facadeUrl: findFacadeUrl("Serenity") || "/facades/serenity-single-storey.png",
       floorplanUrl: plansForDesign("Crimson 24")[0]?.url || "",
       housePrice: "$439,700",
       landPrice: "$560,000",
@@ -975,7 +977,9 @@ export function formatPublicPackage(p: any): PublicPackage {
   const frontage = lot?.frontage ? Number(lot.frontage) : (f.landFrontage == null ? null : Number(f.landFrontage));
   const totalPrice = p.total_price != null ? Number(p.total_price) : (f.price ? Number(String(f.price).replace(/[^0-9.]/g, "")) : null);
   const facadeName = p.facade_name || str(f.facadeName);
-  const facadeUrl = str(f.facadeUrl) || findFacadeUrl(facadeName, housingType, design);
+  const rawUrl = str(f.facadeUrl);
+  const isLegacyUrl = rawUrl && (rawUrl.includes("wp-content/uploads") || rawUrl.endsWith(".jpg"));
+  const facadeUrl = (!isLegacyUrl && rawUrl) ? rawUrl : findFacadeUrl(facadeName, housingType, design);
   const floorplanUrl = str(f.floorplanUrl) || plansForDesign(design)[0]?.url;
 
   const state: "QLD" | "NSW" =
