@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import {
   Compass,
   Flame,
@@ -22,6 +22,9 @@ import {
   Check,
   Truck,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
+  RotateCcw,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,6 +45,10 @@ import {
   getSoilRatePerM2,
   isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
+import {
+  calculateTailoredBushfireCost,
+  type BushfireCostBreakdown,
+} from "@/lib/quoting/bushfireEngine";
 import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 import { toast } from "sonner";
@@ -153,8 +160,39 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     arboristReportCost +
     cctvSewerReportCost;
 
+  const [showBushfireBreakdown, setShowBushfireBreakdown] = useState(false);
+
+  // Tailored AS 3959 Bushfire Cost Breakdown based on design, window/door schedules & sqm
+  const tailoredBushfireBreakdown = useMemo(() => {
+    return calculateTailoredBushfireCost({
+      bal: site.bushfireBal,
+      designName: quote.design.designName,
+      housingType: quote.design.housingType,
+      gfaM2,
+      isDoubleStorey: isDouble,
+      isModifiedPlan: quote.design.isModifiedFloorplan,
+      modifiedM2: quote.design.modifiedDesignM2,
+    });
+  }, [
+    site.bushfireBal,
+    quote.design.designName,
+    quote.design.housingType,
+    gfaM2,
+    isDouble,
+    quote.design.isModifiedFloorplan,
+    quote.design.modifiedDesignM2,
+  ]);
+
   // Overlay Allowances (RHS)
-  const currentBalCost = getBushfireCost(site.bushfireBal, isDouble);
+  const currentBalCost =
+    site.bushfireBal === "None"
+      ? 0
+      : site.bushfireCost !== undefined &&
+        site.bushfireCost !== null &&
+        !isNaN(Number(site.bushfireCost)) &&
+        Number(site.bushfireCost) > 0
+      ? Number(site.bushfireCost)
+      : tailoredBushfireBreakdown.totalCost;
   const slabHeight = site.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
   const floodCost = site.floodOverlayRequired
@@ -229,8 +267,16 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   };
 
   const handleBalChange = (bal: (typeof BUSHFIRE_LEVELS)[number]["id"]) => {
-    const cost = getBushfireCost(bal, isDouble);
-    onSiteChange({ bushfireBal: bal, bushfireCost: cost });
+    const tailored = calculateTailoredBushfireCost({
+      bal,
+      designName: quote.design.designName,
+      housingType: quote.design.housingType,
+      gfaM2,
+      isDoubleStorey: isDouble,
+      isModifiedPlan: quote.design.isModifiedFloorplan,
+      modifiedM2: quote.design.modifiedDesignM2,
+    });
+    onSiteChange({ bushfireBal: bal, bushfireCost: tailored.totalCost });
   };
 
   const handleAcousticChange = (tier: (typeof ACOUSTIC_TIERS)[number]["id"]) => {
@@ -599,7 +645,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </div>
 
         {/* ROW 1: BUSHFIRE PAIR */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* Bushfire Report (LHS) */}
           <div
             onClick={() => onSiteChange({ bushfireReportRequired: !site.bushfireReportRequired })}
@@ -619,31 +665,246 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
           </div>
 
           {/* Bushfire BAL Rating Allowance (RHS) */}
-          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5 min-w-0">
-              <Flame className="h-3.5 w-3.5 text-amber-400 flex-none" />
-              <span className="truncate">BAL Protection Allowance</span>
-            </Label>
-            <div className="flex items-center gap-2 flex-none">
-              <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
-                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8 w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                  {BUSHFIRE_LEVELS.map((b) => {
-                    const cost = getBushfireCost(b.id, isDouble);
-                    return (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              <span className="text-xs font-mono font-bold text-amber-400 min-w-16 text-right">
-                {currentBalCost === 0 ? "($0)" : `+${formatAud(currentBalCost)}`}
-              </span>
+          <div
+            className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2 ${
+              site.bushfireBal !== "None"
+                ? "border-amber-500/60 bg-amber-950/20 ring-1 ring-amber-500/40 shadow-sm"
+                : isLight
+                ? "border-slate-200 bg-white"
+                : "border-slate-800 bg-slate-900/60"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="min-w-0 flex-1">
+                <Label className={`text-xs font-semibold flex items-center gap-1.5 min-w-0 ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                  <Flame className="h-3.5 w-3.5 text-amber-500 flex-none" />
+                  <span className="whitespace-nowrap">BAL Allowance</span>
+                  {quote.design.isModifiedFloorplan && site.bushfireBal !== "None" && (
+                    <span className="text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                      Modified Scaled
+                    </span>
+                  )}
+                </Label>
+                {site.bushfireBal !== "None" && (
+                  <p className={`text-[11px] truncate mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Tailored to {quote.design.designName || "Amber 21"} ({Math.round(gfaM2)}m²): {tailoredBushfireBreakdown.windowCount} windows &amp; {tailoredBushfireBreakdown.doorCount} doors
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-none">
+                <Select value={site.bushfireBal} onValueChange={(v: any) => handleBalChange(v)}>
+                  <SelectTrigger className={`text-xs h-8 w-32 ${isLight ? "border-slate-300 bg-slate-50 text-slate-900" : "border-slate-800 bg-slate-950 text-slate-200"}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                    {BUSHFIRE_LEVELS.map((b) => {
+                      const cost = getBushfireCost(b.id, isDouble, quote.design, gfaM2);
+                      return (
+                        <SelectItem key={b.id} value={b.id}>
+                          {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs font-mono font-bold text-amber-500 min-w-16 text-right">
+                  {currentBalCost === 0 ? "($0)" : `+${formatAud(currentBalCost)}`}
+                </span>
+              </div>
             </div>
+
+            {site.bushfireBal !== "None" && (
+              <div className="pt-2 border-t border-amber-500/20 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBushfireBreakdown((prev) => !prev)}
+                    className="text-[11px] text-amber-600 dark:text-amber-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {showBushfireBreakdown ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    {showBushfireBreakdown ? "Hide Sizing & Specification Breakdown" : "View Sizing & AS 3959 Breakdown"}
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {site.bushfireCost !== undefined && site.bushfireCost !== tailoredBushfireBreakdown.totalCost && (
+                      <button
+                        type="button"
+                        onClick={() => onSiteChange({ bushfireCost: tailoredBushfireBreakdown.totalCost })}
+                        className="text-[10px] text-amber-500 hover:text-amber-400 flex items-center gap-1 font-mono font-semibold"
+                        title="Reset to exact tailored calculation"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Reset ({formatAud(tailoredBushfireBreakdown.totalCost)})
+                      </button>
+                    )}
+                    <span className="text-[10px] text-slate-400">
+                      {tailoredBushfireBreakdown.windowCount} Win ({formatAud(tailoredBushfireBreakdown.windowsCost)}) • {tailoredBushfireBreakdown.doorCount} Doors ({formatAud(tailoredBushfireBreakdown.doorsCost)})
+                    </span>
+                  </div>
+                </div>
+
+                {showBushfireBreakdown && (
+                  <div className={`p-3 rounded-lg border text-xs space-y-3 mt-1 ${isLight ? "bg-amber-50/60 border-amber-200 text-slate-800" : "bg-slate-950/80 border-slate-800 text-slate-300"}`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-amber-500/20">
+                      <span className="font-bold flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                        <Shield className="h-3.5 w-3.5" />
+                        AS 3959 {site.bushfireBal} Architectural Breakdown
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-500">
+                        {quote.design.designName || "Amber 21"} ({Math.round(gfaM2)}m² {quote.design.housingType})
+                      </span>
+                    </div>
+
+                    {/* Windows Aluminium Screens list */}
+                    <div>
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-amber-600 dark:text-amber-400">
+                          1. Window Aluminium Ember Screens ({tailoredBushfireBreakdown.windowCount} Windows, {tailoredBushfireBreakdown.totalWindowAreaM2}m² glass)
+                        </span>
+                        <span className="font-mono font-bold text-amber-500">+{formatAud(tailoredBushfireBreakdown.windowsCost)}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-1.5">
+                        Corrosion-resistant aluminium/metal mesh (≤2mm aperture) fitted to all openable sashes under AS 3959.
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                        {tailoredBushfireBreakdown.windowItems.map((win, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-1.5 rounded-md flex items-center justify-between text-[11px] gap-1.5 ${
+                              isLight ? "bg-white border border-amber-200/80 shadow-xs" : "bg-slate-900 border border-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-mono font-bold text-[10px] shrink-0">
+                                {win.no}
+                              </span>
+                              <span className="font-bold font-mono text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0">
+                                {win.displayCode || win.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400 truncate">
+                                ({win.heightMm}×{win.widthMm})
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-amber-600 dark:text-amber-400 ml-1 shrink-0">
+                              +{formatAud(win.screenCost)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* External Doors & Sliding Screens */}
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-amber-600 dark:text-amber-400">
+                          2. Doors &amp; Sliding Screens ({tailoredBushfireBreakdown.doorCount} Openings + Garage)
+                        </span>
+                        <span className="font-mono font-bold text-amber-500">+{formatAud(tailoredBushfireBreakdown.doorsCost)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {tailoredBushfireBreakdown.doorItems.map((door, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-1.5 rounded-md flex items-center justify-between text-[11px] gap-2 ${
+                              isLight ? "bg-white border border-amber-200/80 shadow-xs" : "bg-slate-900 border border-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0 truncate">
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-mono font-bold text-[10px] flex-none">
+                                {door.no || `D${idx + 1}`}
+                              </span>
+                              <span className="font-semibold font-mono text-slate-800 dark:text-slate-200 truncate">
+                                {door.displayCode || door.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400 truncate">
+                                ({door.heightMm}×{door.widthMm}mm) — {door.isSliding ? "Aluminium Sliding Screen" : "Draught Seals"}
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-amber-600 dark:text-amber-400 ml-1 flex-none">
+                              +{formatAud(door.protectionCost)}
+                            </span>
+                          </div>
+                        ))}
+                        <div
+                          className={`p-1.5 rounded-md flex items-center justify-between text-[11px] gap-2 ${
+                            isLight ? "bg-white border border-amber-200/80 shadow-xs" : "bg-slate-900 border border-slate-800"
+                          }`}
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0 truncate">
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400 font-mono font-bold text-[10px] flex-none">
+                              GARAGE
+                            </span>
+                            <span className="text-slate-700 dark:text-slate-300 truncate">
+                              Sectional Garage Door Bottom Compression &amp; Flame Brush Seals
+                            </span>
+                          </div>
+                          <span className="font-mono font-bold text-amber-600 dark:text-amber-400 ml-1 flex-none">
+                            +{formatAud(site.bushfireBal === "BAL-40" ? 850 : 340)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Building Envelope Protection */}
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-amber-600 dark:text-amber-400">
+                          3. Building Envelope &amp; Roof Ember Protection
+                        </span>
+                        <span className="font-mono font-bold text-amber-500">
+                          +{formatAud(
+                            tailoredBushfireBreakdown.weepHolesCost +
+                              tailoredBushfireBreakdown.roofSarkingCost +
+                              tailoredBushfireBreakdown.gutterGuardsCost
+                          )}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 text-[11px]">
+                        <div className={`p-1.5 rounded ${isLight ? "bg-white border border-amber-100" : "bg-slate-900 border border-slate-800"}`}>
+                          <div className="font-medium">Weep Hole Spark Guards</div>
+                          <div className="text-slate-500 text-[10px]">Stainless steel arrestors</div>
+                          <div className="font-mono font-bold text-amber-500 mt-1">+{formatAud(tailoredBushfireBreakdown.weepHolesCost)}</div>
+                        </div>
+                        <div className={`p-1.5 rounded ${isLight ? "bg-white border border-amber-100" : "bg-slate-900 border border-slate-800"}`}>
+                          <div className="font-medium">Heavy Roof Sarking</div>
+                          <div className="text-slate-500 text-[10px]">Non-combustible foil ({Math.round(gfaM2 * 1.15)}m²)</div>
+                          <div className="font-mono font-bold text-amber-500 mt-1">+{formatAud(tailoredBushfireBreakdown.roofSarkingCost)}</div>
+                        </div>
+                        <div className={`p-1.5 rounded ${isLight ? "bg-white border border-amber-100" : "bg-slate-900 border border-slate-800"}`}>
+                          <div className="font-medium">Metal Gutter Guards</div>
+                          <div className="text-slate-500 text-[10px]">Mesh leaf guard (Index ≤ 5)</div>
+                          <div className="font-mono font-bold text-amber-500 mt-1">+{formatAud(tailoredBushfireBreakdown.gutterGuardsCost)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Statutory Sign-Off & Total */}
+                    <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+                      <span>Statutory Form 15/16 Bushfire Inspection &amp; Certification:</span>
+                      <span className="font-mono font-bold text-amber-500">+{formatAud(tailoredBushfireBreakdown.certificationCost)}</span>
+                    </div>
+
+                    {/* Custom Override Option */}
+                    <div className="pt-2 border-t border-amber-500/20 flex items-center justify-between gap-3">
+                      <Label className="text-[11px] text-slate-500">
+                        Custom Allowance Override ($):
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="50"
+                          value={site.bushfireCost ?? tailoredBushfireBreakdown.totalCost}
+                          onChange={(e) => onSiteChange({ bushfireCost: Math.max(0, Number(e.target.value)) })}
+                          className={`h-7 w-28 text-xs text-right font-mono font-bold ${
+                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-700 bg-slate-950 text-amber-400"
+                          }`}
+                        />
+                        <span className="text-[11px] text-slate-500">AUD</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

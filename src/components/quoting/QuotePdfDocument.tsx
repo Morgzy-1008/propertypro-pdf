@@ -900,7 +900,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "bushfire_bal",
             name: `Bushfire Attack Level Protection (${siteConditions.bushfireBal})`,
-            description: "AS 3959 ember protection mesh, toughened glazing, and fire-resistant perimeter seals.",
+            description: `AS 3959 ${siteConditions.bushfireBal} specification tailored to ${design.designName} (${design.designM2}m²), including aluminium ember screens to openable windows, perimeter door seals, heavy roof sarking, and compliance certification.`,
             qtyLabel: "1 House",
             amount: siteConditions.bushfireCost,
           },

@@ -17,6 +17,12 @@ import {
 import { facadePriceForDesign } from "@/components/flyer/facadePricing";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
+import {
+  calculateTailoredBushfireCost,
+  getBushfireCost as getTailoredBushfireCost,
+  resolveDesignSchedule,
+  type BushfireCostBreakdown,
+} from "./bushfireEngine";
 import type {
   CategorySubtotal,
   CatalogueCategory,
@@ -1162,41 +1168,20 @@ export function calculateTopographyFallCost(
 }
 
 /**
- * Calculates Bushfire Attack Level (BAL) cost based on design storeys (Single vs Double).
+ * Calculates Bushfire Attack Level (BAL) cost tailored to design selected, exact window/door schedules,
+ * house size, and modified plan scaling under AS 3959.
  */
 export function getBushfireCost(
   bal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40",
-  isDoubleStorey: boolean,
+  isDoubleStorey: boolean = false,
+  designOrName?: any,
+  gfaM2?: number
 ): number {
-  if (bal === "None") return 0;
-  if (isDoubleStorey) {
-    switch (bal) {
-      case "BAL-12.5":
-        return 10000;
-      case "BAL-19":
-        return 12000;
-      case "BAL-29":
-        return 14000;
-      case "BAL-40":
-        return 19000;
-      default:
-        return 0;
-    }
-  } else {
-    switch (bal) {
-      case "BAL-12.5":
-        return 6500;
-      case "BAL-19":
-        return 8000;
-      case "BAL-29":
-        return 10000;
-      case "BAL-40":
-        return 15000;
-      default:
-        return 0;
-    }
-  }
+  return getTailoredBushfireCost(bal, isDoubleStorey, designOrName, gfaM2);
 }
+
+export { calculateTailoredBushfireCost, resolveDesignSchedule, type BushfireCostBreakdown };
+
 
 /**
  * Calculates Acoustic Attenuation Requirements cost based on design storeys (Single vs Double).
@@ -1331,7 +1316,10 @@ export function calculateQuotePricing(
   const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 3300) : 0;
 
   // Site Overlay Physical Allowances (RHS)
-  const bushfireCost = getBushfireCost(site.bushfireBal, isDouble);
+  const bushfireCost =
+    site.bushfireCost !== undefined && site.bushfireCost !== null && !isNaN(Number(site.bushfireCost)) && Number(site.bushfireCost) > 0
+      ? Number(site.bushfireCost)
+      : getBushfireCost(site.bushfireBal, isDouble, design, gfaM2);
   const slabElevationCost = site.floodOverlayRequired
     ? (site.floodOverlayCost !== undefined && site.floodOverlayCost !== null && !isNaN(Number(site.floodOverlayCost)) && site.floodOverlayCost > 0
         ? Number(site.floodOverlayCost)
