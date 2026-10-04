@@ -2849,7 +2849,7 @@ export function QuoteDesignStep({
                     </span>
                   </div>
                   <span className="text-[11px] text-slate-400 font-mono">
-                    Smooth decay calibrated to QLD Price Lists (+~$100/m² custom premium)
+                    Smooth decay calibrated to QLD Price Lists (+~$30k custom premium on 200m² SS)
                   </span>
                 </div>
 

@@ -28,6 +28,9 @@ import {
   ArrowRight,
   DownloadCloud,
   FileDown,
+  Building2,
+  Sparkles,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +64,7 @@ import {
   CATEGORY_LABELS,
   findPotentialDuplicates,
   type DuplicatePair,
+  EXTENSION_RATES_BY_TIER,
 } from "@/lib/quoting/quoteCatalogue";
 import type { CatalogueCategory, CatalogueItem, UnitType } from "@/lib/quoting/quoteTypes";
 import {
@@ -493,140 +497,484 @@ export function QuoteAdminCatalogue({
                   </div>
                 )}
 
-                {/* Custom Rates Grid */}
-                <div className={`rounded-2xl border p-5 space-y-3 ${
+                {/* 1. Floorplan Extension Rates Grid by Inclusion Level (Towards Top of Page) */}
+                <div className={`rounded-2xl border p-5 space-y-3.5 ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"
                 }`}>
-                  <div className="flex items-center justify-between">
-                    <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-wider ${
-                      isLight ? "text-slate-800" : "text-slate-200"
-                    }`}>
-                      <Layers className={`h-4 w-4 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
-                      Custom Floorplan Pricing Engine ($/m²)
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Maximize2 className={`h-4 w-4 ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />
+                      <span className={`text-xs font-bold uppercase tracking-wider ${
+                        isLight ? "text-slate-800" : "text-slate-200"
+                      }`}>
+                        Floorplan Extension Rates ($/m²)
+                      </span>
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
+                        isLight ? "bg-emerald-100 text-emerald-800 border border-emerald-300" : "bg-emerald-950 text-emerald-300 border border-emerald-800/60"
+                      }`}>
+                        Project Homes Modification Surcharge
+                      </span>
                     </div>
                     <span className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-                      Formula base rates for non-standard custom floorplan calculations
+                      Rates automatically applied when extending standard floorplan footprints &amp; rooms in Step 2 &amp; 4
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                    {/* H1 Smart Inclusions */}
+                    <div className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+                      isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-950/80 border-slate-800/80"
                     }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Single Living (H2)</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.singleGroundLivingM2Rate}
-                          onChange={(e) =>
-                            handleRateChange("singleGroundLivingM2Rate", Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                          H1 Smart Inclusions
+                        </span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${
+                          isLight ? "bg-slate-100 text-slate-700 border border-slate-300" : "bg-slate-800 text-slate-300 border border-slate-700"
+                        }`}>
+                          Essential
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px]">
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200 dark:border-slate-800/80">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Ground Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.gf.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200 dark:border-slate-800/80">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>First Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.ff.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200 dark:border-slate-800/80">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Garage Footprint</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.garage.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200 dark:border-slate-800/80">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Alfresco Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.alfresco.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-slate-200 dark:border-slate-800/80">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Porch Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.porch.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5">
+                          <span className={isLight ? "text-slate-600" : "text-slate-400"}>Balcony Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H1.balcony.toLocaleString()}/m²
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                    {/* H2 Design Inclusions */}
+                    <div className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+                      isLight
+                        ? "bg-emerald-50/60 border-emerald-300 shadow-sm ring-1 ring-emerald-400/40"
+                        : "bg-emerald-950/20 border-emerald-500/40 shadow-md ring-1 ring-emerald-500/30"
                     }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Single Living (H3)</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.singleGroundLivingH3M2Rate}
-                          onChange={(e) =>
-                            handleRateChange("singleGroundLivingH3M2Rate", Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? "text-emerald-950" : "text-emerald-300"}`}>
+                          <Sparkles className="h-3.5 w-3.5 text-emerald-500" />
+                          H2 Design Inclusions
+                        </span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold ${
+                          isLight ? "bg-emerald-200 text-emerald-900 border border-emerald-300" : "bg-emerald-900/60 text-emerald-200 border border-emerald-600/40"
+                        }`}>
+                          Standard Default
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px]">
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-emerald-200 dark:border-emerald-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Ground Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.gf.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-emerald-200 dark:border-emerald-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>First Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.ff.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-emerald-200 dark:border-emerald-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Garage Footprint</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.garage.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-emerald-200 dark:border-emerald-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Alfresco Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.alfresco.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-emerald-200 dark:border-emerald-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Porch Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.porch.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Balcony Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-emerald-900" : "text-emerald-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H2.balcony.toLocaleString()}/m²
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                    {/* H3 Luxury Inclusions */}
+                    <div className={`p-3.5 rounded-xl border space-y-2.5 transition-all ${
+                      isLight
+                        ? "bg-amber-50/60 border-amber-300 shadow-sm ring-1 ring-amber-400/40"
+                        : "bg-amber-950/20 border-amber-500/40 shadow-md ring-1 ring-amber-500/30"
                     }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>DS Ground (H2)</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.doubleGroundLivingM2Rate}
-                          onChange={(e) =>
-                            handleRateChange("doubleGroundLivingM2Rate", Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-bold flex items-center gap-1.5 ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                          H3 Luxury Inclusions
+                        </span>
+                        <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-bold ${
+                          isLight ? "bg-amber-200 text-amber-900 border border-amber-300" : "bg-amber-900/60 text-amber-200 border border-amber-600/40"
+                        }`}>
+                          Luxury Spec
+                        </span>
+                      </div>
+                      <div className="space-y-1.5 text-[11px]">
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-amber-200 dark:border-amber-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Ground Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.gf.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-amber-200 dark:border-amber-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>First Floor Living</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.ff.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-amber-200 dark:border-amber-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Garage Footprint</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.garage.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-amber-200 dark:border-amber-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Alfresco (600x600 Tile)</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.alfresco.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5 border-b border-dashed border-amber-200 dark:border-amber-900/50">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Porch Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.porch.toLocaleString()}/m²
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center py-0.5">
+                          <span className={isLight ? "text-slate-700" : "text-slate-300"}>Balcony Area</span>
+                          <span className={`font-mono font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                            ${EXTENSION_RATES_BY_TIER.H3.balcony.toLocaleString()}/m²
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  </div>
+                </div>
 
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                {/* 2. Custom Architectural Floorplan Pricing Engine (Dynamic Sizing System) */}
+                <div className={`rounded-2xl border p-5 space-y-4 ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"
+                }`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <Layers className={`h-4 w-4 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
+                      <span className={`text-xs font-bold uppercase tracking-wider ${
+                        isLight ? "text-slate-800" : "text-slate-200"
+                      }`}>
+                        Custom Floorplan Pricing Engine (House Size-Based System)
+                      </span>
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold uppercase ${
+                        isLight ? "bg-cyan-100 text-cyan-800 border border-cyan-300" : "bg-cyan-950 text-cyan-300 border border-cyan-800/60"
+                      }`}>
+                        Exponential Decay Scaling
+                      </span>
+                    </div>
+                    <span className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      Calculates custom living $/m² based on total house size, calibrated for a +$31k custom margin on 200m² SS
+                    </span>
+                  </div>
+
+                  {/* Inclusion Tier Range Deltas */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+                    <div className={`p-2 rounded-xl border ${
+                      isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
                     }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>DS First Floor (H2)</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.doubleUpperLivingM2Rate}
-                          onChange={(e) =>
-                            handleRateChange("doubleUpperLivingM2Rate", Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                      <span className="text-[10px] text-slate-500 font-medium block">HBS Series</span>
+                      <span className="font-mono font-bold text-rose-500">-$250/m²</span>
+                    </div>
+                    <div className={`p-2 rounded-xl border ${
+                      isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 font-medium block">Smart Style (SS)</span>
+                      <span className="font-mono font-bold text-amber-500">-$150/m²</span>
+                    </div>
+                    <div className={`p-2 rounded-xl border ${
+                      isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
+                    }`}>
+                      <span className="text-[10px] text-slate-500 font-medium block">H1 Smart Inclusions</span>
+                      <span className="font-mono font-bold text-sky-500">-$80/m²</span>
+                    </div>
+                    <div className={`p-2 rounded-xl border ring-1 ring-emerald-500/40 ${
+                      isLight ? "bg-emerald-50/50 border-emerald-300" : "bg-emerald-950/30 border-emerald-500/40"
+                    }`}>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">H2 Design (Master)</span>
+                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-300">Base Curve</span>
+                    </div>
+                    <div className={`p-2 rounded-xl border ring-1 ring-amber-500/40 ${
+                      isLight ? "bg-amber-50/50 border-amber-300" : "bg-amber-950/30 border-amber-500/40"
+                    }`}>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block">H3 Luxury Inclusions</span>
+                      <span className="font-mono font-bold text-amber-600 dark:text-amber-300">+$150/m²</span>
+                    </div>
+                  </div>
+
+                  {/* Size-Based Benchmarks Comparison Table */}
+                  <div className={`rounded-xl border overflow-hidden ${
+                    isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800"
+                  }`}>
+                    <div className={`px-3 py-2 text-[11px] font-bold uppercase tracking-wider flex items-center justify-between border-b ${
+                      isLight ? "bg-slate-100/80 text-slate-700 border-slate-200" : "bg-slate-900/80 text-slate-300 border-slate-800"
+                    }`}>
+                      <span className="flex items-center gap-1.5">
+                        <Building2 className="h-3.5 w-3.5 text-cyan-500" />
+                        Dynamic Size Benchmarks (H2 Design Inclusions)
+                      </span>
+                      <span className="text-[10px] font-normal text-slate-500">
+                        Shows smooth economies-of-scale living rate reduction as house area grows
+                      </span>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                      <div className="grid grid-cols-4 p-2.5 items-center">
+                        <div>
+                          <strong className={isLight ? "text-slate-900" : "text-white"}>150 m² Single Storey</strong>
+                          <span className="text-[10px] text-slate-500 block">Compact Home (~105m² Living)</span>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
+                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>$2,402/m²</strong>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">$307,500</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50">
+                            +$22k vs Project
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={`grid grid-cols-4 p-2.5 items-center ${
+                        isLight ? "bg-emerald-50/40" : "bg-emerald-950/20"
+                      }`}>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <strong className="text-emerald-600 dark:text-emerald-400">200 m² Single Storey</strong>
+                            <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.2 rounded">Reference Benchmark</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 block">Standard 4-Bed (~145m² Living, 37m² Garage)</span>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
+                          <strong className="text-emerald-600 dark:text-emerald-300">$2,235/m²</strong>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">$389,125</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
+                            +$31,125 vs Project (~$358k)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 p-2.5 items-center">
+                        <div>
+                          <strong className={isLight ? "text-slate-900" : "text-white"}>250 m² Single Storey</strong>
+                          <span className="text-[10px] text-slate-500 block">Executive Home (~185m² Living)</span>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
+                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>$2,111/m²</strong>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">$467,200</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50">
+                            +$38k vs Project
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 p-2.5 items-center">
+                        <div>
+                          <strong className={isLight ? "text-slate-900" : "text-white"}>300 m² Two Storey</strong>
+                          <span className="text-[10px] text-slate-500 block">Double Storey (~115m² GF, 125m² FF, Scaffolding)</span>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Living Rates</span>
+                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>GF $2,090 / FF $2,319</strong>
+                        </div>
+                        <div className="font-mono text-center">
+                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
+                          <strong className="text-emerald-600 dark:text-emerald-400">$612,895</strong>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
+                            +$47,895 vs Project (~$565k)
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
-                    }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Garage Footprint</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.garageM2Rate ?? 1300}
-                          onChange={(e) =>
-                            handleRateChange("garageM2Rate" as any, Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                  {/* Reference Rates & Non-Habitable Area Configuration */}
+                  <div className="space-y-1.5 pt-1">
+                    <Label className={`text-[10px] uppercase font-bold tracking-wider ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      Reference Rates &amp; Non-Habitable Inclusions ($/m²)
+                    </Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>200m² Living (H2)</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.singleGroundLivingM2Rate}
+                            onChange={(e) =>
+                              handleRateChange("singleGroundLivingM2Rate", Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
                       </div>
-                    </div>
 
-                    <div className={`space-y-1 p-2.5 rounded-xl border ${
-                      isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
-                    }`}>
-                      <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Porch / Alfresco</Label>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-500 font-mono">$</span>
-                        <Input
-                          type="number"
-                          value={customRates.ancillaryM2Rate}
-                          onChange={(e) =>
-                            handleRateChange("ancillaryM2Rate", Number(e.target.value))
-                          }
-                          className={`h-8 text-xs font-bold ${
-                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
-                          }`}
-                        />
-                        <span className="text-[10px] text-slate-500">/m²</span>
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>200m² Living (H3)</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.singleGroundLivingH3M2Rate}
+                            onChange={(e) =>
+                              handleRateChange("singleGroundLivingH3M2Rate", Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>300m² DS GF (H2)</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.doubleGroundLivingM2Rate}
+                            onChange={(e) =>
+                              handleRateChange("doubleGroundLivingM2Rate", Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>300m² DS FF (H2)</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.doubleUpperLivingM2Rate}
+                            onChange={(e) =>
+                              handleRateChange("doubleUpperLivingM2Rate", Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Garage Footprint</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.garageM2Rate ?? 1330}
+                            onChange={(e) =>
+                              handleRateChange("garageM2Rate" as any, Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-1 p-2.5 rounded-xl border ${
+                        isLight ? "bg-white border-slate-200" : "bg-slate-950/80 border-slate-800/80"
+                      }`}>
+                        <Label className={`text-[10px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Alfresco / Porch</Label>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-500 font-mono">$</span>
+                          <Input
+                            type="number"
+                            value={customRates.ancillaryM2Rate ?? 920}
+                            onChange={(e) =>
+                              handleRateChange("ancillaryM2Rate", Number(e.target.value))
+                            }
+                            className={`h-8 text-xs font-bold ${
+                              isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-100"
+                            }`}
+                          />
+                          <span className="text-[10px] text-slate-500">/m²</span>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -190,15 +190,17 @@ export function getCustomAreaRates(
   }
 
   // Living rate decay:
-  // Single Storey H2 living rate decays from $2,360/m² at ~120m² down to $1,610/m² at >=500m²
-  const floorLivingSS = 1610;
-  const startLivingSS = 2360;
+  // Single Storey H2 living rate decays from $2,530/m² at ~120m² down to $1,780/m² at >=500m²
+  // Calibrated so a typical 200m² SS custom (~145m² living + garage/alfresco/porch) is ~$31,000 above standard project homes (~$389k vs ~$358k)
+  const floorLivingSS = 1780;
+  const startLivingSS = 2530;
 
-  // Double Storey H2 living rates decay: GF from $2,380 down to $1,620; FF from $2,650 down to $1,800
-  const floorGfLivingDS = 1620;
-  const startGfLivingDS = 2380;
-  const floorFfLivingDS = 1800;
-  const startFfLivingDS = 2650;
+  // Double Storey H2 living rates decay: GF from $2,560 down to $1,790; FF from $2,850 down to $1,980
+  // Calibrated so a 300m² DS custom is ~$48,000 above standard project homes (~$613k vs ~$565k)
+  const floorGfLivingDS = 1790;
+  const startGfLivingDS = 2560;
+  const floorFfLivingDS = 1980;
+  const startFfLivingDS = 2850;
 
   const effectiveM2 = totalM2 > 0 ? totalM2 : 200;
   const decayRateSS = Math.exp(-Math.max(0, effectiveM2 - 120) / 160);
@@ -228,7 +230,7 @@ export function getCustomAreaRates(
   // and ALWAYS preserve tier adjustments (+150 for H3, -80 for H1) so switching inclusions works properly.
   const isLegacyPlaceholderRate = (rate?: number) => {
     if (!rate || rate <= 0) return true;
-    const legacyValues = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650];
+    const legacyValues = [1660, 1580, 1720, 1500, 1800, 2050, 1620, 2360, 2380, 2650, 2065, 1917, 2132];
     return legacyValues.includes(rate);
   };
 

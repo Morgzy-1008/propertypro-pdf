@@ -148,6 +148,14 @@ export function loadCustomRates() {
     if ([1050, 1150, 1400].includes(rates.garageM2Rate)) {
       rates.garageM2Rate = DEFAULT_CUSTOM_RATES.garageM2Rate;
     }
+    if (!rates.singleGroundLivingM2Rate || rates.singleGroundLivingM2Rate === 1420 || rates.singleGroundLivingM2Rate < 1700) {
+      rates.singleGroundLivingM2Rate = DEFAULT_CUSTOM_RATES.singleGroundLivingM2Rate;
+      rates.singleGroundLivingH3M2Rate = DEFAULT_CUSTOM_RATES.singleGroundLivingH3M2Rate;
+      rates.doubleGroundLivingM2Rate = DEFAULT_CUSTOM_RATES.doubleGroundLivingM2Rate;
+      rates.doubleUpperLivingM2Rate = DEFAULT_CUSTOM_RATES.doubleUpperLivingM2Rate;
+      rates.doubleGroundLivingH3M2Rate = DEFAULT_CUSTOM_RATES.doubleGroundLivingH3M2Rate;
+      rates.doubleUpperLivingH3M2Rate = DEFAULT_CUSTOM_RATES.doubleUpperLivingH3M2Rate;
+    }
     return rates;
   } catch {
     return DEFAULT_CUSTOM_RATES;

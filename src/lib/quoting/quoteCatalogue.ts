@@ -28,12 +28,12 @@ export const EXTENSION_RATES_BY_TIER = {
 } as const;
 
 export const DEFAULT_CUSTOM_RATES = {
-  singleGroundLivingM2Rate: 1420,
-  singleGroundLivingH3M2Rate: 1550,
-  doubleGroundLivingM2Rate: 1420,
-  doubleUpperLivingM2Rate: 1630,
-  doubleGroundLivingH3M2Rate: 1550,
-  doubleUpperLivingH3M2Rate: 1760,
+  singleGroundLivingM2Rate: 2235, // Reference living $/m² at 200m² H2 (+$31k custom premium over project homes)
+  singleGroundLivingH3M2Rate: 2385, // Reference living $/m² at 200m² H3 (+150 tier adj)
+  doubleGroundLivingM2Rate: 2090, // Reference GF living $/m² at 300m² H2
+  doubleUpperLivingM2Rate: 2319, // Reference FF living $/m² at 300m² H2
+  doubleGroundLivingH3M2Rate: 2240, // Reference GF living $/m² at 300m² H3 (+150 tier adj)
+  doubleUpperLivingH3M2Rate: 2481, // Reference FF living $/m² at 300m² H3 (+162 tier adj)
   garageM2Rate: 1330,
   ancillaryM2Rate: 920, // Alfresco ($920/m² in H2)
   porchM2Rate: 740, // Porch ($740/m² in H2)
