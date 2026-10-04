@@ -14,7 +14,6 @@ import {
   Users,
   Compass,
   UserCheck,
-  Radio,
   Clock,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
@@ -463,85 +462,17 @@ function WelcomeHubPage() {
         )}
 
         {/* Welcome Greeting Header */}
-        <div className="text-center max-w-3xl mx-auto mb-10 relative">
-          {/* Futuristic System Tag */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-gradient-to-r from-amber-500/10 via-brand-gold/15 to-amber-500/10 border border-brand-gold/30 text-brand-gold text-[11px] font-mono tracking-widest uppercase mb-4 shadow-sm backdrop-blur-md">
-            <Sparkles className="h-3.5 w-3.5 text-brand-gold animate-pulse" />
-            <span>HUDSON HOMES // DIGITAL BUILDER OS</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-          </div>
-
+        <div className="text-center max-w-5xl mx-auto mb-8 sm:mb-12 relative pt-2 sm:pt-4">
           <h1
-            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-normal sm:leading-[1.2] pb-4 overflow-visible ${
+            className={`text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight leading-[1.12] sm:leading-[1.08] pb-4 overflow-visible ${
               isLight ? "text-slate-900" : "text-white"
             }`}
           >
             {greeting},{" "}
-            <span className="relative inline-block px-1 pt-1 pb-3 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)] align-baseline">
+            <span className="relative inline-block px-2 pt-1 pb-4 text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-amber-300 to-orange-400 drop-shadow-[0_0_35px_rgba(245,158,11,0.4)] align-baseline">
               {displayName}
             </span>.
           </h1>
-
-          {/* Futuristic Telemetry HUD Capsule */}
-          {staffUser && (
-            <div
-              className={`mt-4 inline-flex flex-wrap items-center justify-center gap-2.5 px-4 py-1.5 rounded-full border shadow-lg backdrop-blur-xl ${
-                isLight
-                  ? "bg-white/90 border-slate-200/90 text-slate-700"
-                  : "bg-slate-900/80 border-slate-800/90 text-slate-300 shadow-black/50"
-              }`}
-            >
-              <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                <Radio className="h-3 w-3 text-emerald-400 animate-pulse" />
-                <span className="text-emerald-400 font-bold tracking-wider uppercase">NODE ONLINE</span>
-              </span>
-              <span className="text-slate-600 font-mono">|</span>
-              <span className="text-amber-400 font-semibold text-xs tracking-wide">{staffUser.displayCentre}</span>
-              <span className="text-slate-600 font-mono">|</span>
-              <span className="text-slate-400 text-xs font-mono">{staffUser.phone}</span>
-              <span className="text-slate-600 font-mono">|</span>
-              <span className="text-cyan-400 text-[11px] font-mono uppercase tracking-wider font-semibold">
-                24H ACTIVE SESSION
-              </span>
-            </div>
-          )}
-
-          {/* Quick Profile Switcher Trigger */}
-          <div className="mt-3.5 flex items-center justify-center gap-2.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setIsProfileSwitcherOpen(true)}
-              className={`group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-xs font-bold shadow-md cursor-pointer ${
-                isLight
-                  ? "bg-slate-100/95 border-slate-300 text-slate-800 hover:bg-amber-100 hover:border-amber-400 hover:text-amber-950"
-                  : "bg-slate-900/90 border-slate-700/80 text-amber-300 hover:bg-amber-950/40 hover:border-amber-500/50 shadow-black/40"
-              }`}
-            >
-              <Users className="h-3.5 w-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-              <span>Switch Profile &amp; Preview Login</span>
-            </button>
-
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={() => setIsAdminModalOpen(true)}
-                className={`group relative inline-flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all text-xs font-semibold shadow-md cursor-pointer overflow-hidden ${
-                  isLight
-                    ? "bg-amber-100/90 border-amber-300 text-amber-950 hover:bg-amber-200 hover:border-amber-400 hover:shadow-amber-500/20"
-                    : "bg-gradient-to-r from-amber-950/70 via-slate-900/90 to-amber-950/70 border-amber-500/40 text-amber-300 hover:border-amber-400 hover:text-amber-200 hover:shadow-lg hover:shadow-amber-500/20"
-                }`}
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-amber-400 group-hover:scale-110 transition-transform" />
-                <span className="tracking-wide">Website Admin Portal &amp; Security Controls</span>
-                {pendingCount > 0 && (
-                  <span className="px-2 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black animate-pulse">
-                    {pendingCount} Pending
-                  </span>
-                )}
-                <ArrowRight className="h-3 w-3 text-amber-400 ml-0.5 group-hover:translate-x-1 transition-transform" />
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Hudson Homes Personal AI Assistant with Ambient Aura */}
