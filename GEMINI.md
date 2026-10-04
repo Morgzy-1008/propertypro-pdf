@@ -51,3 +51,27 @@ Large refactors must be done in sequenced, individually-verified steps — lowes
 Once a task is genuinely complete, end your turn. Do not use scheduling, task-management, or recurring-check tools (e.g. schedule, manage_task) to keep yourself "standing by" or checking in at intervals while waiting for my reply.
 A finished turn with no further action needed costs nothing while it sits idle. A loop that re-runs a command and generates a new "still standing by" message every cycle costs real tokens for zero added value, every single cycle, indefinitely, until manually stopped.
 If you are unsure whether a task is fully finished, say so explicitly and end your turn — do not create a recurring task to "keep checking" as a substitute for either finishing the verification now or asking me a direct question.
+
+## 8. Anti-Hallucination & Empirical Grounding Invariant
+CRITICAL REQUIREMENT: You must NEVER invent, assume, or guess facts, data, specs, or UI states. All development must be strictly grounded in empirical evidence and canonical sources.
+
+1. **Canonical Data Sources Only**:
+   - Never hardcode or assume architectural specs, dimensions, areas, pricing rates, or business rules from memory.
+   - Always read and ground directly in the codebase's canonical master files (`pricelist.data.ts`, `quoteCatalogue.ts`, CAD registries, official brochures, and statutory planning schemes).
+   - If an official spec or baseline is missing or contradictory, STOP and check the brochure/CAD registry or flag the exact discrepancy to the user.
+
+2. **Clean-Slate & Dynamic Memory Isolation**:
+   - When developing or testing dynamic recognition tools, parsers, or quoting engines, NEVER allow residual cache or previous run memory to carry over.
+   - Always ensure state is dynamically cleared/isolated (`clearLearnedFeatureMemory()`, fresh browser sessions, wiped localStorage) so features are proven to work dynamically on arbitrary new inputs, not just pre-cached test cases.
+
+3. **Zero Test Selector Hallucination**:
+   - Never guess button text, modal titles, or DOM selectors in automated Playwright or unit test scripts.
+   - Always inspect the actual component JSX/TSX first to match exact strings, attributes, and element hierarchies before writing or running tests.
+
+4. **Empirical Visual Verification**:
+   - Code changes to layout, modals, colors, or workflows are categorically unverified until an actual browser test executes, navigates, interacts, and captures screenshots confirming the intended result.
+   - Never report a feature as "working," "fixed," or "complete" without inspecting the captured screenshot or test output.
+
+5. **In-App AI Grounding**:
+   - Any AI assistant or generative feature built into the app must be strictly grounded with deterministic registries, master specifications, and authoritative statutory data.
+   - In-app agents must never provide fabricated estimates, hallucinations, or apologetic refusals ("cannot answer with 100% confidence")—they must provide authoritative, grounded answers or transparently cite statutory authority constraints.
