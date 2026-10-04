@@ -211,7 +211,7 @@ function ConsultantContactPage() {
 
       {/* Footer */}
       <footer className="py-4 text-center text-[10px] text-slate-400">
-        Hudson Homes · Zero Surprises
+        Hudson Homes · Home &amp; Land Specialist
       </footer>
     </div>
   );

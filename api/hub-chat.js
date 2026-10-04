@@ -25,7 +25,7 @@ You are strictly instructed:
 - **Core Offering**: Fixed-price House & Land packages, design-and-construct residential homes, single-storey, double-storey, duplex / dual occupancy, and granny flats.
 - **Key Guarantees**:
   - 50-Year Structural Warranty on all homes built.
-  - Fixed Price Contract Guarantee with zero hidden surprises.
+  - Fixed Price Contract Guarantee with true fixed-price certainty.
   - Guaranteed Construction Timeframes (with time-completion promises).
   - Fixed Price Site Costs including up to H-class slab, concrete piering, council submission (DA or CDC), BASIX / NatHERS 7-Star thermal efficiency compliance.
 - **Key Display Locations**:
@@ -3315,7 +3315,7 @@ Hudson Homes offers an inspiring portfolio of designer facades engineered to max
     return {
       answer: `### Hudson Homes Fixed Price Tender Journey & 8-Step Building Process
 
-Hudson Homes provides a transparent, structured pathway from initial concept through to key handover, eliminating surprises:
+Hudson Homes provides a transparent, structured pathway from initial concept through to key handover, ensuring complete certainty:
 
 #### Step 1: Initial Consultation & Design Selection
 - Meet with your dedicated New Home Consultant (NHC) at our display centres (e.g. HomeWorld Warnervale, Sydney Metro, Hunter, or SEQ).
@@ -3425,7 +3425,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 
 #### 5. FHB: First Home Buyer Range ("Start Smart")
 *Designed for first-time buyers wanting complete cost certainty and government grant eligibility.*
-- **Fixed-Price Certainty**: No price escalation surprises, ensuring smooth bank and lender approvals.
+- **Fixed-Price Certainty**: No price escalation clauses, ensuring smooth bank and lender approvals.
 - **FHOG Ready**: Optimised for state first home owner grants (up to \$30,000 in QLD / \$10,000 in NSW) and stamp duty exemptions.
 - **Complete Inclusions**: Floor coverings, air conditioning, modern kitchen, and full turn-key options so buyers move straight in without out-of-pocket delays.
 

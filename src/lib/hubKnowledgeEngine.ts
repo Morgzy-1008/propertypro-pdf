@@ -918,7 +918,7 @@ Hudson Homes provides Australia's industry-leading builder protection for comple
 
 2. **Fixed Price Contract Guarantee**:
    - Once your Hudson Building Contract is signed, your contract price is **100% genuine fixed price**.
-   - Zero price escalation clauses, zero hidden surprise fees during construction.
+   - Zero price escalation clauses, zero hidden fees during construction.
 
 3. **Guaranteed Timeframes**:
    - Contractually promised construction completion timelines for predictable move-in dates and fast rental returns.
@@ -983,7 +983,7 @@ Every Hudson Homes build complies fully with the latest National Construction Co
 
 1. **Queensland (QLD) Policy Update (New Price List)**:
    - **$0 Additional Allowances**: Under the new Queensland price list, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed!).
-   - Full NatHERS 7-Star compliance (insulation batts, thermal performance, glazed openings, heat pump hot water) is fully built into base pricing with zero surprise cost variations.
+   - Full NatHERS 7-Star compliance (insulation batts, thermal performance, glazed openings, heat pump hot water) is fully built into base pricing with zero cost variations.
 
 2. **New South Wales (NSW) BASIX Certificate**:
    - Fixed site costs include full BASIX thermal, water (rainwater tank connection to toilets/laundry/garden), and energy compliance documentation.
@@ -2568,7 +2568,7 @@ Hudson Homes offers an inspiring portfolio of designer facades engineered to max
     return {
       answer: `### Hudson Homes Fixed Price Tender Journey & 8-Step Building Process
 
-Hudson Homes provides a transparent, structured pathway from initial concept through to key handover, eliminating surprises:
+Hudson Homes provides a transparent, structured pathway from initial concept through to key handover, ensuring complete certainty:
 
 #### Step 1: Initial Consultation & Design Selection
 - Meet with your dedicated New Home Consultant (NHC) at our display centres (e.g. HomeWorld Warnervale, Sydney Metro, Hunter, or SEQ).
@@ -2838,7 +2838,7 @@ Hudson Homes offers **five distinct inclusion ranges** tailored to different buy
 
 #### 5. FHB: First Home Buyer Range ("Start Smart")
 *Designed for first-time buyers wanting complete cost certainty and government grant eligibility.*
-- **Fixed-Price Certainty**: No price escalation surprises, ensuring smooth bank and lender approvals.
+- **Fixed-Price Certainty**: No price escalation clauses, ensuring smooth bank and lender approvals.
 - **FHOG Ready**: Optimised for state first home owner grants (up to \$30,000 in QLD / \$10,000 in NSW) and stamp duty exemptions.
 - **Complete Inclusions**: Floor coverings, air conditioning, modern kitchen, and full turn-key options so buyers move straight in without out-of-pocket delays.
 

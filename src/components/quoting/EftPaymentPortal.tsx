@@ -282,7 +282,7 @@ export function EftPaymentPortal({ details }: EftPaymentPortalProps) {
             ? "Hudson Homes (NSW) Pty Ltd · ABN 49 163 189 071 · Licence 259372C"
             : "Hudson Homes (QLD) Pty Ltd · ABN 92 623 431 685 · QBCC Licence 15078318"}
         </div>
-        <div className="text-[11px] text-slate-600">Zero Surprises Guarantee · National Australia Bank Trust Account</div>
+        <div className="text-[11px] text-slate-600">National Australia Bank Trust Account</div>
       </footer>
     </div>
   );

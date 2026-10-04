@@ -480,7 +480,7 @@ export function generateComplianceSummaryPdf({
   pdf.text("• FIXED PRICE CONTRACT GUARANTEE:", margin + 4, y2 + 10);
   pdf.setFont("helvetica", "normal");
   pdf.setTextColor(69, 26, 3);
-  pdf.text("True fixed price peace of mind with zero escalation clauses and zero surprise price increases after contract execution.", margin + 48, y2 + 10);
+  pdf.text("True fixed price peace of mind with zero escalation clauses and fixed contract terms after execution.", margin + 48, y2 + 10);
 
   pdf.setFont("helvetica", "bold");
   pdf.setTextColor(120, 53, 15);

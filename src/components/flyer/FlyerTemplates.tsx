@@ -28,68 +28,40 @@ export function Logo({
   light = false,
   size = 15,
   className = "",
-  modern,
+  modern: _modern,
 }: {
   light?: boolean;
   size?: number;
   className?: string;
   modern?: boolean;
 }) {
-  const isModern = modern !== undefined ? modern : isLocalhost();
-
   return (
     <div className={`flex items-center gap-[3mm] ${className}`}>
       {/* Authentic Hudson Homes house mark emblem */}
       <HudsonMark size={size} />
-      {isModern ? (
-        /* Brand text to the right of emblem - experimental localhost modernized layout */
+      {/* Clean, bold HUDSON HOMES brand text */}
+      <div
+        className={`border-l pl-[3.5mm] flex items-center justify-center ${
+          light ? "border-brand-cream/40" : "border-slate-300"
+        }`}
+        style={{ minHeight: `${size * 0.85}mm` }}
+      >
         <div
-          className={`border-l pl-[3.5mm] flex items-center justify-center ${
-            light ? "border-brand-cream/40" : "border-slate-300"
+          className={`font-sans font-extrabold tracking-[0.16em] uppercase leading-tight ${
+            light ? "text-white" : "text-brand-navy"
           }`}
-          style={{ minHeight: `${size * 0.85}mm` }}
+          style={{ fontSize: `${size * 0.52}mm` }}
         >
-          <div
-            className={`font-sans font-extrabold tracking-[0.16em] uppercase leading-tight ${
-              light ? "text-white" : "text-brand-navy"
-            }`}
-            style={{ fontSize: `${size * 0.52}mm` }}
-          >
-            HUDSON HOMES
-          </div>
+          HUDSON HOMES
         </div>
-      ) : (
-        /* Brand text to the right of emblem - official live production layout */
-        <div
-          className={`border-l pl-[3mm] flex flex-col justify-center leading-none ${
-            light ? "border-brand-cream/30" : "border-brand-navy/20"
-          }`}
-        >
-          <div
-            className={`font-sans font-bold tracking-[0.16em] ${
-              light ? "text-white" : "text-brand-navy"
-            }`}
-            style={{ fontSize: `${size * 0.42}mm` }}
-          >
-            HUDSON HOMES
-          </div>
-          <div
-            className={`mt-[0.9mm] tracking-[0.28em] font-semibold ${
-              light ? "text-brand-gold" : "text-brand-gold-deep"
-            }`}
-            style={{ fontSize: `${size * 0.17}mm` }}
-          >
-            ZERO SURPRISES
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
 
 /**
  * V2 Hudson Homes logo:
- * Clean, bold, larger HUDSON HOMES brand text with no "Zero Surprises" tagline.
+ * Clean, bold, larger HUDSON HOMES brand text.
  */
 export function LogoV2({
   light = false,
@@ -915,7 +887,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
   );
 }
 
-/* ------------------- Express Flyer V2 (Larger Logo, No Zero Surprises) ------------------- */
+/* ------------------- Express Flyer V2 (Larger Logo, Modern Layout) ------------------- */
 export function ExpressFlyerV2({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
@@ -1067,7 +1039,7 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
   );
 }
 
-/* ----------------- House Only Flyer V2 (Larger Logo, No Zero Surprises) ----------------- */
+/* ----------------- House Only Flyer V2 (Larger Logo, Modern Layout) ----------------- */
 export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>

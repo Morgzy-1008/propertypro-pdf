@@ -38,7 +38,6 @@ const fs = require('fs');
         ${svgContent}
         <div style="border-left: 2px solid rgba(25, 35, 60, 0.2); padding-left: 15px; font-family: 'Barlow', sans-serif;">
           <div style="font-size: 22px; font-weight: 700; color: #18223c; letter-spacing: 0.16em; line-height: 1;">HUDSON HOMES</div>
-          <div style="font-size: 9.5px; font-weight: 600; color: #b8860b; letter-spacing: 0.32em; margin-top: 5px; line-height: 1;">ZERO SURPRISES</div>
         </div>
       </div>
       <!-- Dark Background Preview -->
@@ -46,7 +45,6 @@ const fs = require('fs');
         ${svgContent}
         <div style="border-left: 2px solid rgba(255, 255, 255, 0.25); padding-left: 15px; font-family: 'Barlow', sans-serif;">
           <div style="font-size: 22px; font-weight: 700; color: #ffffff; letter-spacing: 0.16em; line-height: 1;">HUDSON HOMES</div>
-          <div style="font-size: 9.5px; font-weight: 600; color: #e6b144; letter-spacing: 0.32em; margin-top: 5px; line-height: 1;">ZERO SURPRISES</div>
         </div>
       </div>
     </div>

@@ -528,7 +528,7 @@ function PackagesBrowse() {
                 {selectedState === "QLD" ? "Queensland" : selectedState === "NSW" ? "New South Wales" : "Queensland & NSW"} House &amp; Land Packages
               </h1>
               <p className="mt-2 text-sm text-slate-400 max-w-2xl leading-relaxed">
-                Discover complete, turn-key House &amp; Land packages across Queensland and New South Wales. Every home features our Zero Surprises guarantee, lifetime structural warranty, and premium inclusions.
+                Discover complete, turn-key House &amp; Land packages across Queensland and New South Wales. Every home features fixed-price certainty, lifetime structural warranty, and premium inclusions.
               </p>
             </div>
 

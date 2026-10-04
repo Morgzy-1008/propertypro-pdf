@@ -119,7 +119,7 @@ export function StaffSignInModal({
 
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-semibold">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Zero Surprises OS</span>
+              <span>Digital Builder OS</span>
             </div>
           </div>
 

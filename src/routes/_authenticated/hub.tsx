@@ -657,7 +657,7 @@ function WelcomeHubPage() {
         } py-4 text-center text-xs relative backdrop-blur-md`}
       >
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
-        Hudson Homes {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales" : "Queensland"} • Zero Surprises • Powered by Package Studio &amp; Hudson Horizon
+        Hudson Homes {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales" : "Queensland"} • Powered by Package Studio &amp; Hudson Horizon
       </footer>
     </div>
   );

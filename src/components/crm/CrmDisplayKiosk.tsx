@@ -254,7 +254,7 @@ export function CrmDisplayKiosk() {
 
       {/* Footer */}
       <footer className="max-w-4xl mx-auto w-full text-center text-[11px] text-slate-500 border-t border-slate-900 pt-3">
-        Hudson Homes Queensland &bull; Zero Surprises &bull; Hudson Horizon Integrated System
+        Hudson Homes Queensland &bull; Hudson Horizon Integrated System
       </footer>
     </div>
   );

@@ -782,7 +782,7 @@ export function TenderMasterPdfDocument({ tender }: TenderMasterPdfDocumentProps
               <div>
                 <span className="text-[9px] uppercase text-slate-500 block font-bold">Inclusion Tier:</span>
                 <strong className="text-emerald-700 text-xs">{homeSpec.inclusionsType}</strong>
-                <span className="text-[10px] text-slate-500 block">Zero Surprises Guarantee</span>
+                <span className="text-[10px] text-slate-500 block">Fixed-Price Inclusions</span>
               </div>
             </div>
           </div>
