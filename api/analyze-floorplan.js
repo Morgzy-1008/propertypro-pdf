@@ -255,9 +255,24 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
 3. THOROUGH ROOM-BY-ROOM AUDIT & COMPARISON (DO NOT ASSUME IDENTICAL):
    - You MUST conduct a meticulous room-by-room, door-by-door, and dimension-by-dimension audit comparing Image 2 against Image 1.
    - Do NOT assume Image 2 is identical just because it says "${suggestedDesign}" in the title block. Many plans are customized (e.g. "${suggestedDesign} Custom").
-   - CRITICAL NOTE ON MARGIN TABLES: Locate and transcribe the printed Area Schedule table anywhere on the sheet (title block, margin notes, drawing header, corner schedule), regardless of font style, handwriting, or cursive script. Draftsmen and clients often modify wall lines, push out alfrescos, or step out garage walls WITHOUT updating the printed schedule table in the margin (which often still shows the original brochure numbers). DO NOT RELY ON THE PRINTED TABLE TO DECIDE IF WALLS MOVED! You must inspect the actual drawn wall lines and room boundaries in Image 2 vs Image 1.
+   - CRITICAL: SCHEDULE TABLE EXTRACTION (EXCLUSIVELY FROM IMAGE 2):
+     * You MUST extract "scheduleTable" ONLY from IMAGE 2 (the candidate drawing). NEVER copy or transcribe the table from Image 1! Image 1 is strictly for visual geometric baseline reference.
+     * Locate and transcribe the printed Area Schedule table on Image 2 (commonly bottom-left corner, title block, or margin notes):
+       Living Area (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²).
+     * If an Area Schedule table exists on Image 2, transcribe its exact numbers into "scheduleTable".
+
+   - FOR PLANS WITHOUT A PRINTED AREA SCHEDULE TABLE (DIMENSION-BASED DERIVATION):
+     * If Image 2 does NOT have a printed area schedule table (or only has room dimension callouts):
+       - Read the room callouts and dimensions printed on Image 2:
+         * Outdoor Alfresco (e.g. "Alfresco 5.3 x 3.6" -> 5.3 × 3.6 = 19.08 m²). Compare to standard baseline ${standardAlfrescoM2} m².
+         * Garage (e.g. "Garage 5.7 x 6.0" -> 34.20 m² internal, ~38.4 m² slab). Compare to standard baseline ${standardGarageM2} m².
+         * Front Porch (e.g. "Porch 2.0 x 4.3" -> 8.60 m² or slab footprint). Compare to standard baseline ${standardPorchM2} m².
+         * Living/Family/Dining/Bedrooms: read internal room sizes, sum habitable spaces, and compare to standard baseline ${standardLivingM2} m².
+       - Populate "scheduleTable" with these derived m² values!
+       - Explicitly output "areaModifications" showing the exact zone deltas!
+
    - Check every room label, wall line, and dimension on Image 2 against Image 1:
-     * Outdoor Alfresco: Check printed dimensions (e.g. 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms (Bed 3, Children's Activity) past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
+     * Outdoor Alfresco: Check printed dimensions (e.g. 5.3x3.6 vs 3.8x2.2 or 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms (Bed 3, Children's Activity) past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
      * Garage: Check if the garage is widened or stepped outward (e.g. right wall stepped out beyond living/laundry wall line, 5.7x5.7 vs 5.5x5.5, or dedicated storage/workshop bay addition). If extended, report "garage" area extension with calculated deltaM2!
      * Kitchen Island Sinks: Compare the kitchen island sink fixture. Standard is a 1.5 bowl top-mount / drop-in sink with a drainer tray. If upgraded to a DOUBLE UNDERMOUNT SINK (two equal square/rectangular bowls seamlessly undermounted with NO drainer board), report this as an inclusion upgrade!
      * Butler's Pantry / Walk-In Pantry (WIP): Check inside the Walk-In Pantry. Standard has dry perimeter shelving with NO sink. If a secondary prep sink, tapware, and water/drainage plumbing is added to the bench, report this as an inclusion upgrade!
@@ -654,6 +669,52 @@ Return ONLY valid JSON matching this schema:
     if (suggestedDesign && suggestedDesign !== "UNSELECTED") {
       parsedData.detectedModelName = suggestedDesign;
       parsedData.housingType = housingType || "Single Storey";
+    }
+
+    // Mathematical Identity Solver for Candidate Schedule Table: Total = Living + Garage + Alfresco + Porch
+    if (parsedData.scheduleTable && parsedData.scheduleTable.totalM2 && parsedData.scheduleTable.totalM2 > 50) {
+      const tot = parsedData.scheduleTable.totalM2;
+      const liv = parsedData.scheduleTable.livingM2;
+      const gar = parsedData.scheduleTable.garageM2;
+      const alf = parsedData.scheduleTable.alfrescoM2;
+      const por = parsedData.scheduleTable.porchM2;
+
+      if (!alf && liv && gar && por) {
+        const derivedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
+        if (derivedAlf > 2 && derivedAlf < 80) {
+          parsedData.scheduleTable.alfrescoM2 = derivedAlf;
+        }
+      } else if (!por && liv && gar && alf) {
+        const derivedPor = Math.round((tot - (liv + gar + alf)) * 100) / 100;
+        if (derivedPor > 0.5 && derivedPor < 30) {
+          parsedData.scheduleTable.porchM2 = derivedPor;
+        }
+      } else if (!gar && liv && alf && por) {
+        const derivedGar = Math.round((tot - (liv + alf + por)) * 100) / 100;
+        if (derivedGar > 10 && derivedGar < 120) {
+          parsedData.scheduleTable.garageM2 = derivedGar;
+        }
+      } else if (!liv && gar && alf && por) {
+        const derivedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
+        if (derivedLiv > 50 && derivedLiv < 500) {
+          parsedData.scheduleTable.livingM2 = derivedLiv;
+        }
+      }
+    }
+
+    // Ensure alfresco modification is included if candidate table shows alfresco extension
+    if (parsedData.scheduleTable?.alfrescoM2 && standardAlfrescoM2) {
+      const alfDelta = Math.round((parsedData.scheduleTable.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
+      if (Math.abs(alfDelta) >= 0.1 && (!parsedData.areaModifications || !parsedData.areaModifications.some((m) => m.zone === "alfresco"))) {
+        if (!parsedData.areaModifications) parsedData.areaModifications = [];
+        parsedData.areaModifications.push({
+          zone: "alfresco",
+          deltaM2: alfDelta,
+          reason: alfDelta > 0
+            ? `Covered Alfresco extended from ${standardAlfrescoM2} m² to ${parsedData.scheduleTable.alfrescoM2} m² (+${alfDelta.toFixed(2)} m²)`
+            : `Covered Alfresco reduced from ${standardAlfrescoM2} m² to ${parsedData.scheduleTable.alfrescoM2} m² (${alfDelta.toFixed(2)} m²)`,
+        });
+      }
     }
 
     if (parsedData.detectedInclusions && Array.isArray(parsedData.detectedInclusions)) {

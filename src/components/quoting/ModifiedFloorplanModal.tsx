@@ -124,7 +124,8 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       lower.includes("outdoor living") ||
       lower.includes("outdoor") ||
       lower.includes("deck") ||
-      lower.includes("verandah")
+      lower.includes("verandah") ||
+      /a[li1t|]fresc[oa]/.test(lower)
     ) {
       result.alfrescoM2 = val;
       result.matchedLines?.push(cleanLine);
@@ -132,7 +133,8 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       lower.includes("porch") ||
       lower.includes("portico") ||
       lower.includes("entry porch") ||
-      lower.includes("front porch")
+      lower.includes("front porch") ||
+      /p[o0]rch/.test(lower)
     ) {
       result.porchM2 = val;
       result.matchedLines?.push(cleanLine);
@@ -175,6 +177,37 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     }
   }
 
+  // Mathematical Identity Solver: Total = Living (or Ground + First) + Garage + Alfresco + Porch
+  if (result.totalM2 && result.totalM2 > 50) {
+    const tot = result.totalM2;
+    const liv = result.livingM2 || ((result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) || undefined;
+    const gar = result.garageM2;
+    const alf = result.alfrescoM2;
+    const por = result.porchM2;
+
+    if (!alf && liv && gar && por) {
+      const derivedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
+      if (derivedAlf > 2 && derivedAlf < 80) {
+        result.alfrescoM2 = derivedAlf;
+      }
+    } else if (!por && liv && gar && alf) {
+      const derivedPor = Math.round((tot - (liv + gar + alf)) * 100) / 100;
+      if (derivedPor > 0.5 && derivedPor < 30) {
+        result.porchM2 = derivedPor;
+      }
+    } else if (!gar && liv && alf && por) {
+      const derivedGar = Math.round((tot - (liv + alf + por)) * 100) / 100;
+      if (derivedGar > 10 && derivedGar < 120) {
+        result.garageM2 = derivedGar;
+      }
+    } else if (!liv && gar && alf && por) {
+      const derivedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
+      if (derivedLiv > 50 && derivedLiv < 500) {
+        result.livingM2 = derivedLiv;
+      }
+    }
+  }
+
   const compSum =
     (result.livingM2 || (result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) +
     (result.garageM2 || 0) +
@@ -183,7 +216,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     (result.balconyM2 || 0);
 
   if (compSum > 0 || (result.totalM2 && result.totalM2 > 0)) {
-    if (!result.totalM2 || Math.abs(result.totalM2 - compSum) > 5) {
+    if (!result.totalM2) {
       result.totalM2 = Number(compSum.toFixed(2));
     }
     return result;
