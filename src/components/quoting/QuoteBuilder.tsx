@@ -100,8 +100,7 @@ export function QuoteBuilder() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  // Cover page version switcher: v1 (classic), v2 (geometric facet), v3 (futuristic glass)
-  const [coverVersion, setCoverVersion] = useState<"v1" | "v2" | "v3">("v2");
+  const [coverVersion] = useState<"v1">("v1");
 
   // Sync with IndexedDB & localStorage on mount
   useEffect(() => {
@@ -899,47 +898,6 @@ export function QuoteBuilder() {
                     <span className="text-xs text-slate-400 font-medium">
                       Builders Estimate Document Preview
                     </span>
-
-                    {/* V1, V2, and V3 Cover Page Comparison Switcher */}
-                    <div className="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs shadow-md">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 px-2 flex items-center gap-1">
-                        <Sparkles className="h-3 w-3 text-amber-400" />
-                        Estimate Cover:
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setCoverVersion("v1")}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                          coverVersion === "v1"
-                            ? "bg-slate-800 text-white shadow-xs"
-                            : "text-slate-400 hover:text-slate-200"
-                        }`}
-                      >
-                        V1 Classic
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCoverVersion("v2")}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          coverVersion === "v2"
-                            ? "bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 shadow-xs font-black"
-                            : "text-slate-400 hover:text-slate-200"
-                        }`}
-                      >
-                        V2 Geometric Facet (New)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCoverVersion("v3")}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                          coverVersion === "v3"
-                            ? "bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-500 text-slate-950 shadow-xs font-black"
-                            : "text-slate-400 hover:text-slate-200"
-                        }`}
-                      >
-                        V3 Futuristic Glass (Concept)
-                      </button>
-                    </div>
                   </div>
 
                   <Button

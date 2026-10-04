@@ -1,6 +1,6 @@
 import React from "react";
 import { formatAud } from "@/lib/pricing";
-import { Logo, LogoV2 } from "@/components/flyer/FlyerTemplates";
+import { Logo } from "@/components/flyer/FlyerTemplates";
 import {
   calculateCustomTotalM2,
   calculateModifiedFloorplanPricing,
@@ -721,9 +721,9 @@ function paginateSpecGroups(groups: SpecGroup[]): SpecGroup[][] {
   return pages.length > 0 ? pages : [[]];
 }
 
-export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumentProps) {
+export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumentProps) {
   const { client, design, siteConditions, lineItems, pricing } = quote;
-  const activeCoverVersion = coverVersion || "v2";
+  const activeCoverVersion = "v1";
 
   const validUntilDate = new Date(quote.createdAt);
   validUntilDate.setDate(validUntilDate.getDate() + (client.quoteValidityDays || 14));
@@ -1251,422 +1251,139 @@ export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumen
       style={{ colorScheme: "light" }}
     >
       {/* ========================================================================= */}
-      {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE (V1 OR V2)                  */}
+      {/* PAGE 1: OFFICIAL BUILDERS ESTIMATE COVER PAGE                             */}
       {/* ========================================================================= */}
-      {activeCoverVersion === "v1" ? (
-        /* ------------------------------------------------------------------------- */
-        /* COVER PAGE V1: CLASSIC MINIMAL                                            */
-        /* ------------------------------------------------------------------------- */
-        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-          {/* Crisp Vector Top Poly Header Banner */}
-          <div className="absolute top-0 left-0 right-0 h-80 pointer-events-none overflow-hidden">
-            <svg
-              viewBox="0 0 794 320"
-              className="w-full h-full"
-              preserveAspectRatio="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <defs>
-                <linearGradient id="polyGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.95" />
-                  <stop offset="45%" stopColor="#06b6d4" stopOpacity="0.95" />
-                  <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.95" />
-                </linearGradient>
-                <linearGradient id="polyGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
-                  <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
-                </linearGradient>
-                <linearGradient id="polyGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
-                  <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
-                </linearGradient>
-              </defs>
-              <polygon points="0,0 794,0 794,220 480,290 0,160" fill="url(#polyGrad1)" />
-              <polygon points="220,0 794,0 794,270 320,200" fill="url(#polyGrad2)" />
-              <polygon points="0,0 450,0 300,180 0,140" fill="url(#polyGrad3)" />
-            </svg>
+      <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
+        {/* Crisp Vector Top Poly Header Banner */}
+        <div className="absolute top-0 left-0 right-0 h-80 pointer-events-none overflow-hidden">
+          <svg
+            viewBox="0 0 794 320"
+            className="w-full h-full"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <defs>
+              <linearGradient id="polyGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.95" />
+                <stop offset="45%" stopColor="#06b6d4" stopOpacity="0.95" />
+                <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.95" />
+              </linearGradient>
+              <linearGradient id="polyGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ec4899" stopOpacity="0.8" />
+                <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.8" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0.8" />
+              </linearGradient>
+              <linearGradient id="polyGrad3" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.6" />
+              </linearGradient>
+            </defs>
+            <polygon points="0,0 794,0 794,220 480,290 0,160" fill="url(#polyGrad1)" />
+            <polygon points="220,0 794,0 794,270 320,200" fill="url(#polyGrad2)" />
+            <polygon points="0,0 450,0 300,180 0,140" fill="url(#polyGrad3)" />
+          </svg>
+        </div>
+
+        {/* Top Header Row with Badges & Logo */}
+        <div className="relative z-10 flex items-center justify-between pt-2">
+          <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/60 flex items-center gap-3">
+            <Logo size={11} modern={false} />
           </div>
 
-          {/* Top Header Row with Badges & Logo */}
-          <div className="relative z-10 flex items-center justify-between pt-2">
-            <div className="bg-white/95 backdrop-blur-md px-4 py-2 rounded-xl shadow-lg border border-white/60 flex items-center gap-3">
-              <Logo size={11} />
+          <div className="flex items-center gap-2">
+            <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+              <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
             </div>
-
-            <div className="flex items-center gap-2">
-              <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700">
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
-              </div>
-              <div className="bg-emerald-500 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
-                14-Day Price Hold
-              </div>
+            <div className="bg-emerald-500 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
+              14-Day Price Hold
             </div>
           </div>
+        </div>
 
-          {/* Hero Title Section */}
-          <div className="relative z-10 my-auto text-right pr-6 space-y-1">
-            <div className="text-3xl font-extrabold uppercase tracking-widest text-slate-900">
-              YOUR
-            </div>
-            <div className="text-4xl font-extrabold tracking-tight text-slate-900">
-              NEW HOME
-            </div>
-            <div className="text-6xl font-serif italic text-cyan-700 tracking-tight leading-none pt-1">
-              Builders Estimate
-            </div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 pt-3">
-              Comprehensive Architectural Tender &amp; Site Investment Breakdown
-            </div>
+        {/* Hero Title Section */}
+        <div className="relative z-10 my-auto text-right pr-6 space-y-1">
+          <div className="text-3xl font-extrabold uppercase tracking-widest text-slate-900">
+            YOUR
           </div>
-
-          {/* Bottom Presentation Metadata Box */}
-          <div className="relative z-10 bg-slate-50/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-6 shadow-xl space-y-4">
-            <div className="grid grid-cols-2 gap-6 pb-4 border-b border-slate-200">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
-                  PRESENTED TO
-                </span>
-                <div className="text-base font-extrabold text-slate-900 mt-0.5">
-                  {clientCombinedNames || "Valued Client"}
-                </div>
-                <div className="text-xs text-slate-600 mt-0.5">
-                  {client.clientEmail || "client@email.com"}
-                  {client.clientPhone && ` · ${client.clientPhone}`}
-                </div>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
-                  PROPOSED SITE ADDRESS
-                </span>
-                <div className="text-sm font-bold text-slate-900 mt-0.5">
-                  {client.siteAddress || "Site Address TBA"}
-                </div>
-                <div className="text-xs text-slate-600">
-                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 text-xs">
-              <div>
-                <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                  SELECTED DESIGN:
-                </span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {effectiveDesignName}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                  FACADE STYLE:
-                </span>
-                <span className="font-bold text-slate-900 text-sm">
-                  {design.facadeName || "Standard"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
-                  INCLUSIONS TIER:
-                </span>
-                <span className="inline-block bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
-                  {formatInclusionTierTitle(design.specTier)}
-                </span>
-              </div>
-            </div>
+          <div className="text-4xl font-extrabold tracking-tight text-slate-900">
+            NEW HOME
           </div>
+          <div className="text-6xl font-serif italic text-cyan-700 tracking-tight leading-none pt-1">
+            Builders Estimate
+          </div>
+          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 pt-3">
+            Comprehensive Architectural Tender &amp; Site Investment Breakdown
+          </div>
+        </div>
 
-          {/* Cover Page Footer */}
-          <div className="relative z-10 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+        {/* Bottom Presentation Metadata Box */}
+        <div className="relative z-10 bg-slate-50/90 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="grid grid-cols-2 gap-6 pb-4 border-b border-slate-200">
             <div>
-              {footerLicenceLine}
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
+                PRESENTED TO
+              </span>
+              <div className="text-base font-extrabold text-slate-900 mt-0.5">
+                {clientCombinedNames || "Valued Client"}
+              </div>
+              <div className="text-xs text-slate-600 mt-0.5">
+                {client.clientEmail || "client@email.com"}
+                {client.clientPhone && ` · ${client.clientPhone}`}
+              </div>
             </div>
-            <div className="font-mono">
-              Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
+
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-800 block">
+                PROPOSED SITE ADDRESS
+              </span>
+              <div className="text-sm font-bold text-slate-900 mt-0.5">
+                {client.siteAddress || "Site Address TBA"}
+              </div>
+              <div className="text-xs text-slate-600">
+                {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 text-xs">
+            <div>
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                SELECTED DESIGN:
+              </span>
+              <span className="font-bold text-slate-900 text-sm">
+                {effectiveDesignName}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                FACADE STYLE:
+              </span>
+              <span className="font-bold text-slate-900 text-sm">
+                {design.facadeName || "Standard"}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[10px] uppercase tracking-wider block">
+                INCLUSIONS TIER:
+              </span>
+              <span className="inline-block bg-emerald-100 text-emerald-900 text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-300">
+                {formatInclusionTierTitle(design.specTier)}
+              </span>
             </div>
           </div>
         </div>
-      ) : activeCoverVersion === "v3" ? (
-        /* ------------------------------------------------------------------------- */
-        /* COVER PAGE V3: FUTURISTIC GLASS & TRANSLUCENT FACADE CONCEPT              */
-        /* ------------------------------------------------------------------------- */
-        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-          {/* Translucent Chosen Facade Reflection & Holographic Mesh Background */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-            {/* Soft architectural facade reflection backdrop */}
-            <img
-              src={design.facadeUrl || "/facades/classic.png"}
-              alt="Architectural Backdrop"
-              className="w-full h-full object-cover object-center opacity-15 filter blur-[0.5px] scale-105"
-              style={{ imageRendering: "-webkit-optimize-contrast" }}
-            />
-            {/* Luminous soft white / cyan frosted glass overlay */}
-            <div className="absolute inset-0 bg-gradient-to-tr from-white via-white/85 to-cyan-50/70" />
-            {/* Subtle architectural blueprint precision dot-grid */}
-            <div
-              className="absolute inset-0 opacity-20"
-              style={{
-                backgroundImage: "radial-gradient(#06b6d4 0.75px, transparent 0.75px), radial-gradient(#6366f1 0.75px, transparent 0.75px)",
-                backgroundSize: "24px 24px",
-                backgroundPosition: "0 0, 12px 12px"
-              }}
-            />
-            {/* Low-Poly Crystalline Prism Canopy in Upper Left Corner */}
-            <div className="absolute -top-12 -left-12 w-[460px] h-[320px] opacity-40 pointer-events-none">
-              <HudsonLowPolyCanopy />
-            </div>
+
+        {/* Cover Page Footer */}
+        <div className="relative z-10 pt-4 flex items-center justify-between text-[10px] text-slate-500">
+          <div>
+            {footerLicenceLine}
           </div>
-
-          {/* Top Header Row with Glassmorphic Badges & LogoV2 */}
-          <div className="relative z-10 flex items-start justify-between pt-1">
-            <div className="bg-white/90 backdrop-blur-xl px-5 py-2.5 rounded-2xl shadow-xl border border-white/90 flex items-center gap-3">
-              <LogoV2 size={13} />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700/80 backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
-                <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
-              </div>
-              <div className="bg-gradient-to-r from-cyan-600 to-blue-600 text-white text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
-                14-Day Price Hold
-              </div>
-            </div>
-          </div>
-
-          {/* Hero Title Section with Flowing Cyan Cursive Signature */}
-          <div className="relative z-10 text-right pr-2 pt-6 pb-2 space-y-0.5">
-            <div className="text-3xl font-black uppercase tracking-[0.25em] text-black" style={{ color: "#000000" }}>
-              YOUR
-            </div>
-            <div className="text-5xl font-black tracking-tight text-black leading-none" style={{ color: "#000000" }}>
-              NEW HOME
-            </div>
-            <div
-              className="text-6xl text-cyan-600 font-bold leading-none -mt-2.5 select-none drop-shadow-xs"
-              style={{ fontFamily: "'Dancing Script', 'Brush Script MT', cursive", color: "#0891b2" }}
-            >
-              Builders Estimate
-            </div>
-            <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-700 pt-2 flex items-center justify-end gap-2" style={{ color: "#334155" }}>
-              <span className="h-0.5 w-10 bg-cyan-500 rounded-full" />
-              <span>Comprehensive Architectural Tender &amp; Site Investment Breakdown</span>
-            </div>
-          </div>
-
-          {/* Architectural Hero Facade Showcase in Glass Frame */}
-          <div className="relative z-10 my-auto">
-            <div className="p-2 rounded-2xl bg-white/75 backdrop-blur-md border border-white/90 shadow-2xl">
-              <QuoteCoverFacadeHero design={design} />
-            </div>
-          </div>
-
-          {/* Ultra-Crisp Frosted Glass Presentation Metadata Card */}
-          <div className="relative z-10 bg-white/90 backdrop-blur-xl border border-white/95 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="grid grid-cols-2 gap-6 pb-3.5 border-b border-slate-200/80">
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="h-2.5 w-2.5 rounded-full bg-cyan-600 animate-pulse" />
-                  <span className="text-xs font-black uppercase tracking-wider text-cyan-900">
-                    PRESENTED TO
-                  </span>
-                </div>
-                <div className="text-lg font-black text-slate-950">
-                  {clientCombinedNames || "Valued Client"}
-                </div>
-                <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                  {client.clientEmail || "client@email.com"}
-                  {client.clientPhone && ` · ${client.clientPhone}`}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                  <span className="text-xs font-black uppercase tracking-wider text-blue-900">
-                    PROPOSED SITE ADDRESS
-                  </span>
-                </div>
-                <div className="text-base font-extrabold text-slate-950">
-                  {client.siteAddress || "Site Address TBA"}
-                </div>
-                <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
-                </div>
-              </div>
-            </div>
-
-            {/* Specifications Strip */}
-            <div className="grid grid-cols-3 gap-4 text-xs items-center">
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  SELECTED DESIGN:
-                </span>
-                <span className="font-black text-slate-950 text-base">
-                  {effectiveDesignName}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  FACADE STYLE:
-                </span>
-                <span className="font-black text-slate-950 text-base">
-                  {design.facadeName || "Standard"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  INCLUSIONS TIER:
-                </span>
-                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-emerald-100 to-teal-100 text-emerald-950 text-xs font-black px-3.5 py-1 rounded-full border border-emerald-300 shadow-xs">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  {formatInclusionTierTitle(design.specTier)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cover Page Footer */}
-          <div className="relative z-10 pt-3 flex items-center justify-between text-[10px] text-slate-600 border-t border-slate-200/80">
-            <div className="font-semibold text-slate-700">
-              {footerLicenceLine}
-            </div>
-            <div className="font-mono font-bold text-slate-900">
-              Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
-            </div>
+          <div className="font-mono">
+            Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
           </div>
         </div>
-      ) : (
-        /* ------------------------------------------------------------------------- */
-        /* COVER PAGE V2: GEOMETRIC FACETED CANOPY ARCHITECTURAL (RECOMMENDED)       */
-        /* ------------------------------------------------------------------------- */
-        <div className="quote-page bg-white w-[210mm] h-[297mm] min-h-[297mm] max-h-[297mm] p-10 flex flex-col justify-between relative overflow-hidden shadow-2xl box-border print:shadow-none print:min-h-0 print:h-[297mm] print:page-break-after-always">
-          {/* Top Geometric Low-Poly Faceted Crystal Canopy with Authentic Hudson Colors */}
-          <div className="absolute top-0 left-0 right-0 h-72 pointer-events-none overflow-hidden z-0">
-            <HudsonLowPolyCanopy className="opacity-95" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-white/90" />
-          </div>
-
-          {/* Top Header Row with Badges & LogoV2 with Generous Breathing Room */}
-          <div className="relative z-10 flex items-start justify-between pt-1">
-            <div className="flex items-center gap-2">
-              <div className="bg-slate-900/90 text-white text-[11px] font-bold px-3.5 py-1.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shadow-md border border-slate-700/80 backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span>Builders Estimate #{quote.quoteNumber || "MH678"}</span>
-              </div>
-              <div className="bg-emerald-500 text-slate-950 text-[11px] font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider shadow-md">
-                14-Day Price Hold
-              </div>
-            </div>
-
-            {/* Prominent LogoV2 positioned comfortably at top-right without being cramped */}
-            <div className="bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl shadow-xl border border-white/80 flex items-center gap-3">
-              <LogoV2 size={13} />
-            </div>
-          </div>
-
-          {/* Hero Title Section with Authentic Hudson Inspo Script & Typography */}
-          <div className="relative z-10 text-right pr-2 pt-6 pb-2 space-y-0.5">
-            <div className="text-3xl font-black uppercase tracking-widest text-black" style={{ color: "#000000" }}>
-              YOUR
-            </div>
-            <div className="text-5xl font-black tracking-tight text-black leading-none" style={{ color: "#000000" }}>
-              NEW HOME
-            </div>
-            <div
-              className="text-6xl text-cyan-600 font-bold leading-none -mt-2.5 select-none"
-              style={{ fontFamily: "'Dancing Script', 'Brush Script MT', cursive", color: "#0891b2" }}
-            >
-              Builders Estimate
-            </div>
-            <div className="text-xs font-bold uppercase tracking-[0.22em] text-slate-700 pt-2" style={{ color: "#334155" }}>
-              Comprehensive Architectural Tender &amp; Site Investment Breakdown
-            </div>
-          </div>
-
-          {/* Architectural Hero Imagery Card */}
-          <div className="relative z-10 my-auto">
-            <QuoteCoverFacadeHero design={design} />
-          </div>
-
-          {/* Bottom Presentation Metadata Box with Enlarged High-Contrast Text */}
-          <div className="relative z-10 bg-slate-50/95 backdrop-blur-sm border border-slate-200/90 rounded-2xl p-5 shadow-lg space-y-4">
-            <div className="grid grid-cols-2 gap-6 pb-3.5 border-b border-slate-200">
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="h-2 w-2 rounded-full bg-cyan-600" />
-                  <span className="text-xs font-black uppercase tracking-wider text-cyan-900">
-                    PRESENTED TO
-                  </span>
-                </div>
-                <div className="text-lg font-black text-slate-950">
-                  {clientCombinedNames || "Valued Client"}
-                </div>
-                <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                  {client.clientEmail || "client@email.com"}
-                  {client.clientPhone && ` · ${client.clientPhone}`}
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="h-2 w-2 rounded-full bg-emerald-600" />
-                  <span className="text-xs font-black uppercase tracking-wider text-emerald-900">
-                    PROPOSED SITE ADDRESS
-                  </span>
-                </div>
-                <div className="text-base font-extrabold text-slate-950">
-                  {client.siteAddress || "Site Address TBA"}
-                </div>
-                <div className="text-sm font-semibold text-slate-700 mt-0.5">
-                  {[client.lotNumber, cleanSuburb, quoteState, client.postcode].filter(Boolean).join(" ")}
-                </div>
-              </div>
-            </div>
-
-            {/* Job Specifications Strip */}
-            <div className="grid grid-cols-3 gap-4 text-xs items-center">
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  SELECTED DESIGN:
-                </span>
-                <span className="font-black text-slate-950 text-base">
-                  {effectiveDesignName}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  FACADE STYLE:
-                </span>
-                <span className="font-black text-slate-950 text-base">
-                  {design.facadeName || "Standard"}
-                </span>
-              </div>
-              <div>
-                <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">
-                  INCLUSIONS TIER:
-                </span>
-                <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-950 text-xs font-black px-3.5 py-1 rounded-full border border-emerald-300 shadow-xs">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  {formatInclusionTierTitle(design.specTier)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Cover Page Footer */}
-          <div className="relative z-10 pt-3 flex items-center justify-between text-[10px] text-slate-500 border-t border-slate-200">
-            <div className="font-semibold text-slate-600">
-              {footerLicenceLine}
-            </div>
-            <div className="font-mono font-bold text-slate-800">
-              Estimate #{quote.quoteNumber || "MH678"} · Issued {formattedCreatedDate}
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* ========================================================================= */}
       {/* PAGE 2: EXECUTIVE ESTIMATE & CONSTRUCTION COST SUMMARY                     */}
@@ -1675,7 +1392,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumen
         <div>
           {/* Header */}
           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-3 mb-6">
-            <LogoV2 size={12} />
+            <Logo size={10} modern={false} />
             <div className="text-right text-xs">
               <div className="font-extrabold text-slate-900 text-sm">Date: {formattedCreatedDate}</div>
               <div className="text-slate-600 font-mono font-semibold text-xs">Estimate No: {quote.quoteNumber || "MH678"}</div>
@@ -2461,7 +2178,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v2" }: QuotePdfDocumen
         <div className="space-y-3.5">
           {/* Top Brand & License Row */}
           <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <LogoV2 size={10} />
+            <Logo size={10} modern={false} />
             <div className="text-[10px] text-slate-500 font-medium">
               Hudson Homes Pty Ltd · ABN: 49 163 189 071 · Builder’s Licence: 259372C
             </div>
