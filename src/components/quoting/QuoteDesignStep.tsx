@@ -1295,7 +1295,9 @@ export function QuoteDesignStep({
         </div>
 
         {/* 3 Design Mode Tabs: Standard Design | Modified Design | Custom Design (m²) */}
-        <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 self-start">
+        <div className={`flex p-1 rounded-xl border self-start ${
+          isLight ? "bg-slate-100 border-slate-300" : "bg-slate-950 border-slate-800"
+        }`}>
           {[
             { id: "standard", label: "Standard Design" },
             { id: "modified", label: "Modified Design" },
@@ -1327,6 +1329,8 @@ export function QuoteDesignStep({
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                   isActive
                     ? "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 shadow-md font-bold"
+                    : isLight
+                    ? "text-slate-700 hover:text-slate-950 hover:bg-slate-200/60"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
@@ -1893,8 +1897,8 @@ export function QuoteDesignStep({
 
           {/* Inclusion Tier Range: Simplified Clean Titles */}
           <div className="space-y-2">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+              <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
               Inclusion Range &amp; Specification Tier (HBS, SS, H1, H2, H3 Set Pricing)
             </Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5">
@@ -1924,24 +1928,30 @@ export function QuoteDesignStep({
                     onClick={() => handleTierChange(tier.id)}
                     className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
+                        ? isLight
+                          ? "border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-500 shadow-sm"
+                          : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
+                        : isLight
+                        ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 shadow-xs"
                         : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-xs text-white">{tier.label}</span>
-                        <span className="ml-2 text-[9px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">
+                        <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>{tier.label}</span>
+                        <span className={`ml-2 text-[9px] uppercase font-mono px-1.5 py-0.5 rounded ${
+                          isLight ? "bg-slate-100 text-slate-800 border border-slate-300 font-bold" : "bg-slate-800 text-slate-300"
+                        }`}>
                           {tier.tag}
                         </span>
                       </div>
-                      {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400" />}
+                      {isSelected && <CheckCircle2 className={`h-4 w-4 ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />}
                     </div>
-                    <div className="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
-                      <span className="text-[10px] text-slate-400">
+                    <div className={`mt-2.5 pt-2 border-t flex items-center justify-between text-xs ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                      <span className={`text-[10px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
                         {design.isModifiedFloorplan ? "Modified Base Price:" : "Base House Price:"}
                       </span>
-                      <span className="font-bold text-emerald-400 font-mono">
+                      <span className={`font-bold font-mono ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
                         {currentModel ? formatAud(tierDisplayPrice) : "—"}
                       </span>
                     </div>
@@ -1965,6 +1975,8 @@ export function QuoteDesignStep({
                     className={`cursor-pointer p-2.5 rounded-xl border transition-all mt-0.5 ${
                       design.hasSecondDwelling && secondDwelling.enabled
                         ? "bg-cyan-500 text-slate-950 border-cyan-400 font-bold shadow-lg shadow-cyan-500/20"
+                        : isLight
+                        ? "bg-slate-100 border-slate-300 text-slate-700 hover:text-slate-950"
                         : "bg-slate-900 border-slate-700 text-slate-400 hover:text-white"
                     }`}
                   >
@@ -1972,7 +1984,7 @@ export function QuoteDesignStep({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-white">
+                      <span className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-white"}`}>
                         {design.hasSecondDwelling && secondDwelling.enabled
                           ? "✓ 2nd Dwelling / Granny Flat Included"
                           : "2nd Dwelling or Grannyflat Option"}
@@ -1980,14 +1992,18 @@ export function QuoteDesignStep({
                       <span
                         className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
                           design.hasSecondDwelling && secondDwelling.enabled
-                            ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono"
+                            ? isLight
+                              ? "bg-cyan-100 text-cyan-900 border border-cyan-300 font-mono"
+                              : "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono"
+                            : isLight
+                            ? "bg-slate-100 text-slate-700 border border-slate-200"
                             : "bg-slate-800 text-slate-400"
                         }`}
                       >
                         {design.hasSecondDwelling && secondDwelling.enabled ? `${secondDwelling.designName} (${secondDwelling.designM2} m²)` : "Secondary Residence"}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       Add a secondary auxiliary dwelling, granny flat, or duplex second home. Configure separate design, inclusions, facade, and architectural floorplan.
                     </p>
                   </div>
@@ -2000,6 +2016,8 @@ export function QuoteDesignStep({
                   className={`text-xs font-bold gap-1.5 shrink-0 ${
                     design.hasSecondDwelling && secondDwelling.enabled
                       ? "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20"
+                      : isLight
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 shadow-xs"
                       : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
                   }`}
                 >

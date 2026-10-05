@@ -621,17 +621,18 @@ html.normal-mode,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
-  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
-  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
-  [class*="bg-black"], [class*="bg-black"] *,
-  [class*="from-slate-9"], [class*="from-slate-9"] *,
-  [class*="from-slate-8"], [class*="from-slate-8"] *,
-  [class*="bg-[#0"], [class*="bg-[#0"] *,
-  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
-  header[class*="bg-slate"], header[class*="bg-slate"] *,
-  section[class*="from-slate"], section[class*="from-slate"] *
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
+  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
+  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
+  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
+  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
+  a[class*="bg-black"], a[class*="bg-black"] *,
+  .badge-dark, .badge-dark *
 )) {
   color: #0f172a !important;
 }
@@ -666,17 +667,18 @@ html.normal-mode,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
-  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
-  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
-  [class*="bg-black"], [class*="bg-black"] *,
-  [class*="from-slate-9"], [class*="from-slate-9"] *,
-  [class*="from-slate-8"], [class*="from-slate-8"] *,
-  [class*="bg-[#0"], [class*="bg-[#0"] *,
-  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
-  header[class*="bg-slate"], header[class*="bg-slate"] *,
-  section[class*="from-slate"], section[class*="from-slate"] *
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
+  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
+  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
+  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
+  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
+  a[class*="bg-black"], a[class*="bg-black"] *,
+  .badge-dark, .badge-dark *
 )) {
   color: #334155 !important;
 }
@@ -711,17 +713,18 @@ html.normal-mode,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
-  [class*="bg-zinc-9"], [class*="bg-zinc-9"] *,
-  [class*="bg-zinc-8"], [class*="bg-zinc-8"] *,
-  [class*="bg-black"], [class*="bg-black"] *,
-  [class*="from-slate-9"], [class*="from-slate-9"] *,
-  [class*="from-slate-8"], [class*="from-slate-8"] *,
-  [class*="bg-[#0"], [class*="bg-[#0"] *,
-  [class*="bg-brand-navy"], [class*="bg-brand-navy"] *,
-  header[class*="bg-slate"], header[class*="bg-slate"] *,
-  section[class*="from-slate"], section[class*="from-slate"] *
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
+  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
+  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
+  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
+  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
+  a[class*="bg-black"], a[class*="bg-black"] *,
+  .badge-dark, .badge-dark *
 )) {
   color: #475569 !important;
 }
@@ -729,11 +732,12 @@ html.normal-mode,
 .normal-mode label:not(:is(
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  [class*="bg-slate-9"], [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"], [class*="bg-slate-8"] *,
-  [class*="bg-black"], [class*="bg-black"] *
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *
 )) {
-  color: #334155 !important;
+  color: #1e293b !important;
+  font-weight: 500;
 }
 
 /* Rich, high-contrast aesthetic accent text colors on light backgrounds */

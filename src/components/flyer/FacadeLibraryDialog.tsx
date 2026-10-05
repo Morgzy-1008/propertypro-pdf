@@ -311,9 +311,13 @@ export function FacadeLibrary({
           <span>Browse facade library ({eligible.length})</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
+      <DialogContent className={`max-w-3xl backdrop-blur-2xl shadow-2xl ${
+        isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-950/95 text-slate-100"
+      }`}>
         <DialogHeader>
-          <DialogTitle className="text-white font-bold tracking-wide">Hudson facade library</DialogTitle>
+          <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>
+            Hudson facade library
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-2">
@@ -322,7 +326,11 @@ export function FacadeLibrary({
             placeholder="Search by name, range or style…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60"
+            className={`border text-xs focus:border-brand-gold/60 ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                : "border-slate-800 bg-slate-900/80 text-slate-100 placeholder:text-slate-500"
+            }`}
           />
           <input
             ref={inputRef}
@@ -336,9 +344,13 @@ export function FacadeLibrary({
             type="button"
             variant="secondary"
             onClick={() => inputRef.current?.click()}
-            className="border border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white text-xs gap-1.5 flex-none"
+            className={`border text-xs gap-1.5 flex-none font-semibold ${
+              isLight
+                ? "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800"
+                : "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800 hover:text-white"
+            }`}
           >
-            <Upload className="h-4 w-4 text-brand-gold" />
+            <Upload className={`h-4 w-4 ${isLight ? "text-amber-700" : "text-brand-gold"}`} />
             Add renders
           </Button>
         </div>
@@ -352,8 +364,12 @@ export function FacadeLibrary({
                 onClick={() => setCategory(c.id)}
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition-all ${
                   active === c.id
-                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                    : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    ? isLight
+                      ? "border-amber-400 bg-amber-100 text-amber-950 font-bold shadow-xs"
+                      : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : isLight
+                      ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
                 {c.label} ({tabCounts[c.id] ?? 0})
@@ -361,7 +377,7 @@ export function FacadeLibrary({
             ))}
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-slate-400 font-medium">Sort</span>
+            <span className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>Sort</span>
             {SORTS.map((s) => (
               <button
                 key={s.id}
@@ -369,8 +385,12 @@ export function FacadeLibrary({
                 onClick={() => setSort(s.id)}
                 className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
                   sort === s.id
-                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                    : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    ? isLight
+                      ? "border-amber-400 bg-amber-100 text-amber-950 font-bold shadow-xs"
+                      : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : isLight
+                      ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
                 {s.label}
@@ -392,14 +412,20 @@ export function FacadeLibrary({
                   }}
                   className={`w-full overflow-hidden rounded-xl border text-left transition-all ${
                     value === f.url
-                      ? "border-brand-gold ring-2 ring-brand-gold/50 bg-slate-900 shadow-lg shadow-brand-gold/10"
-                      : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
+                      ? isLight
+                        ? "border-amber-500 ring-2 ring-amber-500/50 bg-amber-50/50 shadow-md"
+                        : "border-brand-gold ring-2 ring-brand-gold/50 bg-slate-900 shadow-lg shadow-brand-gold/10"
+                      : isLight
+                        ? "border-slate-200 bg-white hover:border-slate-300 text-slate-900 hover:shadow-xs"
+                        : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
                   }`}
                 >
                   <FacadeCardThumbnail f={f} isHighPriority={idx < 6} />
                   <div className="flex items-baseline justify-between gap-2 px-2.5 py-2">
-                    <span className="truncate text-xs font-semibold text-slate-200">{f.name}</span>
-                    <span className="flex-none text-[11px] font-bold text-brand-gold">
+                    <span className={`truncate text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                      {f.name}
+                    </span>
+                    <span className={`flex-none text-[11px] font-bold ${isLight ? "text-amber-800" : "text-brand-gold"}`}>
                       {price === null ? "—" : price === 0 ? "Included" : `+${formatAud(price)}`}
                     </span>
                   </div>
@@ -414,7 +440,11 @@ export function FacadeLibrary({
                     type="button"
                     size="icon"
                     variant="secondary"
-                    className="absolute right-1.5 top-1.5 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 bg-slate-800 text-slate-200 hover:text-rose-400"
+                    className={`absolute right-1.5 top-1.5 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 ${
+                      isLight
+                        ? "bg-slate-100 text-slate-700 hover:text-rose-600 hover:bg-slate-200"
+                        : "bg-slate-800 text-slate-200 hover:text-rose-400"
+                    }`}
                     onClick={() => persist(custom.filter((c) => c.id !== f.id))}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -430,14 +460,18 @@ export function FacadeLibrary({
                 variant="outline"
                 size="sm"
                 onClick={() => setVisibleLimit((prev) => Math.min(prev + BATCH_INCREMENT, results.length))}
-                className="text-xs border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white"
+                className={`text-xs border ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                    : "border-slate-800 bg-slate-900/80 text-slate-300 hover:text-white"
+                }`}
               >
                 Load more facades ({results.length - visibleResults.length} remaining)
               </Button>
             </div>
           )}
           {results.length === 0 && (
-            <p className="col-span-3 py-8 text-center text-sm text-slate-400">
+            <p className={`col-span-3 py-8 text-center text-sm ${isLight ? "text-slate-600" : "text-slate-400"}`}>
               No facades match “{query}”. Add renders to build out the library.
             </p>
           )}

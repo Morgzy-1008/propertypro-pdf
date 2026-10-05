@@ -42,6 +42,7 @@ import { lookupSuburbsByPostcode } from "@/lib/address/australianSuburbsData";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { ClientDetails, DepositType, FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
+import { useTheme } from "@/lib/theme";
 
 interface QuoteClientDetailsProps {
   client: ClientDetails;
@@ -58,6 +59,8 @@ export function QuoteClientDetails({
   onSiteChange,
   onLoadEntireQuote,
 }: QuoteClientDetailsProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [importingPdf, setImportingPdf] = useState(false);
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
 
@@ -285,19 +288,27 @@ export function QuoteClientDetails({
   return (
     <div className="space-y-3.5">
       {/* Header */}
-      <div className="border-b border-slate-800/80 pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <div className={`border-b pb-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
+        isLight ? "border-slate-200" : "border-slate-800/80"
+      }`}>
         <div>
-          <h3 className="text-base font-bold text-white flex items-center gap-2">
-            <User className="h-4 w-4 text-emerald-400" />
+          <h3 className={`text-base font-bold flex items-center gap-2 ${
+            isLight ? "text-slate-900" : "text-white"
+          }`}>
+            <User className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
             Step 1: Client &amp; Job Information
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
             Enter primary client details, secondary applicant information (optional), proposed site address, and initial deposit options.
           </p>
         </div>
         {client.clientName && client.clientName.trim().length >= 2 && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-700/60 text-emerald-300 text-xs font-semibold shadow-xs self-start sm:self-center">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className={`inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full border text-xs font-semibold shadow-xs self-start sm:self-center ${
+            isLight
+              ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+              : "bg-emerald-950/70 border-emerald-700/60 text-emerald-300"
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${isLight ? "bg-emerald-500" : "bg-emerald-400"} animate-pulse`} />
             <span>Synced to CRM &bull; {client.consultantName || "Consultant"}</span>
           </div>
         )}
@@ -306,48 +317,66 @@ export function QuoteClientDetails({
       {/* Primary Client (Client 1) Contact Info */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-emerald-400" /> Primary Applicant (Client 1)
+          <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+            isLight ? "text-slate-800" : "text-slate-200"
+          }`}>
+            <User className={`h-3.5 w-3.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} /> Primary Applicant (Client 1)
           </span>
           {!client.hasClient2 && (
             <button
               type="button"
               onClick={() => onChange({ hasClient2: true, client2Name: "" })}
-              className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 font-semibold cursor-pointer"
+              className={`text-xs flex items-center gap-1 font-semibold cursor-pointer ${
+                isLight ? "text-cyan-700 hover:text-cyan-800" : "text-cyan-400 hover:text-cyan-300"
+              }`}
             >
               <UserPlus className="h-3.5 w-3.5" /> + Add Second Applicant (Client 2)
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+        <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-xl border ${
+          isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-950/70 border-slate-800"
+        }`}>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Full Name *</Label>
+            <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 1 Full Name *</Label>
             <Input
               value={client.clientName}
               onChange={(e) => onChange({ clientName: e.target.value })}
               placeholder="e.g. Jordan Samuel Mitchell"
-              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className={`h-8.5 text-xs ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                  : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+              }`}
             />
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Phone</Label>
+            <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 1 Phone</Label>
             <Input
               value={client.clientPhone}
               onChange={(e) => onChange({ clientPhone: e.target.value })}
               placeholder="e.g. 0417 555 123"
-              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className={`h-8.5 text-xs ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                  : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+              }`}
             />
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-300 font-medium">Client 1 Email</Label>
+            <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 1 Email</Label>
             <Input
               value={client.clientEmail}
               onChange={(e) => onChange({ clientEmail: e.target.value })}
               placeholder="e.g. jordan.mitchell@example.com"
-              className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+              className={`h-8.5 text-xs ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                  : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+              }`}
             />
           </div>
         </div>
@@ -357,8 +386,10 @@ export function QuoteClientDetails({
       {client.hasClient2 && (
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-              <UserPlus className="h-3.5 w-3.5 text-cyan-400" /> Second Applicant (Client 2)
+            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-slate-800" : "text-slate-200"
+            }`}>
+              <UserPlus className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} /> Second Applicant (Client 2)
             </span>
             <button
               type="button"
@@ -370,40 +401,54 @@ export function QuoteClientDetails({
                   client2Email: "",
                 })
               }
-              className="text-xs text-rose-400 hover:text-rose-300 font-semibold cursor-pointer"
+              className="text-xs text-rose-500 hover:text-rose-600 font-semibold cursor-pointer"
             >
               Remove Client 2
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+          <div className={`grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-xl border ${
+            isLight ? "bg-white border-slate-200 shadow-xs" : "bg-slate-950/70 border-slate-800"
+          }`}>
             <div className="space-y-1">
-              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Full Name</Label>
+              <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 2 Full Name</Label>
               <Input
                 value={client.client2Name || ""}
                 onChange={(e) => onChange({ client2Name: e.target.value })}
                 placeholder="e.g. Stephannie Ann Krause"
-                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className={`h-8.5 text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                    : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                }`}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Phone</Label>
+              <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 2 Phone</Label>
               <Input
                 value={client.client2Phone || ""}
                 onChange={(e) => onChange({ client2Phone: e.target.value })}
                 placeholder="e.g. 0418 777 888"
-                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className={`h-8.5 text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                    : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                }`}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[11px] text-slate-300 font-medium">Client 2 Email</Label>
+              <Label className={`text-[11px] font-medium ${isLight ? "text-slate-700" : "text-slate-300"}`}>Client 2 Email</Label>
               <Input
                 value={client.client2Email || ""}
                 onChange={(e) => onChange({ client2Email: e.target.value })}
                 placeholder="e.g. stephannie.krause@example.com"
-                className="h-8.5 border-slate-800 bg-slate-900 text-xs text-slate-100 placeholder:text-slate-500"
+                className={`h-8.5 text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                    : "border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500"
+                }`}
               />
             </div>
           </div>
@@ -411,10 +456,14 @@ export function QuoteClientDetails({
       )}
 
       {/* Proposed Building Site Address with Auto-Council Detection */}
-      <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
+      <div className={`rounded-xl border p-3.5 space-y-2.5 ${
+        isLight ? "bg-white border-slate-200 shadow-xs" : "border-slate-800/80 bg-slate-900/40"
+      }`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-            <MapPin className="h-3.5 w-3.5 text-cyan-400" />
+          <div className={`flex items-center gap-2 text-xs font-semibold ${
+            isLight ? "text-slate-800" : "text-slate-300"
+          }`}>
+            <MapPin className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
             Proposed Building Site Location
           </div>
 
@@ -424,11 +473,15 @@ export function QuoteClientDetails({
             onClick={handleToggleNoAddressYet}
             className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               isNoAddressActive
-                ? "bg-rose-500/20 border border-rose-500/50 text-rose-300 hover:bg-rose-500/30 shadow-sm"
-                : "bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+                ? isLight
+                  ? "bg-rose-100 border border-rose-400 text-rose-800 hover:bg-rose-200 shadow-xs"
+                  : "bg-rose-500/20 border border-rose-500/50 text-rose-300 hover:bg-rose-500/30 shadow-sm"
+                : isLight
+                  ? "bg-amber-100 border border-amber-400 text-amber-900 hover:bg-amber-200 shadow-xs"
+                  : "bg-amber-500/15 border border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
             }`}
           >
-            <MapPinOff className={`h-3 w-3 ${isNoAddressActive ? "text-rose-400" : "text-amber-400"}`} />
+            <MapPinOff className={`h-3 w-3 ${isNoAddressActive ? (isLight ? "text-rose-700" : "text-rose-400") : (isLight ? "text-amber-700" : "text-amber-400")}`} />
             {isNoAddressActive
               ? "✕ Clear 'No Address' / Enter Custom Address"
               : "No Address Yet / Land Not Purchased (Auto $2,200 Council Allowance)"}
@@ -572,17 +625,19 @@ export function QuoteClientDetails({
         </div>
 
         {/* Live Detected Council Fee Notification Card */}
-        <div className="mt-2 bg-slate-950/80 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between text-xs">
+        <div className={`mt-2 rounded-lg p-2.5 flex items-center justify-between text-xs border ${
+          isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/80 border-slate-800"
+        }`}>
           <div className="flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-cyan-400 flex-none" />
+            <Building2 className={`h-4 w-4 flex-none ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
             <div>
-              <span className="text-slate-400 text-[11px] block">Auto-Configured Council Jurisdiction:</span>
-              <span className="font-bold text-white text-xs">{currentCouncil}</span>
+              <span className={`text-[11px] block ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>Auto-Configured Council Jurisdiction:</span>
+              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>{currentCouncil}</span>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">Statutory Fee:</span>
-            <span className="font-mono font-bold text-emerald-400 text-xs">
+            <span className={`text-[10px] uppercase tracking-wider block ${isLight ? "text-slate-500" : "text-slate-500"}`}>Statutory Fee:</span>
+            <span className={`font-mono font-bold text-xs ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               {currentFee === 0 ? "Standard ($0 Included)" : `+${formatAud(currentFee)}`}
             </span>
           </div>
@@ -590,12 +645,16 @@ export function QuoteClientDetails({
 
         {/* Unrecognized / New Council Notification Alert */}
         {(currentCouncil.includes("Approval Required") || currentCouncil.includes("Other") || currentCouncil.includes("Unlisted")) && (
-          <div className="mt-2 bg-amber-950/30 border border-amber-500/50 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-amber-200">
+          <div className={`mt-2 rounded-lg p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border ${
+            isLight
+              ? "bg-amber-50 border-amber-300 text-amber-900"
+              : "bg-amber-950/30 border-amber-500/50 text-amber-200"
+          }`}>
             <div className="flex items-start gap-2">
-              <Shield className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+              <Shield className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-amber-700" : "text-amber-400"}`} />
               <div>
-                <strong className="block text-white font-bold">⚠️ Unrecognized Council LGA for Suburb &quot;{client.suburb || "Custom Location"}&quot;</strong>
-                <p className="text-[11px] text-amber-300/90 mt-0.5">
+                <strong className={`block font-bold ${isLight ? "text-amber-950" : "text-white"}`}>⚠️ Unrecognized Council LGA for Suburb &quot;{client.suburb || "Custom Location"}&quot;</strong>
+                <p className={`text-[11px] mt-0.5 ${isLight ? "text-amber-800" : "text-amber-300/90"}`}>
                   This suburb is not currently mapped to an existing approved council schedule. Standard allowance ($2,200) applied pending approval.
                 </p>
               </div>
@@ -621,19 +680,19 @@ export function QuoteClientDetails({
       {/* Consultant & Initial Deposit Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {/* Sales Consultant */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-            <Shield className="h-3.5 w-3.5 text-brand-gold" />
+        <div className={`rounded-xl border p-3.5 space-y-2.5 ${isLight ? "bg-white border-slate-200 shadow-xs" : "border-slate-800/80 bg-slate-900/40"}`}>
+          <div className={`flex items-center gap-2 text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+            <Shield className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-brand-gold"}`} />
             New Home Sales Consultant
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-400">Select Consultant</Label>
+            <Label className={`text-[11px] ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>Select Consultant</Label>
             <Select value={client.consultantId} onValueChange={handleConsultantChange}>
-              <SelectTrigger className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-200">
+              <SelectTrigger className={`h-8.5 text-xs ${isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-950/70 text-slate-200"}`}>
                 <SelectValue placeholder="Select consultant" />
               </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+              <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"}>
                 {ALL_STAFF_CONSULTANTS.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name} — {c.displayCentre}
@@ -643,39 +702,43 @@ export function QuoteClientDetails({
             </Select>
           </div>
 
-          <div className="text-[11px] text-slate-400 bg-slate-950/50 rounded-lg p-2 space-y-0.5">
+          <div className={`text-[11px] rounded-lg p-2 space-y-0.5 border ${isLight ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-slate-950/50 border-transparent text-slate-400"}`}>
             <div className="flex justify-between">
               <span>Display Centre:</span>
-              <span className="text-slate-200 font-medium">{client.consultantOffice}</span>
+              <span className={`font-medium ${isLight ? "text-slate-900" : "text-slate-200"}`}>{client.consultantOffice}</span>
             </div>
             <div className="flex justify-between">
               <span>Direct Phone:</span>
-              <span className="text-slate-200 font-mono font-medium">{client.consultantPhone}</span>
+              <span className={`font-mono font-medium ${isLight ? "text-slate-900" : "text-slate-200"}`}>{client.consultantPhone}</span>
             </div>
           </div>
         </div>
 
         {/* Initial Deposit Required for Preliminary Works */}
-        <div className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-3.5 space-y-2.5">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-            <DollarSign className="h-3.5 w-3.5 text-emerald-400" />
+        <div className={`rounded-xl border p-3.5 space-y-2.5 ${isLight ? "bg-white border-slate-200 shadow-xs" : "border-slate-800/80 bg-slate-900/40"}`}>
+          <div className={`flex items-center gap-2 text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+            <DollarSign className={`h-3.5 w-3.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
             Initial Deposit &amp; Preliminary Works
           </div>
 
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-400">Site Land Status</Label>
+            <Label className={`text-[11px] ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>Site Land Status</Label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => handleDepositTypeChange("greenfield")}
                 className={`p-2 rounded-lg border text-left transition-all ${
                   client.depositType === "greenfield"
-                    ? "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
+                    ? isLight
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500/40 shadow-xs"
+                      : "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
+                    : isLight
+                      ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                      : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
                 }`}
               >
-                <div className="text-xs font-bold text-slate-100">Greenfield</div>
-                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">
+                <div className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-slate-100"}`}>Greenfield</div>
+                <div className={`text-[11px] font-mono font-bold mt-0.5 ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                   {client.custom3dTourSelected ? "$2,450 Deposit" : "$1,650 Deposit"}
                 </div>
               </button>
@@ -685,25 +748,33 @@ export function QuoteClientDetails({
                 onClick={() => handleDepositTypeChange("brownfield")}
                 className={`p-2 rounded-lg border text-left transition-all ${
                   client.depositType === "brownfield"
-                    ? "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
-                    : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
+                    ? isLight
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500/40 shadow-xs"
+                      : "border-emerald-500 bg-emerald-950/30 text-emerald-200 ring-1 ring-emerald-500/40"
+                    : isLight
+                      ? "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300"
+                      : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
                 }`}
               >
-                <div className="text-xs font-bold text-slate-100">Brownfield</div>
-                <div className="text-[11px] text-emerald-400 font-mono font-bold mt-0.5">
+                <div className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-slate-100"}`}>Brownfield</div>
+                <div className={`text-[11px] font-mono font-bold mt-0.5 ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                   {client.custom3dTourSelected ? "$4,100 Deposit" : "$3,300 Deposit"}
                 </div>
               </button>
             </div>
           </div>
 
-          {/* Custom $800 Fee (3D Virtual Tour Prior to Contract) - Just Title */}
+          {/* Custom $800 Fee (3D Virtual Tour Prior to Contract) */}
           <div
             onClick={() => handleToggleCustom3dTour(!client.custom3dTourSelected)}
             className={`p-2.5 rounded-lg border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
               client.custom3dTourSelected
-                ? "border-cyan-500/80 bg-cyan-950/40 text-cyan-200 ring-1 ring-cyan-500/40"
-                : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
+                ? isLight
+                  ? "border-cyan-500 bg-cyan-50 text-cyan-950 ring-1 ring-cyan-500/40 shadow-xs"
+                  : "border-cyan-500/80 bg-cyan-950/40 text-cyan-200 ring-1 ring-cyan-500/40"
+                : isLight
+                  ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  : "border-slate-800 bg-slate-950/60 text-slate-400 hover:border-slate-700"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -711,28 +782,34 @@ export function QuoteClientDetails({
                 type="checkbox"
                 checked={!!client.custom3dTourSelected}
                 onChange={(e) => handleToggleCustom3dTour(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-700 text-cyan-500 focus:ring-cyan-500/30"
+                className="h-4 w-4 rounded border-slate-400 text-cyan-600 focus:ring-cyan-500/30"
                 onClick={(e) => e.stopPropagation()}
               />
-              <span className="font-bold text-xs text-slate-100 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-cyan-400" />
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-slate-100"}`}>
+                <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
                 Include Custom 3D Virtual Tour
               </span>
             </div>
-            <span className="font-mono font-bold text-cyan-300 text-xs shrink-0">+$800 Upfront Deposit</span>
+            <span className={`text-xs font-mono font-bold ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>
+              +$800 Upfront Deposit
+            </span>
           </div>
         </div>
       </div>
 
       {/* Estimate Notes */}
       <div className="space-y-1">
-        <Label className="text-xs text-slate-300">Builders Estimate Notes &amp; Special Conditions</Label>
+        <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-300"}`}>Builders Estimate Notes &amp; Special Conditions</Label>
         <Textarea
           value={client.notes}
           onChange={(e) => onChange({ notes: e.target.value })}
           placeholder="Special conditions, covenant notes, or client requests..."
           rows={2}
-          className="border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-emerald-500/60 min-h-[50px]"
+          className={`text-xs focus:border-emerald-500/60 min-h-[50px] ${
+            isLight
+              ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+              : "border-slate-800 bg-slate-950/70 text-slate-100 placeholder:text-slate-500"
+          }`}
         />
       </div>
     </div>

@@ -43,6 +43,7 @@ import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 import { parseQuoteFromEstimatePdf } from "@/lib/quoting/parseQuotePdf";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { getActiveStaffUser, type StaffProfile } from "@/lib/authSession";
+import { useTheme } from "@/lib/theme";
 
 interface QuoteEstimatesDialogProps {
   open: boolean;
@@ -172,6 +173,8 @@ export function QuoteEstimatesDialog({
   onSaveCurrentQuote,
   onImportQuote,
 }: QuoteEstimatesDialogProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [searchQuery, setSearchQuery] = useState("");
   const [activeStaff, setActiveStaff] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [scopeFilter, setScopeFilter] = useState<"mine" | "all">("mine");
@@ -414,11 +417,17 @@ export function QuoteEstimatesDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col border-slate-800 bg-slate-950/98 text-slate-100 backdrop-blur-2xl shadow-2xl p-6">
-        <DialogHeader className="flex-none pb-3 border-b border-slate-800/80">
+      <DialogContent className={`max-w-3xl max-h-[85vh] flex flex-col backdrop-blur-2xl shadow-2xl p-6 ${
+        isLight
+          ? "border-slate-200 bg-white text-slate-900"
+          : "border-slate-800 bg-slate-950/98 text-slate-100"
+      }`}>
+        <DialogHeader className={`flex-none pb-3 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-extrabold text-white tracking-wide flex items-center gap-2.5">
-              <FolderOpen className="h-5 w-5 text-amber-400" />
+            <DialogTitle className={`text-lg font-extrabold tracking-wide flex items-center gap-2.5 ${
+              isLight ? "text-slate-900" : "text-white"
+            }`}>
+              <FolderOpen className={`h-5 w-5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
               Saved Builders Estimates ({savedQuotes.length})
             </DialogTitle>
 
@@ -429,9 +438,13 @@ export function QuoteEstimatesDialog({
                 size="sm"
                 onClick={handleDeepRecover}
                 disabled={recovering}
-                className="border-emerald-500/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200 text-xs font-bold gap-1.5 shadow-xs"
+                className={`text-xs font-bold gap-1.5 shadow-xs ${
+                  isLight
+                    ? "border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-900"
+                    : "border-emerald-500/50 bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-200"
+                }`}
               >
-                <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />
                 {recovering ? "Scanning…" : "Scan & Auto-Recover"}
               </Button>
 
@@ -444,8 +457,12 @@ export function QuoteEstimatesDialog({
                   disabled={importingPdf}
                   className="hidden"
                 />
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
-                  <FileText className="h-3.5 w-3.5 text-cyan-400" />
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors shadow-xs ${
+                  isLight
+                    ? "border-cyan-300 bg-cyan-50 hover:bg-cyan-100 text-cyan-900"
+                    : "border-cyan-500/50 bg-cyan-950/60 hover:bg-cyan-900 text-cyan-200"
+                }`}>
+                  <FileText className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
                   {importingPdf ? "Parsing PDF…" : "Import Estimate PDF"}
                 </span>
               </label>
@@ -458,8 +475,12 @@ export function QuoteEstimatesDialog({
                   onChange={handleImportJsonFile}
                   className="hidden"
                 />
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 hover:bg-slate-800 text-xs font-semibold text-slate-200 transition-colors">
-                  <Upload className="h-3.5 w-3.5 text-slate-400" />
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${
+                  isLight
+                    ? "border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-800"
+                    : "border-slate-700 bg-slate-900 hover:bg-slate-800 text-slate-200"
+                }`}>
+                  <Upload className={`h-3.5 w-3.5 ${isLight ? "text-slate-600" : "text-slate-400"}`} />
                   Import JSON
                 </span>
               </label>
@@ -467,7 +488,7 @@ export function QuoteEstimatesDialog({
               <Button
                 size="sm"
                 onClick={onSaveCurrentQuote}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold gap-1.5"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold gap-1.5 shadow-xs"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 Save Active Estimate
@@ -476,18 +497,24 @@ export function QuoteEstimatesDialog({
           </div>
 
           <div className="relative mt-3">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search className={`h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 ${isLight ? "text-slate-400" : "text-slate-500"}`} />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by client name, estimate #, address, suburb, or house design…"
-              className="h-9 pl-9 text-xs border-slate-800 bg-slate-900/90 text-slate-200"
+              className={`h-9 pl-9 text-xs ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                  : "border-slate-800 bg-slate-900/90 text-slate-200 placeholder:text-slate-500"
+              }`}
             />
           </div>
 
           {/* Scope Tabs & Select All Controls */}
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5">
-            <div className="flex items-center gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+            <div className={`flex items-center gap-1.5 p-1 rounded-xl border ${
+              isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900/90 border-slate-800"
+            }`}>
               <button
                 type="button"
                 onClick={() => {
@@ -496,7 +523,11 @@ export function QuoteEstimatesDialog({
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   scopeFilter === "mine"
-                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    ? isLight
+                      ? "bg-amber-500 text-white shadow-xs"
+                      : "bg-amber-500 text-slate-950 shadow-sm"
+                    : isLight
+                    ? "text-slate-600 hover:text-slate-950"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -516,7 +547,11 @@ export function QuoteEstimatesDialog({
                 }}
                 className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
                   scopeFilter === "all"
-                    ? "bg-cyan-500 text-slate-950 shadow-sm"
+                    ? isLight
+                      ? "bg-cyan-600 text-white shadow-xs"
+                      : "bg-cyan-500 text-slate-950 shadow-sm"
+                    : isLight
+                    ? "text-slate-600 hover:text-slate-950"
                     : "text-slate-400 hover:text-white"
                 }`}
               >
@@ -527,7 +562,11 @@ export function QuoteEstimatesDialog({
 
             <div className="flex items-center gap-2.5">
               {filteredQuotes.length > 0 && (
-                <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 hover:border-slate-700 text-xs font-semibold text-slate-200 transition-colors">
+                <label className={`flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg border text-xs font-semibold transition-colors ${
+                  isLight
+                    ? "bg-slate-100 border-slate-300 text-slate-800 hover:border-slate-400"
+                    : "bg-slate-900/90 border-slate-800 text-slate-200 hover:border-slate-700"
+                }`}>
                   <input
                     type="checkbox"
                     checked={isAllFilteredSelected}
@@ -538,7 +577,7 @@ export function QuoteEstimatesDialog({
                 </label>
               )}
 
-              <span className="text-[11px] text-slate-500">
+              <span className={`text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-500"}`}>
                 Showing {filteredQuotes.length} estimate{filteredQuotes.length === 1 ? "" : "s"}
               </span>
             </div>
@@ -547,15 +586,19 @@ export function QuoteEstimatesDialog({
 
         {/* Bulk Action Toolbar when 1+ estimates are selected */}
         {selectedQuoteIds.size > 0 && (
-          <div className="flex-none my-2 p-3 rounded-xl border border-amber-500/50 bg-gradient-to-r from-amber-950/50 via-slate-900/95 to-slate-900/80 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg animate-in fade-in slide-in-from-top-1">
+          <div className={`flex-none my-2 p-3 rounded-xl border flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg animate-in fade-in slide-in-from-top-1 ${
+            isLight
+              ? "border-amber-400 bg-amber-50 text-slate-900"
+              : "border-amber-500/50 bg-gradient-to-r from-amber-950/50 via-slate-900/95 to-slate-900/80 text-slate-100"
+          }`}>
             <div className="flex items-center gap-2">
-              <span className="p-1 rounded bg-amber-500/20 text-amber-400">
+              <span className={`p-1 rounded ${isLight ? "bg-amber-200 text-amber-900" : "bg-amber-500/20 text-amber-400"}`}>
                 <CheckSquare className="h-4 w-4" />
               </span>
-              <span className="font-extrabold text-amber-300 text-sm">
+              <span className={`font-extrabold text-sm ${isLight ? "text-amber-950" : "text-amber-300"}`}>
                 {selectedQuoteIds.size} estimate{selectedQuoteIds.size === 1 ? "" : "s"} selected
               </span>
-              <span className="text-slate-400 text-[11px] hidden sm:inline">
+              <span className={`text-[11px] hidden sm:inline ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                 ({Math.round((selectedQuoteIds.size / Math.max(1, filteredQuotes.length)) * 100)}% of visible)
               </span>
             </div>
@@ -566,7 +609,7 @@ export function QuoteEstimatesDialog({
                 size="sm"
                 variant="ghost"
                 onClick={() => setSelectedQuoteIds(new Set())}
-                className="text-xs text-slate-400 hover:text-white h-8 px-2.5 gap-1"
+                className={`text-xs h-8 px-2.5 gap-1 ${isLight ? "text-slate-600 hover:text-slate-900 hover:bg-amber-100" : "text-slate-400 hover:text-white"}`}
               >
                 <X className="h-3.5 w-3.5" />
                 Clear
@@ -577,9 +620,13 @@ export function QuoteEstimatesDialog({
                 size="sm"
                 variant="outline"
                 onClick={handleBulkExportJson}
-                className="text-xs border-emerald-500/40 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/60 font-bold h-8 gap-1.5"
+                className={`text-xs font-bold h-8 gap-1.5 ${
+                  isLight
+                    ? "border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                    : "border-emerald-500/40 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/60"
+                }`}
               >
-                <Download className="h-3.5 w-3.5 text-emerald-400" />
+                <Download className="h-3.5 w-3.5" />
                 Export JSON ({selectedQuoteIds.size})
               </Button>
 
@@ -598,14 +645,22 @@ export function QuoteEstimatesDialog({
 
         {/* Restore from PDF Banner (collapsed if selecting) */}
         {selectedQuoteIds.size === 0 && (
-          <div className="flex-none my-2 p-3 rounded-xl border border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 flex items-center justify-between gap-3 text-xs">
+          <div className={`flex-none my-2 p-3 rounded-xl border flex items-center justify-between gap-3 text-xs ${
+            isLight
+              ? "border-cyan-300 bg-gradient-to-r from-cyan-50/90 via-sky-50/60 to-white text-slate-900"
+              : "border-cyan-500/20 bg-gradient-to-r from-cyan-950/40 via-slate-900/60 to-slate-900/40 text-slate-100"
+          }`}>
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex-none">
+              <div className={`p-2 rounded-lg border flex-none ${
+                isLight
+                  ? "bg-cyan-100 border-cyan-300 text-cyan-800"
+                  : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
+              }`}>
                 <FileText className="h-4 w-4" />
               </div>
               <div>
-                <span className="font-bold text-white block">Restore from Previous Estimate PDF</span>
-                <span className="text-[11px] text-slate-400">
+                <span className={`font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>Restore from Previous Estimate PDF</span>
+                <span className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                   Upload any Hudson estimate PDF to automatically recover all client details, design selections, modified room sizes, and site items.
                 </span>
               </div>
@@ -618,7 +673,11 @@ export function QuoteEstimatesDialog({
                 disabled={importingPdf}
                 className="hidden"
               />
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-400/60 bg-cyan-500 text-slate-950 hover:bg-cyan-400 text-xs font-extrabold transition-all shadow-sm">
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-extrabold transition-all shadow-xs ${
+                isLight
+                  ? "border-cyan-400 bg-cyan-600 hover:bg-cyan-500 text-white"
+                  : "border-cyan-400/60 bg-cyan-500 hover:bg-cyan-400 text-slate-950"
+              }`}>
                 <Upload className="h-3.5 w-3.5" />
                 Upload PDF
               </span>
@@ -629,17 +688,19 @@ export function QuoteEstimatesDialog({
         {/* Scrollable Estimates List */}
         <div className="flex-1 overflow-y-auto py-3 space-y-2.5 pr-1">
           {filteredQuotes.length === 0 ? (
-            <div className="text-center py-16 px-4 border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 space-y-3">
-              <FolderOpen className="h-10 w-10 text-slate-600 mx-auto" />
+            <div className={`text-center py-16 px-4 border border-dashed rounded-2xl space-y-3 ${
+              isLight ? "border-slate-300 bg-slate-50" : "border-slate-800 bg-slate-900/30"
+            }`}>
+              <FolderOpen className={`h-10 w-10 mx-auto ${isLight ? "text-slate-400" : "text-slate-600"}`} />
               <div>
-                <div className="text-sm font-bold text-slate-300">
+                <div className={`text-sm font-bold ${isLight ? "text-slate-800" : "text-slate-300"}`}>
                   {searchQuery
                     ? "No matching saved estimates"
                     : scopeFilter === "mine"
                     ? `No estimates found created by ${activeStaff?.name || "you"}`
                     : "No saved estimates yet"}
                 </div>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                <p className={`text-xs max-w-sm mx-auto mt-1 ${isLight ? "text-slate-600" : "text-slate-500"}`}>
                   {scopeFilter === "mine" && allQuotesCount > 0
                     ? `There are ${allQuotesCount} estimate(s) saved across the Queensland team.`
                     : "Click 'Save Active Estimate' or the Save button in the sidebar anytime to keep your work permanently stored."}
@@ -650,7 +711,11 @@ export function QuoteEstimatesDialog({
                   size="sm"
                   variant="outline"
                   onClick={() => setScopeFilter("all")}
-                  className="text-xs border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50 font-bold"
+                  className={`text-xs font-bold ${
+                    isLight
+                      ? "border-cyan-300 bg-cyan-50 text-cyan-900 hover:bg-cyan-100"
+                      : "border-cyan-500/40 bg-cyan-950/30 text-cyan-300 hover:bg-cyan-900/50"
+                  }`}
                 >
                   <Users className="h-3.5 w-3.5 mr-1.5" />
                   View All Team Estimates ({allQuotesCount})
@@ -683,9 +748,15 @@ export function QuoteEstimatesDialog({
                   key={q.id}
                   className={`p-4 rounded-xl border transition-all ${
                     isSelected
-                      ? "border-amber-500/90 bg-amber-950/20 ring-1 ring-amber-500/40 shadow-md"
+                      ? isLight
+                        ? "border-amber-400 bg-amber-50/80 ring-1 ring-amber-400 shadow-xs"
+                        : "border-amber-500/90 bg-amber-950/20 ring-1 ring-amber-500/40 shadow-md"
                       : isActive
-                      ? "border-cyan-500/80 bg-slate-900/95 ring-1 ring-cyan-500/30 shadow-lg"
+                      ? isLight
+                        ? "border-cyan-400 bg-cyan-50/60 ring-1 ring-cyan-300 shadow-sm"
+                        : "border-cyan-500/80 bg-slate-900/95 ring-1 ring-cyan-500/30 shadow-lg"
+                      : isLight
+                      ? "border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-xs"
                       : "border-slate-800/90 bg-slate-900/50 hover:bg-slate-900 hover:border-slate-700"
                   }`}
                 >
@@ -704,34 +775,54 @@ export function QuoteEstimatesDialog({
 
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-sm text-slate-100 flex items-center gap-1.5">
-                            <User className="h-3.5 w-3.5 text-cyan-400" />
+                          <span className={`font-extrabold text-sm flex items-center gap-1.5 ${
+                            isLight ? "text-slate-900" : "text-slate-100"
+                          }`}>
+                            <User className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
                             {q.client?.clientName || "Unnamed Client"}
                           </span>
-                          <span className="text-[10.5px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
+                          <span className={`text-[10.5px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            isLight
+                              ? "bg-cyan-100 text-cyan-900 border-cyan-300"
+                              : "bg-cyan-950/80 text-cyan-300 border-cyan-800/60"
+                          }`}>
                             #{q.quoteNumber || q.client?.estimateNumber || "MH"}
                           </span>
                           {q.client?.consultantName && (
-                            <span className="text-[10px] font-semibold text-amber-400 bg-amber-950/70 border border-amber-800/60 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1 border ${
+                              isLight
+                                ? "text-amber-900 bg-amber-100 border-amber-300"
+                                : "text-amber-400 bg-amber-950/70 border-amber-800/60"
+                            }`}>
                               👤 {q.client.consultantName}
                             </span>
                           )}
                           {isActive && (
-                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                            }`}>
                               Currently Active
                             </span>
                           )}
                           {isSelected && (
-                            <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
+                              isLight
+                                ? "bg-amber-100 text-amber-900 border-amber-300"
+                                : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                            }`}>
                               Selected
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                        <div className={`flex items-center gap-3 text-xs flex-wrap ${
+                          isLight ? "text-slate-600" : "text-slate-400"
+                        }`}>
                           <span className="flex items-center gap-1">
-                            <Home className="h-3 w-3 text-slate-500" />
-                            <strong className="text-slate-300 font-semibold">{designTitle}</strong>
+                            <Home className={`h-3 w-3 ${isLight ? "text-slate-500" : "text-slate-500"}`} />
+                            <strong className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-300"}`}>{designTitle}</strong>
                             {m2Label && ` (${m2Label})`}
                           </span>
                           {q.client?.siteAddress && (
@@ -739,7 +830,7 @@ export function QuoteEstimatesDialog({
                               · {[q.client.lotNumber, q.client.siteAddress, q.client.suburb].filter(Boolean).join(" ")}
                             </span>
                           )}
-                          <span className="text-slate-500 text-[11px]">
+                          <span className={`text-[11px] ${isLight ? "text-slate-500" : "text-slate-500"}`}>
                             · Updated {dateFormatted}
                           </span>
                         </div>
@@ -749,8 +840,8 @@ export function QuoteEstimatesDialog({
                     {/* Price & Actions */}
                     <div className="flex items-center gap-3 self-end sm:self-center flex-none">
                       <div className="text-right pr-2">
-                        <span className="text-[10px] text-slate-500 block uppercase font-medium">Total Estimate</span>
-                        <span className="text-base font-extrabold font-mono text-emerald-400">
+                        <span className={`text-[10px] block uppercase font-medium ${isLight ? "text-slate-600" : "text-slate-500"}`}>Total Estimate</span>
+                        <span className={`text-base font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                           {formatAud(totalAmount)}
                         </span>
                       </div>
@@ -766,7 +857,11 @@ export function QuoteEstimatesDialog({
                           }}
                           className={`text-xs font-bold gap-1 ${
                             isActive
-                              ? "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              ? isLight
+                                ? "bg-slate-200 text-slate-800 hover:bg-slate-300"
+                                : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                              : isLight
+                              ? "bg-cyan-600 hover:bg-cyan-500 text-white shadow-xs"
                               : "bg-cyan-500 hover:bg-cyan-400 text-slate-950"
                           }`}
                         >
@@ -778,7 +873,11 @@ export function QuoteEstimatesDialog({
                           type="button"
                           onClick={() => handleDuplicate(q)}
                           title="Duplicate Estimate"
-                          className="p-2 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${
+                            isLight
+                              ? "text-slate-600 hover:text-cyan-700 hover:bg-slate-100"
+                              : "text-slate-400 hover:text-cyan-400 hover:bg-slate-800"
+                          }`}
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -787,7 +886,11 @@ export function QuoteEstimatesDialog({
                           type="button"
                           onClick={() => handleExportJson(q)}
                           title="Export JSON Backup"
-                          className="p-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-800 transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${
+                            isLight
+                              ? "text-slate-600 hover:text-emerald-700 hover:bg-slate-100"
+                              : "text-slate-400 hover:text-emerald-400 hover:bg-slate-800"
+                          }`}
                         >
                           <Download className="h-3.5 w-3.5" />
                         </button>
@@ -806,7 +909,11 @@ export function QuoteEstimatesDialog({
                             }
                           }}
                           title="Delete Estimate"
-                          className="p-2 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${
+                            isLight
+                              ? "text-slate-500 hover:text-rose-600 hover:bg-slate-100"
+                              : "text-slate-500 hover:text-rose-400 hover:bg-slate-800"
+                          }`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

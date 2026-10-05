@@ -27,6 +27,7 @@ import {
 } from "./facadeCheckEngine";
 import { saveEnhanced } from "./facadeLibrary";
 import { callGeminiOutpaint, widenFacadeClientSide } from "./facadeEngine";
+import { useTheme } from "@/lib/theme";
 
 async function cleanImageToBase64(url: string): Promise<string> {
   return new Promise((resolve) => {
@@ -146,6 +147,8 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
   housingType,
   onApplyNewRender,
 }) => {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [checking, setChecking] = useState(true);
   const [recalibrating, setRecalibrating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -300,21 +303,29 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-slate-950 border-slate-800 text-slate-100 p-6">
+      <DialogContent className={`sm:max-w-2xl max-h-[90vh] overflow-y-auto p-6 ${
+        isLight
+          ? "bg-white border-slate-200 text-slate-900 shadow-2xl"
+          : "bg-slate-950 border-slate-800 text-slate-100"
+      }`}>
         <DialogHeader>
           <div className="flex items-center gap-2 text-brand-gold">
-            <ShieldCheck className="h-5 w-5" />
-            <DialogTitle className="text-lg font-bold tracking-tight text-amber-200">
+            <ShieldCheck className={`h-5 w-5 ${isLight ? "text-amber-600" : "text-brand-gold"}`} />
+            <DialogTitle className={`text-lg font-bold tracking-tight ${
+              isLight ? "text-slate-900" : "text-amber-200"
+            }`}>
               Facade Render Quality & Framing Check
             </DialogTitle>
           </div>
-          <DialogDescription className="text-xs text-slate-400">
-            Automated quality audit verifying house scale, roof apex clearance, landscape wings, and edge integrity for <span className="font-semibold text-slate-200">{facadeName}</span>.
+          <DialogDescription className={`text-xs ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            Automated quality audit verifying house scale, roof apex clearance, landscape wings, and edge integrity for <span className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>{facadeName}</span>.
           </DialogDescription>
         </DialogHeader>
 
         {/* Live Preview Banner */}
-        <div className="relative mt-2 overflow-hidden rounded-xl border border-slate-800 bg-slate-900/60 shadow-inner">
+        <div className={`relative mt-2 overflow-hidden rounded-xl border shadow-inner ${
+          isLight ? "border-slate-200 bg-slate-100" : "border-slate-800 bg-slate-900/60"
+        }`}>
           <div className="aspect-[210/82] w-full overflow-hidden bg-black/40">
             <img
               src={currentUrl}
@@ -329,45 +340,55 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
 
         {/* Inspection Checklist */}
         <div className="mt-4 space-y-2.5">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+          <h4 className={`text-xs font-bold uppercase tracking-wider ${
+            isLight ? "text-slate-700" : "text-slate-400"
+          }`}>
             Audit Checklist
           </h4>
 
           {checking ? (
-            <div className="flex items-center justify-center py-6 text-sm text-slate-400 gap-2">
-              <RefreshCw className="h-4 w-4 animate-spin text-amber-400" />
+            <div className={`flex items-center justify-center py-6 text-sm gap-2 ${
+              isLight ? "text-slate-600" : "text-slate-400"
+            }`}>
+              <RefreshCw className={`h-4 w-4 animate-spin ${isLight ? "text-amber-600" : "text-amber-400"}`} />
               Auditing render quality and geometry...
             </div>
           ) : results ? (
             <div className="grid grid-cols-1 gap-2 text-xs">
               {/* House Scale */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
+                <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">House Scale & Prominence</div>
-                  <div className="text-[11px] text-slate-400">{results.scaleDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>House Scale &amp; Prominence</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.scaleDetails}</div>
                 </div>
-                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                }`}>
                   PASSED
                 </span>
               </div>
 
               {/* Horizontal Centering & Balance */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
                 {results.centeringPassed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+                  <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 ) : (
-                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+                  <AlertTriangle className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 )}
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">Horizontal Centering & Balance</div>
-                  <div className="text-[11px] text-slate-400">{results.centeringDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>Horizontal Centering &amp; Balance</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.centeringDetails}</div>
                 </div>
                 <span
                   className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                     results.centeringPassed
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-amber-500/10 text-amber-400"
+                      ? isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                      : isLight ? "bg-amber-100 text-amber-900" : "bg-amber-500/10 text-amber-400"
                   }`}
                 >
                   {results.centeringPassed ? "PASSED" : "REVIEW"}
@@ -375,21 +396,23 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
               </div>
 
               {/* Roof Apex Clearance */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
                 {results.rooflinePassed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+                  <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 ) : (
-                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+                  <AlertTriangle className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 )}
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">Roof Apex & Headroom</div>
-                  <div className="text-[11px] text-slate-400">{results.rooflineDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>Roof Apex &amp; Headroom</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.rooflineDetails}</div>
                 </div>
                 <span
                   className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                     results.rooflinePassed
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-amber-500/10 text-amber-400"
+                      ? isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                      : isLight ? "bg-amber-100 text-amber-900" : "bg-amber-500/10 text-amber-400"
                   }`}
                 >
                   {results.rooflinePassed ? "PASSED" : "REVIEW"}
@@ -397,33 +420,39 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
               </div>
 
               {/* Grounding */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
+                <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">Grounding & Foundation</div>
-                  <div className="text-[11px] text-slate-400">{results.groundingDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>Grounding &amp; Foundation</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.groundingDetails}</div>
                 </div>
-                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                }`}>
                   PASSED
                 </span>
               </div>
 
               {/* Wing Edges & Seams */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
                 {results.edgesPassed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+                  <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 ) : (
-                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-none mt-0.5" />
+                  <AlertTriangle className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 )}
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">Landscape Wings & Edge Seams</div>
-                  <div className="text-[11px] text-slate-400">{results.edgesDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>Landscape Wings &amp; Edge Seams</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.edgesDetails}</div>
                 </div>
                 <span
                   className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
                     results.edgesPassed
-                      ? "bg-emerald-500/10 text-emerald-400"
-                      : "bg-amber-500/10 text-amber-400"
+                      ? isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                      : isLight ? "bg-amber-100 text-amber-900" : "bg-amber-500/10 text-amber-400"
                   }`}
                 >
                   {results.edgesPassed ? "PASSED" : "CORRECTED"}
@@ -431,13 +460,17 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
               </div>
 
               {/* Clarity & Format */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5">
-                <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none mt-0.5" />
+              <div className={`flex items-start gap-2.5 rounded-lg border p-2.5 ${
+                isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-900/40"
+              }`}>
+                <CheckCircle2 className={`h-4 w-4 flex-none mt-0.5 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
                 <div className="flex-1">
-                  <div className="font-semibold text-slate-200">Clarity & Aspect Ratio</div>
-                  <div className="text-[11px] text-slate-400">{results.clarityDetails}</div>
+                  <div className={`font-semibold ${isLight ? "text-slate-900" : "text-slate-200"}`}>Clarity &amp; Aspect Ratio</div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{results.clarityDetails}</div>
                 </div>
-                <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-400">
+                <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${
+                  isLight ? "bg-emerald-100 text-emerald-800" : "bg-emerald-500/10 text-emerald-400"
+                }`}>
                   PASSED
                 </span>
               </div>
@@ -447,14 +480,20 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
 
         {/* Inline Gemini API Key Setup if required */}
         {showKeyInput && (
-          <div className="mt-4 rounded-xl border border-amber-500/40 bg-amber-950/20 p-3.5 space-y-2.5">
+          <div className={`mt-4 rounded-xl border p-3.5 space-y-2.5 ${
+            isLight
+              ? "border-amber-300 bg-amber-50"
+              : "border-amber-500/40 bg-amber-950/20"
+          }`}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+              <span className={`text-xs font-bold uppercase tracking-wide ${
+                isLight ? "text-amber-950" : "text-amber-300"
+              }`}>
                 Hudson AI Engine Setup
               </span>
-              <span className="text-[10px] text-slate-400">Stored safely in browser</span>
+              <span className={`text-[10px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>Stored safely in browser</span>
             </div>
-            <p className="text-[11px] text-slate-300 leading-relaxed">
+            <p className={`text-[11px] leading-relaxed ${isLight ? "text-slate-700" : "text-slate-300"}`}>
               To calibrate facade renders on-the-fly, enter your Hudson AI API key:
             </p>
             <div className="flex gap-2">
@@ -463,7 +502,11 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
                 placeholder="AIzaSy..."
                 value={apiKeyInput}
                 onChange={(e) => setApiKeyInput(e.target.value)}
-                className="h-8.5 text-xs bg-slate-900/90 border-slate-700 text-slate-100 flex-1 font-mono"
+                className={`h-8.5 text-xs flex-1 font-mono ${
+                  isLight
+                    ? "bg-white border-slate-300 text-slate-900"
+                    : "bg-slate-900/90 border-slate-700 text-slate-100"
+                }`}
               />
               <Button
                 type="button"
@@ -485,19 +528,25 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
         )}
 
         {/* Action Controls */}
-        <div className="mt-6 flex items-center justify-between border-t border-slate-800/80 pt-4">
+        <div className={`mt-6 flex items-center justify-between border-t pt-4 ${
+          isLight ? "border-slate-200" : "border-slate-800/80"
+        }`}>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={handleRecalibrate}
             disabled={recalibrating || saving}
-            className="gap-1.5 border-slate-800 bg-slate-900 text-xs text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10"
+            className={`gap-1.5 border text-xs font-semibold ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-800 hover:bg-amber-50 hover:border-amber-400"
+                : "border-slate-800 bg-slate-900 text-amber-300 hover:border-brand-gold/50 hover:bg-brand-gold/10"
+            }`}
           >
             {recalibrating ? (
               <RefreshCw className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <Sparkles className="h-3.5 w-3.5 text-brand-gold" />
+              <Sparkles className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-brand-gold"}`} />
             )}
             Re-Calibrate Proportions
           </Button>
@@ -509,7 +558,7 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
               size="sm"
               onClick={onClose}
               disabled={saving || recalibrating}
-              className="text-xs text-slate-400 hover:text-slate-200"
+              className={`text-xs ${isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"}`}
             >
               Cancel
             </Button>

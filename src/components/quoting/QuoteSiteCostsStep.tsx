@@ -443,11 +443,11 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       {/* Section 1: Soil Classification & Foundation Earthworks */}
       <div className={`space-y-4 p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"}`}>
         <div className="flex items-center justify-between">
-          <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-            <Layers className="h-3.5 w-3.5 text-cyan-400" />
+          <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+            <Layers className={`h-3.5 w-3.5 ${isLight ? "text-cyan-700" : "text-cyan-400"}`} />
             Engineered Soil Classification &amp; Slab Footing
           </Label>
-          <span className="text-xs font-mono font-bold text-emerald-400">
+          <span className={`text-xs font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
             {soilTotalCost === 0 ? "Standard Included ($0)" : soilTotalCost < 0 ? `-${formatAud(Math.abs(soilTotalCost))}` : `+${formatAud(soilTotalCost)}`}
           </span>
         </div>
@@ -462,21 +462,31 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 onClick={() => handleSoilSelect(soil.id)}
                 className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
                   isSelected
-                    ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-500 shadow-sm"
+                      : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40 shadow-lg"
+                    : isLight
+                    ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50 shadow-xs"
                     : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
                 }`}
               >
                 <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white truncate block">{soil.name}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">
+                  <span className={`font-bold text-xs truncate block ${isLight ? "text-slate-900" : "text-white"}`}>{soil.name}</span>
+                  <span className={`text-[10px] font-mono ${isLight ? "text-slate-600 font-medium" : "text-slate-500"}`}>
                     {soil.rate === 0 ? "Included" : `${soil.rate > 0 ? "+" : ""}$${soil.rate}/m²`}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 flex-none">
-                  <span className={`font-bold text-xs font-mono ${cost < 0 ? "text-cyan-400" : cost > 0 ? "text-amber-400" : "text-slate-300"}`}>
+                  <span className={`font-bold text-xs font-mono ${
+                    cost === 0
+                      ? isLight ? "text-slate-600" : "text-slate-300"
+                      : cost < 0
+                      ? isLight ? "text-cyan-800" : "text-cyan-400"
+                      : isLight ? "text-amber-800" : "text-amber-400"
+                  }`}>
                     {cost === 0 ? "Included" : cost < 0 ? `-${formatAud(Math.abs(cost))}` : `+${formatAud(cost)}`}
                   </span>
-                  {isSelected && <CheckCircle2 className="h-4 w-4 text-emerald-400 flex-none" />}
+                  {isSelected && <CheckCircle2 className={`h-4 w-4 flex-none ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />}
                 </div>
               </div>
             );
@@ -484,25 +494,32 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </div>
 
         {/* 32MPa Concrete Slab & Flexible Connections */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/80">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t ${isLight ? "border-slate-200" : "border-slate-800/80"}`}>
           {/* 32MPa Concrete */}
           <div
             onClick={() => onSiteChange({ concrete32MpaRequired: !site.concrete32MpaRequired })}
             className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
               site.concrete32MpaRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                ? isLight
+                  ? "border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-500"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : isLight
+                ? "border-slate-200 bg-slate-50 hover:bg-slate-100"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-white">32 MPa Concrete Slab Upgrade</span>
-                {site.concrete32MpaRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
+                <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>32 MPa Concrete Slab Upgrade</span>
+                {site.concrete32MpaRequired && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                    isLight ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-emerald-500/20 text-emerald-300"
+                  }`}>Active</span>
+                )}
               </div>
-              
             </div>
             <div className="text-right flex-none">
-              <span className="font-bold text-xs text-emerald-400 font-mono block">
+              <span className={`font-bold text-xs font-mono block ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
                 +{formatAud(display32MpaRate)}
               </span>
             </div>
@@ -513,19 +530,26 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             onClick={() => onSiteChange({ flexibleConnectionsRequired: !site.flexibleConnectionsRequired })}
             className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-start justify-between gap-3 ${
               site.flexibleConnectionsRequired
-                ? "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                ? isLight
+                  ? "border-emerald-600 bg-emerald-50/80 ring-1 ring-emerald-500"
+                  : "border-emerald-500 bg-emerald-950/20 ring-1 ring-emerald-500/40"
+                : isLight
+                ? "border-slate-200 bg-slate-50 hover:bg-slate-100"
                 : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
             }`}
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <span className="font-bold text-xs text-white">Flexible Service Connections</span>
-                {site.flexibleConnectionsRequired && <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">Active</span>}
+                <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>Flexible Service Connections</span>
+                {site.flexibleConnectionsRequired && (
+                  <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                    isLight ? "bg-emerald-100 text-emerald-900 border border-emerald-300" : "bg-emerald-500/20 text-emerald-300"
+                  }`}>Active</span>
+                )}
               </div>
-              
             </div>
             <div className="text-right flex-none">
-              <span className="font-bold text-xs text-emerald-400 font-mono block">
+              <span className={`font-bold text-xs font-mono block ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
                 +{formatAud(site.flexibleConnectionsCost ?? 1800)}
               </span>
             </div>
@@ -534,28 +558,28 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       </div>
 
       {/* Section 2: Topography & Fall Across Building Envelope */}
-      <div className="space-y-3 bg-slate-950/70 p-5 rounded-2xl border border-slate-800">
+      <div className={`space-y-3 p-5 rounded-2xl border ${isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-950/70 border-slate-800"}`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-              <ArrowDownUp className="h-3.5 w-3.5 text-amber-400" />
+            <Label className={`text-xs font-semibold flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-slate-300"}`}>
+              <ArrowDownUp className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
               Topography &amp; Fall Across Building Envelope (m)
             </Label>
-            <span className="text-[11px] text-slate-400 block mt-0.5">
+            <span className={`text-[11px] block mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
               Standard equal cut &amp; fill is included up to 1.0m fall ($0).{" "}
               {isSplitLevel ? (
-                <span className="text-cyan-300 font-semibold">Split Level: Smooth progressive gradient (Max $16.00/0.1m × {gfaM2} m² GFA)</span>
+                <span className={`font-semibold ${isLight ? "text-cyan-800" : "text-cyan-300"}`}>Split Level: Smooth progressive gradient (Max $16.00/0.1m × {gfaM2} m² GFA)</span>
               ) : (
-                <span className="text-slate-300 font-semibold">Standard: Smooth progressive gradient (Max $20.00/0.1m × {gfaM2} m² GFA)</span>
+                <span className={`font-semibold ${isLight ? "text-slate-800" : "text-slate-300"}`}>Standard: Smooth progressive gradient (Max $20.00/0.1m × {gfaM2} m² GFA)</span>
               )}
             </span>
           </div>
 
           <div className="text-right flex-none">
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider block">
+            <span className={`text-[10px] uppercase tracking-wider block ${isLight ? "text-slate-600 font-medium" : "text-slate-500"}`}>
               Topography Cost:
             </span>
-            <span className="text-base font-extrabold text-amber-400 font-mono">
+            <span className={`text-base font-extrabold font-mono ${isLight ? "text-amber-800" : "text-amber-400"}`}>
               {(site.fallTotalCost ?? fallCost) === 0 ? "Included ($0)" : `+${formatAud(site.fallTotalCost ?? fallCost)}`}
             </span>
           </div>
@@ -563,7 +587,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-400">Total Fall across Envelope (Metres)</Label>
+            <Label className={`text-xs ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>Total Fall across Envelope (Metres)</Label>
             <div className="flex items-center gap-2">
               <Input
                 type="number"
@@ -573,9 +597,13 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 value={site.fallMeters || ""}
                 onChange={(e) => handleFallChange(Math.max(0, Number(e.target.value)))}
                 placeholder="0.5"
-                className="h-10 text-sm border-slate-800 bg-slate-900 text-slate-100 font-bold font-mono"
+                className={`h-10 text-sm font-bold font-mono ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900"
+                    : "border-slate-800 bg-slate-900 text-slate-100"
+                }`}
               />
-              <span className="text-xs text-slate-400 font-mono">m</span>
+              <span className={`text-xs font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>m</span>
             </div>
           </div>
 
