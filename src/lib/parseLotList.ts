@@ -276,6 +276,26 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
       status = "sold";
     }
 
+    // 8. Street Address Extraction
+    let rowAddress: string | null = null;
+    if (colMap && colMap.address !== undefined && cells[colMap.address]) {
+      const val = cells[colMap.address].trim();
+      if (val && !/^(address|street|lot)$/i.test(val)) {
+        rowAddress = val;
+      }
+    }
+    if (!rowAddress) {
+      for (const cell of cells) {
+        if (
+          /\b(?:street|st|road|rd|avenue|ave|drive|dr|way|lane|ln|court|ct|crescent|cres|circuit|cct|place|pl|boulevard|bvd|parade|pde|close|cl|terrace|tce|grove|gr)\b/i.test(cell) &&
+          !/^(street|st|road|rd|address)$/i.test(cell.trim())
+        ) {
+          rowAddress = cell.trim();
+          break;
+        }
+      }
+    }
+
     if (!lotNum) continue;
     if (seenLots.has(lotNum.toLowerCase())) continue;
     seenLots.add(lotNum.toLowerCase());
@@ -283,7 +303,7 @@ export function extractLotsFromText(rawText: string, filename = ""): ParseLotRes
     foundLots.push({
       lot_number: lotNum,
       stage: rowStage || null,
-      address: null,
+      address: rowAddress || null,
       land_size: landSize,
       frontage: frontage,
       land_price: priceNum,

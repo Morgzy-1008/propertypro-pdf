@@ -2193,9 +2193,31 @@ function DatabasePage() {
 
     try {
       // Allow React to mount the printable container and wait for layout & fonts
-      await new Promise((resolve) => setTimeout(resolve, 350));
+      await new Promise((resolve) => setTimeout(resolve, 400));
       if (typeof document !== "undefined" && document.fonts) {
         await document.fonts.ready;
+      }
+      // Ensure all images (facade, floorplan, logo) have fully decoded before capturing
+      if (printContainerRef.current) {
+        const imgs = Array.from(printContainerRef.current.querySelectorAll("img"));
+        await Promise.all(
+          imgs.map(async (img) => {
+            if (img.complete && img.naturalWidth > 0) return;
+            try {
+              if ("decode" in img) {
+                await img.decode();
+              } else {
+                await new Promise<void>((res) => {
+                  img.onload = () => res();
+                  img.onerror = () => res();
+                  setTimeout(res, 2500);
+                });
+              }
+            } catch {
+              /* non-fatal image decode warning */
+            }
+          })
+        );
       }
       await downloadA4Pdf(printContainerRef.current || undefined, buildFlyerPdfFilename(flyerData));
       toast.success(`Downloaded flyer for ${flyerData.floorplanName || flyerData.designName}`);
@@ -3511,7 +3533,17 @@ function DatabasePage() {
 
                                 {/* Individual Package Rows */}
                                 {groupPkgs.map((p) => {
-                                  const lot = p.lot_id ? lotById.get(p.lot_id) : undefined;
+                                  const flyerObj = ((p.flyer_data || p.flyer_json) && typeof (p.flyer_data || p.flyer_json) === "object" ? (p.flyer_data || p.flyer_json) : {}) as any;
+                                  const lot = (p.lot_id ? lotById.get(p.lot_id) : undefined) ||
+                                    (flyerObj.lotId ? lotById.get(flyerObj.lotId) : undefined) ||
+                                    (flyerObj.lot_id ? lotById.get(flyerObj.lot_id) : undefined) ||
+                                    lots.find((l) => {
+                                      const pLotNo = String(flyerObj.lot_number || flyerObj.lotNumber || "").replace(/^lot\s*/i, "").trim().toLowerCase();
+                                      const lLotNo = String(l.lot_number || "").replace(/^lot\s*/i, "").trim().toLowerCase();
+                                      const pEst = String(l.estate || "").trim().toLowerCase();
+                                      const grpEst = String(estate || flyerObj.estate || "").trim().toLowerCase();
+                                      return Boolean(pLotNo && lLotNo === pLotNo && (!grpEst || pEst === grpEst));
+                                    });
                                   const pkgState = p.state || (lot ? getLotState(lot) : "QLD");
                                   return (
                                     <tr
@@ -3586,6 +3618,11 @@ function DatabasePage() {
                                                 ? `Lot ${lot.lot_number}`
                                                 : "Lot —"}
                                             </span>
+                                            {lot.address && (
+                                              <div className={`text-[11px] truncate max-w-[190px] font-medium ${isLight ? "text-slate-600" : "text-slate-300"}`} title={lot.address}>
+                                                {lot.address}
+                                              </div>
+                                            )}
                                             <div
                                               className={`text-[11px] ${
                                                 isLight ? "text-slate-500" : "text-slate-400"
@@ -3600,11 +3637,18 @@ function DatabasePage() {
                                             </div>
                                           </div>
                                         ) : (
-                                          <span>
-                                            {(p.flyer_data as any)?.lot_number
-                                              ? `Lot ${(p.flyer_data as any).lot_number}`
-                                              : "Standalone Package"}
-                                          </span>
+                                          <div>
+                                            <span className="font-semibold">
+                                              {flyerObj.lot_number || flyerObj.lotNumber
+                                                ? `Lot ${flyerObj.lot_number || flyerObj.lotNumber}`
+                                                : "Standalone Package"}
+                                            </span>
+                                            {flyerObj.address && (
+                                              <div className={`text-[11px] truncate max-w-[190px] font-medium ${isLight ? "text-slate-600" : "text-slate-300"}`} title={flyerObj.address}>
+                                                {flyerObj.address}
+                                              </div>
+                                            )}
+                                          </div>
                                         )}
                                       </td>
                                       <td
@@ -3797,12 +3841,13 @@ function DatabasePage() {
         ref={printContainerRef}
         style={{
           position: "fixed",
-          left: "-9999px",
+          left: "-99999px",
           top: 0,
           width: "794px",
-          opacity: 0,
+          minHeight: "1123px",
           pointerEvents: "none",
-          zIndex: -1,
+          zIndex: -9999,
+          background: "#ffffff",
         }}
       >
         {activeDownloadData && (

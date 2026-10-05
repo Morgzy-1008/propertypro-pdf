@@ -742,6 +742,43 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("showOtherSizes", sizes.length > 0);
   };
 
+  // Auto-sync variants and auto-populate floorplan & facade if missing on mount or edit
+  useEffect(() => {
+    if (!data.designName) return;
+    const plans = plansForDesign(data.designName);
+    setVariants(plans);
+
+    // If floorplan drawing URL is missing or empty, auto-apply the design's standard plan
+    if (!data.floorplanUrl && plans.length > 0) {
+      applyPlan(plans[0]);
+    }
+
+    // If facade image URL is missing or empty, auto-resolve default facade
+    if (!data.facadeUrl) {
+      const facade = resolveDefaultFacade(
+        data.cars || (plans[0]?.cars) || "2",
+        data.housingType || "Single Storey",
+        data.designName,
+        data.facadeId,
+        data.facadeName || "Classic",
+      );
+      if (facade) {
+        set("facadeId", facade.id);
+        set("facadeName", facade.name);
+        set("facadeUrl", facade.url);
+        set("rawFacadeUrl", facade.originalUrl || facade.url);
+      }
+    }
+
+    if (!data.otherSizes || data.otherSizes.length === 0) {
+      const sizes = otherSizesForDesign(data.designName);
+      if (sizes.length > 0) {
+        set("otherSizes", sizes);
+        set("showOtherSizes", true);
+      }
+    }
+  }, [data.designName, data.floorplanUrl, data.facadeUrl]);
+
   const selectVariant = (label: string) => {
     const plan = variants.find((v) => v.label === label);
     if (plan) applyPlan(plan);

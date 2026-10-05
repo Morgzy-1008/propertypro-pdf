@@ -110,6 +110,17 @@ export function formatLotForSupabase(lot: Lot) {
  * Normalizes a package object for Supabase packages table.
  */
 export function formatPackageForSupabase(pkg: Pkg) {
+  const existingFlyer = ((pkg.flyer_json || pkg.flyer_data) && typeof (pkg.flyer_json || pkg.flyer_data) === "object"
+    ? (pkg.flyer_json || pkg.flyer_data)
+    : {}) as any;
+
+  // Ensure lotId and lot_id are retained in flyer_data
+  const flyerDataPayload = {
+    ...existingFlyer,
+    lotId: pkg.lot_id || existingFlyer.lotId || existingFlyer.lot_id || null,
+    lot_id: pkg.lot_id || existingFlyer.lot_id || existingFlyer.lotId || null,
+  };
+
   return {
     id: isValidUuid(pkg.id) ? pkg.id : (toValidUuid(pkg.id) || generateUuid()),
     lot_id: pkg.lot_id && isValidUuid(pkg.lot_id) ? pkg.lot_id : null,
@@ -127,7 +138,7 @@ export function formatPackageForSupabase(pkg: Pkg) {
     floorplan_size: pkg.floorplan_size ? String(pkg.floorplan_size) : null,
     status: (pkg.status === "sold" ? "sold" : pkg.status === "draft" ? "draft" : "live") as "draft" | "live" | "sold",
     needs_review: !!pkg.needs_review,
-    flyer_data: (pkg.flyer_json || pkg.flyer_data || {}) as any,
+    flyer_data: flyerDataPayload,
     updated_at: new Date().toISOString(),
   };
 }
@@ -183,9 +194,26 @@ export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean
 
     if (missingPkgs.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingPkgs.length} missing packages (including NSW) to Supabase...`);
-      // Fetch valid lot IDs from land_lots to avoid foreign key violations
+      // Fetch valid lot IDs from land_lots to avoid foreign key violations.
+      // Sync any missing local lots first so package associations aren't stripped.
       const { data: dbLots } = await supabase.from("land_lots").select("id");
       const validLotIds = new Set((dbLots || []).map((l) => l.id));
+
+      const localLots = getLocalLots();
+      const missingLotIds = missingPkgs
+        .map((p) => p.lot_id)
+        .filter((id): id is string => Boolean(id && !validLotIds.has(id)));
+
+      if (missingLotIds.length > 0) {
+        const lotsToSync = localLots.filter((l) => missingLotIds.includes(l.id));
+        if (lotsToSync.length > 0) {
+          const formattedLots = lotsToSync.map(formatLotForSupabase);
+          const { error: lotErr } = await supabase.from("land_lots").upsert(formattedLots);
+          if (!lotErr) {
+            lotsToSync.forEach((l) => validLotIds.add(l.id));
+          }
+        }
+      }
 
       const formatted = missingPkgs.map((p) => {
         const fmt = formatPackageForSupabase(p);
@@ -431,9 +459,26 @@ export async function syncPackagesBatchToSupabase(pkgs: Pkg[]): Promise<boolean>
   if (!pkgs.length) return true;
   try {
     await ensureStaffSupabaseAuth();
-    // Validate lot_ids against land_lots table to prevent foreign key violations
+    // Validate lot_ids against land_lots table to prevent foreign key violations.
+    // If any lots are missing from Supabase, push them from local storage first to preserve lot associations.
     const { data: dbLots } = await supabase.from("land_lots").select("id");
     const validLotIds = new Set((dbLots || []).map((l) => l.id));
+
+    const localLots = getLocalLots();
+    const missingLotIds = pkgs
+      .map((p) => p.lot_id)
+      .filter((id): id is string => Boolean(id && !validLotIds.has(id)));
+
+    if (missingLotIds.length > 0) {
+      const lotsToSync = localLots.filter((l) => missingLotIds.includes(l.id));
+      if (lotsToSync.length > 0) {
+        const formattedLots = lotsToSync.map(formatLotForSupabase);
+        const { error: lotErr } = await supabase.from("land_lots").upsert(formattedLots);
+        if (!lotErr) {
+          lotsToSync.forEach((l) => validLotIds.add(l.id));
+        }
+      }
+    }
 
     const formatted = pkgs.map((p) => {
       const fmt = formatPackageForSupabase(p);
@@ -587,8 +632,21 @@ export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packa
     });
 
     const packages: Pkg[] = rawPkgs.map((p) => {
-      const lotId = p.lot_id ? String(p.lot_id) : null;
-      const matchingLot = lots.find((l) => l.id === lotId);
+      const flyerDataObj = (p.flyer_data && typeof p.flyer_data === "object" ? p.flyer_data : {}) as any;
+      let lotId = p.lot_id ? String(p.lot_id) : (flyerDataObj?.lotId || flyerDataObj?.lot_id || null);
+      let matchingLot = lots.find((l) => l.id === lotId);
+      if (!matchingLot && (flyerDataObj?.lot_number || flyerDataObj?.lotNumber)) {
+        const pLotNo = String(flyerDataObj.lot_number || flyerDataObj.lotNumber).replace(/^lot\s*/i, "").trim().toLowerCase();
+        const pEst = String(flyerDataObj.estate || "").trim().toLowerCase();
+        matchingLot = lots.find((l) => {
+          const lNum = String(l.lot_number || "").replace(/^lot\s*/i, "").trim().toLowerCase();
+          const lEst = String(l.estate || "").trim().toLowerCase();
+          return Boolean(pLotNo && lNum === pLotNo && (!pEst || lEst === pEst));
+        });
+        if (matchingLot) {
+          lotId = matchingLot.id;
+        }
+      }
       let state: "QLD" | "NSW" = matchingLot?.state || "QLD";
       if (!matchingLot) {
         const pkgText = `${p.name || ""} ${(p.flyer_data as any)?.estate || ""} ${(p.flyer_data as any)?.suburb || ""}`.toLowerCase();

@@ -502,21 +502,15 @@ export function getLocalPackages(): Pkg[] {
     return inMemoryPackages.filter((p) => !deletedIds.has(p.id));
   }
   try {
-    const isInit = typeof window !== "undefined" && localStorage.getItem(STORAGE_KEY_INITIALIZED) === "true";
     const raw = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY_PACKAGES) : null;
-    if (isInit || raw !== null) {
-      if (raw !== null) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const sanitized: Pkg[] = parsed
-            .filter((p: Pkg) => p && p.id && !deletedIds.has(p.id))
-            .map(sanitizePackageForStorage);
-          inMemoryPackages = sanitized;
-          return sanitized;
-        }
-      } else {
-        inMemoryPackages = [];
-        return [];
+    if (raw !== null) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        const sanitized: Pkg[] = parsed
+          .filter((p: Pkg) => p && p.id && !deletedIds.has(p.id))
+          .map(sanitizePackageForStorage);
+        inMemoryPackages = sanitized;
+        return sanitized;
       }
     }
   } catch (e) {

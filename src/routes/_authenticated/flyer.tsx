@@ -30,6 +30,8 @@ import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 import { getLocalLots, upsertLocalPackage, type Pkg } from "@/lib/databaseStorage";
 import { ensureStaffSupabaseAuth, syncPackageToSupabase, syncLotToSupabase } from "@/lib/supabaseSync";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
+import { plansForDesign } from "@/components/flyer/floorplans";
+import { findFacadeForDesign, isNarrowDoubleStorey } from "@/lib/quoting/facadeLookup";
 
 export const Route = createFileRoute("/_authenticated/flyer")({
   head: () => ({
@@ -120,6 +122,38 @@ function Index() {
       if (patch.facadeUrl) {
         patch.facadeUrl = resolveUpdatedFacadeRender(patch.facadeUrl);
         patch.rawFacadeUrl = resolveUpdatedFacadeRender(patch.rawFacadeUrl || patch.facadeUrl);
+      }
+
+      if (patch.designName) {
+        if (!patch.floorplanUrl) {
+          const plans = plansForDesign(patch.designName);
+          if (plans.length > 0) {
+            patch.floorplanUrl = plans[0].url;
+            if (!patch.floorplanName || patch.floorplanName === "Floorplan") {
+              patch.floorplanName = plans[0].label;
+            }
+            if (!patch.floorplanSize) {
+              patch.floorplanSize = plans[0].size;
+            }
+          }
+        }
+        if (!patch.facadeUrl) {
+          const isDouble =
+            Boolean(patch.housingType?.toLowerCase().includes("double") ||
+            patch.housingType?.toLowerCase().includes("2-storey") ||
+            isNarrowDoubleStorey(patch.designName));
+          const resolvedFacade = findFacadeForDesign(
+            patch.facadeName || "Classic",
+            isDouble,
+            patch.housingType || "Single Storey",
+            patch.designName
+          );
+          if (resolvedFacade?.url) {
+            patch.facadeUrl = resolveUpdatedFacadeRender(resolvedFacade.url);
+            patch.rawFacadeUrl = resolvedFacade.originalUrl || resolvedFacade.url;
+            patch.facadeName = resolvedFacade.name || patch.facadeName;
+          }
+        }
       }
       
       const activeStaff = getActiveStaffUser();
