@@ -213,11 +213,11 @@ function PortalCard({
   const cardClasses = `relative h-full rounded-[21px] p-6 sm:p-7 flex flex-col justify-between overflow-hidden transition-all duration-300 backdrop-blur-xl ${
     isLight
       ? isComingSoon
-        ? "bg-white/70 text-slate-800 shadow-md shadow-slate-200/50"
-        : "bg-white/78 text-slate-900 group-hover:bg-white/90 shadow-xl shadow-slate-300/40"
+        ? "bg-white/80 text-slate-800 shadow-md shadow-slate-200/50"
+        : "bg-white/88 text-slate-900 group-hover:bg-white/95 shadow-xl shadow-slate-300/40"
       : isComingSoon
-      ? "bg-slate-950/65 text-slate-200 shadow-lg shadow-black/50"
-      : "bg-slate-950/68 text-slate-100 group-hover:bg-slate-900/80 shadow-2xl shadow-black/80"
+      ? "bg-slate-950/78 text-slate-200 shadow-lg shadow-black/50"
+      : "bg-slate-950/82 text-slate-100 group-hover:bg-slate-900/90 shadow-2xl shadow-black/80"
   } ${isWide ? "lg:flex-row lg:items-center lg:gap-8" : ""}`;
 
   return (
@@ -334,13 +334,19 @@ function WelcomeHubPage() {
     (sessionStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au" ||
       localStorage.getItem("hudson_admin_impersonator") === "morgan.hales@hudsonhomes.com.au");
 
-  const isLocal = isLocalhost();
-  const [teamBgOpacity, setTeamBgOpacity] = useState<number>(() => {
+  const [hubBgOpacity, setHubBgOpacity] = useState<number>(() => {
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("hudson_team_bg_opacity");
+      const saved = localStorage.getItem("hudson_hub_bg_opacity");
       if (saved) return parseFloat(saved);
     }
-    return 0.25; // Default elegant translucent opacity
+    return 0.38; // Slightly less translucent (clearer architectural display)
+  });
+  const [hubBgPhoto, setHubBgPhoto] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hudson_hub_bg_photo");
+      if (saved) return saved;
+    }
+    return "/facades/hamptons_widescreen.jpg"; // Signature Hudson Homes Hamptons Display Home (No HIA circle, clean & serene)
   });
   const [isTeamBgVisible, setIsTeamBgVisible] = useState<boolean>(true);
   const [isTeamModalOpen, setIsTeamModalOpen] = useState<boolean>(false);
@@ -351,30 +357,30 @@ function WelcomeHubPage() {
         isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"
       } flex flex-col font-sans selection:bg-brand-gold/30 relative overflow-x-hidden`}
     >
-      {/* 2026 Hudson Homes Company Team Photo Translucent Background (16:9 AI Outfilled Widescreen) */}
+      {/* Hudson Homes Signature Architectural Display Home Translucent Background (16:9 Widescreen) */}
       {isTeamBgVisible && (
         <div
           className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none transition-opacity duration-700"
           style={{
-            opacity: isLight ? Math.min(teamBgOpacity, 0.28) : Math.min(teamBgOpacity, 0.40),
+            opacity: isLight ? Math.min(hubBgOpacity, 0.40) : Math.min(hubBgOpacity, 0.50),
             maskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.98) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.65) 100%)",
             WebkitMaskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.98) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.65) 100%)",
           }}
         >
-          {/* High-fidelity widescreen team photo filling the page */}
+          {/* High-fidelity widescreen architectural photo without HIA circle */}
           <img
-            src="/brand/hudson-team-2026-widescreen.jpg"
-            alt="Hudson Homes Team 2026 HIA Finalist"
-            className="w-full h-full object-cover object-center filter saturate-[1.15] contrast-[1.06]"
+            src={hubBgPhoto}
+            alt="Hudson Homes Signature Display Home"
+            className="w-full h-full object-cover object-center filter saturate-[1.12] contrast-[1.04]"
           />
           {/* Subtle atmospheric vignette gradient overlay for text readability */}
           <div
             className={`absolute inset-0 ${
               isLight
-                ? "bg-gradient-to-b from-slate-50/20 via-transparent to-slate-50/70"
-                : "bg-gradient-to-b from-slate-950/30 via-slate-950/10 to-slate-950/80"
+                ? "bg-gradient-to-b from-slate-50/15 via-transparent to-slate-50/65"
+                : "bg-gradient-to-b from-slate-950/25 via-slate-950/5 to-slate-950/75"
             }`}
           />
         </div>
@@ -734,10 +740,44 @@ function WelcomeHubPage() {
       <footer
         className={`border-t ${
           isLight ? "border-slate-200/80 bg-white/70 text-slate-500" : "border-slate-800/80 bg-slate-950/70 text-slate-400"
-        } py-4 text-center text-xs relative backdrop-blur-md`}
+        } py-4 text-xs relative backdrop-blur-md`}
       >
         <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-slate-700/40 to-transparent" />
-        Hudson Homes {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales" : "Queensland"} • Powered by Package Studio &amp; Hudson Horizon
+        <div className="max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <span>
+            Hudson Homes {staffUser?.division === "NSW" || staffUser?.state === "NSW" ? "New South Wales" : "Queensland"} • Powered by Package Studio &amp; Hudson Horizon
+          </span>
+          <div className="flex items-center gap-2 text-[11px] flex-wrap justify-center sm:justify-end">
+            <span className="opacity-70">Display Home Backdrop:</span>
+            {[
+              { id: "/facades/hamptons_widescreen.jpg", label: "Hamptons (Signature)" },
+              { id: "/facades/riviera_widescreen.jpg", label: "Riviera (Twilight)" },
+              { id: "/facades/aspen_widescreen.jpg", label: "Aspen" },
+            ].map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => {
+                  setHubBgPhoto(b.id);
+                  if (typeof window !== "undefined") {
+                    localStorage.setItem("hudson_hub_bg_photo", b.id);
+                  }
+                }}
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
+                  hubBgPhoto === b.id
+                    ? isLight
+                      ? "bg-amber-500/20 text-amber-900 font-bold border border-amber-400/50"
+                      : "bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40"
+                    : isLight
+                    ? "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                }`}
+              >
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </footer>
     </div>
   );
