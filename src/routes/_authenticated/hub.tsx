@@ -15,6 +15,8 @@ import {
   Compass,
   UserCheck,
   Clock,
+  Trophy,
+  X,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -338,9 +340,10 @@ function WelcomeHubPage() {
       const saved = localStorage.getItem("hudson_team_bg_opacity");
       if (saved) return parseFloat(saved);
     }
-    return 0.18; // Default elegant translucent opacity
+    return 0.25; // Default elegant translucent opacity
   });
   const [isTeamBgVisible, setIsTeamBgVisible] = useState<boolean>(true);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState<boolean>(false);
 
   return (
     <div
@@ -348,29 +351,37 @@ function WelcomeHubPage() {
         isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"
       } flex flex-col font-sans selection:bg-brand-gold/30 relative overflow-x-hidden`}
     >
-      {/* 2026 Hudson Homes Company Team Photo Translucent Background */}
+      {/* 2026 Hudson Homes Company Team Photo Translucent Background (Zoomed-out contain with ambient backdrop) */}
       {isTeamBgVisible && (
         <div
           className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none transition-opacity duration-700"
           style={{
-            opacity: isLight ? Math.min(teamBgOpacity, 0.13) : teamBgOpacity,
+            opacity: isLight ? Math.min(teamBgOpacity, 0.28) : Math.min(teamBgOpacity, 0.40),
             maskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.5) 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 100%)",
             WebkitMaskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,1) 20%, rgba(0,0,0,1) 80%, rgba(0,0,0,0.5) 100%)",
+              "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 100%)",
           }}
         >
+          {/* Ambient blurred backdrop spreading color and warmth across widescreen monitors */}
           <img
             src="/brand/hudson-team-2026.jpg"
-            alt="Hudson Homes Team 2026"
-            className="w-full h-full object-cover object-[center_30%] filter saturate-[1.15] contrast-[1.05]"
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-35 scale-110"
+          />
+          {/* Zoomed-out complete photo showing all team members & HIA finalist title */}
+          <img
+            src="/brand/hudson-team-2026.jpg"
+            alt="Hudson Homes Team 2026 HIA Finalist"
+            className="relative w-full h-full object-contain object-center filter saturate-[1.2] contrast-[1.08]"
           />
           {/* Subtle atmospheric vignette gradient overlay for text readability */}
           <div
             className={`absolute inset-0 ${
               isLight
-                ? "bg-gradient-to-b from-slate-50/50 via-transparent to-slate-50/80"
-                : "bg-gradient-to-b from-slate-950/50 via-slate-950/20 to-slate-950/85"
+                ? "bg-gradient-to-b from-slate-50/20 via-transparent to-slate-50/70"
+                : "bg-gradient-to-b from-slate-950/30 via-slate-950/10 to-slate-950/80"
             }`}
           />
         </div>
@@ -438,13 +449,21 @@ function WelcomeHubPage() {
                 <span className="font-semibold text-white">2026 Team:</span>
                 <button
                   type="button"
+                  onClick={() => setIsTeamModalOpen(true)}
+                  className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold transition-colors cursor-pointer text-[11px]"
+                  title="View full-resolution 2026 HIA Finalist Team Photo"
+                >
+                  View
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
-                    const next = teamBgOpacity <= 0.12 ? 0.22 : teamBgOpacity <= 0.25 ? 0.35 : 0.10;
+                    const next = teamBgOpacity <= 0.15 ? 0.25 : teamBgOpacity <= 0.28 ? 0.38 : 0.15;
                     setTeamBgOpacity(next);
                     localStorage.setItem("hudson_team_bg_opacity", next.toString());
                   }}
                   className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 font-mono font-bold transition-colors cursor-pointer"
-                  title="Click to cycle translucency (10%, 22%, 35%)"
+                  title="Click to cycle translucency (15%, 25%, 38%)"
                 >
                   {Math.round(teamBgOpacity * 100)}%
                 </button>
@@ -716,6 +735,54 @@ function WelcomeHubPage() {
         isOpen={isProfileSwitcherOpen}
         onClose={() => setIsProfileSwitcherOpen(false)}
       />
+
+      {/* 2026 HIA Finalist Team Photo Full Lightbox Modal */}
+      {isTeamModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div
+            className={`relative max-w-4xl max-h-[92vh] w-full flex flex-col items-center ${
+              isLight ? "bg-white border-slate-200 shadow-2xl text-slate-900" : "bg-slate-900 border-amber-500/40 shadow-black/80 text-white"
+            } border rounded-2xl overflow-hidden shadow-2xl p-4 sm:p-6`}
+          >
+            <div className={`w-full flex items-center justify-between pb-3 border-b ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+              <div className="flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500 shrink-0" />
+                <span className={`font-bold text-sm sm:text-base ${isLight ? "!text-slate-900" : "!text-white"}`}>
+                  Hudson Homes 2026 HIA Finalist Team
+                </span>
+                <span className={`text-xs font-mono hidden sm:inline ${isLight ? "!text-amber-700 font-semibold" : "!text-amber-400"}`}>
+                  NSW Region Large Builder
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTeamModalOpen(false)}
+                className={`p-1.5 rounded-lg ${isLight ? "text-slate-500 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-white hover:bg-slate-800"} transition-colors cursor-pointer`}
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="w-full flex-1 overflow-auto flex items-center justify-center py-3">
+              <img
+                src="/brand/hudson-team-2026.jpg"
+                alt="Hudson Homes 2026 HIA Finalist Team"
+                className="max-h-[72vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
+              />
+            </div>
+            <div className={`w-full pt-3 border-t ${isLight ? "border-slate-200 text-slate-600" : "border-slate-800 text-slate-400"} flex items-center justify-between text-xs`}>
+              <span>Celebrating our incredible Hudson Homes team across Queensland &amp; New South Wales!</span>
+              <button
+                type="button"
+                onClick={() => setIsTeamModalOpen(false)}
+                className={`px-3 py-1.5 rounded-lg ${isLight ? "bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold" : "bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium"} cursor-pointer transition-colors`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer Branding Bar with Optical Laser Divider */}
       <footer
