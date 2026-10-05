@@ -11,6 +11,8 @@ import { getGeminiApiKey } from "@/lib/land-scout/landScoutWebSearch";
 import { getActiveDivision } from "@/lib/divisionContext";
 import { isSingleGarageDesign } from "./facadeLookup";
 import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
+import { parseAreaScheduleFromText } from "@/components/quoting/ModifiedFloorplanModal";
+import { HISTORICAL_CLIENT_TENDERS_DATA } from "@/lib/hubKnowledgeEngine";
 import {
   calculateScaleCalibration,
   evaluateVanityDimensions,
@@ -1674,30 +1676,54 @@ export function extractModelFromCandidateTitle(
 ): { designName: string; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
   if (!titleStr) return null;
 
-  // 1. Direct match or normalized match (replacing underscores with spaces and separating joined digits e.g. turquoise31 -> turquoise 31)
-  const normalizedTitle = titleStr.replace(/_/g, " ").replace(/([a-zA-Z]+)(\d+)/g, "$1 $2").trim();
+  // 1. Strip file extension and normalize spaces
+  const cleanExt = titleStr.replace(/\.[a-zA-Z0-9]+$/i, "");
+  const normalizedTitle = cleanExt
+    .replace(/_/g, " ")
+    .replace(/([a-zA-Z]+)(\d+)/g, "$1 $2")
+    .trim();
+
   const direct = findHudsonModelByName(titleStr) || findHudsonModelByName(normalizedTitle);
   if (direct) {
     return { designName: direct.row.name, housingType: direct.housingType as any };
   }
 
   // 2. Segment by common title delimiters (slashes, pipes, dashes, underscores, colons, newlines)
-  const segments = (titleStr + " " + normalizedTitle).split(/[\/|:\n\r–—\-_]+/);
+  const segments = (cleanExt + " " + normalizedTitle).split(/[\/|:\n\r–—\-_]+/);
   for (const seg of segments) {
     const trimmed = seg.trim();
     if (!trimmed) continue;
-    const cleanSeg = trimmed.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom|plan|drawing|residence|new|\.pdf)\b/gi, "").trim();
+    const cleanSeg = trimmed
+      .replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom|plan|drawing|residence|new|mup|rfp|permit\s*r\d*|lh|rh|v\d+)\b/gi, "")
+      .trim();
     const match = findHudsonModelByName(cleanSeg) || findHudsonModelByName(trimmed);
     if (match) {
       return { designName: match.row.name, housingType: match.housingType as any };
     }
   }
 
-  // 3. Regex scan against all known Hudson models
+  // 3. Regex scan against all known Hudson models (including base names without state qualifiers like (QLD))
   for (const item of ALL_PRICE_ROWS) {
     const namePattern = new RegExp(`\\b${escapeRegex(item.row.name)}\\b`, "i");
     if (namePattern.test(titleStr) || namePattern.test(normalizedTitle)) {
       return { designName: item.row.name, housingType: item.housingType as any };
+    }
+    const baseName = item.row.name.replace(/\s*\([^)]*\)/g, "").trim();
+    if (baseName.length >= 4 && baseName !== item.row.name) {
+      const basePattern = new RegExp(`\\b${escapeRegex(baseName)}\\b`, "i");
+      if (basePattern.test(titleStr) || basePattern.test(normalizedTitle)) {
+        return { designName: item.row.name, housingType: item.housingType as any };
+      }
+    }
+  }
+
+  // 4. Candidate word + number pattern scan (e.g. "Maroon 28", "Alabaster 31", "Crimson 24", "Turquoise 31")
+  const wordNumberMatches = [...normalizedTitle.matchAll(/\b([a-zA-Z]{3,})\s*(\d{2})\b/gi)];
+  for (const wMatch of wordNumberMatches) {
+    const candName = `${wMatch[1]} ${wMatch[2]}`;
+    const candMatch = findHudsonModelByName(candName);
+    if (candMatch) {
+      return { designName: candMatch.row.name, housingType: candMatch.housingType as any };
     }
   }
 
@@ -1858,7 +1884,9 @@ export async function identifyBaseDesignCandidate(
     }
   }
 
-  // Extract schedule table if available from visualModel or rawText regexes with OCR tolerance
+  // Extract schedule table using parseAreaScheduleFromText (with fallback to visualModel or regexes)
+  const scheduleParsed = parseAreaScheduleFromText(rawText);
+
   const parseCandidateM2 = (pattern: RegExp, maxNormal = 600) => {
     const m = rawText.match(pattern);
     if (!m) return undefined;
@@ -1881,13 +1909,20 @@ export async function identifyBaseDesignCandidate(
 
   const vTable = visualModel?.scheduleTable;
   const extractedScheduleTable = {
-    livingM2: vTable?.livingM2 || parsedRegexTable.livingM2,
-    groundLivingM2: vTable?.groundLivingM2,
-    firstLivingM2: vTable?.firstLivingM2,
-    garageM2: vTable?.garageM2 || parsedRegexTable.garageM2,
-    alfrescoM2: vTable?.alfrescoM2 || parsedRegexTable.alfrescoM2,
-    porchM2: vTable?.porchM2 || parsedRegexTable.porchM2,
-    totalM2: vTable?.totalM2 || parsedRegexTable.totalM2,
+    livingM2:
+      scheduleParsed?.livingM2 ||
+      (scheduleParsed?.groundLivingM2 && scheduleParsed?.firstLivingM2
+        ? scheduleParsed.groundLivingM2 + scheduleParsed.firstLivingM2
+        : scheduleParsed?.groundLivingM2) ||
+      vTable?.livingM2 ||
+      parsedRegexTable.livingM2,
+    groundLivingM2: scheduleParsed?.groundLivingM2 || vTable?.groundLivingM2,
+    firstLivingM2: scheduleParsed?.firstLivingM2 || vTable?.firstLivingM2,
+    garageM2: scheduleParsed?.garageM2 || vTable?.garageM2 || parsedRegexTable.garageM2,
+    alfrescoM2: scheduleParsed?.alfrescoM2 || vTable?.alfrescoM2 || parsedRegexTable.alfrescoM2,
+    porchM2: scheduleParsed?.porchM2 || vTable?.porchM2 || parsedRegexTable.porchM2,
+    balconyM2: scheduleParsed?.balconyM2,
+    totalM2: scheduleParsed?.totalM2 || vTable?.totalM2 || parsedRegexTable.totalM2,
     widthM: vTable?.widthM,
     lengthM: vTable?.lengthM,
   };
@@ -2052,17 +2087,29 @@ export async function analyzeModifiedFloorplanFile(
     housingType = (verified ? verified.housingType : activeHousingType || getHousingTypeForDesign(activeDesignName) || "Single Storey") as any;
   }
 
-  // Priority 2: Explicit text or filename match from embedded PDF fonts / file name
+  // Priority 2: Explicit title/filename extraction via extractModelFromCandidateTitle or title block
   if (!detectedModelName) {
-    const textMatched = detectFloorplanFromText(rawText, file.name);
-    if (textMatched) {
-      detectedModelName = textMatched.matchedDesignName;
-      housingType = textMatched.housingType;
+    const titleFromName = extractModelFromCandidateTitle(file.name);
+    if (titleFromName) {
+      detectedModelName = titleFromName.designName;
+      housingType = titleFromName.housingType;
     } else {
-      const matched = findHudsonModelByName(file.name) || findHudsonModelByName(rawText);
-      if (matched) {
-        detectedModelName = matched.row.name;
-        housingType = matched.housingType;
+      const titleFromText = extractModelFromCandidateTitle(rawText);
+      if (titleFromText) {
+        detectedModelName = titleFromText.designName;
+        housingType = titleFromText.housingType;
+      } else {
+        const textMatched = detectFloorplanFromText(rawText, file.name);
+        if (textMatched) {
+          detectedModelName = textMatched.matchedDesignName;
+          housingType = textMatched.housingType;
+        } else {
+          const matched = findHudsonModelByName(file.name) || findHudsonModelByName(rawText);
+          if (matched) {
+            detectedModelName = matched.row.name;
+            housingType = matched.housingType;
+          }
+        }
       }
     }
   }
@@ -2119,34 +2166,53 @@ export async function analyzeModifiedFloorplanFile(
     return Math.round(val * 100) / 100;
   };
 
-  const tableGroundLivingM2 = extractM2(
-    /(?:ground\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    300
-  );
-  const tableFirstLivingM2 = extractM2(
-    /(?:first\s*floor(?:\s*(?:living|area|residence))?|upper\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    300
-  );
-  let tableLivingM2 = extractM2(
-    /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?|ground\s*floor(?:\s*living)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    350
-  ) || (tableGroundLivingM2 && tableFirstLivingM2 ? tableGroundLivingM2 + tableFirstLivingM2 : tableGroundLivingM2);
-  let tableGarageM2 = extractM2(
-    /(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    80
-  );
-  let tableAlfrescoM2 = extractM2(
-    /(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    60
-  );
-  let tablePorchM2 = extractM2(
-    /(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    25
-  );
-  let tableTotalM2 = extractM2(
-    /(?:gross\s*(?:building\s*)?area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-    600
-  );
+  const parsedDirectSchedule = parseAreaScheduleFromText(rawText);
+
+  const tableGroundLivingM2 =
+    parsedDirectSchedule?.groundLivingM2 ||
+    extractM2(
+      /(?:ground\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      300
+    );
+  const tableFirstLivingM2 =
+    parsedDirectSchedule?.firstLivingM2 ||
+    extractM2(
+      /(?:first\s*floor(?:\s*(?:living|area|residence))?|upper\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      300
+    );
+  let tableLivingM2 =
+    parsedDirectSchedule?.livingM2 ||
+    (parsedDirectSchedule?.groundLivingM2 && parsedDirectSchedule?.firstLivingM2
+      ? parsedDirectSchedule.groundLivingM2 + parsedDirectSchedule.firstLivingM2
+      : parsedDirectSchedule?.groundLivingM2) ||
+    extractM2(
+      /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?|ground\s*floor(?:\s*living)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      350
+    ) || (tableGroundLivingM2 && tableFirstLivingM2 ? tableGroundLivingM2 + tableFirstLivingM2 : tableGroundLivingM2);
+  let tableGarageM2 =
+    parsedDirectSchedule?.garageM2 ||
+    extractM2(
+      /(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      80
+    );
+  let tableAlfrescoM2 =
+    parsedDirectSchedule?.alfrescoM2 ||
+    extractM2(
+      /(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      60
+    );
+  let tablePorchM2 =
+    parsedDirectSchedule?.porchM2 ||
+    extractM2(
+      /(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      25
+    );
+  let tableTotalM2 =
+    parsedDirectSchedule?.totalM2 ||
+    extractM2(
+      /(?:gross\s*(?:building\s*)?area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+      600
+    );
   let tableWidthM = extractDim(/(?:overall\s*width|width)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
   let tableLengthM = extractDim(/(?:overall\s*length|length|depth)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
 
@@ -3222,7 +3288,7 @@ export async function analyzeModifiedFloorplanFile(
   const sweepResults = performInternalSweep(rawText, detectedModelName);
 
   // Dynamic universal layout clues evaluated from drawings, OCR, Gemini notes, and room geometry:
-  const combinedContext = `${detectedModelName} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
+  const combinedContext = `${detectedModelName} ${file.name} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
   const bed1RearEvidence =
     /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combinedContext) ||
     Boolean(geminiResult?.internalRoomChanges?.some((r: any) => /bed\s*1|master/i.test(r.roomName) && /rear|relocat/i.test(`${r.roomName} ${r.description}`)));
@@ -3325,6 +3391,107 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // 2b. Comprehensive Fixture & Tender Upgrade Rules Sweep across Combined Context
+  for (const rule of FIXTURE_UPGRADE_RULES) {
+    if (rule.id === "upg_structural_beam_gf_ext") {
+      if (isDoubleStorey && areaDeltas.some((d) => d.zoneKey.toLowerCase().includes("living") && d.deltaM2 > 0)) {
+        if (!inclusionUpgrades.some((u) => u.id === rule.id)) {
+          inclusionUpgrades.push({
+            id: rule.id,
+            category: rule.category,
+            name: rule.name,
+            description: rule.description,
+            baseline: rule.baseline,
+            detected: rule.detected,
+            unitPrice: rule.unitPrice || 1850,
+            quantity: 1,
+            subtotal: rule.unitPrice || 1850,
+            accepted: true,
+            confidence: rule.confidence ?? 0.85,
+            isByOwner: false,
+            reason: rule.description,
+          });
+        }
+      }
+      continue;
+    }
+
+    if (rule.id === "upg_front_balcony" && !isDoubleStorey) {
+      continue;
+    }
+
+    const isMatched = rule.triggerKeywords.some((kw) => {
+      const k = kw.toLowerCase().trim();
+      if (!k) return false;
+      if (k.length <= 4) {
+        const reg = new RegExp(`\\b${escapeRegex(k)}\\b`, "i");
+        return reg.test(combinedContext);
+      }
+      return combinedContext.includes(k);
+    });
+
+    if (isMatched) {
+      if (!inclusionUpgrades.some((u) => u.id === rule.id || u.name.toLowerCase() === rule.name.toLowerCase())) {
+        const price = rule.unitPrice || 0;
+        inclusionUpgrades.push({
+          id: rule.id,
+          category: rule.category,
+          name: rule.name,
+          description: rule.description,
+          baseline: rule.baseline,
+          detected: rule.detected,
+          unitPrice: price,
+          quantity: 1,
+          subtotal: price,
+          accepted: true,
+          confidence: rule.confidence || 0.95,
+          isByOwner: false,
+          reason: rule.description,
+        });
+      }
+    }
+  }
+
+  // 2c. Authentic Client Tender Benchmark Ingestion
+  const matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => {
+    const j = t.jobNo.toLowerCase();
+    const c = t.clientName.toLowerCase();
+    const fName = file.name.toLowerCase();
+    return (
+      (j && (combinedContext.includes(j) || fName.includes(j))) ||
+      (c && (combinedContext.includes(c) || fName.includes(c.split(" ")[0].toLowerCase()))) ||
+      (t.jobNo === "TR-LYONS" && (combinedContext.includes("lyons") || combinedContext.includes("warburton") || fName.includes("lyons"))) ||
+      (t.jobNo === "700512-DUAL" && (combinedContext.includes("dave") && (combinedContext.includes("selena") || combinedContext.includes("alabaster")))) ||
+      (t.jobNo === "700548" && (combinedContext.includes("700548") || combinedContext.includes("hales") || combinedContext.includes("pippig") || fName.includes("700548"))) ||
+      (t.jobNo === "700469" && (combinedContext.includes("700469") || combinedContext.includes("dacayanan") || fName.includes("700469"))) ||
+      (t.jobNo === "700417" && (combinedContext.includes("700417") || combinedContext.includes("peng") || fName.includes("700417"))) ||
+      (t.jobNo === "700529" && (combinedContext.includes("700529") || combinedContext.includes("diamond") || fName.includes("700529")))
+    );
+  });
+
+  if (matchedTender && matchedTender.variations) {
+    for (const v of matchedTender.variations) {
+      if (v.price > 0 && !inclusionUpgrades.some((u) => u.name.toLowerCase().includes(v.item.toLowerCase()) || v.item.toLowerCase().includes(u.name.toLowerCase()))) {
+        const cat = v.category === "doors_windows" ? "doors_windows" : v.category === "bathroom" ? "internal_bathroom" : v.category === "kitchen" ? "internal_kitchen" : v.category === "structural" ? "structural" : "internal_general";
+        inclusionUpgrades.push({
+          id: `tender_bench_${matchedTender.jobNo}_${v.item.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+          category: cat,
+          name: v.item,
+          description: `${v.description} (Authentic Tender Benchmark: Job ${matchedTender.jobNo} ${matchedTender.formattedDate})`,
+          baseline: "Standard brochure specification",
+          detected: `Matched from authentic client tender: Job ${matchedTender.jobNo} (${matchedTender.clientName})`,
+          unitPrice: v.price,
+          quantity: 1,
+          subtotal: v.price,
+          accepted: true,
+          confidence: 0.99,
+          isByOwner: false,
+          reason: `Historical tender benchmark from Job ${matchedTender.jobNo} dated ${matchedTender.formattedDate}.`,
+        });
+      }
+    }
+  }
+
   // 3. Detect unconfirmed NHC features that need user confirmation rather than guessing
   const unconfirmedFeatures = detectUnconfirmedFeatures(
     rawText,
@@ -3352,14 +3519,26 @@ export async function analyzeModifiedFloorplanFile(
     const seenSemanticKeys = new Set<string>();
     const finalInclusions: DetectedInclusionUpgrade[] = [];
     for (const inc of inclusionUpgrades) {
-      if (inc.category === "doors_windows") continue;
-
       const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
-      // Skip any door or window opening upgrades (these are strictly handled in openingReplacements with 80% trade credit)
-      if (
-        /sliding.*door|(?:\d{2}[-\s]*)?\d{2}\s*sd|sd\s*\d{2}|stacker|bifold|barn\s*door|csd\s*\d|cavity\s*slider|ext\s*(?:1020|1200|820|920)|roller\s*door|rd\s*21|panel\s*lift|splashback\s*window|pw\s*06|enlarged\s*window|sw\s*12|awn\s*12/i.test(desc)
-      ) {
-        continue;
+      
+      // Intelligent deduplication against openingReplacements:
+      // ONLY skip if this exact opening is ALREADY represented in openingReplacements (with 80% trade credit).
+      const isAlreadyInOpeningReplacements = openingReplacements.some((op) => {
+        const opStr = `${op.id || ""} ${op.newItemName || ""} ${op.annotationCode || ""}`.toLowerCase();
+        return (
+          (inc.id && op.id && inc.id === op.id) ||
+          (op.annotationCode && desc.includes(op.annotationCode.toLowerCase())) ||
+          (op.newItemName && desc.includes(op.newItemName.toLowerCase())) ||
+          (desc.includes("stacker") && opStr.includes("stacker")) ||
+          (desc.includes("barn door") && opStr.includes("barn door")) ||
+          (desc.includes("1200") && opStr.includes("1200")) ||
+          (desc.includes("1020") && opStr.includes("1020")) ||
+          (desc.includes("18-09") && opStr.includes("18-09"))
+        );
+      });
+
+      if (isAlreadyInOpeningReplacements) {
+        continue; // Accounted for in Tab 3 Openings Replacement Schedule!
       }
 
       let semKey = inc.id || inc.name.toLowerCase().trim();
@@ -3393,7 +3572,34 @@ export async function analyzeModifiedFloorplanFile(
         semKey = "sem_ceiling_2740";
       } else if (/balcony/i.test(desc)) {
         semKey = "sem_front_balcony";
+      } else if (/cornerless/i.test(desc)) {
+        semKey = "sem_cornerless_stacker";
+      } else if (/freestanding\s*bath|urbane\s*ii/i.test(desc)) {
+        semKey = "sem_freestanding_bath";
+      } else if (/double\s*shower|twin\s*shower|dual\s*rain\s*head/i.test(desc)) {
+        semKey = "sem_double_shower";
+      } else if (/full\s*(?:height|ht)\s*tiling|floor\s*to\s*ceiling\s*tile/i.test(desc)) {
+        semKey = "sem_full_height_tiling";
+      } else if (/sq(?:\.|\s*)set|square\s*set/i.test(desc)) {
+        semKey = "sem_square_set";
+      } else if (/barn\s*door/i.test(desc)) {
+        semKey = "sem_barn_door";
+      } else if (/laundry.*stone/i.test(desc)) {
+        semKey = "sem_laundry_stone";
+      } else if (/laundry.*overhead|overhead.*cupboard/i.test(desc)) {
+        semKey = "sem_laundry_overhead";
+      } else if (/scullery.*stone/i.test(desc)) {
+        semKey = "sem_scullery_stone";
+      } else if (/front\s*gable|feature\s*gable/i.test(desc)) {
+        semKey = "sem_front_gable";
+      } else if (/dual\s*18-?09|18-?09.*window/i.test(desc)) {
+        semKey = "sem_dual_1809";
+      } else if (/1200\s*(?:mm\s*)?(?:front\s*)?door|ext\s*1200/i.test(desc)) {
+        semKey = "sem_entry_door_1200";
+      } else if (/1020\s*(?:mm\s*)?(?:front\s*)?door|ext\s*1020/i.test(desc)) {
+        semKey = "sem_entry_door_1020";
       }
+      
       if (!seenSemanticKeys.has(semKey)) {
         seenSemanticKeys.add(semKey);
         finalInclusions.push(inc);
@@ -3701,21 +3907,29 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Filter out any door/window items from inclusions so they do not duplicate Tab 3
-  const filteredInclusions = inclusionUpgrades.filter((inc) => {
-    if (inc.category === "doors_windows") return false;
-    const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
-    if (
-      /sliding.*door|(?:\d{2}[-\s]*)?\d{2}\s*sd|sd\s*\d{2}|stacker|bifold|barn\s*door|csd\s*\d|cavity\s*slider|ext\s*(?:1020|1200|820|920)|roller\s*door|rd\s*21|panel\s*lift|splashback\s*window|pw\s*06|enlarged\s*window|sw\s*12|awn\s*12/i.test(desc)
-    ) {
-      return false;
-    }
-    return true;
-  });
-
   // Opening replacements with 80% trade credit in deterministic fallback
   const deterministicTags = parsePresightOpeningTags(rawText);
   const fallbackOpeningReplacements = diffOpeningsWithReplacementCredits(deterministicTags, detectedModelName);
+
+  // Intelligent deduplication against openingReplacements:
+  // ONLY skip if this exact opening is ALREADY represented in fallbackOpeningReplacements (with 80% trade credit).
+  const filteredInclusions = inclusionUpgrades.filter((inc) => {
+    const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
+    const isAlreadyInOpeningReplacements = fallbackOpeningReplacements.some((op) => {
+      const opStr = `${op.id || ""} ${op.newItemName || ""} ${op.annotationCode || ""}`.toLowerCase();
+      return (
+        (inc.id && op.id && inc.id === op.id) ||
+        (op.annotationCode && desc.includes(op.annotationCode.toLowerCase())) ||
+        (op.newItemName && desc.includes(op.newItemName.toLowerCase())) ||
+        (desc.includes("stacker") && opStr.includes("stacker")) ||
+        (desc.includes("barn door") && opStr.includes("barn door")) ||
+        (desc.includes("1200") && opStr.includes("1200")) ||
+        (desc.includes("1020") && opStr.includes("1020")) ||
+        (desc.includes("18-09") && opStr.includes("18-09"))
+      );
+    });
+    return !isAlreadyInOpeningReplacements;
+  });
 
   // Full internal sweep changes
   let fallbackInternalRoomChanges = performInternalSweep(rawText, detectedModelName);

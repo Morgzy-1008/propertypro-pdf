@@ -1,11 +1,11 @@
-import * as pdfjs from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { createWorker } from "tesseract.js";
 
 // Configure worker source to match the exact bundled pdfjs version
 if (typeof window !== "undefined") {
   try {
-    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+    const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
   } catch (e) {
     console.warn("[pdfPages] Could not initialize pdf.worker.min.mjs:", e);
   }

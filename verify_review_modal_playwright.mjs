@@ -2,7 +2,7 @@ import { chromium } from "playwright";
 import fs from "fs";
 
 (async () => {
-  console.log("=== STARTING PLAYWRIGHT VERIFICATION FOR STRUCTURAL FOOTPRINT MODAL ===");
+  console.log("=== STARTING PLAYWRIGHT VERIFICATION FOR MODIFIED PLAN REVIEW & TENDER BENCHMARKS ===");
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const page = await context.newPage();
@@ -73,7 +73,7 @@ import fs from "fs";
     const fileInput = page.locator("#modified-floorplan-input");
 
     // ----------------------------------------------------------------------------------
-    // SCENARIO 1: Heavily Modified Plan with Full Schedule Table (Living, Alfresco, Garage, Porch)
+    // SCENARIO 1: Heavily Modified Plan with Schedule, Openings & Inclusions
     // ----------------------------------------------------------------------------------
     console.log("\n=======================================================");
     console.log("SCENARIO 1: Heavily Modified Plan with Full Schedule Table");
@@ -90,6 +90,7 @@ Gross Building Area: 227.20 m2
 Overall Width: 11.50 m
 Overall Length: 22.00 m
 Special Notes:
+Job 700469 Dacayanan tender reference
 Ensuite with larger 1800 shower
 Dedicated Study room addition
 Dedicated Mudroom fitout
@@ -120,18 +121,19 @@ Presight Opening Schedule:
     console.log("\n--- Tab 1 Text Output Snippet ---");
     console.log(modalText.slice(0, 1000));
 
+    // Verify consultant approval header banner
+    if (
+      !modalText.includes("Prompt to Approve Price Changes & Variation Additions") &&
+      !modalText.includes("Prompt to Approve Price Changes")
+    ) {
+      throw new Error("FAILED: Review Modal did not display required 'Prompt to Approve Price Changes & Variation Additions' banner!");
+    }
+    console.log("✅ Verified: Prompt to Approve Price Changes & Variation Additions header banner displayed correctly.");
+
     if (modalText.includes("No external perimeter footprint extensions detected")) {
       throw new Error("FAILED: Tab 1 incorrectly reported 'No external perimeter footprint extensions detected' for modified plan!");
     }
     console.log("✅ Verified: Structural modifications correctly detected and displayed in Tab 1!");
-
-    const hasLivingDelta = modalText.includes("Living") && (modalText.includes("+17") || modalText.includes("+18") || modalText.includes("+17.6"));
-    const hasAlfrescoDelta = modalText.includes("Alfresco") && (modalText.includes("+8") || modalText.includes("+8.00") || modalText.includes("+8.5"));
-    const hasGarageDelta = modalText.includes("Garage") && (modalText.includes("+6.5") || modalText.includes("+3.5") || modalText.includes("+6.6"));
-    
-    console.log(`Living delta present: ${hasLivingDelta}`);
-    console.log(`Alfresco delta present: ${hasAlfrescoDelta}`);
-    console.log(`Garage delta present: ${hasGarageDelta}`);
 
     const screenshotTab1Path = "playwright_tab1_structural_footprint_modified.png";
     await page.screenshot({ path: screenshotTab1Path, fullPage: false });
@@ -147,22 +149,82 @@ Presight Opening Schedule:
       console.log(`Saved screenshot: ${screenshotTab2Path}`);
     }
 
+    // Switch to Tab 3: Doors & Windows (80% Credit Schedule)
+    const tab3Btn = page.locator("button:has-text('3. Doors & Windows')").first();
+    if (await tab3Btn.isVisible()) {
+      await tab3Btn.click();
+      await page.waitForTimeout(600);
+      const tab3Text = await reviewModalDialog.innerText();
+      console.log("Tab 3 Openings text:", tab3Text.slice(0, 500));
+      const screenshotTab3Path = "playwright_tab3_openings_editable_price.png";
+      await page.screenshot({ path: screenshotTab3Path, fullPage: false });
+      console.log(`Saved screenshot: ${screenshotTab3Path}`);
+    }
+
     // Switch to Tab 4: Inclusions & Fixtures
     const tab4Btn = page.locator("button:has-text('4. Inclusions')").first();
     if (await tab4Btn.isVisible()) {
       await tab4Btn.click();
       await page.waitForTimeout(600);
+      const tab4Text = await reviewModalDialog.innerText();
+      console.log("Tab 4 Inclusions text contains Tender Benchmark:", tab4Text.includes("Tender Benchmark"));
       const screenshotTab4Path = "playwright_tab4_inclusions.png";
       await page.screenshot({ path: screenshotTab4Path, fullPage: false });
       console.log(`Saved screenshot: ${screenshotTab4Path}`);
     }
 
-    // Close review modal
-    const closeBtn = page.locator("button:has-text('Cancel')").last();
-    if (await closeBtn.isVisible()) {
-      await closeBtn.click();
-      await page.waitForTimeout(600);
+    // Apply modifications to quote
+    const applyBtn = page.locator("button:has-text('Apply Approved Modifications to Quote')").first();
+    if (await applyBtn.isVisible()) {
+      await applyBtn.click();
+      await page.waitForTimeout(1000);
+      console.log("Applied modifications to quote.");
+    } else {
+      const closeBtn = page.locator("button:has-text('Cancel')").last();
+      if (await closeBtn.isVisible()) {
+        await closeBtn.click();
+        await page.waitForTimeout(600);
+      }
     }
+
+    // ----------------------------------------------------------------------------------
+    // VERIFY HISTORICAL TENDER BENCHMARK BROWSER IN INCLUSIONS STEP
+    // ----------------------------------------------------------------------------------
+    console.log("\n=======================================================");
+    console.log("VERIFYING HISTORICAL TENDER BENCHMARK VARIATIONS IN STEP 4");
+    console.log("=======================================================");
+    const inclusionsStepTab = page.locator("button:has-text('Variations & Upgrades'), button:has-text('4. Variations')").first();
+    if (await inclusionsStepTab.isVisible()) {
+      await inclusionsStepTab.click();
+      await page.waitForTimeout(1000);
+
+      // Check for Historical Tender Benchmark Variations section
+      const tenderBrowserHeading = page.locator("h3:has-text('Historical Tender Benchmark Variations')").first();
+      await tenderBrowserHeading.waitFor({ state: "visible", timeout: 8000 });
+      console.log("✅ Verified: Historical Tender Benchmark Variations browser is visible in Inclusions step!");
+
+      // Scroll into view
+      await tenderBrowserHeading.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+
+      // Click "Approve & Add" button on first available item
+      const approveAddBtn = page.locator("button:has-text('Approve & Add')").first();
+      if (await approveAddBtn.isVisible()) {
+        await approveAddBtn.click();
+        await page.waitForTimeout(500);
+        console.log("✅ Clicked 'Approve & Add' on tender variation item!");
+      }
+
+      const screenshotInclusionsPath = "playwright_inclusions_step_tender_browser.png";
+      await page.screenshot({ path: screenshotInclusionsPath, fullPage: false });
+      console.log(`Saved screenshot: ${screenshotInclusionsPath}`);
+    }
+
+    // Switch back to House Design step to run Scenario 2 & 3
+    await houseDesignTab.click();
+    await page.waitForTimeout(800);
+    await modifiedModeBtn.click();
+    await page.waitForTimeout(800);
 
     // ----------------------------------------------------------------------------------
     // SCENARIO 2: Net Total Area Reconciliation & Balance Allocation

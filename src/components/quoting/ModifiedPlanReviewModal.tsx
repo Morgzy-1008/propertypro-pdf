@@ -254,6 +254,26 @@ export function ModifiedPlanReviewModal({
     );
   };
 
+  const handleOpeningPriceChange = (index: number, newPrice: number) => {
+    if (!localAnalysis || !localAnalysis.openingReplacements) return;
+    const updated = [...localAnalysis.openingReplacements];
+    const price = Math.max(0, newPrice);
+    const item = updated[index];
+    const credit = item.creditAmount !== undefined ? item.creditAmount : -Math.round(item.replacedItemBaselineCost * (item.creditPercent || 80) / 100);
+    const netCost = Math.max(0, price + credit);
+    updated[index] = {
+      ...item,
+      newItemCost: price,
+      netCost: Math.round(netCost * 100) / 100,
+    };
+    recalculateAll(
+      localAnalysis.areaDeltas,
+      localAnalysis.inclusionUpgrades,
+      updated,
+      localAnalysis.internalRoomChanges || []
+    );
+  };
+
   const handleToggleInternalRoom = (index: number) => {
     if (!localAnalysis || !localAnalysis.internalRoomChanges) return;
     const updated = [...localAnalysis.internalRoomChanges];
@@ -405,8 +425,8 @@ export function ModifiedPlanReviewModal({
           <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
             <div className="text-xs text-slate-300 leading-relaxed">
-              <span className="font-semibold text-amber-300">Consultant Pricing Approval &amp; Tender Benchmarks:</span>{" "}
-              Historical client tenders (Job 700469 Dacayanan Jan 2026, Job 700529 Diamond May 2026, Job 700548 Flagstone Sep 2026) have been referenced to auto-detect variations. You maintain full discretion to approve, reject, or adjust individual rates below before applying them to the quote.
+              <span className="font-semibold text-amber-300">Prompt to Approve Price Changes &amp; Variation Additions:</span>{" "}
+              The engine has matched items against authentic client tenders (Job 700469 Dacayanan Jan 2026, Job 700529 Diamond May 2026, Job 700548 Flagstone Sep 2026, Job TR-Lyons Aug 2026, Job 700512-DUAL Dave &amp; Selena Aug 2026). Review and check the boxes to approve each variation addition and price adjustment before applying to the quote.
             </div>
           </div>
 
@@ -968,10 +988,27 @@ export function ModifiedPlanReviewModal({
                       </div>
                     </div>
 
-                    <div className="self-end md:self-auto text-right">
-                      <span className="text-xs font-mono font-bold text-emerald-400">
-                        +{formatAud(op.netCost)}
-                      </span>
+                    <div className="flex items-center gap-3 self-end md:self-auto shrink-0">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="text-slate-400">Price:</span>
+                        <div className="relative w-24">
+                          <span className="absolute left-2 top-2 text-[11px] text-slate-500">$</span>
+                          <Input
+                            type="number"
+                            value={op.newItemCost}
+                            onChange={(e) => handleOpeningPriceChange(idx, Number(e.target.value))}
+                            disabled={!op.accepted}
+                            className="h-8 pl-5 pr-1 text-xs font-mono border-slate-700 bg-slate-950 text-white"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-right min-w-20">
+                        <span className="text-[10px] text-slate-400 uppercase block">Net Cost</span>
+                        <span className="text-xs font-mono font-bold text-emerald-400">
+                          +{formatAud(op.netCost)}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1028,11 +1065,34 @@ export function ModifiedPlanReviewModal({
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
                             {Math.round(inc.confidence * 100)}% Verified
                           </span>
-                          {/cornerless|freestanding|double shower|full ht|sq\. set|barn door|laundry.*stone|overhead cupboards|scullery stone|front gable|dual 18-09/i.test(inc.id + " " + inc.name) && (
-                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-medium">
-                              Tender Benchmark
-                            </span>
-                          )}
+                          {(() => {
+                            const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`;
+                            const tenderMatch = desc.match(/Job\s+([\w-]+)\s+([\d/]+|[A-Za-z]+\s+\d{4})/i) ||
+                              desc.match(/Job\s+([\w-]+).*?dated\s+([^.]+)\./i);
+                            const isTenderItem = tenderMatch || /tender_bench_|cornerless|freestanding|double shower|full ht|sq\. set|barn door|laundry.*stone|overhead cupboards|scullery stone|front gable|dual 18-09/i.test(desc);
+
+                            if (!isTenderItem) return null;
+
+                            const jobLabel = tenderMatch
+                              ? `Job ${tenderMatch[1]} (${tenderMatch[2].trim()})`
+                              : /700469/i.test(desc)
+                              ? "Job 700469 (27 Jan 2026)"
+                              : /700548/i.test(desc)
+                              ? "Job 700548 (29 Sep 2026)"
+                              : /700529/i.test(desc)
+                              ? "Job 700529 (19 May 2026)"
+                              : /lyons/i.test(desc)
+                              ? "Job TR-Lyons (12 Aug 2026)"
+                              : /700512|alabaster/i.test(desc)
+                              ? "Job 700512-DUAL (23 Aug 2026)"
+                              : "Historical Tender Benchmark";
+
+                            return (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-medium">
+                                Tender Benchmark: {jobLabel}
+                              </span>
+                            );
+                          })()}
                         </div>
                         <p className="text-[11px] text-slate-400">{inc.description}</p>
                       </div>

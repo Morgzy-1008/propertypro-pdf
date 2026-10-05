@@ -133,9 +133,27 @@ export function extractAreaTableFromText(rawText: string): ExtractedAreaTable | 
   return foundAny ? table : null;
 }
 
+const MODEL_ALIASES: Record<string, string> = {
+  "burgundy 28": "Burgundy 27",
+  "burgundy 28 (qld)": "Burgundy 27",
+  "burgundy 28 classic (qld)": "Burgundy 27",
+  "maroon 28 (qld)": "Maroon 28",
+  "mauve 28": "Maroon 28",
+  "mauve 28 (qld)": "Maroon 28",
+  "alabaster 31": "Alabaster 31 - TD",
+  "alabaster 31 classic (cdc)": "Alabaster 31 - TD",
+};
+
 export function findHudsonModelByName(name?: string): { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
   if (!name) return null;
   const clean = name.trim().toLowerCase();
+
+  // 0. Known model alias lookup
+  if (MODEL_ALIASES[clean]) {
+    const aliasTarget = MODEL_ALIASES[clean].toLowerCase();
+    const aliasItem = ALL_PRICE_ROWS.find((item) => item.row.name.toLowerCase() === aliasTarget);
+    if (aliasItem) return aliasItem;
+  }
   
   // 1. Exact match
   for (const item of ALL_PRICE_ROWS) {
@@ -153,6 +171,14 @@ export function findHudsonModelByName(name?: string): { row: PriceRow; housingTy
       if (clean.includes(family) && clean.includes(size)) {
         return item;
       }
+    }
+  }
+
+  // 3. Fallback check for aliases contained within compound strings
+  for (const [aliasKey, targetName] of Object.entries(MODEL_ALIASES)) {
+    if (clean.includes(aliasKey)) {
+      const aliasItem = ALL_PRICE_ROWS.find((item) => item.row.name.toLowerCase() === targetName.toLowerCase());
+      if (aliasItem) return aliasItem;
     }
   }
 

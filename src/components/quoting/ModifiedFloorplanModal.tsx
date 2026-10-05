@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import * as pdfjs from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import {
   Upload,
   Crop,
@@ -24,7 +23,8 @@ import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
 
 if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
   try {
-    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+    const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
   } catch (e) {
     console.warn("Could not set pdf worker:", e);
   }
@@ -48,17 +48,21 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
 
   // 1. Locate dedicated AREAS table block if present
   let scheduleText = text;
-  const areasIndex = text.search(/AREAS\s*[:(]/i);
+  const areasIndex = text.search(
+    /(?:FLOOR\s*AREAS|SCHEDULE\s*OF\s*AREAS|AREA\s*SCHEDULE|AREAS\s*[:(\n\r]|AREAS\b|Floor\s+Living\s+Area|Living\s+Area\s+Garage)/i
+  );
   if (areasIndex !== -1) {
     // Find the end of this schedule block (marked by TOTAL ... m² or next major section)
     const afterAreas = text.slice(areasIndex);
-    const totalMatch = afterAreas.search(/TOTAL\s*(?:AREA)?\s*[\d.]+\s*m²/i);
+    const totalMatch = afterAreas.search(
+      /(?:TOTAL\s*(?:AREA)?\s*[\d.]+\s*m²|TOTAL\s*[:\s]*[\d.]+|[\d.]+\s*m²\s*TOTAL)/i
+    );
     if (totalMatch !== -1) {
       // End right after the TOTAL line
       const endOfTotal = afterAreas.indexOf('\n', totalMatch + 20);
-      scheduleText = afterAreas.slice(0, endOfTotal !== -1 ? endOfTotal : totalMatch + 35);
+      scheduleText = afterAreas.slice(0, endOfTotal !== -1 ? endOfTotal : totalMatch + 40);
     } else {
-      scheduleText = afterAreas.slice(0, 1500);
+      scheduleText = afterAreas.slice(0, 1800);
     }
   }
 
@@ -146,7 +150,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
                 result.balconyM2 = val;
                 result.matchedLines?.push(`${label} -> ${val}`);
               }
-            } else if (lower.includes("total") || lower.includes("gfa")) {
+            } else if (lower.includes("total") || lower.includes("gfa") || lower.includes("gross")) {
               if (!seenZones.has("total")) {
                 seenZones.add("total");
                 result.totalM2 = val;

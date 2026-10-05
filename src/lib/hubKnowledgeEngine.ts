@@ -547,6 +547,50 @@ export const HISTORICAL_CLIENT_TENDERS_DATA: HistoricalClientTender[] = [
     ]
   },
   {
+    jobNo: "TR-LYONS",
+    tenderDate: "2026-08-12",
+    formattedDate: "12 August 2026",
+    clientName: "Jessica Lyons & Shaun Warburton",
+    siteAddress: "Lot 5078 Ellendale, Upper Kedron QLD 4055",
+    designName: "Maroon 28 (QLD) / Mauve 28 Custom",
+    specificationTier: "H2 Designer",
+    notes: "Tender request variation form signed 12/08/2026. Split-level custom configuration with guest bedroom ensuite & WIR conversion, cathedral ceilings with open gable, 1200mm front door, and powder room conversion.",
+    variations: [
+      { item: "Extended Portico & 1200mm Front Door", description: "Shift front door to edge of living, extend portico to garage to create 4.0 m² porch (min 2m depth) with 1200mm wide front door", price: 2850, category: "doors_windows" },
+      { item: "Cathedral Ceilings with Open Gable", description: "Cathedral raked ceilings spanning Family, Dining, Kitchen, and Alfresco with open decorative gable", price: 4850, category: "structural" },
+      { item: "Guest Bedroom Ensuite & WIR Addition", description: "Replace standard WC and study with private guest Ensuite (ENS) and Walk-in Robe (WIR)", price: 12500, category: "bathroom" },
+      { item: "Dedicated Powder Room Conversion", description: "Separate Powder Room (PDR) with integrated vanity basin and cavity sliding door", price: 1850, category: "bathroom" },
+      { item: "Kitchen Joinery & Large Window Extension", description: "Floor cupboards and stone bench extended across rear of kitchen with large picture splashback window", price: 2450, category: "kitchen" },
+      { item: "Split-Level Full Split-Up Staircase", description: "Full flight L-shape stairs in lieu of tri-level split configuration", price: 2450, category: "structural" },
+      { item: "Bushfire BAL-12.5 Protection Package", description: "Deemed-to-satisfy BAL-12.5 bushfire protection package", price: 2650, category: "general" }
+    ]
+  },
+  {
+    jobNo: "700512-DUAL",
+    tenderDate: "2026-08-23",
+    formattedDate: "23 August 2026",
+    clientName: "Dave & Selena",
+    siteAddress: "South East Queensland Growth Corridor",
+    designName: "Alabaster 31 Dual Living Mod",
+    specificationTier: "H2 Inclusions",
+    notes: "Dual living modified plan approved 23/08/2026. Includes primary 4-bedroom residence (Unit A 285.02 m²) plus auxiliary 2-bedroom secondary dwelling (Unit B 142.51 m²). Total combined gross floor area 427.53 m².",
+    areaSchedule: {
+      livingM2: 114.92,
+      garageM2: 20.05,
+      alfrescoM2: 5.96,
+      porchM2: 1.58,
+      totalM2: 142.51
+    },
+    variations: [
+      { item: "Dual Living Auxiliary Unit B Complete Package", description: "Dedicated secondary dwelling fitout with private kitchenette, laundry amenities, and separate metering", price: 28500, category: "structural" },
+      { item: "Cornerless Stacker Sliding Door", description: "Cornerless 90° stacker sliding doors connecting living area to outdoor alfresco", price: 5027, category: "doors_windows" },
+      { item: "40mm Waterfall Stone Island Ends", description: "Grand kitchen island benchtop with 40mm engineered stone and twin waterfall gables", price: 1950, category: "kitchen" },
+      { item: "Caroma Urbane II Freestanding Bath", description: "Luxury 1775mm freestanding acrylic bath in main bathroom suite", price: 1650, category: "bathroom" },
+      { item: "Full Height Floor-to-Ceiling Wall Tiling", description: "Full height ceramic wall tiling across ensuite and bathrooms", price: 3250, category: "bathroom" },
+      { item: "Square Set Ceilings to Living & Wet Areas", description: "Architectural square set (SQ. SET) ceiling perimeter cornice finish", price: 1850, category: "general" }
+    ]
+  },
+  {
     jobNo: "BURBANK-COMP",
     tenderDate: "2026-04-15",
     formattedDate: "15 April 2026",
@@ -747,8 +791,12 @@ Your executive PDF has been compiled and is ready for immediate download. Click 
       matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700469");
     } else if (query.includes("hales") || query.includes("pippig") || query.includes("700548") || query.includes("permit r5")) {
       matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700548");
-    } else if (query.includes("peng") || query.includes("700417") || query.includes("mauve")) {
+    } else if (query.includes("peng") || query.includes("700417") || query.includes("chateaux")) {
       matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700417");
+    } else if (query.includes("lyons") || query.includes("warburton") || query.includes("maroon 28") || query.includes("ellendale")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "TR-LYONS");
+    } else if (query.includes("dave") || query.includes("selena") || query.includes("alabaster") || query.includes("dual living")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700512-DUAL");
     } else if (query.includes("burbank")) {
       matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "BURBANK-COMP");
     }
