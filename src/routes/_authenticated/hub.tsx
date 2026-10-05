@@ -351,7 +351,7 @@ function WelcomeHubPage() {
         isLight ? "bg-slate-50 text-slate-900" : "bg-slate-950 text-slate-100"
       } flex flex-col font-sans selection:bg-brand-gold/30 relative overflow-x-hidden`}
     >
-      {/* 2026 Hudson Homes Company Team Photo Translucent Background (Zoomed-out contain with ambient backdrop) */}
+      {/* 2026 Hudson Homes Company Team Photo Translucent Background (16:9 AI Outfilled Widescreen) */}
       {isTeamBgVisible && (
         <div
           className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none transition-opacity duration-700"
@@ -363,18 +363,11 @@ function WelcomeHubPage() {
               "linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,1) 15%, rgba(0,0,0,1) 85%, rgba(0,0,0,0.6) 100%)",
           }}
         >
-          {/* Ambient blurred backdrop spreading color and warmth across widescreen monitors */}
+          {/* High-fidelity widescreen team photo filling the page */}
           <img
-            src="/brand/hudson-team-2026.jpg"
-            alt=""
-            aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover blur-3xl opacity-35 scale-110"
-          />
-          {/* Zoomed-out complete photo showing all team members & HIA finalist title */}
-          <img
-            src="/brand/hudson-team-2026.jpg"
+            src="/brand/hudson-team-2026-widescreen.jpg"
             alt="Hudson Homes Team 2026 HIA Finalist"
-            className="relative w-full h-full object-contain object-center filter saturate-[1.2] contrast-[1.08]"
+            className="w-full h-full object-cover object-center filter saturate-[1.15] contrast-[1.06]"
           />
           {/* Subtle atmospheric vignette gradient overlay for text readability */}
           <div
@@ -718,7 +711,7 @@ function WelcomeHubPage() {
             </div>
             <div className="w-full flex-1 overflow-auto flex items-center justify-center py-3">
               <img
-                src="/brand/hudson-team-2026.jpg"
+                src="/brand/hudson-team-2026-widescreen.jpg"
                 alt="Hudson Homes 2026 HIA Finalist Team"
                 className="max-h-[72vh] w-auto max-w-full rounded-xl object-contain shadow-2xl"
               />
