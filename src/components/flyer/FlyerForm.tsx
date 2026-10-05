@@ -10,6 +10,7 @@ import { facadeUpliftFor, saveFacadeUplift, loadEnhanced, loadEnhancedAsync, sav
 import { prepareFloorplan, prepareFacade, widenFacadeClientSide, preframeFacadeImage } from "./fileToImage";
 import { resolvePlanRooms } from "./planRooms";
 import { authHeaders } from "@/lib/api-auth";
+import { useTheme } from "@/lib/theme";
 
 import { facadeCategory, facadeGarage, garageFromCars, facadeBaseName, isSingleGarageDesign, type FacadeStorey } from "./facadePricing";
 import { isNarrowDoubleStorey } from "@/lib/quoting/facadeLookup";
@@ -73,15 +74,21 @@ function Field({
   placeholder?: string;
   onBlur?: () => void;
 }) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium tracking-wide text-slate-300">{label}</Label>
+      <Label className={`text-xs font-medium tracking-wide ${isLight ? "text-slate-700 font-semibold" : "text-slate-300"}`}>{label}</Label>
       <Input
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className="h-8.5 rounded-lg border-slate-800 bg-slate-950/70 text-xs text-slate-100 placeholder:text-slate-500 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all"
+        className={`h-8.5 rounded-lg text-xs placeholder:text-slate-400 focus:border-brand-gold/60 focus:ring-brand-gold/20 transition-all ${
+          isLight
+            ? "border-slate-300 bg-white text-slate-900"
+            : "border-slate-800 bg-slate-950/70 text-slate-100 placeholder:text-slate-500"
+        }`}
       />
     </div>
   );
@@ -98,10 +105,16 @@ function Section({
   id?: string;
   extra?: React.ReactNode;
 }) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   return (
     <div id={id} className="space-y-3.5 pt-1 scroll-mt-14">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-[11px] font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400 uppercase">
+        <h3 className={`text-[11px] font-bold tracking-[0.2em] uppercase ${
+          isLight
+            ? "text-amber-900 font-black"
+            : "text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-amber-400"
+        }`}>
           {title}
         </h3>
         {extra}
@@ -182,6 +195,9 @@ function InclusionsEditor({ data, set }: { data: FlyerData; set: Setter }) {
 }
 
 function ConsultantPicker({ data, set }: { data: FlyerData; set: Setter }) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
+
   const choose = (id: string) => {
     const c = findConsultant(id);
     if (!c) return;
@@ -207,22 +223,36 @@ function ConsultantPicker({ data, set }: { data: FlyerData; set: Setter }) {
             onClick={() => choose(c.id)}
             className={`w-full rounded-xl border p-3 text-left text-xs leading-tight transition-all ${
               isSelected
-                ? "border-brand-gold/70 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-md shadow-brand-gold/10 ring-1 ring-brand-gold/50"
+                ? isLight
+                  ? "border-amber-400 bg-amber-50 text-amber-950 shadow-xs ring-1 ring-amber-400/50"
+                  : "border-brand-gold/70 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-md shadow-brand-gold/10 ring-1 ring-brand-gold/50"
+                : isLight
+                ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
                 : "border-slate-800/80 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="block font-semibold text-slate-200">{c.name}</span>
+              <span className={`block font-semibold ${
+                isSelected
+                  ? (isLight ? "text-amber-950 font-bold" : "text-amber-200")
+                  : (isLight ? "text-slate-900 font-bold" : "text-slate-200")
+              }`}>{c.name}</span>
               {isSelected && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-gold/20 text-brand-gold border border-brand-gold/40 uppercase tracking-wider">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                  isLight
+                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                    : "bg-brand-gold/20 text-brand-gold border border-brand-gold/40"
+                }`}>
                   Active
                 </span>
               )}
             </div>
-            <span className="block text-[11px] opacity-75 mt-0.5">
+            <span className={`block text-[11px] mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400 opacity-75"}`}>
               {c.phone} · {c.email}
             </span>
-            <span className="mt-1 block text-[10px] uppercase tracking-wider text-brand-gold font-medium">{c.displayCentre}</span>
+            <span className={`mt-1 block text-[10px] uppercase tracking-wider font-semibold ${
+              isLight ? "text-amber-800" : "text-brand-gold"
+            }`}>{c.displayCentre}</span>
           </button>
         );
       })}
@@ -336,6 +366,8 @@ function resolveDefaultFacade(
 
 
 export function FlyerForm({ data, set, template }: { data: FlyerData; set: Setter; template?: TemplateId }) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [division, setDivision] = useState<Division>(() => getActiveDivision());
 
   useEffect(() => {
@@ -1867,13 +1899,25 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 onClick={() => selectRange(r.id)}
                 className={`rounded-xl border px-2 py-2 text-center transition-all ${
                   data.range === r.id
-                    ? "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                    : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    ? isLight
+                      ? "border-amber-400 bg-amber-50 text-amber-950 shadow-xs ring-1 ring-amber-300"
+                      : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                    : isLight
+                      ? "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                 }`}
               >
-                <span className="block text-[11px] font-bold">{r.label}</span>
+                <span className={`block text-[11px] font-bold ${
+                  data.range === r.id
+                    ? isLight ? "text-amber-950" : "text-amber-200"
+                    : isLight ? "text-slate-900" : "text-slate-300"
+                }`}>{r.label}</span>
                 {r.code && (
-                  <span className="block text-[9px] uppercase tracking-wider opacity-70 font-mono mt-0.5">
+                  <span className={`block text-[9px] uppercase tracking-wider font-mono mt-0.5 ${
+                    data.range === r.id
+                      ? isLight ? "text-amber-800 font-semibold" : "opacity-70"
+                      : isLight ? "text-slate-500" : "opacity-70"
+                  }`}>
                     {r.code} Spec
                   </span>
                 )}
@@ -2005,32 +2049,46 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       </Section>
 
       <Section id="section-costs" title="Additional costs (automated, adjustable)">
-        <div className="space-y-2.5 rounded-xl border border-slate-800/80 bg-slate-950/60 p-3.5 shadow-inner">
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5 hover:border-slate-700 transition-colors">
+        <div className={`space-y-2.5 rounded-xl border p-3.5 shadow-inner ${
+          isLight ? "border-slate-200 bg-slate-50" : "border-slate-800/80 bg-slate-950/60"
+        }`}>
+          <label className={`flex cursor-pointer items-start gap-2.5 rounded-lg border p-2.5 transition-colors ${
+            isLight
+              ? "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
+              : "border-slate-800 bg-slate-900/60 text-slate-200 hover:border-slate-700"
+          }`}>
             <input
               type="checkbox"
-              className="mt-0.5 h-3.5 w-3.5 accent-amber-400 rounded"
+              className="mt-0.5 h-3.5 w-3.5 accent-amber-500 rounded"
               checked={data.landscaping}
               onChange={(e) => toggleLandscaping(e.target.checked)}
             />
-            <span className="text-[11px] font-medium leading-snug text-slate-200">Landscaping package</span>
+            <span className={`text-[11px] font-medium leading-snug ${isLight ? "text-slate-800 font-semibold" : "text-slate-200"}`}>
+              Landscaping package
+            </span>
           </label>
           {COST_FIELDS.map((f) => (
             <div key={f.id} className="flex items-center gap-2">
-              <Label className="flex-1 text-[11px] leading-tight text-slate-400">
+              <Label className={`flex-1 text-[11px] leading-tight ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
                 {f.label}
               </Label>
               <Input
-                className="h-7.5 w-28 rounded-md border-slate-800 bg-slate-900/80 text-xs text-slate-200"
+                className={`h-7.5 w-28 rounded-md text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 font-medium"
+                    : "border-slate-800 bg-slate-900/80 text-slate-200"
+                }`}
                 inputMode="numeric"
                 value={data.costs[f.id] ? String(data.costs[f.id]) : "0"}
                 onChange={(e) => setCost(f.id, parseAud(e.target.value))}
               />
             </div>
           ))}
-          <div className="flex items-center justify-between border-t border-slate-800 pt-2 text-xs font-semibold text-slate-200">
+          <div className={`flex items-center justify-between border-t pt-2 text-xs font-semibold ${
+            isLight ? "border-slate-200 text-slate-800" : "border-slate-800 text-slate-200"
+          }`}>
             <span>Total additional costs</span>
-            <span className="text-amber-300 font-bold">{formatAud(costsTotal(data.costs))}</span>
+            <span className={`font-bold ${isLight ? "text-amber-800" : "text-amber-300"}`}>{formatAud(costsTotal(data.costs))}</span>
           </div>
           <button
             type="button"

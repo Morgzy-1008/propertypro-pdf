@@ -42,11 +42,11 @@ export function CrmKanbanBoard({
   return (
     <div className="space-y-4">
       {/* Horizontal Scroll Hint Banner */}
-      <div className="flex items-center justify-between text-xs text-slate-400 px-1">
-        <span className="font-semibold text-amber-500">
+      <div className="flex items-center justify-between text-xs px-1">
+        <span className={`font-semibold ${isLight ? "text-amber-800" : "text-amber-400"}`}>
           ⚡ 13-Stage Sales Pipeline (Scroll right for later milestones)
         </span>
-        <span className={isLight ? "text-slate-500" : "text-slate-400"}>
+        <span className={isLight ? "text-slate-600 font-medium" : "text-slate-400"}>
           Use quick Call / SMS / Email icons or click card for 360° Profile
         </span>
       </div>

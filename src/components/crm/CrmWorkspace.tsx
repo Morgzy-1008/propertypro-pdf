@@ -357,12 +357,16 @@ export function CrmWorkspace() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search leads, lot, estate..."
-              className="h-8 pl-8 text-xs bg-slate-900 border-slate-700 w-48 sm:w-60"
+              className={`h-8 pl-8 text-xs w-48 sm:w-60 ${
+                isLight ? "bg-white border-slate-300 text-slate-900 placeholder:text-slate-400" : "bg-slate-900 border-slate-700 text-slate-100"
+              }`}
             />
           </div>
 
           {activeTab === "commissions" && !isAdmin ? (
-            <div className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold shrink-0">
+            <div className={`h-8 flex items-center gap-1.5 px-3 rounded-lg border text-xs font-bold shrink-0 ${
+              isLight ? "bg-amber-100/80 border-amber-300 text-amber-900" : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+            }`}>
               <Lock className="h-3 w-3" />
               <span>{staffUser?.name || "My Account"}</span>
             </div>
@@ -370,7 +374,9 @@ export function CrmWorkspace() {
             <select
               value={selectedConsultantId}
               onChange={(e) => setSelectedConsultantId(e.target.value)}
-              className="h-8 text-xs rounded-lg bg-slate-900 border border-slate-700 text-slate-200 px-2.5 font-medium"
+              className={`h-8 text-xs rounded-lg border px-2.5 font-medium ${
+                isLight ? "bg-white border-slate-300 text-slate-800" : "bg-slate-900 border-slate-700 text-slate-200"
+              }`}
             >
               <option value="all">All Consultants</option>
               {HUDSON_CONSULTANTS.map((c) => (

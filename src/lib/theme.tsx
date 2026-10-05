@@ -17,8 +17,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string>("default");
   const [mode, setModeState] = useState<ThemeMode>(() => {
     if (typeof window === "undefined") return "normal";
-    const saved = localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}default`);
-    return saved === "night" ? "night" : "normal";
+    try {
+      const storedUser = localStorage.getItem("hudson_staff_session");
+      let key = "default";
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        key = parsed.id || parsed.email || "default";
+      }
+      const saved =
+        localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}${key}`) ||
+        localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}default`);
+      return saved === "night" ? "night" : "normal";
+    } catch {
+      return "normal";
+    }
   });
 
   // Track logged-in user to uniquely customize and persist their theme choice
@@ -41,8 +53,31 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    const handleStorageOrCustom = () => {
+      let currentKey = "default";
+      try {
+        const storedUser = localStorage.getItem("hudson_staff_session");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          currentKey = parsed.id || parsed.email || "default";
+        }
+      } catch {
+        /* ignore */
+      }
+      const userPref =
+        localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}${currentKey}`) ||
+        localStorage.getItem(`${THEME_STORAGE_KEY_PREFIX}default`);
+      if (userPref === "normal" || userPref === "night") {
+        setModeState(userPref as ThemeMode);
+      }
+    };
+    window.addEventListener("storage", handleStorageOrCustom);
+    window.addEventListener("hudson-theme-change", handleStorageOrCustom);
+
     return () => {
       authListener.subscription.unsubscribe();
+      window.removeEventListener("storage", handleStorageOrCustom);
+      window.removeEventListener("hudson-theme-change", handleStorageOrCustom);
     };
   }, []);
 

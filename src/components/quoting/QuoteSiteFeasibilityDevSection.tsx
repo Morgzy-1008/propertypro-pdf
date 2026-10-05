@@ -6,6 +6,7 @@ import type { SiteFeasibilityDossier, EditableAllowanceItem } from "@/lib/feasib
 import type { FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
 import { formatAud } from "@/lib/pricing";
 import { toast } from "sonner";
+import { useTheme } from "@/lib/theme";
 
 /**
  * Checks if Site Feasibility is enabled for localhost / dev testing.
@@ -45,6 +46,8 @@ export function QuoteSiteFeasibilityDevSection({
   isDouble = false,
 }: QuoteSiteFeasibilityDevSectionProps) {
   const isDevHost = isFeasibilityDevEnabled();
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [isFeasibilityOpen, setIsFeasibilityOpen] = useState(false);
 
   // In production (Vercel / live domain): Completely removed from Page 3
@@ -121,22 +124,28 @@ export function QuoteSiteFeasibilityDevSection({
   return (
     <>
       {/* Sleek Localhost Option Bar (Saved to Side for Developer Calibration) */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl bg-amber-950/20 border border-amber-800/40 text-xs shadow-xs">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs shadow-xs ${
+        isLight ? "bg-amber-50 border-amber-200" : "bg-amber-950/20 border-amber-800/40"
+      }`}>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="h-6 w-6 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+          <div className={`h-6 w-6 rounded-lg border flex items-center justify-center shrink-0 ${
+            isLight ? "bg-amber-100 border-amber-300 text-amber-800" : "bg-amber-500/20 border-amber-500/40 text-amber-400"
+          }`}>
             <Compass className="h-3.5 w-3.5" />
           </div>
-          <span className="font-bold text-amber-300">
+          <span className={`font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
             Site Feasibility Engine
           </span>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${
+            isLight ? "bg-amber-100 text-amber-900 border-amber-300" : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+          }`}>
             Localhost Option &bull; Saved to Side
           </span>
-          <span className="text-[11px] text-slate-400 hidden md:inline">
+          <span className={`text-[11px] hidden md:inline ${isLight ? "text-slate-600" : "text-slate-400"}`}>
             (Removed from production quoting due to cadastre/overlay accuracy)
           </span>
           {quote.feasibility && (
-            <span className="text-[11px] text-emerald-400 flex items-center gap-1 font-medium ml-1">
+            <span className={`text-[11px] flex items-center gap-1 font-semibold ml-1 ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
               <CheckCircle2 className="h-3 w-3" />
               Verified: {quote.feasibility.parcel.standardLotPlan} ({quote.feasibility.parcel.areaM2} m²)
             </span>
@@ -147,7 +156,11 @@ export function QuoteSiteFeasibilityDevSection({
           type="button"
           size="sm"
           onClick={() => setIsFeasibilityOpen(true)}
-          className="h-7 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-1.5 rounded-lg shadow-sm shrink-0"
+          className={`h-7 px-3 font-bold text-xs gap-1.5 rounded-lg shadow-sm shrink-0 transition-all ${
+            isLight
+              ? "bg-amber-600 hover:bg-amber-700 text-white"
+              : "bg-amber-500 hover:bg-amber-400 text-slate-950"
+          }`}
         >
           <Sparkles className="h-3 w-3" />
           {quote.feasibility ? "Re-Run / Edit Feasibility" : "Launch Dev Feasibility"}

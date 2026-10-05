@@ -94,15 +94,15 @@ export function QuoteSummarySidebar({
 
         {/* Breakdown Line Items */}
         <div className={`space-y-2 text-xs divide-y ${isLight ? "divide-slate-200" : "divide-slate-800/60"}`}>
-          <div className={`pt-2 flex justify-between ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+          <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
             <span>Base Home Price:</span>
-            <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-200"}`}>{formatAud(pricing.baseHousePrice)}</span>
+            <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>{formatAud(pricing.baseHousePrice)}</span>
           </div>
 
           {pricing.facadePrice > 0 && (
-            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>Facade Upgrade ({design.facadeName}):</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-200"}`}>+{formatAud(pricing.facadePrice)}</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.facadePrice)}</span>
             </div>
           )}
 
@@ -117,41 +117,41 @@ export function QuoteSummarySidebar({
           )}
 
           {pricing.siteCostsSubtotal !== 0 && (
-            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>Site Costs &amp; Earthworks:</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-200"}`}>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>
                 {pricing.siteCostsSubtotal > 0 ? `+${formatAud(pricing.siteCostsSubtotal)}` : `-${formatAud(Math.abs(pricing.siteCostsSubtotal))}`}
               </span>
             </div>
           )}
 
           {pricing.councilStatutorySubtotal > 0 && (
-            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>Council &amp; Statutory:</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-200"}`}>+{formatAud(pricing.councilStatutorySubtotal)}</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.councilStatutorySubtotal)}</span>
             </div>
           )}
 
           {/* Conditional Category Subtotals — only rendered if amount > 0 */}
           {pricing.categorySubtotals.map((cat) => (
-            <div key={cat.category} className={`pt-2 flex justify-between ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+            <div key={cat.category} className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>{cat.label}:</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-200"}`}>+{formatAud(cat.amount)}</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(cat.amount)}</span>
             </div>
           ))}
 
           {/* Subtotal & GST */}
-          <div className={`pt-2.5 flex justify-between text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+          <div className={`pt-2.5 flex justify-between text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
             <span>Net Estimate (ex GST):</span>
-            <span className={`font-mono ${isLight ? "text-slate-700" : "text-slate-300"}`}>{formatAud(pricing.netContractPriceExGst)}</span>
+            <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-300"}`}>{formatAud(pricing.netContractPriceExGst)}</span>
           </div>
-          <div className={`pt-1.5 flex justify-between text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+          <div className={`pt-1.5 flex justify-between text-[11px] ${isLight ? "text-slate-600 font-medium" : "text-slate-400"}`}>
             <span>GST (10% Component):</span>
-            <span className={`font-mono ${isLight ? "text-slate-700" : "text-slate-300"}`}>{formatAud(pricing.gstAmount)}</span>
+            <span className={`font-mono ${isLight ? "text-slate-900 font-semibold" : "text-slate-300"}`}>{formatAud(pricing.gstAmount)}</span>
           </div>
 
           {/* Initial Deposit Required to Proceed */}
-          <div className={`pt-2.5 flex justify-between text-[11px] items-center ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+          <div className={`pt-2.5 flex justify-between text-[11px] items-center ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
             <span className="flex items-center gap-1.5">
               <span>Initial Deposit:</span>
               {client.custom3dTourSelected && (
@@ -177,7 +177,7 @@ export function QuoteSummarySidebar({
                 {formatAud(pricing.grossEstimatedInvestment)}
               </span>
             </div>
-            <span className={`text-[10px] block mt-0.5 ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+            <span className={`text-[10px] block mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
               Preliminary Builders Estimate (14-day validity) · Inc. 10% GST
             </span>
           </div>
@@ -188,7 +188,11 @@ export function QuoteSummarySidebar({
           <Button
             onClick={onDownloadPdf}
             disabled={downloading}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-1.5 shadow-md shadow-emerald-500/20"
+            className={`w-full text-xs font-bold gap-1.5 shadow-md ${
+              isLight
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-700/20"
+                : "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 shadow-emerald-500/20"
+            }`}
           >
             <Download className="h-3.5 w-3.5" />
             {downloading ? "Generating PDF…" : "Download Builders Estimate PDF"}
@@ -202,7 +206,7 @@ export function QuoteSummarySidebar({
               disabled={saving}
               className={`text-xs gap-1 font-semibold ${
                 isLight
-                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                  ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                   : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
             >
@@ -216,7 +220,7 @@ export function QuoteSummarySidebar({
               onClick={onOpenClientShare}
               className={`text-xs gap-1 font-semibold ${
                 isLight
-                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                  ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                   : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
             >

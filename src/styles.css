@@ -555,7 +555,9 @@ html.normal-mode,
 .normal-mode section[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
 .normal-mode section[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
 .normal-mode aside[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode aside[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
+.normal-mode aside[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode label[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode label[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -565,7 +567,9 @@ html.normal-mode,
 .normal-mode div[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
 .normal-mode div[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
 .normal-mode div[class*="bg-zinc-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-zinc-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
+.normal-mode div[class*="bg-zinc-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode label[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
+.normal-mode label[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -621,18 +625,10 @@ html.normal-mode,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
-  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
-  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
-  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
-  button[class*="bg-black"], button[class*="bg-black"] *,
   button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
-  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
-  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
-  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
-  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
-  a[class*="bg-black"], a[class*="bg-black"] *,
-  .badge-dark, .badge-dark *
+  a[class*="bg-brand-navy"], a[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .keep-dark, .keep-dark *
 )) {
   color: #0f172a !important;
 }
@@ -713,18 +709,10 @@ html.normal-mode,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
-  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
-  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
-  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
-  button[class*="bg-black"], button[class*="bg-black"] *,
   button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
-  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
-  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
-  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
-  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
-  a[class*="bg-black"], a[class*="bg-black"] *,
-  .badge-dark, .badge-dark *
+  a[class*="bg-brand-navy"], a[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .keep-dark, .keep-dark *
 )) {
   color: #475569 !important;
 }
@@ -732,9 +720,9 @@ html.normal-mode,
 .normal-mode label:not(:is(
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
-  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
-  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
-  button[class*="bg-black"], button[class*="bg-black"] *
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .keep-dark, .keep-dark *
 )) {
   color: #1e293b !important;
   font-weight: 500;
@@ -1267,20 +1255,26 @@ html.normal-mode,
   color: #94a3b8 !important; /* Slate 400 - Crisp readable secondary 5.5:1 */
 }
 
-:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-600, .text-zinc-600, .text-gray-600, .text-neutral-600) {
-  color: #cbd5e1 !important; /* Prevent pitch dark slate-600 on black */
+:is(.dark, .night-mode, [data-theme="night"]) :is(
+  .text-slate-950, .text-slate-900, .text-slate-800, .text-slate-700,
+  .text-zinc-950, .text-zinc-900, .text-zinc-800, .text-zinc-700,
+  .text-gray-950, .text-gray-900, .text-gray-800, .text-gray-700,
+  .text-neutral-950, .text-neutral-900, .text-neutral-800, .text-neutral-700,
+  .text-black
+) {
+  color: #f8fafc !important; /* Prevent dark on dark in night mode */
 }
 
-:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-700, .text-zinc-700, .text-gray-700, .text-neutral-700) {
-  color: #e2e8f0 !important; /* Prevent pitch dark slate-700 on black */
+:is(.dark, .night-mode, [data-theme="night"]) :is(
+  .text-slate-600, .text-zinc-600, .text-gray-600, .text-neutral-600
+) {
+  color: #cbd5e1 !important; /* Prevent dim slate on black */
 }
 
-:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-800, .text-zinc-800, .text-gray-800, .text-neutral-800) {
-  color: #f1f5f9 !important; /* Prevent black on black */
-}
-
-:is(.dark, .night-mode, [data-theme="night"]) :is(.text-slate-900, .text-zinc-900, .text-gray-900, .text-neutral-900) {
-  color: #f8fafc !important; /* Prevent black on black */
+:is(.dark, .night-mode, [data-theme="night"]) :is(
+  .text-slate-500, .text-zinc-500, .text-gray-500, .text-neutral-500
+) {
+  color: #94a3b8 !important; /* Prevent low-contrast slate-500 on black */
 }
 
 /* In dark mode, ensure placeholders are clearly visible but subtle */
@@ -1291,10 +1285,34 @@ html.normal-mode,
   opacity: 0.8 !important;
 }
 
-/* --- B. DARK CONTAINERS IN NORMAL / LIGHT MODE --- */
-/* Any container with dark background (bg-slate-900, bg-slate-950, bg-black, bg-zinc-900, gradients, etc.)
-   must ALWAYS have bright text, NEVER dark text, even when running in Normal Mode! */
-:is(.normal-mode, body) :is(
+/* --- B. GENUINELY DARK ELEMENTS IN NORMAL / LIGHT MODE (Buttons, Dark Badges) --- */
+/* Elements that retain a dark background in normal mode (buttons, dark badges) must have bright text */
+.normal-mode :is(
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-zinc-9"], button[class*="bg-zinc-9"] *,
+  button[class*="bg-zinc-8"], button[class*="bg-zinc-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  button[class*="from-slate-9"], button[class*="from-slate-9"] *,
+  button[class*="from-slate-8"], button[class*="from-slate-8"] *,
+  a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
+  a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
+  a[class*="bg-black"], a[class*="bg-black"] *,
+  .badge-dark, .badge-dark *,
+  .dark-surface, .dark-surface *,
+  .keep-dark, .keep-dark *
+) :is(
+  h1, h2, h3, h4, h5, h6,
+  strong, b,
+  .text-white, [class*="text-white"],
+  .text-slate-50, .text-slate-100, .text-slate-200
+):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
+  color: #ffffff !important;
+}
+
+/* Dark mode containers have bright text */
+:is(.dark, .night-mode, [data-theme="night"]) :is(
   [class*="bg-slate-9"],
   [class*="bg-slate-8"],
   [class*="bg-zinc-9"],
@@ -1323,7 +1341,7 @@ html.normal-mode,
   color: #ffffff !important;
 }
 
-:is(.normal-mode, body) :is(
+:is(.dark, .night-mode, [data-theme="night"]) :is(
   [class*="bg-slate-9"],
   [class*="bg-slate-8"],
   [class*="bg-zinc-9"],
@@ -1347,7 +1365,7 @@ html.normal-mode,
   color: #e2e8f0 !important;
 }
 
-:is(.normal-mode, body) :is(
+:is(.dark, .night-mode, [data-theme="night"]) :is(
   [class*="bg-slate-9"],
   [class*="bg-slate-8"],
   [class*="bg-zinc-9"],
@@ -1371,7 +1389,7 @@ html.normal-mode,
   color: #cbd5e1 !important;
 }
 
-:is(.normal-mode, body) :is(
+:is(.dark, .night-mode, [data-theme="night"]) :is(
   [class*="bg-slate-9"],
   [class*="bg-slate-8"],
   [class*="bg-zinc-9"],
@@ -1395,31 +1413,7 @@ html.normal-mode,
   color: #94a3b8 !important;
 }
 
-:is(.normal-mode, body) :is(
-  [class*="bg-slate-9"],
-  [class*="bg-slate-8"],
-  [class*="bg-zinc-9"],
-  [class*="bg-zinc-8"],
-  [class*="bg-gray-9"],
-  [class*="bg-black"],
-  [class*="bg-[#0"],
-  [class*="from-slate-9"],
-  [class*="from-slate-8"],
-  [class*="from-zinc-9"],
-  [class*="from-[#0"],
-  [class*="to-slate-9"],
-  [class*="to-slate-8"],
-  [class*="bg-brand-navy"],
-  header[class*="bg-slate"],
-  header[class*="bg-zinc"],
-  section[class*="from-slate"],
-  section[class*="bg-slate"],
-  div[class*="bg-slate-9"]
-) :is(.text-slate-600, .text-slate-700, .text-slate-800, .text-slate-900):not(select, select *, input, textarea, :is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
-  color: #cbd5e1 !important;
-}
-
-:is(.normal-mode, body) :is(
+:is(.dark, .night-mode, [data-theme="night"]) :is(
   [class*="bg-slate-9"],
   [class*="bg-slate-8"],
   [class*="bg-zinc-9"],
@@ -1550,81 +1544,119 @@ html.normal-mode,
 /* --- C. NORMAL MODE LIGHT SURFACES --- */
 /* On light backgrounds, faint slate-400 & slate-500 are strengthened to crisp readable charcoal */
 :is(.normal-mode, body:not(.dark)) :not(:is(
-  [class*="bg-slate-9"],
-  [class*="bg-slate-8"],
-  [class*="bg-black"],
-  [class*="bg-zinc-9"],
-  [class*="bg-zinc-8"],
-  [class*="bg-[#0b"],
-  [class*="bg-[#02"],
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .dark-surface, .dark-surface *,
+  .keep-dark, .keep-dark *,
   .quote-pdf-root,
   .quote-page,
   .tender-master-pdf-root,
   .flyer-page,
-  [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"] *,
-  [class*="bg-black"] *,
-  [class*="bg-zinc-9"] *,
-  [class*="bg-[#0b"] *
+  .quote-pdf-root *,
+  .quote-page *,
+  .tender-master-pdf-root *,
+  .flyer-page *
 )) > .text-slate-400,
 :is(.normal-mode, body:not(.dark)) :not(:is(
-  [class*="bg-slate-9"],
-  [class*="bg-slate-8"],
-  [class*="bg-black"],
-  [class*="bg-zinc-9"],
-  [class*="bg-zinc-8"],
-  [class*="bg-[#0b"],
-  [class*="bg-[#02"],
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .dark-surface, .dark-surface *,
+  .keep-dark, .keep-dark *,
   .quote-pdf-root,
   .quote-page,
   .tender-master-pdf-root,
   .flyer-page,
-  [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"] *,
-  [class*="bg-black"] *,
-  [class*="bg-zinc-9"] *,
-  [class*="bg-[#0b"] *
+  .quote-pdf-root *,
+  .quote-page *,
+  .tender-master-pdf-root *,
+  .flyer-page *
 )).text-slate-400 {
   color: #475569 !important; /* Slate 600 - High Contrast 5.6:1 against white */
 }
 
 :is(.normal-mode, body:not(.dark)) :not(:is(
-  [class*="bg-slate-9"],
-  [class*="bg-slate-8"],
-  [class*="bg-black"],
-  [class*="bg-zinc-9"],
-  [class*="bg-zinc-8"],
-  [class*="bg-[#0b"],
-  [class*="bg-[#02"],
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .dark-surface, .dark-surface *,
+  .keep-dark, .keep-dark *,
   .quote-pdf-root,
   .quote-page,
   .tender-master-pdf-root,
   .flyer-page,
-  [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"] *,
-  [class*="bg-black"] *,
-  [class*="bg-zinc-9"] *,
-  [class*="bg-[#0b"] *
+  .quote-pdf-root *,
+  .quote-page *,
+  .tender-master-pdf-root *,
+  .flyer-page *
 )) > .text-slate-500,
 :is(.normal-mode, body:not(.dark)) :not(:is(
-  [class*="bg-slate-9"],
-  [class*="bg-slate-8"],
-  [class*="bg-black"],
-  [class*="bg-zinc-9"],
-  [class*="bg-zinc-8"],
-  [class*="bg-[#0b"],
-  [class*="bg-[#02"],
+  button[class*="bg-slate-9"], button[class*="bg-slate-9"] *,
+  button[class*="bg-slate-8"], button[class*="bg-slate-8"] *,
+  button[class*="bg-black"], button[class*="bg-black"] *,
+  button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
+  .badge-dark, .badge-dark *,
+  .dark-surface, .dark-surface *,
+  .keep-dark, .keep-dark *,
   .quote-pdf-root,
   .quote-page,
   .tender-master-pdf-root,
   .flyer-page,
-  [class*="bg-slate-9"] *,
-  [class*="bg-slate-8"] *,
-  [class*="bg-black"] *,
-  [class*="bg-zinc-9"] *,
-  [class*="bg-[#0b"] *
+  .quote-pdf-root *,
+  .quote-page *,
+  .tender-master-pdf-root *,
+  .flyer-page *
 )).text-slate-500 {
   color: #334155 !important; /* Slate 700 - High Contrast 7.5:1 against white */
+}
+
+/* --- D. UNIVERSAL DIALOG & MODAL READABILITY IN NORMAL MODE --- */
+.normal-mode [role="dialog"],
+.normal-mode [data-radix-dialog-content],
+.normal-mode [data-radix-popper-content-wrapper] [role="dialog"] {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) :is(
+  h1, h2, h3, h4, h5, h6,
+  [data-radix-dialog-title]
+) {
+  color: #0f172a !important;
+}
+
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) label {
+  color: #1e293b !important;
+  font-weight: 500 !important;
+}
+
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) input:not([type="checkbox"]):not([type="radio"]),
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) textarea,
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) select,
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) [role="combobox"],
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) [data-radix-select-trigger] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) input::placeholder,
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+.normal-mode :is([role="dialog"], [data-radix-dialog-content]) button.border-slate-800:not([class*="bg-emerald"]):not([class*="bg-amber"]):not([class*="bg-cyan"]):not([class*="bg-blue"]):not([class*="from-"]) {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
 }
 
 

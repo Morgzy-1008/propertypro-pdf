@@ -41,8 +41,8 @@ interface StaffHeaderProfileProps {
 export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: StaffHeaderProfileProps) {
   const navigate = useNavigate();
   const { mode } = useTheme();
-  const isNormalMode = mode === "normal" || (typeof document !== "undefined" && document.documentElement.classList.contains("normal-mode"));
-  const isLight = propIsLight !== undefined ? (propIsLight || isNormalMode) : isNormalMode;
+  const isNormalMode = mode === "normal";
+  const isLight = propIsLight !== undefined ? propIsLight : isNormalMode;
   const [activeUser, setActiveUser] = useState<StaffProfile | null>(() => getActiveStaffUser());
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);

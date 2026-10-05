@@ -321,13 +321,17 @@ function LotDialog({
     disabled = false,
   ) => (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-400 font-medium">{label}</Label>
+      <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-400"}`}>{label}</Label>
       <Input
         type={type}
         disabled={disabled}
         value={form[key]}
         onChange={(e) => update(key, e.target.value)}
-        className="h-8.5 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
+        className={`h-8.5 rounded-lg text-xs ${
+          isLight
+            ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:border-cyan-600"
+            : "border-slate-800 bg-slate-900/80 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500/60"
+        }`}
       />
     </div>
   );
@@ -377,7 +381,7 @@ function LotDialog({
     } catch (err) {
       console.warn("[database] syncLotToSupabase warning:", err);
     }
-if (form.developer.trim()) {
+    if (form.developer.trim()) {
       await rememberDeveloper({
         name: form.developer,
         contact_name: form.developer_contact_name,
@@ -395,7 +399,14 @@ if (form.developer.trim()) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button size="sm" className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 text-xs font-semibold gap-1.5 shadow-sm">
+          <Button
+            size="sm"
+            className={`text-xs font-bold gap-1.5 shadow-sm ${
+              isLight
+                ? "bg-cyan-600 hover:bg-cyan-700 text-white"
+                : "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30"
+            }`}
+          >
             <Plus className="h-3.5 w-3.5" /> Add land lot
           </Button>
         )}
@@ -404,14 +415,13 @@ if (form.developer.trim()) {
         <DialogHeader>
           <DialogTitle className={`font-bold tracking-wide ${isLight ? "text-slate-900" : "text-white"}`}>{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
         </DialogHeader>
-        <DialogHeader>
-          <DialogTitle className="text-white font-bold tracking-wide">{lot ? "Edit land lot" : "New land lot"}</DialogTitle>
-        </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5 col-span-2 sm:col-span-1">
-            <Label className="text-xs text-slate-400 font-medium">State / Division *</Label>
+            <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-400"}`}>State / Division *</Label>
             <Select value={form.state} onValueChange={(v: "QLD" | "NSW") => update("state", v)}>
-              <SelectTrigger className="h-8.5 rounded-lg border-slate-800 bg-slate-900/80 text-xs text-slate-100">
+              <SelectTrigger className={`h-8.5 rounded-lg text-xs ${
+                isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900/80 text-slate-100"
+              }`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-800 shadow-lg" : "border-slate-800 bg-slate-900 text-slate-200"}>

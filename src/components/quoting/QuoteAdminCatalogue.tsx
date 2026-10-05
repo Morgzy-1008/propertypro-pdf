@@ -719,32 +719,32 @@ export function QuoteAdminCatalogue({
                     <div className={`p-2 rounded-xl border ${
                       isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
                     }`}>
-                      <span className="text-[10px] text-slate-500 font-medium block">HBS Series</span>
-                      <span className="font-mono font-bold text-rose-500">-$250/m²</span>
+                      <span className={`text-[10px] font-medium block ${isLight ? "text-slate-600" : "text-slate-400"}`}>HBS Series</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-rose-700" : "text-rose-400"}`}>-$250/m²</span>
                     </div>
                     <div className={`p-2 rounded-xl border ${
                       isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
                     }`}>
-                      <span className="text-[10px] text-slate-500 font-medium block">Smart Style (SS)</span>
-                      <span className="font-mono font-bold text-amber-500">-$150/m²</span>
+                      <span className={`text-[10px] font-medium block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Smart Style (SS)</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-amber-800" : "text-amber-400"}`}>-$150/m²</span>
                     </div>
                     <div className={`p-2 rounded-xl border ${
                       isLight ? "bg-white border-slate-200" : "bg-slate-950/70 border-slate-800/70"
                     }`}>
-                      <span className="text-[10px] text-slate-500 font-medium block">H1 Smart Inclusions</span>
-                      <span className="font-mono font-bold text-sky-500">-$80/m²</span>
+                      <span className={`text-[10px] font-medium block ${isLight ? "text-slate-600" : "text-slate-400"}`}>H1 Smart Inclusions</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-sky-700" : "text-sky-400"}`}>-$80/m²</span>
                     </div>
-                    <div className={`p-2 rounded-xl border ring-1 ring-emerald-500/40 ${
-                      isLight ? "bg-emerald-50/50 border-emerald-300" : "bg-emerald-950/30 border-emerald-500/40"
+                    <div className={`p-2 rounded-xl border ring-1 ${
+                      isLight ? "bg-emerald-50/50 border-emerald-300 ring-emerald-500/30" : "bg-emerald-950/30 border-emerald-500/40 ring-emerald-500/40"
                     }`}>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block">H2 Design (Master)</span>
-                      <span className="font-mono font-bold text-emerald-600 dark:text-emerald-300">Base Curve</span>
+                      <span className={`text-[10px] font-bold block ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>H2 Design (Master)</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-emerald-800" : "text-emerald-300"}`}>Base Curve</span>
                     </div>
-                    <div className={`p-2 rounded-xl border ring-1 ring-amber-500/40 ${
-                      isLight ? "bg-amber-50/50 border-amber-300" : "bg-amber-950/30 border-amber-500/40"
+                    <div className={`p-2 rounded-xl border ring-1 ${
+                      isLight ? "bg-amber-50/50 border-amber-300 ring-amber-500/30" : "bg-amber-950/30 border-amber-500/40 ring-amber-500/40"
                     }`}>
-                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold block">H3 Luxury Inclusions</span>
-                      <span className="font-mono font-bold text-amber-600 dark:text-amber-300">+$150/m²</span>
+                      <span className={`text-[10px] font-bold block ${isLight ? "text-amber-900" : "text-amber-400"}`}>H3 Luxury Inclusions</span>
+                      <span className={`font-mono font-bold ${isLight ? "text-amber-900" : "text-amber-300"}`}>+$150/m²</span>
                     </div>
                   </div>
 
@@ -759,26 +759,30 @@ export function QuoteAdminCatalogue({
                         <Building2 className="h-3.5 w-3.5 text-cyan-500" />
                         Dynamic Size Benchmarks (H2 Design Inclusions)
                       </span>
-                      <span className="text-[10px] font-normal text-slate-500">
+                      <span className={`text-[10px] font-normal ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                         Shows smooth economies-of-scale living rate reduction as house area grows
                       </span>
                     </div>
-                    <div className="divide-y divide-slate-100 dark:divide-slate-800/60 text-xs">
+                    <div className={`divide-y text-xs ${isLight ? "divide-slate-100" : "divide-slate-800/60"}`}>
                       <div className="grid grid-cols-4 p-2.5 items-center">
                         <div>
                           <strong className={isLight ? "text-slate-900" : "text-white"}>150 m² Single Storey</strong>
-                          <span className="text-[10px] text-slate-500 block">Compact Home (~105m² Living)</span>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Compact Home (~105m² Living)</span>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
-                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>$2,402/m²</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Living Rate</span>
+                          <strong className={isLight ? "text-slate-900" : "text-slate-200"}>$2,402/m²</strong>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400">$307,500</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Est Base Price</span>
+                          <strong className={isLight ? "text-emerald-700 font-bold" : "text-emerald-400"}>$307,500</strong>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50">
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                              : "bg-emerald-950 text-emerald-300 border border-emerald-800/50"
+                          }`}>
                             +$22k vs Project
                           </span>
                         </div>
@@ -789,21 +793,25 @@ export function QuoteAdminCatalogue({
                       }`}>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <strong className="text-emerald-600 dark:text-emerald-400">200 m² Single Storey</strong>
+                            <strong className={isLight ? "text-emerald-900 font-extrabold" : "text-emerald-400"}>200 m² Single Storey</strong>
                             <span className="text-[9px] bg-emerald-600 text-white font-bold px-1.5 py-0.2 rounded">Reference Benchmark</span>
                           </div>
-                          <span className="text-[10px] text-slate-500 block">Standard 4-Bed (~145m² Living, 37m² Garage)</span>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Standard 4-Bed (~145m² Living, 37m² Garage)</span>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
-                          <strong className="text-emerald-600 dark:text-emerald-300">$2,235/m²</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Living Rate</span>
+                          <strong className={isLight ? "text-emerald-800 font-bold" : "text-emerald-300"}>$2,235/m²</strong>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400">$389,125</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Est Base Price</span>
+                          <strong className={isLight ? "text-emerald-800 font-bold" : "text-emerald-400"}>$389,125</strong>
                         </div>
                         <div className="text-right">
-                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
+                          <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          }`}>
                             +$31,125 vs Project (~$358k)
                           </span>
                         </div>
@@ -812,18 +820,22 @@ export function QuoteAdminCatalogue({
                       <div className="grid grid-cols-4 p-2.5 items-center">
                         <div>
                           <strong className={isLight ? "text-slate-900" : "text-white"}>250 m² Single Storey</strong>
-                          <span className="text-[10px] text-slate-500 block">Executive Home (~185m² Living)</span>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Executive Home (~185m² Living)</span>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Living Rate</span>
-                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>$2,111/m²</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Living Rate</span>
+                          <strong className={isLight ? "text-slate-900" : "text-slate-200"}>$2,111/m²</strong>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400">$467,200</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Est Base Price</span>
+                          <strong className={isLight ? "text-emerald-700 font-bold" : "text-emerald-400"}>$467,200</strong>
                         </div>
                         <div className="text-right">
-                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800/50">
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-bold"
+                              : "bg-emerald-950 text-emerald-300 border border-emerald-800/50"
+                          }`}>
                             +$38k vs Project
                           </span>
                         </div>
@@ -832,18 +844,22 @@ export function QuoteAdminCatalogue({
                       <div className="grid grid-cols-4 p-2.5 items-center">
                         <div>
                           <strong className={isLight ? "text-slate-900" : "text-white"}>300 m² Two Storey</strong>
-                          <span className="text-[10px] text-slate-500 block">Double Storey (~115m² GF, 125m² FF, Scaffolding)</span>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Double Storey (~115m² GF, 125m² FF, Scaffolding)</span>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Living Rates</span>
-                          <strong className={isLight ? "text-slate-800" : "text-slate-200"}>GF $2,090 / FF $2,319</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Living Rates</span>
+                          <strong className={isLight ? "text-slate-900" : "text-slate-200"}>GF $2,090 / FF $2,319</strong>
                         </div>
                         <div className="font-mono text-center">
-                          <span className="text-[10px] text-slate-400 block">Est Base Price</span>
-                          <strong className="text-emerald-600 dark:text-emerald-400">$612,895</strong>
+                          <span className={`text-[10px] block ${isLight ? "text-slate-600" : "text-slate-400"}`}>Est Base Price</span>
+                          <strong className={isLight ? "text-emerald-700 font-bold" : "text-emerald-400"}>$612,895</strong>
                         </div>
                         <div className="text-right">
-                          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/40">
+                          <span className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded border ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                          }`}>
                             +$47,895 vs Project (~$565k)
                           </span>
                         </div>

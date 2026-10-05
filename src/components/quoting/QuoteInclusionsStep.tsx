@@ -36,6 +36,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatAud } from "@/lib/pricing";
+import { useTheme } from "@/lib/theme";
 import { CATEGORY_LABELS } from "@/lib/quoting/quoteCatalogue";
 import {
   calculateCustomTotalM2,
@@ -111,6 +112,8 @@ function isItemApplicableToStorey(item: QuoteSelectedLineItem, isDouble: boolean
 }
 
 export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusionsStepProps) {
+  const { mode } = useTheme();
+  const isLight = mode === "normal";
   const [activeTab, setActiveTab] = useState<CatalogueCategory | "all" | "selected">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddCustomOpen, setIsAddCustomOpen] = useState(false);
@@ -553,15 +556,17 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 ${
+        isLight ? "border-slate-200" : "border-slate-800/80"
+      }`}>
         <div>
           <div className="flex items-center gap-2">
-            <PackageCheck className="h-4 w-4 text-emerald-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-100">
+            <PackageCheck className={`h-4 w-4 ${isLight ? "text-emerald-700" : "text-emerald-400"}`} />
+            <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-slate-100"}`}>
               Step 4: Variations &amp; Custom Upgrades Checklist
             </h3>
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className={`text-xs mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
             Showing {filteredItems.length} applicable variations.
           </p>
         </div>
@@ -570,7 +575,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
           <Button
             size="sm"
             onClick={() => setIsAddCustomOpen(true)}
-            className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs gap-1.5"
+            className={`text-xs gap-1.5 font-bold shadow-sm ${
+              isLight
+                ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+            }`}
           >
             <Plus className="h-3.5 w-3.5" /> Add Custom Variation
           </Button>
@@ -579,26 +588,32 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
       {/* 2nd Dwelling Selection Switcher Banner */}
       {hasSecondDwelling && (
-        <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+        <div className={`p-3 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border ${
+          isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/90 border-slate-800 shadow-md"
+        }`}>
           <div className="flex items-center gap-2.5">
-            <Sparkles className="h-4 w-4 text-cyan-400 flex-none" />
+            <Sparkles className="h-4 w-4 text-cyan-500 flex-none" />
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 block">
+              <span className={`text-[10px] font-bold uppercase tracking-wider block ${isLight ? "text-cyan-800" : "text-cyan-400"}`}>
                 Multi-Dwelling Scoping Active
               </span>
-              <p className="text-xs font-semibold text-slate-200">
+              <p className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 Apply variations and popular upgrades individually to each dwelling:
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+          <div className={`flex items-center gap-2 p-1 rounded-xl border ${
+            isLight ? "bg-slate-100 border-slate-200" : "bg-slate-950 border-slate-800"
+          }`}>
             <button
               type="button"
               onClick={() => setActiveDwellingTab("dwelling1")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeDwellingTab === "dwelling1"
                   ? "bg-cyan-600 text-white shadow-sm"
+                  : isLight
+                  ? "text-slate-600 hover:text-slate-900"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
@@ -611,6 +626,8 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
               className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 activeDwellingTab === "dwelling2"
                   ? "bg-emerald-600 text-white shadow-sm"
+                  : isLight
+                  ? "text-slate-600 hover:text-slate-900"
                   : "text-slate-400 hover:text-slate-200"
               }`}
             >
@@ -622,18 +639,28 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       )}
 
       {/* POPULAR UPGRADES SECTION - COMPACT & CATEGORIZED */}
-      <div className="bg-slate-950/90 p-4 rounded-2xl border border-amber-500/30 ring-1 ring-amber-500/10 shadow-lg space-y-3.5">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+      <div className={`p-4 rounded-2xl border space-y-3.5 ${
+        isLight
+          ? "bg-white border-amber-200/80 shadow-sm"
+          : "bg-slate-950/90 border-amber-500/30 ring-1 ring-amber-500/10 shadow-lg"
+      }`}>
+        <div className={`flex items-center justify-between border-b pb-2 ${
+          isLight ? "border-slate-200" : "border-slate-800"
+        }`}>
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-white">
+            <Sparkles className={`h-4 w-4 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+            <h4 className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>
               Popular Upgrades &amp; Enhancements
             </h4>
-            <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold">
+            <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+              isLight
+                ? "bg-amber-100 text-amber-900 border-amber-300"
+                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+            }`}>
               Target: {activeTargetName} ({activeTargetM2} m²)
             </span>
           </div>
-          <span className="text-[10px] text-slate-400 hidden sm:inline">
+          <span className={`text-[10px] hidden sm:inline ${isLight ? "text-slate-600" : "text-slate-400"}`}>
             Click any upgrade tab to select / adjust
           </span>
         </div>
@@ -789,39 +816,61 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     }}
                     className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                       isInc
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                        ? isLight
+                          ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                          : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                        : isLight
+                        ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                         : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-1.5 mb-1">
-                        <span className="font-bold text-xs text-white block truncate">
+                        <span className={`font-bold text-xs block truncate ${
+                          isLight ? "text-slate-900" : "text-white"
+                        }`}>
                           {card.name}
                         </span>
                         <div className="flex items-center gap-1 flex-none">
                           {card.badge && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                              isLight
+                                ? "bg-amber-100 text-amber-900 border-amber-300"
+                                : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                            }`}>
                               {card.badge}
                             </span>
                           )}
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-mono">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border font-mono ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          }`}>
                             {targetTierLabel}
                           </span>
                         </div>
                       </div>
 
-                      <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className={`text-[10px] line-clamp-2 leading-relaxed ${
+                        isLight ? "text-slate-600" : "text-slate-400"
+                      }`}>
                         {card.description}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 mt-1">
-                      <span className="text-xs font-mono font-bold text-emerald-400">
+                    <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                      isLight ? "border-slate-200" : "border-slate-800/80"
+                    }`}>
+                      <span className={`text-xs font-mono font-bold ${
+                        isLight ? "text-emerald-700" : "text-emerald-400"
+                      }`}>
                         {formatAud(card.unitRate)}/m²
                       </span>
 
                       <div
-                        className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
+                        className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                          isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                        }`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
@@ -840,12 +889,18 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                               unitType: "per_m2",
                             });
                           }}
-                          className="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                          }`}
                           title="Decrease m²"
                         >
                           <Minus className="h-3 w-3" />
                         </button>
-                        <span className={`font-bold text-xs font-mono px-1 min-w-[54px] text-center ${isInc ? "text-emerald-400" : "text-slate-400"}`}>
+                        <span className={`font-bold text-xs font-mono px-1 min-w-[54px] text-center ${
+                          isInc
+                            ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                            : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                        }`}>
                           {isInc ? `${qty} m²` : "0 m²"}
                         </span>
                         <button
@@ -864,7 +919,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                               unitType: "per_m2",
                             });
                           }}
-                          className="p-1 rounded hover:bg-slate-800 text-slate-300 transition-colors"
+                          className={`p-1 rounded transition-colors ${
+                            isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                          }`}
                           title="Increase m²"
                         >
                           <Plus className="h-3 w-3" />
@@ -873,7 +930,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     </div>
 
                     {isInc && (
-                      <div className="text-[10px] text-right font-mono font-bold text-emerald-300 -mt-1">
+                      <div className={`text-[10px] text-right font-mono font-bold -mt-1 ${
+                        isLight ? "text-emerald-800" : "text-emerald-300"
+                      }`}>
                         Subtotal: {formatAud(subtotal)}
                       </div>
                     )}
@@ -1873,16 +1932,26 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                 activeTab === tab.id
                   ? tab.id === "selected"
-                    ? "bg-amber-400 text-slate-950 font-bold shadow-md"
+                    ? isLight
+                      ? "bg-amber-500 text-white font-bold shadow-md"
+                      : "bg-amber-400 text-slate-950 font-bold shadow-md"
+                    : isLight
+                    ? "bg-emerald-600 text-white font-bold shadow-md"
                     : "bg-emerald-500 text-slate-950 font-bold shadow-md"
                   : tab.id === "selected"
-                    ? "bg-amber-950/40 text-amber-300 border border-amber-800/60 hover:bg-amber-900/50"
+                    ? isLight
+                      ? "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                      : "bg-amber-950/40 text-amber-300 border border-amber-800/60 hover:bg-amber-900/50"
+                    : isLight
+                    ? "bg-white text-slate-700 hover:text-slate-900 border border-slate-200 hover:bg-slate-50"
                     : "bg-slate-950 text-slate-400 hover:text-slate-200 border border-slate-800"
               }`}
             >
               {tab.label}
               {tab.id === "selected" && selectedCount > 0 && (
-                <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-extrabold">
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                  isLight ? "bg-amber-600 text-white" : "bg-amber-500 text-slate-950"
+                }`}>
                   {selectedCount}
                 </span>
               )}
@@ -1891,12 +1960,18 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
         </div>
 
         <div className="relative w-full sm:w-64 flex-none">
-          <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+          <Search className={`h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 ${
+            isLight ? "text-slate-400" : "text-slate-500"
+          }`} />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search variations…"
-            className="h-8 pl-8 text-xs border-slate-800 bg-slate-950 text-slate-200"
+            className={`h-8 pl-8 text-xs ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                : "border-slate-800 bg-slate-950 text-slate-200"
+            }`}
           />
         </div>
       </div>
@@ -1904,7 +1979,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       {/* Line Items List */}
       <div className="space-y-2.5">
         {filteredItems.length === 0 ? (
-          <div className="text-center py-12 text-xs text-slate-500 border border-dashed border-slate-800 rounded-2xl bg-slate-950/40">
+          <div className={`text-center py-12 text-xs border border-dashed rounded-2xl ${
+            isLight
+              ? "text-slate-600 border-slate-300 bg-slate-50/60"
+              : "text-slate-500 border-slate-800 bg-slate-950/40"
+          }`}>
             {activeTab === "selected"
               ? "No variations currently selected. Check any item from the categories above to add it to the estimate."
               : "No variation items match your search filter."}
@@ -1917,7 +1996,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 key={item.id}
                 className={`p-3.5 rounded-xl border transition-all ${
                   item.isIncluded
-                    ? "border-emerald-500/60 bg-slate-900/95 shadow-md ring-1 ring-emerald-500/20"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-500/20"
+                      : "border-emerald-500/60 bg-slate-900/95 shadow-md ring-1 ring-emerald-500/20"
+                    : isLight
+                    ? "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
                     : "border-slate-800/80 bg-slate-950/60 opacity-85 hover:opacity-100 hover:border-slate-700"
                 }`}
               >
@@ -1932,13 +2015,23 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-xs text-slate-100">
+                        <span className={`font-bold text-xs ${
+                          isLight ? "text-slate-900" : "text-slate-100"
+                        }`}>
                           {item.name}
                         </span>
-                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                        <span className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded border ${
+                          isLight
+                            ? "bg-slate-100 text-slate-700 border-slate-200"
+                            : "bg-slate-800 text-slate-400 border-slate-700"
+                        }`}>
                           {CATEGORY_LABELS[resolveItemCategory(item)] || item.category}
                         </span>
-                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-slate-900 text-emerald-400 border border-slate-800">
+                        <span className={`text-[10px] uppercase font-mono px-1.5 py-0.5 rounded border ${
+                          isLight
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold"
+                            : "bg-slate-900 text-emerald-400 border-slate-800"
+                        }`}>
                           {item.unitType === "per_m2"
                             ? "per sqm"
                             : item.unitType === "per_lm"
@@ -1954,7 +2047,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                             }}
                             className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all flex items-center gap-1 cursor-pointer ${
                               item.isClientSelectable
-                                ? "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                ? isLight
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200"
+                                  : "bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30"
+                                : isLight
+                                ? "bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200"
                                 : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-750"
                             }`}
                             title={
@@ -1965,19 +2062,21 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           >
                             {item.isClientSelectable ? (
                               <>
-                                <Sparkles className="h-3 w-3 text-amber-400" />
+                                <Sparkles className="h-3 w-3 text-amber-500" />
                                 <span>Optional for Client</span>
                               </>
                             ) : (
                               <>
-                                <Lock className="h-3 w-3 text-slate-400" />
+                                <Lock className={`h-3 w-3 ${isLight ? "text-slate-500" : "text-slate-400"}`} />
                                 <span>Locked in Quote</span>
                               </>
                             )}
                           </button>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
+                      <p className={`text-[11px] mt-1 leading-snug ${
+                        isLight ? "text-slate-600" : "text-slate-400"
+                      }`}>
                         {item.description}
                       </p>
                     </div>
@@ -1986,8 +2085,12 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                   {/* Quantity & Unit Rate Editor */}
                   <div className="flex items-center gap-2.5 self-end sm:self-center flex-none">
                     {item.unitType !== "fixed" && (
-                      <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 text-xs">
-                        <span className="text-[10px] text-slate-500 uppercase font-mono">
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${
+                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                      }`}>
+                        <span className={`text-[10px] uppercase font-mono ${
+                          isLight ? "text-slate-500 font-bold" : "text-slate-500"
+                        }`}>
                           {item.unitType === "per_m2" ? "Sqm:" : item.unitType === "per_lm" ? "Lm:" : "Qty:"}
                         </span>
                         <input
@@ -1995,14 +2098,18 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           min="1"
                           value={item.quantity || 1}
                           onChange={(e) => handleQtyChange(item.id, Number(e.target.value))}
-                          className="w-12 bg-transparent text-right font-mono font-bold text-slate-100 outline-none"
+                          className={`w-12 bg-transparent text-right font-mono font-bold outline-none ${
+                            isLight ? "text-slate-900" : "text-slate-100"
+                          }`}
                         />
                       </div>
                     )}
 
                     <div className="w-28">
                       <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-500 font-mono">
+                        <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono ${
+                          isLight ? "text-slate-500 font-bold" : "text-slate-500"
+                        }`}>
                           $
                         </span>
                         <Input
@@ -2010,13 +2117,19 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           value={item.unitRate || ""}
                           onChange={(e) => handleRateChange(item.id, Number(e.target.value))}
                           placeholder="0"
-                          className="h-8 pl-6 text-xs text-right border-slate-800 bg-slate-950 text-emerald-400 font-bold font-mono"
+                          className={`h-8 pl-6 text-xs text-right font-bold font-mono ${
+                            isLight
+                              ? "border-slate-300 bg-white text-emerald-800"
+                              : "border-slate-800 bg-slate-950 text-emerald-400"
+                          }`}
                         />
                       </div>
                     </div>
 
                     <div className="w-24 text-right">
-                      <span className="text-xs font-bold font-mono text-emerald-400">
+                      <span className={`text-xs font-bold font-mono ${
+                        isLight ? "text-emerald-800" : "text-emerald-400"
+                      }`}>
                         {item.isIncluded ? formatAud(item.quantity * item.unitRate) : "$0"}
                       </span>
                     </div>
@@ -2024,7 +2137,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     <button
                       type="button"
                       onClick={() => handleDeleteItem(item.id)}
-                      className="text-slate-500 hover:text-rose-400 p-1.5 rounded transition-colors"
+                      className={`p-1.5 rounded transition-colors ${
+                        isLight ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-slate-500 hover:text-rose-400"
+                      }`}
                       title="Remove variation"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -2039,46 +2154,62 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
       {/* Add Custom Variation Dialog */}
       <Dialog open={isAddCustomOpen} onOpenChange={setIsAddCustomOpen}>
-        <DialogContent className="max-w-md border-slate-800 bg-slate-950/95 text-slate-100 backdrop-blur-2xl shadow-2xl">
+        <DialogContent className={`max-w-md backdrop-blur-2xl shadow-2xl ${
+          isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-950/95 text-slate-100"
+        }`}>
           <DialogHeader>
-            <DialogTitle className="text-white font-bold tracking-wide flex items-center gap-2">
-              <Plus className="h-4 w-4 text-emerald-400" />
+            <DialogTitle className={`font-bold tracking-wide flex items-center gap-2 ${
+              isLight ? "text-slate-900" : "text-white"
+            }`}>
+              <Plus className={`h-4 w-4 ${isLight ? "text-emerald-600" : "text-emerald-400"}`} />
               Add Custom Variation
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
             <div className="space-y-1">
-              <Label className="text-xs text-slate-300">Item Name</Label>
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Item Name</Label>
               <Input
                 value={customName}
                 onChange={(e) => setCustomName(e.target.value)}
                 placeholder="e.g. 2,340mm Cavity Sliding Door to Ensuite"
-                className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100"
+                className={`h-9 text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                    : "border-slate-800 bg-slate-900 text-slate-100"
+                }`}
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs text-slate-300">Description / Specifications</Label>
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Description / Specifications</Label>
               <Input
                 value={customDesc}
                 onChange={(e) => setCustomDesc(e.target.value)}
                 placeholder="Brief client-friendly specification note"
-                className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100"
+                className={`h-9 text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-900 placeholder:text-slate-400"
+                    : "border-slate-800 bg-slate-900 text-slate-100"
+                }`}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Category</Label>
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Category</Label>
                 <Select
                   value={customCat}
                   onValueChange={(v: any) => setCustomCat(v)}
                 >
-                  <SelectTrigger className="h-9 border-slate-800 bg-slate-900 text-xs text-slate-200">
+                  <SelectTrigger className={`h-9 text-xs ${
+                    isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"
+                  }`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  <SelectContent className={
+                    isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"
+                  }>
                     <SelectItem value="structural">Structural</SelectItem>
                     <SelectItem value="doors_windows">Doors &amp; Windows</SelectItem>
                     <SelectItem value="external">External</SelectItem>
@@ -2094,15 +2225,19 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Unit Type</Label>
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Unit Type</Label>
                 <Select
                   value={customUnit}
                   onValueChange={(v: any) => setCustomUnit(v)}
                 >
-                  <SelectTrigger className="h-9 border-slate-800 bg-slate-900 text-xs text-slate-200">
+                  <SelectTrigger className={`h-9 text-xs ${
+                    isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"
+                  }`}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
+                  <SelectContent className={
+                    isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"
+                  }>
                     <SelectItem value="fixed">Lump Sum ($)</SelectItem>
                     <SelectItem value="per_lm">Per LM ($/lm)</SelectItem>
                     <SelectItem value="per_m2">Per m² ($/m²)</SelectItem>
@@ -2114,32 +2249,42 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Quantity</Label>
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Quantity</Label>
                 <Input
                   type="number"
                   min="1"
                   value={customQty}
                   onChange={(e) => setCustomQty(Number(e.target.value))}
-                  className="h-9 text-xs border-slate-800 bg-slate-900 text-slate-100 font-mono"
+                  className={`h-9 text-xs font-mono ${
+                    isLight
+                      ? "border-slate-300 bg-white text-slate-900"
+                      : "border-slate-800 bg-slate-900 text-slate-100"
+                  }`}
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs text-slate-300">Unit Rate ($)</Label>
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>Unit Rate ($)</Label>
                 <Input
                   type="number"
                   value={customRate}
                   onChange={(e) => setCustomRate(e.target.value === "" ? "" : Number(e.target.value))}
                   placeholder="0"
-                  className="h-9 text-xs border-slate-800 bg-slate-900 text-emerald-400 font-bold font-mono"
+                  className={`h-9 text-xs font-bold font-mono ${
+                    isLight
+                      ? "border-slate-300 bg-white text-emerald-800"
+                      : "border-slate-800 bg-slate-900 text-emerald-400"
+                  }`}
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl border border-slate-800 bg-slate-900/60">
+            <div className={`flex items-center justify-between p-3 rounded-xl border ${
+              isLight ? "border-slate-200 bg-slate-50" : "border-slate-800 bg-slate-900/60"
+            }`}>
               <div>
-                <Label className="text-xs text-slate-200 font-semibold block">Optional Variation for Client</Label>
-                <p className="text-[11px] text-slate-400">Allow client to de-select this upgrade in their review link</p>
+                <Label className={`text-xs font-semibold block ${isLight ? "text-slate-900" : "text-slate-200"}`}>Optional Variation for Client</Label>
+                <p className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>Allow client to de-select this upgrade in their review link</p>
               </div>
               <input
                 type="checkbox"
@@ -2154,14 +2299,22 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 variant="outline"
                 size="sm"
                 onClick={() => setIsAddCustomOpen(false)}
-                className="border-slate-800 bg-slate-900 text-slate-300 text-xs"
+                className={`text-xs ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                    : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                }`}
               >
                 Cancel
               </Button>
               <Button
                 size="sm"
                 onClick={handleAddCustomItem}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs"
+                className={`text-xs font-bold ${
+                  isLight
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white"
+                    : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
+                }`}
               >
                 Add Line Item
               </Button>

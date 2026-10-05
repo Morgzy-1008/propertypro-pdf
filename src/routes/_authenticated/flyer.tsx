@@ -71,6 +71,7 @@ function Index() {
   const [downloading, setDownloading] = useState(false);
   const { ref, scale } = useFitScale(A4_WIDTH_PX);
   const { mode } = useTheme();
+  const isLight = mode === "normal";
   const navigate = useNavigate();
 
   const set = useCallback(
@@ -325,38 +326,50 @@ function Index() {
         <div className="ambient-glow-gold h-96 w-96 -top-20 right-10" />
         <div className="ambient-glow-cyan h-96 w-96 top-96 -left-20" />
 
-        <header className="flex-shrink-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl sticky top-0 shadow-lg">
+        <header className={`flex-shrink-0 z-30 border-b backdrop-blur-xl sticky top-0 shadow-lg ${
+          isLight ? "border-slate-200 bg-white/95" : "border-slate-800/80 bg-slate-950/80"
+        }`}>
           <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-3 flex-shrink-0">
               <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
                 <HudsonMark className="h-8 w-auto text-brand-gold" />
-                <div className="leading-tight border-l border-slate-800 pl-3">
-                  <h1 className="text-xs font-bold tracking-[0.14em] text-white uppercase">
+                <div className={`leading-tight border-l pl-3 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                  <h1 className={`text-xs font-bold tracking-[0.14em] uppercase ${isLight ? "text-slate-900" : "text-white"}`}>
                     Package Studio
                   </h1>
-                  <p className="text-[10px] tracking-wider text-brand-gold font-medium uppercase">
+                  <p className={`text-[10px] tracking-wider font-semibold uppercase ${isLight ? "text-amber-800" : "text-brand-gold"}`}>
                     Flyer Builder
                   </p>
                 </div>
               </Link>
-              <div className="hidden sm:block border-l border-slate-800 pl-2">
-                <StaffHeaderProfile isLight={false} />
+              <div className={`hidden sm:block border-l pl-2 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                <StaffHeaderProfile isLight={isLight} />
               </div>
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
               <Link to="/hub">
-                <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-100 hover:bg-slate-900 border border-transparent hover:border-slate-800">
+                <Button variant="ghost" size="sm" className={`text-xs border ${
+                  isLight
+                    ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
+                    : "text-slate-400 hover:text-slate-100 hover:bg-slate-900 border-transparent hover:border-slate-800"
+                }`}>
                   Hub
                 </Button>
               </Link>
 
-              <div className="flex rounded-lg border border-slate-800/90 bg-slate-900/90 p-1 backdrop-blur-md shadow-inner flex-wrap gap-0.5">
+              <div className={`flex rounded-lg border p-1 backdrop-blur-md shadow-inner flex-wrap gap-0.5 ${
+                isLight ? "border-slate-200 bg-slate-100" : "border-slate-800/90 bg-slate-900/90"
+              }`}>
                 <button
                   onClick={() => setTemplate("express")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "express"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -367,7 +380,11 @@ function Index() {
                   onClick={() => setTemplate("siting")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "siting"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -378,7 +395,11 @@ function Index() {
                   onClick={() => setTemplate("showcase")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "showcase"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -389,7 +410,11 @@ function Index() {
                   onClick={() => setTemplate("house-only")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "house-only"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -400,7 +425,11 @@ function Index() {
                   onClick={() => setTemplate("house-only-v2")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "house-only-v2"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -411,7 +440,11 @@ function Index() {
                   onClick={() => setTemplate("siting-v2")}
                   className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "siting-v2"
-                      ? "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      ? isLight
+                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                      : isLight
+                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
@@ -423,15 +456,23 @@ function Index() {
               <ThemeToggle />
 
               <Link to="/database">
-                <Button variant="outline" size="sm" className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5">
-                  <Database className="h-3.5 w-3.5 text-cyan-400" />
+                <Button variant="outline" size="sm" className={`text-xs gap-1.5 ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                    : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}>
+                  <Database className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
                   Database
                 </Button>
               </Link>
 
               <Link to="/land-scout">
-                <Button variant="outline" size="sm" className="border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white text-xs gap-1.5">
-                  <Compass className="h-3.5 w-3.5 text-amber-400" />
+                <Button variant="outline" size="sm" className={`text-xs gap-1.5 ${
+                  isLight
+                    ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
+                    : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
+                }`}>
+                  <Compass className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                   Land Scout
                 </Button>
               </Link>
@@ -441,16 +482,24 @@ function Index() {
                 size="sm"
                 disabled={saving}
                 onClick={saveToDatabase}
-                className="border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white text-xs gap-1.5"
+                className={`text-xs gap-1.5 ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                    : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
+                }`}
               >
-                <Save className="h-3.5 w-3.5 text-amber-400" />
+                <Save className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
                 {saving ? "Saving…" : "Save package"}
               </Button>
 
               <Button
                 onClick={downloadPdf}
                 disabled={downloading}
-                className="bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 font-semibold hover:from-amber-400 hover:to-amber-300 shadow-md shadow-brand-gold/20 text-xs gap-1.5 transition-all"
+                className={`font-semibold shadow-md text-xs gap-1.5 transition-all ${
+                  isLight
+                    ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20"
+                    : "bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 hover:from-amber-400 hover:to-amber-300 shadow-brand-gold/20"
+                }`}
               >
                 <Download className="h-3.5 w-3.5" />
                 {downloading ? "Creating PDF…" : "Download PDF"}
@@ -460,8 +509,11 @@ function Index() {
         </header>
 
         <main className="flex-1 flex flex-col lg:flex-row overflow-hidden relative z-10 min-h-0">
-          {/* Continuous LHS Toolbar - carries down the entire page height */}
-          <aside className={`w-full lg:w-[420px] xl:w-[450px] flex-shrink-0 h-full overflow-y-auto border-r ${mode === "normal" ? "border-slate-200 bg-white" : "border-slate-800/80 bg-slate-900/90"} backdrop-blur-xl p-5 shadow-2xl text-slate-200 custom-scrollbar overscroll-contain`}>
+          <aside className={`w-full lg:w-[420px] xl:w-[450px] flex-shrink-0 h-full overflow-y-auto border-r ${
+            isLight
+              ? "border-slate-200 bg-white text-slate-900"
+              : "border-slate-800/80 bg-slate-900/90 text-slate-200"
+          } backdrop-blur-xl p-5 shadow-2xl custom-scrollbar overscroll-contain`}>
             <FlyerForm data={data} set={set} template={template} />
           </aside>
 
