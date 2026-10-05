@@ -18,7 +18,7 @@ import { toValidUuid, isValidUuid, generateUuid } from "@/lib/uuid";
 const REALTIME_CHANNEL_NAME = "hudson_database_live_realtime";
 const STAFF_AUTH_EMAIL =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_STAFF_AUTH_EMAIL) ||
-  "morgan.hales@hudsonhomes.com.au";
+  "adrian.baxter@hudsonhomes.com.au";
 const STAFF_AUTH_PASS =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_STAFF_AUTH_PASS) ||
   "StoneBenchTop99";
@@ -44,20 +44,26 @@ export async function ensureStaffSupabaseAuth(force = false): Promise<boolean> {
 
     authPromise = (async () => {
       try {
+        // 1. Primary authenticated staff service credentials
         const { data, error } = await supabase.auth.signInWithPassword({
           email: STAFF_AUTH_EMAIL,
           password: STAFF_AUTH_PASS,
         });
-        if (error || !data.session) {
-          console.warn("[supabaseSync] Primary staff auth warning:", error?.message);
-          // Fallback to Adrian Baxter's staff credentials
+        if (data?.session) {
+          return true;
+        }
+
+        // 2. If primary was overridden and failed, fallback to Adrian Baxter's verified credentials
+        if (STAFF_AUTH_EMAIL !== "adrian.baxter@hudsonhomes.com.au") {
           const fallback = await supabase.auth.signInWithPassword({
             email: "adrian.baxter@hudsonhomes.com.au",
             password: "StoneBenchTop99",
           });
-          return !!fallback.data?.session;
+          if (fallback.data?.session) return true;
         }
-        return true;
+
+        console.warn("[supabaseSync] Primary staff auth warning:", error?.message);
+        return false;
       } catch (err) {
         console.warn("[supabaseSync] Staff auth exception:", err);
         return false;
@@ -177,7 +183,18 @@ export async function seedRemoteDatabaseIfEmpty(): Promise<{ seededLots: boolean
 
     if (missingPkgs.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingPkgs.length} missing packages (including NSW) to Supabase...`);
-      const formatted = missingPkgs.map(formatPackageForSupabase);
+      // Fetch valid lot IDs from land_lots to avoid foreign key violations
+      const { data: dbLots } = await supabase.from("land_lots").select("id");
+      const validLotIds = new Set((dbLots || []).map((l) => l.id));
+
+      const formatted = missingPkgs.map((p) => {
+        const fmt = formatPackageForSupabase(p);
+        if (fmt.lot_id && !validLotIds.has(fmt.lot_id)) {
+          fmt.lot_id = null;
+        }
+        return fmt;
+      });
+
       const { error: insertErr } = await supabase.from("packages").upsert(formatted);
       if (!insertErr) {
         console.log(`[supabaseSync] Successfully synced ${formatted.length} packages to Supabase server`);
@@ -345,16 +362,44 @@ export async function syncLotsBatchToSupabase(lots: Lot[]): Promise<boolean> {
   try {
     await ensureStaffSupabaseAuth();
     const formatted = lots.map(formatLotForSupabase);
-    const { error } = await supabase.from("land_lots").upsert(formatted);
-    if (error) {
-      console.warn("[supabaseSync] Batch lot upsert warning:", error);
-      return false;
+    let allOk = true;
+
+    // Chunk into blocks of 50 to avoid request payload limits
+    const chunkSize = 50;
+    for (let i = 0; i < formatted.length; i += chunkSize) {
+      const chunk = formatted.slice(i, i + chunkSize);
+      const { error } = await supabase.from("land_lots").upsert(chunk);
+      if (error) {
+        console.warn("[supabaseSync] Batch lot upsert direct error, trying API fallback:", error);
+        allOk = false;
+        try {
+          const res = await fetch("/api/database-sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lots: chunk }),
+          });
+          if (res.ok) allOk = true;
+        } catch (apiErr) {
+          console.warn("[supabaseSync] Batch lot API bridge error:", apiErr);
+        }
+      }
     }
+
     await broadcastCloudChange({ action: "lots_bulk_updated", lots });
-    return true;
+    return allOk;
   } catch (e) {
     console.warn("[supabaseSync] syncLotsBatchToSupabase exception:", e);
-    return false;
+    try {
+      const formatted = lots.map(formatLotForSupabase);
+      const res = await fetch("/api/database-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lots: formatted }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -386,17 +431,55 @@ export async function syncPackagesBatchToSupabase(pkgs: Pkg[]): Promise<boolean>
   if (!pkgs.length) return true;
   try {
     await ensureStaffSupabaseAuth();
-    const formatted = pkgs.map(formatPackageForSupabase);
-    const { error } = await supabase.from("packages").upsert(formatted);
-    if (error) {
-      console.warn("[supabaseSync] Batch package upsert warning:", error);
-      return false;
+    // Validate lot_ids against land_lots table to prevent foreign key violations
+    const { data: dbLots } = await supabase.from("land_lots").select("id");
+    const validLotIds = new Set((dbLots || []).map((l) => l.id));
+
+    const formatted = pkgs.map((p) => {
+      const fmt = formatPackageForSupabase(p);
+      if (fmt.lot_id && !validLotIds.has(fmt.lot_id)) {
+        fmt.lot_id = null;
+      }
+      return fmt;
+    });
+    let allOk = true;
+
+    // Chunk into blocks of 50 to avoid request payload limits
+    const chunkSize = 50;
+    for (let i = 0; i < formatted.length; i += chunkSize) {
+      const chunk = formatted.slice(i, i + chunkSize);
+      const { error } = await supabase.from("packages").upsert(chunk);
+      if (error) {
+        console.warn("[supabaseSync] Batch package upsert direct error, trying API fallback:", error);
+        allOk = false;
+        try {
+          const res = await fetch("/api/database-sync", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ packages: chunk }),
+          });
+          if (res.ok) allOk = true;
+        } catch (apiErr) {
+          console.warn("[supabaseSync] Batch package API bridge error:", apiErr);
+        }
+      }
     }
+
     await broadcastCloudChange({ action: "packages_bulk_updated", packages: pkgs });
-    return true;
+    return allOk;
   } catch (e) {
     console.warn("[supabaseSync] syncPackagesBatchToSupabase exception:", e);
-    return false;
+    try {
+      const formatted = pkgs.map(formatPackageForSupabase);
+      const res = await fetch("/api/database-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packages: formatted }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
   }
 }
 
@@ -422,29 +505,40 @@ export async function deletePackagesBatchFromSupabase(ids: string[]): Promise<bo
 }
 
 /**
- * Fetches fresh lots and packages directly from Supabase.
+ * Fetches fresh lots and packages directly from Supabase, with automatic API bridge fallback.
  */
 export async function fetchRemoteLotsAndPackages(): Promise<{ lots: Lot[]; packages: Pkg[] } | null> {
   try {
     await ensureStaffSupabaseAuth();
     const [lotRes, pkgRes] = await Promise.all([
-      supabase.from("land_lots").select("*").order("created_at", { ascending: false }),
-      supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }),
+      supabase.from("land_lots").select("*").order("created_at", { ascending: false }).limit(2000),
+      supabase.from("packages").select("*").not("name", "like", "Tender Request%").order("created_at", { ascending: false }).limit(2000),
     ]);
 
-    if (lotRes.error) {
-      console.warn("[supabaseSync] Land lots fetch error:", lotRes.error);
-    }
-    if (pkgRes.error) {
-      console.warn("[supabaseSync] Packages fetch error:", pkgRes.error);
+    let rawLots = (lotRes.data || []) as Record<string, unknown>[];
+    let rawPkgs = (pkgRes.data || []) as Record<string, unknown>[];
+
+    // If direct Supabase client failed or was blocked by RLS/adblockers, fetch via serverless API bridge
+    if (lotRes.error || rawLots.length === 0) {
+      try {
+        const apiRes = await fetch("/api/database-sync");
+        if (apiRes.ok) {
+          const apiJson = await apiRes.json();
+          if (apiJson.lots && Array.isArray(apiJson.lots) && apiJson.lots.length > 0) {
+            rawLots = apiJson.lots;
+          }
+          if (apiJson.packages && Array.isArray(apiJson.packages) && apiJson.packages.length > 0 && rawPkgs.length === 0) {
+            rawPkgs = apiJson.packages;
+          }
+        }
+      } catch (apiErr) {
+        console.warn("[supabaseSync] fetchRemoteLotsAndPackages API bridge fallback notice:", apiErr);
+      }
     }
 
-    if (lotRes.error && pkgRes.error) {
+    if (rawLots.length === 0 && rawPkgs.length === 0 && (lotRes.error && pkgRes.error)) {
       return null;
     }
-
-    const rawLots = (lotRes.data || []) as Record<string, unknown>[];
-    const rawPkgs = (pkgRes.data || []) as Record<string, unknown>[];
 
     const lots: Lot[] = rawLots.map((r) => {
       const estate = String(r.estate || "");
@@ -599,20 +693,34 @@ export async function syncLocalPackagesAndLotsToSupabase(): Promise<{ lots: Lot[
   // If there are packages in mergedPkgs not in remote, sync them up
   if (remote?.packages) {
     const remotePkgIds = new Set(remote.packages.map((p) => p.id));
-    const missingInRemote = mergedPkgs.filter((p) => !remotePkgIds.has(p.id) && !deletedPkgIds.has(p.id));
+    const remotePkgKeys = new Set(
+      remote.packages.map((p) => `${(p.name || p.design || "").toLowerCase().trim()}-${p.lot_id || ""}`)
+    );
+    const missingInRemote = mergedPkgs.filter((p) => {
+      if (deletedPkgIds.has(p.id)) return false;
+      const key = `${(p.name || p.design || "").toLowerCase().trim()}-${p.lot_id || ""}`;
+      return !remotePkgIds.has(p.id) && !remotePkgKeys.has(key);
+    });
     if (missingInRemote.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingInRemote.length} missing packages to cloud...`);
-      void syncPackagesBatchToSupabase(missingInRemote);
+      await syncPackagesBatchToSupabase(missingInRemote);
     }
   }
 
-  // If there are lots in mergedLots not in remote, sync them up
+  // If there are lots in mergedLots not in remote, sync them up immediately (e.g. Alyssa's Kinma Valley lots!)
   if (remote?.lots) {
     const remoteLotIds = new Set(remote.lots.map((l) => l.id));
-    const missingLotsInRemote = mergedLots.filter((l) => !remoteLotIds.has(l.id) && !deletedLotIds.has(l.id));
+    const remoteNaturalKeys = new Set(
+      remote.lots.map((l) => `${(l.estate || "").toLowerCase()}-${(l.suburb || "").toLowerCase()}-${l.lot_number || ""}`)
+    );
+    const missingLotsInRemote = mergedLots.filter((l) => {
+      if (deletedLotIds.has(l.id)) return false;
+      const key = `${(l.estate || "").toLowerCase()}-${(l.suburb || "").toLowerCase()}-${l.lot_number || ""}`;
+      return !remoteLotIds.has(l.id) && !remoteNaturalKeys.has(key);
+    });
     if (missingLotsInRemote.length > 0) {
       console.log(`[supabaseSync] Uploading ${missingLotsInRemote.length} missing lots to cloud...`);
-      void syncLotsBatchToSupabase(missingLotsInRemote);
+      await syncLotsBatchToSupabase(missingLotsInRemote);
     }
   }
 

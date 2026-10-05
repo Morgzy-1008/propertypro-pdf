@@ -27,10 +27,13 @@ export default async function handler(req, res) {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const staffEmail = process.env.VITE_STAFF_AUTH_EMAIL || process.env.STAFF_AUTH_EMAIL || "morgan.hales@hudsonhomes.com.au";
+    const staffEmail = process.env.VITE_STAFF_AUTH_EMAIL || process.env.STAFF_AUTH_EMAIL || "adrian.baxter@hudsonhomes.com.au";
     const staffPass = process.env.VITE_STAFF_AUTH_PASS || process.env.STAFF_AUTH_PASS || "StoneBenchTop99";
     try {
-      await supabase.auth.signInWithPassword({ email: staffEmail, password: staffPass });
+      const authRes = await supabase.auth.signInWithPassword({ email: staffEmail, password: staffPass });
+      if (authRes.error && staffEmail !== "adrian.baxter@hudsonhomes.com.au") {
+        await supabase.auth.signInWithPassword({ email: "adrian.baxter@hudsonhomes.com.au", password: "StoneBenchTop99" });
+      }
     } catch {}
 
     if (id) {

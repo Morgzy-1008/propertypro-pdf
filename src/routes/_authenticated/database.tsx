@@ -1492,34 +1492,41 @@ function DatabasePage() {
   const [activeDownloadData, setActiveDownloadData] = useState<FlyerData | null>(null);
   const printContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const load = useCallback(async () => {
-    // Instant load from localStorage cache
-    const localL = getLocalLots();
-    const localP = getLocalPackages();
-    setLots(localL);
-    setPackages(localP);
-    if (localL.length > 0) {
-      setOpenSuburbs((prev) =>
-        prev.length === 0
-          ? Array.from(new Set(localL.map((l) => l.suburb.trim().toLowerCase())))
-          : prev,
-      );
-    }
-    if (localP.length > 0) {
-      const pSubs = localP.map((p) => {
-        const lot = p.lot_id ? localL.find((l) => l.id === p.lot_id) : undefined;
-        return (lot?.suburb || (p.flyer_data as any)?.suburb || "General Releases")
-          .trim()
-          .toLowerCase();
-      });
-      setOpenPkgSuburbs((prev) => (prev.length === 0 ? Array.from(new Set(pSubs)) : prev));
-    }
-    if (localL.length > 0 || localP.length > 0) {
-      setLoading(false);
-    } else {
-      setLoading(true);
+  const [isSyncingLive, setIsSyncingLive] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
+
+  const load = useCallback(async (opts?: { silent?: boolean; force?: boolean }) => {
+    const isSilent = opts?.silent ?? false;
+    if (!isSilent) {
+      // Instant load from localStorage cache
+      const localL = getLocalLots();
+      const localP = getLocalPackages();
+      setLots(localL);
+      setPackages(localP);
+      if (localL.length > 0) {
+        setOpenSuburbs((prev) =>
+          prev.length === 0
+            ? Array.from(new Set(localL.map((l) => l.suburb.trim().toLowerCase())))
+            : prev,
+        );
+      }
+      if (localP.length > 0) {
+        const pSubs = localP.map((p) => {
+          const lot = p.lot_id ? localL.find((l) => l.id === p.lot_id) : undefined;
+          return (lot?.suburb || (p.flyer_data as any)?.suburb || "General Releases")
+            .trim()
+            .toLowerCase();
+        });
+        setOpenPkgSuburbs((prev) => (prev.length === 0 ? Array.from(new Set(pSubs)) : prev));
+      }
+      if (localL.length > 0 || localP.length > 0) {
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
     }
 
+    setIsSyncingLive(true);
     try {
       const synced = await syncLocalPackagesAndLotsToSupabase();
       if (synced) {
@@ -1537,18 +1544,38 @@ function DatabasePage() {
             .toLowerCase();
         });
         setOpenPkgSuburbs((prev) => (prev.length === 0 ? Array.from(new Set(pSubs)) : prev));
+        const now = new Date();
+        setLastSyncTime(now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       }
-      setSelLots([]);
-      setSelPkgs([]);
+      if (!isSilent) {
+        setSelLots([]);
+        setSelPkgs([]);
+      }
     } catch (e) {
       console.warn("[database] Supabase sync notice (using local storage fallback):", e);
     } finally {
-      setLoading(false);
+      setIsSyncingLive(false);
+      if (!isSilent) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     void load();
+
+    // Multi-user 15-second live background sync interval across team
+    const syncInterval = setInterval(() => {
+      void load({ silent: true });
+    }, 15000);
+
+    // Sync immediately when consultant returns to tab
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        void load({ silent: true });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     // 1. Cross-tab live sync via BroadcastChannel
     let channel: BroadcastChannel | null = null;
@@ -1640,6 +1667,8 @@ function DatabasePage() {
     });
 
     return () => {
+      clearInterval(syncInterval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       channel?.close();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("hudson_database_change", handleCustomChange);
@@ -2204,9 +2233,10 @@ function DatabasePage() {
             </div>
           </Link>
           <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+            {/* 15-second multi-user live sync status badge */}
             <div
-              className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-                isSaving
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold border transition-all ${
+                isSaving || isSyncingLive
                   ? isLight
                     ? "border-amber-300 bg-amber-50 text-amber-800 shadow-xs"
                     : "border-amber-500/30 bg-amber-500/15 text-amber-300 shadow-sm"
@@ -2215,12 +2245,39 @@ function DatabasePage() {
                     : "border-emerald-500/30 bg-emerald-500/15 text-emerald-400 shadow-sm"
               }`}
             >
-              <span
-                className={`h-2 w-2 rounded-full ${
-                  isSaving ? "bg-amber-500 animate-spin" : "bg-emerald-500 animate-pulse"
-                }`}
-              />
-              <span>{isSaving ? "Auto-saving to Cloud…" : "Cloud Synced (Auto-save Active)"}</span>
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                    isSaving || isSyncingLive ? "bg-amber-400" : "bg-emerald-400"
+                  }`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${
+                    isSaving || isSyncingLive ? "bg-amber-500 animate-spin" : "bg-emerald-500"
+                  }`}
+                />
+              </span>
+              <span>
+                {isSaving
+                  ? "Saving to Cloud…"
+                  : isSyncingLive
+                    ? "Syncing Live…"
+                    : "Live Synced (15s)"}
+              </span>
+              {lastSyncTime && !isSaving && !isSyncingLive && (
+                <span className={`hidden sm:inline font-mono text-[10px] ${isLight ? "text-emerald-700/70" : "text-emerald-400/60"}`}>
+                  · {lastSyncTime}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => void load({ force: true })}
+                disabled={isSyncingLive}
+                className="ml-1 hover:opacity-80 transition-opacity cursor-pointer p-0.5 rounded"
+                title="Click to force instant sync across all team members"
+              >
+                <RefreshCw className={`h-3 w-3 ${isSyncingLive ? "animate-spin" : ""}`} />
+              </button>
             </div>
             <ThemeToggle />
             <Link to="/hub">
@@ -2239,9 +2296,6 @@ function DatabasePage() {
                 Land Scout
               </Button>
             </Link>
-            <Button variant="ghost" size="sm" onClick={() => void load()} className={isLight ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100" : "text-slate-400 hover:text-slate-100 hover:bg-slate-900"} title="Refresh database">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </Button>
             {/* NHC Active Profile */}
             <StaffHeaderProfile isLight={isLight} />
           </div>

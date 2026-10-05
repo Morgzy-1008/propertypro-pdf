@@ -248,6 +248,13 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
     { estate: "Highland Walloon", suburb: "Walloon", lot_number: "275", size: 400, frontage: 14, price: 424998, dev: "Highland Walloon" },
     { estate: "Highland Walloon", suburb: "Walloon", lot_number: "282", size: 448, frontage: 14, price: 468000, dev: "Highland Walloon" },
     { estate: "Highland Walloon", suburb: "Walloon", lot_number: "256", size: 505, frontage: 15, price: 470000, dev: "Highland Walloon" },
+    // Kinma Valley - Morayfield (Lendlease)
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "102", size: 375, frontage: 12.5, price: 380000, dev: "Lendlease" },
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "115", size: 400, frontage: 14, price: 405000, dev: "Lendlease" },
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "128", size: 450, frontage: 15, price: 435000, dev: "Lendlease" },
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "142", size: 500, frontage: 16, price: 465000, dev: "Lendlease" },
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "156", size: 560, frontage: 18, price: 495000, dev: "Lendlease" },
+    { estate: "Kinma Valley", suburb: "Morayfield", lot_number: "164", size: 620, frontage: 20, price: 530000, dev: "Lendlease" },
   ];
 
   ALYSSA_LOTS_DATA.forEach((item) => {
@@ -287,6 +294,11 @@ export function generateSeedData(): { lots: Lot[]; packages: Pkg[] } {
     { design: "Ivory 23", estate: "Highland Walloon", suburb: "Walloon", lotNum: "264", housePrice: 392900, landPrice: 400000, totalPrice: 792900, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
     { design: "Quartz 21", estate: "Highland Walloon", suburb: "Walloon", lotNum: "264", housePrice: 385100, landPrice: 400000, totalPrice: 785100, beds: "4", baths: "2", cars: "2", size: "199.69", facade: "Classic Plus" },
     { design: "Ivory 23", estate: "Brookhaven", suburb: "Bahrs Scrub", lotNum: "1493", housePrice: 392900, landPrice: 549998, totalPrice: 942898, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+    // Kinma Valley Packages
+    { design: "Azure 24", estate: "Kinma Valley", suburb: "Morayfield", lotNum: "102", housePrice: 420900, landPrice: 380000, totalPrice: 800900, beds: "4", baths: "2", cars: "2", size: "235.1", facade: "Classic Plus" },
+    { design: "Carmine 23", estate: "Kinma Valley", suburb: "Morayfield", lotNum: "115", housePrice: 399900, landPrice: 405000, totalPrice: 804900, beds: "4", baths: "2", cars: "2", size: "226.7", facade: "Classic Plus" },
+    { design: "Jasper 26", estate: "Kinma Valley", suburb: "Morayfield", lotNum: "128", housePrice: 445900, landPrice: 435000, totalPrice: 880900, beds: "4", baths: "2.5", cars: "2", size: "258.4", facade: "Hamptons" },
+    { design: "Sapphire 22", estate: "Kinma Valley", suburb: "Morayfield", lotNum: "142", housePrice: 389900, landPrice: 465000, totalPrice: 854900, beds: "4", baths: "2", cars: "2", size: "216.5", facade: "Modern" },
   ];
 
   ALYSSA_PKGS_DATA.forEach((ap, idx) => {
