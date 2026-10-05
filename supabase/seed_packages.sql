@@ -64,8 +64,8 @@ VALUES
     'Ruby 20',
     'Single Storey',
     'designer',
-    'Aspen',
-    '/facades/aspen-single-storey.png',
+    'Classic',
+    '/facades/classic-single-storey.png',
     349000,
     340000,
     689000,
@@ -74,7 +74,7 @@ VALUES
     '2',
     '192.4',
     'live',
-    '{"id":"11111111-1111-4111-8111-111111111111","packageId":"11111111-1111-4111-8111-111111111111","lotId":"a1111111-1111-4111-a111-111111111111","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1422 Flagstone Estate","housingType":"Single Storey","designName":"Ruby 20","range":"designer","facadeName":"Aspen","facadeUrl":"/facades/aspen-single-storey.png","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Ruby-20-Standard-Hudson-Homes.jpg","housePrice":"$349,000","landPrice":"$340,000","price":"$689,000","beds":"4","baths":"2","cars":"2","floorplanSize":"192.4","landSize":"450","landFrontage":"14","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
+    '{"id":"11111111-1111-4111-8111-111111111111","packageId":"11111111-1111-4111-8111-111111111111","lotId":"a1111111-1111-4111-a111-111111111111","estate":"Flagstone Estate","suburb":"Flagstone","address":"Lot 1422 Flagstone Estate","housingType":"Single Storey","designName":"Ruby 20","range":"designer","facadeName":"Classic","facadeUrl":"/facades/classic-single-storey.png","floorplanUrl":"https://www.hudsonhomes.com.au/wp-content/uploads/2021/04/Ruby-20-Standard-Hudson-Homes.jpg","housePrice":"$349,000","landPrice":"$340,000","price":"$689,000","beds":"4","baths":"2","cars":"2","floorplanSize":"192.4","landSize":"450","landFrontage":"14","headline":"House & Land Package","contactName":"Morgan Hales","contactPhone":"0417 571 864","contactEmail":"Morgan.hales@hudsonhomes.com.au","contactOffice":"Flagstone Display Home","consultantId":"morgan-hales"}'::jsonb
   ),
   (
     '22222222-2222-4222-8222-222222222222',

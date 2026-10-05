@@ -171,7 +171,7 @@ export function resolveUpdatedFacadeRender(url?: string): string {
     if (lower.includes("double") || lower.includes("2-storey") || lower.includes("2story") || lower.includes("ds")) {
       return PRE_RENDERED_FACADES["aspen-double"] || "/facades/aspen-double-storey.png";
     }
-    return PRE_RENDERED_FACADES["aspen"] || "/facades/aspen-single-storey.png";
+    return PRE_RENDERED_FACADES["aspen-single-garage"] || "/facades/aspen-single-garage.png";
   }
 
   // Intercept any legacy 2019/2021 WordPress URL or old JPG

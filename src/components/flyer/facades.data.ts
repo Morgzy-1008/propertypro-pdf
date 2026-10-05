@@ -26,18 +26,7 @@ export const HUDSON_FACADES: FacadeItem[] = [
     "url": "/facades/classic-plus-single-storey.png",
     "originalUrl": "/facades/classic-plus-single-storey.png"
   },
-  {
-    "id": "aspen",
-    "name": "Aspen",
-    "range": "Single Storey",
-    "tags": [
-      "aspen",
-      "single-storey"
-    ],
-    "width": 14.5,
-    "url": "/facades/aspen-single-storey.png",
-    "originalUrl": "/facades/aspen-single-storey.png"
-  },
+
   {
     "id": "avalon",
     "name": "Avalon",
