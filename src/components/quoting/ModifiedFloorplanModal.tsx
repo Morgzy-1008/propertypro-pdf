@@ -46,162 +46,177 @@ export interface ExtractedAreaSchedule {
 export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
   if (!text) return null;
 
-  const lines = text.split(/\r?\n/);
+  // 1. Locate dedicated AREAS table block if present
+  let scheduleText = text;
+  const areasIndex = text.search(/AREAS\s*[:(]/i);
+  if (areasIndex !== -1) {
+    // Find the end of this schedule block (marked by TOTAL ... m² or next major section)
+    const afterAreas = text.slice(areasIndex);
+    const totalMatch = afterAreas.search(/TOTAL\s*(?:AREA)?\s*[\d.]+\s*m²/i);
+    if (totalMatch !== -1) {
+      // End right after the TOTAL line
+      const endOfTotal = afterAreas.indexOf('\n', totalMatch + 20);
+      scheduleText = afterAreas.slice(0, endOfTotal !== -1 ? endOfTotal : totalMatch + 35);
+    } else {
+      scheduleText = afterAreas.slice(0, 1500);
+    }
+  }
+
+  const lines = scheduleText.split(/\r?\n/);
   const result: ExtractedAreaSchedule = { matchedLines: [], unassignedItems: [] };
+  const seenZones = new Set<string>();
 
   for (const line of lines) {
     const cleanLine = line.trim();
     if (!cleanLine) continue;
 
-    const lower = cleanLine.toLowerCase();
+    // Check if line contains tab characters from coordinate column sorting
+    const rawCells = cleanLine.includes("\t")
+      ? cleanLine.split("\t").map((c) => c.trim()).filter(Boolean)
+      : [cleanLine];
+    const cells = rawCells.map((c) => c.replace(/^\s*\d+(?:[\.\)]\s*|\s+)(?=[a-zA-Z])/g, "").trim());
 
-    // Look for numbers like 146.40, 36.7, 11.9 in line
-    const extractNum = (str: string): number | null => {
-      const allNums = str.match(/\b\d+(?:\.\d{1,3})?\b/g);
-      if (!allNums || allNums.length === 0) return null;
-      const valid = allNums
-        .map(Number)
-        .filter((n) => n > 0.5 && n < 800 && n !== 2024 && n !== 2025 && n !== 2026 && n !== 2440 && n !== 2590 && n !== 2740);
-      return valid.length > 0 ? valid[valid.length - 1] : null;
-    };
+    for (let c = 0; c < cells.length; c++) {
+      const cell = cells[c];
+      const prevCell = cells[c - 1] || "";
 
-    const val = extractNum(cleanLine);
-    if (val === null) continue;
+      // Extract numbers
+      const numMatches = [...cell.matchAll(/\b\d+(?:\.\d{1,3})?\b/g)];
+      for (const m of numMatches) {
+        const val = Number(m[0]);
+        if (val >= 1.5 && val < 800 && val !== 2024 && val !== 2025 && val !== 2026 && val !== 2440 && val !== 2590 && val !== 2740) {
+          // Label is from this cell or previous cell
+          let label = cell.replace(/\b\d+(?:\.\d{1,3})?\b/g, "").replace(/m²|sqm|m2/gi, "").trim();
+          if (label.length < 3 && prevCell && !prevCell.match(/^\d+$/)) {
+            label = prevCell;
+          }
 
-    // 1. Lower Ground Living (charged at Ground Floor Living rate per requirement 1.c)
-    if (
-      lower.includes("lower ground") ||
-      lower.includes("lower floor") ||
-      lower.includes("lower living") ||
-      lower.includes("lower level")
-    ) {
-      result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("ground living") ||
-      lower.includes("ground floor living") ||
-      lower.includes("ground floor area")
-    ) {
-      // For split-level designs with both lower ground and ground living:
-      if (result.groundLivingM2 && result.groundLivingM2 > 0) {
-        // Upper/split ground living charged at first floor rate per 1.c
-        result.firstLivingM2 = (result.firstLivingM2 || 0) + val;
-      } else {
-        result.groundLivingM2 = val;
-      }
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("first living") ||
-      lower.includes("first floor living") ||
-      lower.includes("upper living") ||
-      lower.includes("first floor area") ||
-      lower.includes("upper floor")
-    ) {
-      result.firstLivingM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("living area") ||
-      lower.includes("living") ||
-      lower.includes("meals") ||
-      lower.includes("family") ||
-      lower.includes("internal living")
-    ) {
-      if (!lower.includes("outdoor") && !lower.includes("alfresco") && !lower.includes("porch")) {
-        result.livingM2 = val;
-        result.matchedLines?.push(cleanLine);
-      }
-    } else if (
-      lower.includes("garage") ||
-      lower.includes("carport") ||
-      lower.includes("garage/workshop") ||
-      lower.includes("garage / workshop")
-    ) {
-      result.garageM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("alfresco") ||
-      lower.includes("patio") ||
-      lower.includes("outdoor living") ||
-      lower.includes("outdoor") ||
-      lower.includes("deck") ||
-      lower.includes("verandah") ||
-      /a[li1t|]fresc[oa]/.test(lower)
-    ) {
-      result.alfrescoM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("porch") ||
-      lower.includes("portico") ||
-      lower.includes("entry porch") ||
-      lower.includes("front porch") ||
-      /p[o0]rch/.test(lower)
-    ) {
-      result.porchM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else if (lower.includes("balcony") || lower.includes("upper balcony")) {
-      result.balconyM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else if (
-      lower.includes("total") ||
-      lower.includes("gfa") ||
-      lower.includes("gross area") ||
-      lower.includes("total area")
-    ) {
-      result.totalM2 = val;
-      result.matchedLines?.push(cleanLine);
-    } else {
-      // Ambiguous / custom area row (e.g. multi-generation dwelling, studio, annex)
-      const isLikelyAreaRow =
-        lower.includes("m²") ||
-        lower.includes("sqm") ||
-        lower.includes("m2") ||
-        lower.includes("dwelling") ||
-        lower.includes("unit") ||
-        lower.includes("suite") ||
-        lower.includes("studio") ||
-        lower.includes("flat") ||
-        lower.includes("room") ||
-        lower.includes("annex") ||
-        lower.includes("generation") ||
-        lower.includes("mezzanine") ||
-        lower.includes("workshop");
+          if (label) {
+            const lower = label.toLowerCase();
+            // Discard drawing title block noise
+            if (lower.includes("scale") || lower.includes("sheet") || lower.includes("date") || lower.includes("rev") || lower.includes("drawing title")) {
+              continue;
+            }
 
-      if (isLikelyAreaRow && val > 2 && val < 500) {
-        const cleanLabel = cleanLine.replace(/[\d.,]+(\s*(m²|sqm|m2))?/gi, "").trim() || cleanLine;
-        result.unassignedItems?.push({
-          label: cleanLabel,
-          sqm: val,
-          originalLine: cleanLine,
-        });
+            if (lower.includes("lower ground") || lower.includes("lower floor") || lower.includes("lower living")) {
+              if (!seenZones.has("lower_ground")) {
+                seenZones.add("lower_ground");
+                result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("ground floor living") || lower.includes("ground living") || (lower.includes("ground floor") && lower.includes("living"))) {
+              if (!seenZones.has("ground_living")) {
+                seenZones.add("ground_living");
+                result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("first floor living") || lower.includes("first living") || lower.includes("upper living")) {
+              if (!seenZones.has("first_living")) {
+                seenZones.add("first_living");
+                result.firstLivingM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("living area") || lower.includes("internal living") || (lower.includes("living") && !lower.includes("outdoor") && !lower.includes("alfresco"))) {
+              if (!seenZones.has("living")) {
+                seenZones.add("living");
+                result.livingM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("garage") || lower.includes("carport")) {
+              if (!seenZones.has("garage")) {
+                seenZones.add("garage");
+                result.garageM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("alfresco") || lower.includes("patio") || lower.includes("outdoor")) {
+              if (!seenZones.has("alfresco")) {
+                seenZones.add("alfresco");
+                result.alfrescoM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("porch") || lower.includes("portico")) {
+              if (!seenZones.has("porch")) {
+                seenZones.add("porch");
+                result.porchM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("balcony") || lower.includes("upper balcony")) {
+              if (!seenZones.has("balcony")) {
+                seenZones.add("balcony");
+                result.balconyM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else if (lower.includes("total") || lower.includes("gfa")) {
+              if (!seenZones.has("total")) {
+                seenZones.add("total");
+                result.totalM2 = val;
+                result.matchedLines?.push(`${label} -> ${val}`);
+              }
+            } else {
+              const isLikelyAreaRow =
+                lower.includes("m²") ||
+                lower.includes("sqm") ||
+                lower.includes("m2") ||
+                lower.includes("dwelling") ||
+                lower.includes("unit") ||
+                lower.includes("suite") ||
+                lower.includes("studio") ||
+                lower.includes("flat") ||
+                lower.includes("room") ||
+                lower.includes("annex") ||
+                lower.includes("generation") ||
+                lower.includes("mezzanine") ||
+                lower.includes("workshop");
+
+              if (isLikelyAreaRow && val > 2 && val < 500) {
+                result.unassignedItems?.push({
+                  label,
+                  sqm: val,
+                  originalLine: cleanLine,
+                });
+              }
+            }
+          }
+        }
       }
     }
   }
 
-  // Mathematical Identity Solver: Total = Living (or Ground + First) + Garage + Alfresco + Porch
+  // Column Alignment Reconciliation: If Balcony > 40 and First Living < 25 on multi-storey, swap
+  if (result.balconyM2 && result.balconyM2 > 40) {
+    if (!result.firstLivingM2 || result.firstLivingM2 < 25) {
+      const wrongLiving = result.firstLivingM2 || 0;
+      result.firstLivingM2 = result.balconyM2;
+      result.balconyM2 = wrongLiving > 0 ? wrongLiving : undefined;
+    }
+  }
+
+  // Mathematical Identity Solver: Total = Living (or Ground + First) + Garage + Alfresco + Porch + Balcony
   if (result.totalM2 && result.totalM2 > 50) {
     const tot = result.totalM2;
     const liv = result.livingM2 || ((result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) || undefined;
     const gar = result.garageM2;
     const alf = result.alfrescoM2;
     const por = result.porchM2;
+    const bal = result.balconyM2 || 0;
 
     if (!alf && liv && gar && por) {
-      const derivedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
+      const derivedAlf = Math.round((tot - (liv + gar + por + bal)) * 100) / 100;
       if (derivedAlf > 2 && derivedAlf < 80) {
         result.alfrescoM2 = derivedAlf;
       }
     } else if (!por && liv && gar && alf) {
-      const derivedPor = Math.round((tot - (liv + gar + alf)) * 100) / 100;
+      const derivedPor = Math.round((tot - (liv + gar + alf + bal)) * 100) / 100;
       if (derivedPor > 0.5 && derivedPor < 30) {
         result.porchM2 = derivedPor;
       }
     } else if (!gar && liv && alf && por) {
-      const derivedGar = Math.round((tot - (liv + alf + por)) * 100) / 100;
+      const derivedGar = Math.round((tot - (liv + alf + por + bal)) * 100) / 100;
       if (derivedGar > 10 && derivedGar < 120) {
         result.garageM2 = derivedGar;
       }
     } else if (!liv && gar && alf && por) {
-      const derivedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
+      const derivedLiv = Math.round((tot - (gar + alf + por + bal)) * 100) / 100;
       if (derivedLiv > 50 && derivedLiv < 500) {
         result.livingM2 = derivedLiv;
       }
@@ -546,7 +561,7 @@ export function ModifiedFloorplanModal({
     setActivePoints([]);
     setIsClosed(false);
     try {
-      const result = await pdfDocumentToPagesAndText(file, 6);
+      const result = await pdfDocumentToPagesAndText(file, 16);
       if (result.pages.length === 0) {
         toast.error("Could not read pages from file. Please ensure it is a valid PDF or Image.");
         return;

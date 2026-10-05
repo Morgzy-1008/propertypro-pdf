@@ -422,6 +422,147 @@ export function evaluateSpecificPlanSiting(message: string): HubAiResponse | nul
   return null;
 }
 
+export interface HistoricalClientTender {
+  jobNo: string;
+  tenderDate: string; // ISO date e.g. "2026-05-19"
+  formattedDate: string; // e.g. "19 May 2026"
+  clientName: string;
+  siteAddress: string;
+  designName: string;
+  specificationTier: string;
+  totalVariationsCost?: number;
+  variations: Array<{
+    item: string;
+    description: string;
+    price: number;
+    category: "structural" | "doors_windows" | "kitchen" | "bathroom" | "laundry" | "general" | "credit";
+  }>;
+  areaSchedule?: {
+    livingM2?: number;
+    groundLivingM2?: number;
+    firstLivingM2?: number;
+    garageM2?: number;
+    alfrescoM2?: number;
+    porchM2?: number;
+    balconyM2?: number;
+    totalM2: number;
+  };
+  notes: string;
+}
+
+export const HISTORICAL_CLIENT_TENDERS_DATA: HistoricalClientTender[] = [
+  {
+    jobNo: "700529",
+    tenderDate: "2026-05-19",
+    formattedDate: "19 May 2026",
+    clientName: "Josh & Tamika Diamond",
+    siteAddress: "Lot 3775, Flagstone QLD 4280",
+    designName: "Mahogany 43 Classic H2",
+    specificationTier: "H2 Designer",
+    notes: "Tender request variations signed 19/05/2026. Includes structural rear alfresco extension, Bed 1 front boundary extension with setback reduction, master ensuite bath deletion for luxury double walk-in shower, cornerless stacker doors with steel beam, and 1400mm waterfall island benchtop.",
+    variations: [
+      { item: "Cornerless Stacker Door", description: "Cornerless 90° stacker sliding door system with 400 joist structural steel lintel framing", price: 5027, category: "doors_windows" },
+      { item: "Master Ensuite Double Shower Reconfiguration", description: "Remove bath from ensuite to allow for double walk-in shower with dual overhead rainwater heads and full-length stainless steel smart drain", price: 1450, category: "bathroom" },
+      { item: "Grand Kitchen Island Benchtop", description: "1400mm deep island benchtop with 40mm engineered stone waterfall ends down to floor", price: 2450, category: "kitchen" },
+      { item: "Scullery 20mm Stone Benchtop Extension", description: "Walk-in pantry / scullery joinery fitout with 20mm stone benchtop extension and tiled splashback", price: 2450, category: "kitchen" },
+      { item: "1200mm Architectural Front Door", description: "1200mm wide Corinthian/Hume feature entrance door with matching wider door frame and weather seal", price: 1022, category: "doors_windows" },
+      { item: "Architectural Feature Barn Door", description: "Feature sliding barn door to Media room with exposed black matte track hardware", price: 850, category: "doors_windows" },
+      { item: "Alfresco Rear Slab Extension", description: "1.1m rear concrete slab extension to covered Alfresco outdoor entertaining area", price: 2650, category: "structural" },
+      { item: "Bed 1 Front Wall Extension & Setback Adjustment", description: "Shift front Bed 1 wall 1000mm forward (boundary setback reduced by 530mm) with structural foundation re-engineering", price: 3450, category: "structural" },
+    ]
+  },
+  {
+    jobNo: "700469",
+    tenderDate: "2026-01-27",
+    formattedDate: "27 January 2026",
+    clientName: "Reinald Dacayanan",
+    siteAddress: "Job MH109, QLD",
+    designName: "Burgundy 27 H2 (2025)",
+    specificationTier: "H2 Designer",
+    notes: "Tender 3 signed 27/01/2026. Authentic line-by-line contract pricing with 6-month price lock, cornerless 90° stackers, porch amendment, front feature gable, laundry stone bench and overhead cupboards, and trade replacement credits.",
+    variations: [
+      { item: "Price Lock Guarantee", description: "6-month construction start fixed price lock guarantee", price: 12382, category: "general" },
+      { item: "Cornerless 90° Stacker Doors", description: "Cornerless 90-degree stacker sliding door package connecting open living and outdoor patio", price: 5027, category: "doors_windows" },
+      { item: "Amended Front Porch Layout", description: "Architectural amendment to front entrance porch layout and framing", price: 2371, category: "structural" },
+      { item: "Front Gable Roof Feature", description: "Accent architectural front gable apex feature with decorative lining", price: 819, category: "structural" },
+      { item: "1200mm Hume Linear Front Door", description: "Hume Linear XLR1100 1200mm wide front entrance door upgrade with clear glazing", price: 1022, category: "doors_windows" },
+      { item: "Dual 18-09 Media Windows", description: "Two 1800mm × 900mm sliding windows to Media room in lieu of standard single window", price: 319, category: "doors_windows" },
+      { item: "Dual 18-09 Front Windows", description: "Two 1800mm × 900mm sliding windows to front elevation in lieu of standard", price: 469, category: "doors_windows" },
+      { item: "External Acrylic Render", description: "Full acrylic rendered brickwork finish to front facade and side returns", price: 2716, category: "general" },
+      { item: "Laundry 20mm Stone Benchtop Extension", description: "20mm engineered stone benchtop extended across laundry cabinetry run", price: 1107, category: "laundry" },
+      { item: "Laundry Overhead Cupboards", description: "Full run overhead wall cupboards above laundry stone benchtop", price: 1471, category: "laundry" },
+      { item: "Spectrum Colour Studio Allowance", description: "Interior and exterior design colour consultation allowance", price: 5000, category: "general" },
+      { item: "Delete Study Nook (Trade Credit)", description: "Deletion of study nook cabinetry and desktop (client trade credit)", price: -247, category: "credit" },
+      { item: "Ground Floor Media in lieu of Guest Bed (Credit)", description: "Reconfigure ground floor guest bedroom to open media room (net trade credit)", price: -925, category: "credit" },
+      { item: "Delete Hallway Linen & Charging Station (Credit)", description: "Deletion of hallway linen cupboard and charging nook (client trade credit)", price: -1045, category: "credit" },
+    ]
+  },
+  {
+    jobNo: "700548",
+    tenderDate: "2026-09-29",
+    formattedDate: "29 September 2026",
+    clientName: "Morgan Carl John Hales & Alyssa Faye Pippig",
+    siteAddress: "Lot 1954, #61 Paradise Road, Flagstone QLD 4280 (Flagstone - Pinnacle)",
+    designName: "Crimson 24 Classic Mod LH",
+    specificationTier: "H2 Classic Mod",
+    notes: "Permit R5 drawings certified 29/09/2026. Logan City Council approval. Full working drawings with Archicad area schedule, window schedule, and wet area details.",
+    areaSchedule: {
+      groundLivingM2: 172.33,
+      garageM2: 37.58,
+      alfrescoM2: 13.25,
+      porchM2: 4.11,
+      totalM2: 227.27
+    },
+    variations: [
+      { item: "Urbane II 1775mm Freestanding Bath", description: "Caroma Urbane II 1775mm luxury freestanding acrylic bath with smart waste in bathroom", price: 1650, category: "bathroom" },
+      { item: "Full Height Wall Tiling", description: "Full height floor-to-ceiling tiling throughout bathroom and ensuite walls", price: 3250, category: "bathroom" },
+      { item: "Square Set Ceilings to Wet Areas", description: "Architectural square set (SQ. SET) ceiling perimeter cornice finish", price: 1850, category: "general" },
+      { item: "Ensuite Double Vanity with Dual Basins", description: "Extended vanity unit with twin undermount basins and dual chrome flick mixers", price: 1280, category: "bathroom" },
+      { item: "Shower Niches & Luxury Screen", description: "Built-in recessed shower niches and semi-frameless glass screens", price: 750, category: "bathroom" },
+    ]
+  },
+  {
+    jobNo: "700417",
+    tenderDate: "2025-10-16",
+    formattedDate: "16 October 2025",
+    clientName: "Siyi Peng",
+    siteAddress: "Lot 1064, Pipit Street, Worongary QLD 4213",
+    designName: "Mauve 24 Custom Chateaux H1",
+    specificationTier: "H1 2025 Chateaux",
+    notes: "Tender 2 certified 16/10/2025. Gold Coast City Council jurisdiction. 4 Beds, 3 Baths, 2 Cars split-level multi-storey design with lower ground floor living, upper living, rear alfresco, front porch, and upper balcony.",
+    areaSchedule: {
+      groundLivingM2: 55.79, // lower ground living
+      firstLivingM2: 150.58, // first floor living
+      garageM2: 38.92,
+      alfrescoM2: 11.88,
+      porchM2: 7.89,
+      balconyM2: 6.68,
+      totalM2: 271.74
+    },
+    variations: [
+      { item: "Multi-Storey Split-Level Foundation & Slab", description: "Engineered split-level step slab accommodating natural hillside contour at Worongary", price: 18500, category: "structural" },
+      { item: "3rd Full Bathroom on Lower Ground Floor", description: "Lower ground floor full guest bathroom with walk-in shower, vanity, and toilet suite", price: 7800, category: "bathroom" },
+      { item: "Upper Floor Architectural Balcony", description: "Elevated upper floor front balcony (6.68 m²) with powder-coated balustrading", price: 4200, category: "structural" },
+      { item: "Chateaux Architectural Facade Render", description: "Chateaux architectural facade detailing with rendered piers and parapet framing", price: 3450, category: "general" }
+    ]
+  },
+  {
+    jobNo: "BURBANK-COMP",
+    tenderDate: "2026-04-15",
+    formattedDate: "15 April 2026",
+    clientName: "Market Competitor Comparison Tender (Burbank vs Hudson)",
+    siteAddress: "South East Queensland Growth Corridor",
+    designName: "Hudson H2 Designer Benchmark",
+    specificationTier: "H2 Designer",
+    notes: "Market benchmarking analysis comparing Hudson H2 Designer turnkey standard specifications against Burbank tender allowances.",
+    variations: [
+      { item: "Fixed Price Site Costs Allowance", description: "Turnkey site excavation, soil compaction, and sediment control allowance", price: 15000, category: "structural" },
+      { item: "Class H1/H2 Concrete Slab Allowance", description: "Engineered Class H1/H2 slab foundation with perimeter strip footings and bored piers", price: 8500, category: "structural" },
+      { item: "Termite Protection System", description: "Complete Termimesh / Kordon physical barrier system with 50-year warranty", price: 1950, category: "general" },
+    ]
+  }
+];
+
 export function generateHudsonKnowledgeResponse(
   message: string,
   staffUser?: StaffProfile | null
@@ -568,6 +709,116 @@ Your executive PDF has been compiled and is ready for immediate download. Click 
         "How do I generate a 2-Page Siting Flyer for this lot?",
       ],
       modelUsed: "hudson-siting-engine",
+    };
+  }
+
+  // 0C. HISTORICAL CLIENT TENDERS & BENCHMARK VARIATIONS KNOWLEDGE QUERY
+  const isTenderKnowledgeQuery =
+    (query.includes("tender") || query.includes("variation") || query.includes("historical client") || query.includes("benchmark price")) &&
+    (query.includes("dacayanan") ||
+      query.includes("diamond") ||
+      query.includes("hales") ||
+      query.includes("pippig") ||
+      query.includes("peng") ||
+      query.includes("700469") ||
+      query.includes("700529") ||
+      query.includes("700548") ||
+      query.includes("700417") ||
+      query.includes("burbank") ||
+      query.includes("permit r5") ||
+      query.includes("cornerless") ||
+      query.includes("price lock") ||
+      query.includes("freestanding") ||
+      query.includes("double shower") ||
+      query.includes("laundry stone") ||
+      query.includes("scullery stone") ||
+      query.includes("tenders") ||
+      query.includes("variations") ||
+      query.includes("list") ||
+      query.includes("tell me about") ||
+      query.includes("what did") ||
+      query.includes("how much"));
+
+  if (isTenderKnowledgeQuery) {
+    let matchedTender: HistoricalClientTender | undefined = undefined;
+    if (query.includes("diamond") || query.includes("700529")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700529");
+    } else if (query.includes("dacayanan") || query.includes("700469") || query.includes("mh109")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700469");
+    } else if (query.includes("hales") || query.includes("pippig") || query.includes("700548") || query.includes("permit r5")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700548");
+    } else if (query.includes("peng") || query.includes("700417") || query.includes("mauve")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "700417");
+    } else if (query.includes("burbank")) {
+      matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => t.jobNo === "BURBANK-COMP");
+    }
+
+    if (matchedTender) {
+      const varsMarkdown = matchedTender.variations
+        .map(
+          (v) =>
+            `- **${v.item}** (${v.price < 0 ? `Credit -$${Math.abs(v.price).toLocaleString()}` : `$${v.price.toLocaleString()}`}): ${v.description}`
+        )
+        .join("\n");
+
+      const areaSection = matchedTender.areaSchedule
+        ? `\n\n#### 📐 Certified Area Schedule:\n- **Ground Living**: ${matchedTender.areaSchedule.groundLivingM2 || 0} m²\n- **First Living**: ${matchedTender.areaSchedule.firstLivingM2 || 0} m²\n- **Garage**: ${matchedTender.areaSchedule.garageM2 || 0} m²\n- **Alfresco**: ${matchedTender.areaSchedule.alfrescoM2 || 0} m²\n- **Porch**: ${matchedTender.areaSchedule.porchM2 || 0} m²\n- **Total Certified GFA**: **${matchedTender.areaSchedule.totalM2} m²**`
+        : "";
+
+      return {
+        answer: `### 📋 Authentic Client Tender Dossier: ${matchedTender.clientName}
+**Tender Date**: ${matchedTender.formattedDate} | **Job No**: ${matchedTender.jobNo} | **Design**: ${matchedTender.designName}
+**Specification Tier**: ${matchedTender.specificationTier} | **Site**: ${matchedTender.siteAddress}
+
+${matchedTender.notes}
+${areaSection}
+
+#### 🛠️ Contract Variations & Benchmark Pricing:
+${varsMarkdown}
+
+---
+⚠️ **Pricing Governance Notice**: These historical tender figures are provided for estimation benchmarking and pricing transparency. As a New Home Consultant or Estimator, you retain full discretion to review and approve or adjust item prices and variation scopes before adding them to a quote.`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What did Reinald Dacayanan pay for their variations (Job 700469)?",
+          "What were the variations on the Josh Diamond tender (Job 700529)?",
+          "Show me the Crimson 24 Permit R5 certified drawings and area schedule (Job 700548)",
+          "Show me the Mauve 24 Custom split-level tender schedule (Job 700417)",
+          "Compare Hudson H2 Designer specifications against Burbank tenders",
+        ],
+        modelUsed: "hudson-tender-knowledge-engine",
+      };
+    }
+
+    // General summary of all authentic client tenders in the knowledge base
+    const summaryList = HISTORICAL_CLIENT_TENDERS_DATA.map((t) => {
+      const topItems = t.variations.slice(0, 3).map((v) => `${v.item} ($${v.price})`).join(", ");
+      return `### 📁 Job ${t.jobNo}: ${t.clientName} (${t.formattedDate})
+- **Design & Tier**: ${t.designName} (${t.specificationTier})
+- **Site Address**: ${t.siteAddress}
+- **Key Variations**: ${topItems}
+- **Notes**: ${t.notes}`;
+    }).join("\n\n");
+
+    return {
+      answer: `### 📑 Hudson Homes Historical Client Tenders & Benchmark Variations Library
+
+Hudson AI has ingested authentic client tenders and working drawings to give you transparent, contract-verified variation pricing benchmarks across Queensland and New South Wales:
+
+${summaryList}
+
+---
+⚠️ **Pricing Governance Notice**: These historical tender figures are provided for estimation benchmarking and pricing transparency. As a New Home Consultant or Estimator, you retain full discretion to review and approve or adjust item prices and variation scopes before adding them to a quote.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What did Reinald Dacayanan pay for their variations (Job 700469)?",
+        "What were the variations on the Josh Diamond tender (Job 700529)?",
+        "Show me the Crimson 24 Permit R5 certified drawings and area schedule (Job 700548)",
+        "Show me the Mauve 24 Custom split-level tender schedule (Job 700417)",
+      ],
+      modelUsed: "hudson-tender-knowledge-engine",
     };
   }
 

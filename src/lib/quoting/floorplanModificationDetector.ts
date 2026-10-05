@@ -473,6 +473,127 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     confidence: 0.95,
     triggerKeywords: ["ext 820", "ext 920", "garage access door", "garage personal door", "garage rear door", "garage side door", "personal access door"],
   },
+  {
+    id: "upg_cornerless_stacker_door",
+    category: "doors_windows",
+    name: "Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel",
+    description: "Cornerless 90° stacking sliding door system opening seamlessly without a corner column, including 400 joist structural steel lintel framing (authentic Dacayanan & Diamond tender specification).",
+    baseline: "Standard 90° external corner wall or 2-panel sliding doors meeting at brick pier",
+    detected: "Cornerless 90° stacking sliding door system connecting living and alfresco",
+    unitPrice: 5027,
+    confidence: 0.98,
+    triggerKeywords: ["cornerless stacker", "cornerless 90", "cornerless sliding", "cornerless door", "corner stacker", "90 degree stacker", "90° stacker", "cornerless", "cornerless stacker door"],
+  },
+  {
+    id: "upg_freestanding_bath",
+    category: "internal_bathroom",
+    name: "Freestanding Acrylic Bath Upgrade (e.g. Urbane II 1775mm)",
+    description: "Freestanding architectural luxury acrylic bath (e.g. Caroma Urbane II 1775mm) with floor-mounted bath mixer and smart tile waste (authentic Flagstone Permit R5 specification).",
+    baseline: "Standard inset acrylic bath in tiled hob surround",
+    detected: "Freestanding 1775mm luxury bathtub specification on bathroom details",
+    unitPrice: 1650,
+    confidence: 0.96,
+    triggerKeywords: ["freestanding bath", "free standing bath", "urbane bath", "1775 bath", "1775mm bath", "urbane ii", "freestanding bathtub", "free standing bathtub", "urbane ii 1775mm"],
+  },
+  {
+    id: "upg_double_shower_dual_heads",
+    category: "internal_bathroom",
+    name: "Double Walk-In Shower with Dual Overhead Rainwater Heads & Full-Length Channel Grate",
+    description: "Master ensuite double walk-in shower conversion (bath deleted) with twin overhead rainwater shower heads, dual wall mixers, and full-length stainless steel tile insert channel grate (authentic Diamond tender specification).",
+    baseline: "Standard single 900mm × 900mm shower recess and bath",
+    detected: "Double shower layout with dual rainwater heads and full length smart drain",
+    unitPrice: 1450,
+    confidence: 0.95,
+    triggerKeywords: ["double shower", "dual shower", "2 x rain head", "dual rain head", "rainwater head", "full length drain", "twin shower", "dual shower heads", "double shower heads", "full length channel", "remove bath from ensuite", "delete bath in ensuite"],
+  },
+  {
+    id: "upg_full_height_wall_tiling",
+    category: "internal_bathroom",
+    name: "Full Height Floor-to-Ceiling Ceramic/Porcelain Wall Tiling",
+    description: "Full height floor-to-ceiling tiling throughout bathroom or ensuite walls with polished aluminium edge trims and square corners (authentic Flagstone Permit R5 specification).",
+    baseline: "Standard 2000mm skirting / shower-height tiling with painted drywall above",
+    detected: "Full height floor-to-ceiling tiling ('FULL HT. TILING' / 'F.G FULL HT.')",
+    unitPrice: 3250,
+    confidence: 0.95,
+    triggerKeywords: ["full ht. tiling", "full height tiling", "full height tile", "floor to ceiling tile", "floor to ceiling tiling", "full tiling", "full ht tiling", "f.g full ht"],
+  },
+  {
+    id: "upg_square_set_ceilings",
+    category: "internal_general",
+    name: "Architectural Square Set Ceiling Cornice Upgrade",
+    description: "Architectural square set (SQ. SET) ceiling perimeter finish throughout living or wet areas in lieu of standard 90mm cove cornice (authentic Flagstone Permit R5 specification).",
+    baseline: "Standard 90mm Cove plasterboard cornice throughout",
+    detected: "Architectural square set (SQ. SET) ceiling edge finish in lieu of cove cornice",
+    unitPrice: 1850,
+    confidence: 0.95,
+    triggerKeywords: ["sq. set", "sq set", "square set", "square set ceiling", "square set cornice", "square-set", "sq. set ceiling"],
+  },
+  {
+    id: "upg_feature_barn_door",
+    category: "doors_windows",
+    name: "Architectural Feature Sliding Barn Door with Exposed Track",
+    description: "Solid feature timber-look surface mounted barn sliding door with exposed black powder-coated top-hung track hardware (authentic Diamond tender specification).",
+    baseline: "Standard hollow-core hinged internal door",
+    detected: "Feature sliding barn door with exposed architectural track",
+    unitPrice: 850,
+    confidence: 0.95,
+    triggerKeywords: ["barn door", "barn sliding door", "feature barn door", "sliding barn door", "barn-door", "barn door to media"],
+  },
+  {
+    id: "upg_laundry_stone_benchtop",
+    category: "internal_laundry",
+    name: "Laundry 20mm Engineered Stone Benchtop Extension",
+    description: "20mm engineered stone benchtop extended across full laundry joinery run with polished edges and undermount/drop-in sink cutout (authentic Dacayanan tender specification).",
+    baseline: "Standard laminate laundry benchtop or freestanding metal tub",
+    detected: "20mm engineered stone benchtop extended across laundry joinery run",
+    unitPrice: 1107,
+    confidence: 0.95,
+    triggerKeywords: ["laundry stone", "laundry stone bench", "laundry 20mm stone", "stone to laundry", "stone bench to laundry", "laundry stone benchtop"],
+  },
+  {
+    id: "upg_laundry_overhead_cupboards",
+    category: "internal_laundry",
+    name: "Laundry Overhead Cupboards Joinery Package",
+    description: "Full run overhead wall storage cupboards above laundry benchtop with soft-close hinges and concealed finger-pull lip (authentic Dacayanan tender specification).",
+    baseline: "Open painted drywall above laundry benchtop (no overhead storage)",
+    detected: "Full run overhead wall storage cupboards above laundry benchtop",
+    unitPrice: 1471,
+    confidence: 0.95,
+    triggerKeywords: ["laundry overheads", "laundry overhead cupboards", "overhead cupboards to laundry", "overheads to laundry", "laundry upper cupboards", "overhead cupboards in laundry"],
+  },
+  {
+    id: "upg_scullery_stone_extension",
+    category: "internal_kitchen",
+    name: "Scullery / Walk-In Pantry 20mm Engineered Stone Benchtop Fitout",
+    description: "Custom scullery joinery fit-out with 20mm engineered stone benchtop extension, tiled splashback, and under-bench cupboards (authentic Diamond tender & Flagstone specification).",
+    baseline: "Standard melamine shelving in Walk-In Pantry",
+    detected: "Scullery / Walk-In Pantry joinery fitout with 20mm stone benchtop extension",
+    unitPrice: 2450,
+    confidence: 0.95,
+    triggerKeywords: ["scullery stone", "scullery bench", "scullery extension", "pantry stone bench", "scullery stone extension", "scullery stone fitout"],
+  },
+  {
+    id: "upg_facade_front_gable",
+    category: "structural",
+    name: "Architectural Feature Front Gable Roof Pitch Feature",
+    description: "Accent architectural front gable feature apex with horizontal cladding / vertical batten infill lining (authentic Dacayanan tender specification).",
+    baseline: "Standard hip/valley roof truss profile",
+    detected: "Accent front gable apex with feature cladding / batten lining",
+    unitPrice: 819,
+    confidence: 0.95,
+    triggerKeywords: ["front gable", "feature gable", "gable roof feature", "decorative gable", "front feature gable"],
+  },
+  {
+    id: "upg_dual_1809_windows",
+    category: "doors_windows",
+    name: "Dual 18-09 Large Format Glazing in lieu of Standard Opening",
+    description: "Pair of 1800mm high × 900mm wide (18-09) architectural sliding windows with matching flyscreens in lieu of single standard opening (authentic Dacayanan tender specification).",
+    baseline: "Standard single brochure window opening",
+    detected: "Dual 1800mm × 900mm (18-09) feature sliding window pairing",
+    unitPrice: 319,
+    confidence: 0.95,
+    triggerKeywords: ["dual 18-09", "18-09 media", "18-09 window", "1809 window", "two 18-09", "2x 18-09", "dual 1809", "dual 18-09 windows"],
+  },
 ];
 
 /**
@@ -525,7 +646,7 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
 async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<any | null> {
-  const models = ["gemini-flash-latest", "gemini-3.8-flash", "gemini-2.0-flash-001"];
+  const models = ["gemini-flash-latest", "gemini-3.8-flash"];
   for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -1115,8 +1236,10 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
      * Bedroom & Living Window Size Upgrades: Check if any bedroom window (e.g. Bed 4) is enlarged or scheduled with upgraded glazing dimensions (e.g. 'SW 12.24' vs standard).
      * Garage External Personal Access Door: Check if a weatherproof pedestrian door ('EXT 820' or 'EXT 920') has been added to the rear or side of the garage.
      * Front Entry Door: Check if Image 2 marks "EXT 1200" (1200mm door) or "EXT 1020" (1020mm door).
-     * Master Ensuite: Check if the vanity has dual basins / twin mixers (double vanity upgrade) replacing the standard single basin.
-     * Alfresco Doors: Check if a wide multi-panel sliding or stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard sliding doors.
+     * Master Ensuite: Check if the vanity has dual basins / twin mixers (double vanity upgrade) replacing standard single basin. Check if bath is removed for a double shower with dual overhead rainwater heads and full-length channel grate, or if a freestanding bath (e.g. Urbane II 1775mm) is specified. Check for full-height wall tiling ("FULL HT. TILING") and square-set ceiling finishes ("SQ. SET").
+     * Alfresco Doors: Check if a cornerless 90° stacker sliding door system or wide multi-panel sliding/stacking door ("STACKER" / "STACKER SLM" / "STACKER 21.36") replaces standard doors.
+     * Internal Walls & Openings: Check every internal stud wall partition (added, removed, or shifted, e.g. media room partition, Bed 1 repositioned, study nook deleted or enclosed). Check for architectural sliding barn doors with exposed track hardware and cavity pocket sliders ("CSD").
+     * Benchtops & Joinery: Check kitchen island footprint (1400mm deep island, 40mm waterfall stone ends), walk-in pantry/scullery stone benchtop extensions, and laundry 20mm stone benchtop extensions with overhead cupboards.
      * Ground Floor Bathroom: Check if the ground floor powder room has been converted to a full bathroom with a shower recess, or if a guest suite is added.
      * Secondary Bedrooms (Bed 2, Bed 3, Bed 4): Check if Bed 4 or Bed 3 has been upgraded with its own private Ensuite (ENS) and Walk-in Robe (WIR).
      * Ceilings: Check if high ceilings are annotated (e.g. "2740mm Ceilings GF").
@@ -1154,6 +1277,17 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
     - Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm)", category: "internal_bathroom", unitPrice: 850
     - Ground Floor Powder Room Conversion with Vanity Basin (1200mm × 900mm NCC) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
     - Butler's Pantry Joinery & Prep Sink Package (2.1m Benchtop LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
+    - Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel Framing -> id: "upg_cornerless_stacker_door", name: "Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel", category: "doors_windows", unitPrice: 5027
+    - Freestanding Luxury Acrylic Bath (e.g. Urbane II 1775mm) -> id: "upg_freestanding_bath", name: "Freestanding Acrylic Bath Upgrade (e.g. Urbane II 1775mm)", category: "internal_bathroom", unitPrice: 1650
+    - Double Walk-In Shower with Dual Rainwater Heads & Full-Length Channel Grate (Bath Removed) -> id: "upg_double_shower_dual_heads", name: "Double Walk-In Shower with Dual Overhead Rainwater Heads & Full-Length Channel Grate", category: "internal_bathroom", unitPrice: 1450
+    - Full Height Floor-to-Ceiling Wall Tiling ("FULL HT. TILING") -> id: "upg_full_height_wall_tiling", name: "Full Height Floor-to-Ceiling Ceramic/Porcelain Wall Tiling", category: "internal_bathroom", unitPrice: 3250
+    - Architectural Square Set Ceiling Cornice ("SQ. SET") -> id: "upg_square_set_ceilings", name: "Architectural Square Set Ceiling Cornice Upgrade", category: "internal_general", unitPrice: 1850
+    - Architectural Feature Sliding Barn Door with Exposed Track -> id: "upg_feature_barn_door", name: "Architectural Feature Sliding Barn Door with Exposed Track", category: "doors_windows", unitPrice: 850
+    - Laundry 20mm Engineered Stone Benchtop Extension -> id: "upg_laundry_stone_benchtop", name: "Laundry 20mm Engineered Stone Benchtop Extension", category: "internal_laundry", unitPrice: 1107
+    - Laundry Overhead Wall Storage Cupboards Package -> id: "upg_laundry_overhead_cupboards", name: "Laundry Overhead Cupboards Joinery Package", category: "internal_laundry", unitPrice: 1471
+    - Scullery / Walk-In Pantry 20mm Stone Benchtop Fitout -> id: "upg_scullery_stone_extension", name: "Scullery / Walk-In Pantry 20mm Engineered Stone Benchtop Fitout", category: "internal_kitchen", unitPrice: 2450
+    - Architectural Feature Front Gable Roof Pitch Feature -> id: "upg_facade_front_gable", name: "Architectural Feature Front Gable Roof Pitch Feature", category: "structural", unitPrice: 819
+    - Dual 18-09 Large Format Glazing Windows -> id: "upg_dual_1809_windows", name: "Dual 18-09 Large Format Glazing in lieu of Standard Opening", category: "doors_windows", unitPrice: 319
 
 7. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
    - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
@@ -1401,6 +1535,28 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_powder_room_addition");
           } else if (/storage\s*conversion|convert.*media/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_living_media_conversion");
+          } else if (/cornerless/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_cornerless_stacker_door");
+          } else if (/freestanding.*bath|urbane.*bath|1775.*bath/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_freestanding_bath");
+          } else if (/double\s*shower|dual\s*shower|rain.*head|full\s*length\s*drain|twin\s*shower/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_double_shower_dual_heads");
+          } else if (/full\s*h(?:eigh)?t.*tiling|f\.g\s*full\s*ht/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_full_height_wall_tiling");
+          } else if (/sq(?:\.|uare)?\s*set/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_square_set_ceilings");
+          } else if (/barn\s*door/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_feature_barn_door");
+          } else if (/laundry.*(?:stone|20mm)/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_laundry_stone_benchtop");
+          } else if (/laundry.*(?:overhead|cupboard)/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_laundry_overhead_cupboards");
+          } else if (/scullery.*stone|pantry.*stone/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_scullery_stone_extension");
+          } else if (/front\s*gable|feature\s*gable/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_facade_front_gable");
+          } else if (/dual\s*18-?09|18-?09.*media/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_dual_1809_windows");
           }
         }
 
@@ -1518,18 +1674,19 @@ export function extractModelFromCandidateTitle(
 ): { designName: string; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
   if (!titleStr) return null;
 
-  // 1. Direct match
-  const direct = findHudsonModelByName(titleStr);
+  // 1. Direct match or normalized match (replacing underscores with spaces and separating joined digits e.g. turquoise31 -> turquoise 31)
+  const normalizedTitle = titleStr.replace(/_/g, " ").replace(/([a-zA-Z]+)(\d+)/g, "$1 $2").trim();
+  const direct = findHudsonModelByName(titleStr) || findHudsonModelByName(normalizedTitle);
   if (direct) {
     return { designName: direct.row.name, housingType: direct.housingType as any };
   }
 
-  // 2. Segment by common title delimiters (slashes, pipes, dashes, colons, newlines)
-  const segments = titleStr.split(/[\/|:\n\r–—\-]+/);
+  // 2. Segment by common title delimiters (slashes, pipes, dashes, underscores, colons, newlines)
+  const segments = (titleStr + " " + normalizedTitle).split(/[\/|:\n\r–—\-_]+/);
   for (const seg of segments) {
     const trimmed = seg.trim();
     if (!trimmed) continue;
-    const cleanSeg = trimmed.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom|plan|drawing|residence|new)\b/gi, "").trim();
+    const cleanSeg = trimmed.replace(/\s*(?:modified|concept|rev(?:ision)?\s*[a-z0-9.]*|custom|plan|drawing|residence|new|\.pdf)\b/gi, "").trim();
     const match = findHudsonModelByName(cleanSeg) || findHudsonModelByName(trimmed);
     if (match) {
       return { designName: match.row.name, housingType: match.housingType as any };
@@ -1539,7 +1696,7 @@ export function extractModelFromCandidateTitle(
   // 3. Regex scan against all known Hudson models
   for (const item of ALL_PRICE_ROWS) {
     const namePattern = new RegExp(`\\b${escapeRegex(item.row.name)}\\b`, "i");
-    if (namePattern.test(titleStr)) {
+    if (namePattern.test(titleStr) || namePattern.test(normalizedTitle)) {
       return { designName: item.row.name, housingType: item.housingType as any };
     }
   }
@@ -1603,7 +1760,7 @@ export async function identifyBaseDesignCandidate(
   // 1. Ingest file
   if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
     try {
-      const parsed = await pdfDocumentToPagesAndText(file, 2);
+      const parsed = await pdfDocumentToPagesAndText(file, 16);
       rawText = parsed.rawText || "";
       dataUrl = parsed.compositeFloorplanDataUrl || parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
       if (dataUrl) {

@@ -224,11 +224,11 @@ Entry Porch: 2.50 m2
 HUDSON HOMES BROCHURE
 DESIGN: Amber 21
 SCHEDULE OF AREAS:
-Living Area: 147.20 m2
-Double Garage: 33.20 m2
-Covered Alfresco: 10.00 m2
-Entry Porch: 2.50 m2
-Gross Building Area: 192.90 m2
+Living Area: 147.56 m2
+Double Garage: 36.00 m2
+Covered Alfresco: 9.54 m2
+Entry Porch: 2.25 m2
+Gross Building Area: 195.35 m2
     `;
     const tempStandardFilePath = "temp_standard_amber21.txt";
     fs.writeFileSync(tempStandardFilePath, standardPlanContent.trim());
