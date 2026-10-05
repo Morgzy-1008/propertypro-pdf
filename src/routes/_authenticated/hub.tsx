@@ -431,53 +431,6 @@ function WelcomeHubPage() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
-            {isMorgan && (
-              <Link
-                to="/land-scout"
-                className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/15 border border-brand-gold/40 text-brand-gold hover:bg-brand-gold hover:text-slate-950 text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
-                title="Hudson Land Scout - Vacant Land Search"
-              >
-                <Compass className="h-3.5 w-3.5 sm:h-4 sm:w-4 shrink-0" />
-                <span>Land Scout</span>
-              </Link>
-            )}
-
-            {/* 2026 Team Background Review Control */}
-            {(isLocal || isAdmin) && (
-              <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-800/80 border border-slate-700/70 text-slate-300 text-xs backdrop-blur-md shadow-xs">
-                <Users className="h-3.5 w-3.5 text-brand-gold" />
-                <span className="font-semibold text-white">2026 Team:</span>
-                <button
-                  type="button"
-                  onClick={() => setIsTeamModalOpen(true)}
-                  className="px-1.5 py-0.5 rounded bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold transition-colors cursor-pointer text-[11px]"
-                  title="View full-resolution 2026 HIA Finalist Team Photo"
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = teamBgOpacity <= 0.15 ? 0.25 : teamBgOpacity <= 0.28 ? 0.38 : 0.15;
-                    setTeamBgOpacity(next);
-                    localStorage.setItem("hudson_team_bg_opacity", next.toString());
-                  }}
-                  className="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-amber-300 font-mono font-bold transition-colors cursor-pointer"
-                  title="Click to cycle translucency (15%, 25%, 38%)"
-                >
-                  {Math.round(teamBgOpacity * 100)}%
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsTeamBgVisible(!isTeamBgVisible)}
-                  className="text-slate-400 hover:text-white px-1 font-semibold transition-colors cursor-pointer"
-                  title={isTeamBgVisible ? "Hide Team Photo Background" : "Show Team Photo Background"}
-                >
-                  {isTeamBgVisible ? "Hide" : "Show"}
-                </button>
-              </div>
-            )}
-
             <ThemeToggle />
 
             {/* NHC Active Profile Pill (with Website Admin button for Admins) */}
