@@ -78,6 +78,15 @@ export const FORESIGHT_EDITOR_OPENINGS: Record<string, EditorOpeningSpecificatio
     description: "Extended 2100mm × 2700mm 2-panel sliding glass door (21-27SD) for panoramic living integration.",
     category: "doors_windows",
   },
+  "STACKER 21-30": {
+    code: "STACKER 21-30",
+    type: "door",
+    name: "3-Panel Aluminium Stacker Sliding Door (2100h × 3000w)",
+    fullRetailCost: 2650,
+    defaultReplaces: "standard_sliding_door_2124",
+    description: "Premium 3-panel architectural aluminium stacking sliding door (2100mm × 3000mm) opening up to outdoor entertaining / alfresco.",
+    category: "doors_windows",
+  },
   "STACKER 21-36": {
     code: "STACKER 21-36",
     type: "door",
@@ -121,6 +130,15 @@ export const FORESIGHT_EDITOR_OPENINGS: Record<string, EditorOpeningSpecificatio
     fullRetailCost: 980,
     defaultReplaces: "standard_hinged_door_820",
     description: "Contemporary face-hung feature timber barn door with exposed top-mounted matte black architectural sliding track.",
+    category: "doors_windows",
+  },
+  "BARN 1200": {
+    code: "BARN 1200",
+    type: "door",
+    name: "1200mm Architectural Sliding Barn Door with Exposed Track Hardware",
+    fullRetailCost: 1250,
+    defaultReplaces: "standard_hinged_door_820",
+    description: "1200mm wide contemporary face-hung feature timber barn door with exposed top-mounted matte black architectural sliding track.",
     category: "doors_windows",
   },
 
@@ -284,6 +302,33 @@ export const FORESIGHT_EDITOR_OPENINGS: Record<string, EditorOpeningSpecificatio
     description: "Architectural 90-degree corner glazed window assembly with butt-joint silicon glazing.",
     category: "doors_windows",
   },
+  "FW 0612": {
+    code: "FW 0612",
+    type: "window",
+    name: "Fixed Picture Glazing Window (600h × 1200w)",
+    fullRetailCost: 420,
+    defaultReplaces: "standard_obscure_window_0906",
+    description: "600mm × 1200mm fixed picture/obscure glazing window unit (FW 06.12).",
+    category: "doors_windows",
+  },
+  "SW 1221": {
+    code: "SW 1221",
+    type: "window",
+    name: "Residential Aluminium Sliding Window (1200h × 2100w)",
+    fullRetailCost: 480,
+    defaultReplaces: "standard_sliding_window_1218",
+    description: "1200mm × 2100mm powder-coated aluminium sliding window unit (SW 12.21).",
+    category: "doors_windows",
+  },
+  "SW 1224": {
+    code: "SW 1224",
+    type: "window",
+    name: "Wide Residential Aluminium Sliding Window (1200h × 2400w)",
+    fullRetailCost: 520,
+    defaultReplaces: "standard_sliding_window_1218",
+    description: "1200mm × 2400mm powder-coated aluminium sliding window unit (SW 12.24).",
+    category: "doors_windows",
+  },
 };
 
 /**
@@ -394,12 +439,16 @@ export function calculateOpeningReplacement(
       spec = FORESIGHT_EDITOR_OPENINGS["21-27SD"];
     } else if (/STACKER\s*CORNER|CORNER\s*STACKER/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER CORNER"];
+    } else if (/STACKER\s*21[-.]?30|21[-.]?30\s*STACKER/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-30"];
     } else if (/STACKER\s*21[-.]?36|21[-.]?36\s*STACKER/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-36"];
     } else if (/STACKER\s*21[-.]?48|21[-.]?48\s*STACKER/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-48"];
     } else if (/BIFOLD/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["BIFOLD 21-24"];
+    } else if (/BARN\s*(?:1200|DOOR\s*1200)|1200\s*BARN/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["BARN 1200"];
     } else if (/BARN\s*DOOR|FACE\s*HUNG/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["BARN DOOR"];
     } else if (/CSD\s*820|\bCSD\b/i.test(normCode)) {
@@ -426,6 +475,12 @@ export function calculateOpeningReplacement(
       spec = FORESIGHT_EDITOR_OPENINGS["PW 0630"];
     } else if (/PW\s*0?624/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["PW 0624"];
+    } else if (/FW\s*0?6[-.]?12/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["FW 0612"];
+    } else if (/SW\s*12[-.]?21/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["SW 1221"];
+    } else if (/SW\s*12[-.]?24/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["SW 1224"];
     } else if (/AWN\s*1218/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["AWN 1218"];
     } else if (/AWN\s*1818/i.test(normCode)) {
@@ -457,7 +512,7 @@ export function calculateOpeningReplacement(
       newItemName: `${normCode} Opening Specification`,
       newItemCost: cost,
       netCost: net,
-      description: `Replace standard ${isDoor ? "820 hinged door" : "1218 window"} with ${normCode}. Builder trade credit of 80% (-$${credit.toFixed(2)}) applied against full retail cost of $${cost.toFixed(2)}.`,
+      description: `Replace standard ${isDoor ? "820 hinged door" : "1218 window"} with ${normCode}. Builder trade credit of 80% (-$${Math.abs(credit).toFixed(2)}) applied against full retail cost of $${cost.toFixed(2)}.`,
       accepted: true,
       confidence: 0.92,
     };
@@ -490,7 +545,7 @@ export function calculateOpeningReplacement(
     newItemName: spec.name,
     newItemCost: spec.fullRetailCost,
     netCost,
-    description: `Replace ${replacedPrettyName} with ${spec.name}. Credit of 80% (-$${creditAmount.toFixed(2)}) applied against $${spec.fullRetailCost.toFixed(2)} (Net: +$${netCost.toFixed(2)}).`,
+    description: `Replace ${replacedPrettyName} with ${spec.name}. Credit of 80% (-$${Math.abs(creditAmount).toFixed(2)}) applied against $${spec.fullRetailCost.toFixed(2)} (Net: +$${netCost.toFixed(2)}).`,
     accepted: true,
     confidence: 0.98,
   };
@@ -729,6 +784,42 @@ export function performInternalSweep(
         0.8,
         "Walk-in wardrobe partition wall adjusted to maximize hanging and drawer storage. Verified with robe shelving stamps.",
         ["Robe Shelving", "Hanging Rail"]
+      )
+    );
+  }
+
+  // 7. Cinema / Home Theatre Room Conversion ($0.00 Dry Variation)
+  if (/cinema|theatre/i.test(lower)) {
+    roomChanges.push(
+      createZeroCostInternalChange(
+        "Enclosed Home Cinema Room Conversion with Barn Door",
+        0.0,
+        "Standard open Living/Media space converted into an enclosed private Home Cinema room (3.3m x 2.6m) with acoustic partition wall and 1200mm sliding barn door ($0.00 Dry Variation).",
+        ["Sofa / Lounge Suite", "TV Display", "Barn Door"]
+      )
+    );
+  }
+
+  // 8. Central Core Reconfiguration: Mud Nook & Study / WIL ($0.00 Dry Variation)
+  if (/mud\s*nook|mudroom|study.*wil|wil.*study|\bwil\b/i.test(lower)) {
+    roomChanges.push(
+      createZeroCostInternalChange(
+        "Central Core Reconfiguration (Mud Nook & Study / WIL)",
+        0.0,
+        "Internal timber stud partition framing reconfigured behind garage to accommodate a Mud Nook, enclosed Study / WIL (Walk-In Linen), and adjusted entry hall circulation ($0.00 Dry Variation).",
+        ["Mud Nook Bench", "Study Desk", "Walk-In Linen Shelving"]
+      )
+    );
+  }
+
+  // 9. Internal Partition Wall Realignment (Bed 1, WIR, Ensuite & Bed 3) ($0.00 Dry Variation)
+  if ((/bed\s*1|ensuite|wir/i.test(lower) && /bed\s*3|csd\s*820|hallway|custom|modified/i.test(lower)) || /realign.*partition|wall\s*realignment|partition\s*realignment/i.test(lower)) {
+    roomChanges.push(
+      createZeroCostInternalChange(
+        "Internal Partition Wall Realignment (Bed 1, WIR, Ensuite & Bed 3)",
+        0.0,
+        "Non-structural internal timber stud partition walls realigned around Master Suite (Bed 1), Walk-In Robe, Ensuite pocket slider (CSD 820), and Bed 3 to optimize circulation and bedroom dimensions ($0.00 Dry Variation).",
+        ["King Bed", "BIR", "CSD 820 Pocket Slider", "Internal Stud Framing"]
       )
     );
   }

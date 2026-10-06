@@ -139,7 +139,11 @@ export function housePriceFor(name: string, range: RangeId, division?: Division)
 }
 
 export function formatAud(value: number): string {
-  return `$${Math.round(value).toLocaleString("en-AU")}`;
+  const rounded = Math.round(value);
+  if (rounded < 0) {
+    return `-$${Math.abs(rounded).toLocaleString("en-AU")}`;
+  }
+  return `$${rounded.toLocaleString("en-AU")}`;
 }
 
 export function parseAud(value: string | number | undefined | null): number {

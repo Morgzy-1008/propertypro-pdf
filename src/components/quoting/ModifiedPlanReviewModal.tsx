@@ -858,7 +858,7 @@ export function ModifiedPlanReviewModal({
               <div className="space-y-2.5">
                 {internalRoomsList.map((room, idx) => (
                   <div
-                    key={room.id || idx}
+                    key={room.id ? `${room.id}_${idx}` : `room_${idx}`}
                     className={`p-3.5 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
                       room.accepted
                         ? room.isZeroCost
@@ -980,7 +980,7 @@ export function ModifiedPlanReviewModal({
                         <div className="flex items-center gap-3 text-[11px] font-mono mt-1 flex-wrap">
                           <span className="text-slate-400">Replaced: {op.replacedItemName} (${op.replacedItemBaselineCost.toFixed(2)})</span>
                           <span className="text-emerald-400 font-semibold bg-emerald-950/60 border border-emerald-800/80 px-1.5 py-0.5 rounded">
-                            80% Trade Credit: -${Math.abs(op.creditAmount).toFixed(2)}
+                            {`80% Trade Credit: -$${Math.abs(op.creditAmount).toFixed(2)}`}
                           </span>
                           <span className="text-slate-300">New Item: +${op.newItemCost.toFixed(2)}</span>
                           <span className="text-cyan-300 font-bold">= Net: +${op.netCost.toFixed(2)}</span>

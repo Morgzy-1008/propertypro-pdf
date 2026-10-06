@@ -302,46 +302,50 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
    - Kitchen Extended Picture Splashback Window (PW 06.30) -> id: "upg_kitchen_splashback_window", name: "Kitchen Extended Picture Splashback Window (PW)", category: "doors_windows", unitPrice: 720
    - Enlarged Bedroom Window (e.g. Bed 4 SW 12.24) -> id: "upg_window_size_upgrade", name: "Enlarged Bedroom / Living Window Size Upgrade", category: "doors_windows", unitPrice: 480
    - Garage External Personal Access Door (EXT 820) -> id: "upg_garage_access_door", name: "External Weatherproof Personal Access Door to Garage (EXT 820)", category: "doors_windows", unitPrice: 950
-   - "2740mm Ceilings GF" -> id: "upg_ceiling_2740", name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade", category: "internal_general", unitPrice: 6850
-   - Extended kitchen island with 40mm waterfall stone ends -> id: "upg_kitchen_island_waterfall", name: "Extended Island Benchtop with 40mm Waterfall Stone Ends", category: "internal_kitchen", unitPrice: 1950
-   - Master Ensuite Double Basin Vanity -> id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", unitPrice: 1280
-   - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> id: "upg_entry_door_1200", name: "1200mm Grand Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 1250
-   - 1020mm Wide Front Entry Door ("EXT 1020") -> id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 850
-   - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36") -> id: "upg_alfresco_stacker_door", name: "3-Panel Aluminum Stacker Sliding Door to Alfresco", category: "doors_windows", unitPrice: 1850
-   - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> id: "upg_gf_bathroom_addition", name: "Ground Floor Full Bathroom Addition / Conversion", category: "internal_bathroom", unitPrice: 7800
-   - Additional 21.24 single roller door (for 3rd car bay or rear yard access) -> id: "upg_single_roller_door", name: "Additional 2100mm × 2400mm Colorbond Single Roller Door", category: "doors_windows", unitPrice: 1950
-   - Dedicated Study Room / Home Office Addition -> id: "upg_study_addition", name: "Dedicated Home Office / Study Addition", category: "internal_general", unitPrice: 2850
-   - Mudroom / Mud Nook Joinery Fit-Out -> id: "upg_mudroom_fitout", name: "Mudroom / Mud Nook Joinery Fit-Out", category: "internal_general", unitPrice: 1250
-   - Grand 3.5m Servery / Preparation Island Benchtop -> id: "upg_kitchen_island_prep", name: "Grand 3.5m Servery / Preparation Island Benchtop", category: "internal_kitchen", unitPrice: 2450
-   - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
-   - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
-   - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
-   - Enlarged Master Ensuite Shower Recess (1200x900 or walk-in) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Shower Recess Upgrade", category: "internal_bathroom", unitPrice: 650
-   - Ground Floor Powder Room Conversion with Vanity Basin (separate WC converted to private Powder Room with vanity) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
-   - Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
-   - Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel Framing -> id: "upg_cornerless_stacker_door", name: "Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel", category: "doors_windows", unitPrice: 5027
-   - Freestanding Luxury Acrylic Bath (e.g. Urbane II 1775mm) -> id: "upg_freestanding_bath", name: "Freestanding Acrylic Bath Upgrade (e.g. Urbane II 1775mm)", category: "internal_bathroom", unitPrice: 1650
-   - Double Walk-In Shower with Dual Rainwater Heads & Full-Length Channel Grate (Bath Removed) -> id: "upg_double_shower_dual_heads", name: "Double Walk-In Shower with Dual Overhead Rainwater Heads & Full-Length Channel Grate", category: "internal_bathroom", unitPrice: 1450
-   - Full Height Floor-to-Ceiling Wall Tiling ("FULL HT. TILING") -> id: "upg_full_height_wall_tiling", name: "Full Height Floor-to-Ceiling Ceramic/Porcelain Wall Tiling", category: "internal_bathroom", unitPrice: 3250
-   - Architectural Square Set Ceiling Cornice ("SQ. SET") -> id: "upg_square_set_ceilings", name: "Architectural Square Set Ceiling Cornice Upgrade", category: "internal_general", unitPrice: 1850
-   - Architectural Feature Sliding Barn Door with Exposed Track -> id: "upg_feature_barn_door", name: "Architectural Feature Sliding Barn Door with Exposed Track", category: "doors_windows", unitPrice: 850
-   - Laundry 20mm Engineered Stone Benchtop Extension -> id: "upg_laundry_stone_benchtop", name: "Laundry 20mm Engineered Stone Benchtop Extension", category: "internal_laundry", unitPrice: 1107
-   - Laundry Overhead Wall Storage Cupboards Package -> id: "upg_laundry_overhead_cupboards", name: "Laundry Overhead Cupboards Joinery Package", category: "internal_laundry", unitPrice: 1471
-   - Scullery / Walk-In Pantry 20mm Stone Benchtop Fitout -> id: "upg_scullery_stone_extension", name: "Scullery / Walk-In Pantry 20mm Engineered Stone Benchtop Fitout", category: "internal_kitchen", unitPrice: 2450
-   - Architectural Feature Front Gable Roof Pitch Feature -> id: "upg_facade_front_gable", name: "Architectural Feature Front Gable Roof Pitch Feature", category: "structural", unitPrice: 819
-   - Dual 18-09 Large Format Glazing Windows -> id: "upg_dual_1809_windows", name: "Dual 18-09 Large Format Glazing in lieu of Standard Opening", category: "doors_windows", unitPrice: 319
+    - "2740mm Ceilings GF" -> id: "upg_ceiling_2740", name: "2740mm (9ft) Ground Floor Ceiling Height Upgrade", category: "internal_general", unitPrice: 6850
+    - 2900mm Raised Living Ceiling Height Feature Upgrade -> id: "upg_ceiling_2900_living", name: "2900mm Raised Living Ceiling Height Feature Upgrade", category: "internal_general", unitPrice: 2450
+    - Extended kitchen island with 40mm waterfall stone ends -> id: "upg_kitchen_island_waterfall", name: "Extended Island Benchtop with 40mm Waterfall Stone Ends", category: "internal_kitchen", unitPrice: 1950
+    - Master Ensuite Double Basin Vanity -> id: "upg_ensuite_double_vanity", name: "Master Ensuite Double Basin Vanity Upgrade", category: "internal_bathroom", unitPrice: 1280
+    - 1200mm Wide Grand Architectural Front Entry Door ("EXT 1200") -> id: "upg_entry_door_1200", name: "1200mm Grand Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 1250
+    - 1020mm Wide Front Entry Door ("EXT 1020") -> id: "upg_entry_door_1020", name: "1020mm Wide Architectural Front Entry Door Upgrade", category: "doors_windows", unitPrice: 850
+    - Aluminum Stacker Sliding Door to Alfresco ("STACKER" / "STACKER SLM" / "STACKER 21.36" / "STACKER 21.30") -> id: "upg_alfresco_stacker_door", name: "3-Panel Aluminum Stacker Sliding Door to Alfresco", category: "doors_windows", unitPrice: 1850
+    - Ground Floor Full Bathroom Addition / Conversion (shower recess, vanity, toilet) -> id: "upg_gf_bathroom_addition", name: "Ground Floor Full Bathroom Addition / Conversion", category: "internal_bathroom", unitPrice: 7800
+    - Additional 21.24 single roller door (ONLY for 3rd car bay or rear yard access, NOT for standard double garage roller door 21.48) -> id: "upg_single_roller_door", name: "Additional 2100mm × 2400mm Colorbond Single Roller Door", category: "doors_windows", unitPrice: 1950
+    - Dedicated Study Room / Home Office Addition -> id: "upg_study_addition", name: "Dedicated Home Office / Study Addition", category: "internal_general", unitPrice: 2850
+    - Mudroom / Mud Nook Joinery Fit-Out -> id: "upg_mudroom_fitout", name: "Mudroom / Mud Nook Joinery Fit-Out", category: "internal_general", unitPrice: 1250
+    - Grand 3.5m Servery / Preparation Island Benchtop -> id: "upg_kitchen_island_prep", name: "Grand 3.5m Servery / Preparation Island Benchtop", category: "internal_kitchen", unitPrice: 2450
+    - Separate Powder Room ("PDR" / WC + basin) Addition -> id: "upg_powder_room_addition", name: "Ground Floor Powder Room / Additional WC Addition", category: "internal_bathroom", unitPrice: 2450
+    - Secondary bedroom (Bed 2/3/4) converted to private Ensuite & WIR -> id: "upg_additional_ensuite_wir", name: "Additional Bedroom Ensuite & Walk-in Robe Fitout", category: "internal_bathroom", unitPrice: 12500
+    - Front Balcony (Upper Floor Double Storey only) -> id: "upg_front_balcony", name: "Front Architectural Feature Balcony", category: "structural", unitPrice: 0
+    - Enlarged Master Ensuite Shower Recess (1200x900 or walk-in) -> id: "upg_ensuite_larger_shower", name: "Enlarged Master Ensuite Shower Recess Upgrade", category: "internal_bathroom", unitPrice: 650
+    - Ground Floor Powder Room Conversion with Vanity Basin (separate WC converted to private Powder Room with vanity) -> id: "upg_powder_room_vanity_conversion", name: "Ground Floor Powder Room Conversion with Vanity Basin & Tapware", category: "internal_bathroom", unitPrice: 1850
+    - Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen) -> id: "upg_butlers_pantry_lhs_sink", name: "Butler's Pantry Joinery & Prep Sink Package (LHS of Kitchen)", category: "internal_kitchen", unitPrice: 2450
+    - Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel Framing -> id: "upg_cornerless_stacker_door", name: "Cornerless 90-Degree Stacker Sliding Door System with Steel Lintel", category: "doors_windows", unitPrice: 5027
+    - Freestanding Luxury Acrylic Bath (e.g. Urbane II 1775mm) -> id: "upg_freestanding_bath", name: "Freestanding Acrylic Bath Upgrade (e.g. Urbane II 1775mm)", category: "internal_bathroom", unitPrice: 1650
+    - Double Walk-In Shower with Dual Rainwater Heads & Full-Length Channel Grate (Bath Removed) -> id: "upg_double_shower_dual_heads", name: "Double Walk-In Shower with Dual Overhead Rainwater Heads & Full-Length Channel Grate", category: "internal_bathroom", unitPrice: 1450
+    - Full Height Floor-to-Ceiling Wall Tiling ("FULL HT. TILING") -> id: "upg_full_height_wall_tiling", name: "Full Height Floor-to-Ceiling Ceramic/Porcelain Wall Tiling", category: "internal_bathroom", unitPrice: 3250
+    - Architectural Square Set Ceiling Cornice ("SQ. SET") -> id: "upg_square_set_ceilings", name: "Architectural Square Set Ceiling Cornice Upgrade", category: "internal_general", unitPrice: 1850
+    - Architectural Feature Sliding Barn Door with Exposed Track -> id: "upg_feature_barn_door", name: "Architectural Feature Sliding Barn Door with Exposed Track", category: "doors_windows", unitPrice: 850
+    - Laundry 20mm Engineered Stone Benchtop Extension -> id: "upg_laundry_stone_benchtop", name: "Laundry 20mm Engineered Stone Benchtop Extension", category: "internal_laundry", unitPrice: 1107
+    - Laundry Overhead Wall Storage Cupboards Package -> id: "upg_laundry_overhead_cupboards", name: "Laundry Overhead Cupboards Joinery Package", category: "internal_laundry", unitPrice: 1471
+    - Scullery / Walk-In Pantry 20mm Stone Benchtop Fitout -> id: "upg_scullery_stone_extension", name: "Scullery / Walk-In Pantry 20mm Engineered Stone Benchtop Fitout", category: "internal_kitchen", unitPrice: 2450
+    - Architectural Feature Front Gable Roof Pitch Feature -> id: "upg_facade_front_gable", name: "Architectural Feature Front Gable Roof Pitch Feature", category: "structural", unitPrice: 819
+    - Dual 18-09 Large Format Glazing Windows -> id: "upg_dual_1809_windows", name: "Dual 18-09 Large Format Glazing in lieu of Standard Opening", category: "doors_windows", unitPrice: 319
 
 6. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
+   - Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door -> id: "mod_room_cinema_barn", roomName: "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door", roomType: "cinema", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Variation)."
+   - Central Core Reconfiguration: Study / WIL combination room & circulation -> id: "mod_room_core_study_wil", roomName: "Central Core Reconfiguration: Study / WIL combination room & circulation", roomType: "study", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Variation)."
+   - Mud Nook with bench joinery framing -> id: "mod_room_mud_nook", roomName: "Mud Nook with bench joinery framing", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Mud Nook transition zone with custom bench joinery and drop zone framing ($0.00 Dry Variation)."
+   - Butler's Pantry ("Butlers") with CSD 820 pocket slider framing -> id: "mod_room_butlers_csd", roomName: "Butler's Pantry (\"Butlers\") with CSD 820 pocket slider framing", roomType: "kitchen", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation)."
+   - Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3 -> id: "mod_room_dry_framing", roomName: "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation)."
    - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
      id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned from front facade elevation to rear private garden wing for enhanced privacy and noise isolation. Internal dry partition wall realignment ($0.00 Dry Variation)."
-   - Internal Dry Partition Framing Realignment -> if internal timber stud walls shifted:
-     id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment & Circulation Flow", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal non-structural timber stud partition walls realigned to optimize circulation, room flow, and furniture placement. Reallocation of dry internal living envelope ($0.00 Dry Variation)."
    - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
      id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: 2.6, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: 390, description: "Master Ensuite expanded by +2.60 m². Includes $150.00/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)."
 
 8. DOORS & WINDOWS SCHEDULE AUDIT (Include in openingTags list):
-   - Transcribe every explicit door and window callout text printed on Image 2 (e.g. "STACKER 21.36", "SD 21.12", "CSD 820", "EXT 870", "EXT 820", "Panel Door 21.48", "SW 12.24", "PW 06.30", "AWN 12.18").
-   - If an opening code or tag is visible, add it to "openingTags": ["STACKER 21.36", "CSD 820", ...]
+   - Transcribe every explicit door and window callout text printed on Image 2 (e.g. "STACKER 21.36", "STACKER 21.30", "SD 21.12", "CSD 820", "EXT 1020", "EXT 1200", "BARN 1200", "RD 21.48", "SW 12.21", "SW 12.24", "FW 06.12", "PW 06.30").
+   - If an opening code or tag is visible, add it to "openingTags": ["STACKER 21.30", "CSD 820", "EXT 1020", "RD 21.48", "BARN 1200", "SW 12.21", "SW 12.24", "FW 06.12"]
 
 Candidate File Name: "${fileName}"
 Raw Embedded Text: """${rawText.slice(0, 1500)}"""
@@ -529,6 +533,15 @@ Return ONLY valid JSON matching this schema:
         detected: "2740mm Ceilings GF annotation on plan",
         unitPrice: 6850,
         description: "Increased ceiling height to 2740mm on Ground Floor living zones.",
+      },
+      upg_ceiling_2900_living: {
+        id: "upg_ceiling_2900_living",
+        name: "2900mm Raised Living Ceiling Height Feature Upgrade",
+        category: "internal_general",
+        baseline: "Standard flat 2440mm / 2590mm ceiling height throughout",
+        detected: "2900mm raised ceiling height specification over living zone",
+        unitPrice: 2450,
+        description: "Architectural 2900mm raised ceiling height feature over the main living/dining domain, including raised window headers and bulkheads.",
       },
       upg_kitchen_double_undermount_sink: {
         id: "upg_kitchen_double_undermount_sink",
@@ -914,6 +927,8 @@ Return ONLY valid JSON matching this schema:
             matchedRule = FIXTURE_UPGRADE_MAP.upg_gf_bathroom_addition;
           } else if (/double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_ensuite_double_vanity;
+          } else if (/2900|2\.9m|raised.*living.*ceiling|raised.*ceiling/i.test(lowerText)) {
+            matchedRule = FIXTURE_UPGRADE_MAP.upg_ceiling_2900_living;
           } else if (/2740|9ft|ground\s*floor\s*ceiling|gf\s*ceiling/i.test(lowerText)) {
             matchedRule = FIXTURE_UPGRADE_MAP.upg_ceiling_2740;
           } else if (isDouble && /balcony|upper\s*balcony|porch\s*balcony/i.test(lowerText)) {
@@ -1023,6 +1038,8 @@ Return ONLY valid JSON matching this schema:
           semanticKey = "sem_powder_vanity";
         } else if (/powder|\bpdr\b/i.test(lowerText)) {
           semanticKey = "sem_powder_room";
+        } else if (/2900|raised.*living.*ceiling/i.test(lowerText)) {
+          semanticKey = "sem_ceiling_2900";
         } else if (/2740|gf\s*ceiling/i.test(lowerText)) {
           semanticKey = "sem_ceiling_2740";
         } else if (/balcony/i.test(lowerText)) {

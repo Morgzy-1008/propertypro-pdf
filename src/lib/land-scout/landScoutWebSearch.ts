@@ -5,6 +5,9 @@ import { extractLotsFromText } from "@/lib/parseLotList";
 import { bulkAddOrUpdateParcels } from "./landScoutStorage";
 
 export function getSystemSavedApiKey(): string {
+  if (typeof process !== "undefined" && (process.env?.VITE_GEMINI_API_KEY || process.env?.GEMINI_API_KEY)) {
+    return (process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "").trim();
+  }
   return (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_GEMINI_API_KEY) || "";
 }
 

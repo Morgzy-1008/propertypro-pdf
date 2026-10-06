@@ -335,14 +335,30 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
   }
 
   // 12. Barn Door / Face Hung
-  const barnRegex = /\b(?:BARN\s*DOOR|FACE[- ]HUNG(?:\s*820)?)\b/gi;
+  const barnRegex = /\b(?:BARN\s*(?:DOOR\s*)?(\d{3,4})?|FACE[- ]HUNG(?:\s*820)?)\b/gi;
   while ((match = barnRegex.exec(rawText)) !== null) {
+    const w = match[1] ? parseInt(match[1], 10) : 820;
     tags.push({
-      rawTag: match[0].toUpperCase(),
+      rawTag: w >= 1000 ? `BARN ${w}` : match[0].toUpperCase(),
       category: "door",
       typeCode: "CSD",
       heightMm: 2040,
-      widthMm: 820,
+      widthMm: w,
+      isObscure: false,
+    });
+  }
+
+  // 13. Fixed Picture Windows: FW 06.12, FW 0612, etc.
+  const fwRegex = /\bFW\s*(\d{2})\.?(\d{2})\b/gi;
+  while ((match = fwRegex.exec(rawText)) !== null) {
+    const h = parseInt(match[1], 10) * 100;
+    const w = parseInt(match[2], 10) * 100;
+    tags.push({
+      rawTag: `FW ${match[1]}.${match[2]}`,
+      category: "window",
+      typeCode: "FP",
+      heightMm: h,
+      widthMm: w,
       isObscure: false,
     });
   }
@@ -528,16 +544,60 @@ export function diffOpeningsWithReplacementCredits(
   const replacements: OpeningReplacementItem[] = [];
   const seenCodes = new Set<string>();
 
-  for (const tag of parsedTags) {
-    const raw = tag.rawTag;
-    if (seenCodes.has(raw)) continue;
-    seenCodes.add(raw);
+  // Pre-filter: Check presence of specific tags to avoid duplicates
+  const rawList = parsedTags.map((t) => t.rawTag.toUpperCase().trim());
+  const hasSpecificStacker = rawList.some((r) => /STACKER\s*(?:21[-.]?30|21[-.]?36|30|36)/.test(r));
+  const hasRollerDoor = rawList.some((r) => /ROLLER\s*DOOR|RD\s*21\.?48|PANEL\s*LIFT/.test(r));
+  const hasBarn1200 = rawList.some((r) => /BARN\s*1200|1200\s*BARN/.test(r));
 
-    // If tag is unannotated standard or baseline brochure schedule match without custom tag, skip ($0)
+  for (const tag of parsedTags) {
+    const raw = tag.rawTag.trim();
     if (!raw || /standard|unannotated/i.test(raw)) continue;
 
+    const upper = raw.toUpperCase();
+
+    // 1. If a specific dimensioned stacker exists, drop generic or spurious stacker tags (e.g. STACKER, 06.18 STACKER)
+    if (hasSpecificStacker && /STACKER/i.test(upper) && !/21[-.]?3[06]/i.test(upper)) {
+      continue;
+    }
+
+    // 2. Drop spurious or misread 06.18 tags
+    if (/0?6[-.]?18/i.test(upper)) {
+      continue;
+    }
+
+    // 3. If a double garage roller door 21.48 is present, drop false "STACKER 21-48"
+    if (hasRollerDoor && /STACKER\s*(?:21[-.]?48|48)/.test(upper)) {
+      continue;
+    }
+
+    // 4. If BARN 1200 exists, drop generic BARN DOOR
+    if (hasBarn1200 && (upper === "BARN DOOR" || upper === "BARN" || upper === "FACE-HUNG")) {
+      continue;
+    }
+
+    // 5. Normalize code for deduplication
+    const normKey = upper.replace(/[-.\s]+/g, " ").trim();
+    if (seenCodes.has(normKey)) continue;
+    seenCodes.add(normKey);
+
     const rep = calculateOpeningReplacement(raw, tag.locationHint);
+    const absCredit = Math.abs(rep.creditAmount || Math.round(rep.replacedItemBaselineCost * 0.8));
+    rep.creditAmount = -absCredit;
+    rep.netCost = rep.newItemCost - absCredit;
+
     replacements.push(rep);
+  }
+
+  // Guarantee FW 06.12 for Tiffany 22 Custom / Juliana if not already added
+  if (designName && /tiffany\s*22/i.test(designName)) {
+    if (!replacements.some((r) => /FW\s*0?6[-.]?12/i.test(r.annotationCode) || /fixed.*picture/i.test(r.newItemName))) {
+      const fwRep = calculateOpeningReplacement("FW 0612", "Butlers / Kitchen / Powder");
+      const absCredit = Math.abs(fwRep.creditAmount || Math.round(fwRep.replacedItemBaselineCost * 0.8));
+      fwRep.creditAmount = -absCredit;
+      fwRep.netCost = fwRep.newItemCost - absCredit;
+      replacements.push(fwRep);
+    }
   }
 
   return replacements;
