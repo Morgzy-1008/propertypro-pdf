@@ -589,16 +589,5 @@ export function diffOpeningsWithReplacementCredits(
     replacements.push(rep);
   }
 
-  // Guarantee FW 06.12 for Tiffany 22 Custom / Juliana if not already added
-  if (designName && /tiffany\s*22/i.test(designName)) {
-    if (!replacements.some((r) => /FW\s*0?6[-.]?12/i.test(r.annotationCode) || /fixed.*picture/i.test(r.newItemName))) {
-      const fwRep = calculateOpeningReplacement("FW 0612", "Butlers / Kitchen / Powder");
-      const absCredit = Math.abs(fwRep.creditAmount || Math.round(fwRep.replacedItemBaselineCost * 0.8));
-      fwRep.creditAmount = -absCredit;
-      fwRep.netCost = fwRep.newItemCost - absCredit;
-      replacements.push(fwRep);
-    }
-  }
-
   return replacements;
 }

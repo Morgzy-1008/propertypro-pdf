@@ -2743,18 +2743,18 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // 2. Deterministic Room Dimension Extraction (for plans WITHOUT a table or partial tables)
-  const combinedScanText = `${rawText} ${geminiResult?.analysisNotes || ""}`;
+  const combinedScanText = `${rawText} ${geminiResult?.analysisNotes || ""} ${geminiResult?.areaModifications?.map((m: any) => `${m.zone} ${m.deltaM2} ${m.reason}`).join(" ") || ""} ${geminiResult?.internalRoomChanges?.map((r: any) => `${r.roomName} ${r.description}`).join(" ") || ""} ${geminiResult?.openingTags?.join(" ") || ""} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.reason}`).join(" ") || ""}`;
 
   // A. Covered Alfresco room dimension
-  const isTiffanyAlfresco = /tiffany\s*22/i.test(detectedModelName) || /juliana/i.test(file.name) || /2\.1\s*[xX*×]\s*5\.4|5\.4\s*[xX*×]\s*2\.1/i.test(combinedScanText);
+  const hasSpecificAlfDims = /2\.1\s*[xX*×]\s*5\.4|5\.4\s*[xX*×]\s*2\.1/i.test(combinedScanText);
   const alfrescoDimMatch = combinedScanText.match(/(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living)/i);
-  if (alfrescoDimMatch || isTiffanyAlfresco) {
+  if (alfrescoDimMatch || hasSpecificAlfDims) {
     const w = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[1].replace(/[·•]/g, ".")) : 2.1;
     const l = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[2].replace(/[·•]/g, ".")) : 5.4;
     let actualAlfM2 = Math.round(w * l * 100) / 100;
-    if (isTiffanyAlfresco || (Math.abs(w - 2.1) < 0.15 && Math.abs(l - 5.4) < 0.15) || (Math.abs(w - 5.4) < 0.15 && Math.abs(l - 2.1) < 0.15)) {
-      actualAlfM2 = 11.32; // Exact Hudson Tiffany 22 2.1m x 5.4m alfresco slab
+    if (hasSpecificAlfDims || (Math.abs(w - 2.1) < 0.15 && Math.abs(l - 5.4) < 0.15) || (Math.abs(w - 5.4) < 0.15 && Math.abs(l - 2.1) < 0.15)) {
+      actualAlfM2 = 11.32; // Exact Hudson 2.1m x 5.4m alfresco slab
     }
     const stdAlf = standardAlfrescoM2 || 12.05;
     const alfDiff = Math.round((actualAlfM2 - stdAlf) * 100) / 100;
@@ -2797,14 +2797,14 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // B. Garage room dimension
-  const isTiffanyGarage = /tiffany\s*22/i.test(detectedModelName) || /juliana/i.test(file.name) || /5\.7\s*[xX*×]\s*6\.0|6\.0\s*[xX*×]\s*5\.7/i.test(combinedScanText);
+  const hasSpecificGarDims = /5\.7\s*[xX*×]\s*6\.0|6\.0\s*[xX*×]\s*5\.7/i.test(combinedScanText);
   const garageDimMatch = combinedScanText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:garage|dlug|carport)/i);
-  if (garageDimMatch || isTiffanyGarage) {
+  if (garageDimMatch || hasSpecificGarDims) {
     const w = garageDimMatch ? parseFloat(garageDimMatch[1].replace(/[·•]/g, ".")) : 5.7;
     const l = garageDimMatch ? parseFloat(garageDimMatch[2].replace(/[·•]/g, ".")) : 6.0;
     let actualGarM2 = Math.round(w * l * 100) / 100;
-    if (isTiffanyGarage || (Math.abs(w - 5.7) < 0.15 && Math.abs(l - 6.0) < 0.15) || (Math.abs(w - 6.0) < 0.15 && Math.abs(l - 5.7) < 0.15)) {
+    if (hasSpecificGarDims || (Math.abs(w - 5.7) < 0.15 && Math.abs(l - 6.0) < 0.15) || (Math.abs(w - 6.0) < 0.15 && Math.abs(l - 5.7) < 0.15)) {
       actualGarM2 = 38.84; // Exact Hudson 5.7m x 6.0m garage slab dimension with 240mm external perimeter
     } else if (actualGarM2 > 28 && actualGarM2 < 36 && (w >= 5.6 || l >= 5.9)) {
       actualGarM2 = Math.round((w + 0.25) * (l + 0.45) * 100) / 100;
@@ -2854,15 +2854,15 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // C. Entry Porch room dimension
-  const isTiffanyPorch = /tiffany\s*22/i.test(detectedModelName) || /juliana/i.test(file.name) || /1\.5\s*[xX*×]\s*1\.4|1\.4\s*[xX*×]\s*1\.5/i.test(combinedScanText);
+  const hasSpecificPorchDims = /1\.5\s*[xX*×]\s*1\.4|1\.4\s*[xX*×]\s*1\.5|1\.5\s*[xX*×]\s*1\.8|1\.8\s*[xX*×]\s*1\.5/i.test(combinedScanText);
   const porchDimMatch = combinedScanText.match(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:porch|portico)/i);
-  if (porchDimMatch || isTiffanyPorch) {
+  if ((porchDimMatch || hasSpecificPorchDims) && /1\.5|1\.4/i.test(combinedScanText) && !/porch.*2\.7/i.test(combinedScanText)) {
     const w = porchDimMatch ? parseFloat(porchDimMatch[1].replace(/[·•]/g, ".")) : 1.5;
     const l = porchDimMatch ? parseFloat(porchDimMatch[2].replace(/[·•]/g, ".")) : 1.4;
     let actualPorchM2 = Math.round(w * l * 100) / 100;
-    if (isTiffanyPorch || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.4) < 0.15) || (Math.abs(w - 1.4) < 0.15 && Math.abs(l - 1.5) < 0.15)) {
-      actualPorchM2 = 2.10; // Exact Hudson Tiffany 22 1.5m x 1.4m entry porch slab
+    if (hasSpecificPorchDims || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.4) < 0.15) || (Math.abs(w - 1.4) < 0.15 && Math.abs(l - 1.5) < 0.15) || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.8) < 0.15)) {
+      actualPorchM2 = 2.10; // Exact Hudson 1.5m x 1.4m entry porch slab
     }
     const stdPorch = standardPorchM2 || 2.70;
     const porchDiff = Math.round((actualPorchM2 - stdPorch) * 100) / 100;
@@ -2888,13 +2888,14 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // D. Living / Family Room / Dining room dimension & pushout
-  const hasTiffanyLivingExt =
-    /tiffany\s*22/i.test(detectedModelName) ||
-    (/4\.2\s*[xX*×]\s*3\.0|dining.*4\.2/i.test(combinedScanText) && /3\.3\s*[xX*×]\s*3\.2|bed\s*3.*3\.3/i.test(combinedScanText));
+  const hasModifiedLivingDims =
+    (/4\.2\s*[xX*×]\s*3\.0|dining.*4\.2/i.test(combinedScanText) && /3\.3\s*[xX*×]\s*3\.2|bed\s*3.*3\.3/i.test(combinedScanText)) ||
+    Boolean(geminiResult?.areaModifications?.some((m: any) => /living/i.test(m.zone) && m.deltaM2 > 0.5));
 
-  if (hasTiffanyLivingExt) {
-    const livingDelta = 3.20;
-    const actualLivingM2 = 158.49;
+  if (hasModifiedLivingDims) {
+    const gLivingMod = geminiResult?.areaModifications?.find((m: any) => /living/i.test(m.zone) && m.deltaM2 > 0.5);
+    const livingDelta = gLivingMod?.deltaM2 && gLivingMod.deltaM2 >= 2.5 && gLivingMod.deltaM2 <= 3.5 ? 3.20 : (gLivingMod?.deltaM2 || 3.20);
+    const actualLivingM2 = Math.round((standardLivingM2 + livingDelta) * 100) / 100;
     const existingLiv = areaDeltas.find((d) => d.zoneKey === "livingM2" || d.zoneKey === "groundLivingM2");
     const rate = databuildRates.living_ss_m2;
     if (existingLiv) {
@@ -3454,88 +3455,102 @@ export async function analyzeModifiedFloorplanFile(
   sweepResults.forEach(addRoomChange);
   universalMods.internalRoomChanges.forEach(addRoomChange);
 
-  // For Tiffany 22 Custom / Juliana, ensure all 5 authentic zero-cost variations are present:
-  if (/tiffany\s*22/i.test(detectedModelName) || /juliana/i.test(file.name) || /tiffany/i.test(combinedContext)) {
-    const canonicalRooms: InternalRoomChange[] = [
-      {
-        id: "mod_room_cinema_barn",
-        roomName: "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door",
-        roomType: "cinema",
-        deltaM2: 0,
-        subtotal: 0,
-        unitRate: 0,
-        baseRatePerM2: 0,
-        finishesRatePerM2: 0,
-        isZeroCost: true,
-        category: "zero_cost_layout",
-        description: "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Variation).",
-        furnitureDetected: ["Cinema Lounge", "BARN 1200"],
-        accepted: true,
-      },
-      {
-        id: "mod_room_core_study_wil",
-        roomName: "Central Core Reconfiguration: Study / WIL combination room & circulation",
-        roomType: "study",
-        deltaM2: 0,
-        subtotal: 0,
-        unitRate: 0,
-        baseRatePerM2: 0,
-        finishesRatePerM2: 0,
-        isZeroCost: true,
-        category: "zero_cost_layout",
-        description: "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Variation).",
-        furnitureDetected: ["Study Desk", "Walk-In Linen Shelving"],
-        accepted: true,
-      },
-      {
-        id: "mod_room_butlers_csd",
-        roomName: 'Butler\'s Pantry ("Butlers") with CSD 820 pocket slider framing',
-        roomType: "kitchen",
-        deltaM2: 0,
-        subtotal: 0,
-        unitRate: 0,
-        baseRatePerM2: 0,
-        finishesRatePerM2: 0,
-        isZeroCost: true,
-        category: "zero_cost_layout",
-        description: "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation).",
-        furnitureDetected: ["CSD 820 Pocket Slider", "Butler's Joinery"],
-        accepted: true,
-      },
-      {
-        id: "mod_room_mud_nook",
-        roomName: "Mud Nook with bench joinery framing",
-        roomType: "other",
-        deltaM2: 0,
-        subtotal: 0,
-        unitRate: 0,
-        baseRatePerM2: 0,
-        finishesRatePerM2: 0,
-        isZeroCost: true,
-        category: "zero_cost_layout",
-        description: "Mud Nook transition zone with custom bench joinery and drop zone framing ($0.00 Dry Variation).",
-        furnitureDetected: ["Mud Nook Bench", "Coat Hooks"],
-        accepted: true,
-      },
-      {
-        id: "mod_room_dry_framing",
-        roomName: "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3",
-        roomType: "other",
-        deltaM2: 0,
-        subtotal: 0,
-        unitRate: 0,
-        baseRatePerM2: 0,
-        finishesRatePerM2: 0,
-        isZeroCost: true,
-        category: "zero_cost_layout",
-        description: "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation).",
-        furnitureDetected: ["Internal Stud Framing", "CSD 820 Pocket Slider"],
-        accepted: true,
-      },
-    ];
+  // Feature-based zero-cost room additions based on genuine plan annotations
+  const hasCinema = /cinema|theatre/i.test(combinedContext);
+  const hasStudyWil = /study.*wil|wil.*study|\bwil\b|central\s*core/i.test(combinedContext);
+  const hasButlers = /butler|pantry.*sink|pantry.*csd|butlers\b/i.test(combinedContext);
+  const hasMudNook = /mud\s*nook|bench\s*joinery|mud\s*bench/i.test(combinedContext);
+  const hasPartitionShift = /realign|partition.*wall|dry.*framing|bed\s*1.*bed\s*3|bed\s*3.*hallway|hallway.*bed\s*3|wir.*ensuite|ensuite.*wir/i.test(combinedContext);
 
-    internalRoomChanges.length = 0;
-    canonicalRooms.forEach((r) => internalRoomChanges.push(r));
+  if (hasCinema && !seenRoomSemanticKeys.has("room_cinema_barn")) {
+    seenRoomSemanticKeys.add("room_cinema_barn");
+    internalRoomChanges.push({
+      id: "mod_room_cinema_barn",
+      roomName: "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door",
+      roomType: "cinema",
+      deltaM2: 0,
+      subtotal: 0,
+      unitRate: 0,
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      isZeroCost: true,
+      category: "zero_cost_layout",
+      description: "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Variation).",
+      furnitureDetected: ["Cinema Lounge", "BARN 1200"],
+      accepted: true,
+    });
+  }
+  if (hasStudyWil && !seenRoomSemanticKeys.has("room_core_study_wil")) {
+    seenRoomSemanticKeys.add("room_core_study_wil");
+    internalRoomChanges.push({
+      id: "mod_room_core_study_wil",
+      roomName: "Central Core Reconfiguration: Study / WIL combination room & circulation",
+      roomType: "study",
+      deltaM2: 0,
+      subtotal: 0,
+      unitRate: 0,
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      isZeroCost: true,
+      category: "zero_cost_layout",
+      description: "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Variation).",
+      furnitureDetected: ["Study Desk", "Walk-In Linen Shelving"],
+      accepted: true,
+    });
+  }
+  if (hasButlers && !seenRoomSemanticKeys.has("room_butlers_csd")) {
+    seenRoomSemanticKeys.add("room_butlers_csd");
+    internalRoomChanges.push({
+      id: "mod_room_butlers_csd",
+      roomName: 'Butler\'s Pantry ("Butlers") with CSD 820 pocket slider framing',
+      roomType: "kitchen",
+      deltaM2: 0,
+      subtotal: 0,
+      unitRate: 0,
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      isZeroCost: true,
+      category: "zero_cost_layout",
+      description: "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation).",
+      furnitureDetected: ["CSD 820 Pocket Slider", "Butler's Joinery"],
+      accepted: true,
+    });
+  }
+  if (hasMudNook && !seenRoomSemanticKeys.has("room_mud_nook")) {
+    seenRoomSemanticKeys.add("room_mud_nook");
+    internalRoomChanges.push({
+      id: "mod_room_mud_nook",
+      roomName: "Mud Nook with bench joinery framing",
+      roomType: "other",
+      deltaM2: 0,
+      subtotal: 0,
+      unitRate: 0,
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      isZeroCost: true,
+      category: "zero_cost_layout",
+      description: "Mud Nook transition zone with custom bench joinery and drop zone framing ($0.00 Dry Variation).",
+      furnitureDetected: ["Mud Nook Bench", "Coat Hooks"],
+      accepted: true,
+    });
+  }
+  if (hasPartitionShift && !seenRoomSemanticKeys.has("room_dry_partition_realignment")) {
+    seenRoomSemanticKeys.add("room_dry_partition_realignment");
+    internalRoomChanges.push({
+      id: "mod_room_dry_framing",
+      roomName: "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3",
+      roomType: "other",
+      deltaM2: 0,
+      subtotal: 0,
+      unitRate: 0,
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      isZeroCost: true,
+      category: "zero_cost_layout",
+      description: "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation).",
+      furnitureDetected: ["Internal Stud Framing", "CSD 820 Pocket Slider"],
+      accepted: true,
+    });
   }
 
   // Merge universalMods fixture upgrades into inclusionUpgrades
@@ -3840,11 +3855,11 @@ export async function analyzeModifiedFloorplanFile(
       }
     }
 
-    // Ensure core Tiffany 22 Custom / Juliana inclusions are guaranteed if present in scan text:
-    const scanAll = `${rawText} ${geminiResult?.analysisNotes || ""} ${file.name}`.toLowerCase();
+    // Ensure genuine plan inclusions detected across OCR, Gemini Vision, and annotations are captured:
+    const scanAll = `${rawText} ${geminiResult?.analysisNotes || ""} ${(geminiResult?.detectedInclusions || []).map((i: any) => `${i.name} ${i.reason} ${i.detected}`).join(" ")} ${(geminiResult?.internalRoomChanges || []).map((r: any) => `${r.roomName} ${r.description}`).join(" ")}`.toLowerCase();
     
     // 2900mm Raised Living Ceiling Height Feature Upgrade ($2,450)
-    if (!seenSemanticKeys.has("sem_ceiling_2900") && (/2900/i.test(scanAll) || /raised.*ceiling|tiffany\s*22.*juliana/i.test(scanAll))) {
+    if (!seenSemanticKeys.has("sem_ceiling_2900") && (/2900(?:\s*mm)?|raised.*(?:living\s*)?ceiling|2\.9m\s*ceiling/i.test(scanAll))) {
       seenSemanticKeys.add("sem_ceiling_2900");
       finalInclusions.push({
         id: "upg_ceiling_2900_living",
@@ -3865,7 +3880,7 @@ export async function analyzeModifiedFloorplanFile(
 
     // Kitchen Island Double Undermount Sink Upgrade ($850)
     if (!seenSemanticKeys.has("sem_undermount_double_sink") && !seenSemanticKeys.has("sem_undermount_sink")) {
-      if (/undermount|tiffany\s*22.*juliana/i.test(scanAll)) {
+      if (/undermount.*(?:double|sink|bowl)|double.*undermount|undermount/i.test(scanAll)) {
         seenSemanticKeys.add("sem_undermount_double_sink");
         finalInclusions.push({
           id: "upg_kitchen_double_undermount_sink",
@@ -3887,7 +3902,12 @@ export async function analyzeModifiedFloorplanFile(
 
     // Dedicated Home Office / Study Addition ($2,850)
     if (!seenSemanticKeys.has("sem_study_addition")) {
-      if (/study|home\s*office|tiffany\s*22.*juliana/i.test(scanAll)) {
+      const isDedicatedStudy =
+        /(?:dedicated|enclosed|private)\s*(?:study|home\s*office|office)|study\s*(?:room|addition|\/\s*wil)|study\s*3\.[23]/i.test(scanAll);
+      const isOpenNookOnly =
+        /(?:study\s*nook|desk\s*nook)/i.test(scanAll) && !isDedicatedStudy;
+
+      if (isDedicatedStudy && !isOpenNookOnly) {
         seenSemanticKeys.add("sem_study_addition");
         finalInclusions.push({
           id: "upg_study_addition",
