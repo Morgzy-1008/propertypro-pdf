@@ -45,6 +45,7 @@ import {
   isDoubleStoreyDesign,
   calculateDesignGFA,
   calculateTailoredBushfireCost,
+  calculateTailoredAcousticCost,
 } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
@@ -441,27 +442,47 @@ export function QuoteBuilder() {
       (patch.housingType !== undefined && patch.housingType !== quote.design.housingType) ||
       (patch.isModifiedFloorplan !== undefined && patch.isModifiedFloorplan !== quote.design.isModifiedFloorplan);
 
-    if (designChanged && updatedSite.bushfireBal && updatedSite.bushfireBal !== "None" && updatedSite.bushfireBal !== "BAL-LOW") {
+    if (designChanged) {
       const isDouble = isDoubleStoreyDesign(
         updatedDesign.designName,
         updatedDesign.housingType,
         updatedDesign.customSpec?.storeys
       );
       const nextGfa = calculateDesignGFA(updatedDesign);
-      const nextBalCost = calculateTailoredBushfireCost({
-        bal: updatedSite.bushfireBal,
-        designName: updatedDesign.designName,
-        housingType: updatedDesign.housingType,
-        gfaM2: nextGfa,
-        isDoubleStorey: isDouble,
-        isModifiedPlan: updatedDesign.isModifiedFloorplan,
-        modifiedM2: updatedDesign.modifiedDesignM2,
-      }).totalCost;
 
-      updatedSite = {
-        ...updatedSite,
-        bushfireCost: nextBalCost,
-      };
+      if (updatedSite.bushfireBal && updatedSite.bushfireBal !== "None" && updatedSite.bushfireBal !== "BAL-LOW") {
+        const nextBalCost = calculateTailoredBushfireCost({
+          bal: updatedSite.bushfireBal,
+          designName: updatedDesign.designName,
+          housingType: updatedDesign.housingType,
+          gfaM2: nextGfa,
+          isDoubleStorey: isDouble,
+          isModifiedPlan: updatedDesign.isModifiedFloorplan,
+          modifiedM2: updatedDesign.modifiedDesignM2,
+        }).totalCost;
+
+        updatedSite = {
+          ...updatedSite,
+          bushfireCost: nextBalCost,
+        };
+      }
+
+      if (updatedSite.acousticTier && updatedSite.acousticTier !== "None") {
+        const nextAcousticCost = calculateTailoredAcousticCost({
+          tier: updatedSite.acousticTier,
+          designName: updatedDesign.designName,
+          housingType: updatedDesign.housingType,
+          gfaM2: nextGfa,
+          isDoubleStorey: isDouble,
+          isModifiedPlan: updatedDesign.isModifiedFloorplan,
+          modifiedM2: updatedDesign.modifiedDesignM2,
+        }).totalCost;
+
+        updatedSite = {
+          ...updatedSite,
+          acousticCost: nextAcousticCost,
+        };
+      }
     }
 
     updateQuote({ design: updatedDesign, siteConditions: updatedSite });

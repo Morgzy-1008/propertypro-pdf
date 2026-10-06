@@ -23,6 +23,12 @@ import {
   resolveDesignSchedule,
   type BushfireCostBreakdown,
 } from "./bushfireEngine";
+import {
+  calculateTailoredAcousticCost,
+  getAcousticCost as getTailoredAcousticCost,
+  type AcousticCostBreakdown,
+  type AcousticTierLevel,
+} from "./acousticEngine";
 import type {
   CategorySubtotal,
   CatalogueCategory,
@@ -1188,37 +1194,19 @@ export { calculateTailoredBushfireCost, resolveDesignSchedule, type BushfireCost
 
 
 /**
- * Calculates Acoustic Attenuation Requirements cost based on design storeys (Single vs Double).
+ * Calculates Acoustic Attenuation Requirements cost tailored to design selected, exact window/door schedules,
+ * house size, and modified plan scaling under AS/NZS 2107 & QDC MP 4.4.
  */
 export function getAcousticCost(
   tier: "None" | "Category 1" | "Category 2" | "Category 3",
-  isDoubleStorey: boolean,
+  isDoubleStorey: boolean = false,
+  designOrName?: any,
+  gfaM2?: number
 ): number {
-  if (tier === "None") return 0;
-  if (isDoubleStorey) {
-    switch (tier) {
-      case "Category 1":
-        return 10000;
-      case "Category 2":
-        return 20000;
-      case "Category 3":
-        return 40000;
-      default:
-        return 0;
-    }
-  } else {
-    switch (tier) {
-      case "Category 1":
-        return 5000;
-      case "Category 2":
-        return 10000;
-      case "Category 3":
-        return 20000;
-      default:
-        return 0;
-    }
-  }
+  return getTailoredAcousticCost(tier, isDoubleStorey, designOrName, gfaM2);
 }
+
+export { calculateTailoredAcousticCost, type AcousticCostBreakdown, type AcousticTierLevel };
 
 /**
  * Computes line item subtotal based on quantity and rate, dynamically calibrated to the inclusion tier.
@@ -1329,7 +1317,10 @@ export function calculateQuotePricing(
         ? Number(site.floodOverlayCost)
         : Math.round((Number(site.slabElevationMeters) || 0.3) * 270 * gfaM2))
     : 0;
-  const acousticCost = getAcousticCost(site.acousticTier, isDouble);
+  const acousticCost =
+    site.acousticCost !== undefined && site.acousticCost !== null && !isNaN(Number(site.acousticCost)) && Number(site.acousticCost) > 0
+      ? Number(site.acousticCost)
+      : getAcousticCost(site.acousticTier, isDouble, design, gfaM2);
 
   // Council & Statutory
   const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 11000) : 0;

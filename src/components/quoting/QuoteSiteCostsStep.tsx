@@ -49,6 +49,10 @@ import {
   calculateTailoredBushfireCost,
   type BushfireCostBreakdown,
 } from "@/lib/quoting/bushfireEngine";
+import {
+  calculateTailoredAcousticCost,
+  type AcousticCostBreakdown,
+} from "@/lib/quoting/acousticEngine";
 import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 import { toast } from "sonner";
@@ -161,6 +165,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     cctvSewerReportCost;
 
   const [showBushfireBreakdown, setShowBushfireBreakdown] = useState(false);
+  const [showAcousticBreakdown, setShowAcousticBreakdown] = useState(false);
 
   // Tailored AS 3959 Bushfire Cost Breakdown based on design, window/door schedules & sqm
   const tailoredBushfireBreakdown = useMemo(() => {
@@ -183,6 +188,27 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     quote.design.modifiedDesignM2,
   ]);
 
+  // Tailored Acoustic Cost Breakdown based on design, window/door schedules & sqm
+  const tailoredAcousticBreakdown = useMemo(() => {
+    return calculateTailoredAcousticCost({
+      tier: site.acousticTier,
+      designName: quote.design.designName,
+      housingType: quote.design.housingType,
+      gfaM2,
+      isDoubleStorey: isDouble,
+      isModifiedPlan: quote.design.isModifiedFloorplan,
+      modifiedM2: quote.design.modifiedDesignM2,
+    });
+  }, [
+    site.acousticTier,
+    quote.design.designName,
+    quote.design.housingType,
+    gfaM2,
+    isDouble,
+    quote.design.isModifiedFloorplan,
+    quote.design.modifiedDesignM2,
+  ]);
+
   // Overlay Allowances (RHS)
   const currentBalCost =
     site.bushfireBal === "None"
@@ -194,19 +220,48 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       ? Number(site.bushfireCost)
       : tailoredBushfireBreakdown.totalCost;
 
-  // Auto-sync bushfireCost when design or GFA changes while a BAL rating is active
+  const currentAcousticCost =
+    site.acousticTier === "None"
+      ? 0
+      : site.acousticCost !== undefined &&
+        site.acousticCost !== null &&
+        !isNaN(Number(site.acousticCost)) &&
+        Number(site.acousticCost) > 0
+      ? Number(site.acousticCost)
+      : tailoredAcousticBreakdown.totalCost;
+
+  // Auto-sync bushfireCost & acousticCost when design or GFA changes while an allowance is active
   const lastDesignKeyRef = useRef(`${quote.design.designName}_${gfaM2}`);
   useEffect(() => {
     const currentKey = `${quote.design.designName}_${gfaM2}`;
     if (lastDesignKeyRef.current !== currentKey) {
       lastDesignKeyRef.current = currentKey;
+      const patch: Partial<SiteConditions> = {};
       if (site.bushfireBal && site.bushfireBal !== "None" && site.bushfireBal !== "BAL-LOW") {
         if (site.bushfireCost !== tailoredBushfireBreakdown.totalCost) {
-          onSiteChange({ bushfireCost: tailoredBushfireBreakdown.totalCost });
+          patch.bushfireCost = tailoredBushfireBreakdown.totalCost;
         }
       }
+      if (site.acousticTier && site.acousticTier !== "None") {
+        if (site.acousticCost !== tailoredAcousticBreakdown.totalCost) {
+          patch.acousticCost = tailoredAcousticBreakdown.totalCost;
+        }
+      }
+      if (Object.keys(patch).length > 0) {
+        onSiteChange(patch);
+      }
     }
-  }, [quote.design.designName, gfaM2, site.bushfireBal, site.bushfireCost, tailoredBushfireBreakdown.totalCost, onSiteChange]);
+  }, [
+    quote.design.designName,
+    gfaM2,
+    site.bushfireBal,
+    site.bushfireCost,
+    tailoredBushfireBreakdown.totalCost,
+    site.acousticTier,
+    site.acousticCost,
+    tailoredAcousticBreakdown.totalCost,
+    onSiteChange,
+  ]);
 
   const slabHeight = site.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
@@ -215,7 +270,6 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         ? site.floodOverlayCost
         : calculatedSlabCost)
     : 0;
-  const currentAcousticCost = getAcousticCost(site.acousticTier, isDouble);
 
   const totalAllowancesCost = currentBalCost + floodCost + currentAcousticCost;
 
@@ -295,8 +349,16 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   };
 
   const handleAcousticChange = (tier: (typeof ACOUSTIC_TIERS)[number]["id"]) => {
-    const cost = getAcousticCost(tier, isDouble);
-    onSiteChange({ acousticTier: tier, acousticCost: cost });
+    const tailored = calculateTailoredAcousticCost({
+      tier,
+      designName: quote.design.designName,
+      housingType: quote.design.housingType,
+      gfaM2,
+      isDoubleStorey: isDouble,
+      isModifiedPlan: quote.design.isModifiedFloorplan,
+      modifiedM2: quote.design.modifiedDesignM2,
+    });
+    onSiteChange({ acousticTier: tier, acousticCost: tailored.totalCost });
   };
 
   const handleCouncilChange = (region: string) => {
@@ -1035,7 +1097,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         </div>
 
         {/* ROW 3: ACOUSTIC PAIR */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
           {/* Acoustic Report (LHS - $1,200) */}
           <div
             onClick={() => onSiteChange({ acousticReportRequired: !site.acousticReportRequired })}
@@ -1054,32 +1116,235 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </span>
           </div>
 
-          {/* Acoustic Attenuation Package (RHS) */}
-          <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
-            <Label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5 min-w-0">
-              <Volume2 className="h-3.5 w-3.5 text-indigo-400 flex-none" />
-              <span className="truncate">Acoustic Attenuation Package</span>
-            </Label>
-            <div className="flex items-center gap-2 flex-none">
-              <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
-                <SelectTrigger className="border-slate-800 bg-slate-950 text-xs text-slate-200 h-8 w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                  {ACOUSTIC_TIERS.map((a) => {
-                    const cost = getAcousticCost(a.id, isDouble);
-                    return (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              <span className="text-xs font-mono font-bold text-indigo-400 min-w-16 text-right">
-                {currentAcousticCost === 0 ? "($0)" : `+${formatAud(currentAcousticCost)}`}
-              </span>
+          {/* Acoustic Attenuation Allowance (RHS) */}
+          <div
+            className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2 ${
+              site.acousticTier !== "None"
+                ? "border-indigo-500/60 bg-indigo-950/20 ring-1 ring-indigo-500/40 shadow-sm"
+                : isLight
+                ? "border-slate-200 bg-white"
+                : "border-slate-800 bg-slate-900/60"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2.5">
+              <div className="min-w-0 flex-1">
+                <Label className={`text-xs font-semibold flex items-center gap-1.5 min-w-0 ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                  <Volume2 className="h-3.5 w-3.5 text-indigo-400 flex-none" />
+                  <span className="whitespace-nowrap">Acoustic Attenuation Allowance</span>
+                  {quote.design.isModifiedFloorplan && site.acousticTier !== "None" && (
+                    <span className="text-[10px] bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-mono font-bold">
+                      Modified Scaled
+                    </span>
+                  )}
+                </Label>
+                {site.acousticTier !== "None" && (
+                  <p className={`text-[11px] truncate mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Tailored to {quote.design.designName || "Amber 21"} ({Math.round(gfaM2)}m²): {tailoredAcousticBreakdown.windowCount} windows &amp; {tailoredAcousticBreakdown.doorCount} doors ({tailoredAcousticBreakdown.totalWindowAreaM2}m² glass)
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-none">
+                <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
+                  <SelectTrigger className={`text-xs h-8 w-36 ${isLight ? "border-slate-300 bg-slate-50 text-slate-900" : "border-slate-800 bg-slate-950 text-slate-200"}`}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"}>
+                    {ACOUSTIC_TIERS.map((a) => {
+                      const cost = calculateTailoredAcousticCost({
+                        tier: a.id,
+                        designName: quote.design.designName,
+                        housingType: quote.design.housingType,
+                        gfaM2,
+                        isDoubleStorey: isDouble,
+                        isModifiedPlan: quote.design.isModifiedFloorplan,
+                        modifiedM2: quote.design.modifiedDesignM2,
+                      }).totalCost;
+                      return (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                <span className="text-xs font-mono font-bold text-indigo-400 min-w-16 text-right">
+                  {currentAcousticCost === 0 ? "($0)" : `+${formatAud(currentAcousticCost)}`}
+                </span>
+              </div>
             </div>
+
+            {site.acousticTier !== "None" && (
+              <div className="pt-2 border-t border-indigo-500/20 flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAcousticBreakdown((prev) => !prev)}
+                    className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {showAcousticBreakdown ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    {showAcousticBreakdown ? "Hide Sizing & Specification Breakdown" : "View Sizing & AS/NZS 2107 Breakdown"}
+                  </button>
+
+                  <div className="flex items-center gap-1.5">
+                    {site.acousticCost !== undefined && site.acousticCost !== tailoredAcousticBreakdown.totalCost && (
+                      <button
+                        type="button"
+                        onClick={() => onSiteChange({ acousticCost: tailoredAcousticBreakdown.totalCost })}
+                        className="text-[10px] text-indigo-500 hover:text-indigo-400 flex items-center gap-1 font-mono font-semibold"
+                        title="Reset to exact tailored calculation"
+                      >
+                        <RotateCcw className="h-3 w-3" /> Reset ({formatAud(tailoredAcousticBreakdown.totalCost)})
+                      </button>
+                    )}
+                    <span className="text-[10px] text-slate-400">
+                      {tailoredAcousticBreakdown.windowCount} Win ({formatAud(tailoredAcousticBreakdown.windowsCost)}) • {tailoredAcousticBreakdown.doorCount} Doors ({formatAud(tailoredAcousticBreakdown.doorsCost)})
+                    </span>
+                  </div>
+                </div>
+
+                {showAcousticBreakdown && (
+                  <div className={`p-3 rounded-lg border text-xs space-y-3 mt-1 ${isLight ? "bg-indigo-50/60 border-indigo-200 text-slate-800" : "bg-slate-950/80 border-slate-800 text-slate-300"}`}>
+                    <div className="flex items-center justify-between pb-2 border-b border-indigo-500/20">
+                      <span className="font-bold flex items-center gap-1 text-indigo-600 dark:text-indigo-400">
+                        <Volume2 className="h-3.5 w-3.5" />
+                        AS/NZS 2107 &amp; QDC MP 4.4 {site.acousticTier} Architectural Breakdown
+                      </span>
+                      <span className="text-[11px] font-mono text-slate-500">
+                        {quote.design.designName || "Amber 21"} ({Math.round(gfaM2)}m² {quote.design.housingType})
+                      </span>
+                    </div>
+
+                    {/* Window Acoustic Glazing List */}
+                    <div>
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-indigo-600 dark:text-indigo-400">
+                          1. Certified Acoustic Glazing Upgrade ({tailoredAcousticBreakdown.windowCount} Windows, {tailoredAcousticBreakdown.totalWindowAreaM2}m² glass)
+                        </span>
+                        <span className="font-mono font-bold text-indigo-400">+{formatAud(tailoredAcousticBreakdown.windowsCost)}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mb-1.5">
+                        {site.acousticTier === "Category 3"
+                          ? "Acoustic Double Glazing (Rw 40+ dB) with acoustic subframes & commercial acoustic perimeter seals."
+                          : site.acousticTier === "Category 2"
+                          ? "10.38mm Heavy Acoustic laminated glass (Rw 36 dB) with high-density mohair pile & acoustic wet-bedding."
+                          : "6.38mm Acoustic Laminated safety glass (Rw 33 dB) with perimeter acoustic sealant to all openable sashes."}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
+                        {tailoredAcousticBreakdown.windowItems.map((win, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-1.5 rounded-md flex items-center justify-between text-[11px] gap-1.5 ${
+                              isLight ? "bg-white border border-indigo-200/80 shadow-xs" : "bg-slate-900 border border-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono font-bold text-[10px] shrink-0">
+                                {win.no}
+                              </span>
+                              <span className="font-bold font-mono text-slate-800 dark:text-slate-200 whitespace-nowrap shrink-0">
+                                {win.displayCode || win.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400 truncate">
+                                ({win.heightMm}×{win.widthMm}, {win.glassAreaM2}m²){win.isUpperStorey ? " Upper" : ""}
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 ml-1 shrink-0">
+                              +{formatAud(win.glazingCost)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* External Doors & Drop Seals */}
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-indigo-600 dark:text-indigo-400">
+                          2. Acoustic Door Seals &amp; Sound-Rated Closures ({tailoredAcousticBreakdown.doorCount} Openings)
+                        </span>
+                        <span className="font-mono font-bold text-indigo-400">+{formatAud(tailoredAcousticBreakdown.doorsCost)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {tailoredAcousticBreakdown.doorItems.map((door, idx) => (
+                          <div
+                            key={idx}
+                            className={`p-1.5 rounded-md flex items-center justify-between text-[11px] gap-2 ${
+                              isLight ? "bg-white border border-indigo-200/80 shadow-xs" : "bg-slate-900 border border-slate-800"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0 truncate">
+                              <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono font-bold text-[10px] flex-none">
+                                {door.no || `D${idx + 1}`}
+                              </span>
+                              <span className="font-semibold font-mono text-slate-800 dark:text-slate-200 truncate">
+                                {door.displayCode || door.code}
+                              </span>
+                              <span className="text-[10px] text-slate-400 truncate">
+                                ({door.heightMm}×{door.widthMm}mm) — {door.isSliding ? "Acoustic Sliding Interlocks" : "Drop-Down Acoustic Seal (Raven RP38)"}
+                              </span>
+                            </div>
+                            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 ml-1 flex-none">
+                              +{formatAud(door.sealCost)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Envelope Acoustic Insulation */}
+                    <div className="pt-2 border-t border-slate-700/50">
+                      <div className="flex items-center justify-between font-semibold mb-1">
+                        <span className="text-indigo-600 dark:text-indigo-400">
+                          3. Envelope Sound Insulation &amp; Mid-Floor Dampening
+                        </span>
+                        <span className="font-mono font-bold text-indigo-400">
+                          +{formatAud(tailoredAcousticBreakdown.insulationCost)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500">
+                        {Math.round(gfaM2)}m² high-density acoustic batts (R2.5–R3.5 HD) across roof and external walls{isDouble ? " + double-storey acoustic floor underlay & mid-floor acoustic cavity sound batts" : ""}.
+                      </p>
+                    </div>
+
+                    {/* Mechanical / Trickle Ventilation */}
+                    {tailoredAcousticBreakdown.ventilationCost > 0 && (
+                      <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+                        <span>
+                          {site.acousticTier === "Category 3"
+                            ? "Ducted Acoustic Fresh Air Ventilation System with Inline Silencers:"
+                            : "Sound-Attenuated Trickle Fresh-Air Bedroom Vents:"}
+                        </span>
+                        <span className="font-mono font-bold text-indigo-400">+{formatAud(tailoredAcousticBreakdown.ventilationCost)}</span>
+                      </div>
+                    )}
+
+                    {/* Statutory Sign-Off & Total */}
+                    <div className="pt-2 border-t border-slate-700/50 flex items-center justify-between text-[11px]">
+                      <span>Statutory Form 15/16 Acoustic Engineering Certification:</span>
+                      <span className="font-mono font-bold text-indigo-400">+{formatAud(tailoredAcousticBreakdown.certificationCost)}</span>
+                    </div>
+
+                    {/* Custom Override Option */}
+                    <div className="pt-2 border-t border-indigo-500/20 flex items-center justify-between gap-3">
+                      <Label className="text-[11px] text-slate-500">
+                        Custom Allowance Override ($):
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="50"
+                          value={site.acousticCost ?? tailoredAcousticBreakdown.totalCost}
+                          onChange={(e) => onSiteChange({ acousticCost: Math.max(0, Number(e.target.value)) })}
+                          className={`h-7 w-28 text-xs text-right font-mono font-bold ${
+                            isLight ? "border-slate-300 bg-white text-slate-900" : "border-slate-700 bg-slate-950 text-indigo-400"
+                          }`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
