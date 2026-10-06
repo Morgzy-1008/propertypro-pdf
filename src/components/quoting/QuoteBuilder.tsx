@@ -42,6 +42,9 @@ import {
   calculateModifiedFloorplanPricing,
   getAutomatedPromotionDiscount,
   rehydrateAndRecalculateQuote,
+  isDoubleStoreyDesign,
+  calculateDesignGFA,
+  calculateTailoredBushfireCost,
 } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
@@ -430,7 +433,38 @@ export function QuoteBuilder() {
 
   const handleDesignChange = (patch: Partial<FullQuote["design"]>) => {
     const updatedDesign = { ...quote.design, ...patch };
-    updateQuote({ design: updatedDesign });
+    let updatedSite = quote.siteConditions;
+
+    const designChanged =
+      (patch.designName !== undefined && patch.designName !== quote.design.designName) ||
+      (patch.designM2 !== undefined && patch.designM2 !== quote.design.designM2) ||
+      (patch.housingType !== undefined && patch.housingType !== quote.design.housingType) ||
+      (patch.isModifiedFloorplan !== undefined && patch.isModifiedFloorplan !== quote.design.isModifiedFloorplan);
+
+    if (designChanged && updatedSite.bushfireBal && updatedSite.bushfireBal !== "None" && updatedSite.bushfireBal !== "BAL-LOW") {
+      const isDouble = isDoubleStoreyDesign(
+        updatedDesign.designName,
+        updatedDesign.housingType,
+        updatedDesign.customSpec?.storeys
+      );
+      const nextGfa = calculateDesignGFA(updatedDesign);
+      const nextBalCost = calculateTailoredBushfireCost({
+        bal: updatedSite.bushfireBal,
+        designName: updatedDesign.designName,
+        housingType: updatedDesign.housingType,
+        gfaM2: nextGfa,
+        isDoubleStorey: isDouble,
+        isModifiedPlan: updatedDesign.isModifiedFloorplan,
+        modifiedM2: updatedDesign.modifiedDesignM2,
+      }).totalCost;
+
+      updatedSite = {
+        ...updatedSite,
+        bushfireCost: nextBalCost,
+      };
+    }
+
+    updateQuote({ design: updatedDesign, siteConditions: updatedSite });
   };
 
   const handleSiteChange = (patch: Partial<FullQuote["siteConditions"]>) => {

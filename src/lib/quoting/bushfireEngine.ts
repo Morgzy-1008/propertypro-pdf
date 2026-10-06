@@ -281,7 +281,16 @@ export function calculateTailoredBushfireCost(options: {
     modifiedM2,
   } = options;
 
-  const effectiveGfa = (isModifiedPlan && modifiedM2 && modifiedM2 > 0) ? modifiedM2 : Math.max(80, gfaM2);
+  const effectiveGfa =
+    gfaM2 && gfaM2 > 0
+      ? Math.max(80, gfaM2)
+      : isModifiedPlan && modifiedM2 && modifiedM2 > 0
+      ? isDoubleStorey
+        ? Math.round(modifiedM2 * 0.55)
+        : modifiedM2
+      : isDoubleStorey
+      ? 280
+      : 200;
 
   // Return $0 for BAL-LOW or None
   if (!bal || bal === "None" || bal === "BAL-LOW" || (bal as string) === "BAL-Low") {
@@ -582,7 +591,6 @@ export function getBushfireCost(
 
   let designName = "Hudson Design";
   let housingType = isDoubleStorey ? "Double Storey" : "Single Storey";
-  let effectiveGfa = gfaM2 || (isDoubleStorey ? 280 : 200);
   let isModified = false;
   let modifiedM2: number | undefined;
 
@@ -591,9 +599,28 @@ export function getBushfireCost(
     housingType = designOrName.housingType || housingType;
     isModified = Boolean(designOrName.isModifiedFloorplan);
     modifiedM2 = designOrName.modifiedDesignM2;
-    effectiveGfa = designOrName.modifiedDesignM2 || designOrName.designM2 || effectiveGfa;
   } else if (typeof designOrName === "string") {
     designName = designOrName;
+  }
+
+  const isDbl =
+    isDoubleStorey ||
+    housingType === "Double Storey" ||
+    housingType === "Split Level" ||
+    (typeof designOrName === "object" && (designOrName as any).customSpec?.storeys === "double");
+
+  // Determine effective GFA: ALWAYS prioritize passed gfaM2
+  let effectiveGfa = gfaM2 && gfaM2 > 0 ? gfaM2 : undefined;
+  if (!effectiveGfa) {
+    if (designOrName && typeof designOrName === "object") {
+      if (designOrName.designM2) {
+        effectiveGfa = isDbl ? Math.round(designOrName.designM2 * 0.55) : designOrName.designM2;
+      } else {
+        effectiveGfa = isDbl ? 280 : 200;
+      }
+    } else {
+      effectiveGfa = isDbl ? 280 : 200;
+    }
   }
 
   const breakdown = calculateTailoredBushfireCost({
@@ -601,7 +628,7 @@ export function getBushfireCost(
     designName,
     housingType,
     gfaM2: effectiveGfa,
-    isDoubleStorey,
+    isDoubleStorey: isDbl,
     isModifiedPlan: isModified,
     modifiedM2,
   });

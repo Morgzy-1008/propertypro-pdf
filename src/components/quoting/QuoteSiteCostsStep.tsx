@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Compass,
   Flame,
@@ -193,6 +193,21 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
         Number(site.bushfireCost) > 0
       ? Number(site.bushfireCost)
       : tailoredBushfireBreakdown.totalCost;
+
+  // Auto-sync bushfireCost when design or GFA changes while a BAL rating is active
+  const lastDesignKeyRef = useRef(`${quote.design.designName}_${gfaM2}`);
+  useEffect(() => {
+    const currentKey = `${quote.design.designName}_${gfaM2}`;
+    if (lastDesignKeyRef.current !== currentKey) {
+      lastDesignKeyRef.current = currentKey;
+      if (site.bushfireBal && site.bushfireBal !== "None" && site.bushfireBal !== "BAL-LOW") {
+        if (site.bushfireCost !== tailoredBushfireBreakdown.totalCost) {
+          onSiteChange({ bushfireCost: tailoredBushfireBreakdown.totalCost });
+        }
+      }
+    }
+  }, [quote.design.designName, gfaM2, site.bushfireBal, site.bushfireCost, tailoredBushfireBreakdown.totalCost, onSiteChange]);
+
   const slabHeight = site.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
   const floodCost = site.floodOverlayRequired
@@ -726,7 +741,15 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                   </SelectTrigger>
                   <SelectContent className={isLight ? "border-slate-200 bg-white text-slate-900" : "border-slate-800 bg-slate-900 text-slate-200"}>
                     {BUSHFIRE_LEVELS.map((b) => {
-                      const cost = getBushfireCost(b.id, isDouble, quote.design, gfaM2);
+                      const cost = calculateTailoredBushfireCost({
+                        bal: b.id,
+                        designName: quote.design.designName,
+                        housingType: quote.design.housingType,
+                        gfaM2,
+                        isDoubleStorey: isDouble,
+                        isModifiedPlan: quote.design.isModifiedFloorplan,
+                        modifiedM2: quote.design.modifiedDesignM2,
+                      }).totalCost;
                       return (
                         <SelectItem key={b.id} value={b.id}>
                           {b.id} {cost > 0 ? `(+${formatAud(cost)})` : "($0)"}
