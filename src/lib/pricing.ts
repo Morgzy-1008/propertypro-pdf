@@ -75,9 +75,20 @@ export function getPriceLists(division?: Division): Record<HousingType, PriceRow
   return div === "NSW" ? NSW_PRICE_LISTS : QLD_PRICE_LISTS;
 }
 
-export function designsFor(type: HousingType, division?: Division): PriceRow[] {
+export function normalizeHousingType(type?: string | null): HousingType {
+  if (!type) return "single-storey";
+  const s = String(type).trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (s.includes("double") || s.includes("2-storey") || s.includes("two-storey")) return "double-storey";
+  if (s.includes("split")) return "split-level";
+  if (s.includes("dual") || s.includes("duplex")) return "dual-oc";
+  if (s.includes("acreage") || s.includes("mulberry")) return "acreage";
+  return "single-storey";
+}
+
+export function designsFor(type: string, division?: Division): PriceRow[] {
   const lists = getPriceLists(division);
-  return lists[type] ?? [];
+  const normalized = normalizeHousingType(type);
+  return lists[normalized] ?? [];
 }
 
 export function normalizeDesignLookup(str: string): string {

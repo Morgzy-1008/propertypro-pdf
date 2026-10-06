@@ -4,6 +4,8 @@ import { resolveUpdatedFacadeRender } from "@/components/flyer/FlyerTemplates";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findFacadeForDesign, isNarrowDoubleStorey } from "@/lib/quoting/facadeLookup";
 import { getHudsonDimensions } from "@/lib/hudsonDimensions.data";
+import { normalizeHousingType, parseAud, findDesign } from "@/lib/pricing";
+import { defaultCosts, costsTotal } from "@/lib/additionalCosts";
 
 /**
  * Builds a clean, canonical address string:
@@ -73,22 +75,30 @@ export function buildCanonicalAddress(params: {
  * Auto-resolves missing floorplans and facades so the flyer is never blank.
  */
 export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
-  const existingFlyer = ((p.flyer_data || p.flyer_json) && typeof (p.flyer_data || p.flyer_json) === "object"
-    ? (p.flyer_data || p.flyer_json)
-    : {}) as Partial<FlyerData>;
+  let existingFlyer = (p.flyer_data || p.flyer_json) as any;
+  if (typeof existingFlyer === "string") {
+    try {
+      existingFlyer = JSON.parse(existingFlyer);
+    } catch {
+      existingFlyer = {};
+    }
+  }
+  if (!existingFlyer || typeof existingFlyer !== "object") {
+    existingFlyer = {};
+  }
 
   // Attempt to recover lot from local storage if not provided
   let resolvedLot = lot;
   if (!resolvedLot && typeof window !== "undefined") {
     try {
       const localLots = getLocalLots();
-      const candidateId = p.lot_id || (existingFlyer as any)?.lotId || (existingFlyer as any)?.lot_id;
+      const candidateId = p.lot_id || existingFlyer.lotId || existingFlyer.lot_id;
       if (candidateId) {
         resolvedLot = localLots.find((l) => l.id === candidateId) || null;
       }
       if (!resolvedLot) {
-        const est = ((p as any).estate || (existingFlyer as any)?.estate || "").toLowerCase().trim();
-        const rawLotNo = String((existingFlyer as any)?.lot_number || (existingFlyer as any)?.lotNumber || "").toLowerCase().replace(/^lot\s*/i, "").trim();
+        const est = ((p as any).estate || existingFlyer.estate || "").toLowerCase().trim();
+        const rawLotNo = String(existingFlyer.lot_number || existingFlyer.lotNumber || "").toLowerCase().replace(/^lot\s*/i, "").trim();
         if (est && rawLotNo) {
           resolvedLot = localLots.find((l) => {
             const lNum = String(l.lot_number || "").toLowerCase().replace(/^lot\s*/i, "").trim();
@@ -104,8 +114,8 @@ export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
 
   const lotNum =
     resolvedLot?.lot_number ||
-    (existingFlyer as any)?.lot_number ||
-    (existingFlyer as any)?.lotNumber ||
+    existingFlyer.lot_number ||
+    existingFlyer.lotNumber ||
     "";
 
   // Prefer the file's actual street address if available, falling back to existingFlyer.address
@@ -121,10 +131,75 @@ export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
 
   const stateVal = (p.state || (resolvedLot ? getLotState(resolvedLot) : existingFlyer.state) || "QLD") as "QLD" | "NSW";
 
-  const priceVal =
-    p.total_price != null
-      ? `$${Number(p.total_price).toLocaleString()}`
-      : existingFlyer.price || "$0";
+  // Resolve Design Name cleanly (strip off any estate or lot suffix like "Jasper 26 · Park Ridge" -> "Jasper 26")
+  const rawDesign = existingFlyer.designName || p.design || p.name || "Jasper 26";
+  let designName = rawDesign.split(/\s+[·•\-–]\s+/)[0].trim() || rawDesign;
+  const matchedPriceRow = findDesign(designName, stateVal);
+  if (matchedPriceRow) {
+    designName = matchedPriceRow.name;
+  }
+
+  // Resolve Housing Type (normalize to single-storey, double-storey, split-level, etc.)
+  const rawHousingType = existingFlyer.housingType || p.housing_type || "single-storey";
+  const housingType = normalizeHousingType(rawHousingType);
+
+  // 1. Auto-resolve Floorplan
+  const plans = plansForDesign(designName);
+  const defaultPlan = plans[0];
+
+  let floorplanUrl = existingFlyer.floorplanUrl || (p as any).floorplan_url || "";
+  let floorplanName =
+    existingFlyer.floorplanName ||
+    (p as any).floorplan_name ||
+    defaultPlan?.label ||
+    designName;
+  let floorplanSize = existingFlyer.floorplanSize
+    ? String(existingFlyer.floorplanSize).replace(/[^\d.]/g, "")
+    : p.floorplan_size
+      ? String(p.floorplan_size).replace(/[^\d.]/g, "")
+      : defaultPlan?.size || "";
+
+  if (plans.length > 0) {
+    const matchedPlan = plans.find(
+      (pl) => pl.label.toLowerCase() === floorplanName.toLowerCase() ||
+              pl.url === floorplanUrl ||
+              pl.label.toLowerCase().includes(floorplanName.toLowerCase()) ||
+              floorplanName.toLowerCase().includes(pl.label.toLowerCase())
+    ) || defaultPlan;
+
+    if (!floorplanUrl) floorplanUrl = matchedPlan.url;
+    if (!floorplanName || floorplanName === "Floorplan") floorplanName = matchedPlan.label;
+    if (!floorplanSize) floorplanSize = matchedPlan.size;
+  }
+
+  const bedsVal = p.beds ? String(p.beds) : existingFlyer.beds || defaultPlan?.beds || "4";
+  const bathsVal = p.baths ? String(p.baths) : existingFlyer.baths || defaultPlan?.baths || "2";
+  const carsVal = p.cars ? String(p.cars) : existingFlyer.cars || defaultPlan?.cars || "2";
+
+  // 2. Auto-resolve Facade
+  const isDouble =
+    housingType === "double-storey" ||
+    isNarrowDoubleStorey(designName);
+
+  let facadeName = existingFlyer.facadeName || p.facade_name || "Classic";
+  let rawFacadeUrl = existingFlyer.rawFacadeUrl || existingFlyer.facadeUrl || (p as any).facade_url || "";
+  let facadeId = existingFlyer.facadeId || (p as any).facade_id || "";
+  let facadeUrl = resolveUpdatedFacadeRender(rawFacadeUrl);
+
+  if (!facadeUrl) {
+    const resolvedFacade = findFacadeForDesign(facadeName, isDouble, housingType, designName);
+    if (resolvedFacade?.url) {
+      facadeUrl = resolveUpdatedFacadeRender(resolvedFacade.url);
+      rawFacadeUrl = resolvedFacade.originalUrl || resolvedFacade.url;
+      facadeName = resolvedFacade.name || facadeName;
+      facadeId = resolvedFacade.id || facadeId;
+    }
+  }
+
+  // 3. House Dimensions
+  const dim = getHudsonDimensions(floorplanName) || getHudsonDimensions(designName);
+  const houseWidthM = dim ? dim.width : (existingFlyer.houseWidthM || (defaultPlan?.houseWidth ? parseFloat(defaultPlan.houseWidth) : undefined));
+  const houseLengthM = dim ? dim.length : (existingFlyer.houseLengthM || (defaultPlan?.houseLength ? parseFloat(defaultPlan.houseLength) : undefined));
 
   const housePriceVal =
     p.house_price != null
@@ -138,57 +213,15 @@ export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
         ? `$${Number(resolvedLot.land_price).toLocaleString()}`
         : existingFlyer.landPrice || "$0";
 
-  const designName = p.name || p.design || existingFlyer.designName || "Jasper 26";
-  const plans = plansForDesign(designName);
-  const defaultPlan = plans[0];
+  const resolvedCosts = existingFlyer.costs || defaultCosts(housingType);
+  const costsSum = costsTotal(resolvedCosts);
 
-  // 1. Auto-resolve Floorplan
-  let floorplanUrl = (p as any).floorplan_url || existingFlyer.floorplanUrl || "";
-  let floorplanName =
-    (existingFlyer as any)?.floorplanName ||
-    (p as any).floorplan_name ||
-    defaultPlan?.label ||
-    p.design ||
-    p.name ||
-    "Floorplan";
-  let floorplanSize = p.floorplan_size
-    ? String(p.floorplan_size).replace(/[^\d.]/g, "")
-    : existingFlyer.floorplanSize || defaultPlan?.size || "";
-
-  if (!floorplanUrl && defaultPlan) {
-    floorplanUrl = defaultPlan.url;
-    if (!floorplanName || floorplanName === "Floorplan") floorplanName = defaultPlan.label;
-    if (!floorplanSize) floorplanSize = defaultPlan.size;
-  }
-
-  const bedsVal = p.beds ? String(p.beds) : existingFlyer.beds || defaultPlan?.beds || "4";
-  const bathsVal = p.baths ? String(p.baths) : existingFlyer.baths || defaultPlan?.baths || "2";
-  const carsVal = p.cars ? String(p.cars) : existingFlyer.cars || defaultPlan?.cars || "2";
-
-  // 2. Auto-resolve Facade
-  const housingType = p.housing_type || existingFlyer.housingType || "Single Storey";
-  const isDouble =
-    housingType.toLowerCase().includes("double") ||
-    housingType.toLowerCase().includes("2-storey") ||
-    isNarrowDoubleStorey(designName);
-
-  let facadeName = p.facade_name || existingFlyer.facadeName || "Classic";
-  let rawFacadeUrl = existingFlyer.rawFacadeUrl || existingFlyer.facadeUrl || (p as any).facade_url || "";
-  let facadeUrl = resolveUpdatedFacadeRender(rawFacadeUrl);
-
-  if (!facadeUrl) {
-    const resolvedFacade = findFacadeForDesign(facadeName, isDouble, housingType, designName);
-    if (resolvedFacade?.url) {
-      facadeUrl = resolveUpdatedFacadeRender(resolvedFacade.url);
-      rawFacadeUrl = resolvedFacade.originalUrl || resolvedFacade.url;
-      facadeName = resolvedFacade.name || facadeName;
-    }
-  }
-
-  // 3. House Dimensions
-  const dim = getHudsonDimensions(floorplanName) || getHudsonDimensions(designName);
-  const houseWidthM = dim ? dim.width : (existingFlyer.houseWidthM || (defaultPlan?.houseWidth ? parseFloat(defaultPlan.houseWidth) : undefined));
-  const houseLengthM = dim ? dim.length : (existingFlyer.houseLengthM || (defaultPlan?.houseLength ? parseFloat(defaultPlan.houseLength) : undefined));
+  const priceVal =
+    p.total_price != null
+      ? `$${Number(p.total_price).toLocaleString()}`
+      : existingFlyer.price || (parseAud(housePriceVal) > 0 || parseAud(landPriceVal) > 0
+          ? `$${(parseAud(housePriceVal) + parseAud(landPriceVal) + costsSum).toLocaleString()}`
+          : "$0");
 
   return {
     ...defaultFlyer,
@@ -215,11 +248,14 @@ export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
     baths: bathsVal,
     cars: carsVal,
     facadeName,
+    facadeId,
     facadeUrl,
     rawFacadeUrl: rawFacadeUrl || facadeUrl,
     floorplanUrl,
     range: (p.range_id || existingFlyer.range || "designer") as any,
     headline: existingFlyer.headline || "FIXED PRICE HOME & LAND PACKAGE",
     inclusions: existingFlyer.inclusions || defaultFlyer.inclusions,
+    costs: resolvedCosts,
+    landscaping: existingFlyer.landscaping ?? false,
   };
 }

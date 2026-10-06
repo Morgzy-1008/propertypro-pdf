@@ -32,6 +32,10 @@ export interface Pkg {
   design: string;
   range_id: string;
   facade_name: string | null;
+  facade_id?: string | null;
+  facade_url?: string | null;
+  floorplan_url?: string | null;
+  floorplan_name?: string | null;
   house_price: number | null;
   land_price: number | null;
   total_price: number | null;
@@ -427,13 +431,19 @@ export function sanitizePackageForStorage(p: Pkg): Pkg {
     }
     flyer = copy;
   }
-  const facadeUrl = (p as any).facade_url;
+  const facadeUrl = p.facade_url || (flyer as any)?.facadeUrl;
+  const floorplanUrl = p.floorplan_url || (flyer as any)?.floorplanUrl;
+  const floorplanName = p.floorplan_name || (flyer as any)?.floorplanName;
+  const facadeId = p.facade_id || (flyer as any)?.facadeId;
   return {
     ...p,
     id: isValidUuid(p.id) ? p.id : (toValidUuid(p.id) || generateUuid()),
     lot_id: p.lot_id ? (isValidUuid(p.lot_id) ? p.lot_id : toValidUuid(p.lot_id)) : null,
-    facade_name: p.facade_name || null,
+    facade_name: p.facade_name || (flyer as any)?.facadeName || null,
+    facade_id: facadeId || null,
     facade_url: typeof facadeUrl === "string" && facadeUrl.startsWith("data:") ? null : facadeUrl,
+    floorplan_url: typeof floorplanUrl === "string" && floorplanUrl.startsWith("data:") ? null : floorplanUrl,
+    floorplan_name: floorplanName || null,
     flyer_data: flyer,
     flyer_json: null, // do not duplicate flyer_data into flyer_json in local storage
   } as Pkg;

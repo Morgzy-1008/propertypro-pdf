@@ -22,7 +22,7 @@ import { SitingPlanPage } from "@/components/flyer/SitingPlanPage";
 import { SitingPlanV2 } from "@/components/flyer/SitingPlanV2";
 import { defaultFlyer, type FlyerData, type TemplateId } from "@/components/flyer/types";
 import { useFitScale } from "@/components/flyer/useFitScale";
-import { parseAud } from "@/lib/pricing";
+import { parseAud, normalizeHousingType } from "@/lib/pricing";
 import { downloadA4Pdf, buildFlyerPdfFilename } from "@/lib/downloadPdf";
 import { findConsultant, findConsultantByEmail, type Consultant } from "@/components/flyer/consultants";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
@@ -125,34 +125,48 @@ function Index() {
         patch.rawFacadeUrl = resolveUpdatedFacadeRender(patch.rawFacadeUrl || patch.facadeUrl);
       }
 
+      if (patch.housingType) {
+        patch.housingType = normalizeHousingType(patch.housingType);
+      }
+
       if (patch.designName) {
-        if (!patch.floorplanUrl) {
-          const plans = plansForDesign(patch.designName);
-          if (plans.length > 0) {
-            patch.floorplanUrl = plans[0].url;
-            if (!patch.floorplanName || patch.floorplanName === "Floorplan") {
-              patch.floorplanName = plans[0].label;
-            }
-            if (!patch.floorplanSize) {
-              patch.floorplanSize = plans[0].size;
-            }
+        const cleanDesign = patch.designName.split(/\s+[·•\-–]\s+/)[0].trim() || patch.designName;
+        patch.designName = cleanDesign;
+        const plans = plansForDesign(cleanDesign);
+        if (plans.length > 0) {
+          const matchedPlan = plans.find(
+            (pl) =>
+              (patch.floorplanName && pl.label.toLowerCase() === patch.floorplanName.toLowerCase()) ||
+              (patch.floorplanUrl && pl.url === patch.floorplanUrl) ||
+              (patch.floorplanName && pl.label.toLowerCase().includes(patch.floorplanName.toLowerCase())) ||
+              (patch.floorplanName && patch.floorplanName.toLowerCase().includes(pl.label.toLowerCase()))
+          ) || plans[0];
+
+          if (!patch.floorplanUrl) {
+            patch.floorplanUrl = matchedPlan.url;
+          }
+          if (!patch.floorplanName || patch.floorplanName === "Floorplan") {
+            patch.floorplanName = matchedPlan.label;
+          }
+          if (!patch.floorplanSize) {
+            patch.floorplanSize = matchedPlan.size;
           }
         }
         if (!patch.facadeUrl) {
           const isDouble =
-            Boolean(patch.housingType?.toLowerCase().includes("double") ||
-            patch.housingType?.toLowerCase().includes("2-storey") ||
-            isNarrowDoubleStorey(patch.designName));
+            patch.housingType === "double-storey" ||
+            isNarrowDoubleStorey(cleanDesign);
           const resolvedFacade = findFacadeForDesign(
             patch.facadeName || "Classic",
             isDouble,
-            patch.housingType || "Single Storey",
-            patch.designName
+            patch.housingType || "single-storey",
+            cleanDesign
           );
           if (resolvedFacade?.url) {
             patch.facadeUrl = resolveUpdatedFacadeRender(resolvedFacade.url);
             patch.rawFacadeUrl = resolvedFacade.originalUrl || resolvedFacade.url;
             patch.facadeName = resolvedFacade.name || patch.facadeName;
+            patch.facadeId = resolvedFacade.id || patch.facadeId;
           }
         }
       }
@@ -239,14 +253,19 @@ function Index() {
     }
 
     const finalPkgId = (finalData.packageId && isValidUuid(finalData.packageId)) ? finalData.packageId : generateUuid();
+    const cleanDesign = (finalData.designName || finalData.floorplanName || "").split(/\s+[·•\-–]\s+/)[0].trim();
     const localPkg: Pkg = {
       id: finalPkgId,
       lot_id: targetLotId || candidateLotId,
-      name: `${finalData.designName || finalData.floorplanName} · ${finalData.estate}`,
-      housing_type: finalData.housingType,
-      design: finalData.designName || finalData.floorplanName,
+      name: `${cleanDesign || finalData.floorplanName} · ${finalData.estate}`,
+      housing_type: normalizeHousingType(finalData.housingType),
+      design: cleanDesign || finalData.floorplanName,
       range_id: finalData.range,
       facade_name: finalData.facadeName || null,
+      facade_id: finalData.facadeId || null,
+      facade_url: finalData.facadeUrl || null,
+      floorplan_url: finalData.floorplanUrl || null,
+      floorplan_name: finalData.floorplanName || null,
       house_price: parseAud(finalData.housePrice) || null,
       land_price: parseAud(finalData.landPrice) || null,
       total_price: parseAud(finalData.price) || null,
@@ -258,6 +277,7 @@ function Index() {
       status: "live",
       exclusive_consultants: null,
       flyer_json: JSON.parse(JSON.stringify(finalData)),
+      flyer_data: JSON.parse(JSON.stringify(finalData)),
       needs_review: false,
       updated_at: new Date().toISOString(),
     };

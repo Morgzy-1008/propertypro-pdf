@@ -48,6 +48,8 @@ import {
   formatAud,
   housePriceFor,
   parseAud,
+  normalizeHousingType,
+  normalizeDesignLookup,
   type HousingType,
 } from "@/lib/pricing";
 import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
@@ -377,6 +379,17 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   }, []);
 
   const designs = useMemo(() => designsFor(data.housingType as HousingType, division), [data.housingType, division]);
+  const selectedDesignRow = useMemo(() => {
+    if (!data.designName) return undefined;
+    const clean = data.designName.split(/\s+[·•\-–]\s+/)[0].trim().toLowerCase();
+    const norm = normalizeDesignLookup(data.designName);
+    return designs.find(
+      (r) =>
+        r.name.toLowerCase() === clean ||
+        normalizeDesignLookup(r.name) === norm
+    );
+  }, [designs, data.designName]);
+  const designSelectValue = selectedDesignRow?.name || (data.designName ? data.designName.split(/\s+[·•\-–]\s+/)[0].trim() : "");
   const [autoFilterLand, setAutoFilterLand] = useState(true);
 
   const filteredDesigns = useMemo(() => {
@@ -417,8 +430,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
   const housePriceNum = parseAud(data.housePrice);
   const landPriceNum = parseAud(data.landPrice);
-  const totalPriceNum = (housePriceNum > 0 && landPriceNum > 0)
-    ? housePriceNum + landPriceNum
+  const costsNum = costsTotal(data.costs);
+  const totalPriceNum = (housePriceNum > 0 || landPriceNum > 0)
+    ? housePriceNum + landPriceNum + costsNum
     : parseAud(data.price);
   const hasCalculatedPrice = totalPriceNum > 0;
   const formattedTotalPrice = formatAud(totalPriceNum);
@@ -637,11 +651,14 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     activeDiv: Division = division,
   ) => {
     const house = housePriceFor(designName, range, activeDiv);
-    if (house === null) return;
-    const houseOnlyTotal = house + facadeUplift;
-    const packageTotal = houseOnlyTotal + costsTotal(costs) + parseAud(landPrice);
-    set("housePrice", formatAud(houseOnlyTotal));
-    set("price", formatAud(packageTotal));
+    const houseOnlyTotal = (house !== null ? house : parseAud(data.housePrice)) + (house !== null ? facadeUplift : 0);
+    const packageTotal = (houseOnlyTotal > 0 ? houseOnlyTotal : parseAud(data.housePrice)) + costsTotal(costs) + parseAud(landPrice);
+    if (house !== null) {
+      set("housePrice", formatAud(houseOnlyTotal));
+    }
+    if (packageTotal > 0) {
+      set("price", formatAud(packageTotal));
+    }
   };
 
   useEffect(() => {
@@ -653,6 +670,12 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   const setCost = (id: (typeof COST_FIELDS)[number]["id"], value: number) => {
     const next = { ...data.costs, [id]: value };
     set("costs", next);
+    const h = parseAud(data.housePrice);
+    const l = parseAud(data.landPrice);
+    const c = costsTotal(next);
+    if (h > 0 || l > 0) {
+      set("price", formatAud(h + l + c));
+    }
     applyPricing(data.designName, data.range, data.landPrice, uplift, next);
   };
 
@@ -777,7 +800,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
   // Auto-sync variants and auto-populate floorplan & facade if missing on mount or edit
   useEffect(() => {
     if (!data.designName) return;
-    const plans = plansForDesign(data.designName);
+    const clean = data.designName.split(/\s+[·•\-–]\s+/)[0].trim() || data.designName;
+    const plans = plansForDesign(clean);
     setVariants(plans);
 
     // If floorplan drawing URL is missing or empty, auto-apply the design's standard plan
@@ -789,8 +813,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     if (!data.facadeUrl) {
       const facade = resolveDefaultFacade(
         data.cars || (plans[0]?.cars) || "2",
-        data.housingType || "Single Storey",
-        data.designName,
+        normalizeHousingType(data.housingType),
+        clean,
         data.facadeId,
         data.facadeName || "Classic",
       );
@@ -803,13 +827,13 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     }
 
     if (!data.otherSizes || data.otherSizes.length === 0) {
-      const sizes = otherSizesForDesign(data.designName);
+      const sizes = otherSizesForDesign(clean);
       if (sizes.length > 0) {
         set("otherSizes", sizes);
         set("showOtherSizes", true);
       }
     }
-  }, [data.designName, data.floorplanUrl, data.facadeUrl]);
+  }, [data.designName, data.floorplanUrl, data.facadeUrl, data.housingType]);
 
   const selectVariant = (label: string) => {
     const plan = variants.find((v) => v.label === label);
@@ -830,6 +854,12 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       landscaping: landscapingPriceFor(v, data.housingType, data.designName),
     };
     set("costs", next);
+    const h = parseAud(data.housePrice);
+    const l = parseAud(data.landPrice);
+    const c = costsTotal(next);
+    if (h > 0 || l > 0) {
+      set("price", formatAud(h + l + c));
+    }
     applyPricing(data.designName, data.range, data.landPrice, uplift, next);
   };
 
@@ -841,10 +871,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("housePrice", v);
     const h = parseAud(v);
     const l = parseAud(data.landPrice);
-    if (h > 0 && l > 0) {
-      set("price", formatAud(h + l));
-    } else if (h > 0) {
-      set("price", formatAud(h));
+    const c = costsTotal(data.costs);
+    if (h > 0 || l > 0) {
+      set("price", formatAud(h + l + c));
     }
   };
 
@@ -860,17 +889,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     }
   }, [data.landSize, data.landFrontage, data.landDepth, set]);
 
-  // Keep total price automatically calculated whenever house price and land price are filled
+  // Keep total price automatically calculated whenever house price, land price, or costs change
   useEffect(() => {
     const h = parseAud(data.housePrice);
     const l = parseAud(data.landPrice);
-    if (h > 0 && l > 0) {
-      const totalStr = formatAud(h + l);
+    const c = costsTotal(data.costs);
+    if (h > 0 || l > 0) {
+      const totalStr = formatAud(h + l + c);
       if (data.price !== totalStr) {
         set("price", totalStr);
       }
     }
-  }, [data.housePrice, data.landPrice, data.price, set]);
+  }, [data.housePrice, data.landPrice, data.costs, data.price, set]);
 
   const toggleLandscaping = (on: boolean) => {
     set("landscaping", on);
@@ -886,6 +916,12 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           landscaping: 0,
         };
     set("costs", next);
+    const h = parseAud(data.housePrice);
+    const l = parseAud(data.landPrice);
+    const c = costsTotal(next);
+    if (h > 0 || l > 0) {
+      set("price", formatAud(h + l + c));
+    }
     applyPricing(data.designName, data.range, data.landPrice, uplift, next);
   };
 
@@ -893,8 +929,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     set("landPrice", v);
     const l = parseAud(v);
     const h = parseAud(data.housePrice);
-    if (h > 0 && l > 0) {
-      set("price", formatAud(h + l));
+    const c = costsTotal(data.costs);
+    if (h > 0 || l > 0) {
+      set("price", formatAud(h + l + c));
     }
     applyPricing(data.designName, data.range, v, uplift);
   };
@@ -1766,7 +1803,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 Total Package Price
               </div>
               <div className="text-[10px] text-slate-400">
-                House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"})
+                House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"}){costsNum > 0 ? ` + Costs (${formatAud(costsNum)})` : ""}
               </div>
             </div>
             <div className="text-right">
@@ -1790,7 +1827,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 const formatted = formatAud(num);
                 set("housePrice", formatted);
                 const l = parseAud(data.landPrice);
-                if (l > 0) set("price", formatAud(num + l));
+                const c = costsTotal(data.costs);
+                if (l > 0) set("price", formatAud(num + l + c));
               }
             }}
             placeholder="e.g. $435,900"
@@ -1805,7 +1843,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 const formatted = formatAud(num);
                 set("landPrice", formatted);
                 const h = parseAud(data.housePrice);
-                if (h > 0) set("price", formatAud(h + num));
+                const c = costsTotal(data.costs);
+                if (h > 0) set("price", formatAud(h + num + c));
                 applyPricing(data.designName, data.range, formatted, uplift);
               }
             }}
@@ -1816,7 +1855,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           <div className="space-y-1.5">
             <Label className="text-xs tracking-wide text-muted-foreground">Housing type</Label>
             <Select
-              value={data.housingType}
+              value={normalizeHousingType(data.housingType)}
               onValueChange={(v) => {
                 set("housingType", v);
                 set("designName", "");
@@ -1852,13 +1891,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs tracking-wide text-muted-foreground">Design</Label>
-            <Select value={data.designName} onValueChange={selectDesign} disabled={!designs.length}>
+            <Select value={designSelectValue} onValueChange={selectDesign} disabled={!designs.length}>
               <SelectTrigger>
                 <SelectValue
                   placeholder={designs.length ? "Select design" : "Price list coming soon"}
                 />
               </SelectTrigger>
               <SelectContent className="max-h-72">
+                {designSelectValue && !designs.some((r) => r.name === designSelectValue) && (
+                  <SelectItem key={designSelectValue} value={designSelectValue}>
+                    {designSelectValue}
+                  </SelectItem>
+                )}
                 {designs.map((row) => {
                   const p = housePriceFor(row.name, data.range, division);
                   return (
@@ -1872,7 +1916,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
           </div>
         </div>
 
-        {variants.length > 1 && (
+        {variants.length > 1 ? (
           <div className="space-y-1.5">
             <Label className="text-xs tracking-wide text-muted-foreground">Floorplan variant</Label>
             <Select value={data.floorplanName} onValueChange={selectVariant}>
@@ -1888,6 +1932,18 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
               </SelectContent>
             </Select>
           </div>
+        ) : (
+          variants.length === 1 && (
+            <div className="space-y-1 text-xs text-muted-foreground">
+              <Label className="text-xs tracking-wide text-muted-foreground">Floorplan variant</Label>
+              <div className={`px-3 py-2 rounded-lg border text-xs flex items-center justify-between ${
+                isLight ? "bg-slate-50 border-slate-200 text-slate-700" : "bg-slate-900/60 border-slate-800 text-slate-300"
+              }`}>
+                <span className="font-medium">{variants[0].label}</span>
+                <span className="text-[11px] opacity-75">{variants[0].beds}b / {variants[0].baths}b / {variants[0].cars}c ({variants[0].size} m²)</span>
+              </div>
+            </div>
+          )
         )}
 
         <Section title="Inclusions range">
