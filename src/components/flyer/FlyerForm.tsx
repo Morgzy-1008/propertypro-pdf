@@ -1317,11 +1317,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
 
         {/* Smart Detection Banner when matching partner detected but not enabled */}
         {matchedPartnerSuggestion && !data.partnerEnabled && (
-          <div className="flex items-center justify-between p-2.5 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-slate-900/60 shadow-sm">
+          <div className={`flex items-center justify-between p-2.5 rounded-xl border shadow-xs ${
+            isLight
+              ? "border-slate-200 bg-slate-50 text-slate-800"
+              : "border-slate-800 bg-slate-950/60 text-slate-200"
+          }`}>
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
-              <div className="text-xs text-amber-200">
-                Found developer partner <strong>{matchedPartnerSuggestion.name}</strong> for {data.estate || data.suburb}!
+              <Sparkles className={`w-4 h-4 shrink-0 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
+              <div className={`text-xs ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Found developer partner <strong className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>{matchedPartnerSuggestion.name}</strong> for {data.estate || data.suburb}!
               </div>
             </div>
             <button
@@ -1332,7 +1336,11 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
                 set("partnerName", matchedPartnerSuggestion.name);
                 set("partnerLogoUrl", matchedPartnerSuggestion.logoUrl);
               }}
-              className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors shadow-sm whitespace-nowrap"
+              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-xs whitespace-nowrap ${
+                isLight
+                  ? "bg-slate-900 hover:bg-slate-800 text-white"
+                  : "bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold"
+              }`}
             >
               1-Click Apply
             </button>
@@ -1789,25 +1797,39 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         title="Package"
         extra={
           hasCalculatedPrice ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-brand-gold/20 border border-brand-gold/40 text-brand-gold font-bold text-xs shadow-sm">
-              <span className="text-[10px] uppercase tracking-wider text-amber-300/80 font-medium">Total:</span>
-              <span className="text-amber-200">{formattedTotalPrice}</span>
+            <div className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full border text-xs font-semibold shadow-xs ${
+              isLight
+                ? "border-slate-200 bg-slate-50 text-slate-700"
+                : "border-slate-800 bg-slate-900 text-slate-200"
+            }`}>
+              <span className={`text-[10px] uppercase tracking-wider font-medium ${isLight ? "text-slate-500" : "text-slate-400"}`}>Total:</span>
+              <span className={`font-bold ${isLight ? "text-slate-900" : "text-amber-300"}`}>{formattedTotalPrice}</span>
             </div>
           ) : null
         }
       >
         {hasCalculatedPrice && (
-          <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-slate-900/60 p-2.5 shadow-sm">
+          <div className={`flex items-center justify-between rounded-lg border p-2.5 shadow-xs ${
+            isLight
+              ? "border-slate-200 bg-slate-50 text-slate-900"
+              : "border-slate-800 bg-slate-950/60 text-slate-100"
+          }`}>
             <div className="space-y-0.5">
-              <div className="text-[10px] font-bold tracking-wider text-amber-400 uppercase">
+              <div className={`text-[10px] font-bold tracking-wider uppercase ${
+                isLight ? "text-slate-700" : "text-slate-400"
+              }`}>
                 Total Package Price
               </div>
-              <div className="text-[10px] text-slate-400">
+              <div className={`text-[10px] ${
+                isLight ? "text-slate-500" : "text-slate-400"
+              }`}>
                 House ({data.housePrice || "$0"}) + Land ({data.landPrice || "$0"}){costsNum > 0 ? ` + Costs (${formatAud(costsNum)})` : ""}
               </div>
             </div>
             <div className="text-right">
-              <span className="text-base sm:text-lg font-extrabold text-amber-300 tracking-tight">
+              <span className={`text-base sm:text-lg font-bold tracking-tight ${
+                isLight ? "text-slate-900" : "text-slate-100"
+              }`}>
                 {formattedTotalPrice}
               </span>
             </div>
