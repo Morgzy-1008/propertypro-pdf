@@ -284,9 +284,9 @@ export function calculateTailoredBushfireCost(options: {
   const effectiveGfa = (isModifiedPlan && modifiedM2 && modifiedM2 > 0) ? modifiedM2 : Math.max(80, gfaM2);
 
   // Return $0 for BAL-LOW or None
-  if (bal === "None") {
+  if (!bal || bal === "None" || bal === "BAL-LOW" || (bal as string) === "BAL-Low") {
     return {
-      bal,
+      bal: bal || "None",
       designName,
       housingType,
       isDoubleStorey,
@@ -578,7 +578,7 @@ export function getBushfireCost(
   designOrName?: QuoteDesignSelection | string,
   gfaM2?: number
 ): number {
-  if (bal === "None") return 0;
+  if (!bal || bal === "None" || bal === "BAL-LOW" || (bal as string) === "BAL-Low") return 0;
 
   let designName = "Hudson Design";
   let housingType = isDoubleStorey ? "Double Storey" : "Single Storey";

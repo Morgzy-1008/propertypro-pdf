@@ -132,6 +132,27 @@ export function QuoteSummarySidebar({
             </div>
           )}
 
+          {pricing.secondDwellingPrice > 0 && (
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
+              <span>2nd Dwelling ({design.secondDwelling?.designName || "Auxiliary"}):</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.secondDwellingPrice)}</span>
+            </div>
+          )}
+
+          {pricing.landscapingCost > 0 && (
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
+              <span>Turnkey Landscaping Package:</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.landscapingCost)}</span>
+            </div>
+          )}
+
+          {pricing.exposedDrivewayCost > 0 && (
+            <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
+              <span>Exposed Aggregate Driveway:</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.exposedDrivewayCost)}</span>
+            </div>
+          )}
+
           {/* Conditional Category Subtotals — only rendered if amount > 0 */}
           {pricing.categorySubtotals.map((cat) => (
             <div key={cat.category} className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>

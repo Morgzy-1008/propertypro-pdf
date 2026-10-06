@@ -1295,7 +1295,7 @@ export function calculateQuotePricing(
     ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state))
     : 0;
 
-  const exposedDrivewayCost = design.exposedDrivewaySelected
+  const exposedDrivewayCost = design.exposedDrivewaySelected && !design.landscapingSelected
     ? (Number(design.exposedDrivewayCost) > 0 ? Number(design.exposedDrivewayCost) : Math.round((Number(design.exposedDrivewayM2) || 55) * 230))
     : 0;
 

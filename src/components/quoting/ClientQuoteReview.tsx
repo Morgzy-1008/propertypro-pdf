@@ -1315,6 +1315,36 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 </span>
               </div>
 
+              {/* 2nd Dwelling */}
+              {quote.pricing.secondDwellingPrice > 0 && (
+                <div className="pt-2 flex items-center justify-between text-slate-300">
+                  <span>2nd Dwelling ({quote.design.secondDwelling?.designName || "Auxiliary Home"})</span>
+                  <span className="font-mono text-slate-200">
+                    +{formatAud(quote.pricing.secondDwellingPrice)}
+                  </span>
+                </div>
+              )}
+
+              {/* Landscaping */}
+              {quote.pricing.landscapingCost > 0 && (
+                <div className="pt-2 flex items-center justify-between text-slate-300">
+                  <span>Turnkey Landscaping Package</span>
+                  <span className="font-mono text-slate-200">
+                    +{formatAud(quote.pricing.landscapingCost)}
+                  </span>
+                </div>
+              )}
+
+              {/* Driveway */}
+              {quote.pricing.exposedDrivewayCost > 0 && (
+                <div className="pt-2 flex items-center justify-between text-slate-300">
+                  <span>Exposed Aggregate Driveway</span>
+                  <span className="font-mono text-slate-200">
+                    +{formatAud(quote.pricing.exposedDrivewayCost)}
+                  </span>
+                </div>
+              )}
+
               {/* Variations */}
               {variationsTotal > 0 && (
                 <div className="pt-2 flex items-center justify-between text-slate-300">
