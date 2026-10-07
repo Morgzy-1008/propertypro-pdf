@@ -29,13 +29,33 @@ export function buildCanonicalAddress(params: {
 
   let rawAddr = (params.address || "").trim();
 
+  // Strip accidental trailing dots, ellipses, or trailing punctuation from saved flyers
+  rawAddr = rawAddr.replace(/\s*(\.{2,}|…)+/g, "").replace(/[,\s•·–-]+$/, "").trim();
+
   // If rawAddr already starts with "Lot {X}":
   if (/^lot\s+[a-z0-9\-\/]+/i.test(rawAddr)) {
     // If rawLot was provided and differs from what's in rawAddr, update the lot number prefix cleanly
     if (rawLot && !new RegExp(`^lot\\s+${rawLot}\\b`, "i").test(rawAddr)) {
-      return rawAddr.replace(/^lot\s+[a-z0-9\-\/]+\s*,?\s*/i, `${lotPrefix}, `);
+      rawAddr = rawAddr.replace(/^lot\s+[a-z0-9\-\/]+\s*,?\s*/i, `${lotPrefix}, `);
     }
-    return rawAddr;
+
+    // Check if rawAddr is ONLY the lot number (e.g. "Lot 216")
+    const isOnlyLot = /^lot\s+[a-z0-9\-\/]+[,\s]*$/i.test(rawAddr);
+    if (!isOnlyLot) {
+      // Check if it already has suburb/locality
+      const locality = [
+        params.suburb?.trim(),
+        params.state?.trim(),
+        params.postcode?.trim(),
+      ].filter(Boolean).join(" ");
+
+      if (locality && params.suburb && !rawAddr.toLowerCase().includes(params.suburb.toLowerCase().trim())) {
+        return `${rawAddr}, ${locality}`;
+      }
+      return rawAddr;
+    }
+    // If only lot number, let it fall through to combine with estate and locality below
+    rawAddr = "";
   }
 
   // If rawAddr starts with a bare number that equals rawLot (e.g. "101, ...")
@@ -45,16 +65,25 @@ export function buildCanonicalAddress(params: {
 
   // If rawAddr exists now (e.g. "14 Waratah St, Bahrs Scrub QLD 4207")
   if (rawAddr) {
-    if (lotPrefix) {
-      return `${lotPrefix}, ${rawAddr}`;
+    let combined = lotPrefix ? `${lotPrefix}, ${rawAddr}` : rawAddr;
+    const locality = [
+      params.suburb?.trim(),
+      params.state?.trim(),
+      params.postcode?.trim(),
+    ].filter(Boolean).join(" ");
+
+    if (locality && params.suburb && !combined.toLowerCase().includes(params.suburb.toLowerCase().trim())) {
+      combined = `${combined}, ${locality}`;
     }
-    return rawAddr;
+    return combined;
   }
 
-  // Fallback: build from estate / suburb / state / postcode
+  // Fallback: build from lot + estate + suburb / state / postcode
   const parts: string[] = [];
   if (lotPrefix) parts.push(lotPrefix);
-  if (params.estate && !parts.includes(params.estate.trim())) parts.push(params.estate.trim());
+  if (params.estate && !parts.some((p) => p.toLowerCase() === params.estate!.trim().toLowerCase())) {
+    parts.push(params.estate.trim());
+  }
 
   const locality = [
     params.suburb?.trim(),
@@ -62,7 +91,7 @@ export function buildCanonicalAddress(params: {
     params.postcode?.trim(),
   ].filter(Boolean).join(" ");
 
-  if (locality && !parts.some((p) => p.includes(locality))) {
+  if (locality && !parts.some((p) => p.toLowerCase().includes(locality.toLowerCase()))) {
     parts.push(locality);
   }
 

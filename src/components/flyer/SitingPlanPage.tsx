@@ -12,7 +12,7 @@ import {
   Compass,
   Sun,
 } from "lucide-react";
-import { Logo, ContactStrip, PartnerLogoBadge } from "./FlyerTemplates";
+import { Logo, ContactStrip, PartnerLogoBadge, formatFlyerDisplayAddress } from "./FlyerTemplates";
 import { type FlyerData } from "./types";
 import { computeSitingPlan, ESTATE_PRESETS } from "./sitingEngine";
 import {
@@ -350,16 +350,21 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
         <div className="gold-bar h-[1.2mm] w-full rounded-full" />
 
         {/* Address / Design Info Ribbon */}
-        <div className="navy-panel flex items-center justify-between gap-[2mm] px-[6mm] py-[1.8mm] text-brand-cream rounded-[1mm] my-[1.5mm]">
-          <div className="flex items-center gap-[2mm] text-[2.7mm]">
-            <span className="font-semibold text-brand-gold">LOT {d.lotId || "—"}</span>
-            <span>•</span>
-            <span>{d.address || "Street Address"}</span>
-          </div>
-          <div className="text-[2.7mm] font-bold tracking-[0.16em] text-brand-gold uppercase">
-            {d.designName || "Selected Design"} ({analysis.roomAreas.totalM2 || floorplanM2} m²)
-          </div>
-        </div>
+        {(() => {
+          const displayAddress = formatFlyerDisplayAddress(d);
+          return (
+            <div className="navy-panel flex items-center justify-between gap-[2mm] px-[6mm] py-[1.8mm] text-brand-cream rounded-[1mm] my-[1.5mm]">
+              <div className="flex items-center gap-[2mm] text-[2.7mm] min-w-0 flex-1">
+                <span className="font-semibold text-brand-gold flex-none">LOT {d.lotId || "—"}</span>
+                <span className="flex-none">•</span>
+                <span className="break-words leading-tight">{displayAddress}</span>
+              </div>
+              <div className="text-[2.7mm] font-bold tracking-[0.16em] text-brand-gold uppercase flex-none">
+                {d.designName || "Selected Design"} ({analysis.roomAreas.totalM2 || floorplanM2} m²)
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Main Siting Content Grid (Maximized Siting Canvas & Enriched Specs Sidebar) */}

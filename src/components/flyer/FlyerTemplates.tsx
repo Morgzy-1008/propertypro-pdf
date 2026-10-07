@@ -400,6 +400,78 @@ export function ContactStrip({ d, showTerms = true }: { d: FlyerData; showTerms?
   );
 }
 
+/**
+ * Resolves a 100% complete, unclipped address string for flyer banners and ribbons.
+ * Sanitizes legacy trailing ellipses/dots, restores cut-off estate fragments,
+ * harmonizes Lot, Street, Estate, and Locality (Suburb + State),
+ * and prevents ugly duplicate punctuation or dangling commas.
+ */
+export function formatFlyerDisplayAddress(d: FlyerData): string {
+  let raw = (d.address || "").trim();
+
+  // 1. Strip trailing dots, ellipses, and trailing punctuation (from legacy downloads or truncated imports)
+  raw = raw.replace(/\s*(\.{2,}|…)+/g, "").replace(/[,\s•·–-]+$/, "").trim();
+
+  const estate = (d.estate || "").trim();
+  const suburb = (d.suburb || "").trim();
+  const state = (d.state || "").trim();
+
+  // If address has an incomplete estate fragment (e.g. "Lot 216, • Millfield Ri"), restore it to the full estate name
+  if (estate && raw.toLowerCase().includes(estate.toLowerCase().slice(0, 10)) && !raw.toLowerCase().includes(estate.toLowerCase())) {
+    const estatePrefix = estate.slice(0, Math.min(10, estate.length));
+    const idx = raw.toLowerCase().indexOf(estatePrefix.toLowerCase());
+    if (idx !== -1) {
+      raw = raw.slice(0, idx) + estate;
+    }
+  }
+
+  // 2. Fallback if empty
+  if (!raw && !estate && !suburb) {
+    return "Street Address";
+  }
+
+  // 3. Check if raw is only a lot number (e.g. "Lot 216" or "Lot 216," or matches lot pattern)
+  const isOnlyLot = /^lot\s+[a-z0-9\-\/]+[,\s]*$/i.test(raw) || !raw;
+  const lotPart = isOnlyLot
+    ? (raw || (d.lotId ? `Lot ${d.lotId}` : ""))
+    : raw;
+
+  const locality = [suburb, state].filter(Boolean).join(" ");
+
+  if (isOnlyLot) {
+    const parts: string[] = [];
+    if (lotPart) parts.push(lotPart);
+    if (estate && !parts.some((p) => p.toLowerCase().includes(estate.toLowerCase()))) {
+      parts.push(estate);
+    }
+    if (locality && !parts.some((p) => p.toLowerCase().includes(suburb.toLowerCase()))) {
+      parts.push(locality);
+    }
+    return parts.join(" • ") || "Street Address";
+  }
+
+  // If raw has street address:
+  let result = raw;
+  const rawLower = raw.toLowerCase();
+
+  // Attach estate if not already in address
+  if (estate && !rawLower.includes(estate.toLowerCase())) {
+    result = `${result} • ${estate}`;
+  }
+
+  // Attach suburb/state locality if not already in address or estate
+  if (locality && suburb && !rawLower.includes(suburb.toLowerCase()) && !estate.toLowerCase().includes(suburb.toLowerCase())) {
+    result = `${result}, ${locality}`;
+  }
+
+  // Clean any weird punctuation combinations like ", •" or "• ,"
+  return result
+    .replace(/\s*,\s*•/g, " •")
+    .replace(/•\s*,/g, " •")
+    .replace(/[,\s•·–-]+$/, "")
+    .trim() || "Street Address";
+}
+
 /* ------------------------- 1-Page Express Flyer ------------------------- */
 export function ExpressFlyer({ d }: { d: FlyerData }) {
   return (
@@ -436,16 +508,20 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
-      {/* Address Bar */}
+      {/* Address Bar: Full width, complete text, never clipped or dotted */}
       {(() => {
-        const addressText = d.address || "Street Address";
-        const showEstateSuffix = Boolean(d.estate && !addressText.toLowerCase().includes(d.estate.toLowerCase().trim()));
-        const displayLocation = showEstateSuffix ? `${addressText} • ${d.estate}` : addressText;
+        const displayLocation = formatFlyerDisplayAddress(d);
+        const textLen = displayLocation.length;
+        const textSizeClass =
+          textLen > 80 ? "text-[2.7mm]" : textLen > 55 ? "text-[3.0mm]" : "text-[3.4mm]";
+
         return (
-          <div className="navy-panel flex items-center justify-between px-[6mm] py-[2mm] text-[3.4mm] font-medium text-brand-cream rounded-[1mm]">
-            <div className="flex items-center gap-[2.2mm] min-w-0">
+          <div className="navy-panel w-full flex items-center px-[6mm] py-[2mm] text-brand-cream rounded-[1mm]">
+            <div className="flex items-center gap-[2.5mm] w-full min-w-0">
               <MapPin className="h-[3.8mm] w-[3.8mm] flex-none text-brand-gold" strokeWidth={1.8} />
-              <span className="truncate">{displayLocation}</span>
+              <span className={`w-full font-medium text-brand-cream ${textSizeClass} leading-snug whitespace-normal break-words`}>
+                {displayLocation}
+              </span>
             </div>
           </div>
         );
@@ -614,13 +690,11 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
         </div>
 
         {(() => {
-          const addressText = d.address || "Street Address";
-          const showEstateSuffix = Boolean(d.estate && !addressText.toLowerCase().includes(d.estate.toLowerCase().trim()));
-          const displayLocation = showEstateSuffix ? `${addressText} • ${d.estate}` : addressText;
+          const displayLocation = formatFlyerDisplayAddress(d);
           return (
             <div className="mt-[1.2mm] flex items-center gap-[2mm] text-[3.5mm] font-medium text-brand-ink/85">
               <MapPin className="h-[3.8mm] w-[3.8mm] text-brand-gold flex-none" strokeWidth={1.8} />
-              {displayLocation}
+              <span className="w-full whitespace-normal break-words leading-snug">{displayLocation}</span>
             </div>
           );
         })()}
@@ -923,16 +997,20 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
         <Facade url={d.facadeUrl} busy={d.facadeBusy} />
       </div>
 
-      {/* Address Bar */}
+      {/* Address Bar: Full width, complete text, never clipped or dotted */}
       {(() => {
-        const addressText = d.address || "Street Address";
-        const showEstateSuffix = Boolean(d.estate && !addressText.toLowerCase().includes(d.estate.toLowerCase().trim()));
-        const displayLocation = showEstateSuffix ? `${addressText} • ${d.estate}` : addressText;
+        const displayLocation = formatFlyerDisplayAddress(d);
+        const textLen = displayLocation.length;
+        const textSizeClass =
+          textLen > 80 ? "text-[2.7mm]" : textLen > 55 ? "text-[3.0mm]" : "text-[3.4mm]";
+
         return (
-          <div className="navy-panel flex items-center justify-between px-[6mm] py-[2mm] text-[3.4mm] font-medium text-brand-cream rounded-[1mm]">
-            <div className="flex items-center gap-[2.2mm] min-w-0">
+          <div className="navy-panel w-full flex items-center px-[6mm] py-[2mm] text-brand-cream rounded-[1mm]">
+            <div className="flex items-center gap-[2.5mm] w-full min-w-0">
               <MapPin className="h-[3.8mm] w-[3.8mm] flex-none text-brand-gold" strokeWidth={1.8} />
-              <span className="truncate">{displayLocation}</span>
+              <span className={`w-full font-medium text-brand-cream ${textSizeClass} leading-snug whitespace-normal break-words`}>
+                {displayLocation}
+              </span>
             </div>
           </div>
         );
