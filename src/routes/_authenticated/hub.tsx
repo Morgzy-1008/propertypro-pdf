@@ -694,6 +694,7 @@ function WelcomeHubPage() {
             iconBg="from-amber-500/20 to-yellow-500/10 border-amber-500/30"
             badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
             isLight={isLight}
+            isComingSoon={!isMorgan}
           />
         </div>
       </main>

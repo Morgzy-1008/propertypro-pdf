@@ -248,13 +248,13 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 6. Stacker Doors: STACKER 21.36, 21-36 STACKER, STACKER, STACKER SLM
-  const stackerRegex = /\b(?:STACKER(?:\s*(\d{2})\.?(\d{2}))?|(\d{2})[-.]?(\d{2})\s*STACKER)\b/gi;
+  // 6. Stacker Doors: STACKER 21.36, 21-36 STACKER, STACKER, STACKER SLM, 21-30 542 STACKER, 21/27 542 STACKER
+  const stackerRegex = /\b(?:STACKER(?:\s*(\d{2})[\s\.\-\/]?(\d{2}))?|(\d{2})[\s\.\-\/]+(\d{2})(?:\s*\d{3})?\s*STACKER)\b/gi;
   while ((match = stackerRegex.exec(rawText)) !== null) {
     const rawH = match[1] || match[3];
     const rawW = match[2] || match[4];
     const h = rawH ? parseInt(rawH, 10) * 100 : 2100;
-    const w = rawW ? parseInt(rawW, 10) * 100 : 3600;
+    const w = rawW ? parseInt(rawW, 10) * 100 : 3000;
     tags.push({
       rawTag: match[0].toUpperCase(),
       category: "door",
@@ -279,10 +279,10 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 8. Front Entry Doors: EXT 1020, EXT 1200, Entry 1,020, Entry 1020, etc.
-  const extDoorRegex = /\b(?:EXT\s*(1020|1200)|ENTRY[\s\r\n]*[:\s-]?[\s\r\n]*(1[,.]?020|1[,.]?200)|(1[,.]?020|1[,.]?200)[\s\r\n]*(?:ENTRY|FRONT\s*DOOR))\b/gi;
+  // 8. Front Entry Doors: EXT 1020, EXT 1200, Entry 1,020, Entry 1020, 1,020 D1, etc.
+  const extDoorRegex = /\b(?:EXT\s*(1020|1200)|ENTRY[\s\r\n]*[:\s-]?[\s\r\n]*(1[,.]?020|1[,.]?200)|(1[,.]?020|1[,.]?200)[\s\r\n]*(?:ENTRY|FRONT\s*DOOR|D1)|D1[\s\r\n]*(1[,.]?020|1[,.]?200))\b/gi;
   while ((match = extDoorRegex.exec(rawText)) !== null) {
-    const rawVal = (match[1] || match[2] || match[3] || "").replace(/[,.]/g, "");
+    const rawVal = (match[1] || match[2] || match[3] || match[4] || "").replace(/[,.]/g, "");
     const w = parseInt(rawVal, 10);
     if (w === 1020 || w === 1200) {
       tags.push({
@@ -468,13 +468,14 @@ export function diffOpeningsAgainstMaster(
         confidence: 0.98,
       });
     } else if (tag.typeCode === "STACKER") {
+      const dimLabel = tag.widthMm ? ` (${tag.widthMm}mm)` : "";
       upgrades.push({
-        id: "upg_alfresco_stacker_door",
+        id: `upg_alfresco_stacker_door_${tag.widthMm || "std"}`,
         category: "doors_windows",
-        name: "3-Panel Aluminum Stacker Sliding Door to Alfresco",
-        description: "Commercial-grade 3-panel aluminum stacker sliding door replacing standard 2-panel sliding door (ASDI 2124).",
+        name: `3-Panel Aluminum Stacker Sliding Door to Alfresco${dimLabel}`,
+        description: `Commercial-grade 3-panel aluminum stacker sliding door (${tag.rawTag}) replacing standard 2-panel sliding door (ASDI 2124).`,
         baseline: "Standard 2-panel 2100mm × 2410mm sliding door (ASDI 2124)",
-        detected: `Wide multi-panel aluminum stacking door (${tag.widthMm}mm)`,
+        detected: `Wide multi-panel aluminum stacking door (${tag.rawTag})`,
         unitPrice: 1850,
         quantity: 1,
         subtotal: 1850,
@@ -549,7 +550,7 @@ export function diffOpeningsWithReplacementCredits(
 
   // Pre-filter: Check presence of specific tags to avoid duplicates
   const rawList = parsedTags.map((t) => t.rawTag.toUpperCase().trim());
-  const hasSpecificStacker = rawList.some((r) => /STACKER\s*(?:21[-.]?30|21[-.]?36|30|36)/.test(r));
+  const hasSpecificStacker = rawList.some((r) => /STACKER/.test(r) && /\d{2}/.test(r));
   const hasRollerDoor = rawList.some((r) => /ROLLER\s*DOOR|RD\s*21\.?48|PANEL\s*LIFT/.test(r));
   const hasBarn1200 = rawList.some((r) => /BARN\s*1200|1200\s*BARN/.test(r));
 
@@ -559,8 +560,8 @@ export function diffOpeningsWithReplacementCredits(
 
     const upper = raw.toUpperCase();
 
-    // 1. If a specific dimensioned stacker exists, drop generic or spurious stacker tags (e.g. STACKER, 06.18 STACKER)
-    if (hasSpecificStacker && /STACKER/i.test(upper) && !/21[-.]?3[06]/i.test(upper)) {
+    // 1. If a specific dimensioned stacker exists, drop generic or spurious un-dimensioned stacker tags (e.g. STACKER, STACKER SLM)
+    if (hasSpecificStacker && (upper === "STACKER" || upper === "STACKER SLM" || upper === "STACKER DOOR")) {
       continue;
     }
 

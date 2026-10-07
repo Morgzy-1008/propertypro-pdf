@@ -13,6 +13,7 @@ export type CatalogueCategory =
   | "internal_bathroom"
   | "internal_bedrooms"
   | "internal_laundry"
+  | "internal_general"
   | "colour_upgrades"
   | "site_earthworks"
   | "council_statutory";
@@ -394,6 +395,7 @@ export interface InternalRoomChange {
     | "pantry"
     | "garage"
     | "alfresco"
+    | "cinema"
     | "other";
   furnitureDetected?: string[]; // e.g. ["Double Bed", "Bedside Table", "BIR"], ["Island Bench", "Cooktop", "Sink"]
   standardDims?: string;

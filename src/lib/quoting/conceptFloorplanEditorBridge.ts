@@ -78,6 +78,15 @@ export const FORESIGHT_EDITOR_OPENINGS: Record<string, EditorOpeningSpecificatio
     description: "Extended 2100mm × 2700mm 2-panel sliding glass door (21-27SD) for panoramic living integration.",
     category: "doors_windows",
   },
+  "STACKER 21-27": {
+    code: "STACKER 21-27",
+    type: "door",
+    name: "3-Panel Aluminium Stacker Sliding Door (2100h × 2700w)",
+    fullRetailCost: 2450,
+    defaultReplaces: "standard_sliding_door_2124",
+    description: "Premium 3-panel architectural aluminium stacking sliding door (2100mm × 2700mm) opening up to outdoor entertaining / alfresco.",
+    category: "doors_windows",
+  },
   "STACKER 21-30": {
     code: "STACKER 21-30",
     type: "door",
@@ -439,11 +448,13 @@ export function calculateOpeningReplacement(
       spec = FORESIGHT_EDITOR_OPENINGS["21-27SD"];
     } else if (/STACKER\s*CORNER|CORNER\s*STACKER/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER CORNER"];
-    } else if (/STACKER\s*21[-.]?30|21[-.]?30\s*STACKER/i.test(normCode)) {
+    } else if (/(?:STACKER[\s\S]*21[-.\/]27|21[-.\/]27[\s\S]*STACKER)/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-27"];
+    } else if (/(?:STACKER[\s\S]*21[-.\/]30|21[-.\/]30[\s\S]*STACKER)/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-30"];
-    } else if (/STACKER\s*21[-.]?36|21[-.]?36\s*STACKER/i.test(normCode)) {
+    } else if (/(?:STACKER[\s\S]*21[-.\/]36|21[-.\/]36[\s\S]*STACKER)/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-36"];
-    } else if (/STACKER\s*21[-.]?48|21[-.]?48\s*STACKER/i.test(normCode)) {
+    } else if (/(?:STACKER[\s\S]*21[-.\/]48|21[-.\/]48[\s\S]*STACKER)/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-48"];
     } else if (/BIFOLD/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["BIFOLD 21-24"];
@@ -457,7 +468,7 @@ export function calculateOpeningReplacement(
       spec = FORESIGHT_EDITOR_OPENINGS["CSD 720"];
     } else if (/CSD\s*920/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["CSD 920"];
-    } else if (/EXT\s*1020/i.test(normCode)) {
+    } else if (/EXT\s*1020|1[,.]?020\s*D1|D1\s*1[,.]?020/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["EXT 1020"];
     } else if (/EXT\s*1200/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["EXT 1200"];

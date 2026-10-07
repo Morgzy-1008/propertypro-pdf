@@ -1411,6 +1411,7 @@ export function calculateQuotePricing(
     internal_bathroom: [],
     internal_bedrooms: [],
     internal_laundry: [],
+    internal_general: [],
     colour_upgrades: [],
     site_earthworks: [],
     council_statutory: [],

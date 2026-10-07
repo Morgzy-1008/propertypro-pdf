@@ -41,6 +41,7 @@ dist-ssr
 !public/facades/*
 !public/assets/*
 !public/brand/*
+!public/extracted_pdf_image.jpg
 *.pdf
 *.traineddata
 scripts/

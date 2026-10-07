@@ -50,6 +50,7 @@ export const CATEGORY_LABELS: Record<CatalogueCategory, string> = {
   internal_bathroom: "Internal - Bathroom",
   internal_bedrooms: "Internal - Bedrooms & Storage",
   internal_laundry: "Internal - Laundry",
+  internal_general: "Internal - General Upgrades",
   colour_upgrades: "Electrical, HVAC & Finishes",
   site_earthworks: "Site Specific & Engineering Reports",
   council_statutory: "Council & Statutory Requirements",

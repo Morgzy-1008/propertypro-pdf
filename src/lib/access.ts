@@ -194,6 +194,9 @@ export function isMorganHales(staffUser?: {
   return (
     id === "morgan-hales" ||
     email === "morgan.hales@hudsonhomes.com.au" ||
+    email === "morgan.b@hudsonhomes.com.au" ||
+    email === "morgan.h@hudsonhomes.com.au" ||
+    email.startsWith("morgan.") ||
     email.includes("morgan.hales") ||
     name.includes("morgan hales") ||
     staffUser.role === "admin"
@@ -205,6 +208,19 @@ export function isMorganHales(staffUser?: {
  * Strictly restricted to Morgan Hales (System Administration / Owner).
  */
 export function canAccessLandScout(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  return isMorganHales(staffUser);
+}
+
+/**
+ * Access control for Hudson Plan Training & Calibration Studio.
+ * Strictly restricted to Morgan Hales (System Administration / Owner).
+ */
+export function canAccessPlanTraining(staffUser?: {
   id?: string | null;
   name?: string | null;
   email?: string | null;

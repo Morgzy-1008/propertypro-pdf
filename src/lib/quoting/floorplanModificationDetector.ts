@@ -139,6 +139,7 @@ import type {
   InternalRoomChange,
   BaseDesignCandidate,
 } from "./quoteTypes";
+export type { PlanModificationAnalysis, BaseDesignCandidate, DetectedAreaDelta, DetectedInclusionUpgrade, OpeningReplacementItem, InternalRoomChange };
 import { EXTENSION_RATES_BY_TIER, normalizeInclusionTier } from "./quoteCatalogue";
 
 /**
@@ -422,12 +423,67 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     id: "upg_raked_ceiling",
     category: "internal_general",
     name: "Raked / Cathedral Ceiling to Open Plan Living Zone",
-    description: "Vaulted architectural raked scissor-truss ceiling to family and dining areas with painted plasterboard lining.",
+    description: "Vaulted architectural raked scissor-truss / parallel girder truss ceiling over Family/Dining/Kitchen domain with painted plasterboard lining.",
     baseline: "Standard flat 2440mm ceiling throughout",
-    detected: "Raked / vaulted ceiling notation across family room",
+    detected: "Raked / vaulted ceiling notation across family/dining/kitchen ('RAKING CEILING')",
     unitPrice: 4200,
-    confidence: 0.94,
-    triggerKeywords: ["raked ceiling", "cathedral ceiling", "vaulted ceiling", "high raked"],
+    confidence: 0.96,
+    triggerKeywords: ["raked ceiling", "cathedral ceiling", "vaulted ceiling", "high raked", "raking ceiling", "raking", "parallel girder truss", "parallel girder", "raked truss"],
+  },
+  {
+    id: "upg_outdoor_kitchen",
+    category: "external_facade",
+    name: "Integrated Outdoor Alfresco Kitchen Provision & Joinery Package",
+    description: "Custom outdoor alfresco kitchen joinery with stone benchtop, built-in BBQ provision, stainless steel prep sink with cold water connection, and capped services.",
+    baseline: "Standard covered alfresco slab and roof (no joinery, appliances, or plumbing)",
+    detected: "Outdoor kitchen joinery with BBQ provision and sink ('OUTDOOR KITCHEN') on Alfresco",
+    unitPrice: 4200,
+    confidence: 0.96,
+    triggerKeywords: ["outdoor kitchen", "alfresco kitchen", "bbq provision", "outdoor bbq", "alfresco bbq", "outdoor joinery", "alfresco joinery", "bbq and sink", "bbq joinery", "capped services"],
+  },
+  {
+    id: "upg_outdoor_fire_pit",
+    category: "external_facade",
+    name: "Built-In Outdoor Fire Pit Feature & Integrated Bench Seating",
+    description: "Built-in masonry fire pit feature with integrated surround bench seating and non-combustible refractory pavers to outdoor entertaining zone.",
+    baseline: "Standard turf / natural ground level to rear yard",
+    detected: "Fire pit feature and perimeter outdoor seating ('FIRE PIT') notation on plan",
+    unitPrice: 1950,
+    confidence: 0.95,
+    triggerKeywords: ["fire pit", "firepit", "outdoor fire", "fire pit feature", "outdoor seating", "fire pit and seating", "fire pit seating", "fire-pit"],
+  },
+  {
+    id: "upg_cinema_tiered_platform",
+    category: "internal_general",
+    name: "Cinema Room 180mm Raised Tiered Timber Seating Platform with Step",
+    description: "Custom 180mm raised tiered timber platform with perimeter bullnose step and acoustic underlay framing for authentic home cinema viewing.",
+    baseline: "Standard level concrete slab throughout cinema / media room",
+    detected: "180mm raised tiered seating platform and step ('180mm RAISED PLATFORM' / 'CINEMA') on plan",
+    unitPrice: 1650,
+    confidence: 0.96,
+    triggerKeywords: ["tiered seating", "raised platform", "180mm raised", "cinema platform", "theatre platform", "tiered platform", "180mm step", "raised tiered", "cinema seating platform", "platform with step"],
+  },
+  {
+    id: "upg_hobless_step_free_shower",
+    category: "internal_bathroom",
+    name: "Hobless / Step-Free Recessed Shower with Max 5mm Lip to Ensuite",
+    description: "Architectural step-free hobless recessed shower base with screeded fall and maximum 5mm transition lip, flush with bathroom floor tiles.",
+    baseline: "Standard raised tiled hob or semi-frameless step-down shower base",
+    detected: "Hobless / step-free shower recess notation ('HOBLESS SHOWER' / 'STEP FREE') in Master Ensuite",
+    unitPrice: 1250,
+    confidence: 0.96,
+    triggerKeywords: ["hobless", "hobless shower", "step-free shower", "step free shower", "flush shower", "step-free", "step free", "5mm lip", "max 5mm lip", "recessed shower"],
+  },
+  {
+    id: "upg_scullery_addition",
+    category: "internal_kitchen",
+    name: "Scullery Addition with 40mm Stone Waterfall Ends & Cabinetry",
+    description: "Full scullery walk-in preparation zone with 40mm mitred stone waterfall ends, additional undermount sink, mixer tap, and custom cabinetry.",
+    baseline: "Standard walk-in pantry with dry shelving",
+    detected: "Scullery addition with 40mm stone waterfall edge benchtop ('SCULLERY')",
+    unitPrice: 3850,
+    confidence: 0.95,
+    triggerKeywords: ["scullery", "scullery addition", "scullery with waterfall", "scullery bench", "scullery sink"],
   },
   {
     id: "upg_ceiling_2900_living",
@@ -471,7 +527,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "1020mm wide feature front entrance door notation ('EXT 1020' or '1,020') on plan",
     unitPrice: 850,
     confidence: 0.95,
-    triggerKeywords: ["ext 1020", "1020 door", "1020mm door", "1020 entrance", "1020 front door", "1020 wide", "1020mm entry", "1,020", "1020", "entry 1,020", "entry 1020"],
+    triggerKeywords: ["ext 1020", "1020 door", "1020mm door", "1020 entrance", "1020 front door", "1020 wide", "1020mm entry", "1,020", "1020", "entry 1,020", "entry 1020", "1,020 d1", "1020 d1", "d1 1020", "d1 1,020", "1,020 door"],
   },
   {
     id: "upg_study_nook",
@@ -2615,6 +2671,22 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  const rawLower = `${rawText} ${geminiResult?.analysisNotes || ""} ${file.name}`.toLowerCase();
+  const hasAlfrescoExtensionAnnotation =
+    /(?:alfresco|outdoor)[\s\S]{0,50}(?:extended|ext|extension|slab\s*only)[\s\S]{0,30}(?:950|3\.46)/i.test(rawLower) ||
+    /(?:extended|ext)[\s\S]{0,25}(?:up\s*by\s*)?(?:~?\s*950mm|950\s*mm|3\.46\s*m²|3\.46\s*m2)/i.test(rawLower) ||
+    /alfresco\s*extended\s*up\s*by\s*~?950mm/i.test(rawLower);
+
+  if (hasAlfrescoExtensionAnnotation && !spatialModsToApply.some((s) => s.zone === "alfresco")) {
+    const deltaM2 = 3.46; // width ~3.64m * 0.95m ≈ 3.46 m² extension
+    spatialModsToApply.push({
+      zone: "alfresco",
+      deltaM2,
+      estimatedLinearExtensionM: 0.95,
+      reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m² @ $${databuildRates.alfresco_m2}/m²)`,
+    });
+  }
+
   if (candidateTableSpec.garageM2 !== undefined && candidateTableSpec.garageM2 > 0) {
     const deltaM2 = Math.round((candidateTableSpec.garageM2 - effectiveStandardGarageM2) * 100) / 100;
     if (Math.abs(deltaM2) >= 0.05) {
@@ -2801,6 +2873,19 @@ export async function analyzeModifiedFloorplanFile(
         recipeId: "recipe_alfresco_m2",
         unitRate: databuildRates.alfresco_m2,
         subtotal: delta > 0 ? Math.round(delta * databuildRates.alfresco_m2) : Math.round(delta * databuildRates.alfresco_m2 * 0.8),
+        accepted: true,
+      });
+    } else if (hasAlfrescoExtensionAnnotation) {
+      const delta = 3.46;
+      areaDeltas.push({
+        zoneKey: "alfrescoM2",
+        zoneLabel: "Covered Alfresco Extension",
+        standardM2: standardAlfrescoM2,
+        modifiedM2: Math.round((standardAlfrescoM2 + delta) * 100) / 100,
+        deltaM2: delta,
+        recipeId: "recipe_alfresco_m2",
+        unitRate: databuildRates.alfresco_m2,
+        subtotal: Math.round(delta * databuildRates.alfresco_m2),
         accepted: true,
       });
     }
@@ -3840,7 +3925,7 @@ export async function analyzeModifiedFloorplanFile(
         inc.id === "upg_window_size_upgrade" ||
         inc.id === "upg_kitchen_splashback_window" ||
         inc.id === "upg_dual_1809_windows" ||
-        ((!inc.category || inc.category === "doors_windows") &&
+        ((!inc.category || (inc.category as string) === "doors_windows") &&
           /^(?:roller\s*door|cavity\s*slider|\bcsd\b|pocket\s*door|stacker\s*door|sliding\s*glass\s*door|1200mm\s*front\s*door|1020mm\s*front\s*door)/i.test(inc.name));
 
       if (isDoorOrWindow) {
@@ -3856,7 +3941,7 @@ export async function analyzeModifiedFloorplanFile(
       }
 
       let semKey = inc.id || inc.name.toLowerCase().trim();
-      if (/butler|pantry\s*sink|prep\s*sink/i.test(desc)) {
+      if (!/outdoor|alfresco/i.test(desc) && (/butler|pantry\s*sink/i.test(desc) || (/prep\s*sink/i.test(desc) && /pantry|butler/i.test(desc)))) {
         semKey = "sem_butlers_pantry_package";
         inc.id = "upg_butlers_pantry_package";
         inc.category = "internal_kitchen";
