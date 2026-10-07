@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+import { parseAreaScheduleFromText as parseAreaScheduleShared } from "@/lib/floorplan/areaScheduleParser";
 
 if (typeof window !== "undefined" && !pdfjs.GlobalWorkerOptions.workerSrc) {
   try {
@@ -44,6 +45,10 @@ export interface ExtractedAreaSchedule {
 }
 
 export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
+  return parseAreaScheduleShared(text);
+}
+
+function legacyParseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
   if (!text) return null;
 
   // 1. Locate dedicated AREAS table block if present

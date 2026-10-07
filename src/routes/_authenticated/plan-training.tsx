@@ -793,7 +793,7 @@ export function PlanTrainingStudioPage() {
                     }`}
                   >
                     <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-sky-500 text-slate-950 font-bold text-[10px] tracking-wide">
-                      Master CAD Brochure Baseline: {selectedModel} (224.56 m²)
+                      Master CAD Brochure Baseline: {selectedModel} ({masterBaseline.totalM2.toFixed(2)} m²)
                     </div>
                     <img
                       src={masterImageUrl}

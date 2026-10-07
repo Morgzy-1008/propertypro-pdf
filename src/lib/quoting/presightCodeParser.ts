@@ -279,18 +279,21 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 8. Front Entry Doors: EXT 1020, EXT 1200
-  const extDoorRegex = /\bEXT\s*(1020|1200)\b/gi;
+  // 8. Front Entry Doors: EXT 1020, EXT 1200, Entry 1,020, Entry 1020, etc.
+  const extDoorRegex = /\b(?:EXT\s*(1020|1200)|ENTRY[\s\r\n]*[:\s-]?[\s\r\n]*(1[,.]?020|1[,.]?200)|(1[,.]?020|1[,.]?200)[\s\r\n]*(?:ENTRY|FRONT\s*DOOR))\b/gi;
   while ((match = extDoorRegex.exec(rawText)) !== null) {
-    const w = parseInt(match[1], 10);
-    tags.push({
-      rawTag: match[0].toUpperCase(),
-      category: "door",
-      typeCode: "EXT_DOOR",
-      heightMm: 2040,
-      widthMm: w,
-      isObscure: false,
-    });
+    const rawVal = (match[1] || match[2] || match[3] || "").replace(/[,.]/g, "");
+    const w = parseInt(rawVal, 10);
+    if (w === 1020 || w === 1200) {
+      tags.push({
+        rawTag: `EXT ${w}`,
+        category: "door",
+        typeCode: "EXT_DOOR",
+        heightMm: 2040,
+        widthMm: w,
+        isObscure: false,
+      });
+    }
   }
 
   // 9. Garage External Personal Access Door: EXT 820, EXT 920

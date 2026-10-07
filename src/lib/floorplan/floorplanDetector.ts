@@ -79,43 +79,62 @@ export const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Do
   ...DUAL_OC_PRICES.map((r) => ({ row: r, housingType: "Dual Living" as const })),
 ];
 
+import { parseAreaScheduleFromText } from "./areaScheduleParser";
+
 export function extractAreaTableFromText(rawText: string): ExtractedAreaTable | null {
   if (!rawText) return null;
+
+  // 1. Try robust Schedule of Areas block parser first (Layer 1)
+  const directSchedule = parseAreaScheduleFromText(rawText);
+  if (directSchedule && (directSchedule.livingM2 || directSchedule.groundLivingM2 || directSchedule.totalM2)) {
+    return {
+      livingM2: directSchedule.livingM2,
+      groundLivingM2: directSchedule.groundLivingM2,
+      firstLivingM2: directSchedule.firstLivingM2,
+      garageM2: directSchedule.garageM2,
+      alfrescoM2: directSchedule.alfrescoM2,
+      porchM2: directSchedule.porchM2,
+      balconyM2: directSchedule.balconyM2,
+      totalM2: directSchedule.totalM2,
+    };
+  }
+
+  // 2. Restricted fallback: only match if NOT a room dimension (e.g., exclude "5.7x 5.7" or "1.8 x 2.2")
   const table: ExtractedAreaTable = {};
   let foundAny = false;
 
   const patterns: { key: keyof ExtractedAreaTable; regex: RegExp }[] = [
     {
       key: "groundLivingM2",
-      regex: /(?:ground(?:\s+floor)?|lower)(?:\s+living|\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:ground(?:\s+floor)?|lower)(?:\s+living|\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "firstLivingM2",
-      regex: /(?:first(?:\s+floor)?|upper)(?:\s+living|\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:first(?:\s+floor)?|upper)(?:\s+living|\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "livingM2",
-      regex: /(?:^|[^\w])living(?:\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:^|[^\w])living(?:\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "garageM2",
-      regex: /(?:double\s*)?garage(?:\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:double\s*)?garage(?:\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "alfrescoM2",
-      regex: /(?:alfresco|outdoor(?:\s+living)?|patio)\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:alfresco|outdoor(?:\s+living)?|patio)\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "porchM2",
-      regex: /(?:entry\s*)?porch\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:entry\s*)?porch\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "balconyM2",
-      regex: /balcony\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /balcony\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
     {
       key: "totalM2",
-      regex: /(?:total(?:\s+(?:floor\s*)?area)?|grand\s*total)\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i,
+      regex: /(?:total(?:\s+(?:floor\s*)?area)?|grand\s*total)\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)(?!\s*m?\s*[xX*×])/i,
     },
   ];
 
@@ -155,20 +174,31 @@ export function findHudsonModelByName(name?: string): { row: PriceRow; housingTy
     if (aliasItem) return aliasItem;
   }
   
-  // 1. Exact match
+  // 1. Exact full name match
   for (const item of ALL_PRICE_ROWS) {
     if (item.row.name.toLowerCase() === clean) {
       return item;
     }
   }
 
-  // 2. Fuzzy match (e.g. "Amber 21 (Modified Concept)" or "Amber 21 - Rev A")
-  for (const item of ALL_PRICE_ROWS) {
+  // 1b. Word-boundary exact match for full model name on sorted list (longest name first)
+  const sorted = [...ALL_PRICE_ROWS].sort((a, b) => b.row.name.length - a.row.name.length);
+  for (const item of sorted) {
+    const rx = new RegExp(`\\b${escapeRegex(item.row.name.toLowerCase())}\\b`, "i");
+    if (rx.test(clean)) {
+      return item;
+    }
+  }
+
+  // 2. Word-boundary family + size match (e.g. \bCrimson\b and \b26\b)
+  for (const item of sorted) {
     const parts = item.row.name.toLowerCase().split(/\s+/);
     if (parts.length >= 2) {
       const family = parts[0];
       const size = parts[1];
-      if (clean.includes(family) && clean.includes(size)) {
+      const famRx = new RegExp(`\\b${escapeRegex(family)}\\b`, "i");
+      const sizeRx = new RegExp(`\\b${escapeRegex(size)}\\b`, "i");
+      if (famRx.test(clean) && sizeRx.test(clean)) {
         return item;
       }
     }
@@ -176,7 +206,7 @@ export function findHudsonModelByName(name?: string): { row: PriceRow; housingTy
 
   // 3. Fallback check for aliases contained within compound strings
   for (const [aliasKey, targetName] of Object.entries(MODEL_ALIASES)) {
-    if (clean.includes(aliasKey)) {
+    if (new RegExp(`\\b${escapeRegex(aliasKey)}\\b`, "i").test(clean)) {
       const aliasItem = ALL_PRICE_ROWS.find((item) => item.row.name.toLowerCase() === targetName.toLowerCase());
       if (aliasItem) return aliasItem;
     }

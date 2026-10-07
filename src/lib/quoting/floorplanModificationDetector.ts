@@ -468,10 +468,32 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     name: "1020mm Wide Architectural Front Entry Door Upgrade",
     description: "Upgraded 2040mm × 1020mm (or 2340mm × 1020mm) wide Corinthian/Hume architectural feature front entrance door with matching wider door frame and weather seal (replaces standard 820mm/920mm door).",
     baseline: "Standard 820mm / 920mm painted entrance door",
-    detected: "1020mm wide feature front entrance door notation ('EXT 1020') on plan",
+    detected: "1020mm wide feature front entrance door notation ('EXT 1020' or '1,020') on plan",
     unitPrice: 850,
     confidence: 0.95,
-    triggerKeywords: ["ext 1020", "1020 door", "1020mm door", "1020 entrance", "1020 front door", "1020 wide", "1020mm entry"],
+    triggerKeywords: ["ext 1020", "1020 door", "1020mm door", "1020 entrance", "1020 front door", "1020 wide", "1020mm entry", "1,020", "1020", "entry 1,020", "entry 1020"],
+  },
+  {
+    id: "upg_study_nook",
+    category: "internal_general",
+    name: "Integrated Study Nook Workstation with Built-In Desktop",
+    description: "Dedicated study nook with built-in laminate workstation desk and overhead shelving.",
+    baseline: "Open circulation hallway or standard cupboard",
+    detected: "Study Nook built-in workstation notation on plan",
+    unitPrice: 1450,
+    confidence: 0.95,
+    triggerKeywords: ["study nook", "study-nook", "study bench", "study workstation", "home office nook"],
+  },
+  {
+    id: "upg_garage_widening_5757",
+    category: "structural",
+    name: "Double Garage Widened to 5.7m × 5.7m (ilo 5.5m × 5.5m)",
+    description: "Widened double garage footprint (5.7m internal width × 5.7m depth) providing extra vehicular circulation and storage space.",
+    baseline: "Standard 5.5m × 5.5m double garage layout",
+    detected: "Double Garage 5.7m × 5.7m dimension notation on plan",
+    unitPrice: 0,
+    confidence: 0.95,
+    triggerKeywords: ["5.7x 5.7", "5.7 x 5.7", "5.7x5.7", "garage 5.7"],
   },
   {
     id: "upg_ceiling_2740",
@@ -1823,8 +1845,9 @@ export function extractModelFromCandidateTitle(
     }
   }
 
-  // 3. Regex scan against all known Hudson models (including base names without state qualifiers like (QLD))
-  for (const item of ALL_PRICE_ROWS) {
+  // 3. Regex scan against all known Hudson models (sorted longest first to ensure e.g. Crimson 26 matches before Crimson 24)
+  const sortedPriceRows = [...ALL_PRICE_ROWS].sort((a, b) => b.row.name.length - a.row.name.length);
+  for (const item of sortedPriceRows) {
     const namePattern = new RegExp(`\\b${escapeRegex(item.row.name)}\\b`, "i");
     if (namePattern.test(titleStr) || namePattern.test(normalizedTitle)) {
       return { designName: item.row.name, housingType: item.housingType as any };
@@ -2845,7 +2868,7 @@ export async function analyzeModifiedFloorplanFile(
   const hasSpecificAlfDims = /2\.1\s*[xX*×]\s*5\.4|5\.4\s*[xX*×]\s*2\.1/i.test(combinedScanText);
   const alfrescoDimMatch = combinedScanText.match(/(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living)/i);
-  if (alfrescoDimMatch || hasSpecificAlfDims) {
+  if (!candidateTableSpec.alfrescoM2 && (alfrescoDimMatch || hasSpecificAlfDims)) {
     const w = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[1].replace(/[·•]/g, ".")) : 2.1;
     const l = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[2].replace(/[·•]/g, ".")) : 5.4;
     let actualAlfM2 = Math.round(w * l * 100) / 100;
@@ -2896,7 +2919,7 @@ export async function analyzeModifiedFloorplanFile(
   const hasSpecificGarDims = /5\.7\s*[xX*×]\s*6\.0|6\.0\s*[xX*×]\s*5\.7/i.test(combinedScanText);
   const garageDimMatch = combinedScanText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:garage|dlug|carport)/i);
-  if (garageDimMatch || hasSpecificGarDims) {
+  if (!candidateTableSpec.garageM2 && (garageDimMatch || hasSpecificGarDims)) {
     const w = garageDimMatch ? parseFloat(garageDimMatch[1].replace(/[·•]/g, ".")) : 5.7;
     const l = garageDimMatch ? parseFloat(garageDimMatch[2].replace(/[·•]/g, ".")) : 6.0;
     let actualGarM2 = Math.round(w * l * 100) / 100;
@@ -2953,7 +2976,7 @@ export async function analyzeModifiedFloorplanFile(
   const hasSpecificPorchDims = /1\.5\s*[xX*×]\s*1\.4|1\.4\s*[xX*×]\s*1\.5|1\.5\s*[xX*×]\s*1\.8|1\.8\s*[xX*×]\s*1\.5/i.test(combinedScanText);
   const porchDimMatch = combinedScanText.match(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
     combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:porch|portico)/i);
-  if ((porchDimMatch || hasSpecificPorchDims) && /1\.5|1\.4/i.test(combinedScanText) && !/porch.*2\.7/i.test(combinedScanText)) {
+  if (!candidateTableSpec.porchM2 && (porchDimMatch || hasSpecificPorchDims) && /1\.5|1\.4/i.test(combinedScanText) && !/porch.*2\.7/i.test(combinedScanText)) {
     const w = porchDimMatch ? parseFloat(porchDimMatch[1].replace(/[·•]/g, ".")) : 1.5;
     const l = porchDimMatch ? parseFloat(porchDimMatch[2].replace(/[·•]/g, ".")) : 1.4;
     let actualPorchM2 = Math.round(w * l * 100) / 100;
@@ -2988,7 +3011,7 @@ export async function analyzeModifiedFloorplanFile(
     (/4\.2\s*[xX*×]\s*3\.0|dining.*4\.2/i.test(combinedScanText) && /3\.3\s*[xX*×]\s*3\.2|bed\s*3.*3\.3/i.test(combinedScanText)) ||
     Boolean(geminiResult?.areaModifications?.some((m: any) => /living/i.test(m.zone) && m.deltaM2 > 0.5));
 
-  if (hasModifiedLivingDims) {
+  if (!candidateTableSpec.livingM2 && hasModifiedLivingDims) {
     const gLivingMod = geminiResult?.areaModifications?.find((m: any) => /living/i.test(m.zone) && m.deltaM2 > 0.5);
     const livingDelta = gLivingMod?.deltaM2 && gLivingMod.deltaM2 >= 2.5 && gLivingMod.deltaM2 <= 3.5 ? 3.20 : (gLivingMod?.deltaM2 || 3.20);
     const actualLivingM2 = Math.round((standardLivingM2 + livingDelta) * 100) / 100;
