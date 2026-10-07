@@ -407,7 +407,7 @@ function LandBrowse() {
       )}
 
       {/* Printable Sheet View */}
-      <div className="flex flex-col items-center gap-6 p-6 print:gap-0 print:p-0">
+      <div className="w-full overflow-x-auto py-2 flex flex-col items-center gap-6 p-6 print:gap-0 print:p-0">
         {pages.map((blocksOnPage, pi) => (
           <ListingSheet
             key={pi}

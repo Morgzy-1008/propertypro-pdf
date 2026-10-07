@@ -16,6 +16,7 @@ import {
   type MasterWindowItem,
   type MasterDoorItem,
 } from "./masterWindowDoorSchedules.data";
+export type { MasterWindowItem, MasterDoorItem };
 import type { QuoteDesignSelection } from "./quoteTypes";
 
 export type BushfireBalLevel = "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";

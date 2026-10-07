@@ -1,4 +1,5 @@
 import { EstateStagePoD, SetbackRules, CovenantRuleItem } from "./feasibilityTypes";
+export type { EstateStagePoD };
 
 export const PRESEEDED_ESTATE_STAGES: EstateStagePoD[] = [
   // FLAGSTONE (PEET) - STAGE 8

@@ -1235,6 +1235,7 @@ export function calculateQuotePricing(
   site: SiteConditions,
   lineItems: QuoteSelectedLineItem[],
   initialDepositAmount?: number,
+  secondDwellingLineItems?: QuoteSelectedLineItem[],
 ): QuotePricingSummary {
   const isDouble = isDoubleStoreyDesign(
     design.designName,

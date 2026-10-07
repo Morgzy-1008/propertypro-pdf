@@ -70,7 +70,7 @@ function getCategoryIcon(label: string) {
   }
   return <PackageCheck className="h-3.5 w-3.5 text-cyan-700 flex-none" />;
 }
-
+import type { FullQuote, SecondDwellingSelection } from "@/lib/quoting/quoteTypes";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { prepareFloorplan } from "@/components/flyer/floorplanEngine";
 import { HUDSON_FACADES } from "@/components/flyer/facades.data";
@@ -849,6 +849,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const totalSiteAndStatutorySubtotal = pricing.siteCostsSubtotal + pricing.councilStatutorySubtotal;
 
   const isSplit = design.housingType === "Split Level" || (design.customSpec && design.customSpec.storeys === "split");
+  const isDoubleStorey = isDoubleStoreyDesign(design.designName, design.housingType, design.customSpec?.storeys);
   const soilRate = getSoilRatePerM2(siteConditions.soilClass);
   const calculatedSoilCost =
     typeof siteConditions.soilTotalCost === "number" && !isNaN(siteConditions.soilTotalCost)

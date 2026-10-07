@@ -87,6 +87,8 @@ export interface AuthorityToProceedData {
   consultantName: string;
   consultantSignatureDate: string;
   consultantSignatureDataUrl?: string;
+  consultantPhone?: string;
+  consultantEmail?: string;
 
   // Remote Signing
   isRemoteSigned?: boolean;

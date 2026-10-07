@@ -58,12 +58,13 @@ export function TenderReadinessChecklist({
       targetTab: "client_job",
     });
   }
-  if (!tender.customer1?.phone?.trim()) {
+  const c1Mobile = tender.customer1?.mobile || (tender.customer1 as any)?.phone;
+  if (!c1Mobile?.trim()) {
     issues.push({
       id: "client_1_phone",
       category: "client",
-      field: "Purchaser 1 Phone",
-      message: "Client 1 contact phone number is missing",
+      field: "Purchaser 1 Mobile",
+      message: "Client 1 contact mobile number is missing",
       severity: "error",
       targetTab: "client_job",
     });
@@ -78,7 +79,8 @@ export function TenderReadinessChecklist({
       targetTab: "client_job",
     });
   }
-  if (!tender.customer1?.currentAddress?.trim()) {
+  const c1Address = tender.currentHomeAddress?.streetName?.trim() || (tender.customer1 as any)?.currentAddress?.trim();
+  if (!c1Address) {
     issues.push({
       id: "client_1_address",
       category: "client",
@@ -90,7 +92,8 @@ export function TenderReadinessChecklist({
   }
 
   // 2nd Purchaser (if enabled)
-  if (tender.hasSecondPurchaser) {
+  const hasSecondPurchaser = tender.hasCustomer2 || (tender as any).hasSecondPurchaser;
+  if (hasSecondPurchaser) {
     if (!tender.customer2?.firstName?.trim()) {
       issues.push({
         id: "client_2_firstname",
@@ -111,7 +114,8 @@ export function TenderReadinessChecklist({
         targetTab: "client_job",
       });
     }
-    if (!tender.customer2?.phone?.trim()) {
+    const c2Mobile = tender.customer2?.mobile || (tender.customer2 as any)?.phone;
+    if (!c2Mobile?.trim()) {
       issues.push({
         id: "client_2_phone",
         category: "client",
@@ -198,7 +202,8 @@ export function TenderReadinessChecklist({
   }
 
   // 4. Authority to Proceed (ATP) Audit
-  if (!tender.atp?.client1Signed || !tender.atp?.client1SignatureUrl) {
+  const c1Signature = tender.atp?.client1SignatureDataUrl || (tender.atp as any)?.client1SignatureUrl;
+  if (!tender.atp?.client1Signed || !c1Signature) {
     issues.push({
       id: "atp_sig_1",
       category: "atp",
@@ -208,7 +213,8 @@ export function TenderReadinessChecklist({
       targetTab: "atp_sign",
     });
   }
-  if (tender.hasSecondPurchaser && (!tender.atp?.client2Signed || !tender.atp?.client2SignatureUrl)) {
+  const c2Signature = tender.atp?.client2SignatureDataUrl || (tender.atp as any)?.client2SignatureUrl;
+  if (hasSecondPurchaser && (!tender.atp?.client2Signed || !c2Signature)) {
     issues.push({
       id: "atp_sig_2",
       category: "atp",
@@ -240,7 +246,7 @@ export function TenderReadinessChecklist({
   }
 
   // 5. Job Folder Documents Audit
-  const docs = tender.jobFolderDocuments || {};
+  const docs = tender.documents || (tender as any).jobFolderDocuments || {};
   if (!docs["license_c1_front"]?.fileDataUrl) {
     issues.push({
       id: "doc_license_c1_front",
@@ -261,7 +267,7 @@ export function TenderReadinessChecklist({
       targetTab: "job_folder",
     });
   }
-  if (tender.hasSecondPurchaser && !docs["license_c2_front"]?.fileDataUrl) {
+  if (hasSecondPurchaser && !docs["license_c2_front"]?.fileDataUrl) {
     issues.push({
       id: "doc_license_c2_front",
       category: "files",

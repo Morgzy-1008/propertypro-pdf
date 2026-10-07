@@ -2231,8 +2231,8 @@ function DatabasePage() {
                 await img.decode();
               } else {
                 await new Promise<void>((res) => {
-                  img.onload = () => res();
-                  img.onerror = () => res();
+                  (img as HTMLImageElement).onload = () => res();
+                  (img as HTMLImageElement).onerror = () => res();
                   setTimeout(res, 2500);
                 });
               }

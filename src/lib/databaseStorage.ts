@@ -6,6 +6,7 @@ export interface Lot {
   estate: string;
   suburb: string;
   state?: "QLD" | "NSW";
+  postcode?: string | null;
   developer: string | null;
   developer_contact_name: string | null;
   developer_contact_phone: string | null;

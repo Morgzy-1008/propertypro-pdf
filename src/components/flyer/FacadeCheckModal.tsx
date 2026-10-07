@@ -7,6 +7,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -102,6 +103,9 @@ async function cleanImageToBase64(url: string): Promise<string> {
           if (!whiteCol) break;
           right--;
         }
+
+        const cropW = Math.max(1, right - left + 1);
+        const cropH = Math.max(1, bottom - top + 1);
 
         const maxDim = 1536;
         let targetW = cropW;
@@ -235,7 +239,12 @@ export const FacadeCheckModal: React.FC<FacadeCheckModalProps> = ({
       // 4. Automatic High-Precision Geometric Fallback if AI models returned no image or are busy
       if (!widenedUrl && cleanB64.startsWith("data:image/")) {
         try {
-          const clientCanvas = await widenFacadeClientSide(cleanB64, housingType);
+          const clientCanvas = await widenFacadeClientSide({
+            id: facadeId || "recalibrate",
+            name: facadeName,
+            url: cleanB64,
+            housingType,
+          });
           if (clientCanvas && clientCanvas.startsWith("data:image/")) {
             widenedUrl = clientCanvas;
             setCurrentUrl(widenedUrl);

@@ -1033,11 +1033,7 @@ function PackagesBrowse() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setSelectedType("All");
-                    setSelectedEstate("All");
-                  }}
+                  onClick={resetAllFilters}
                   className="border-slate-700 text-xs text-slate-300"
                 >
                   Reset All Filters
@@ -1049,7 +1045,7 @@ function PackagesBrowse() {
           /* ========================================================
              PRINTABLE DOCUMENT VIEW (Paginated A4 Listing Sheet)
              ======================================================== */
-          <div className="flex flex-col items-center gap-6">
+          <div className="w-full overflow-x-auto py-2 flex flex-col items-center gap-6">
             <PrintBar
               label={`House & Land packages — ${filteredPackages.length} available`}
               filename="hudson-homes-house-and-land-packages"

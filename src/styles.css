@@ -540,36 +540,36 @@ html.normal-mode,
    ========================================================================== */
 
 /* 1. Universal Panel and Card Backgrounds */
-.normal-mode main div.rounded-2xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode main div.rounded-xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode [role="dialog"],
-.normal-mode [data-radix-dialog-content],
-.normal-mode [data-radix-popper-content-wrapper] [role="dialog"],
-.normal-mode div[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-slate-800"]:not(button):not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-zinc-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-zinc-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode section[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode section[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode section[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode aside[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode aside[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode label[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode label[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
+.normal-mode main div.rounded-2xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode main div.rounded-xl.border:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode [role="dialog"]:not(:is(.keep-dark, .keep-dark *)),
+.normal-mode [data-radix-dialog-content]:not(:is(.keep-dark, .keep-dark *)),
+.normal-mode [data-radix-popper-content-wrapper] [role="dialog"]:not(:is(.keep-dark, .keep-dark *)),
+.normal-mode div[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-slate-800"]:not(button):not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-zinc-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-zinc-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode section[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode section[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode section[class*="bg-black"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode aside[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode aside[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode label[class*="bg-slate-950"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode label[class*="bg-slate-900"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)) {
   background-color: #ffffff !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
 }
 
 /* Sub-panels and inset cards use subtle slate-50 */
-.normal-mode div[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-zinc-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode div[class*="bg-zinc-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode label[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)),
-.normal-mode label[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *)) {
+.normal-mode div[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-zinc-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode div[class*="bg-zinc-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode label[class*="bg-slate-950/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)),
+.normal-mode label[class*="bg-slate-900/"]:not(:is(.quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page, .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *, .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *)) {
   background-color: #f8fafc !important;
   border-color: #e2e8f0 !important;
   color: #0f172a !important;
@@ -674,7 +674,10 @@ html.normal-mode,
   a[class*="bg-slate-9"], a[class*="bg-slate-9"] *,
   a[class*="bg-slate-8"], a[class*="bg-slate-8"] *,
   a[class*="bg-black"], a[class*="bg-black"] *,
-  .badge-dark, .badge-dark *
+  .badge-dark, .badge-dark *,
+  .keep-dark, .keep-dark *,
+  .dark-surface, .dark-surface *,
+  .navy-panel, .navy-panel *
 )) {
   color: #334155 !important;
 }
@@ -712,7 +715,9 @@ html.normal-mode,
   button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
   a[class*="bg-brand-navy"], a[class*="bg-brand-navy"] *,
   .badge-dark, .badge-dark *,
-  .keep-dark, .keep-dark *
+  .keep-dark, .keep-dark *,
+  .dark-surface, .dark-surface *,
+  .navy-panel, .navy-panel *
 )) {
   color: #475569 !important;
 }
@@ -722,7 +727,9 @@ html.normal-mode,
   .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
   button[class*="bg-brand-navy"], button[class*="bg-brand-navy"] *,
   .badge-dark, .badge-dark *,
-  .keep-dark, .keep-dark *
+  .keep-dark, .keep-dark *,
+  .dark-surface, .dark-surface *,
+  .navy-panel, .navy-panel *
 )) {
   color: #1e293b !important;
   font-weight: 500;
@@ -750,7 +757,8 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *
 )) {
   color: #b45309 !important;
 }
@@ -775,7 +783,8 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *
 )) {
   color: #0e7490 !important;
 }
@@ -800,7 +809,8 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *
 )) {
   color: #047857 !important;
 }
@@ -826,7 +836,8 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *
 )) {
   color: #7e22ce !important;
 }
@@ -850,7 +861,8 @@ html.normal-mode,
   [class*="bg-cyan-600"], [class*="bg-cyan-600"] *,
   .rounded-full[class*="bg-gradient-to-br"], .rounded-full[class*="bg-gradient-to-br"] *,
   .quote-pdf-root, .quote-page, .tender-master-pdf-root, .flyer-page,
-  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *
+  .quote-pdf-root *, .quote-page *, .tender-master-pdf-root *, .flyer-page *,
+  .keep-dark, .keep-dark *, .dark-surface, .dark-surface *, .navy-panel, .navy-panel *
 )) {
   color: #1d4ed8 !important;
 }
@@ -1301,7 +1313,9 @@ html.normal-mode,
   a[class*="bg-black"], a[class*="bg-black"] *,
   .badge-dark, .badge-dark *,
   .dark-surface, .dark-surface *,
-  .keep-dark, .keep-dark *
+  .navy-panel, .navy-panel *,
+  .keep-dark, .keep-dark *,
+  div.keep-dark *, section.keep-dark *
 ) :is(
   h1, h2, h3, h4, h5, h6,
   strong, b,

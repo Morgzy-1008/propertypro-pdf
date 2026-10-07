@@ -175,10 +175,10 @@ export async function renderA4PdfDocument(root?: ParentNode) {
           try {
             if ("decode" in image) {
               await image.decode();
-            } else if (!image.complete) {
+            } else if (!(image as HTMLImageElement).complete) {
               await new Promise<void>((resolve) => {
-                image.addEventListener("load", () => resolve(), { once: true });
-                image.addEventListener("error", () => resolve(), { once: true });
+                (image as HTMLImageElement).addEventListener("load", () => resolve(), { once: true });
+                (image as HTMLImageElement).addEventListener("error", () => resolve(), { once: true });
                 setTimeout(resolve, 3000);
               });
             }

@@ -943,8 +943,9 @@ export function QuoteBuilder() {
                       : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
                   }`}
                 >
-                  <Icon className={`h-3.5 w-3.5 ${isActive ? (isLight ? "text-emerald-700" : "text-emerald-400") : (isLight ? "text-slate-500" : "text-slate-400")}`} />
-                  {tab.label}
+                  <Icon className={`h-3.5 w-3.5 flex-none ${isActive ? (isLight ? "text-emerald-700" : "text-emerald-400") : (isLight ? "text-slate-500" : "text-slate-400")}`} />
+                  <span className="hidden 2xl:inline">{tab.label}</span>
+                  <span className="inline 2xl:hidden">{tab.id === "pdf_preview" ? "5. Estimate PDF" : tab.label}</span>
                 </button>
               );
             })}

@@ -484,6 +484,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
+  const dualLivingCost = site.dualLivingInfrastructureRequired ? (site.dualLivingInfrastructureCost ?? 23000) : 0;
 
   const variationsTotal = quote.pricing.categorySubtotals.reduce((s, c) => s + c.amount, 0);
 
@@ -496,7 +497,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const quoteStateFull = quoteCompany.isNsw ? "New South Wales" : "Queensland";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-brand-gold/30 relative overflow-hidden flex flex-col">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans keep-dark selection:bg-brand-gold/30 relative overflow-hidden flex flex-col">
       {/* Header */}
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">

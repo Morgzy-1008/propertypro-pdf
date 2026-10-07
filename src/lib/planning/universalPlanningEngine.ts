@@ -79,7 +79,7 @@ export interface CouncilJurisdiction {
   };
   recommendedDesigns: Array<{
     name: string;
-    type: "Duplex" | "Dual Key" | "Single Storey" | "Double Storey";
+    type: "Duplex" | "Dual Key" | "Single Storey" | "Double Storey" | "Dual Living";
     minLotWidthM: number;
     minLotDepthM: number;
     summary: string;

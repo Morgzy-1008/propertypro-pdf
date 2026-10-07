@@ -36,23 +36,29 @@ interface FloorplanMarkupViewerProps {
   floorplanUrl?: string;
   originalFloorplanUrl?: string;
   isModifiedPlan?: boolean;
-  designName: string;
-  pins: TenderFloorplanPin[];
-  variations: TenderNumberedVariation[];
-  onUpdatePins: (pins: TenderFloorplanPin[]) => void;
-  onUploadCustomPlan: (dataUrl: string) => void;
-  onAddStructuralVariation: (pin: TenderFloorplanPin, customTitle?: string, customCost?: number) => void;
-  onAssignExistingVariationToPin: (varId: string, pinCoord: { x: number; y: number }) => void;
-  onRemoveStructuralVariation: (pinId: string) => void;
+  designName?: string;
+  pins?: TenderFloorplanPin[];
+  variations?: TenderNumberedVariation[];
+  selectedPinId?: string | null;
+  onPinSelect?: (id: string | null) => void;
+  readOnly?: boolean;
+  onUpdatePins?: (pins: TenderFloorplanPin[]) => void;
+  onUploadCustomPlan?: (dataUrl: string) => void;
+  onAddStructuralVariation?: (pin: TenderFloorplanPin, customTitle?: string, customCost?: number) => void;
+  onAssignExistingVariationToPin?: (varId: string, pinCoord: { x: number; y: number }) => void;
+  onRemoveStructuralVariation?: (pinId: string) => void;
 }
 
 export function FloorplanMarkupViewer({
   floorplanUrl,
   originalFloorplanUrl,
   isModifiedPlan,
-  designName,
-  pins,
-  variations,
+  designName = "",
+  pins = [],
+  variations = [],
+  selectedPinId: externalSelectedPinId,
+  onPinSelect,
+  readOnly = false,
   onUpdatePins,
   onUploadCustomPlan,
   onAddStructuralVariation,
@@ -60,7 +66,12 @@ export function FloorplanMarkupViewer({
   onRemoveStructuralVariation,
 }: FloorplanMarkupViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
+  const [internalSelectedPinId, setInternalSelectedPinId] = useState<string | null>(null);
+  const selectedPinId = externalSelectedPinId !== undefined ? externalSelectedPinId : internalSelectedPinId;
+  const setSelectedPinId = (id: string | null) => {
+    setInternalSelectedPinId(id);
+    onPinSelect?.(id);
+  };
   const [draggingPinId, setDraggingPinId] = useState<string | null>(null);
 
   // Crop modal state
@@ -75,14 +86,14 @@ export function FloorplanMarkupViewer({
   const [customTitle, setCustomTitle] = useState("");
   const [customCost, setCustomCost] = useState<number | "">("");
 
-  const unassignedColumnBItems = variations.filter((v) => !v.isStructural);
+  const unassignedColumnBItems = (variations || []).filter((v) => !v.isStructural);
   const filteredColumnBItems = unassignedColumnBItems.filter((item) =>
     item.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Click on floorplan canvas to place a new pin
   const handlePlanClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (draggingPinId) return; // ignore click if ended a drag
+    if (readOnly || draggingPinId) return; // ignore click if ended a drag or read-only
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -115,8 +126,8 @@ export function FloorplanMarkupViewer({
     };
 
     const updated = [...pins, newPin];
-    onUpdatePins(updated);
-    onAddStructuralVariation(newPin, title, cost);
+    onUpdatePins?.(updated);
+    onAddStructuralVariation?.(newPin, title, cost);
     setSelectedPinId(newPin.id);
     setIsAssignModalOpen(false);
     setPendingCoord(null);
@@ -125,7 +136,7 @@ export function FloorplanMarkupViewer({
 
   const handlePickColumnBItem = (varItem: TenderNumberedVariation) => {
     if (!pendingCoord) return;
-    onAssignExistingVariationToPin(varItem.id, pendingCoord);
+    onAssignExistingVariationToPin?.(varItem.id, pendingCoord);
     setIsAssignModalOpen(false);
     setPendingCoord(null);
     toast.success(`Assigned "${varItem.description}" as Structural Pin #${pins.length + 1}!`);
@@ -134,13 +145,14 @@ export function FloorplanMarkupViewer({
   // Dragging pin handler
   const handlePinPointerDown = (pinId: string, e: React.PointerEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     setDraggingPinId(pinId);
     setSelectedPinId(pinId);
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingPinId || !containerRef.current) return;
+    if (readOnly || !draggingPinId || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const curX = e.clientX - rect.left;
     const curY = e.clientY - rect.top;
@@ -149,7 +161,7 @@ export function FloorplanMarkupViewer({
     const percentY = Math.max(3, Math.min(97, Math.round((curY / rect.height) * 100)));
 
     const updated = pins.map((p) => (p.id === draggingPinId ? { ...p, x: percentX, y: percentY } : p));
-    onUpdatePins(updated);
+    onUpdatePins?.(updated);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -193,10 +205,11 @@ export function FloorplanMarkupViewer({
 
   const handleRemovePin = (pinId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (readOnly) return;
     const filtered = pins.filter((p) => p.id !== pinId);
     const renumbered = filtered.map((p, idx) => ({ ...p, number: idx + 1 }));
-    onUpdatePins(renumbered);
-    onRemoveStructuralVariation(pinId);
+    onUpdatePins?.(renumbered);
+    onRemoveStructuralVariation?.(pinId);
     if (selectedPinId === pinId) setSelectedPinId(null);
     toast.info("Removed floorplan pin");
   };
@@ -222,35 +235,37 @@ export function FloorplanMarkupViewer({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {floorplanUrl && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setRawForCrop(floorplanUrl);
-                setIsCropModalOpen(true);
-              }}
-              className="border-slate-700 bg-slate-900 text-xs font-bold text-slate-200 hover:bg-slate-800 gap-1.5"
-            >
-              <Crop className="h-3.5 w-3.5 text-amber-400" /> Crop / Trim Floorplan
-            </Button>
-          )}
+        {!readOnly && (
+          <div className="flex items-center gap-2">
+            {floorplanUrl && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRawForCrop(floorplanUrl);
+                  setIsCropModalOpen(true);
+                }}
+                className="border-slate-700 bg-slate-900 text-xs font-bold text-slate-200 hover:bg-slate-800 gap-1.5"
+              >
+                <Crop className="h-3.5 w-3.5 text-amber-400" /> Crop / Trim Floorplan
+              </Button>
+            )}
 
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,.pdf,.webp"
-              onChange={handleCustomPlanFile}
-              className="hidden"
-            />
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/50 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
-              <Upload className="h-3.5 w-3.5 text-cyan-400" />
-              Upload Modified Floorplan (PDF or Image)
-            </span>
-          </label>
-        </div>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,.pdf,.webp"
+                onChange={handleCustomPlanFile}
+                className="hidden"
+              />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/50 bg-cyan-950/50 hover:bg-cyan-900 text-xs font-bold text-cyan-200 transition-colors shadow-xs">
+                <Upload className="h-3.5 w-3.5 text-cyan-400" />
+                Upload Modified Floorplan (PDF or Image)
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       {/* Main Floorplans Display Container */}
@@ -300,7 +315,7 @@ export function FloorplanMarkupViewer({
                 onClick={handlePlanClick}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUp}
-                className="relative inline-block max-w-full cursor-crosshair select-none"
+                className={`relative inline-block max-w-full select-none ${readOnly ? "cursor-default" : "cursor-crosshair"}`}
               >
                 <img
                   src={floorplanUrl}
@@ -322,9 +337,9 @@ export function FloorplanMarkupViewer({
                         e.stopPropagation();
                         setSelectedPinId(pin.id);
                       }}
-                      className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform z-30 group/pin ${
-                        isDragging ? "scale-125 z-40" : "hover:scale-125"
-                      }`}
+                      className={`absolute -translate-x-1/2 -translate-y-1/2 transition-transform z-30 group/pin ${
+                        readOnly ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"
+                      } ${isDragging ? "scale-125 z-40" : "hover:scale-125"}`}
                     >
                       <div
                         className={`h-[18px] w-[18px] rounded-full flex items-center justify-center font-mono font-black text-[9.5px] shadow-sm border transition-all ${
@@ -340,13 +355,15 @@ export function FloorplanMarkupViewer({
                       <div className="hidden group-hover/pin:flex absolute top-6 left-1/2 -translate-x-1/2 bg-slate-950 text-white text-[10.5px] font-sans px-2 py-0.5 rounded-md border border-slate-700 shadow-2xl whitespace-nowrap items-center gap-1.5 z-40">
                         <span className="font-bold text-amber-400">#{pin.number}</span>
                         <span className="truncate max-w-[180px]">{pin.title}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleRemovePin(pin.id, e)}
-                          className="text-slate-400 hover:text-rose-400 ml-1 p-0.5"
-                        >
-                          <Trash2 className="h-2.5 w-2.5" />
-                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleRemovePin(pin.id, e)}
+                            className="text-slate-400 hover:text-rose-400 ml-1 p-0.5"
+                          >
+                            <Trash2 className="h-2.5 w-2.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -354,9 +371,11 @@ export function FloorplanMarkupViewer({
               </div>
 
               {/* Click instruction helper badge */}
-              <div className="absolute top-2 right-2 bg-slate-950/90 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1 shadow-md z-20">
-                <MousePointerClick className="h-3 w-3 text-amber-400" /> Click plan to assign pin &bull; Drag to position
-              </div>
+              {!readOnly && (
+                <div className="absolute top-2 right-2 bg-slate-950/90 text-white text-[10px] font-semibold px-2.5 py-1 rounded-full border border-slate-700 pointer-events-none backdrop-blur-xs flex items-center gap-1 shadow-md z-20">
+                  <MousePointerClick className="h-3 w-3 text-amber-400" /> Click plan to assign pin &bull; Drag to position
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-16 px-4">
@@ -554,7 +573,7 @@ export function FloorplanMarkupViewer({
           onOpenChange={setIsCropModalOpen}
           rawImageSrc={rawForCrop}
           onApplyCroppedImage={(cropped) => {
-            onUploadCustomPlan(cropped);
+            onUploadCustomPlan?.(cropped);
             setRawForCrop(null);
           }}
         />

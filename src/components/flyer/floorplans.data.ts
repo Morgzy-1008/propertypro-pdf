@@ -13,9 +13,16 @@ export interface FloorplanRecord {
   /** Minimum lot width in m */
   frontage: string;
   url: string;
+  houseWidth?: string | number;
+  houseLength?: string | number;
+  width?: string | number;
+  depth?: string | number;
+  rooms?: any;
   pdfUrl?: string;
   cropBoxes?: { page: number; x?: number; y?: number; w?: number; h?: number; points?: { x: number; y: number }[] }[];
 }
+
+export type HudsonFloorplan = FloorplanRecord;
 
 export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
   {

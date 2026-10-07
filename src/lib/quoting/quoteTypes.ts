@@ -71,6 +71,7 @@ export interface CustomFloorplanSpec {
   ancillaryRateM2: number; // Garage, Alfresco, Porch
   scaffoldingAllowance: number;
   customPlanUrl?: string;
+  isManualRateOverride?: boolean;
 }
 
 export type SoilClass =
@@ -253,6 +254,8 @@ export interface QuoteDesignSelection {
   beds?: string;
   baths?: string;
   cars?: string;
+  garage?: number | string;
+  modelName?: string;
   widthM?: string;
   lengthM?: string;
   promotionName?: string;

@@ -920,7 +920,6 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
       eftReference: `${(c1Last || "Client").replace(/\s+/g, "").toUpperCase()}-${quote.quoteNumber || "MH"}`,
     },
     documents: docs,
-    feasibility: quote.feasibility,
   };
 }
 

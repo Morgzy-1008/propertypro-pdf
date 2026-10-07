@@ -57,7 +57,7 @@ export function CrmDisplayKiosk() {
         facadeName: "Hampton Executive",
         housingType: storeys,
         totalEstimatedDealValue: parseFloat(budgetRange) || 475000,
-        stage: "display_walkin",
+        stage: "walk_ins",
         assignedConsultantId: "morgan_hales",
         leadSource: "Display Home Kiosk",
         notes: `Registered at Springfield Central Display Village iPad Kiosk. Looking for ${storeys} in ${targetSuburb}.`,

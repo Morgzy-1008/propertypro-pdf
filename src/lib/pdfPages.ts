@@ -110,7 +110,12 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
   }
 
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-    pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
+    try {
+      const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
+      pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    } catch {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+    }
   }
 
   let doc: any = null;
