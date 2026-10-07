@@ -712,6 +712,35 @@ export const HUDSON_FACADES: FacadeItem[] = [
     "originalUrl": "/facades/statesman-single-garage.png"
   },
   {
+    "id": "classic-single-garage-double-storey",
+    "name": "Classic (Single Garage Double Storey)",
+    "range": "Double Storey",
+    "tags": [
+      "classic",
+      "double",
+      "single-garage",
+      "terracotta",
+      "ruby"
+    ],
+    "url": "/facades/classic-single-garage-double-storey.png",
+    "originalUrl": "/facades/classic-single-garage-double-storey.png"
+  },
+  {
+    "id": "classic-narrow-sg-double-storey",
+    "name": "Classic Narrow SG (Double Storey)",
+    "range": "Double Storey",
+    "tags": [
+      "classic",
+      "double",
+      "single-garage",
+      "narrow",
+      "terracotta",
+      "ruby"
+    ],
+    "url": "/facades/classic-facade-narrow-single-garage-2-stry-2.jpg",
+    "originalUrl": "/facades/classic-facade-narrow-single-garage-2-stry-2.jpg"
+  },
+  {
     "id": "classic-double-garage",
     "name": "Classic (Double Storey)",
     "range": "Double Storey",

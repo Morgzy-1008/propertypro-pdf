@@ -379,6 +379,11 @@ export function isSingleGarageDesign(designName?: string, housingType?: string):
     lower.startsWith("iris") ||
     lower.startsWith("lime") ||
     lower.startsWith("mint") ||
+    lower.startsWith("terracotta 23") ||
+    lower.startsWith("ruby 19") ||
+    lower.startsWith("ruby 21") ||
+    lower.startsWith("ruby 23") ||
+    lower.startsWith("ruby 28") ||
     lower.startsWith("orchid") ||
     lower.startsWith("robin")
   );

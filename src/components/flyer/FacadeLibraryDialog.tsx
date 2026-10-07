@@ -24,15 +24,17 @@ import {
   type FacadeGarage,
   type FacadeStorey,
 } from "./facadePricing";
+import { getIdbThumbnail, saveIdbThumbnail } from "./idbFacadeCache";
 import { fileToImageDataUrl } from "./fileToImage";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
 
-const CATEGORIES: { id: FacadeStorey | "uploaded"; label: string }[] = [
+const CATEGORIES: { id: FacadeStorey | "uploaded" | "all"; label: string }[] = [
   { id: "single", label: "Single Storey" },
   { id: "double", label: "Double Storey" },
   { id: "split", label: "Split Level" },
   { id: "acreage", label: "Acreage / Ranch" },
+  { id: "all", label: "All Facades" },
   { id: "uploaded", label: "Uploaded" },
 ];
 
@@ -46,10 +48,11 @@ const SORTS: { id: SortId; label: string }[] = [
 
 function facadeBelongsToCategory(
   f: FacadeItem,
-  category: FacadeStorey | "uploaded" | "design",
+  category: FacadeStorey | "uploaded" | "design" | "all",
 ): boolean {
   if (category === "uploaded") return f.range === "Uploaded";
   if (f.range === "Uploaded") return false;
+  if (category === "all") return true;
 
   const range = (f.range || "").toLowerCase();
   const tags = f.tags || [];
@@ -91,41 +94,148 @@ function facadeBelongsToCategory(
   return true;
 }
 
-const INITIAL_BATCH = 15;
-const BATCH_INCREMENT = 15;
+const INITIAL_BATCH = 12;
+const BATCH_INCREMENT = 12;
+
+// In-memory cache for synchronous 0ms thumbnail loading across dialog opens
+const memoryThumbnailCache = new Map<string, string>();
+const pendingThumbnailPromises = new Map<string, Promise<string>>();
+
+/**
+ * Dynamically downsizes full-resolution 4K/3MB images into a crisp 15KB WebP thumbnail
+ * directly in the browser via Canvas and caches in IndexedDB and RAM.
+ */
+async function getOrGenerateThumbnail(url: string): Promise<string> {
+  if (memoryThumbnailCache.has(url)) {
+    return memoryThumbnailCache.get(url)!;
+  }
+  if (pendingThumbnailPromises.has(url)) {
+    return pendingThumbnailPromises.get(url)!;
+  }
+
+  const promise = (async () => {
+    // 1. Check IndexedDB
+    try {
+      const cached = await getIdbThumbnail(url);
+      if (cached) {
+        memoryThumbnailCache.set(url, cached);
+        return cached;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Generate thumbnail dynamically via Image + Canvas
+    return new Promise<string>((resolve) => {
+      if (typeof window === "undefined") {
+        resolve(url);
+        return;
+      }
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          const targetWidth = 420;
+          const targetHeight = Math.round((img.naturalHeight / (img.naturalWidth || 1)) * targetWidth) || 164;
+          canvas.width = targetWidth;
+          canvas.height = targetHeight;
+          const ctx = canvas.getContext("2d", { alpha: false });
+          if (ctx) {
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = "medium";
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            const thumbUrl = canvas.toDataURL("image/webp", 0.82);
+            memoryThumbnailCache.set(url, thumbUrl);
+            saveIdbThumbnail(url, thumbUrl).catch(() => {});
+            resolve(thumbUrl);
+            return;
+          }
+        } catch {
+          // fallback
+        }
+        resolve(url);
+      };
+      img.onerror = () => resolve(url);
+      img.src = url;
+    });
+  })();
+
+  pendingThumbnailPromises.set(url, promise);
+  const result = await promise;
+  pendingThumbnailPromises.delete(url);
+  return result;
+}
 
 function FacadeCardThumbnail({
   f,
   isHighPriority,
+  isSingleGarage,
+  showGarageBadge,
 }: {
   f: FacadeItem;
   isHighPriority: boolean;
+  isSingleGarage?: boolean;
+  showGarageBadge?: boolean;
 }) {
+  const [thumbSrc, setThumbSrc] = useState<string | null>(() => memoryThumbnailCache.get(f.url) || null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    if (memoryThumbnailCache.has(f.url)) {
+      setThumbSrc(memoryThumbnailCache.get(f.url)!);
+      return;
+    }
+    getOrGenerateThumbnail(f.url).then((src) => {
+      if (active) {
+        setThumbSrc(src);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [f.url]);
+
   return (
-    <div className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden">
-      {!loaded && !error && (
+    <div
+      className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "240px 95px" }}
+    >
+      {(!loaded || !thumbSrc) && !error && (
         <div className="absolute inset-0 bg-slate-800/80 animate-pulse flex items-center justify-center">
           <span className="h-3.5 w-3.5 rounded-full border-2 border-brand-gold/40 border-t-brand-gold animate-spin" />
         </div>
       )}
-      <img
-        src={f.url}
-        alt={f.name}
-        loading={isHighPriority ? "eager" : "lazy"}
-        decoding="async"
-        fetchPriority={isHighPriority ? "high" : "auto"}
-        onLoad={() => setLoaded(true)}
-        onError={() => setError(true)}
-        className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
-      />
+      {thumbSrc && (
+        <img
+          src={thumbSrc}
+          alt={f.name}
+          loading={isHighPriority ? "eager" : "lazy"}
+          decoding="async"
+          fetchPriority={isHighPriority ? "high" : "auto"}
+          onLoad={() => setLoaded(true)}
+          onError={() => setError(true)}
+          className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      )}
       {f.range === "Narrow Double Storey" && (
         <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
           Narrow Double
+        </span>
+      )}
+      {showGarageBadge && (
+        <span
+          className={`absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold backdrop-blur-xs border ${
+            isSingleGarage
+              ? "bg-emerald-950/90 border-emerald-500/70 text-emerald-300 shadow-xs"
+              : "bg-slate-950/80 border-slate-700/60 text-slate-300"
+          }`}
+        >
+          {isSingleGarage ? "✓ 1-Car Render" : "2-Car Render"}
         </span>
       )}
     </div>
@@ -162,23 +272,30 @@ export function FacadeLibrary({
   const [sort, setSort] = useState<SortId>("alpha");
   const [visibleLimit, setVisibleLimit] = useState(INITIAL_BATCH);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  type TabId = FacadeStorey | "uploaded" | "design";
+  type TabId = FacadeStorey | "uploaded" | "design" | "all";
 
   const effectiveGarage: FacadeGarage | null =
     garage ?? (designName && isSingleGarageDesign(designName) ? 1 : null);
 
-  const [category, setCategory] = useState<TabId>(() => (effectiveGarage === 1 ? "single" : storey ?? "single"));
+  const initialCat: TabId =
+    storey ?? (effectiveGarage === 1 ? "single" : "single");
+
+  const [category, setCategory] = useState<TabId>(initialCat);
+  const [garageFilter, setGarageFilter] = useState<"all" | "single-only">("all");
   const [custom, setCustom] = useState<FacadeItem[]>(() => loadCustomFacades());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (effectiveGarage === 1) setCategory("single");
-    else if (storey) setCategory(storey);
+    if (storey) {
+      setCategory(storey);
+    } else if (effectiveGarage === 1) {
+      setCategory("single");
+    }
   }, [storey, effectiveGarage, open]);
 
   useEffect(() => {
     setVisibleLimit(INITIAL_BATCH);
-  }, [category, sort, query, open]);
+  }, [category, sort, query, garageFilter, open]);
 
   const restricted = !!designFacades?.length;
   const all = useMemo(
@@ -191,8 +308,10 @@ export function FacadeLibrary({
     if (f.range === "Uploaded" || !effectiveGarage) return true;
     const g = facadeGarage(f);
     if (effectiveGarage === 1) {
-      // Single car garage floorplans: ONLY single car garage facades!
-      return g === 1;
+      if (garageFilter === "single-only") {
+        return g === 1;
+      }
+      return true;
     }
     if (effectiveGarage === 2) {
       // Double car garage floorplans: NEVER single car garage facades!
@@ -201,23 +320,31 @@ export function FacadeLibrary({
     return true;
   };
 
-  const eligible = useMemo(() => all.filter(matchesGarage), [all, effectiveGarage]);
+  const eligible = useMemo(() => all.filter(matchesGarage), [all, effectiveGarage, garageFilter]);
 
-  const tabs = useMemo(() => {
+  const tabs: { id: TabId; label: string }[] = useMemo(() => {
     if (restricted) {
       return [
         { id: "design" as const, label: "Available for this design" },
         CATEGORIES.find((c) => c.id === "uploaded")!,
       ];
     }
+    if (storey === "double") {
+      return [
+        { id: "double" as const, label: "Double Storey" },
+        { id: "all" as const, label: "All Facades" },
+        CATEGORIES.find((c) => c.id === "uploaded")!,
+      ];
+    }
     if (effectiveGarage === 1) {
       return [
-        { id: "single" as const, label: "Single Garage (Narrow Lot)" },
+        { id: "single" as const, label: "Single Storey" },
+        { id: "all" as const, label: "All Facades" },
         CATEGORIES.find((c) => c.id === "uploaded")!,
       ];
     }
     return CATEGORIES;
-  }, [restricted, effectiveGarage]);
+  }, [restricted, effectiveGarage, storey]);
 
   const active: TabId = tabs.some((t) => t.id === category) ? category : tabs[0].id;
 
@@ -228,15 +355,31 @@ export function FacadeLibrary({
     const inCat = eligible.filter((f) => facadeBelongsToCategory(f, active));
     const found = searchFacades(inCat, query);
     const sorted = [...found];
-    if (sort === "alpha") sorted.sort((a, b) => a.name.localeCompare(b.name));
-    else
+    if (sort === "alpha") {
       sorted.sort((a, b) => {
+        if (effectiveGarage === 1) {
+          const ga = facadeGarage(a);
+          const gb = facadeGarage(b);
+          if (ga === 1 && gb !== 1) return -1;
+          if (ga !== 1 && gb === 1) return 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+    } else {
+      sorted.sort((a, b) => {
+        if (effectiveGarage === 1) {
+          const ga = facadeGarage(a);
+          const gb = facadeGarage(b);
+          if (ga === 1 && gb !== 1) return -1;
+          if (ga !== 1 && gb === 1) return 1;
+        }
         const pa = priceOf(a) ?? 0;
         const pb = priceOf(b) ?? 0;
         return sort === "price-asc" ? pa - pb : pb - pa;
       });
+    }
     return sorted;
-  }, [eligible, active, query, sort, designName]);
+  }, [eligible, active, query, sort, designName, effectiveGarage]);
 
 
   const visibleResults = useMemo(() => results.slice(0, visibleLimit), [results, visibleLimit]);
@@ -376,26 +519,65 @@ export function FacadeLibrary({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>Sort</span>
-            {SORTS.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => setSort(s.id)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
-                  sort === s.id
-                    ? isLight
-                      ? "border-amber-400 bg-amber-100 text-amber-950 font-bold shadow-xs"
-                      : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
-                    : isLight
-                      ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                      : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            {effectiveGarage === 1 && (
+              <div className="flex items-center gap-1">
+                <span className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                  Garage:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setGarageFilter("all")}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                    garageFilter === "all"
+                      ? isLight
+                        ? "border-amber-400 bg-amber-100 text-amber-950 font-bold shadow-xs"
+                        : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                      : isLight
+                        ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGarageFilter("single-only")}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                    garageFilter === "single-only"
+                      ? isLight
+                        ? "border-emerald-500 bg-emerald-100 text-emerald-950 font-bold shadow-xs"
+                        : "border-emerald-500/60 bg-emerald-500/20 text-emerald-200 shadow-sm"
+                      : isLight
+                        ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  1-Car Only
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[11px] font-medium ${isLight ? "text-slate-600" : "text-slate-400"}`}>Sort</span>
+              {SORTS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => setSort(s.id)}
+                  className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-all ${
+                    sort === s.id
+                      ? isLight
+                        ? "border-amber-400 bg-amber-100 text-amber-950 font-bold shadow-xs"
+                        : "border-brand-gold/60 bg-gradient-to-r from-amber-500/20 to-brand-gold/15 text-amber-200 shadow-sm"
+                      : isLight
+                        ? "border-slate-200 bg-slate-100 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -420,7 +602,12 @@ export function FacadeLibrary({
                         : "border-slate-800 bg-slate-900/80 hover:border-slate-700 text-slate-200"
                   }`}
                 >
-                  <FacadeCardThumbnail f={f} isHighPriority={idx < 6} />
+                  <FacadeCardThumbnail
+                    f={f}
+                    isHighPriority={idx < 6}
+                    showGarageBadge={effectiveGarage === 1}
+                    isSingleGarage={facadeGarage(f) === 1}
+                  />
                   <div className="flex items-baseline justify-between gap-2 px-2.5 py-2">
                     <span className={`truncate text-xs font-semibold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                       {f.name}

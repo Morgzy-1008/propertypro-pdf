@@ -38,6 +38,11 @@ export function isSingleGarageDesign(designName?: string, housingType?: string):
     lower.startsWith("iris") ||
     lower.startsWith("lime") ||
     lower.startsWith("mint") ||
+    lower.startsWith("terracotta 23") ||
+    lower.startsWith("ruby 19") ||
+    lower.startsWith("ruby 21") ||
+    lower.startsWith("ruby 23") ||
+    lower.startsWith("ruby 28") ||
     lower.startsWith("orchid") ||
     lower.startsWith("robin")
   );
@@ -250,6 +255,18 @@ export function findFacadeForDesign(
       }
     } else {
       // === STANDARD DOUBLE STOREY (Burgundy, Jasper, Sapphire, Emerald, Diamond, Onyx, Ruby, Aston, Opal, Topaz, etc.) ===
+      const isSingleGarage = isSingleGarageDesign(designName, housingType);
+      if (isSingleGarage) {
+        if (baseKey === "classic" || !facadeNameOrId) {
+          const found = HUDSON_FACADES.find((f) => f.id === "classic-single-garage-double-storey");
+          if (found) return resolveWithPreRendered(found);
+        }
+        if (rawKey === "classic-narrow-sg-double-storey" || baseKey === "classicnarrowsg") {
+          const found = HUDSON_FACADES.find((f) => f.id === "classic-narrow-sg-double-storey");
+          if (found) return resolveWithPreRendered(found);
+        }
+      }
+
       const standardDoubleIdMap: Record<string, string> = {
         classic: "classic-double-garage",
         classicplus: "classic-plus-double-garage",

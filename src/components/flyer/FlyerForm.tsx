@@ -327,6 +327,20 @@ function resolveDefaultFacade(
   }
 
   if (storey === "double") {
+    if (targetGarage === 1) {
+      if (currentFacadeId) {
+        const existingSg = HUDSON_FACADES.find(
+          (f) => f.id === currentFacadeId && (f.range === "Double Storey" || f.range === "Narrow Double Storey") && facadeGarage(f) === 1
+        );
+        if (existingSg) return existingSg;
+      }
+      if (base) {
+        const matchSg = HUDSON_FACADES.find(
+          (f) => (f.range === "Double Storey" || f.range === "Narrow Double Storey") && facadeGarage(f) === 1 && facadeBaseName(f.name) === base
+        );
+        if (matchSg) return matchSg;
+      }
+    }
     if (currentFacadeId) {
       const existing = HUDSON_FACADES.find(
         (f) => f.id === currentFacadeId && (f.range === "Double Storey" || f.range === "Narrow Double Storey")
