@@ -115,28 +115,28 @@ async function callGeminiWithFallback(apiKey, body) {
    - Ground Floor Living Area (m²)
    - First Floor Living Area (m²)
    - Garage Area (m²)
-   - Alfresco Area (m²)
-   - Porch Area (m²)
-   - Total Area (m²)
-   - Overall Width (m)
-   - Overall Length (m)
+   - CRITICAL ARCHITECTURAL RULE: ONLY extract values if an explicit, printed Area Schedule table is present on this drawing sheet (e.g. titled "AREA SCHEDULE", "SCHEDULE OF AREAS", or listed in the sheet title block).
+   - If there is NO printed Area Schedule table on this sheet, set "scheduleTable": null and "totalM2": null!
+   - NEVER grab stray drawing notes, linear step-downs, or detail annotations (e.g. "5mm lip", "180mm platform", "2 step") as areas!
+   - If a genuine schedule table is printed, transcribe:
+     Living Area (m²), Ground Floor Living (m²), First Floor Living (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²), Overall Width (m), Overall Length (m).
 
 Return ONLY valid JSON:
 {
   "designName": string,
   "housingType": "Single Storey" | "Double Storey",
-  "totalM2": number,
+  "totalM2": number | null,
   "scheduleTable": {
-    "livingM2": number,
-    "groundLivingM2": number,
-    "firstLivingM2": number,
-    "garageM2": number,
-    "alfrescoM2": number,
-    "porchM2": number,
-    "totalM2": number,
-    "widthM": number,
-    "lengthM": number
-  },
+    "livingM2": number | null,
+    "groundLivingM2": number | null,
+    "firstLivingM2": number | null,
+    "garageM2": number | null,
+    "alfrescoM2": number | null,
+    "porchM2": number | null,
+    "totalM2": number | null,
+    "widthM": number | null,
+    "lengthM": number | null
+  } | null,
   "rawTitleFound": string
 }`;
 
@@ -260,15 +260,11 @@ CRITICAL ARCHITECTURAL GROUND TRUTH & IMMUNITY RULES:
        Living Area (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²).
      * If an Area Schedule table exists on Image 2, transcribe its exact numbers into "scheduleTable".
 
-   - FOR PLANS WITHOUT A PRINTED AREA SCHEDULE TABLE (DIMENSION-BASED DERIVATION):
-     * If Image 2 does NOT have a printed area schedule table (or only has room dimension callouts):
-       - Read the room callouts and dimensions printed on Image 2:
-         * Outdoor Alfresco (e.g. "Alfresco 5.3 x 3.6" -> 5.3 × 3.6 = 19.08 m²). Compare to standard baseline ${standardAlfrescoM2} m².
-         * Garage (e.g. "Garage 5.7 x 6.0" -> 34.20 m² internal, ~38.4 m² slab). Compare to standard baseline ${standardGarageM2} m².
-         * Front Porch (e.g. "Porch 2.0 x 4.3" -> 8.60 m² or slab footprint). Compare to standard baseline ${standardPorchM2} m².
-         * Living/Family/Dining/Bedrooms: read internal room sizes, sum habitable spaces, and compare to standard baseline ${standardLivingM2} m².
-       - Populate "scheduleTable" with these derived m² values!
-       - Explicitly output "areaModifications" showing the exact zone deltas!
+   - FOR PLANS WITHOUT A PRINTED AREA SCHEDULE TABLE:
+     * If Image 2 does NOT have an authentic printed area schedule table (or only has room dimension callouts):
+       - Set "scheduleTable": null!
+       - NEVER invent scheduleTable numbers from drawing annotations, step-downs, linear notes, or detail callouts (e.g. "5mm lip" is NOT a 5m² garage; "180mm platform" is NOT an 18m² alfresco; "2" is NOT a 2m² porch).
+       - If external walls or outdoor slabs have visibly moved outward compared to Image 1, report genuine extensions under "areaModifications" with calculated deltaM2.
 
    - Check every room label, wall line, and dimension on Image 2 against Image 1:
      * Outdoor Alfresco: Check printed dimensions (e.g. 5.3x3.6 vs 3.8x2.2 or 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms (Bed 3, Children's Activity) past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
@@ -370,7 +366,7 @@ Return ONLY valid JSON matching this schema:
     "totalM2": number,
     "widthM": number,
     "lengthM": number
-  },
+  } | null,
   "areaModifications": [
     {
       "zone": "living" | "alfresco" | "garage" | "wet_area" | "porch",
@@ -793,8 +789,26 @@ Return ONLY valid JSON matching this schema:
       parsedData.housingType = housingType || "Single Storey";
     }
 
+    if (parsedData.scheduleTable) {
+      if (typeof parsedData.scheduleTable.totalM2 === "number" && (parsedData.scheduleTable.totalM2 < 50 || parsedData.scheduleTable.totalM2 > 1000)) {
+        parsedData.scheduleTable.totalM2 = undefined;
+      }
+      if (typeof parsedData.scheduleTable.livingM2 === "number" && (parsedData.scheduleTable.livingM2 < 40 || parsedData.scheduleTable.livingM2 > 800)) {
+        parsedData.scheduleTable.livingM2 = undefined;
+      }
+      if (typeof parsedData.scheduleTable.garageM2 === "number" && (parsedData.scheduleTable.garageM2 < 20 || parsedData.scheduleTable.garageM2 > 150)) {
+        parsedData.scheduleTable.garageM2 = undefined;
+      }
+      if (typeof parsedData.scheduleTable.alfrescoM2 === "number" && (parsedData.scheduleTable.alfrescoM2 < 2 || parsedData.scheduleTable.alfrescoM2 > 100)) {
+        parsedData.scheduleTable.alfrescoM2 = undefined;
+      }
+      if (typeof parsedData.scheduleTable.porchM2 === "number" && (parsedData.scheduleTable.porchM2 < 0.5 || parsedData.scheduleTable.porchM2 > 40)) {
+        parsedData.scheduleTable.porchM2 = undefined;
+      }
+    }
+
     // Mathematical Identity Solver for Candidate Schedule Table: Total = Living + Garage + Alfresco + Porch
-    if (parsedData.scheduleTable && parsedData.scheduleTable.totalM2 && parsedData.scheduleTable.totalM2 > 50) {
+    if (parsedData.scheduleTable && parsedData.scheduleTable.totalM2 && parsedData.scheduleTable.totalM2 >= 50) {
       const tot = parsedData.scheduleTable.totalM2;
       const liv = parsedData.scheduleTable.livingM2;
       const gar = parsedData.scheduleTable.garageM2;
@@ -803,29 +817,29 @@ Return ONLY valid JSON matching this schema:
 
       if (!alf && liv && gar && por) {
         const derivedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
-        if (derivedAlf > 2 && derivedAlf < 80) {
+        if (derivedAlf >= 2 && derivedAlf < 80) {
           parsedData.scheduleTable.alfrescoM2 = derivedAlf;
         }
       } else if (!por && liv && gar && alf) {
         const derivedPor = Math.round((tot - (liv + gar + alf)) * 100) / 100;
-        if (derivedPor > 0.5 && derivedPor < 30) {
+        if (derivedPor >= 0.5 && derivedPor < 30) {
           parsedData.scheduleTable.porchM2 = derivedPor;
         }
       } else if (!gar && liv && alf && por) {
         const derivedGar = Math.round((tot - (liv + alf + por)) * 100) / 100;
-        if (derivedGar > 10 && derivedGar < 120) {
+        if (derivedGar >= 20 && derivedGar < 120) {
           parsedData.scheduleTable.garageM2 = derivedGar;
         }
       } else if (!liv && gar && alf && por) {
         const derivedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
-        if (derivedLiv > 50 && derivedLiv < 500) {
+        if (derivedLiv >= 50 && derivedLiv < 500) {
           parsedData.scheduleTable.livingM2 = derivedLiv;
         }
       }
     }
 
     // Ensure alfresco modification is included if candidate table shows alfresco extension
-    if (parsedData.scheduleTable?.alfrescoM2 && standardAlfrescoM2) {
+    if (parsedData.scheduleTable?.alfrescoM2 && parsedData.scheduleTable.alfrescoM2 >= 2 && standardAlfrescoM2) {
       const alfDelta = Math.round((parsedData.scheduleTable.alfrescoM2 - standardAlfrescoM2) * 100) / 100;
       if (Math.abs(alfDelta) >= 0.1 && (!parsedData.areaModifications || !parsedData.areaModifications.some((m) => m.zone === "alfresco"))) {
         if (!parsedData.areaModifications) parsedData.areaModifications = [];

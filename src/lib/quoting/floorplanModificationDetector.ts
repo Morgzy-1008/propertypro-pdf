@@ -12,7 +12,6 @@ import { getActiveDivision } from "@/lib/divisionContext";
 import { isSingleGarageDesign } from "./facadeLookup";
 import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
 import { parseAreaScheduleFromText } from "@/components/quoting/ModifiedFloorplanModal";
-import { HISTORICAL_CLIENT_TENDERS_DATA } from "@/lib/hubKnowledgeEngine";
 import {
   calculateScaleCalibration,
   evaluateVanityDimensions,
@@ -27,8 +26,101 @@ import {
   getLearnedFeatures,
   matchLearnedFeature,
   detectUnconfirmedFeatures,
+  clearLearnedFeatureMemory,
   type UnconfirmedFeatureCandidate,
 } from "./featureMemoryRegistry";
+
+/**
+ * Resets the floorplan detection engine's memory completely so tests run genuinely
+ * without retaining cached tender associations, client tags, or learned aliases.
+ */
+export function resetFloorplanEngineMemory(): void {
+  clearLearnedFeatureMemory();
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem("hudson_nhc_feature_memory");
+      sessionStorage.removeItem("hudson_last_scanned_plan");
+      localStorage.removeItem("hudson_last_scanned_plan");
+    } catch (err) {
+      console.warn("[Detector] Error clearing engine memory:", err);
+    }
+  }
+}
+
+/**
+ * Architectural Sanity Guards: reject impossible values
+ * Residential dwellings: total > 50m², living >= 40m², garage >= 20m², alfresco >= 2m², porch >= 0.5m²
+ */
+export function sanitizeAreaSchedule(table?: {
+  livingM2?: number | null;
+  groundLivingM2?: number | null;
+  firstLivingM2?: number | null;
+  garageM2?: number | null;
+  alfrescoM2?: number | null;
+  porchM2?: number | null;
+  balconyM2?: number | null;
+  totalM2?: number | null;
+  widthM?: number | null;
+  lengthM?: number | null;
+}): {
+  livingM2?: number;
+  groundLivingM2?: number;
+  firstLivingM2?: number;
+  garageM2?: number;
+  alfrescoM2?: number;
+  porchM2?: number;
+  balconyM2?: number;
+  totalM2?: number;
+  widthM?: number;
+  lengthM?: number;
+} {
+  if (!table) return {};
+  const sanitized: {
+    livingM2?: number;
+    groundLivingM2?: number;
+    firstLivingM2?: number;
+    garageM2?: number;
+    alfrescoM2?: number;
+    porchM2?: number;
+    balconyM2?: number;
+    totalM2?: number;
+    widthM?: number;
+    lengthM?: number;
+  } = {};
+
+  if (typeof table.totalM2 === "number" && !isNaN(table.totalM2) && table.totalM2 >= 50 && table.totalM2 <= 1000) {
+    sanitized.totalM2 = table.totalM2;
+  }
+  if (typeof table.livingM2 === "number" && !isNaN(table.livingM2) && table.livingM2 >= 40 && table.livingM2 <= 800) {
+    sanitized.livingM2 = table.livingM2;
+  }
+  if (typeof table.groundLivingM2 === "number" && !isNaN(table.groundLivingM2) && table.groundLivingM2 >= 30 && table.groundLivingM2 <= 600) {
+    sanitized.groundLivingM2 = table.groundLivingM2;
+  }
+  if (typeof table.firstLivingM2 === "number" && !isNaN(table.firstLivingM2) && table.firstLivingM2 >= 20 && table.firstLivingM2 <= 500) {
+    sanitized.firstLivingM2 = table.firstLivingM2;
+  }
+  if (typeof table.garageM2 === "number" && !isNaN(table.garageM2) && table.garageM2 >= 20 && table.garageM2 <= 150) {
+    sanitized.garageM2 = table.garageM2;
+  }
+  if (typeof table.alfrescoM2 === "number" && !isNaN(table.alfrescoM2) && table.alfrescoM2 >= 2 && table.alfrescoM2 <= 100) {
+    sanitized.alfrescoM2 = table.alfrescoM2;
+  }
+  if (typeof table.porchM2 === "number" && !isNaN(table.porchM2) && table.porchM2 >= 0.5 && table.porchM2 <= 40) {
+    sanitized.porchM2 = table.porchM2;
+  }
+  if (typeof table.balconyM2 === "number" && !isNaN(table.balconyM2) && table.balconyM2 >= 1 && table.balconyM2 <= 60) {
+    sanitized.balconyM2 = table.balconyM2;
+  }
+  if (typeof table.widthM === "number" && !isNaN(table.widthM) && table.widthM >= 4 && table.widthM <= 40) {
+    sanitized.widthM = table.widthM;
+  }
+  if (typeof table.lengthM === "number" && !isNaN(table.lengthM) && table.lengthM >= 6 && table.lengthM <= 60) {
+    sanitized.lengthM = table.lengthM;
+  }
+
+  return sanitized;
+}
 import { evaluateZoneBoundaryShift } from "./wetAreaDifferentialCalculator";
 import {
   calculateOpeningReplacement,
@@ -727,40 +819,43 @@ export async function identifyDesignModelFromImage(
    - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
 2. Identify the housing type: "Single Storey" or "Double Storey".
 3. Extract the printed Area Schedule specifications table:
-   - Locate and transcribe the printed Area Schedule table anywhere on the sheet (title block, margin notes, drawing header, corner schedule), regardless of font style, handwriting, or cursive script.
-   - Living Area (m²)
-   - Ground Floor Living Area (m²)
-   - First Floor Living Area (m²)
-   - Garage Area (m²)
-   - Alfresco Area (m²)
-   - Porch Area (m²)
-   - Total Area (m²)
-   - Overall Width (m)
-   - Overall Length (m)
+   - CRITICAL ARCHITECTURAL RULE: ONLY extract values if an explicit, printed Area Schedule table is present on this drawing sheet (e.g. titled "AREA SCHEDULE", "SCHEDULE OF AREAS", or listed in the sheet title block).
+   - If there is NO printed Area Schedule table on this sheet, set "scheduleTable": null and "totalM2": null!
+   - NEVER grab stray drawing notes, linear step-downs, or detail annotations (e.g. "5mm lip", "180mm platform", "2 step") as areas!
+   - If a genuine schedule table is printed, transcribe:
+     Living Area (m²), Ground Floor Living (m²), First Floor Living (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²), Overall Width (m), Overall Length (m).
 
 Return ONLY valid JSON:
 {
   "designName": string,
   "housingType": "Single Storey" | "Double Storey",
-  "totalM2": number,
+  "totalM2": number | null,
   "scheduleTable": {
-    "livingM2": number,
-    "groundLivingM2": number,
-    "firstLivingM2": number,
-    "garageM2": number,
-    "alfrescoM2": number,
-    "porchM2": number,
-    "totalM2": number,
-    "widthM": number,
-    "lengthM": number
-  },
+    "livingM2": number | null,
+    "groundLivingM2": number | null,
+    "firstLivingM2": number | null,
+    "garageM2": number | null,
+    "alfrescoM2": number | null,
+    "porchM2": number | null,
+    "totalM2": number | null,
+    "widthM": number | null,
+    "lengthM": number | null
+  } | null,
   "rawTitleFound": string
 }`;
       const parsed = await callGeminiClientWithFallback(apiKey, {
         contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType, data: cleanB64 } }] }],
         generationConfig: { temperature: 0.1, responseMimeType: "application/json" },
       });
-      if (parsed) return parsed;
+      if (parsed) {
+        if (parsed.scheduleTable) {
+          parsed.scheduleTable = sanitizeAreaSchedule(parsed.scheduleTable);
+        }
+        if (parsed.totalM2 && (parsed.totalM2 < 50 || parsed.totalM2 > 1000)) {
+          parsed.totalM2 = undefined;
+        }
+        return parsed;
+      }
     } catch (err) {
       console.warn("Direct image model identification failed, falling back to proxy:", err);
     }
@@ -1241,15 +1336,11 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
        Living Area (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²).
      * If an Area Schedule table exists on Image 2, transcribe its exact numbers into "scheduleTable".
 
-   - FOR PLANS WITHOUT A PRINTED AREA SCHEDULE TABLE (DIMENSION-BASED DERIVATION):
-     * If Image 2 does NOT have a printed area schedule table (or only has room dimension callouts):
-       - Read the room callouts and dimensions printed on Image 2:
-         * Outdoor Alfresco (e.g. "Alfresco 5.3 x 3.6" -> 5.3 × 3.6 = 19.08 m²). Compare to standard baseline ${standardAlfrescoM2} m².
-         * Garage (e.g. "Garage 5.7 x 6.0" -> 34.20 m² internal, ~38.4 m² slab). Compare to standard baseline ${standardGarageM2} m².
-         * Front Porch (e.g. "Porch 2.0 x 4.3" -> 8.60 m² or slab footprint). Compare to standard baseline ${standardPorchM2} m².
-         * Living/Family/Dining/Bedrooms: read internal room sizes, sum habitable spaces, and compare to standard baseline ${standardLivingM2} m².
-       - Populate "scheduleTable" with these derived m² values!
-       - Explicitly output "areaModifications" showing the exact zone deltas!
+   - FOR PLANS WITHOUT A PRINTED AREA SCHEDULE TABLE:
+     * If Image 2 does NOT have an authentic printed area schedule table (or only has room dimension callouts):
+       - Set "scheduleTable": null!
+       - NEVER invent scheduleTable numbers from drawing annotations, step-downs, linear notes, or detail callouts (e.g. "5mm lip" is NOT a 5m² garage; "180mm platform" is NOT an 18m² alfresco; "2" is NOT a 2m² porch).
+       - If external walls or outdoor slabs have visibly moved outward compared to Image 1, report genuine extensions under "areaModifications" with calculated deltaM2.
 
    - Check every room label, wall line, and dimension on Image 2 against Image 1:
      * Outdoor Alfresco: Check printed dimensions (e.g. 5.3x3.6 vs 3.8x2.2 or 7.5x4.0 vs 4.5x3.0) OR if the concrete slab and roofline visibly extends further rearward or northward along adjacent bedrooms past the standard baseline boundary out to the rear building line. If extended, report "alfresco" area extension with calculated deltaM2!
@@ -1354,7 +1445,7 @@ Return ONLY valid JSON matching this schema:
     "totalM2": number,
     "widthM": number,
     "lengthM": number
-  },
+  } | null,
   "areaModifications": [
     {
       "zone": "living" | "alfresco" | "garage" | "wet_area" | "porch",
@@ -1461,6 +1552,10 @@ Return ONLY valid JSON matching this schema:
     }
 
     if (!parsedData) return null;
+
+    if (parsedData.scheduleTable) {
+      parsedData.scheduleTable = sanitizeAreaSchedule(parsedData.scheduleTable);
+    }
 
     // Universal catalog normalization and deduplication for detected inclusions
     if (parsedData.detectedInclusions && Array.isArray(parsedData.detectedInclusions)) {
@@ -1933,8 +2028,8 @@ export async function identifyBaseDesignCandidate(
     porchM2: parseCandidateM2(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)/i, 30),
   };
 
-  const vTable = visualModel?.scheduleTable;
-  const extractedScheduleTable = {
+  const vTable = sanitizeAreaSchedule(visualModel?.scheduleTable);
+  const rawExtractedTable = {
     livingM2:
       scheduleParsed?.livingM2 ||
       (scheduleParsed?.groundLivingM2 && scheduleParsed?.firstLivingM2
@@ -1952,9 +2047,10 @@ export async function identifyBaseDesignCandidate(
     widthM: vTable?.widthM,
     lengthM: vTable?.lengthM,
   };
+  const extractedScheduleTable = sanitizeAreaSchedule(rawExtractedTable);
 
   // Mathematical Identity Solver: Total = Living + Garage + Alfresco + Porch
-  if (extractedScheduleTable.totalM2 && extractedScheduleTable.totalM2 > 0) {
+  if (extractedScheduleTable.totalM2 && extractedScheduleTable.totalM2 >= 50) {
     const tot = extractedScheduleTable.totalM2;
     const liv = extractedScheduleTable.livingM2;
     const gar = extractedScheduleTable.garageM2;
@@ -1963,22 +2059,22 @@ export async function identifyBaseDesignCandidate(
 
     if (!alf && liv && gar && por) {
       const derivedAlf = Math.round((tot - liv - gar - por) * 100) / 100;
-      if (derivedAlf > 0 && derivedAlf < 100) {
+      if (derivedAlf >= 2 && derivedAlf < 100) {
         extractedScheduleTable.alfrescoM2 = derivedAlf;
       }
     } else if (!por && liv && gar && alf) {
       const derivedPor = Math.round((tot - liv - gar - alf) * 100) / 100;
-      if (derivedPor > 0 && derivedPor < 40) {
+      if (derivedPor >= 0.5 && derivedPor < 40) {
         extractedScheduleTable.porchM2 = derivedPor;
       }
     } else if (!gar && liv && alf && por) {
       const derivedGar = Math.round((tot - liv - alf - por) * 100) / 100;
-      if (derivedGar > 15 && derivedGar < 120) {
+      if (derivedGar >= 20 && derivedGar < 120) {
         extractedScheduleTable.garageM2 = derivedGar;
       }
     } else if (!liv && gar && alf && por) {
       const derivedLiv = Math.round((tot - gar - alf - por) * 100) / 100;
-      if (derivedLiv > 50 && derivedLiv < 500) {
+      if (derivedLiv >= 50 && derivedLiv < 500) {
         extractedScheduleTable.livingM2 = derivedLiv;
       }
     }
@@ -2260,7 +2356,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // Candidate Drawing Schedule Table (Specifications printed on the candidate drawing if present)
-  const candidateTableSpec = {
+  const candidateTableSpec = sanitizeAreaSchedule({
     livingM2: tableLivingM2,
     garageM2: tableGarageM2,
     alfrescoM2: tableAlfrescoM2,
@@ -2268,7 +2364,7 @@ export async function analyzeModifiedFloorplanFile(
     totalM2: tableTotalM2,
     widthM: tableWidthM,
     lengthM: tableLengthM,
-  };
+  });
 
   // Mathematical Identity Solver for Candidate Drawing: Total = Living + Garage + Alfresco + Porch
   // If Total is known and 3 of the 4 zones are known, solve the missing zone deterministically!
@@ -2281,28 +2377,28 @@ export async function analyzeModifiedFloorplanFile(
 
     if (!alf && liv && gar && por) {
       const solvedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
-      if (solvedAlf > 2 && solvedAlf < 80) {
+      if (solvedAlf >= 2 && solvedAlf < 80) {
         console.log(`[Detector Debug] Mathematically solved missing candidate alfrescoM2: ${solvedAlf} m² (${tot} - ${liv} - ${gar} - ${por})`);
         candidateTableSpec.alfrescoM2 = solvedAlf;
         tableAlfrescoM2 = solvedAlf;
       }
     } else if (!por && liv && gar && alf) {
       const solvedPor = Math.round((tot - (liv + gar + alf)) * 100) / 100;
-      if (solvedPor > 0.5 && solvedPor < 30) {
+      if (solvedPor >= 0.5 && solvedPor < 30) {
         console.log(`[Detector Debug] Mathematically solved missing candidate porchM2: ${solvedPor} m² (${tot} - ${liv} - ${gar} - ${alf})`);
         candidateTableSpec.porchM2 = solvedPor;
         tablePorchM2 = solvedPor;
       }
     } else if (!gar && liv && alf && por) {
       const solvedGar = Math.round((tot - (liv + alf + por)) * 100) / 100;
-      if (solvedGar > 10 && solvedGar < 120) {
+      if (solvedGar >= 20 && solvedGar < 120) {
         console.log(`[Detector Debug] Mathematically solved missing candidate garageM2: ${solvedGar} m² (${tot} - ${liv} - ${alf} - ${por})`);
         candidateTableSpec.garageM2 = solvedGar;
         tableGarageM2 = solvedGar;
       }
     } else if (!liv && gar && alf && por) {
       const solvedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
-      if (solvedLiv > 50 && solvedLiv < 500) {
+      if (solvedLiv >= 50 && solvedLiv < 500) {
         console.log(`[Detector Debug] Mathematically solved missing candidate livingM2: ${solvedLiv} m² (${tot} - ${gar} - ${alf} - ${por})`);
         candidateTableSpec.livingM2 = solvedLiv;
         tableLivingM2 = solvedLiv;
@@ -2430,7 +2526,7 @@ export async function analyzeModifiedFloorplanFile(
 
   // 1a. Unify Candidate Table Spec with Gemini Vision schedule table if client regex was undefined
   if (geminiResult?.scheduleTable) {
-    const gTable = geminiResult.scheduleTable;
+    const gTable = sanitizeAreaSchedule(geminiResult.scheduleTable);
     if (!candidateTableSpec.livingM2 && (gTable.livingM2 || gTable.groundLivingM2)) {
       candidateTableSpec.livingM2 = gTable.livingM2 || (gTable.groundLivingM2 && gTable.firstLivingM2 ? gTable.groundLivingM2 + gTable.firstLivingM2 : gTable.groundLivingM2);
     }
@@ -3659,45 +3755,9 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // 2c. Authentic Client Tender Benchmark Ingestion
-  const matchedTender = HISTORICAL_CLIENT_TENDERS_DATA.find((t) => {
-    const j = t.jobNo.toLowerCase();
-    const c = t.clientName.toLowerCase();
-    const fName = file.name.toLowerCase();
-    return (
-      (j && (combinedContext.includes(j) || fName.includes(j))) ||
-      (c && (combinedContext.includes(c) || fName.includes(c.split(" ")[0].toLowerCase()))) ||
-      (t.jobNo === "TR-LYONS" && (combinedContext.includes("lyons") || combinedContext.includes("warburton") || fName.includes("lyons"))) ||
-      (t.jobNo === "700512-DUAL" && (combinedContext.includes("dave") && (combinedContext.includes("selena") || combinedContext.includes("alabaster")))) ||
-      (t.jobNo === "700548" && (combinedContext.includes("700548") || combinedContext.includes("hales") || combinedContext.includes("pippig") || fName.includes("700548"))) ||
-      (t.jobNo === "700469" && (combinedContext.includes("700469") || combinedContext.includes("dacayanan") || fName.includes("700469"))) ||
-      (t.jobNo === "700417" && (combinedContext.includes("700417") || combinedContext.includes("peng") || fName.includes("700417"))) ||
-      (t.jobNo === "700529" && (combinedContext.includes("700529") || combinedContext.includes("diamond") || fName.includes("700529")))
-    );
-  });
-
-  if (matchedTender && matchedTender.variations) {
-    for (const v of matchedTender.variations) {
-      if (v.price > 0 && !inclusionUpgrades.some((u) => u.name.toLowerCase().includes(v.item.toLowerCase()) || v.item.toLowerCase().includes(u.name.toLowerCase()))) {
-        const cat = v.category === "doors_windows" ? "doors_windows" : v.category === "bathroom" ? "internal_bathroom" : v.category === "kitchen" ? "internal_kitchen" : v.category === "structural" ? "structural" : "internal_general";
-        inclusionUpgrades.push({
-          id: `tender_bench_${matchedTender.jobNo}_${v.item.toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
-          category: cat,
-          name: v.item,
-          description: `${v.description} (Authentic Tender Benchmark: Job ${matchedTender.jobNo} ${matchedTender.formattedDate})`,
-          baseline: "Standard brochure specification",
-          detected: `Matched from authentic client tender: Job ${matchedTender.jobNo} (${matchedTender.clientName})`,
-          unitPrice: v.price,
-          quantity: 1,
-          subtotal: v.price,
-          accepted: true,
-          confidence: 0.99,
-          isByOwner: false,
-          reason: `Historical tender benchmark from Job ${matchedTender.jobNo} dated ${matchedTender.formattedDate}.`,
-        });
-      }
-    }
-  }
+  // 2c. Historical Client Tender Benchmark Ingestion: DISABLED
+  // Strictly disabled so the detection engine evaluates physical drawing features and actual
+  // annotations only, rather than cheating based on client names or job numbers.
 
   // 3. Detect unconfirmed NHC features that need user confirmation rather than guessing
   const unconfirmedFeatures = detectUnconfirmedFeatures(
@@ -3958,8 +4018,13 @@ export async function analyzeModifiedFloorplanFile(
 
     const sumAreaDeltas = Math.round(areaDeltas.reduce((acc, d) => acc + d.deltaM2, 0) * 100) / 100;
     const hasAuthenticPrintedTable = Boolean(
-      (pendingCandidate?.scheduleTable && pendingCandidate.scheduleTable.totalM2) ||
-      (rawText && /total(?:\s+area)?\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i.test(rawText))
+      candidateTableSpec.totalM2 &&
+      candidateTableSpec.totalM2 > 50 &&
+      ((candidateTableSpec.livingM2 && candidateTableSpec.livingM2 >= 40) ||
+       (candidateTableSpec.garageM2 && candidateTableSpec.garageM2 >= 20)) &&
+      ((pendingCandidate?.scheduleTable && pendingCandidate.scheduleTable.totalM2 && pendingCandidate.scheduleTable.totalM2 > 50) ||
+       (rawText && /(?:gross\s*(?:building\s*)?area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\t\-]?\s*([0-9]+(?:\.[0-9]+)?)/i.test(rawText)) ||
+       (geminiResult?.scheduleTable && geminiResult.scheduleTable.totalM2 && geminiResult.scheduleTable.totalM2 > 50))
     );
     const modifiedTotalM2 =
       hasAuthenticPrintedTable && candidateTableSpec.totalM2 && candidateTableSpec.totalM2 !== standardTotalM2

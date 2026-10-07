@@ -671,6 +671,30 @@ function WelcomeHubPage() {
             isLight={isLight}
             isComingSoon={!isMorgan}
           />
+
+          {/* Portal 08: Plan Training & Calibration Studio */}
+          <PortalCard
+            to="/plan-training"
+            portalNumber="PORTAL // 08"
+            categoryBadge="AI Training & Vision"
+            statusBadge={{
+              text: "Ground-Truth Studio",
+              pulse: true,
+              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+            }}
+            title="Plan Training & Calibration Studio"
+            description="Calibrate geometric CAD polygons, master m² baselines, handing (LH/RH), and spatial diffs without pricing noise."
+            icon={Sparkles}
+            features="Ground-Truth m² • Polygon Audit • Handing"
+            actionText="Launch Studio"
+            glowGradient="from-amber-400 via-yellow-400 to-amber-600"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-yellow-500/10 border-amber-500/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+          />
         </div>
       </main>
 

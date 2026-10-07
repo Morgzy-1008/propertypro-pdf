@@ -579,7 +579,7 @@ export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
   "Coral 21": {"livingM2":147.52,"garageM2":37.97,"alfrescoM2":10.8,"porchM2":1.79,"totalM2":198.08},
   "Coral 23": {"livingM2":167.2,"garageM2":37.22,"alfrescoM2":11.26,"porchM2":2,"totalM2":217.68},
   "Coral 26": {"livingM2":188.14,"garageM2":38.2,"alfrescoM2":12.23,"porchM2":2.36,"totalM2":240.93},
-  "Crimson 24": {"livingM2":177.36,"garageM2":36,"alfrescoM2":10.63,"porchM2":3.25,"totalM2":227.24},
+  "Crimson 24": {"livingM2":177.36,"garageM2":33.32,"alfrescoM2":10.63,"porchM2":3.25,"totalM2":224.56},
   "Crimson 26": {"livingM2":196.35,"garageM2":36,"alfrescoM2":11.61,"porchM2":3.73,"totalM2":247.69},
   "Crimson 29": {"livingM2":221.57,"garageM2":36,"alfrescoM2":15.54,"porchM2":3.68,"totalM2":276.79},
   "Crimson 33": {"livingM2":240.54,"garageM2":36,"alfrescoM2":24.73,"porchM2":4.12,"totalM2":305.39},

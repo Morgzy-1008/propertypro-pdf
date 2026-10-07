@@ -2000,3 +2000,5 @@ export function getHudsonDimensions(designOrLabel: string): HudsonDimensionRecor
 
   return null;
 }
+
+export const HUDSON_DIMENSIONS = HUDSON_DIMENSIONS_REGISTRY;
