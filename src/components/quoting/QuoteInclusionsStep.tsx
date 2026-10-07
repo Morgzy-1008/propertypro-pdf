@@ -377,32 +377,48 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const isTargetH2 = activeTargetTier.includes("H2") || activeTargetTier.includes("Design");
   const isTargetH1 = !isTargetH3 && !isTargetH2;
 
-  const singleStoreyLivingM2 =
+  // Ceiling height upgrades apply to the entire level (living + garage + porch + alfresco)
+  const singleStoreyLevelM2 =
     activeDwellingTab === "dwelling2"
       ? activeTargetM2
-      : isCustomMode && Number(customSpec?.groundLivingM2) > 0
-      ? Number(customSpec.groundLivingM2)
-      : quote.design.standardAreas?.livingM2 ||
-        quote.design.modifiedAreas?.livingM2 ||
-        activeTargetM2;
+      : isCustomMode && customSpec
+      ? Number(customSpec.groundLivingM2 || 0) +
+        Number(customSpec.garageM2 || 0) +
+        Number(customSpec.porchM2 || 0) +
+        Number(customSpec.alfrescoM2 || 0) || customTotalM2
+      : (Number(quote.design.modifiedAreas?.livingM2 ?? quote.design.standardAreas?.livingM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.garageM2 ?? quote.design.standardAreas?.garageM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.porchM2 ?? quote.design.standardAreas?.porchM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.alfrescoM2 ?? quote.design.standardAreas?.alfrescoM2 ?? 0)) ||
+        effectiveDesignM2;
 
-  const gfM2 =
+  const gfLevelM2 =
     activeDwellingTab === "dwelling2"
-      ? Math.round(activeTargetM2 * 0.55)
-      : isCustomMode && Number(customSpec?.groundLivingM2) > 0
-      ? Number(customSpec.groundLivingM2)
-      : quote.design.standardAreas?.groundLivingM2 ||
-        quote.design.modifiedAreas?.groundLivingM2 ||
-        Math.round(effectiveDesignM2 * 0.55);
+      ? Math.round(activeTargetM2 * 0.6)
+      : isCustomMode && customSpec
+      ? Number(customSpec.groundLivingM2 || 0) +
+        Number(customSpec.garageM2 || 0) +
+        Number(customSpec.porchM2 || 0) +
+        Number(customSpec.alfrescoM2 || 0)
+      : (Number(quote.design.modifiedAreas?.groundLivingM2 ?? quote.design.standardAreas?.groundLivingM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.garageM2 ?? quote.design.standardAreas?.garageM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.porchM2 ?? quote.design.standardAreas?.porchM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.alfrescoM2 ?? quote.design.standardAreas?.alfrescoM2 ?? 0)) ||
+        Math.round(effectiveDesignM2 * 0.6);
 
-  const ffM2 =
+  const ffLevelM2 =
     activeDwellingTab === "dwelling2"
-      ? Math.round(activeTargetM2 * 0.45)
-      : isCustomMode && Number(customSpec?.firstLivingM2) > 0
-      ? Number(customSpec.firstLivingM2)
-      : quote.design.standardAreas?.firstLivingM2 ||
-        quote.design.modifiedAreas?.firstLivingM2 ||
-        Math.round(effectiveDesignM2 * 0.45);
+      ? Math.round(activeTargetM2 * 0.4)
+      : isCustomMode && customSpec
+      ? Number(customSpec.firstLivingM2 || 0) + Number(customSpec.balconyM2 || 0)
+      : (Number(quote.design.modifiedAreas?.firstLivingM2 ?? quote.design.standardAreas?.firstLivingM2 ?? 0) +
+         Number(quote.design.modifiedAreas?.balconyM2 ?? quote.design.standardAreas?.balconyM2 ?? 0)) ||
+        Math.round(effectiveDesignM2 * 0.4);
+
+  // Backward compatibility aliases
+  const singleStoreyLivingM2 = singleStoreyLevelM2;
+  const gfM2 = gfLevelM2;
+  const ffM2 = ffLevelM2;
 
   const dwellingPrefix = hasSecondDwelling
     ? `[${activeDwellingTab === "dwelling2" ? "Dwelling 2" : "Dwelling 1"}] `
@@ -476,6 +492,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const ceiling2740H1Item = lineItems.find((i) => i.id === `pop_ceiling_2740_h1${pfx}`);
   const ceiling2740H2Item = lineItems.find((i) => i.id === `pop_ceiling_2740_h2${pfx}`);
   const ceiling3000H2Item = lineItems.find((i) => i.id === `pop_ceiling_3000_h2${pfx}`);
+  const ceiling3000H3Item = lineItems.find(
+    (i) => i.id === `pop_ceiling_3000_h3${pfx}` || (isTargetH3 && i.id === `pop_ceiling_3000_h2${pfx}`),
+  );
 
   // Ground Floor Double Storey / Duplex Ceilings
   const ceilingGf2590Item = lineItems.find((i) => i.id === `pop_ceiling_gf_2590${pfx}`);
@@ -609,6 +628,151 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
     h1DuctedAcItem?.description,
     isTargetH1,
     h1DuctedAcSpec,
+  ]);
+
+  // Auto-sync ceiling upgrades if design area, storeys, or tier change
+  useEffect(() => {
+    let hasChanges = false;
+    const updated = lineItems.map((item) => {
+      // 1. If in H3, remove any 2740mm / 2590mm upgrades since 2740mm is standard in H3
+      if (isTargetH3 && item.isIncluded) {
+        if (
+          item.id === `pop_ceiling_2740_h1${pfx}` ||
+          item.id === `pop_ceiling_2740_h2${pfx}` ||
+          item.id === `pop_ceiling_gf_2740${pfx}` ||
+          item.id === `pop_ceiling_2590_h1${pfx}` ||
+          item.id === `pop_ceiling_gf_2590${pfx}`
+        ) {
+          hasChanges = true;
+          return { ...item, isIncluded: false, clientSelected: false, subtotal: 0 };
+        }
+      }
+
+      // 2. Sync single storey 3000mm upgrade for H3
+      if (
+        isTargetH3 &&
+        !activeTargetStoreys &&
+        item.isIncluded &&
+        (item.id === `pop_ceiling_3000_h3${pfx}` || item.id === `pop_ceiling_3000_h2${pfx}`)
+      ) {
+        const expectedQty = singleStoreyLevelM2;
+        const expectedRate = 38;
+        const expectedSubtotal = expectedQty * expectedRate;
+        const expectedName = `${dwellingPrefix}Upgrade to 3,000mm (10'0") Ceiling Height (from 2,740mm)`;
+        if (
+          item.id !== `pop_ceiling_3000_h3${pfx}` ||
+          item.quantity !== expectedQty ||
+          item.unitRate !== expectedRate ||
+          item.subtotal !== expectedSubtotal ||
+          item.name !== expectedName
+        ) {
+          hasChanges = true;
+          return {
+            ...item,
+            id: `pop_ceiling_3000_h3${pfx}`,
+            catalogueItemId: `pop_ceiling_3000_h3${pfx}`,
+            quantity: expectedQty,
+            unitRate: expectedRate,
+            subtotal: expectedSubtotal,
+            name: expectedName,
+          };
+        }
+      }
+
+      // 3. Sync single storey 3000mm upgrade for H2
+      if (
+        isTargetH2 &&
+        !activeTargetStoreys &&
+        item.isIncluded &&
+        item.id === `pop_ceiling_3000_h2${pfx}`
+      ) {
+        const expectedQty = singleStoreyLevelM2;
+        const expectedRate = 76;
+        if (item.quantity !== expectedQty || item.unitRate !== expectedRate) {
+          hasChanges = true;
+          return {
+            ...item,
+            quantity: expectedQty,
+            unitRate: expectedRate,
+            subtotal: expectedQty * expectedRate,
+          };
+        }
+      }
+
+      // 4. Sync single storey 2740mm upgrade for H2
+      if (
+        isTargetH2 &&
+        !activeTargetStoreys &&
+        item.isIncluded &&
+        item.id === `pop_ceiling_2740_h2${pfx}`
+      ) {
+        const expectedQty = singleStoreyLevelM2;
+        if (item.quantity !== expectedQty) {
+          hasChanges = true;
+          return {
+            ...item,
+            quantity: expectedQty,
+            subtotal: expectedQty * item.unitRate,
+          };
+        }
+      }
+
+      // 5. Sync double storey GF 3000mm upgrade
+      if (
+        activeTargetStoreys &&
+        item.isIncluded &&
+        item.id === `pop_ceiling_gf_3000${pfx}`
+      ) {
+        const expectedQty = gfLevelM2;
+        const expectedRate = isTargetH1 ? 104 : isTargetH3 ? 68 : 76;
+        if (item.quantity !== expectedQty || item.unitRate !== expectedRate) {
+          hasChanges = true;
+          return {
+            ...item,
+            quantity: expectedQty,
+            unitRate: expectedRate,
+            subtotal: expectedQty * expectedRate,
+          };
+        }
+      }
+
+      // 6. Sync double storey FF 3000mm / 2740mm / 2590mm upgrade quantities
+      if (
+        activeTargetStoreys &&
+        item.isIncluded &&
+        (item.id === `pop_ceiling_ff_3000${pfx}` ||
+          item.id === `pop_ceiling_ff_2740${pfx}` ||
+          item.id === `pop_ceiling_ff_2590${pfx}`)
+      ) {
+        const expectedQty = ffLevelM2;
+        if (item.quantity !== expectedQty) {
+          hasChanges = true;
+          return {
+            ...item,
+            quantity: expectedQty,
+            subtotal: expectedQty * item.unitRate,
+          };
+        }
+      }
+
+      return item;
+    });
+
+    if (hasChanges) {
+      onChange(updated);
+    }
+  }, [
+    isTargetH3,
+    isTargetH2,
+    isTargetH1,
+    activeTargetStoreys,
+    singleStoreyLevelM2,
+    gfLevelM2,
+    ffLevelM2,
+    pfx,
+    dwellingPrefix,
+    lineItems,
+    onChange,
   ]);
 
   // Dynamic Floorplan Extension lookups and rates calibrated to Page 2 design & inclusion tier
@@ -1117,79 +1281,66 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
             </span>
             {!activeTargetStoreys ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-                {/* Single Storey H1 Options */}
-                {isTargetH1 ? (
+                {/* Single Storey Ceiling Options based on Tier */}
+                {isTargetH3 ? (
                   <>
-                    {/* H1 2590mm ($51/m2 = $48 + $3 joinery) */}
-                    <div
-                      onClick={() => {
-                        selectCeilingOption(
-                          "pop_ceiling_2590_h1",
-                          ["pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
-                          {
-                            quantity: singleStoreyLivingM2,
-                            unitRate: 51,
-                            name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
-                            category: "structural",
-                            unitType: "per_m2",
-                          },
-                        );
-                      }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                        ceiling2590H1Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
-                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
-                      }`}
-                    >
+                    {/* H3 Standard 2,740mm Ceilings Badge */}
+                    <div className="p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 flex items-center justify-between gap-2 shadow-sm">
                       <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
+                        <span className="font-bold text-xs text-emerald-300 block truncate flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                          2,740mm (9'0") Ceilings Standard
+                        </span>
+                        <span className="text-[10px] text-emerald-400/80 font-mono">
+                          Included in H3 Luxury • {singleStoreyLevelM2} m² Level Area
+                        </span>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 51)}
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-500/30 flex-none tracking-wide">
+                        ✓ INCLUDED
                       </span>
                     </div>
 
-                    {/* H1 2740mm ($76/m2 = $73 + $3 joinery) */}
+                    {/* H3 3000mm ($38/m2 = $35 + $3 joinery) */}
                     <div
                       onClick={() => {
                         selectCeilingOption(
-                          "pop_ceiling_2740_h1",
-                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
+                          "pop_ceiling_3000_h3",
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2"],
                           {
-                            quantity: singleStoreyLivingM2,
-                            unitRate: 76,
-                            name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
+                            quantity: singleStoreyLevelM2,
+                            unitRate: 38,
+                            name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,740mm)",
+                            description: "Luxury 3,000mm ceiling framing upgrade from 2,740mm height throughout entire level including garage, porch, and alfresco.",
                             category: "structural",
                             unitType: "per_m2",
                           },
                         );
                       }}
                       className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                        ceiling2740H1Item?.isIncluded
+                        ceiling3000H3Item?.isIncluded
                           ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$38 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 76)}
+                        {ceiling3000H3Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 38)}
                       </span>
                     </div>
                   </>
-                ) : (
+                ) : isTargetH2 ? (
                   <>
                     {/* H2 2740mm ($58/m2 = $55 + $3 joinery) */}
                     <div
                       onClick={() => {
                         selectCeilingOption(
                           "pop_ceiling_2740_h2",
-                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_3000_h2"],
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_3000_h2", "pop_ceiling_3000_h3"],
                           {
-                            quantity: singleStoreyLivingM2,
+                            quantity: singleStoreyLevelM2,
                             unitRate: 58,
                             name: "Upgrade to 2,740mm (9'0\") Ceiling Height (from 2,590mm)",
                             category: "structural",
@@ -1205,10 +1356,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 58)}
+                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 58)}
                       </span>
                     </div>
 
@@ -1217,9 +1368,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                       onClick={() => {
                         selectCeilingOption(
                           "pop_ceiling_3000_h2",
-                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_2740_h2"],
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h3"],
                           {
-                            quantity: singleStoreyLivingM2,
+                            quantity: singleStoreyLevelM2,
                             unitRate: 76,
                             name: "Upgrade to 3,000mm (10'0\") Ceiling Height (from 2,590mm)",
                             category: "structural",
@@ -1235,10 +1386,72 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLivingM2} m²</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLivingM2 * 76)}
+                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* H1 2590mm ($51/m2 = $48 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_2590_h1",
+                          ["pop_ceiling_2740_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2", "pop_ceiling_3000_h3"],
+                          {
+                            quantity: singleStoreyLevelM2,
+                            unitRate: 51,
+                            name: "Upgrade to 2,590mm (8'6\") Ceiling Height (ilo 2,440mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling2590H1Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 51)}
+                      </span>
+                    </div>
+
+                    {/* H1 2740mm ($76/m2 = $73 + $3 joinery) */}
+                    <div
+                      onClick={() => {
+                        selectCeilingOption(
+                          "pop_ceiling_2740_h1",
+                          ["pop_ceiling_2590_h1", "pop_ceiling_2740_h2", "pop_ceiling_3000_h2", "pop_ceiling_3000_h3"],
+                          {
+                            quantity: singleStoreyLevelM2,
+                            unitRate: 76,
+                            name: "Upgrade to 2,740mm (9'0\") Ceiling Height (ilo 2,440mm)",
+                            category: "structural",
+                            unitType: "per_m2",
+                          },
+                        );
+                      }}
+                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                        ceiling2740H1Item?.isIncluded
+                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      </div>
+                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
                       </span>
                     </div>
                   </>
@@ -1322,105 +1535,176 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-2.5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wide">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Ground Floor Ceilings (GF Living: {gfM2} m²)
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Ground Floor Ceilings (GF Level: {gfLevelM2} m²)
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
                       Base: {isTargetH3 ? "2,740mm standard" : isTargetH2 ? "2,590mm standard" : "2,440mm standard"}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {/* GF 2590mm */}
-                    <div
-                      onClick={() =>
-                        selectCeilingOption(
-                          "pop_ceiling_gf_2590",
-                          ["pop_ceiling_gf_2740", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
-                          {
-                            quantity: gfM2,
-                            unitRate: 51,
-                            name: "Ground Floor Ceiling Height Upgrade (to 2,590mm)",
-                            description: "Ground floor raised to 2,590mm (8'6\") framing throughout including 2,340mm internal doors.",
-                          },
-                        )
-                      }
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
-                        ceilingGf2590Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
-                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">GF to 2,590mm (8'6")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {gfM2} m² GF</span>
-                      </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingGf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * 51)}
-                      </span>
-                    </div>
+                    {isTargetH3 ? (
+                      <>
+                        {/* H3 GF 2,740mm Standard Badge */}
+                        <div className="p-2 rounded-lg border border-emerald-500/40 bg-emerald-950/30 flex items-center justify-between gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-xs text-emerald-300 block truncate flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              GF 2,740mm (9'0") Standard
+                            </span>
+                            <span className="text-[10px] text-emerald-400/80 font-mono">
+                              Included in H3 Luxury • {gfLevelM2} m² GF Level
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-900/60 px-1.5 py-0.5 rounded border border-emerald-500/30 flex-none tracking-wide">
+                            ✓ INCLUDED
+                          </span>
+                        </div>
 
-                    {/* GF 2740mm */}
-                    <div
-                      onClick={() => {
-                        const rate = isTargetH1 ? 76 : 58;
-                        selectCeilingOption(
-                          "pop_ceiling_gf_2740",
-                          ["pop_ceiling_gf_2590", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
-                          {
-                            quantity: gfM2,
-                            unitRate: rate,
-                            name: "Ground Floor Ceiling Height Upgrade (to 2,740mm)",
-                            description: "Ground floor raised to 2,740mm (9'0\") framing throughout including 2,340mm internal doors.",
-                          },
-                        );
-                      }}
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
-                        ceilingGf2740Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
-                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">GF to 2,740mm (9'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          ${isTargetH1 ? 76 : 58}/m² • {gfM2} m² GF
-                        </span>
-                      </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingGf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * (isTargetH1 ? 76 : 58))}
-                      </span>
-                    </div>
+                        {/* GF 3000mm from 2740mm */}
+                        <div
+                          onClick={() => {
+                            selectCeilingOption(
+                              "pop_ceiling_gf_3000",
+                              ["pop_ceiling_gf_2590", "pop_ceiling_gf_2740", "pop_ceiling_gf_ds"],
+                              {
+                                quantity: gfLevelM2,
+                                unitRate: 68,
+                                name: "Ground Floor Ceiling Height Upgrade (to 3,000mm from 2,740mm)",
+                                description: "Ground floor luxury 3,000mm (10'0\") framing throughout entire level including 2,400mm internal doors and openings.",
+                              },
+                            );
+                          }}
+                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                            ceilingGf3000Item?.isIncluded
+                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
+                            <span className="text-[10px] text-slate-400 font-mono">$68/m² • {gfLevelM2} m² GF</span>
+                          </div>
+                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                            {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 68)}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* GF 2590mm (Only for H1) */}
+                        {isTargetH1 && (
+                          <div
+                            onClick={() =>
+                              selectCeilingOption(
+                                "pop_ceiling_gf_2590",
+                                ["pop_ceiling_gf_2740", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
+                                {
+                                  quantity: gfLevelM2,
+                                  unitRate: 51,
+                                  name: "Ground Floor Ceiling Height Upgrade (to 2,590mm)",
+                                  description: "Ground floor raised to 2,590mm (8'6\") framing throughout including 2,340mm internal doors.",
+                                },
+                              )
+                            }
+                            className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                              ceilingGf2590Item?.isIncluded
+                                ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                                : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                            }`}
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="font-bold text-xs text-white block truncate">GF to 2,590mm (8'6")</span>
+                              <span className="text-[10px] text-slate-400 font-mono">$51/m² • {gfLevelM2} m² GF</span>
+                            </div>
+                            <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                              {ceilingGf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 51)}
+                            </span>
+                          </div>
+                        )}
 
-                    {/* GF 3000mm */}
-                    <div
-                      onClick={() => {
-                        const rate = isTargetH1 ? 104 : isTargetH3 ? 68 : 76;
-                        selectCeilingOption(
-                          "pop_ceiling_gf_3000",
-                          ["pop_ceiling_gf_2590", "pop_ceiling_gf_2740", "pop_ceiling_gf_ds"],
-                          {
-                            quantity: gfM2,
-                            unitRate: rate,
-                            name: "Ground Floor Ceiling Height Upgrade (to 3,000mm)",
-                            description: "Ground floor luxury 3,000mm (10'0\") framing throughout including 2,340mm internal doors.",
-                          },
-                        );
-                      }}
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
-                        ceilingGf3000Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
-                          : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          ${isTargetH1 ? 104 : isTargetH3 ? 68 : 76}/m² • {gfM2} m² GF
-                        </span>
-                      </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfM2 * (isTargetH1 ? 104 : isTargetH3 ? 68 : 76))}
-                      </span>
-                    </div>
+                        {/* H2 Standard Badge if H2 */}
+                        {isTargetH2 && (
+                          <div className="p-2 rounded-lg border border-cyan-500/40 bg-cyan-950/30 flex items-center justify-between gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-bold text-xs text-cyan-300 block truncate flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                                GF 2,590mm (8'6") Standard
+                              </span>
+                              <span className="text-[10px] text-cyan-400/80 font-mono">
+                                Included in H2 Design • {gfLevelM2} m² GF Level
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-900/60 px-1.5 py-0.5 rounded border border-cyan-500/30 flex-none tracking-wide">
+                              ✓ INCLUDED
+                            </span>
+                          </div>
+                        )}
+
+                        {/* GF 2740mm */}
+                        <div
+                          onClick={() => {
+                            const rate = isTargetH1 ? 76 : 58;
+                            selectCeilingOption(
+                              "pop_ceiling_gf_2740",
+                              ["pop_ceiling_gf_2590", "pop_ceiling_gf_3000", "pop_ceiling_gf_ds"],
+                              {
+                                quantity: gfLevelM2,
+                                unitRate: rate,
+                                name: "Ground Floor Ceiling Height Upgrade (to 2,740mm)",
+                                description: "Ground floor raised to 2,740mm (9'0\") framing throughout including 2,340mm internal doors.",
+                              },
+                            );
+                          }}
+                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                            ceilingGf2740Item?.isIncluded
+                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-xs text-white block truncate">GF to 2,740mm (9'0")</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ${isTargetH1 ? 76 : 58}/m² • {gfLevelM2} m² GF
+                            </span>
+                          </div>
+                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                            {ceilingGf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 76 : 58))}
+                          </span>
+                        </div>
+
+                        {/* GF 3000mm */}
+                        <div
+                          onClick={() => {
+                            const rate = isTargetH1 ? 104 : 76;
+                            selectCeilingOption(
+                              "pop_ceiling_gf_3000",
+                              ["pop_ceiling_gf_2590", "pop_ceiling_gf_2740", "pop_ceiling_gf_ds"],
+                              {
+                                quantity: gfLevelM2,
+                                unitRate: rate,
+                                name: "Ground Floor Ceiling Height Upgrade (to 3,000mm)",
+                                description: "Ground floor luxury 3,000mm (10'0\") framing throughout including 2,340mm internal doors.",
+                              },
+                            );
+                          }}
+                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                            ceilingGf3000Item?.isIncluded
+                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ${isTargetH1 ? 104 : 76}/m² • {gfLevelM2} m² GF
+                            </span>
+                          </div>
+                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
+                            {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 104 : 76))}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1428,7 +1712,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 <div className="rounded-xl border border-purple-500/20 bg-purple-950/15 p-2.5">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wide">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> First Floor Ceilings (FF Living: {ffM2} m²)
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> First Floor Ceilings (FF Level: {ffLevelM2} m²)
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
                       Base: 2,440mm standard upper floor
@@ -1442,7 +1726,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_ff_2590",
                           ["pop_ceiling_ff_2740", "pop_ceiling_ff_3000", "pop_ceiling_ff_ds"],
                           {
-                            quantity: ffM2,
+                            quantity: ffLevelM2,
                             unitRate: 51,
                             name: "First Floor Ceiling Height Upgrade (to 2,590mm)",
                             description: "First floor raised to 2,590mm (8'6\") framing throughout upper living areas.",
@@ -1457,10 +1741,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">FF to 2,590mm (8'6")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {ffM2} m² FF</span>
+                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {ffLevelM2} m² FF</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * 51)}
+                        {ceilingFf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * 51)}
                       </span>
                     </div>
 
@@ -1472,7 +1756,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_ff_2740",
                           ["pop_ceiling_ff_2590", "pop_ceiling_ff_3000", "pop_ceiling_ff_ds"],
                           {
-                            quantity: ffM2,
+                            quantity: ffLevelM2,
                             unitRate: rate,
                             name: "First Floor Ceiling Height Upgrade (to 2,740mm)",
                             description: "First floor raised to 2,740mm (9'0\") framing throughout upper living areas.",
@@ -1487,10 +1771,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">FF to 2,740mm (9'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 76 : 58}/m² • {ffM2} m² FF</span>
+                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 76 : 58}/m² • {ffLevelM2} m² FF</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * (isTargetH1 ? 76 : 58))}
+                        {ceilingFf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 76 : 58))}
                       </span>
                     </div>
 
@@ -1502,7 +1786,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           "pop_ceiling_ff_3000",
                           ["pop_ceiling_ff_2590", "pop_ceiling_ff_2740", "pop_ceiling_ff_ds"],
                           {
-                            quantity: ffM2,
+                            quantity: ffLevelM2,
                             unitRate: rate,
                             name: "First Floor Ceiling Height Upgrade (to 3,000mm)",
                             description: "First floor luxury 3,000mm (10'0\") framing throughout upper living areas.",
@@ -1517,10 +1801,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     >
                       <div className="min-w-0 flex-1">
                         <span className="font-bold text-xs text-white block truncate">FF to 3,000mm (10'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 104 : 76}/m² • {ffM2} m² FF</span>
+                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 104 : 76}/m² • {ffLevelM2} m² FF</span>
                       </div>
                       <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(ffM2 * (isTargetH1 ? 104 : 76))}
+                        {ceilingFf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 104 : 76))}
                       </span>
                     </div>
                   </div>
