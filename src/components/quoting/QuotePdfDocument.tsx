@@ -169,6 +169,14 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
     ))
   );
 
+  const isSg = Boolean(
+    design.garage === 1 ||
+    /terracotta 23|\(s\/g\)|single garage/i.test(design.designName || "") ||
+    /single garage/i.test(design.facadeName || "") ||
+    (src && /single-garage|single_garage|narrow-single-garage|classic-single-garage|-sg-/i.test(src))
+  );
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
+
   return (
     <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[300px] max-h-[300px] mb-2 flex-none">
       <img
@@ -176,7 +184,9 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_55%]" : "object-center"}`}
+        className={`w-full h-full object-cover ${
+          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_55%]" : "object-center"
+        }`}
         style={{
           imageRendering: "auto",
         }}
@@ -261,6 +271,14 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
     ))
   );
 
+  const isSg = Boolean(
+    design.garage === 1 ||
+    /terracotta 23|\(s\/g\)|single garage/i.test(design.designName || "") ||
+    /single garage/i.test(design.facadeName || "") ||
+    (displaySrc && /single-garage|single_garage|narrow-single-garage|classic-single-garage|-sg-/i.test(displaySrc))
+  );
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
+
   return (
     <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-100 flex items-center justify-center my-3 group">
       <img
@@ -268,7 +286,9 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+        className={`w-full h-full object-cover ${
+          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
+        }`}
         style={{
           imageRendering: "auto",
         }}
@@ -413,6 +433,12 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
     ))
   );
 
+  const isSg = Boolean(
+    secondDwelling?.garage === 1 ||
+    (src && /single-garage|single_garage|narrow-single-garage|classic-single-garage|-sg-/i.test(src))
+  );
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
+
   return (
     <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none">
       <img
@@ -420,7 +446,9 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+        className={`w-full h-full object-cover ${
+          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
+        }`}
         style={{
           imageRendering: "auto",
         }}

@@ -206,11 +206,13 @@ function Facade({
   busy,
   className,
   isDouble,
+  isSingleGarage,
 }: {
   url?: string;
   busy?: boolean;
   className?: string;
   isDouble?: boolean;
+  isSingleGarage?: boolean;
 }) {
   const resolvedUrl = useMemo(() => resolveUpdatedFacadeRender(url), [url]);
   const [imgSrc, setImgSrc] = useState(resolvedUrl || "");
@@ -219,17 +221,31 @@ function Facade({
     setImgSrc(resolvedUrl || "");
   }, [resolvedUrl]);
 
+  const lowerUrl = (resolvedUrl || "").toLowerCase();
+
   const isDoubleOrSplit = Boolean(
     isDouble ||
-    (resolvedUrl && (
-      resolvedUrl.toLowerCase().includes("double") ||
-      resolvedUrl.toLowerCase().includes("2-storey") ||
-      resolvedUrl.toLowerCase().includes("-ds-") ||
-      resolvedUrl.toLowerCase().includes("2stry") ||
-      resolvedUrl.toLowerCase().includes("split") ||
-      resolvedUrl.toLowerCase().includes("cobalt")
-    ))
+    lowerUrl.includes("double") ||
+    lowerUrl.includes("2-storey") ||
+    lowerUrl.includes("-ds-") ||
+    lowerUrl.includes("2stry") ||
+    lowerUrl.includes("split") ||
+    lowerUrl.includes("cobalt")
   );
+
+  const isSg = Boolean(
+    isSingleGarage ||
+    lowerUrl.includes("single-garage") ||
+    lowerUrl.includes("single_garage") ||
+    lowerUrl.includes("narrow-single-garage") ||
+    lowerUrl.includes("classic-single-garage") ||
+    lowerUrl.includes("-sg-") ||
+    lowerUrl.endsWith("-sg.png") ||
+    lowerUrl.endsWith("-sg.jpg") ||
+    lowerUrl.endsWith("-sg.jpeg")
+  );
+
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   if (busy && !resolvedUrl) {
     return (
@@ -258,6 +274,18 @@ function Facade({
     );
   }
 
+  // Object positioning logic:
+  // - Single garage double-storey: tall & narrow profile (~1.3 - 1.76 aspect ratio).
+  //   center 4% protects 100% of the roofline and apex with natural sky headroom,
+  //   while ensuring the front entrance, porch and garage remain fully in frame.
+  // - Standard double-storey / split-level: center 42%
+  // - Standard single-storey: center
+  const objectPositionClass = isSingleGarageDouble
+    ? "object-[center_4%]"
+    : isDoubleOrSplit
+    ? "object-[center_42%]"
+    : "object-center";
+
   return (
     <div className={`relative flex h-full w-full items-center justify-center overflow-hidden bg-transparent ${className ?? ""}`}>
       <img
@@ -273,9 +301,7 @@ function Facade({
             setImgSrc(`https://images.weserv.nl/?url=${encodeURIComponent(resolvedUrl)}&output=jpg`);
           }
         }}
-        className={`h-full w-full object-cover ${
-          isDoubleOrSplit ? "object-[center_42%]" : "object-center"
-        } ${busy ? "opacity-75" : ""}`}
+        className={`h-full w-full object-cover ${objectPositionClass} ${busy ? "opacity-75" : ""}`}
         style={{
           imageRendering: "auto",
         }}
@@ -472,8 +498,40 @@ export function formatFlyerDisplayAddress(d: FlyerData): string {
     .trim() || "Street Address";
 }
 
+function getFlyerStoreyAndGarage(d: FlyerData) {
+  const designLower = (d.designName || "").toLowerCase();
+  const housingLower = (d.housingType || "").toLowerCase();
+  const facadeLower = (d.facadeName || d.facadeId || "").toLowerCase();
+
+  const isDouble = Boolean(
+    housingLower === "double" ||
+    housingLower.includes("double") ||
+    housingLower === "split-level" ||
+    housingLower.includes("split") ||
+    designLower.includes("double") ||
+    designLower.includes("2-storey") ||
+    designLower.includes("terracotta") ||
+    designLower.includes("ruby") ||
+    designLower.includes("emerald") ||
+    designLower.includes("sapphire")
+  );
+
+  const isSingleGarage = Boolean(
+    d.cars === "1" ||
+    Number(d.cars) === 1 ||
+    designLower.includes("(s/g)") ||
+    designLower.includes("single garage") ||
+    designLower.includes("terracotta 23") ||
+    facadeLower.includes("single garage") ||
+    facadeLower.includes("single-garage")
+  );
+
+  return { isDouble, isSingleGarage };
+}
+
 /* ------------------------- 1-Page Express Flyer ------------------------- */
 export function ExpressFlyer({ d }: { d: FlyerData }) {
+  const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header: 5mm safe margin inside */}
@@ -505,7 +563,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 
       {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
       <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} isDouble={isDouble} isSingleGarage={isSingleGarage} />
       </div>
 
       {/* Address Bar: Full width, complete text, never clipped or dotted */}
@@ -630,6 +688,7 @@ export function ExpressFlyer({ d }: { d: FlyerData }) {
 
 /* ---------------------- 2-Page Showcase Booklet ------------------------- */
 export function ShowcaseCover({ d }: { d: FlyerData }) {
+  const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
   const highlights = [
     { title: "Master Suite Retreat", desc: "Private ensuite and spacious walk-in robe sanctuary" },
     { title: "Gourmet Designer Kitchen", desc: "Stone benchtops, premium appliances & walk-in pantry" },
@@ -660,7 +719,7 @@ export function ShowcaseCover({ d }: { d: FlyerData }) {
 
       {/* Majestic Facade Cover Image with Safe Roof Clearance */}
       <div className="relative h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.5mm]">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} isDouble={isDouble} isSingleGarage={isSingleGarage} />
         <div className="absolute inset-x-0 bottom-0 h-[15mm] bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
       </div>
 
@@ -818,6 +877,7 @@ export function ShowcaseDetails({ d }: { d: FlyerData }) {
 
 /* --------------------- House Only (no land content) --------------------- */
 export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
+  const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header */}
@@ -849,7 +909,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
       {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
       <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} isDouble={isDouble} isSingleGarage={isSingleGarage} />
       </div>
 
       {/* Design Name Banner */}
@@ -963,6 +1023,7 @@ export function HouseOnlyFlyer({ d }: { d: FlyerData }) {
 
 /* ------------------- Express Flyer V2 (Larger Logo, Modern Layout) ------------------- */
 export function ExpressFlyerV2({ d }: { d: FlyerData }) {
+  const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header: 5mm safe margin inside */}
@@ -994,7 +1055,7 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
 
       {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
       <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} isDouble={isDouble} isSingleGarage={isSingleGarage} />
       </div>
 
       {/* Address Bar: Full width, complete text, never clipped or dotted */}
@@ -1119,6 +1180,7 @@ export function ExpressFlyerV2({ d }: { d: FlyerData }) {
 
 /* ----------------- House Only Flyer V2 (Larger Logo, Modern Layout) ----------------- */
 export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
+  const { isDouble, isSingleGarage } = getFlyerStoreyAndGarage(d);
   return (
     <div className="flyer-page font-sans" data-palette={d.palette}>
       {/* Top Header */}
@@ -1150,7 +1212,7 @@ export function HouseOnlyFlyerV2({ d }: { d: FlyerData }) {
 
       {/* Facade Hero: Proportional 77mm widescreen perspective (210:82 aspect ratio) */}
       <div className="h-[77mm] w-full rounded-[1.5mm] overflow-hidden my-[1.2mm]">
-        <Facade url={d.facadeUrl} busy={d.facadeBusy} />
+        <Facade url={d.facadeUrl} busy={d.facadeBusy} isDouble={isDouble} isSingleGarage={isSingleGarage} />
       </div>
 
       {/* Design Name Banner */}

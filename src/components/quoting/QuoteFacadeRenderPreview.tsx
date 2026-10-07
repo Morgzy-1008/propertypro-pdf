@@ -45,6 +45,14 @@ export function QuoteFacadeRenderPreview({
     (src && /double|2-storey|-ds-|2stry|split|cobalt/i.test(src))
   );
 
+  const isSg = Boolean(
+    design.garage === 1 ||
+    /terracotta 23|\(s\/g\)|single garage/i.test(design.designName || design.modelName || "") ||
+    /single garage/i.test(design.facadeName || "") ||
+    (src && /single-garage|single_garage|narrow-single-garage|classic-single-garage|-sg-/i.test(src))
+  );
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
+
   useEffect(() => {
     if (!facadeName) {
       setSrc("");
@@ -175,7 +183,7 @@ export function QuoteFacadeRenderPreview({
           <img
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
-            className={`w-full h-full object-cover transition-all duration-300 ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+            className={`w-full h-full object-cover transition-all duration-300 ${isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
             style={{
               imageRendering: "auto",
             }}

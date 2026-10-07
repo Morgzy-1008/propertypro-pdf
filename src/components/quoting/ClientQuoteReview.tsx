@@ -120,12 +120,22 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
     ))
   );
 
+  const isSg = Boolean(
+    design.garage === 1 ||
+    /terracotta 23|\(s\/g\)|single garage/i.test(design.designName || "") ||
+    /single garage/i.test(design.facadeName || "") ||
+    (src && /single-garage|single_garage|narrow-single-garage|classic-single-garage|-sg-/i.test(src))
+  );
+  const isSingleGarageDouble = isDoubleOrSplit && isSg;
+
   return (
     <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/90] mb-4">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+        className={`w-full h-full object-cover ${
+          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
+        }`}
         style={{
           imageRendering: "auto",
         }}
