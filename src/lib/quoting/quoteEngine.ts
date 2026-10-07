@@ -29,6 +29,11 @@ import {
   type AcousticCostBreakdown,
   type AcousticTierLevel,
 } from "./acousticEngine";
+import {
+  calculateDuctedAcUpgrade,
+  type DuctedAcUpgradeSpec,
+  type CalculateDuctedAcOptions,
+} from "./ductedAcEngine";
 import type {
   CategorySubtotal,
   CatalogueCategory,
@@ -1209,6 +1214,7 @@ export function getAcousticCost(
 }
 
 export { calculateTailoredAcousticCost, type AcousticCostBreakdown, type AcousticTierLevel };
+export { calculateDuctedAcUpgrade, type DuctedAcUpgradeSpec, type CalculateDuctedAcOptions };
 
 /**
  * Computes line item subtotal based on quantity and rate, dynamically calibrated to the inclusion tier.
@@ -2018,7 +2024,43 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
 
   // 5. Ensure line item categorization and subtotal validity
   if (Array.isArray(quote.lineItems)) {
+    const isH1 = tier.toUpperCase().includes("H1");
+    const m2 = quote.design.isModifiedFloorplan && quote.design.modifiedDesignM2
+      ? quote.design.modifiedDesignM2
+      : quote.design.designM2 || 200;
+    const isDouble =
+      quote.design.customSpec?.storeys === "double" ||
+      (quote.design.housingType || "").toLowerCase().includes("double") ||
+      (quote.design.housingType || "").toLowerCase().includes("split");
+
     quote.lineItems = quote.lineItems.map((it) => {
+      if (it.id.startsWith("pop_h1_ducted_ac")) {
+        if (!isH1) {
+          // Ducted AC is already standard in H2 and H3 inclusions
+          return {
+            ...it,
+            isIncluded: false,
+            clientSelected: false,
+            subtotal: 0,
+          };
+        } else if (it.isIncluded) {
+          const acSpec = calculateDuctedAcUpgrade({
+            m2,
+            isDoubleStorey: isDouble,
+            housingType: quote.design.housingType,
+            designName: quote.design.designName,
+          });
+          return {
+            ...it,
+            name: acSpec.shortTitle,
+            description: acSpec.description,
+            unitRate: acSpec.upgradeCost,
+            subtotal: (it.quantity || 1) * acSpec.upgradeCost,
+            category: resolveItemCategory(it),
+          };
+        }
+      }
+
       const tierRate = getItemRateForInclusion(it, tier);
       const unitRate =
         it.catalogueItemId === "str_custom_garage" && [1050, 1150, 1400].includes(tierRate)

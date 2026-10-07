@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import {
   PackageCheck,
   Plus,
@@ -47,6 +47,7 @@ import {
   calculateDesignGFA,
   isDoubleStoreyDesign,
   resolveItemCategory,
+  calculateDuctedAcUpgrade,
 } from "@/lib/quoting/quoteEngine";
 import type {
   CatalogueCategory,
@@ -572,6 +573,43 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const airtouchItem = lineItems.find((i) => i.id === `pop_airtouch_5${pfx}`);
   const spectrumItem = lineItems.find((i) => i.id === `pop_spectrum_colour${pfx}`);
   const stone40Item = lineItems.find((i) => i.id === `pop_stone_40mm${pfx}`);
+  const h1DuctedAcItem = lineItems.find((i) => i.id === `pop_h1_ducted_ac${pfx}`);
+
+  // Dynamic HVAC Ducted AC upgrade spec for H1 Smart Inclusions
+  const h1DuctedAcSpec = useMemo(() => {
+    return calculateDuctedAcUpgrade({
+      m2: effectiveDesignM2,
+      isDoubleStorey: activeTargetStoreys,
+      housingType: quote.design.housingType,
+      designName: quote.design.designName,
+    });
+  }, [effectiveDesignM2, activeTargetStoreys, quote.design.housingType, quote.design.designName]);
+
+  // Auto-sync H1 ducted AC item if design area or storeys change while it is selected
+  useEffect(() => {
+    if (h1DuctedAcItem?.isIncluded && isTargetH1) {
+      if (
+        h1DuctedAcItem.unitRate !== h1DuctedAcSpec.upgradeCost ||
+        h1DuctedAcItem.description !== h1DuctedAcSpec.description
+      ) {
+        upsertPopularItem("pop_h1_ducted_ac", {
+          isIncluded: true,
+          quantity: 1,
+          unitRate: h1DuctedAcSpec.upgradeCost,
+          name: h1DuctedAcSpec.shortTitle,
+          description: h1DuctedAcSpec.description,
+          category: "colour_upgrades",
+          unitType: "fixed",
+        });
+      }
+    }
+  }, [
+    h1DuctedAcItem?.isIncluded,
+    h1DuctedAcItem?.unitRate,
+    h1DuctedAcItem?.description,
+    isTargetH1,
+    h1DuctedAcSpec,
+  ]);
 
   // Dynamic Floorplan Extension lookups and rates calibrated to Page 2 design & inclusion tier
   const isDoubleStoreyTarget = activeTargetStoreys;
@@ -1869,6 +1907,67 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
               <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Electrical &amp; Air-Conditioning
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {/* Upgrade to Ducted AC in Lieu of H1 standard Split-System AC (H1 only) */}
+              {isTargetH1 && (
+                <div
+                  onClick={() => {
+                    const next = !h1DuctedAcItem?.isIncluded;
+                    upsertPopularItem("pop_h1_ducted_ac", {
+                      isIncluded: next,
+                      quantity: 1,
+                      unitRate: h1DuctedAcSpec.upgradeCost,
+                      name: h1DuctedAcSpec.shortTitle,
+                      description: h1DuctedAcSpec.description,
+                      category: "colour_upgrades",
+                      unitType: "fixed",
+                    });
+                  }}
+                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 sm:col-span-2 lg:col-span-1 ${
+                    h1DuctedAcItem?.isIncluded
+                      ? isLight
+                        ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                        : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                      : isLight
+                      ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
+                      : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`font-bold text-xs ${
+                          isLight ? "text-slate-900" : "text-white"
+                        }`}>
+                          Upgrade to Ducted AC
+                        </span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold flex-none ${
+                          isLight
+                            ? "bg-purple-100 text-purple-800 border border-purple-200"
+                            : "bg-purple-500/20 text-purple-300"
+                        }`}>
+                          H1 Upgrade
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-mono block truncate ${
+                        isLight ? "text-slate-600" : "text-slate-400"
+                      }`}>
+                        {h1DuctedAcSpec.summaryPill}
+                      </span>
+                    </div>
+                    <span className={`font-bold text-xs font-mono flex-none ${
+                      isLight ? "text-emerald-700" : "text-emerald-400"
+                    }`}>
+                      {h1DuctedAcItem?.isIncluded ? "✓ " : ""}+{formatAud(h1DuctedAcSpec.upgradeCost)}
+                    </span>
+                  </div>
+                  <p className={`text-[10px] leading-tight ${
+                    isLight ? "text-slate-500" : "text-slate-400"
+                  }`}>
+                    In lieu of H1 standard Split-System AC (price includes credit of Split-AC).
+                  </p>
+                </div>
+              )}
+
               {/* Polyair AirTouch 5 Smart Wi-Fi Controller ($1,200) */}
               <div
                 onClick={() => {

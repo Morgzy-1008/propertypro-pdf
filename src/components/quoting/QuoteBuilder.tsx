@@ -46,6 +46,7 @@ import {
   calculateDesignGFA,
   calculateTailoredBushfireCost,
   calculateTailoredAcousticCost,
+  calculateDuctedAcUpgrade,
 } from "@/lib/quoting/quoteEngine";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import { findHudsonModelByName } from "@/lib/floorplan/floorplanDetector";
@@ -494,6 +495,42 @@ export function QuoteBuilder() {
           acousticTier: "None",
           acousticCost: 0,
         };
+      }
+
+      // Auto-sync H1 ducted AC upgrade if included
+      const hasDuctedAc = (quote.lineItems || []).some(
+        (it) => it.id.startsWith("pop_h1_ducted_ac") && it.isIncluded
+      );
+      if (hasDuctedAc) {
+        const isH1 = (updatedDesign.specTier || "").toUpperCase().includes("H1");
+        const nextM2 = updatedDesign.isModifiedFloorplan && updatedDesign.modifiedDesignM2
+          ? updatedDesign.modifiedDesignM2
+          : updatedDesign.designM2 || nextGfa;
+
+        const updatedLineItems = (quote.lineItems || []).map((it) => {
+          if (it.id.startsWith("pop_h1_ducted_ac")) {
+            if (!isH1) {
+              return { ...it, isIncluded: false, clientSelected: false, subtotal: 0 };
+            }
+            const acSpec = calculateDuctedAcUpgrade({
+              m2: nextM2,
+              isDoubleStorey: isDouble,
+              housingType: updatedDesign.housingType,
+              designName: updatedDesign.designName,
+            });
+            return {
+              ...it,
+              name: acSpec.shortTitle,
+              description: acSpec.description,
+              unitRate: acSpec.upgradeCost,
+              subtotal: (it.quantity || 1) * acSpec.upgradeCost,
+            };
+          }
+          return it;
+        });
+
+        updateQuote({ design: updatedDesign, siteConditions: updatedSite, lineItems: updatedLineItems });
+        return;
       }
     }
 
