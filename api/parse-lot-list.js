@@ -16,7 +16,7 @@ export default async function handler(req, res) {
 
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  let apiKey = process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
+  let apiKey = req.body?.apiKey || process.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY || "";
   if (!apiKey) {
     try {
       const fs = await import("fs");
@@ -34,7 +34,7 @@ export default async function handler(req, res) {
 
   const { pages = [], rawText = "", filename = "" } = req.body || {};
 
-  // 1. Try Gemini 3.6 Flash AI parsing if apiKey is configured and pages or text exist
+  // 1. Try Gemini Multimodal Flash AI parsing if apiKey is configured and pages or text exist
   if (apiKey && (pages.length > 0 || rawText.trim().length > 0)) {
     try {
       const promptText = `You are a Senior Australian Property Estimator and Master Data Extraction Specialist.
@@ -48,20 +48,21 @@ CRITICAL DISAMBIGUATION & ACCURACY RULES:
    - Land sizes are typically between 150m² and 3000m².
 
 2. STAGE / RELEASE:
-   - Found under columns "Stage", "Release", "Stg" or header banners across tables (e.g. "4", "4A", "Stage 5", "Aurora Release 2").
-   - If a stage banner appears above a group of lots, apply that stage to all lots beneath it.
+   - Found under columns "Stage", "Release", "Stg" or header banners across tables (e.g. "4", "4A", "Stage 5", "Stage 10B", "Stage 13", "Aurora Release 2").
+   - If a stage banner or header appears above a group or section of lots (e.g. "Stage 10B", "Stage 13"), apply that stage (e.g. "10B", "13") to all lots beneath it until the next stage header.
 
 3. FRONTAGE:
    - Street frontage width in metres under columns "Frontage", "Width", "Meters", "m" (e.g. 10.0, 12.5, 14.0, 16.0).
    - Return clean decimal number (e.g. 14.0).
 
 4. LAND PRICE:
-   - Total purchase price under columns "Price", "List Price", "Amount", "$" (e.g. $385,000).
-   - Strip currency symbols and commas. Return as numeric integer (e.g. 385000).
+   - Total purchase price under columns "Price", "List Price", "Amount", "$" (e.g. $385,000, $475,000).
+   - Strip currency symbols and commas. Return as numeric integer (e.g. 385000, 475000).
 
 5. REGISTRATION / TITLE STATUS:
    - If marked "Registered", "Titled", "Immediate", "Reg'd", set "titled": true, "registration_date": null.
    - If an anticipated date or quarter is specified (e.g. "Nov 2026", "Q4 2026", "Late 2026", "Dec 26"), set "titled": false, "registration_date": "Nov 2026".
+   - If not mentioned or unknown, set "titled": false, "registration_date": null.
 
 6. LOT STATUS:
    - Must be one of: "available", "on_hold", or "sold".
@@ -70,8 +71,8 @@ CRITICAL DISAMBIGUATION & ACCURACY RULES:
    - "sold": Sold, Contracted, Unconditional, Settled.
 
 7. METADATA:
-   - Extract "estate" name (e.g. "Aurora", "Flagstone", "Willow", "Everleigh").
-   - Extract "suburb" (e.g. "Greenbank", "Flagstone", "Box Hill").
+   - Extract "estate" name if visible anywhere on the document (e.g. "Aurora", "Flagstone", "Willow", "Everleigh"). If not visible, return empty string "".
+   - Extract "suburb" / location if visible (e.g. "Greenbank", "Flagstone", "Box Hill"). If not visible, return empty string "".
    - Extract "developer" if present (e.g. "Peet", "Stockland", "Mirvac", "Lendlease").
 
 ${rawText ? `DOCUMENT EXTRACTED TEXT:\n"""\n${rawText.slice(0, 12000)}\n"""\n` : ""}
@@ -115,22 +116,42 @@ Return ONLY valid JSON matching this schema:
         }
       }
 
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            responseMimeType: "application/json",
-            temperature: 0.1,
-          },
-        }),
-      });
+      const candidateModels = [
+        "gemini-flash-latest",
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+      ];
 
-      if (response.ok) {
-        const json = await response.json();
-        const rawAiResponse = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let rawAiResponse = "";
+      for (const model of candidateModels) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.1,
+              },
+            }),
+          });
+
+          if (response.ok) {
+            const json = await response.json();
+            rawAiResponse = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (rawAiResponse) break;
+          } else {
+            console.warn(`[ParseLotList] Model ${model} returned status ${response.status}`);
+          }
+        } catch (e) {
+          console.warn(`[ParseLotList] Model ${model} network error:`, e.message);
+        }
+      }
         if (rawAiResponse) {
           const cleaned = rawAiResponse.replace(/```json/gi, "").replace(/```/g, "").trim();
           const parsed = JSON.parse(cleaned);
@@ -184,12 +205,8 @@ Return ONLY valid JSON matching this schema:
             });
           }
         }
-      } else {
-        const errText = await response.text();
-        console.warn("[ParseLotList] Gemini 3.6 API returned error:", response.status, errText);
-      }
     } catch (err) {
-      console.warn("[ParseLotList] Gemini 3.6 API parsing exception:", err);
+      console.warn("[ParseLotList] Gemini API parsing exception:", err);
     }
   }
 

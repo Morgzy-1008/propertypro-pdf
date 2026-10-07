@@ -414,7 +414,13 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
   ]
 }`;
 
-    const models = ["gemini-2.0-flash"];
+    const models = [
+      "gemini-flash-latest",
+      "gemini-3.8-flash",
+      "gemini-3.6-flash",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+    ];
 
     for (const model of models) {
       try {

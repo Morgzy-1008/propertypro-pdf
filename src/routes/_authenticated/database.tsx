@@ -755,6 +755,19 @@ function ImportDialog({ onSaved, existingLots }: { onSaved: () => void; existing
 
   const updateDoc = (docId: string, patch: Partial<UploadedDoc>) => {
     setDocs((prev) => prev.map((d) => (d.id === docId ? { ...d, ...patch } : d)));
+    setRows((prev) =>
+      prev.map((r) => {
+        if (r.docId !== docId) return r;
+        const updated = { ...r };
+        if (patch.estate !== undefined) updated.estate = patch.estate;
+        if (patch.suburb !== undefined) updated.suburb = patch.suburb;
+        if (patch.developer !== undefined) updated.developer = patch.developer;
+        if (patch.stage !== undefined && (!r.stage || r.stage === docs.find((d) => d.id === docId)?.stage)) {
+          updated.stage = patch.stage;
+        }
+        return updated;
+      })
+    );
   };
 
   const updateRow = (rowId: string, patch: Partial<BatchLotRow>) => {

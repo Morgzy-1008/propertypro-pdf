@@ -338,7 +338,7 @@ export async function parseDeveloperPriceList(
     const res = await fetch("/api/parse-lot-list", {
       method: "POST",
       headers: await authHeaders(),
-      body: JSON.stringify({ pages, rawText, filename }),
+      body: JSON.stringify({ pages, rawText, filename, apiKey: GEMINI_KEY }),
     });
     if (res.ok) {
       const json = await res.json();
@@ -350,7 +350,7 @@ export async function parseDeveloperPriceList(
     console.warn("[parseDeveloperPriceList] Backend endpoint call skipped/failed:", e);
   }
 
-  // 2. Direct client-side Gemini 3.6 Flash fallback
+  // 2. Direct client-side Gemini Multimodal Flash fallback
   if (GEMINI_KEY) {
     try {
       const promptText = `You are a Senior Australian Property Estimator.
@@ -361,10 +361,12 @@ CRITICAL DISAMBIGUATION & ACCURACY RULES:
    - LOT NUMBER: Allotment number under "Lot", "Lot #", "Lot No.", "No." (e.g. "12", "101", "450", "12B").
    - LAND SIZE: Land area in square metres under "Area", "Size", "SQM", "sq.m", "m2", "m²", "Area (m²)" (e.g. 350, 400, 450, 480, 510.5, 600).
    - If Lot is "450" and Area is "480m²", lot_number="450" and land_size=480. NEVER swap them!
-2. FRONTAGE: Linear metres under "Frontage" or "Width" (e.g. 14.0).
-3. LAND PRICE: Purchase price as clean integer (e.g. 385000).
-4. REGISTRATION: Titled ("registered": true) or anticipated date ("Nov 2026", "Q4 2026").
-5. STATUS: "available" | "on_hold" | "sold".
+2. STAGE / RELEASE:
+   - Found under columns "Stage", "Release", "Stg" or header banners across tables (e.g. "Stage 10B", "Stage 13"). Apply stage to all lots beneath until the next stage header.
+3. FRONTAGE: Linear metres under "Frontage" or "Width" (e.g. 14.0).
+4. LAND PRICE: Purchase price as clean integer (e.g. 385000, 475000).
+5. REGISTRATION: Titled ("registered": true) or anticipated date ("Nov 2026", "Q4 2026"). If unknown, titled: false, registration_date: null.
+6. STATUS: "available" | "on_hold" | "sold".
 
 ${rawText ? `DOCUMENT EXTRACTED TEXT:\n"""\n${rawText.slice(0, 10000)}\n"""\n` : ""}
 ${filename ? `FILENAME: "${filename}"\n` : ""}
@@ -406,24 +408,40 @@ Return ONLY valid JSON matching this schema:
         }
       }
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.1,
-            },
-          }),
-        }
-      );
+      const candidateModels = [
+        "gemini-flash-latest",
+        "gemini-3.8-flash",
+        "gemini-3.6-flash",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+      ];
 
-      if (response.ok) {
-        const json = await response.json();
-        const rawAiText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let rawAiText = "";
+      for (const model of candidateModels) {
+        try {
+          const response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(GEMINI_KEY)}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ parts }],
+                generationConfig: {
+                  responseMimeType: "application/json",
+                  temperature: 0.1,
+                },
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const json = await response.json();
+            rawAiText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (rawAiText) break;
+          }
+        } catch {}
+      }
         if (rawAiText) {
           const cleaned = rawAiText.replace(/```json/gi, "").replace(/```/g, "").trim();
           const parsed = JSON.parse(cleaned);
@@ -472,11 +490,10 @@ Return ONLY valid JSON matching this schema:
             };
           }
         }
+      } catch (err) {
+        console.warn("[parseDeveloperPriceList] Client Gemini parse error:", err);
       }
-    } catch (err) {
-      console.warn("[parseDeveloperPriceList] Client Gemini parse error:", err);
     }
-  }
 
   // 3. Deterministic Local Text Fallback
   if (rawText || filename) {
