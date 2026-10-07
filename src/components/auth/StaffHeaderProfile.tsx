@@ -204,7 +204,7 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
             >
               {activeUser.avatarInitials || "NHC"}
             </div>
-            <div className="text-left hidden sm:block">
+            <div className={`text-left ${compact ? "hidden 2xl:block" : "hidden sm:block"}`}>
               <span className={`block leading-tight font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{activeUser.name}</span>
               <span className={`block text-[9.5px] font-semibold leading-none truncate max-w-[130px] ${isLight ? "text-amber-800" : "text-amber-400"}`}>
                 {activeUser.displayCentre.replace(" Display Home", "")}

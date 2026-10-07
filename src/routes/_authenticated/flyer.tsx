@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, FileText, BookOpen, Database, Save, Home, Layers, Compass } from "lucide-react";
+import { Download, FileText, BookOpen, Database, Save, Home, Layers, Compass, Sparkles, ChevronDown, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
+import { isLocalhost } from "@/lib/isLocalhost";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { supabase } from "@/integrations/supabase/client";
 const logoUrl = "/hudson-homes-logo.png";
 import { FlyerForm } from "@/components/flyer/FlyerForm";
@@ -57,16 +66,30 @@ const A4_WIDTH_PX = 794; // 210mm @ 96dpi
 
 function Index() {
   const [data, setData] = useState<FlyerData>(defaultFlyer);
+  const isDev = typeof window !== "undefined" && isLocalhost();
   const [template, setTemplate] = useState<TemplateId>(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
       const t = sp.get("template") as TemplateId;
-      if (t && ["express", "siting", "showcase", "house-only", "house_only", "house-only-v2", "siting-v2"].includes(t)) {
+      const devMode = isLocalhost();
+      const allowed = devMode
+        ? ["express", "siting", "showcase", "house-only", "house_only", "house-only-v2", "siting-v2"]
+        : ["express", "siting", "house-only", "house_only"];
+      if (t && allowed.includes(t)) {
         return (t === "house_only" ? "house-only" : t) as TemplateId;
       }
     }
     return "express";
   });
+
+  const isDevTemplate = template === "showcase" || template === "house-only-v2" || template === "siting-v2";
+
+  useEffect(() => {
+    if (!isDev && isDevTemplate) {
+      setTemplate("express");
+    }
+  }, [isDev, isDevTemplate]);
+
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const { ref, scale } = useFitScale(A4_WIDTH_PX);
@@ -349,11 +372,11 @@ function Index() {
         <header className={`flex-shrink-0 z-30 border-b backdrop-blur-xl sticky top-0 shadow-lg ${
           isLight ? "border-slate-200 bg-white/95" : "border-slate-800/80 bg-slate-950/80"
         }`}>
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-2.5 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <Link to="/hub" className="flex items-center gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
+          <div className="flex items-center justify-between gap-2 sm:gap-3 px-3 sm:px-4 py-2 overflow-x-auto">
+            <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
+              <Link to="/hub" className="flex items-center gap-2.5 sm:gap-3 hover:opacity-90 transition-opacity flex-shrink-0">
                 <HudsonMark className="h-8 w-auto text-brand-gold" />
-                <div className={`leading-tight border-l pl-3 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                <div className={`leading-tight border-l pl-2.5 sm:pl-3 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
                   <h1 className={`text-xs font-bold tracking-[0.14em] uppercase ${isLight ? "text-slate-900" : "text-white"}`}>
                     Package Studio
                   </h1>
@@ -362,14 +385,14 @@ function Index() {
                   </p>
                 </div>
               </Link>
-              <div className={`hidden sm:block border-l pl-2 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
-                <StaffHeaderProfile isLight={isLight} />
+              <div className={`hidden md:block border-l pl-2 ${isLight ? "border-slate-200" : "border-slate-800"}`}>
+                <StaffHeaderProfile isLight={isLight} compact={true} />
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 sm:gap-3 flex-shrink-0">
-              <Link to="/hub">
-                <Button variant="ghost" size="sm" className={`text-xs border ${
+            <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+              <Link to="/hub" className="hidden xl:inline-flex">
+                <Button variant="ghost" size="sm" className={`text-xs border px-2.5 ${
                   isLight
                     ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
                     : "text-slate-400 hover:text-slate-100 hover:bg-slate-900 border-transparent hover:border-slate-800"
@@ -378,122 +401,184 @@ function Index() {
                 </Button>
               </Link>
 
-              <div className={`flex rounded-lg border p-1 backdrop-blur-md shadow-inner flex-wrap gap-0.5 ${
+              {/* Public Standard Templates (1-Page Express, 2-Page + Siting, House Only) */}
+              <div className={`flex rounded-lg border p-1 backdrop-blur-md shadow-inner gap-0.5 ${
                 isLight ? "border-slate-200 bg-slate-100" : "border-slate-800/90 bg-slate-900/90"
               }`}>
                 <button
+                  type="button"
                   onClick={() => setTemplate("express")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "express"
                       ? isLight
                         ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm font-bold"
                       : isLight
                       ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <FileText className="h-3.5 w-3.5" />
-                  1-Page Express
+                  <span><span className="hidden xl:inline">1-Page </span>Express</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setTemplate("siting")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "siting"
                       ? isLight
                         ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm font-bold"
                       : isLight
                       ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <Layers className="h-3.5 w-3.5" />
-                  2-Page + Siting
+                  <span><span className="hidden xl:inline">2-Page + </span>Siting</span>
                 </button>
                 <button
-                  onClick={() => setTemplate("showcase")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                    template === "showcase"
-                      ? isLight
-                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
-                      : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <BookOpen className="h-3.5 w-3.5" />
-                  2-Page Showcase
-                </button>
-                <button
+                  type="button"
                   onClick={() => setTemplate("house-only")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 sm:px-3 py-1.5 text-xs font-medium transition-all ${
                     template === "house-only"
                       ? isLight
                         ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
+                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm font-bold"
                       : isLight
                       ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
                       : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
                   <Home className="h-3.5 w-3.5" />
-                  House Only
-                </button>
-                <button
-                  onClick={() => setTemplate("house-only-v2")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                    template === "house-only-v2"
-                      ? isLight
-                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
-                      : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Home className="h-3.5 w-3.5" />
-                  House Only V2
-                </button>
-                <button
-                  onClick={() => setTemplate("siting-v2")}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
-                    template === "siting-v2"
-                      ? isLight
-                        ? "bg-white text-amber-900 border border-amber-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-amber-500/20 to-brand-gold/20 text-brand-gold border border-brand-gold/40 shadow-sm"
-                      : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                  House + Site Plan V2
+                  <span>House Only</span>
                 </button>
               </div>
+
+              {/* Localhost / Dev Only Section (Showcase & V2 Templates) */}
+              {isDev && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all border shadow-xs ${
+                        isDevTemplate
+                          ? "bg-purple-500/20 border-purple-400 text-purple-300 ring-1 ring-purple-500/40 font-bold"
+                          : isLight
+                          ? "bg-purple-50 border-purple-200 text-purple-900 hover:bg-purple-100 hover:border-purple-300"
+                          : "bg-purple-950/40 border-purple-800/60 text-purple-300 hover:bg-purple-900/60 hover:border-purple-600"
+                      }`}
+                      title="Localhost Development Templates (Only visible in local dev)"
+                    >
+                      <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                      <span className="font-bold">
+                        {isDevTemplate
+                          ? template === "showcase"
+                            ? "Showcase (Dev)"
+                            : template === "house-only-v2"
+                            ? "House V2 (Dev)"
+                            : "Siting V2 (Dev)"
+                          : "Dev Lab"}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-70 ml-0.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className={`w-64 p-1.5 z-50 shadow-2xl opacity-100 ${isLight ? "bg-white text-slate-900 border-slate-200" : "bg-slate-950 text-slate-100 border-slate-800"}`}>
+                    <DropdownMenuLabel className="flex items-center justify-between text-xs px-2 py-1 text-purple-400 font-bold">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Localhost WIP Templates
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono uppercase bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                        Dev Only
+                      </span>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className={isLight ? "bg-slate-200" : "bg-slate-800"} />
+
+                    <DropdownMenuItem
+                      onClick={() => setTemplate("showcase")}
+                      className={`cursor-pointer px-2.5 py-2 rounded-md flex items-center justify-between transition-colors ${
+                        template === "showcase"
+                          ? "bg-purple-500/20 text-purple-300 font-bold"
+                          : isLight
+                          ? "hover:bg-slate-100 text-slate-800"
+                          : "hover:bg-slate-900 text-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <BookOpen className="h-4 w-4 mt-0.5 text-amber-400 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold leading-tight">2-Page Showcase</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Cover + details booklet</span>
+                        </div>
+                      </div>
+                      {template === "showcase" && <Check className="h-3.5 w-3.5 text-purple-400 flex-shrink-0 ml-2" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => setTemplate("house-only-v2")}
+                      className={`cursor-pointer px-2.5 py-2 rounded-md flex items-center justify-between transition-colors ${
+                        template === "house-only-v2"
+                          ? "bg-purple-500/20 text-purple-300 font-bold"
+                          : isLight
+                          ? "hover:bg-slate-100 text-slate-800"
+                          : "hover:bg-slate-900 text-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Home className="h-4 w-4 mt-0.5 text-cyan-400 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold leading-tight">House Only V2</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Single-page modern layout</span>
+                        </div>
+                      </div>
+                      {template === "house-only-v2" && <Check className="h-3.5 w-3.5 text-purple-400 flex-shrink-0 ml-2" />}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                      onClick={() => setTemplate("siting-v2")}
+                      className={`cursor-pointer px-2.5 py-2 rounded-md flex items-center justify-between transition-colors ${
+                        template === "siting-v2"
+                          ? "bg-purple-500/20 text-purple-300 font-bold"
+                          : isLight
+                          ? "hover:bg-slate-100 text-slate-800"
+                          : "hover:bg-slate-900 text-slate-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Layers className="h-4 w-4 mt-0.5 text-emerald-400 flex-shrink-0" />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold leading-tight">House + Site Plan V2</span>
+                          <span className="text-[10px] text-slate-400 font-normal">Express V2 + Siting Plan V2</span>
+                        </div>
+                      </div>
+                      {template === "siting-v2" && <Check className="h-3.5 w-3.5 text-purple-400 flex-shrink-0 ml-2" />}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               <ThemeToggle />
 
               <Link to="/database">
-                <Button variant="outline" size="sm" className={`text-xs gap-1.5 ${
+                <Button variant="outline" size="sm" title="Database" className={`text-xs gap-1.5 px-2.5 ${
                   isLight
                     ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                     : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
                 }`}>
                   <Database className={`h-3.5 w-3.5 ${isLight ? "text-cyan-600" : "text-cyan-400"}`} />
-                  Database
+                  <span className="hidden 2xl:inline">Database</span>
                 </Button>
               </Link>
 
               <Link to="/land-scout">
-                <Button variant="outline" size="sm" className={`text-xs gap-1.5 ${
+                <Button variant="outline" size="sm" title="Land Scout" className={`text-xs gap-1.5 px-2.5 ${
                   isLight
                     ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
                     : "border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 hover:text-white"
                 }`}>
                   <Compass className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
-                  Land Scout
+                  <span className="hidden 2xl:inline">Land Scout</span>
                 </Button>
               </Link>
 
@@ -502,27 +587,28 @@ function Index() {
                 size="sm"
                 disabled={saving}
                 onClick={saveToDatabase}
-                className={`text-xs gap-1.5 ${
+                className={`text-xs gap-1.5 flex-shrink-0 px-2.5 sm:px-3 ${
                   isLight
                     ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                     : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 hover:text-white"
                 }`}
               >
                 <Save className={`h-3.5 w-3.5 ${isLight ? "text-amber-600" : "text-amber-400"}`} />
-                {saving ? "Saving…" : "Save package"}
+                <span className="hidden 2xl:inline">{saving ? "Saving…" : "Save package"}</span>
+                <span className="2xl:hidden">{saving ? "Saving…" : "Save"}</span>
               </Button>
 
               <Button
                 onClick={downloadPdf}
                 disabled={downloading}
-                className={`font-semibold shadow-md text-xs gap-1.5 transition-all ${
+                className={`font-semibold shadow-md text-xs gap-1.5 flex-shrink-0 px-3 sm:px-3.5 transition-all ${
                   isLight
                     ? "bg-amber-600 hover:bg-amber-500 text-white shadow-amber-600/20"
                     : "bg-gradient-to-r from-amber-500 to-brand-gold text-slate-950 hover:from-amber-400 hover:to-amber-300 shadow-brand-gold/20"
                 }`}
               >
                 <Download className="h-3.5 w-3.5" />
-                {downloading ? "Creating PDF…" : "Download PDF"}
+                <span>{downloading ? "Creating PDF…" : "Download PDF"}</span>
               </Button>
             </div>
           </div>
@@ -538,7 +624,13 @@ function Index() {
           </aside>
 
           {/* Flyer Preview Viewport - scrolls smoothly without displacing LHS bar */}
-          <section ref={ref} className="flex-1 h-full overflow-y-auto overflow-x-hidden p-6 lg:p-8 flex justify-center custom-scrollbar">
+          <section ref={ref} className="flex-1 h-full overflow-y-auto overflow-x-hidden p-6 lg:p-8 flex flex-col items-center custom-scrollbar">
+            {isDev && isDevTemplate && (
+              <div className="mb-4 px-3.5 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/40 text-purple-300 text-xs font-semibold flex items-center gap-2 shadow-sm animate-in fade-in">
+                <Sparkles className="h-3.5 w-3.5 text-purple-400 animate-pulse" />
+                <span>Localhost Lab: <strong>{template === "showcase" ? "2-Page Showcase" : template === "house-only-v2" ? "House Only V2" : "House + Site Plan V2"}</strong> (WIP — Localhost Only)</span>
+              </div>
+            )}
             <div
               className="flex flex-col items-center gap-6 pb-16"
               style={{
