@@ -1203,6 +1203,8 @@ export function getAcousticCost(
   designOrName?: any,
   gfaM2?: number
 ): number {
+  const validTiers = ["Category 1", "Category 2", "Category 3"];
+  if (!tier || tier === "None" || !validTiers.includes(tier)) return 0;
   return getTailoredAcousticCost(tier, isDoubleStorey, designOrName, gfaM2);
 }
 
@@ -1317,10 +1319,18 @@ export function calculateQuotePricing(
         ? Number(site.floodOverlayCost)
         : Math.round((Number(site.slabElevationMeters) || 0.3) * 270 * gfaM2))
     : 0;
-  const acousticCost =
-    site.acousticCost !== undefined && site.acousticCost !== null && !isNaN(Number(site.acousticCost)) && Number(site.acousticCost) > 0
-      ? Number(site.acousticCost)
-      : getAcousticCost(site.acousticTier, isDouble, design, gfaM2);
+  const isAcousticSelected =
+    Boolean(
+      site.acousticTier &&
+      site.acousticTier !== "None" &&
+      ["Category 1", "Category 2", "Category 3"].includes(site.acousticTier)
+    );
+
+  const acousticCost = isAcousticSelected
+    ? site.acousticCost !== undefined && site.acousticCost !== null && !isNaN(Number(site.acousticCost)) && Number(site.acousticCost) > 0
+        ? Number(site.acousticCost)
+        : getAcousticCost(site.acousticTier, isDouble, design, gfaM2)
+    : 0;
 
   // Council & Statutory
   const councilDaCost = site.councilDaRequired ? (Number(site.councilDaCost) || 11000) : 0;
@@ -1917,7 +1927,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
   const quote: FullQuote = JSON.parse(JSON.stringify(rawQuote));
   if (!quote.design) return quote;
 
-  // 1. Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury
+  // Normalize tier to strict H1 Smart, H2 Designer, H3 Luxury
   let tier = quote.design.specTier || "H2 Design Inclusions";
   const tierUpper = String(tier).toUpperCase();
   if (tierUpper.includes("H3")) {
@@ -1932,6 +1942,20 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     tier = "H2 Design Inclusions";
   }
   quote.design.specTier = tier;
+
+  // Sanitize siteConditions acoustic attenuation allowance
+  if (quote.siteConditions) {
+    const validTiers = ["Category 1", "Category 2", "Category 3"];
+    if (
+      !quote.siteConditions.acousticTier ||
+      quote.siteConditions.acousticTier === "None" ||
+      (quote.siteConditions.acousticTier as string) === "Tier 1" ||
+      !validTiers.includes(quote.siteConditions.acousticTier)
+    ) {
+      quote.siteConditions.acousticTier = "None";
+      quote.siteConditions.acousticCost = 0;
+    }
+  }
 
   // 2. Clean legacy customSpec overrides so dynamic decay functions cleanly
   if (quote.design.customSpec) {

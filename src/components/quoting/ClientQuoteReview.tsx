@@ -1124,17 +1124,20 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
             )}
 
             {/* Acoustic Attenuation */}
-            {site.acousticCost > 0 && (
-              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
-                <div>
-                  <span className="font-bold text-white block">Acoustic Attenuation Package</span>
-                  <span className="text-slate-400 text-[11px]">{site.acousticTier} Glazing &amp; Batts</span>
+            {site.acousticCost > 0 &&
+              site.acousticTier &&
+              site.acousticTier !== "None" &&
+              (site.acousticTier as string) !== "Tier 1" && (
+                <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-white block">Acoustic Attenuation Package</span>
+                    <span className="text-slate-400 text-[11px]">{site.acousticTier} Glazing &amp; Batts</span>
+                  </div>
+                  <span className="font-mono font-bold text-indigo-400">
+                    +{formatAud(site.acousticCost)}
+                  </span>
                 </div>
-                <span className="font-mono font-bold text-indigo-400">
-                  +{formatAud(site.acousticCost)}
-                </span>
-              </div>
-            )}
+              )}
 
             {/* Arborist Report */}
             {site.arboristReportRequired && (

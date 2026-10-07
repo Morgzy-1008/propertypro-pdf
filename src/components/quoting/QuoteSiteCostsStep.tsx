@@ -220,15 +220,20 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
       ? Number(site.bushfireCost)
       : tailoredBushfireBreakdown.totalCost;
 
-  const currentAcousticCost =
-    site.acousticTier === "None"
-      ? 0
-      : site.acousticCost !== undefined &&
-        site.acousticCost !== null &&
-        !isNaN(Number(site.acousticCost)) &&
-        Number(site.acousticCost) > 0
-      ? Number(site.acousticCost)
-      : tailoredAcousticBreakdown.totalCost;
+  const isAcousticSelected = Boolean(
+    site.acousticTier &&
+    site.acousticTier !== "None" &&
+    ["Category 1", "Category 2", "Category 3"].includes(site.acousticTier)
+  );
+
+  const currentAcousticCost = !isAcousticSelected
+    ? 0
+    : site.acousticCost !== undefined &&
+      site.acousticCost !== null &&
+      !isNaN(Number(site.acousticCost)) &&
+      Number(site.acousticCost) > 0
+    ? Number(site.acousticCost)
+    : tailoredAcousticBreakdown.totalCost;
 
   // Auto-sync bushfireCost & acousticCost when design or GFA changes while an allowance is active
   const lastDesignKeyRef = useRef(`${quote.design.designName}_${gfaM2}`);
@@ -242,9 +247,14 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
           patch.bushfireCost = tailoredBushfireBreakdown.totalCost;
         }
       }
-      if (site.acousticTier && site.acousticTier !== "None") {
+      if (isAcousticSelected) {
         if (site.acousticCost !== tailoredAcousticBreakdown.totalCost) {
           patch.acousticCost = tailoredAcousticBreakdown.totalCost;
+        }
+      } else {
+        if (site.acousticCost !== 0 || site.acousticTier !== "None") {
+          patch.acousticCost = 0;
+          patch.acousticTier = "None";
         }
       }
       if (Object.keys(patch).length > 0) {
@@ -259,6 +269,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     tailoredBushfireBreakdown.totalCost,
     site.acousticTier,
     site.acousticCost,
+    isAcousticSelected,
     tailoredAcousticBreakdown.totalCost,
     onSiteChange,
   ]);
@@ -349,6 +360,10 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   };
 
   const handleAcousticChange = (tier: (typeof ACOUSTIC_TIERS)[number]["id"]) => {
+    if (!tier || tier === "None") {
+      onSiteChange({ acousticTier: "None", acousticCost: 0 });
+      return;
+    }
     const tailored = calculateTailoredAcousticCost({
       tier,
       designName: quote.design.designName,
@@ -1119,7 +1134,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
           {/* Acoustic Attenuation Allowance (RHS) */}
           <div
             className={`p-3.5 rounded-xl border transition-all flex flex-col justify-between space-y-2 ${
-              site.acousticTier !== "None"
+              isAcousticSelected
                 ? "border-indigo-500/60 bg-indigo-950/20 ring-1 ring-indigo-500/40 shadow-sm"
                 : isLight
                 ? "border-slate-200 bg-white"
@@ -1131,20 +1146,20 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                 <Label className={`text-xs font-semibold flex items-center gap-1.5 min-w-0 ${isLight ? "text-slate-900" : "text-slate-200"}`}>
                   <Volume2 className="h-3.5 w-3.5 text-indigo-400 flex-none" />
                   <span className="whitespace-nowrap">Acoustic Attenuation Allowance</span>
-                  {quote.design.isModifiedFloorplan && site.acousticTier !== "None" && (
+                  {quote.design.isModifiedFloorplan && isAcousticSelected && (
                     <span className="text-[10px] bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded font-mono font-bold">
                       Modified Scaled
                     </span>
                   )}
                 </Label>
-                {site.acousticTier !== "None" && (
+                {isAcousticSelected && (
                   <p className={`text-[11px] truncate mt-0.5 ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                     Tailored to {quote.design.designName || "Amber 21"} ({Math.round(gfaM2)}m²): {tailoredAcousticBreakdown.windowCount} windows &amp; {tailoredAcousticBreakdown.doorCount} doors ({tailoredAcousticBreakdown.totalWindowAreaM2}m² glass)
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-2 flex-none">
-                <Select value={site.acousticTier} onValueChange={(v: any) => handleAcousticChange(v)}>
+                <Select value={isAcousticSelected ? site.acousticTier : "None"} onValueChange={(v: any) => handleAcousticChange(v)}>
                   <SelectTrigger className={`text-xs h-8 w-36 ${isLight ? "border-slate-300 bg-slate-50 text-slate-900" : "border-slate-800 bg-slate-950 text-slate-200"}`}>
                     <SelectValue />
                   </SelectTrigger>
@@ -1173,7 +1188,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               </div>
             </div>
 
-            {site.acousticTier !== "None" && (
+            {isAcousticSelected && (
               <div className="pt-2 border-t border-indigo-500/20 flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <button

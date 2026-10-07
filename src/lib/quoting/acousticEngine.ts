@@ -106,8 +106,9 @@ export function calculateTailoredAcousticCost(options: {
       ? 280
       : 200;
 
-  // Return $0 for None
-  if (!tier || tier === "None") {
+  // Return $0 for None, unselected, or legacy tiers
+  const validTiers = ["Category 1", "Category 2", "Category 3"];
+  if (!tier || tier === "None" || !validTiers.includes(tier)) {
     return {
       tier: "None",
       designName,
@@ -405,7 +406,8 @@ export function getAcousticCost(
   designOrName?: QuoteDesignSelection | string,
   gfaM2?: number
 ): number {
-  if (!tier || tier === "None") return 0;
+  const validTiers = ["Category 1", "Category 2", "Category 3"];
+  if (!tier || tier === "None" || !validTiers.includes(tier)) return 0;
 
   let designName = "Hudson Design";
   let housingType = isDoubleStorey ? "Double Storey" : "Single Storey";

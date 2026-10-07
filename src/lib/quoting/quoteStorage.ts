@@ -263,12 +263,13 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     floodOverlayRequired: false,
     floodOverlayCost: undefined,
     slabElevationMeters: 0,
-    acousticTier: "Tier 1",
+    acousticTier: "None",
+    acousticCost: 0,
 
     bushfireBalRating: "BAL-LOW",
     bushfireBalCost: 0,
     acousticGlazingRequired: false,
-    acousticGlazingCost: 4500,
+    acousticGlazingCost: 0,
 
     councilRegion: "",
     councilFee: 0,

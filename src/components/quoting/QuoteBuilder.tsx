@@ -467,7 +467,13 @@ export function QuoteBuilder() {
         };
       }
 
-      if (updatedSite.acousticTier && updatedSite.acousticTier !== "None") {
+      const isAcousticActive = Boolean(
+        updatedSite.acousticTier &&
+        updatedSite.acousticTier !== "None" &&
+        ["Category 1", "Category 2", "Category 3"].includes(updatedSite.acousticTier)
+      );
+
+      if (isAcousticActive) {
         const nextAcousticCost = calculateTailoredAcousticCost({
           tier: updatedSite.acousticTier,
           designName: updatedDesign.designName,
@@ -481,6 +487,12 @@ export function QuoteBuilder() {
         updatedSite = {
           ...updatedSite,
           acousticCost: nextAcousticCost,
+        };
+      } else {
+        updatedSite = {
+          ...updatedSite,
+          acousticTier: "None",
+          acousticCost: 0,
         };
       }
     }

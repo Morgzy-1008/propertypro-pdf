@@ -961,7 +961,10 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
-    ...(siteConditions.acousticCost > 0
+    ...(siteConditions.acousticCost > 0 &&
+    siteConditions.acousticTier &&
+    siteConditions.acousticTier !== "None" &&
+    (siteConditions.acousticTier as string) !== "Tier 1"
       ? [
           {
             id: "acoustic_tier",
