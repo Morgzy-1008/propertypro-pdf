@@ -100,9 +100,34 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
     });
     // Automatically optimize image size to ensure no Vercel payload limits
     const optimized = await compressImageDataUrl(rawDataUrl, 1800, 1800, 0.88);
+
+    let extractedRawText = "";
+    if (typeof window !== "undefined") {
+      try {
+        const worker = await createWorker("eng");
+        // PSM 11 (Sparse Text) reliably captures tabular area schedules and dimension callouts
+        await worker.setParameters({ tessedit_pageseg_mode: "11" as any });
+        const ret = await worker.recognize(optimized);
+        if (ret?.data?.text) {
+          extractedRawText = ret.data.text;
+        }
+        // If sparse text was minimal, run standard automatic segmentation (PSM 3) to capture notes
+        if (extractedRawText.trim().length < 50) {
+          await worker.setParameters({ tessedit_pageseg_mode: "3" as any });
+          const retAuto = await worker.recognize(optimized);
+          if (retAuto?.data?.text) {
+            extractedRawText = (extractedRawText + "\n" + retAuto.data.text).trim();
+          }
+        }
+        await worker.terminate();
+      } catch (ocrErr) {
+        console.warn("[pdfPages] OCR on image upload error:", ocrErr);
+      }
+    }
+
     return {
       pages: [optimized],
-      rawText: "",
+      rawText: extractedRawText,
       filename: file.name,
       primaryFloorplanIndex: 0,
       primaryFloorplanDataUrl: optimized,
@@ -243,6 +268,7 @@ export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Prom
   if (extractedRawText.length < 50 && pages.length > 0) {
     try {
       const worker = await createWorker("eng");
+      await worker.setParameters({ tessedit_pageseg_mode: "11" as any });
       const ocrPages = Math.min(pages.length, 3);
       const ocrTexts: string[] = [];
       for (let i = 0; i < ocrPages; i++) {

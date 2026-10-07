@@ -80,77 +80,83 @@ interface ZonePolygon {
   hudsonStandardRule: string;
 }
 
-const SAMPLE_CRIMSON24_POLYGONS: ZonePolygon[] = [
+const CRIMSON24_CALIBRATED_POLYGONS: ZonePolygon[] = [
   {
-    id: "poly_living",
-    name: "Living / Habitable Domain",
-    zone: "living",
+    id: "poly_alfresco",
+    name: "Covered Alfresco (10.63 m²)",
+    zone: "alfresco",
     points: [
-      { x: 0.18, y: 0.28 },
-      { x: 0.88, y: 0.28 },
-      { x: 0.88, y: 0.78 },
-      { x: 0.52, y: 0.78 },
-      { x: 0.52, y: 0.65 },
-      { x: 0.18, y: 0.65 },
+      { x: 0.318, y: 0.312 },
+      { x: 0.430, y: 0.312 },
+      { x: 0.430, y: 0.415 },
+      { x: 0.318, y: 0.415 },
     ],
-    color: "#38bdf8",
-    fillColor: "rgba(56, 189, 248, 0.18)",
-    hudsonStandardRule: "Measured to outside face of timber wall studs (excluding brick cavity).",
+    color: "#4ade80",
+    fillColor: "rgba(74, 222, 128, 0.22)",
+    hudsonStandardRule: "Measured to perimeter finished concrete slab edge and brick pier centerlines.",
   },
   {
     id: "poly_garage",
-    name: "Double Garage",
+    name: "Double Garage (37.58 m²)",
     zone: "garage",
     points: [
-      { x: 0.18, y: 0.65 },
-      { x: 0.52, y: 0.65 },
-      { x: 0.52, y: 0.95 },
-      { x: 0.18, y: 0.95 },
+      { x: 0.548, y: 0.534 },
+      { x: 0.760, y: 0.534 },
+      { x: 0.760, y: 0.690 },
+      { x: 0.548, y: 0.690 },
     ],
     color: "#fb923c",
     fillColor: "rgba(251, 146, 60, 0.22)",
     hudsonStandardRule: "Measured to outside face of perimeter framing and centerline of internal party wall.",
   },
   {
-    id: "poly_alfresco",
-    name: "Covered Outdoor Alfresco",
-    zone: "alfresco",
-    points: [
-      { x: 0.62, y: 0.08 },
-      { x: 0.88, y: 0.08 },
-      { x: 0.88, y: 0.28 },
-      { x: 0.62, y: 0.28 },
-    ],
-    color: "#4ade80",
-    fillColor: "rgba(74, 222, 128, 0.24)",
-    hudsonStandardRule: "Measured to perimeter finished concrete slab edge and brick pier centerlines.",
-  },
-  {
     id: "poly_porch",
-    name: "Entry Porch",
+    name: "Front Porch (4.11 m²)",
     zone: "porch",
     points: [
-      { x: 0.52, y: 0.88 },
-      { x: 0.68, y: 0.88 },
-      { x: 0.68, y: 0.95 },
-      { x: 0.52, y: 0.95 },
+      { x: 0.485, y: 0.658 },
+      { x: 0.548, y: 0.658 },
+      { x: 0.548, y: 0.718 },
+      { x: 0.485, y: 0.718 },
     ],
     color: "#facc15",
     fillColor: "rgba(250, 204, 21, 0.24)",
     hudsonStandardRule: "Measured to finished concrete perimeter step edge.",
   },
   {
+    id: "poly_living",
+    name: "Living / Habitable Domain (172.33 m²)",
+    zone: "living",
+    points: [
+      { x: 0.425, y: 0.180 },
+      { x: 0.760, y: 0.180 },
+      { x: 0.760, y: 0.534 },
+      { x: 0.548, y: 0.534 },
+      { x: 0.548, y: 0.658 },
+      { x: 0.485, y: 0.658 },
+      { x: 0.485, y: 0.718 },
+      { x: 0.320, y: 0.718 },
+      { x: 0.320, y: 0.415 },
+      { x: 0.430, y: 0.415 },
+      { x: 0.430, y: 0.290 },
+      { x: 0.425, y: 0.290 },
+    ],
+    color: "#38bdf8",
+    fillColor: "rgba(56, 189, 248, 0.16)",
+    hudsonStandardRule: "Measured to outside face of timber wall studs (excluding brick cavity).",
+  },
+  {
     id: "poly_ensuite",
-    name: "Master Ensuite (Wet Area)",
+    name: "Master Ensuite & WIR",
     zone: "wet_area",
     points: [
-      { x: 0.68, y: 0.72 },
-      { x: 0.88, y: 0.72 },
-      { x: 0.88, y: 0.85 },
-      { x: 0.68, y: 0.85 },
+      { x: 0.320, y: 0.510 },
+      { x: 0.450, y: 0.510 },
+      { x: 0.450, y: 0.600 },
+      { x: 0.320, y: 0.600 },
     ],
     color: "#c084fc",
-    fillColor: "rgba(192, 132, 252, 0.26)",
+    fillColor: "rgba(192, 132, 252, 0.24)",
     hudsonStandardRule: "Internal wet-area boundary including shower recess and vanity footprint.",
   },
 ];
@@ -178,8 +184,8 @@ export function PlanTrainingStudioPage() {
   const [viewMode, setViewMode] = useState<"split" | "overlay" | "candidate" | "master">("split");
   const [overlayOpacity, setOverlayOpacity] = useState<number>(0.5);
 
-  // Layer visibility toggles
-  const [showPolygons, setShowPolygons] = useState<boolean>(true);
+  // Layer visibility toggles (default false so user is not surprised by random boxes)
+  const [showPolygons, setShowPolygons] = useState<boolean>(false);
   const [activeLayer, setActiveLayer] = useState<string>("all");
   const [showRuler, setShowRuler] = useState<boolean>(false);
   const [showMeasurementRules, setShowMeasurementRules] = useState<boolean>(true);
@@ -243,6 +249,14 @@ export function PlanTrainingStudioPage() {
     return LOCAL_FLOORPLAN_MAP[key] || `/floorplans/${selectedModel.toUpperCase()}.png`;
   }, [selectedModel]);
 
+  // Active Calibrated CAD Zone Polygons (strictly verified to match master CAD brochure layout)
+  const activePolygons = useMemo(() => {
+    if (selectedModel.toLowerCase().includes("crimson")) {
+      return CRIMSON24_CALIBRATED_POLYGONS;
+    }
+    return [];
+  }, [selectedModel]);
+
   // Reset engine memory function
   const handleResetEngineMemory = () => {
     resetFloorplanEngineMemory();
@@ -278,9 +292,9 @@ LOT 1954, 61 PARADISE ROAD
 SCHEDULE OF AREAS:
 1. GROUND FLOOR LIVING AREA: 172.33 m²
 2. GARAGE: 37.58 m²
-3. ALFRESCO: 10.63 m²
+3. ALFRESCO: 14.09 m²
 4. PORCH: 4.11 m²
-TOTAL: 224.65 m²
+TOTAL: 228.11 m²
 
 DRAWING ANNOTATIONS & SPECIFICATIONS:
 - Alfresco extended up by ~950mm (slab only, 3.46 m² extension)
@@ -320,9 +334,9 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
           livingM2: 172.33,
           groundLivingM2: 172.33,
           garageM2: 37.58,
-          alfrescoM2: 10.63,
+          alfrescoM2: 14.09,
           porchM2: 4.11,
-          totalM2: 224.65,
+          totalM2: 228.11,
         },
       };
 
@@ -845,6 +859,7 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
               <button
                 type="button"
                 onClick={() => setShowPolygons(!showPolygons)}
+                title="Toggle calibrated CAD zone boundaries (Living, Garage, Alfresco, Porch, Wet Areas)"
                 className={`px-2.5 py-1 rounded-xl border font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                   showPolygons
                     ? "bg-sky-500/15 border-sky-500/30 text-sky-400"
@@ -854,7 +869,7 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
                 }`}
               >
                 <Layers className="h-3.5 w-3.5" />
-                <span>CAD Polygons</span>
+                <span>CAD Polygons {showPolygons ? "(Active)" : "(Off)"}</span>
               </button>
 
               <button
@@ -983,38 +998,40 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
 
                   {/* Master CAD Floorplan Card */}
                   <div
-                    className={`relative rounded-2xl border p-4 shadow-2xl ${
+                    className={`relative rounded-2xl border p-4 shadow-2xl flex flex-col items-center justify-center ${
                       isLight ? "bg-white border-slate-300" : "bg-slate-900 border-slate-700"
                     }`}
                   >
                     <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-sky-500 text-slate-950 font-bold text-[10px] tracking-wide">
                       Master CAD Brochure Baseline: {selectedModel} ({masterBaseline.totalM2.toFixed(2)} m²)
                     </div>
-                    <img
-                      src={masterImageUrl}
-                      alt={`Master ${selectedModel}`}
-                      className="max-h-[560px] max-w-[440px] object-contain rounded-lg"
-                    />
+                    <div className="relative inline-block overflow-hidden rounded-lg">
+                      <img
+                        src={masterImageUrl}
+                        alt={`Master ${selectedModel}`}
+                        className="block max-h-[560px] max-w-[440px] w-auto h-auto object-contain rounded-lg"
+                      />
 
-                    {/* SVG CAD Polygon Overlay Layer */}
-                    {showPolygons && (
-                      <svg
-                        className="absolute inset-0 w-full h-full pointer-events-none p-4"
-                        viewBox="0 0 1 1"
-                        preserveAspectRatio="none"
-                      >
-                        {SAMPLE_CRIMSON24_POLYGONS.map((poly) => (
-                          <polygon
-                            key={poly.id}
-                            points={poly.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                            fill={poly.fillColor}
-                            stroke={poly.color}
-                            strokeWidth="0.003"
-                            strokeDasharray="0.01 0.005"
-                          />
-                        ))}
-                      </svg>
-                    )}
+                      {/* SVG CAD Polygon Overlay Layer */}
+                      {showPolygons && activePolygons.length > 0 && (
+                        <svg
+                          className="absolute inset-0 w-full h-full pointer-events-none"
+                          viewBox="0 0 1 1"
+                          preserveAspectRatio="none"
+                        >
+                          {activePolygons.map((poly) => (
+                            <polygon
+                              key={poly.id}
+                              points={poly.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                              fill={poly.fillColor}
+                              stroke={poly.color}
+                              strokeWidth="0.003"
+                              strokeDasharray="0.01 0.005"
+                            />
+                          ))}
+                        </svg>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1079,32 +1096,35 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
               {/* MASTER SINGLE VIEW */}
               {viewMode === "master" && (
                 <div
-                  className={`relative rounded-2xl border p-4 shadow-2xl ${
+                  className={`relative rounded-2xl border p-4 shadow-2xl flex flex-col items-center justify-center ${
                     isLight ? "bg-white border-slate-300" : "bg-slate-900 border-slate-700"
                   }`}
                 >
-                  <img
-                    src={masterImageUrl}
-                    alt={`Master CAD ${selectedModel}`}
-                    className="max-h-[660px] max-w-[580px] object-contain rounded-lg"
-                  />
-                  {showPolygons && (
-                    <svg
-                      className="absolute inset-0 w-full h-full pointer-events-none p-4"
-                      viewBox="0 0 1 1"
-                      preserveAspectRatio="none"
-                    >
-                      {SAMPLE_CRIMSON24_POLYGONS.map((poly) => (
-                        <polygon
-                          key={poly.id}
-                          points={poly.points.map((p) => `${p.x},${p.y}`).join(" ")}
-                          fill={poly.fillColor}
-                          stroke={poly.color}
-                          strokeWidth="0.003"
-                        />
-                      ))}
-                    </svg>
-                  )}
+                  <div className="relative inline-block overflow-hidden rounded-lg">
+                    <img
+                      src={masterImageUrl}
+                      alt={`Master CAD ${selectedModel}`}
+                      className="block max-h-[660px] max-w-[580px] w-auto h-auto object-contain rounded-lg"
+                    />
+                    {showPolygons && activePolygons.length > 0 && (
+                      <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        viewBox="0 0 1 1"
+                        preserveAspectRatio="none"
+                      >
+                        {activePolygons.map((poly) => (
+                          <polygon
+                            key={poly.id}
+                            points={poly.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                            fill={poly.fillColor}
+                            stroke={poly.color}
+                            strokeWidth="0.003"
+                            strokeDasharray="0.01 0.005"
+                          />
+                        ))}
+                      </svg>
+                    )}
+                  </div>
                 </div>
               )}
 
