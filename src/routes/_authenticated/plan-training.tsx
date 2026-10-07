@@ -290,11 +290,11 @@ CRIMSON 24 CLASSIC MOD LH - TENDER 1
 LOT 1954, 61 PARADISE ROAD
 
 SCHEDULE OF AREAS:
-1. GROUND FLOOR LIVING AREA: 172.33 m²
-2. GARAGE: 37.58 m²
+1. GROUND FLOOR LIVING AREA: 177.36 m²
+2. GARAGE: 33.32 m²
 3. ALFRESCO: 14.09 m²
-4. PORCH: 4.11 m²
-TOTAL: 228.11 m²
+4. PORCH: 3.25 m²
+TOTAL: 228.02 m²
 
 DRAWING ANNOTATIONS & SPECIFICATIONS:
 - Alfresco extended up by ~950mm (slab only, 3.46 m² extension)
@@ -322,21 +322,21 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
       const pendingCandidate: BaseDesignCandidate = {
         designName: "Crimson 24",
         housingType: "Single Storey",
-        standardTotalM2: 224.65,
+        standardTotalM2: 224.56,
         confidence: 0.99,
         matchSource: "title_block",
-        matchReason: "Authentic Tender 1 Benchmark Ingestion",
+        matchReason: "Authentic Master CAD Benchmark Ingestion",
         thumbnailUrl: "/extracted_pdf_image.jpg",
         candidateFloorplanUrl: "/extracted_pdf_image.jpg",
         rawTextSnippet: benchmarkRawText,
         file,
         scheduleTable: {
-          livingM2: 172.33,
-          groundLivingM2: 172.33,
-          garageM2: 37.58,
+          livingM2: 177.36,
+          groundLivingM2: 177.36,
+          garageM2: 33.32,
           alfrescoM2: 14.09,
-          porchM2: 4.11,
-          totalM2: 228.11,
+          porchM2: 3.25,
+          totalM2: 228.02,
         },
       };
 
