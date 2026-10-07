@@ -612,10 +612,10 @@ export const HUDSON_DIMENSIONS_REGISTRY: Record<string, HudsonDimensionRecord> =
   "Crimson 24": {
     "label": "Crimson 24",
     "design": "Crimson",
-    "width": 11.99,
-    "length": 20.51,
+    "width": 12.79,
+    "length": 20.23,
     "minLotWidth": 13.83,
-    "totalM2": 224.56,
+    "totalM2": 224.65,
     "cars": 2
   },
   "Crimson 26": {

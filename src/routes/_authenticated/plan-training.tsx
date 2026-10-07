@@ -36,7 +36,7 @@ import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
-import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
+import { getActiveStaffUser, isStaffSessionActive, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { canAccessPlanTraining } from "@/lib/access";
 import {
   HUDSON_STANDARD_AREAS,
@@ -170,7 +170,7 @@ export function PlanTrainingStudioPage() {
     return unsub;
   }, []);
 
-  const hasAccess = canAccessPlanTraining(staffUser);
+  const hasAccess = isStaffSessionActive() && canAccessPlanTraining(staffUser);
 
   // Active calibration state
   const [selectedModel, setSelectedModel] = useState<string>("Crimson 24");
@@ -308,7 +308,7 @@ DRAWING ANNOTATIONS & SPECIFICATIONS:
       const pendingCandidate: BaseDesignCandidate = {
         designName: "Crimson 24",
         housingType: "Single Storey",
-        standardTotalM2: 224.56,
+        standardTotalM2: 224.65,
         confidence: 0.99,
         matchSource: "title_block",
         matchReason: "Authentic Tender 1 Benchmark Ingestion",

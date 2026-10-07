@@ -161,6 +161,26 @@ export const MASTER_OPENING_SCHEDULES: Record<string, {
       D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
     },
   },
+  "Crimson 24": {
+    windows: {
+      W1: { code: "W1", type: "AST 1818", heightMm: 1800, widthMm: 1810, glazing: "Clear" },
+      W2: { code: "W2", type: "AS 1818", heightMm: 860, widthMm: 610, glazing: "Clear" },
+      W3: { code: "W3", type: "AS 1806", heightMm: 1800, widthMm: 610, glazing: "Clear" },
+      W4: { code: "W4", type: "AS 0906", heightMm: 1800, widthMm: 610, glazing: "Clear" },
+      W5: { code: "W5", type: "AAT 1816", heightMm: 1800, widthMm: 1570, glazing: "Clear" },
+      W6: { code: "W6", type: "AS 1806", heightMm: 1800, widthMm: 2170, glazing: "Clear" },
+      W7: { code: "W7", type: "AAT 1216", heightMm: 1200, widthMm: 1570, glazing: "Clear" },
+      W8: { code: "W8", type: "AS 1806", heightMm: 860, widthMm: 610, glazing: "Clear" },
+      W9: { code: "W9", type: "AST 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W10: { code: "W10", type: "AS 1816", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+      W11: { code: "W11", type: "AST 1218", heightMm: 1200, widthMm: 1810, glazing: "Clear" },
+    },
+    doors: {
+      D1: { code: "D1", type: "Front Door", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D2: { code: "D2", type: "Laundry/Garage", heightMm: 2040, widthMm: 820, glazing: "Solid" },
+      D3: { code: "D3", type: "ASDI 2124", heightMm: 2100, widthMm: 2410, glazing: "Clear" },
+    },
+  },
 };
 
 /**
@@ -248,15 +268,51 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 6. Stacker Doors: STACKER 21.36, 21-36 STACKER, STACKER, STACKER SLM, 21-30 542 STACKER, 21/27 542 STACKER
-  const stackerRegex = /\b(?:STACKER(?:\s*(\d{2})[\s\.\-\/]?(\d{2}))?|(\d{2})[\s\.\-\/]+(\d{2})(?:\s*\d{3})?\s*STACKER)\b/gi;
+  // 0. Door Schedule Table Parser (Row-by-row or transposed CAD schedules e.g. Sheet 8)
+  const rowTableRegex = /\b(D\d+)[\t\s]+([^\t\n]+?)[\t\s]+([\d,]+)[\t\s]+([\d,]+)[\t\s]+([^\t\n]+)/gi;
+  let rowM: RegExpExecArray | null;
+  while ((rowM = rowTableRegex.exec(rawText)) !== null) {
+    const doorNo = rowM[1].toUpperCase();
+    const zone = rowM[2].trim().toUpperCase();
+    const height = parseInt(rowM[3].replace(/,/g, ""), 10);
+    const width = parseInt(rowM[4].replace(/,/g, ""), 10);
+    const doorType = rowM[5].trim().toUpperCase();
+
+    if (doorNo === "D1" && (width === 1020 || width === 1200)) {
+      tags.push({
+        rawTag: `EXT ${width}`,
+        category: "door",
+        typeCode: "EXT_DOOR",
+        heightMm: height || 2040,
+        widthMm: width,
+        isObscure: false,
+        locationHint: `Front Entry Door (${doorNo} - ${zone})`,
+      });
+    } else if (/STACKER/i.test(doorType) || ((doorNo === "D2" || doorNo === "D3") && width >= 2600 && width <= 3200)) {
+      const nomW = width >= 2900 ? "30" : "27";
+      const nomH = height >= 2300 ? "24" : "21";
+      tags.push({
+        rawTag: `STACKER ${nomH}-${nomW}`,
+        category: "door",
+        typeCode: "STACKER",
+        heightMm: height || 2100,
+        widthMm: parseInt(nomW, 10) * 100,
+        isObscure: false,
+        locationHint: `${zone} Stacker Door (${doorNo})`,
+      });
+    }
+  }
+
+  // 6. Stacker Doors: STACKER 21.36, 21-36 STACKER, STACKER, STACKER SLM, 21-30 542 STACKER, 21/27 542 STACKER, 24-30, 24-27
+  const stackerRegex = /\b(?:STACKER(?:\s*(\d{2})[\s\.\-\/]?(\d{2}))?|(\d{2})[\s\.\-\/]+(\d{2})(?:[^\w\n\r]*\d{3})?[^\w\n\r]*STACKER)\b/gi;
   while ((match = stackerRegex.exec(rawText)) !== null) {
     const rawH = match[1] || match[3];
     const rawW = match[2] || match[4];
     const h = rawH ? parseInt(rawH, 10) * 100 : 2100;
     const w = rawW ? parseInt(rawW, 10) * 100 : 3000;
+    const tagCode = rawH && rawW ? `STACKER ${rawH}-${rawW}` : match[0].toUpperCase();
     tags.push({
-      rawTag: match[0].toUpperCase(),
+      rawTag: tagCode,
       category: "door",
       typeCode: "STACKER",
       heightMm: h,
@@ -575,8 +631,13 @@ export function diffOpeningsWithReplacementCredits(
       continue;
     }
 
-    // 4. If BARN 1200 exists, drop generic BARN DOOR
-    if (hasBarn1200 && (upper === "BARN DOOR" || upper === "BARN" || upper === "FACE-HUNG")) {
+    // 4. Drop BARN doors from perimeter opening replacements (handled as internal room layout variation)
+    if (/BARN/i.test(upper)) {
+      continue;
+    }
+
+    // 4b. Exclude standard double garage door (e.g. 4810mm panel lift, standard panel lift) from opening replacement charges
+    if (/PANEL\s*LIFT|ROLLER\s*DOOR\s*21\.?48|RD\s*21\.?48/i.test(upper) || /4810|4800|5400|DOUBLE\s*GARAGE/i.test(upper)) {
       continue;
     }
 

@@ -39,314 +39,323 @@ export interface ZoneDimension {
 export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule | null {
   if (!text) return null;
 
-  const result: ExtractedAreaSchedule = { matchedLines: [], unassignedItems: [] };
-  const seenZones = new Set<string>();
+  interface ScheduleCandidate extends ExtractedAreaSchedule {
+    confidence: number;
+    source: string;
+  }
 
-  // Helper to validate and assign zone values
-  const assignZone = (label: string, val: number) => {
-    if (isNaN(val) || val <= 0) return;
-    // Auto-normalize if decimal dot dropped by PDF glyph encoding (e.g. 17233 -> 172.33)
-    if (val > 800 && val < 100000) {
-      val = Math.round((val / 100) * 100) / 100;
-    }
-    if (val < 0.5 || val > 1200) return;
-
-    const lower = label.toLowerCase().trim();
-    // Discard drawing title block noise
-    if (
-      lower.includes("scale") ||
-      lower.includes("sheet") ||
-      lower.includes("date") ||
-      lower.includes("rev") ||
-      lower.includes("drawing title") ||
-      lower.includes("job no") ||
-      lower.includes("lip") ||
-      lower.includes("step") ||
-      lower.includes("downpipe")
-    ) {
-      return;
-    }
-
-    if (lower.includes("lower ground") || lower.includes("lower floor") || lower.includes("lower living")) {
-      if (!seenZones.has("lower_ground")) {
-        seenZones.add("lower_ground");
-        result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (
-      lower.includes("ground floor living") ||
-      lower.includes("ground living") ||
-      (lower.includes("ground") && lower.includes("living"))
-    ) {
-      if (!seenZones.has("ground_living")) {
-        seenZones.add("ground_living");
-        result.groundLivingM2 = (result.groundLivingM2 || 0) + val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (
-      lower.includes("first floor living") ||
-      lower.includes("first living") ||
-      lower.includes("upper living") ||
-      (lower.includes("first floor") && lower.includes("living"))
-    ) {
-      if (!seenZones.has("first_living")) {
-        seenZones.add("first_living");
-        result.firstLivingM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (
-      lower.includes("living area") ||
-      lower.includes("floor living area") ||
-      lower.includes("floor living") ||
-      lower.includes("internal living") ||
-      lower.includes("residence") ||
-      (lower.includes("living") && !lower.includes("outdoor") && !lower.includes("alfresco"))
-    ) {
-      if (!seenZones.has("living")) {
-        seenZones.add("living");
-        result.livingM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (lower.includes("garage") || lower.includes("carport") || lower.includes("dlug")) {
-      if (!seenZones.has("garage")) {
-        seenZones.add("garage");
-        result.garageM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (
-      lower.includes("alfresco") ||
-      lower.includes("patio") ||
-      lower.includes("outdoor living") ||
-      lower.includes("verandah") ||
-      lower.includes("terrace")
-    ) {
-      if (!seenZones.has("alfresco")) {
-        seenZones.add("alfresco");
-        result.alfrescoM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (
-      lower.includes("porch") ||
-      lower.includes("portico") ||
-      lower.includes("entry porch") ||
-      lower.includes("covered entry")
-    ) {
-      if (!seenZones.has("porch")) {
-        seenZones.add("porch");
-        result.porchM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (lower.includes("balcony")) {
-      if (!seenZones.has("balcony")) {
-        seenZones.add("balcony");
-        result.balconyM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    } else if (lower.includes("width") || lower.includes("overall width") || lower.includes("house width")) {
-      if (!seenZones.has("width")) {
-        seenZones.add("width");
-        result.widthM = val > 40 ? Math.round((val / 1000) * 100) / 100 : val;
-      }
-    } else if (lower.includes("length") || lower.includes("overall length") || lower.includes("house length") || lower.includes("depth")) {
-      if (!seenZones.has("length")) {
-        seenZones.add("length");
-        result.lengthM = val > 60 ? Math.round((val / 1000) * 100) / 100 : val;
-      }
-    } else if (
-      lower.includes("total") ||
-      lower.includes("gross") ||
-      lower.includes("gba") ||
-      lower.includes("gfa") ||
-      lower.includes("total area") ||
-      lower.includes("total house") ||
-      lower.includes("total covered") ||
-      lower.includes("total slab")
-    ) {
-      if (!seenZones.has("total")) {
-        seenZones.add("total");
-        result.totalM2 = val;
-        result.matchedLines?.push(`${label} -> ${val}`);
-      }
-    }
+  const cleanNum = (raw: string, maxNormal = 800): number => {
+    const cleaned = raw.replace(/[·•]/g, ".").replace(/,/g, "").trim();
+    let val = parseFloat(cleaned);
+    if (isNaN(val) || val <= 0) return 0;
+    if (val > maxNormal && val < 100000) val = Math.round((val / 100) * 100) / 100;
+    return val;
   };
 
-  // Strategy 1: Targeted Key-Pattern Extraction across the entire text stream
-  // Handles numbered prefixes: "1. GROUND FLOOR LIVING AREA 172.33", "2. GARAGE 37.58", etc.
-  const targetedPatterns: Array<{ label: string; regex: RegExp }> = [
-    {
-      label: "Ground Floor Living Area",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*GROUND\s*LIVING))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "First Floor Living Area",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Floor Living Area",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|LIVING\s*AREA|INTERNAL\s*LIVING|RESIDENCE))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Garage",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|CARPORT|DLUG))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Alfresco",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?|TERRACE))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Porch",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO|COVERED\s*ENTRY))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Balcony",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:BALCONY(?:\s*AREA)?))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Total Area",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Overall Width",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:OVERALL\s*WIDTH|HOUSE\s*WIDTH))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-    {
-      label: "Overall Length",
-      regex: /(?:^|[\r\n\s\t])(?:(?:\d+[\.\)]\s*)?(?:OVERALL\s*LENGTH|HOUSE\s*LENGTH|DEPTH))\s*[:\t\-\s]*\s*(\d+(?:[.\u00B7\u2022]\d{1,3})?)/i,
-    },
-  ];
+  const evaluateCandidate = (c: ScheduleCandidate): number => {
+    const living = c.livingM2 || ((c.groundLivingM2 || 0) + (c.firstLivingM2 || 0)) || 0;
+    const compSum = living + (c.garageM2 || 0) + (c.alfrescoM2 || 0) + (c.porchM2 || 0) + (c.balconyM2 || 0);
 
-  for (const { label, regex } of targetedPatterns) {
-    const match = text.match(regex);
-    if (match && match[1]) {
-      const val = parseFloat(match[1].replace(/[·•]/g, "."));
-      if (!isNaN(val) && val > 0) {
-        assignZone(label, val);
+    // Reject obvious noise
+    if (living > 0 && living < 30) return 0;
+    if (c.garageM2 && (c.garageM2 < 10 || c.garageM2 > 120)) return 0;
+    if (c.porchM2 && c.porchM2 > 40) return 0;
+    if (c.alfrescoM2 && c.alfrescoM2 > 100) return 0;
+
+    let score = 0;
+    if (living >= 40 && living <= 600) score += 30;
+    if (c.garageM2 && c.garageM2 >= 14 && c.garageM2 <= 90) score += 20;
+    if (c.alfrescoM2 && c.alfrescoM2 >= 2 && c.alfrescoM2 <= 80) score += 20;
+    if (c.porchM2 && c.porchM2 >= 0.5 && c.porchM2 <= 30) score += 15;
+    if (c.totalM2 && c.totalM2 >= 50 && c.totalM2 <= 1000) score += 20;
+
+    if (c.totalM2 && compSum > 0) {
+      const diff = Math.abs(compSum - c.totalM2);
+      if (diff < 0.15) {
+        score += 150; // Exact mathematical identity verified!
+      } else if (diff < 1.0) {
+        score += 50;
       }
     }
-  }
+    return score;
+  };
 
-  // Strategy 2: Line-by-Line Table Row Parser
-  // Also tracks pendingLabel for alternating multiline OCR (label on line N, number on line N+1)
-  let scheduleText = text;
-  const areasIndex = text.search(
-    /(?:FLOOR\s*AREAS|SCHEDULE\s*OF\s*AREAS|AREA\s*SCHEDULE|AREAS\s*[:(\n\r]|AREAS\b|Floor\s+Living\s+Area|Living\s+Area\s+Garage|Living\s+Area)/i
-  );
-  if (areasIndex !== -1) {
-    scheduleText = text.slice(areasIndex);
-  }
+  const candidates: ScheduleCandidate[] = [];
 
-  const rawLines = scheduleText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  let pendingLabel = "";
+  // =========================================================================
+  // Pass 1: Localized Schedule of Areas Block Parsing
+  // Searches for explicit schedule headers
+  // =========================================================================
+  const blockHeaderRegex = /(?:SCHEDULE\s*OF\s*AREAS|AREA\s*SCHEDULE|FLOOR\s*AREAS|AREAS\s*[:(]|AREAS\b)/gi;
+  let bMatch: RegExpExecArray | null;
 
-  for (const rawLine of rawLines) {
-    // Numbered line format: "1. GROUND FLOOR LIVING AREA 172.33"
-    const numberedRowMatch = rawLine.match(/^(?:(\d+)[\.\)]\s*)?([a-zA-Z\s\/\'\-]{3,40}?)\s*[:\t\-]*\s*(\d+(?:\.\d{1,3})?)\s*(?:m[²2]|sqm|\bm\b)?$/i);
-    if (numberedRowMatch) {
-      const label = numberedRowMatch[2].trim();
-      const val = parseFloat(numberedRowMatch[3]);
-      if (!isNaN(val) && val > 0) {
-        assignZone(label, val);
-        pendingLabel = "";
-        continue;
-      }
-    }
+  while ((bMatch = blockHeaderRegex.exec(text)) !== null) {
+    const startIdx = bMatch.index;
+    const chunk = text.slice(startIdx, startIdx + 1200);
+    const chunkLines = chunk.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
-    // Check if line contains tabs or separate cells
-    const rawCells = rawLine.includes("\t")
-      ? rawLine.split("\t").map((c) => c.trim()).filter(Boolean)
-      : [rawLine];
-    const cells = rawCells.map((c) => c.replace(/^\s*\d+(?:[\.\)]\s*|\s+)(?=[a-zA-Z])/g, "").trim());
+    // 1A. Columnar list extraction (Sequence of zone labels followed by sequence of numbers)
+    const zoneLabels: Array<{ zone: string; label: string; lineIdx: number }> = [];
+    const numbersList: Array<{ val: number; line: string }> = [];
 
-    for (let c = 0; c < cells.length; c++) {
-      const cell = cells[c];
-      const prevCell = cells[c - 1] || "";
-
-      if (/[xX*×]\s*\d/i.test(cell)) {
-        continue; // Room dimension, not area
+    for (let i = 0; i < chunkLines.length; i++) {
+      const l = chunkLines[i];
+      // Zone labels typically start with optional numbered prefixes (e.g. "1. GROUND FLOOR LIVING AREA")
+      if (/(?:^|[\d+\.\)]\s*)(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING|LOWER\s*GROUND)/i.test(l)) {
+        zoneLabels.push({ zone: "groundLiving", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING)/i.test(l)) {
+        zoneLabels.push({ zone: "firstLiving", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:FLOOR\s*LIVING\s*AREA|LIVING\s*AREA|INTERNAL\s*LIVING|RESIDENCE)/i.test(l)) {
+        zoneLabels.push({ zone: "living", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:DOUBLE\s*GARAGE|GARAGE)/i.test(l) && !/door|panel\s*lift|entry/i.test(l)) {
+        zoneLabels.push({ zone: "garage", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:COVERED\s*ALFRESCO|ALFRESCO|OUTDOOR\s*LIVING|PATIO|VERANDAH?)/i.test(l) && !/door|stacker/i.test(l)) {
+        zoneLabels.push({ zone: "alfresco", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:ENTRY\s*PORCH|PORCH|PORTICO)/i.test(l) && !/door|d1|entry\s*max/i.test(l)) {
+        zoneLabels.push({ zone: "porch", label: l, lineIdx: i });
+      } else if (/(?:^|[\d+\.\)]\s*)(?:BALCONY)/i.test(l)) {
+        zoneLabels.push({ zone: "balcony", label: l, lineIdx: i });
       }
 
-      const numMatches = [...cell.matchAll(/\b\d+(?:\.\d{1,3})?\b/g)];
-      if (numMatches.length > 0) {
-        for (const m of numMatches) {
-          const val = Number(m[0]);
-          if (val >= 1.0 && val < 800 && val !== 2024 && val !== 2025 && val !== 2026 && val !== 2027 && val !== 2440 && val !== 2590 && val !== 2740) {
-            let label = cell.replace(/\b\d+(?:\.\d{1,3})?\b/g, "").replace(/m²|sqm|m2|\bm\b/gi, "").trim();
-            if (label.length < 3 && prevCell && !prevCell.match(/^\d+$/)) {
-              label = prevCell;
-            } else if (label.length < 3 && pendingLabel) {
-              label = pendingLabel;
-            }
-            if (label) {
-              assignZone(label, val);
-              pendingLabel = "";
-            }
-          }
-        }
-      } else {
-        // Line has text label but no number: store as pendingLabel for next line!
-        const cleanText = cell.replace(/m²|sqm|m2|\bm\b/gi, "").trim();
-        if (cleanText.length >= 3 && !cleanText.match(/^\d+$/)) {
-          pendingLabel = cleanText;
+      // Check if line is a standalone area number: e.g. "172.33", "227.27 m²"
+      const numMatch = l.match(/^(\d+(?:\.\d{1,3})?)\s*(?:m[²2]|sqm)?$/i);
+      if (numMatch) {
+        const v = cleanNum(numMatch[1]);
+        if (v >= 0.5 && v <= 800) {
+          numbersList.push({ val: v, line: l });
         }
       }
     }
+
+    if (zoneLabels.length >= 3 && numbersList.length >= zoneLabels.length) {
+      const cand: ScheduleCandidate = { matchedLines: [], confidence: 0, source: "block_columnar" };
+      for (let k = 0; k < zoneLabels.length; k++) {
+        const z = zoneLabels[k].zone;
+        const val = numbersList[k].val;
+        if (z === "groundLiving") cand.groundLivingM2 = val;
+        else if (z === "firstLiving") cand.firstLivingM2 = val;
+        else if (z === "living") cand.livingM2 = val;
+        else if (z === "garage") cand.garageM2 = val;
+        else if (z === "alfresco") cand.alfrescoM2 = val;
+        else if (z === "porch") cand.porchM2 = val;
+        else if (z === "balcony") cand.balconyM2 = val;
+        cand.matchedLines?.push(`${zoneLabels[k].label} -> ${val}`);
+      }
+      if (numbersList.length > zoneLabels.length) {
+        cand.totalM2 = numbersList[zoneLabels.length].val;
+        cand.matchedLines?.push(`Total -> ${cand.totalM2}`);
+      }
+      cand.confidence = evaluateCandidate(cand);
+      if (cand.confidence > 50) candidates.push(cand);
+    }
+
+    // 1B. Same-line / Tabular extraction within this schedule block
+    const blockCand: ScheduleCandidate = { matchedLines: [], confidence: 0, source: "block_tabular" };
+    for (const l of chunkLines) {
+      const matchGround = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGround && !blockCand.groundLivingM2) {
+        blockCand.groundLivingM2 = cleanNum(matchGround[1]);
+        blockCand.matchedLines?.push(`Ground Living -> ${blockCand.groundLivingM2}`);
+      }
+
+      const matchFirst = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchFirst && !blockCand.firstLivingM2) {
+        blockCand.firstLivingM2 = cleanNum(matchFirst[1]);
+        blockCand.matchedLines?.push(`First Living -> ${blockCand.firstLivingM2}`);
+      }
+
+      const matchLiving = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchLiving && !blockCand.livingM2 && !blockCand.groundLivingM2) {
+        blockCand.livingM2 = cleanNum(matchLiving[1]);
+        blockCand.matchedLines?.push(`Living -> ${blockCand.livingM2}`);
+      }
+
+      const matchGarage = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGarage && !blockCand.garageM2 && !/panel\s*lift|door|lip/i.test(l)) {
+        blockCand.garageM2 = cleanNum(matchGarage[1]);
+        blockCand.matchedLines?.push(`Garage -> ${blockCand.garageM2}`);
+      }
+
+      const matchAlf = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchAlf && !blockCand.alfrescoM2 && !/stacker|door|window/i.test(l)) {
+        blockCand.alfrescoM2 = cleanNum(matchAlf[1]);
+        blockCand.matchedLines?.push(`Alfresco -> ${blockCand.alfrescoM2}`);
+      }
+
+      const matchPorch = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchPorch && !blockCand.porchM2 && !/door|d1|entry\s*max/i.test(l)) {
+        blockCand.porchM2 = cleanNum(matchPorch[1]);
+        blockCand.matchedLines?.push(`Porch -> ${blockCand.porchM2}`);
+      }
+
+      const matchTotal = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchTotal && !blockCand.totalM2) {
+        blockCand.totalM2 = cleanNum(matchTotal[1]);
+        blockCand.matchedLines?.push(`Total -> ${blockCand.totalM2}`);
+      }
+    }
+
+    blockCand.confidence = evaluateCandidate(blockCand);
+    if (blockCand.confidence > 50) candidates.push(blockCand);
   }
 
-  // Cross-Zone Normalization for Single Storey dwellings:
-  // If groundLivingM2 was extracted and no firstLivingM2, livingM2 should equal groundLivingM2
-  if (result.groundLivingM2 && !result.firstLivingM2 && !result.livingM2) {
-    result.livingM2 = result.groundLivingM2;
-  } else if (result.livingM2 && !result.groundLivingM2 && !result.firstLivingM2) {
-    result.groundLivingM2 = result.livingM2;
-  } else if (result.groundLivingM2 && result.firstLivingM2 && !result.livingM2) {
-    result.livingM2 = Math.round((result.groundLivingM2 + result.firstLivingM2) * 100) / 100;
+  // =========================================================================
+  // Pass 2: Global Line-by-Line Fallback (Only if no schedule block matched)
+  // =========================================================================
+  if (candidates.length === 0) {
+    const globalCand: ScheduleCandidate = { matchedLines: [], confidence: 0, source: "global_fallback" };
+    const allLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+    for (const l of allLines) {
+      if (/r\.?l\.?|pad|contour|boundary|setback|eng\.\s*details/i.test(l)) continue;
+
+      const matchGround = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGround && !globalCand.groundLivingM2) {
+        const v = cleanNum(matchGround[1]);
+        if (v >= 30 && v <= 500) {
+          globalCand.groundLivingM2 = v;
+          globalCand.matchedLines?.push(`Ground Living -> ${v}`);
+        }
+      }
+
+      const matchFirst = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchFirst && !globalCand.firstLivingM2) {
+        const v = cleanNum(matchFirst[1]);
+        if (v >= 20 && v <= 500) {
+          globalCand.firstLivingM2 = v;
+          globalCand.matchedLines?.push(`First Living -> ${v}`);
+        }
+      }
+
+      const matchLiving = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchLiving && !globalCand.livingM2 && !globalCand.groundLivingM2) {
+        const v = cleanNum(matchLiving[1]);
+        if (v >= 40 && v <= 600) {
+          globalCand.livingM2 = v;
+          globalCand.matchedLines?.push(`Living -> ${v}`);
+        }
+      }
+
+      const matchGarage = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGarage && !globalCand.garageM2 && !/panel\s*lift|door|opening|step\s*free|lip/i.test(l)) {
+        const v = cleanNum(matchGarage[1]);
+        if (v >= 14 && v <= 100) {
+          globalCand.garageM2 = v;
+          globalCand.matchedLines?.push(`Garage -> ${v}`);
+        }
+      }
+
+      const matchAlf = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchAlf && !globalCand.alfrescoM2 && !/stacker|door|window|opening|bbq|kitchen/i.test(l)) {
+        const v = cleanNum(matchAlf[1]);
+        if (v >= 2 && v <= 80) {
+          globalCand.alfrescoM2 = v;
+          globalCand.matchedLines?.push(`Alfresco -> ${v}`);
+        }
+      }
+
+      const matchPorch = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchPorch && !globalCand.porchM2 && !/door|d1|entry\s*max|step|opening/i.test(l)) {
+        const v = cleanNum(matchPorch[1]);
+        if (v >= 0.5 && v <= 30) {
+          globalCand.porchM2 = v;
+          globalCand.matchedLines?.push(`Porch -> ${v}`);
+        }
+      }
+
+      const matchTotal = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchTotal && !globalCand.totalM2) {
+        const v = cleanNum(matchTotal[1]);
+        if (v >= 50 && v <= 1000) {
+          globalCand.totalM2 = v;
+          globalCand.matchedLines?.push(`Total -> ${v}`);
+        }
+      }
+    }
+
+    globalCand.confidence = evaluateCandidate(globalCand);
+    if (globalCand.confidence > 40) candidates.push(globalCand);
   }
 
-  // Mathematical Identity Solver: Total = Living + Garage + Alfresco + Porch + Balcony
-  if (result.totalM2 && result.totalM2 > 50) {
-    const tot = result.totalM2;
-    const liv = result.livingM2 || ((result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) || undefined;
-    const gar = result.garageM2;
-    const alf = result.alfrescoM2;
-    const por = result.porchM2;
-    const bal = result.balconyM2 || 0;
+  // Select best candidate
+  candidates.sort((a, b) => b.confidence - a.confidence);
+  if (candidates.length === 0) return null;
 
-    if (!alf && liv && gar && por) {
-      const derivedAlf = Math.round((tot - (liv + gar + por + bal)) * 100) / 100;
-      if (derivedAlf > 2 && derivedAlf < 80) {
-        result.alfrescoM2 = derivedAlf;
-      }
-    } else if (!por && liv && gar && alf) {
-      const derivedPor = Math.round((tot - (liv + gar + alf + bal)) * 100) / 100;
-      if (derivedPor > 0.5 && derivedPor < 30) {
-        result.porchM2 = derivedPor;
-      }
-    } else if (!gar && liv && alf && por) {
-      const derivedGar = Math.round((tot - (liv + alf + por + bal)) * 100) / 100;
-      if (derivedGar > 10 && derivedGar < 120) {
-        result.garageM2 = derivedGar;
-      }
-    } else if (!liv && gar && alf && por) {
-      const derivedLiv = Math.round((tot - (gar + alf + por + bal)) * 100) / 100;
-      if (derivedLiv > 50 && derivedLiv < 500) {
-        result.livingM2 = derivedLiv;
-        if (!result.groundLivingM2) result.groundLivingM2 = derivedLiv;
+  const best = candidates[0];
+
+  // Cross-Zone Normalization
+  if (best.groundLivingM2 && !best.firstLivingM2 && !best.livingM2) {
+    best.livingM2 = best.groundLivingM2;
+  } else if (best.livingM2 && !best.groundLivingM2 && !best.firstLivingM2) {
+    best.groundLivingM2 = best.livingM2;
+  } else if (best.groundLivingM2 && best.firstLivingM2 && !best.livingM2) {
+    best.livingM2 = Math.round((best.groundLivingM2 + best.firstLivingM2) * 100) / 100;
+  }
+
+  // Dimensions
+  const wMatch = text.match(/(?:^|[ \t])(?:OVERALL\s*WIDTH|HOUSE\s*WIDTH)[ \t:\-]+(\d+(?:\.\d+)?)/i);
+  if (wMatch) {
+    const rawW = parseFloat(wMatch[1]);
+    best.widthM = rawW > 40 ? Math.round((rawW / 1000) * 100) / 100 : rawW;
+  }
+  const lMatch = text.match(/(?:^|[ \t])(?:OVERALL\s*LENGTH|HOUSE\s*LENGTH|DEPTH)[ \t:\-]+(\d+(?:\.\d+)?)/i);
+  if (lMatch) {
+    const rawL = parseFloat(lMatch[1]);
+    best.lengthM = rawL > 60 ? Math.round((rawL / 1000) * 100) / 100 : rawL;
+  }
+
+  // Mathematical Identity Solver for missing 4th zone
+  if (best.totalM2 && best.totalM2 > 50) {
+    const tot = best.totalM2;
+    const liv = best.livingM2 || best.groundLivingM2 || 0;
+    const gar = best.garageM2 || 0;
+    const alf = best.alfrescoM2 || 0;
+    const por = best.porchM2 || 0;
+    const bal = best.balconyM2 || 0;
+
+    if (!best.alfrescoM2 && liv && gar && por) {
+      const solved = Math.round((tot - (liv + gar + por + bal)) * 100) / 100;
+      if (solved >= 2 && solved <= 80) best.alfrescoM2 = solved;
+    } else if (!best.porchM2 && liv && gar && alf) {
+      const solved = Math.round((tot - (liv + gar + alf + bal)) * 100) / 100;
+      if (solved >= 0.5 && solved <= 30) best.porchM2 = solved;
+    } else if (!best.garageM2 && liv && alf && por) {
+      const solved = Math.round((tot - (liv + alf + por + bal)) * 100) / 100;
+      if (solved >= 14 && solved <= 100) best.garageM2 = solved;
+    } else if (!best.livingM2 && gar && alf && por) {
+      const solved = Math.round((tot - (gar + alf + por + bal)) * 100) / 100;
+      if (solved >= 40 && solved <= 600) {
+        best.livingM2 = solved;
+        if (!best.groundLivingM2) best.groundLivingM2 = solved;
       }
     }
   }
 
   const compSum =
-    (result.livingM2 || (result.groundLivingM2 || 0) + (result.firstLivingM2 || 0)) +
-    (result.garageM2 || 0) +
-    (result.alfrescoM2 || 0) +
-    (result.porchM2 || 0) +
-    (result.balconyM2 || 0);
+    (best.livingM2 || (best.groundLivingM2 || 0) + (best.firstLivingM2 || 0)) +
+    (best.garageM2 || 0) +
+    (best.alfrescoM2 || 0) +
+    (best.porchM2 || 0) +
+    (best.balconyM2 || 0);
 
-  if (compSum > 0 || (result.totalM2 && result.totalM2 > 0)) {
-    if (!result.totalM2) {
-      result.totalM2 = Number(compSum.toFixed(2));
+  if (compSum > 0 || (best.totalM2 && best.totalM2 > 0)) {
+    if (!best.totalM2) {
+      best.totalM2 = Number(compSum.toFixed(2));
     }
-    return result;
+    return {
+      livingM2: best.livingM2,
+      groundLivingM2: best.groundLivingM2,
+      firstLivingM2: best.firstLivingM2,
+      garageM2: best.garageM2,
+      alfrescoM2: best.alfrescoM2,
+      porchM2: best.porchM2,
+      balconyM2: best.balconyM2,
+      totalM2: best.totalM2,
+      widthM: best.widthM,
+      lengthM: best.lengthM,
+      matchedLines: best.matchedLines || [],
+      unassignedItems: [],
+    };
   }
 
   return null;

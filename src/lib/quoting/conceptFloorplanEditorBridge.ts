@@ -96,6 +96,24 @@ export const FORESIGHT_EDITOR_OPENINGS: Record<string, EditorOpeningSpecificatio
     description: "Premium 3-panel architectural aluminium stacking sliding door (2100mm × 3000mm) opening up to outdoor entertaining / alfresco.",
     category: "doors_windows",
   },
+  "STACKER 24-27": {
+    code: "STACKER 24-27",
+    type: "door",
+    name: "3-Panel Aluminium Stacker Sliding Door (2400h × 2700w)",
+    fullRetailCost: 2450,
+    defaultReplaces: "standard_sliding_door_2124",
+    description: "Premium 3-panel architectural aluminium stacking sliding door (2400mm × 2700mm) opening up to outdoor entertaining / alfresco.",
+    category: "doors_windows",
+  },
+  "STACKER 24-30": {
+    code: "STACKER 24-30",
+    type: "door",
+    name: "3-Panel Aluminium Stacker Sliding Door (2400h × 3000w)",
+    fullRetailCost: 2650,
+    defaultReplaces: "standard_sliding_door_2124",
+    description: "Premium 3-panel architectural aluminium stacking sliding door (2400mm × 3000mm) opening up to outdoor entertaining / alfresco.",
+    category: "doors_windows",
+  },
   "STACKER 21-36": {
     code: "STACKER 21-36",
     type: "door",
@@ -448,10 +466,10 @@ export function calculateOpeningReplacement(
       spec = FORESIGHT_EDITOR_OPENINGS["21-27SD"];
     } else if (/STACKER\s*CORNER|CORNER\s*STACKER/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER CORNER"];
-    } else if (/(?:STACKER[\s\S]*21[-.\/]27|21[-.\/]27[\s\S]*STACKER)/i.test(normCode)) {
-      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-27"];
-    } else if (/(?:STACKER[\s\S]*21[-.\/]30|21[-.\/]30[\s\S]*STACKER)/i.test(normCode)) {
-      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-30"];
+    } else if (/(?:STACKER[\s\S]*(?:21|24)[-.\/]27|(?:21|24)[-.\/]27[\s\S]*STACKER)/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 24-27"] || FORESIGHT_EDITOR_OPENINGS["STACKER 21-27"];
+    } else if (/(?:STACKER[\s\S]*(?:21|24)[-.\/]30|(?:21|24)[-.\/]30[\s\S]*STACKER)/i.test(normCode)) {
+      spec = FORESIGHT_EDITOR_OPENINGS["STACKER 24-30"] || FORESIGHT_EDITOR_OPENINGS["STACKER 21-30"];
     } else if (/(?:STACKER[\s\S]*21[-.\/]36|21[-.\/]36[\s\S]*STACKER)/i.test(normCode)) {
       spec = FORESIGHT_EDITOR_OPENINGS["STACKER 21-36"];
     } else if (/(?:STACKER[\s\S]*21[-.\/]48|21[-.\/]48[\s\S]*STACKER)/i.test(normCode)) {

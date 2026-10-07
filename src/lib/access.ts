@@ -198,8 +198,7 @@ export function isMorganHales(staffUser?: {
     email === "morgan.h@hudsonhomes.com.au" ||
     email.startsWith("morgan.") ||
     email.includes("morgan.hales") ||
-    name.includes("morgan hales") ||
-    staffUser.role === "admin"
+    name.includes("morgan hales")
   );
 }
 

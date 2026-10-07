@@ -439,7 +439,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "Outdoor kitchen joinery with BBQ provision and sink ('OUTDOOR KITCHEN') on Alfresco",
     unitPrice: 4200,
     confidence: 0.96,
-    triggerKeywords: ["outdoor kitchen", "alfresco kitchen", "bbq provision", "outdoor bbq", "alfresco bbq", "outdoor joinery", "alfresco joinery", "bbq and sink", "bbq joinery", "capped services"],
+    triggerKeywords: ["outdoor kitchen", "alfresco kitchen", "bbq provision", "outdoor bbq", "alfresco bbq", "outdoor joinery", "alfresco joinery", "bbq and sink", "bbq joinery", "capped services", "capped hot & cold", "capped hot and cold", "capped water", "drainage point", "bbq area"],
   },
   {
     id: "upg_outdoor_fire_pit",
@@ -461,7 +461,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "180mm raised tiered seating platform and step ('180mm RAISED PLATFORM' / 'CINEMA') on plan",
     unitPrice: 1650,
     confidence: 0.96,
-    triggerKeywords: ["tiered seating", "raised platform", "180mm raised", "cinema platform", "theatre platform", "tiered platform", "180mm step", "raised tiered", "cinema seating platform", "platform with step"],
+    triggerKeywords: ["tiered seating", "raised platform", "180mm raised", "cinema platform", "theatre platform", "tiered platform", "180mm step", "raised tiered", "cinema seating platform", "platform with step", "flatform 180mm", "platform 180mm", "180mm high", "timber framed flatform", "timber framed platform", "flatform", "180 step"],
   },
   {
     id: "upg_hobless_step_free_shower",
@@ -698,7 +698,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "Full height floor-to-ceiling tiling ('FULL HT. TILING' / 'F.G FULL HT.')",
     unitPrice: 3250,
     confidence: 0.95,
-    triggerKeywords: ["full ht. tiling", "full height tiling", "full height tile", "floor to ceiling tile", "floor to ceiling tiling", "full tiling", "full ht tiling", "f.g full ht"],
+    triggerKeywords: ["full ht. tiling", "full height tiling", "full height tile", "floor to ceiling tile", "floor to ceiling tiling", "full tiling", "full ht tiling", "f.g full ht", "full ht.", "full ht", "full height"],
   },
   {
     id: "upg_square_set_ceilings",
@@ -2375,50 +2375,57 @@ export async function analyzeModifiedFloorplanFile(
   const parsedDirectSchedule = parseAreaScheduleFromText(rawText);
 
   const tableGroundLivingM2 =
-    parsedDirectSchedule?.groundLivingM2 ||
-    extractM2(
-      /(?:ground\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      300
-    );
+    parsedDirectSchedule?.groundLivingM2 !== undefined
+      ? parsedDirectSchedule.groundLivingM2
+      : extractM2(
+          /(?:ground\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          300
+        );
   const tableFirstLivingM2 =
-    parsedDirectSchedule?.firstLivingM2 ||
-    extractM2(
-      /(?:first\s*floor(?:\s*(?:living|area|residence))?|upper\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      300
-    );
+    parsedDirectSchedule?.firstLivingM2 !== undefined
+      ? parsedDirectSchedule.firstLivingM2
+      : extractM2(
+          /(?:first\s*floor(?:\s*(?:living|area|residence))?|upper\s*floor(?:\s*(?:living|area|residence))?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          300
+        );
   let tableLivingM2 =
-    parsedDirectSchedule?.livingM2 ||
-    (parsedDirectSchedule?.groundLivingM2 && parsedDirectSchedule?.firstLivingM2
-      ? parsedDirectSchedule.groundLivingM2 + parsedDirectSchedule.firstLivingM2
-      : parsedDirectSchedule?.groundLivingM2) ||
-    extractM2(
-      /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?|ground\s*floor(?:\s*living)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      350
-    ) || (tableGroundLivingM2 && tableFirstLivingM2 ? tableGroundLivingM2 + tableFirstLivingM2 : tableGroundLivingM2);
+    parsedDirectSchedule?.livingM2 !== undefined
+      ? parsedDirectSchedule.livingM2
+      : (parsedDirectSchedule?.groundLivingM2 && parsedDirectSchedule?.firstLivingM2
+        ? parsedDirectSchedule.groundLivingM2 + parsedDirectSchedule.firstLivingM2
+        : parsedDirectSchedule?.groundLivingM2) ||
+      extractM2(
+        /(?:living(?:\s*area)?|residence|habitable(?:\s*area)?|internal(?:\s*area)?|ground\s*floor(?:\s*living)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+        350
+      ) || (tableGroundLivingM2 && tableFirstLivingM2 ? tableGroundLivingM2 + tableFirstLivingM2 : tableGroundLivingM2);
   let tableGarageM2 =
-    parsedDirectSchedule?.garageM2 ||
-    extractM2(
-      /(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      80
-    );
+    parsedDirectSchedule?.garageM2 !== undefined
+      ? parsedDirectSchedule.garageM2
+      : extractM2(
+          /(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          80
+        );
   let tableAlfrescoM2 =
-    parsedDirectSchedule?.alfrescoM2 ||
-    extractM2(
-      /(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      60
-    );
+    parsedDirectSchedule?.alfrescoM2 !== undefined
+      ? parsedDirectSchedule.alfrescoM2
+      : extractM2(
+          /(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?|terrace)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          60
+        );
   let tablePorchM2 =
-    parsedDirectSchedule?.porchM2 ||
-    extractM2(
-      /(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      25
-    );
+    parsedDirectSchedule?.porchM2 !== undefined
+      ? parsedDirectSchedule.porchM2
+      : extractM2(
+          /(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          25
+        );
   let tableTotalM2 =
-    parsedDirectSchedule?.totalM2 ||
-    extractM2(
-      /(?:gross\s*(?:building\s*)?area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
-      600
-    );
+    parsedDirectSchedule?.totalM2 !== undefined
+      ? parsedDirectSchedule.totalM2
+      : extractM2(
+          /(?:gross\s*(?:building\s*)?area|gba|gfa|total\s*covered|total\s*house|total\s*slab|total(?:\s*area)?)\s*[:\s\t\-\.]*(\d+(?:[.\u00B7\u2022]\d+)?)/i,
+          600
+        );
   let tableWidthM = extractDim(/(?:overall\s*width|width)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
   let tableLengthM = extractDim(/(?:overall\s*length|length|depth)\s*[:\s\t\-\.]+(\d+(?:[.\u00B7\u2022]\d+)?)(?:\s*(?:m\b|\s|$))/i);
 
@@ -2727,16 +2734,43 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
+  // Zones explicitly defined in the candidate plan's printed schedule.
+  // If the draftsman printed an area for this zone and delta is 0, heuristic canvas/AI
+  // diffs must NEVER inject phantom extensions into this zone!
+  const zonesCoveredBySchedule = new Set<string>();
+  if (candidateTableSpec.livingM2 !== undefined && candidateTableSpec.livingM2 > 0) {
+    zonesCoveredBySchedule.add("living");
+    zonesCoveredBySchedule.add("groundLivingM2");
+    zonesCoveredBySchedule.add("living_ground");
+    zonesCoveredBySchedule.add("structural");
+    zonesCoveredBySchedule.add("envelope");
+  }
+  if (candidateTableSpec.garageM2 !== undefined && candidateTableSpec.garageM2 > 0) {
+    zonesCoveredBySchedule.add("garage");
+    zonesCoveredBySchedule.add("carport");
+  }
+  if (candidateTableSpec.alfrescoM2 !== undefined && candidateTableSpec.alfrescoM2 > 0) {
+    zonesCoveredBySchedule.add("alfresco");
+    zonesCoveredBySchedule.add("outdoor_living");
+  }
+  if (candidateTableSpec.porchM2 !== undefined && candidateTableSpec.porchM2 > 0) {
+    zonesCoveredBySchedule.add("porch");
+    zonesCoveredBySchedule.add("entry_porch");
+    zonesCoveredBySchedule.add("portico");
+  }
+
   // 2. INCORPORATE GEMINI AI VISION & CANVAS GEOMETRY FOR NON-OVERLAPPING ZONES
   if (geminiResult && geminiResult.areaModifications && geminiResult.areaModifications.length > 0) {
     for (const gMod of geminiResult.areaModifications) {
       const gZone = gMod.zone as string;
-      const isAlreadyCovered = spatialModsToApply.some((s) => {
-        const sZone = s.zone as string;
-        if (sZone === gZone) return true;
-        if ((sZone === "living" || sZone === "groundLivingM2") && (gZone === "living" || gZone === "groundLivingM2")) return true;
-        return false;
-      });
+      const isAlreadyCovered =
+        zonesCoveredBySchedule.has(gZone) ||
+        spatialModsToApply.some((s) => {
+          const sZone = s.zone as string;
+          if (sZone === gZone) return true;
+          if ((sZone === "living" || sZone === "groundLivingM2") && (gZone === "living" || gZone === "groundLivingM2")) return true;
+          return false;
+        });
       if (!isAlreadyCovered) {
         spatialModsToApply.push(gMod);
       }
@@ -2746,12 +2780,14 @@ export async function analyzeModifiedFloorplanFile(
   if (canvasResult && canvasResult.areaModifications) {
     for (const cMod of canvasResult.areaModifications) {
       const cZone = cMod.zone as string;
-      const isAlreadyCovered = spatialModsToApply.some((s) => {
-        const sZone = s.zone as string;
-        if (sZone === cZone) return true;
-        if ((sZone === "living" || sZone === "groundLivingM2") && (cZone === "living" || cZone === "groundLivingM2")) return true;
-        return false;
-      });
+      const isAlreadyCovered =
+        zonesCoveredBySchedule.has(cZone) ||
+        spatialModsToApply.some((s) => {
+          const sZone = s.zone as string;
+          if (sZone === cZone) return true;
+          if ((sZone === "living" || sZone === "groundLivingM2") && (cZone === "living" || cZone === "groundLivingM2")) return true;
+          return false;
+        });
       if (!isAlreadyCovered) {
         spatialModsToApply.push(cMod);
       }
