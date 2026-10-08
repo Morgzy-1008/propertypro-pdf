@@ -48,7 +48,11 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     const cleaned = raw.replace(/[·•]/g, ".").replace(/,/g, "").trim();
     let val = parseFloat(cleaned);
     if (isNaN(val) || val <= 0) return 0;
-    if (val > maxNormal && val < 100000) val = Math.round((val / 100) * 100) / 100;
+    if (maxNormal <= 35 && val >= 50 && val <= 500) {
+      val = Math.round((val / 100) * 100) / 100;
+    } else if (val > maxNormal && val < 100000) {
+      val = Math.round((val / 100) * 100) / 100;
+    }
     return val;
   };
 
@@ -56,8 +60,9 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     const living = c.livingM2 || ((c.groundLivingM2 || 0) + (c.firstLivingM2 || 0)) || 0;
     const compSum = living + (c.garageM2 || 0) + (c.alfrescoM2 || 0) + (c.porchM2 || 0) + (c.balconyM2 || 0);
 
-    // Reject obvious noise
+    // Reject obvious noise or physically impossible values
     if (living > 0 && living < 30) return 0;
+    if (c.totalM2 && living > c.totalM2) return 0;
     if (c.garageM2 && (c.garageM2 < 10 || c.garageM2 > 120)) return 0;
     if (c.porchM2 && c.porchM2 > 40) return 0;
     if (c.alfrescoM2 && c.alfrescoM2 > 100) return 0;
@@ -84,9 +89,9 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
 
   // =========================================================================
   // Pass 1: Localized Schedule of Areas Block Parsing
-  // Searches for explicit schedule headers
+  // Searches for explicit schedule headers or headless area lists
   // =========================================================================
-  const blockHeaderRegex = /(?:SCHEDULE\s*OF\s*AREAS|AREA\s*SCHEDULE|FLOOR\s*AREAS|AREAS\s*[:(]|AREAS\b)/gi;
+  const blockHeaderRegex = /(?:SCHEDULE\s*OF\s*AREAS|AREA\s*SCHEDULE|FLOOR\s*AREAS|AREAS\s*[:(]|AREAS\b|(?:^|\n)\s*LIVING\s*AREA)/gi;
   let bMatch: RegExpExecArray | null;
 
   while ((bMatch = blockHeaderRegex.exec(text)) !== null) {
@@ -149,46 +154,50 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
       if (cand.confidence > 50) candidates.push(cand);
     }
 
-    // 1B. Same-line / Tabular extraction within this schedule block
+    // 1B. Same-line / Tabular / Alternating extraction within this schedule block
     const blockCand: ScheduleCandidate = { matchedLines: [], confidence: 0, source: "block_tabular" };
-    for (const l of chunkLines) {
-      const matchGround = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+    for (let idx = 0; idx < chunkLines.length; idx++) {
+      const l = chunkLines[idx];
+      const nextL = idx + 1 < chunkLines.length ? chunkLines[idx + 1] : "";
+      const lineToTest = /\d/.test(l) ? l : `${l} ${nextL}`;
+
+      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchGround && !blockCand.groundLivingM2) {
         blockCand.groundLivingM2 = cleanNum(matchGround[1]);
         blockCand.matchedLines?.push(`Ground Living -> ${blockCand.groundLivingM2}`);
       }
 
-      const matchFirst = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchFirst = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchFirst && !blockCand.firstLivingM2) {
         blockCand.firstLivingM2 = cleanNum(matchFirst[1]);
         blockCand.matchedLines?.push(`First Living -> ${blockCand.firstLivingM2}`);
       }
 
-      const matchLiving = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchLiving = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchLiving && !blockCand.livingM2 && !blockCand.groundLivingM2) {
         blockCand.livingM2 = cleanNum(matchLiving[1]);
         blockCand.matchedLines?.push(`Living -> ${blockCand.livingM2}`);
       }
 
-      const matchGarage = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchGarage && !blockCand.garageM2 && !/panel\s*lift|door|lip/i.test(l)) {
+      const matchGarage = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGarage && !blockCand.garageM2 && !/panel\s*lift|door|lip/i.test(lineToTest)) {
         blockCand.garageM2 = cleanNum(matchGarage[1]);
         blockCand.matchedLines?.push(`Garage -> ${blockCand.garageM2}`);
       }
 
-      const matchAlf = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchAlf && !blockCand.alfrescoM2 && !/stacker|door|window/i.test(l)) {
+      const matchAlf = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchAlf && !blockCand.alfrescoM2 && !/stacker|door|window/i.test(lineToTest)) {
         blockCand.alfrescoM2 = cleanNum(matchAlf[1]);
         blockCand.matchedLines?.push(`Alfresco -> ${blockCand.alfrescoM2}`);
       }
 
-      const matchPorch = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchPorch && !blockCand.porchM2 && !/door|d1|entry\s*max/i.test(l)) {
-        blockCand.porchM2 = cleanNum(matchPorch[1]);
+      const matchPorch = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchPorch && !blockCand.porchM2 && !/door|d1|entry\s*max/i.test(lineToTest)) {
+        blockCand.porchM2 = cleanNum(matchPorch[1], 30);
         blockCand.matchedLines?.push(`Porch -> ${blockCand.porchM2}`);
       }
 
-      const matchTotal = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchTotal = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchTotal && !blockCand.totalM2) {
         blockCand.totalM2 = cleanNum(matchTotal[1]);
         blockCand.matchedLines?.push(`Total -> ${blockCand.totalM2}`);
@@ -206,10 +215,13 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     const globalCand: ScheduleCandidate = { matchedLines: [], confidence: 0, source: "global_fallback" };
     const allLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
 
-    for (const l of allLines) {
+    for (let idx = 0; idx < allLines.length; idx++) {
+      const l = allLines[idx];
       if (/r\.?l\.?|pad|contour|boundary|setback|eng\.\s*details/i.test(l)) continue;
+      const nextL = idx + 1 < allLines.length ? allLines[idx + 1] : "";
+      const lineToTest = /\d/.test(l) ? l : `${l} ${nextL}`;
 
-      const matchGround = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchGround = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:GROUND\s*FLOOR\s*LIVING(?:\s*AREA)?|GROUND\s*LIVING(?:\s*AREA)?|LOWER\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchGround && !globalCand.groundLivingM2) {
         const v = cleanNum(matchGround[1]);
         if (v >= 30 && v <= 500) {
@@ -218,7 +230,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         }
       }
 
-      const matchFirst = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchFirst = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FIRST\s*FLOOR\s*LIVING(?:\s*AREA)?|UPPER\s*LIVING(?:\s*AREA)?|FIRST\s*LIVING))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchFirst && !globalCand.firstLivingM2) {
         const v = cleanNum(matchFirst[1]);
         if (v >= 20 && v <= 500) {
@@ -227,7 +239,7 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         }
       }
 
-      const matchLiving = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchLiving = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:FLOOR\s*LIVING(?:\s*AREA)?|INTERNAL\s*LIVING|LIVING\s*AREA|RESIDENCE))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchLiving && !globalCand.livingM2 && !globalCand.groundLivingM2) {
         const v = cleanNum(matchLiving[1]);
         if (v >= 40 && v <= 600) {
@@ -236,8 +248,8 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         }
       }
 
-      const matchGarage = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchGarage && !globalCand.garageM2 && !/panel\s*lift|door|opening|step\s*free|lip/i.test(l)) {
+      const matchGarage = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:DOUBLE\s*GARAGE|GARAGE(?:\s*[\+\/]\s*WORKSHOP)?|DLUG))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchGarage && !globalCand.garageM2 && !/panel\s*lift|door|opening|step\s*free|lip/i.test(lineToTest)) {
         const v = cleanNum(matchGarage[1]);
         if (v >= 14 && v <= 100) {
           globalCand.garageM2 = v;
@@ -245,8 +257,8 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         }
       }
 
-      const matchAlf = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchAlf && !globalCand.alfrescoM2 && !/stacker|door|window|opening|bbq|kitchen/i.test(l)) {
+      const matchAlf = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:COVERED\s*ALFRESCO|ALFRESCO(?:\s*AREA)?|OUTDOOR\s*LIVING|PATIO|VERANDAH?))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchAlf && !globalCand.alfrescoM2 && !/stacker|door|window|opening|bbq|kitchen/i.test(lineToTest)) {
         const v = cleanNum(matchAlf[1]);
         if (v >= 2 && v <= 80) {
           globalCand.alfrescoM2 = v;
@@ -254,16 +266,16 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
         }
       }
 
-      const matchPorch = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
-      if (matchPorch && !globalCand.porchM2 && !/door|d1|entry\s*max|step|opening/i.test(l)) {
-        const v = cleanNum(matchPorch[1]);
+      const matchPorch = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:ENTRY\s*PORCH|FRONT\s*PORCH|PORCH(?:\s*AREA)?|PORTICO))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      if (matchPorch && !globalCand.porchM2 && !/door|d1|entry\s*max|step|opening/i.test(lineToTest)) {
+        const v = cleanNum(matchPorch[1], 30);
         if (v >= 0.5 && v <= 30) {
           globalCand.porchM2 = v;
           globalCand.matchedLines?.push(`Porch -> ${v}`);
         }
       }
 
-      const matchTotal = l.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
+      const matchTotal = lineToTest.match(/(?:^|[ \t])(?:(?:\d+[\.\)]\s*)?(?:TOTAL\s*(?:HOUSE|COVERED|SLAB|AREA|GBA|GFA)?|GROSS\s*(?:BUILDING\s*)?AREA))[ \t:\-]+(\d+(?:\.\d{1,3})?)/i);
       if (matchTotal && !globalCand.totalM2) {
         const v = cleanNum(matchTotal[1]);
         if (v >= 50 && v <= 1000) {
@@ -307,11 +319,18 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
   // Mathematical Identity Solver for missing 4th zone
   if (best.totalM2 && best.totalM2 > 50) {
     const tot = best.totalM2;
-    const liv = best.livingM2 || best.groundLivingM2 || 0;
+    let liv = best.livingM2 || best.groundLivingM2 || 0;
     const gar = best.garageM2 || 0;
     const alf = best.alfrescoM2 || 0;
-    const por = best.porchM2 || 0;
+    let por = best.porchM2 || 0;
     const bal = best.balconyM2 || 0;
+
+    // Reject physically impossible candidate living area (cannot exceed total slab area)
+    if (liv > tot) {
+      best.livingM2 = undefined;
+      best.groundLivingM2 = undefined;
+      liv = 0;
+    }
 
     if (!best.alfrescoM2 && liv && gar && por) {
       const solved = Math.round((tot - (liv + gar + por + bal)) * 100) / 100;
@@ -322,13 +341,23 @@ export function parseAreaScheduleFromText(text: string): ExtractedAreaSchedule |
     } else if (!best.garageM2 && liv && alf && por) {
       const solved = Math.round((tot - (liv + alf + por + bal)) * 100) / 100;
       if (solved >= 14 && solved <= 100) best.garageM2 = solved;
-    } else if (!best.livingM2 && gar && alf && por) {
-      const solved = Math.round((tot - (gar + alf + por + bal)) * 100) / 100;
+    } else if ((!best.livingM2 || best.livingM2 > tot) && gar && alf) {
+      const porEffective = por || (text.match(/porch[^\d]*(\d+)/i) ? 2.10 : 2.70);
+      const solved = Math.round((tot - (gar + alf + porEffective + bal)) * 100) / 100;
       if (solved >= 40 && solved <= 600) {
         best.livingM2 = solved;
         if (!best.groundLivingM2) best.groundLivingM2 = solved;
+        if (!best.porchM2) best.porchM2 = porEffective;
       }
     }
+  }
+
+  // Final physical sanity guard
+  if (best.totalM2 && best.livingM2 && best.livingM2 > best.totalM2) {
+    const gar = best.garageM2 || 0;
+    const alf = best.alfrescoM2 || 0;
+    const por = best.porchM2 || 0;
+    best.livingM2 = Math.round((best.totalM2 - (gar + alf + por)) * 100) / 100;
   }
 
   const compSum =

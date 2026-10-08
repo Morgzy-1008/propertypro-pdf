@@ -405,7 +405,7 @@ export interface InternalRoomChange {
   deltaM2: number;
   description: string;
   isZeroCost: boolean;
-  category: "wet_area" | "internal_wall" | "room_conversion" | "zero_cost_layout";
+  category: "wet_area" | "internal_wall" | "room_conversion" | "zero_cost_layout" | "doors_hardware" | "joinery";
   baseRatePerM2?: number; // e.g. $150.00/m² base wet area prep
   finishesRatePerM2?: number; // e.g. $870.00/m² tile & waterproofing differential
   unitRate?: number; // Total $/m² (e.g. $1,020.00/m² for wet area)

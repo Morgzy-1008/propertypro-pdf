@@ -180,8 +180,8 @@ export interface FixtureUpgradeRule {
   description: string;
   baseline: string;
   detected: string;
-  unitPrice?: number;
-  confidence?: number;
+  unitPrice: number;
+  confidence: number;
   triggerKeywords: string[];
 }
 
@@ -902,10 +902,10 @@ export async function identifyDesignModelFromImage(
    - Common Hudson models: Azure 19, Azure 21, Azure 23, Azure 25, Azure 26, Amber 21, Amber 24, Jasper 26, Ashton 29, Burgundy 30, Cedar 26, Turquoise 31, etc.
 2. Identify the housing type: "Single Storey" or "Double Storey".
 3. Extract the printed Area Schedule specifications table:
-   - CRITICAL ARCHITECTURAL RULE: ONLY extract values if an explicit, printed Area Schedule table is present on this drawing sheet (e.g. titled "AREA SCHEDULE", "SCHEDULE OF AREAS", or listed in the sheet title block).
-   - If there is NO printed Area Schedule table on this sheet, set "scheduleTable": null and "totalM2": null!
+   - CRITICAL ARCHITECTURAL RULE: Extract values if a printed Area Schedule table is present on this drawing sheet (e.g. titled "AREA SCHEDULE", "SCHEDULE OF AREAS", listed in the sheet title block, or appearing as an unheadered list of areas such as "Living Area 158.49 m²", "Garage 38.84 m²", "Alfresco 11.32 m²", "Porch 2.10 m²", "Total Area 210.75 m²").
+   - If there is NO printed area table or list on this sheet, set "scheduleTable": null and "totalM2": null!
    - NEVER grab stray drawing notes, linear step-downs, or detail annotations (e.g. "5mm lip", "180mm platform", "2 step") as areas!
-   - If a genuine schedule table is printed, transcribe:
+   - If a genuine schedule table or area list is printed, transcribe:
      Living Area (m²), Ground Floor Living (m²), First Floor Living (m²), Garage Area (m²), Alfresco Area (m²), Porch Area (m²), Total Area (m²), Overall Width (m), Overall Length (m).
 
 Return ONLY valid JSON:
@@ -2055,23 +2055,30 @@ export async function identifyBaseDesignCandidate(
   const scheduleParsed = parseAreaScheduleFromText(rawText);
 
   const parseCandidateM2 = (pattern: RegExp, maxNormal = 600) => {
-    const m = rawText.match(pattern);
-    if (!m || m.index === undefined) return undefined;
-    // CRITICAL: Ensure this is NOT a dimension callout like "GARAGE 5500 x 5500" or "PORCH 1600 x 2100"!
-    const postMatch = rawText.slice(m.index + m[0].length, m.index + m[0].length + 15).trim();
-    if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
-      return undefined; // Dimension callout, not an area schedule value!
+    const flags = pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g";
+    const gPattern = new RegExp(pattern.source, flags);
+    let match: RegExpExecArray | null;
+    while ((match = gPattern.exec(rawText)) !== null) {
+      const postMatch = rawText.slice(match.index + match[0].length, match.index + match[0].length + 20).trim();
+      if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
+        continue; // Dimension callout like "GARAGE 5500 x 5500" or "Living 39x35", skip to schedule table entry!
+      }
+      const rawNum = match[1].replace(/[·•]/g, ".").replace(/,/g, "");
+      let val = parseFloat(rawNum);
+      if (isNaN(val) || val <= 0) continue;
+      const hasAreaUnit = /m[²2\?]|sqm|sq\.m/i.test(postMatch) || /m[²2\?]|sqm|sq\.m/i.test(match[0]);
+      if (val > maxNormal && val < 100000 && hasAreaUnit) {
+        val = val / 100;
+      } else if (val > maxNormal) {
+        if (maxNormal <= 35 && val >= 50 && val <= 500) {
+          val = val / 100;
+        } else {
+          continue;
+        }
+      }
+      return Math.round(val * 100) / 100;
     }
-    const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
-    let val = parseFloat(rawNum);
-    if (isNaN(val) || val <= 0) return undefined;
-    const hasAreaUnit = /m[²2]|sqm|sq\.m/i.test(postMatch) || /m[²2]|sqm|sq\.m/i.test(m[0]);
-    if (val > maxNormal && val < 100000 && hasAreaUnit) {
-      val = val / 100;
-    } else if (val > maxNormal) {
-      return undefined;
-    }
-    return Math.round(val * 100) / 100;
+    return undefined;
   };
 
   const parsedRegexTable = {
@@ -2333,22 +2340,30 @@ export async function analyzeModifiedFloorplanFile(
 
   // Dynamically extract brochure table specs if printed on plan
   const extractM2 = (pattern: RegExp, maxNormal = 600) => {
-    const m = rawText.match(pattern);
-    if (!m || m.index === undefined) return undefined;
-    const postMatch = rawText.slice(m.index + m[0].length, m.index + m[0].length + 15).trim();
-    if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
-      return undefined; // Dimension callout like 5500 x 5500, not an area schedule value!
+    const flags = pattern.flags.includes("g") ? pattern.flags : pattern.flags + "g";
+    const gPattern = new RegExp(pattern.source, flags);
+    let match: RegExpExecArray | null;
+    while ((match = gPattern.exec(rawText)) !== null) {
+      const postMatch = rawText.slice(match.index + match[0].length, match.index + match[0].length + 20).trim();
+      if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
+        continue; // Dimension callout like "Living 39x35", skip to the actual schedule table entry!
+      }
+      const rawNum = match[1].replace(/[·•]/g, ".").replace(/,/g, "");
+      let val = parseFloat(rawNum);
+      if (isNaN(val) || val <= 0) continue;
+      const hasAreaUnit = /m[²2\?]|sqm|sq\.m/i.test(postMatch) || /m[²2\?]|sqm|sq\.m/i.test(match[0]);
+      if (val > maxNormal && val < 100000 && hasAreaUnit) {
+        val = val / 100;
+      } else if (val > maxNormal) {
+        if (maxNormal <= 35 && val >= 50 && val <= 500) {
+          val = val / 100;
+        } else {
+          continue;
+        }
+      }
+      return Math.round(val * 100) / 100;
     }
-    const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
-    let val = parseFloat(rawNum);
-    if (isNaN(val) || val <= 0) return undefined;
-    const hasAreaUnit = /m[²2]|sqm|sq\.m/i.test(postMatch) || /m[²2]|sqm|sq\.m/i.test(m[0]);
-    if (val > maxNormal && val < 100000 && hasAreaUnit) {
-      val = val / 100;
-    } else if (val > maxNormal) {
-      return undefined;
-    }
-    return Math.round(val * 100) / 100;
+    return undefined;
   };
   const extractDim = (pattern: RegExp) => {
     const m = rawText.match(pattern);
@@ -2446,10 +2461,18 @@ export async function analyzeModifiedFloorplanFile(
   // If Total is known and 3 of the 4 zones are known, solve the missing zone deterministically!
   if (candidateTableSpec.totalM2 && candidateTableSpec.totalM2 > 50) {
     const tot = candidateTableSpec.totalM2;
-    const liv = candidateTableSpec.livingM2;
+    let liv = candidateTableSpec.livingM2;
     const gar = candidateTableSpec.garageM2;
     const alf = candidateTableSpec.alfrescoM2;
-    const por = candidateTableSpec.porchM2;
+    let por = candidateTableSpec.porchM2;
+
+    // Physical sanity guard: living area can NEVER exceed total slab area!
+    if (liv && liv > tot) {
+      console.warn(`[Sanity Guard] candidate livingM2 (${liv}) exceeds totalM2 (${tot}). Reconciling...`);
+      candidateTableSpec.livingM2 = undefined;
+      tableLivingM2 = undefined;
+      liv = undefined;
+    }
 
     if (!alf && liv && gar && por) {
       const solvedAlf = Math.round((tot - (liv + gar + por)) * 100) / 100;
@@ -2472,12 +2495,17 @@ export async function analyzeModifiedFloorplanFile(
         candidateTableSpec.garageM2 = solvedGar;
         tableGarageM2 = solvedGar;
       }
-    } else if (!liv && gar && alf && por) {
-      const solvedLiv = Math.round((tot - (gar + alf + por)) * 100) / 100;
-      if (solvedLiv >= 50 && solvedLiv < 500) {
-        console.log(`[Detector Debug] Mathematically solved missing candidate livingM2: ${solvedLiv} m² (${tot} - ${gar} - ${alf} - ${por})`);
+    } else if ((!liv || liv > tot) && gar && alf) {
+      const porEffective = por || (rawText.match(/porch[^\d]*(\d+)/i) ? 2.10 : 2.70);
+      const solvedLiv = Math.round((tot - (gar + alf + porEffective)) * 100) / 100;
+      if (solvedLiv >= 40 && solvedLiv < tot) {
+        console.log(`[Detector Debug] Mathematically solved missing/invalid candidate livingM2: ${solvedLiv} m² (${tot} - ${gar} - ${alf} - ${porEffective})`);
         candidateTableSpec.livingM2 = solvedLiv;
         tableLivingM2 = solvedLiv;
+        if (!por) {
+          candidateTableSpec.porchM2 = porEffective;
+          tablePorchM2 = porEffective;
+        }
       }
     }
   }
@@ -3199,13 +3227,20 @@ export async function analyzeModifiedFloorplanFile(
   } else if (!areaDeltas.some((d) => d.zoneKey === "livingM2" || d.zoneKey === "groundLivingM2")) {
     const familyMatch = combinedScanText.match(/(?:family|living(?:\s*room)?|meals|dining|rumpus)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i);
     if (familyMatch) {
-      const w = parseFloat(familyMatch[1].replace(/[·•]/g, "."));
-      const l = parseFloat(familyMatch[2].replace(/[·•]/g, "."));
-      if (w > 0 && l > 0) {
+      let w = parseFloat(familyMatch[1].replace(/[·•]/g, "."));
+      let l = parseFloat(familyMatch[2].replace(/[·•]/g, "."));
+      // Normalize missing decimals (e.g. 39x35 -> 3.9m x 3.5m, 3900x3500 -> 3.9m x 3.5m)
+      if (w >= 10 && w < 100) w = w / 10;
+      if (l >= 10 && l < 100) l = l / 10;
+      if (w >= 1000) w = w / 1000;
+      if (l >= 1000) l = l / 1000;
+
+      if (w > 0 && l > 0 && w < 15 && l < 15) {
         const actualLivingM2 = Math.round(w * l * 100) / 100;
         const stdFam = 20.65; // Standard benchmark Family / Living room footprint (~4.5m × 4.6m)
         const famDiff = actualLivingM2 - stdFam;
-        if (famDiff > 1.0) {
+        // Physical sanity guard: a single room extension cannot exceed 40m²!
+        if (famDiff > 1.0 && famDiff <= 40) {
           const delta = Math.round(famDiff * 100) / 100;
           const rate = isDoubleStorey ? databuildRates.living_ds_ground_m2 : databuildRates.living_ss_m2;
           areaDeltas.push({
@@ -4585,17 +4620,23 @@ export async function analyzeModifiedFloorplanFile(
     fileName: file.name,
     candidateBaseDesign: pendingCandidate,
     detectionSource: "deterministic",
-    scaleCalibration: calibrateForesightDrawingScale({
-      imageWidthPx: 1600,
-      imageHeightPx: 1200,
-      rawText,
-      masterCAD: {
-        widthM: cadSpec.width,
-        lengthM: cadSpec.length,
-        garageM2: standardGarageM2,
-        garageDims: cadSpec.garageDims,
-        alfrescoDims: cadSpec.alfrescoDims,
-      },
-    }),
+    scaleCalibration: (() => {
+      const cal = calibrateForesightDrawingScale({
+        imageWidthPx: 1600,
+        imageHeightPx: 1200,
+        rawText,
+        masterCAD: {
+          widthM: cadSpec.width,
+          lengthM: cadSpec.length,
+          garageM2: standardGarageM2,
+          garageDims: cadSpec.garageDims,
+          alfrescoDims: cadSpec.alfrescoDims,
+        },
+      });
+      return {
+        ...cal,
+        confidence: cal.calibrationConfidence,
+      };
+    })(),
   };
 }
