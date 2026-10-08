@@ -1465,19 +1465,22 @@ export function calculateQuotePricing(
   if (design.isModifiedFloorplan && design.modifiedAreas && design.standardAreas) {
     const modCalc = calculateModifiedFloorplanPricing(design);
     for (const z of modCalc.zones) {
-      if (z.deltaM2 > 0) {
+      if (z.deltaM2 !== 0) {
         const hasExisting = categoryGroups.structural.some(
           (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
         ) || categoryGroups.floorplan_extensions.some(
           (it) => it.id === `mod_area_${z.key}` || it.name.toLowerCase().includes(z.label.toLowerCase().replace(" area", ""))
         );
         if (!hasExisting) {
-          const detailedDesc = `${z.label} Extension (+${z.deltaM2.toFixed(2)} m²)`;
+          const isReduction = z.deltaM2 < 0;
+          const detailedDesc = isReduction
+            ? `${z.label} Reduction (${z.deltaM2.toFixed(2)} m²)`
+            : `${z.label} Extension (+${z.deltaM2.toFixed(2)} m²)`;
 
           categoryGroups.structural.push({
             id: `mod_area_${z.key}`,
             category: "structural",
-            name: `${z.label} Extension`,
+            name: isReduction ? `${z.label} Reduction` : `${z.label} Extension`,
             description: detailedDesc,
             unitType: "fixed",
             unitRate: z.costAdjustment,
@@ -1486,7 +1489,7 @@ export function calculateQuotePricing(
             isIncluded: true,
             isClientSelectable: true,
             clientSelected: true,
-            notes: `${z.label} extended from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (+${z.deltaM2.toFixed(2)} m²)`,
+            notes: `${z.label} from ${z.standardM2.toFixed(2)} m² standard to ${z.modifiedM2.toFixed(2)} m² (${z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m²)`,
           });
         }
       }

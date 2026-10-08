@@ -121,9 +121,13 @@ export function ModifiedPlanReviewModal({
       if (field === "standardM2") item.standardM2 = safeNum;
       if (field === "modifiedM2") item.modifiedM2 = safeNum;
       if (field === "unitRate") item.unitRate = safeNum;
-
-      item.deltaM2 = Math.max(0, Math.round((item.modifiedM2 - item.standardM2) * 100) / 100);
-      item.subtotal = Math.round(item.deltaM2 * item.unitRate);
+      item.deltaM2 = Math.round((item.modifiedM2 - item.standardM2) * 100) / 100;
+      if (item.deltaM2 < 0) {
+        // 80% trade credit on reduction
+        item.subtotal = Math.round(item.deltaM2 * item.unitRate * 0.8);
+      } else {
+        item.subtotal = Math.round(item.deltaM2 * item.unitRate);
+      }
     }
 
     updated[index] = item;
@@ -158,18 +162,20 @@ export function ModifiedPlanReviewModal({
     if (!localAnalysis) return;
     const std = parseFloat(newAreaStd) || 0;
     const mod = parseFloat(newAreaMod) || 0;
-    const rate = parseFloat(newAreaRate) || 1420;
-    const delta = Math.max(0, Math.round((mod - std) * 100) / 100);
+    const delta = Math.round((mod - std) * 100) / 100;
+    const subtotal = delta < 0
+      ? Math.round(delta * rate * 0.8)
+      : Math.round(delta * rate);
 
     const newArea: DetectedAreaDelta = {
       zoneKey: `custom_area_${Date.now()}`,
-      zoneLabel: newAreaLabel.trim() || "Custom Area Extension",
+      zoneLabel: newAreaLabel.trim() || (delta < 0 ? "Custom Area Reduction" : "Custom Area Extension"),
       standardM2: std,
       modifiedM2: mod,
       deltaM2: delta,
       recipeId: "recipe_custom_ext",
       unitRate: rate,
-      subtotal: Math.round(delta * rate),
+      subtotal,
       accepted: true,
     };
 

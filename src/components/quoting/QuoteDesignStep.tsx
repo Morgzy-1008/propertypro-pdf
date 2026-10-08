@@ -1203,19 +1203,22 @@ export function QuoteDesignStep({
     });
 
     if (onAddInclusionLineItems) {
-      const acceptedAreas = (approved.areaDeltas || []).filter((a) => a.accepted && a.deltaM2 > 0);
+      const acceptedAreas = (approved.areaDeltas || []).filter((a) => a.accepted && a.deltaM2 !== 0);
       const acceptedUpgrades = approved.inclusionUpgrades.filter((u) => u.accepted);
       const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
       const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted);
 
       const lineItemsToAdd: QuoteSelectedLineItem[] = [
-        // 1. Structural Square Meter Extensions
+        // 1. Structural Square Meter Extensions & Reductions
         ...acceptedAreas.map((a) => {
-          const detailedDesc = a.zoneKey === "garageM2"
+          const isReduction = a.deltaM2 < 0;
+          const detailedDesc = isReduction
+            ? `${a.zoneLabel} reduced from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m² with 80% credit)`
+            : a.zoneKey === "garageM2"
             ? `Garage extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
-            : (a.zoneKey === "livingM2" || a.zoneKey === "groundLivingM2"
-              ? `Living area extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
-              : `${a.zoneLabel} extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`);
+            : a.zoneKey === "livingM2" || a.zoneKey === "groundLivingM2"
+            ? `Living area extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
+            : `${a.zoneLabel} extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`;
 
           return {
             id: `mod_area_${a.zoneKey}`,
@@ -1230,7 +1233,9 @@ export function QuoteDesignStep({
             isIncluded: true,
             isClientSelectable: true,
             clientSelected: true,
-            notes: `Structural footprint extension: +${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`,
+            notes: isReduction
+              ? `Structural footprint reduction: ${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`
+              : `Structural footprint extension: +${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`,
           };
         }),
         // 2. Fixture Upgrades & Custom Specifications
@@ -1265,14 +1270,36 @@ export function QuoteDesignStep({
           clientSelected: true,
           notes: `Replaces ${o.replacedItemName} (${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-${Math.abs(o.creditAmount).toFixed(2)}) applied against ${o.newItemCost.toFixed(2)}.`,
         })),
-        // 4. Internal Room Changes & $0 Layout Variations
+        // 4. Internal Room Changes & Variations
         ...acceptedRooms.map((r) => {
           const isZero = r.isZeroCost || r.subtotal === 0;
+          const mappedCategory = isZero
+            ? "structural"
+            : r.category === "wet_area"
+            ? "internal_bathroom"
+            : r.category === "doors_hardware"
+            ? "doors_windows"
+            : r.category === "joinery"
+            ? "internal_kitchen"
+            : "structural";
+
+          const displayName = isZero
+            ? r.roomName
+            : r.deltaM2 > 0
+            ? `${r.roomName} (+${r.deltaM2} m²)`
+            : r.roomName;
+
+          const displayNotes = isZero
+            ? "Internal non-structural dry layout variation ($0.00)"
+            : r.category === "wet_area"
+            ? "$150/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)"
+            : r.description;
+
           return {
             id: `mod_room_${r.id}`,
             catalogueItemId: r.id,
-            category: (isZero ? "structural" : (r.category === "wet_area" ? "internal_bathroom" : "structural")) as any,
-            name: isZero ? r.roomName : `${r.roomName} (+${r.deltaM2} m²)`,
+            category: mappedCategory as any,
+            name: displayName,
             description: r.description,
             unitType: "fixed" as const,
             unitRate: isZero ? 0 : r.subtotal,
@@ -1281,9 +1308,7 @@ export function QuoteDesignStep({
             isIncluded: true,
             isClientSelectable: true,
             clientSelected: true,
-            notes: isZero
-              ? "Internal non-structural dry layout variation ($0.00)"
-              : "$150/m² base wet area preparation (waterproofing membrane, screed bed to fall, sub-floor plumbing rough-in)",
+            notes: displayNotes,
           };
         }),
       ];
