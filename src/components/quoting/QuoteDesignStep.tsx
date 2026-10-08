@@ -94,13 +94,31 @@ interface QuoteDesignStepProps {
 
 export function getHousingTypePrices(division: Division = getActiveDivision()): Record<string, PriceRow[]> {
   const isNsw = division === "NSW";
+  const single = isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES;
   const dual = isNsw ? NSW_DUAL_OC_PRICES : DUAL_OC_PRICES;
+  const aquaPrices: PriceRow[] = isNsw
+    ? [
+        { name: "Aqua 1", m2: 59.96, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
+        { name: "Aqua 2", m2: 60.00, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
+        { name: "Aqua 3", m2: 59.90, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
+        { name: "Aqua 4", m2: 59.94, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
+        { name: "Aqua 5", m2: 59.14, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
+      ]
+    : [
+        { name: "Aqua 1", m2: 59.96, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
+        { name: "Aqua 2", m2: 60.00, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
+        { name: "Aqua 3", m2: 59.90, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
+        { name: "Aqua 4", m2: 59.94, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
+        { name: "Aqua 5", m2: 59.14, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
+      ];
+
   return {
-    "Single Storey": isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES,
+    "Single Storey": single.filter((r) => !/^aqua\b/i.test(r.name)),
     "Double Storey": isNsw ? NSW_DOUBLE_STOREY_PRICES : DOUBLE_STOREY_PRICES,
     "Split Level": isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES,
     "Dual Living": dual,
     "Granny Flat": [
+      ...aquaPrices,
       { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
       { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
       { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
@@ -1461,6 +1479,7 @@ export function QuoteDesignStep({
                   <SelectItem value="Double Storey">Double Storey</SelectItem>
                   <SelectItem value="Split Level">Split Level</SelectItem>
                   <SelectItem value="Dual Living">Dual Living / Duplex</SelectItem>
+                  <SelectItem value="Granny Flat">Granny Flat / Secondary Dwelling</SelectItem>
                 </SelectContent>
               </Select>
             </div>

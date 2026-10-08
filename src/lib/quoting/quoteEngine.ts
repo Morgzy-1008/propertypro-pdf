@@ -54,9 +54,18 @@ import type {
 export function getHousingTypeForDesign(
   designName?: string,
   fallbackType?: QuoteDesignSelection["housingType"],
-): "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" {
+): "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" {
   if (!designName) return fallbackType || "Single Storey";
   const norm = designName.trim().toLowerCase();
+
+  // 0. Granny Flat / Secondary Dwelling detection
+  if (
+    /^aqua\b/i.test(norm) ||
+    /granny|auxiliary|secondary\s*dwelling/i.test(norm) ||
+    ["acacia 60", "banksia 60", "coral 65", "myrtle 70"].includes(norm)
+  ) {
+    return "Granny Flat";
+  }
 
   // 1. Dual Living / Duplex detection
   if (
@@ -530,6 +539,11 @@ export function isDoubleStoreyDesign(
  * Standard Area Breakdown catalog for Hudson Homes designs.
  */
 export const HUDSON_STANDARD_AREAS: Record<string, FloorplanAreaBreakdown> = {
+  "Aqua 1": {"livingM2":55.9,"garageM2":0,"alfrescoM2":0,"porchM2":4.06,"totalM2":59.96},
+  "Aqua 2": {"livingM2":56.0,"garageM2":0,"alfrescoM2":0,"porchM2":4.0,"totalM2":60.0},
+  "Aqua 3": {"livingM2":55.9,"garageM2":0,"alfrescoM2":0,"porchM2":4.0,"totalM2":59.9},
+  "Aqua 4": {"livingM2":55.94,"garageM2":0,"alfrescoM2":0,"porchM2":4.0,"totalM2":59.94},
+  "Aqua 5": {"livingM2":55.14,"garageM2":0,"alfrescoM2":0,"porchM2":4.0,"totalM2":59.14},
   "Alabaster 31": {"livingM2":229.06,"garageM2":38.52,"alfrescoM2":13.82,"porchM2":3.44,"totalM2":284.86},
   "Alabaster 36": {"livingM2":268.12,"garageM2":40.78,"alfrescoM2":18.6,"porchM2":3.16,"totalM2":330.66},
   "Alabaster 40": {"livingM2":309.64,"garageM2":40.78,"alfrescoM2":19.44,"porchM2":3.16,"totalM2":373.02},
@@ -758,10 +772,23 @@ export function getStandardAreaBreakdown(
     };
   }
 
+  const tot = totalM2 > 0 ? totalM2 : 200;
+
+  if (housingType === "Granny Flat" || /^aqua\b/i.test(designName || "")) {
+    const porch = 4.0;
+    const living = Number((tot - porch).toFixed(2));
+    return {
+      livingM2: living,
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: porch,
+      totalM2: tot,
+    };
+  }
+
   const isDouble = isDoubleStoreyDesign(designName, housingType);
   const isSplit = housingType === "Split Level";
   const isSingle = isSingleGarageDesign(designName, housingType) || totalM2 < 140;
-  const tot = totalM2 > 0 ? totalM2 : 200;
 
   if (isDouble || isSplit) {
     const garage = isSingle

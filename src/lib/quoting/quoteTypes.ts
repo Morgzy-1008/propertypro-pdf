@@ -2,7 +2,7 @@ import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes"
 
 export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty";
 
-export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living";
+export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living" | "granny_flat";
 
 export type CatalogueCategory =
   | "floorplan_extensions"
@@ -235,7 +235,7 @@ export interface SecondDwellingSelection {
 
 export interface QuoteDesignSelection {
   mode: "standard" | "modified" | "custom_floorplan";
-  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
   designName: string;
   designM2: number;
   facadeName: string;
@@ -425,7 +425,7 @@ export interface CustomStandardAreas {
 
 export interface BaseDesignCandidate {
   designName: string;
-  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
   standardTotalM2: number;
   confidence: number;
   matchSource: "title_block" | "geometry_matching" | "text_header" | "schedule_table";
@@ -440,7 +440,7 @@ export interface BaseDesignCandidate {
 
 export interface PlanModificationAnalysis {
   baseDesignName: string;
-  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
   standardTotalM2: number;
   modifiedTotalM2: number;
   netDeltaM2: number;

@@ -14,7 +14,7 @@ import {
 import { getActiveDivision, type Division } from "./divisionContext";
 import type { RangeId } from "@/components/flyer/types";
 
-export type HousingType = "single-storey" | "double-storey" | "split-level" | "acreage" | "dual-oc";
+export type HousingType = "single-storey" | "double-storey" | "split-level" | "acreage" | "dual-oc" | "granny-flat";
 
 export const HOUSING_TYPES: { id: HousingType; label: string }[] = [
   { id: "single-storey", label: "Single Storey" },
@@ -22,6 +22,7 @@ export const HOUSING_TYPES: { id: HousingType; label: string }[] = [
   { id: "split-level", label: "Split-Level" },
   { id: "acreage", label: "Acreage" },
   { id: "dual-oc", label: "Dual-Oc" },
+  { id: "granny-flat", label: "Granny Flats" },
 ];
 
 /** HBS = Base, SS = Smart Start, H1 = Value, H2 = Designer, H3 = Luxury */
@@ -35,10 +36,12 @@ const RANGE_COLUMN: Record<RangeId, "hbs" | "ss" | "h1" | "h2" | "h3"> = {
 
 /** The Mulberry family is Hudson's acreage / ranch range, not a suburban single storey. */
 const isAcreage = (row: PriceRow) => /^mulberry\b/i.test(row.name);
+/** The Aqua family is Hudson's secondary dwelling / granny flat range. */
+const isGrannyFlat = (row: PriceRow) => /^aqua\b/i.test(row.name);
 
 function buildPriceList(single: PriceRow[], double: PriceRow[], split: PriceRow[], dual: PriceRow[]) {
   return {
-    "single-storey": single.filter((r) => !isAcreage(r)).sort((a, b) =>
+    "single-storey": single.filter((r) => !isAcreage(r) && !isGrannyFlat(r)).sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { numeric: true }),
     ),
     "double-storey": [...double].sort((a, b) =>
@@ -51,6 +54,9 @@ function buildPriceList(single: PriceRow[], double: PriceRow[], split: PriceRow[
       a.name.localeCompare(b.name, undefined, { numeric: true }),
     ),
     acreage: single.filter(isAcreage).sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true }),
+    ),
+    "granny-flat": single.filter(isGrannyFlat).sort((a, b) =>
       a.name.localeCompare(b.name, undefined, { numeric: true }),
     ),
   };
@@ -78,6 +84,7 @@ export function getPriceLists(division?: Division): Record<HousingType, PriceRow
 export function normalizeHousingType(type?: string | null): HousingType {
   if (!type) return "single-storey";
   const s = String(type).trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (s.includes("granny") || s.includes("aqua") || s.includes("secondary") || s.includes("auxiliary")) return "granny-flat";
   if (s.includes("double") || s.includes("2-storey") || s.includes("two-storey")) return "double-storey";
   if (s.includes("split")) return "split-level";
   if (s.includes("dual") || s.includes("duplex")) return "dual-oc";

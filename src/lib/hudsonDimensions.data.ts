@@ -15,6 +15,51 @@ export interface HudsonDimensionRecord {
 }
 
 export const HUDSON_DIMENSIONS_REGISTRY: Record<string, HudsonDimensionRecord> = {
+  "Aqua 1": {
+    "label": "Aqua 1",
+    "design": "Aqua",
+    "width": 6.8,
+    "length": 8.82,
+    "minLotWidth": 8.5,
+    "totalM2": 59.96,
+    "cars": 0
+  },
+  "Aqua 2": {
+    "label": "Aqua 2",
+    "design": "Aqua",
+    "width": 7.2,
+    "length": 8.33,
+    "minLotWidth": 8.9,
+    "totalM2": 60.0,
+    "cars": 0
+  },
+  "Aqua 3": {
+    "label": "Aqua 3",
+    "design": "Aqua",
+    "width": 6.0,
+    "length": 9.98,
+    "minLotWidth": 7.7,
+    "totalM2": 59.9,
+    "cars": 0
+  },
+  "Aqua 4": {
+    "label": "Aqua 4",
+    "design": "Aqua",
+    "width": 8.5,
+    "length": 7.05,
+    "minLotWidth": 10.2,
+    "totalM2": 59.94,
+    "cars": 0
+  },
+  "Aqua 5": {
+    "label": "Aqua 5",
+    "design": "Aqua",
+    "width": 9.0,
+    "length": 6.57,
+    "minLotWidth": 10.7,
+    "totalM2": 59.14,
+    "cars": 0
+  },
   "Amaranth 23A": {
     "label": "Amaranth 23A",
     "design": "Amaranth",

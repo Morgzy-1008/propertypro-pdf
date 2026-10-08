@@ -31,7 +31,7 @@ export interface DetectedFloorplan {
   matchedDesignName: string;
   family: string;
   size: number;
-  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
   isHudsonDesign: boolean;
   hasSqmVariance: boolean;
   totalM2: number;
@@ -72,8 +72,11 @@ export interface DetectedFloorplan {
   extractedTable?: ExtractedAreaTable;
 }
 
-export const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" }[] = [
-  ...SINGLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Single Storey" as const })),
+export const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" }[] = [
+  ...SINGLE_STOREY_PRICES.map((r) => ({
+    row: r,
+    housingType: (/^aqua\b/i.test(r.name) ? ("Granny Flat" as const) : ("Single Storey" as const)),
+  })),
   ...DOUBLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Double Storey" as const })),
   ...SPLIT_LEVEL_PRICES.map((r) => ({ row: r, housingType: "Split Level" as const })),
   ...DUAL_OC_PRICES.map((r) => ({ row: r, housingType: "Dual Living" as const })),
@@ -163,7 +166,7 @@ const MODEL_ALIASES: Record<string, string> = {
   "alabaster 31 classic (cdc)": "Alabaster 31 - TD",
 };
 
-export function findHudsonModelByName(name?: string): { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" } | null {
+export function findHudsonModelByName(name?: string): { row: PriceRow; housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" } | null {
   if (!name) return null;
   const clean = name.trim().toLowerCase();
 
