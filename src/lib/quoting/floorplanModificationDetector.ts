@@ -3701,8 +3701,23 @@ export async function analyzeModifiedFloorplanFile(
 
     if (/cinema|theatre/i.test(lowerName)) {
       semKey = "room_cinema_barn";
-      rc.roomName = "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door";
-      rc.description = "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Variation).";
+      const hasBarn = /barn/i.test(lowerName) || /barn/i.test(combinedContext);
+      rc.roomName = hasBarn
+        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
+        : "Cinema room (3.3 × 2.6)";
+      if (hasBarn) {
+        rc.unitRate = 1250;
+        rc.subtotal = 1250;
+        rc.isZeroCost = false;
+        rc.category = "doors_hardware";
+        rc.description = "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00).";
+      } else {
+        rc.unitRate = 0;
+        rc.subtotal = 0;
+        rc.isZeroCost = true;
+        rc.category = "zero_cost_layout";
+        rc.description = "Formal living area enclosed to create private Cinema (3.3m x 2.6m) ($0.00 Dry Variation).";
+      }
     } else if (/realign|partition.*wall|dry.*framing|bed\s*1.*bed\s*3/i.test(lowerName)) {
       semKey = "room_dry_partition_realignment";
       rc.roomName = "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3";
@@ -3710,11 +3725,19 @@ export async function analyzeModifiedFloorplanFile(
     } else if (/mud\s*nook|bench\s*joinery|mud\s*bench/i.test(lowerName) && !/study.*wil/i.test(lowerName)) {
       semKey = "room_mud_nook";
       rc.roomName = "Mud Nook with bench joinery framing";
-      rc.description = "Dedicated built-in Mud Nook joinery and bench framing adjacent to garage internal entry ($0.00 Dry Variation).";
+      rc.unitRate = 1250;
+      rc.subtotal = 1250;
+      rc.isZeroCost = false;
+      rc.category = "joinery";
+      rc.description = "Dedicated built-in Mud Nook joinery and bench framing adjacent to garage internal entry ($1,250.00).";
     } else if (/study.*wil|wil.*study|\bwil\b|central\s*core/i.test(lowerName)) {
       semKey = "room_core_study_wil";
       rc.roomName = "Central Core Reconfiguration: Study / WIL combination room & circulation";
-      rc.description = "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Variation).";
+      rc.description = "Central study nook and linen store reconfigured into enclosed Study/WIL room ($0.00 Dry Variation).";
+      rc.unitRate = 0;
+      rc.subtotal = 0;
+      rc.isZeroCost = true;
+      rc.category = "zero_cost_layout";
     } else if (/butler|pantry/i.test(lowerName)) {
       semKey = "room_butlers_csd";
       rc.roomName = 'Butler\'s Pantry ("Butlers") with CSD 820 pocket slider framing';
@@ -3735,7 +3758,7 @@ export async function analyzeModifiedFloorplanFile(
   sweepResults.forEach(addRoomChange);
   universalMods.internalRoomChanges.forEach(addRoomChange);
 
-  // Feature-based zero-cost room additions based on genuine plan annotations
+  // Feature-based zero-cost and priced room additions based on genuine plan annotations
   const hasCinema = /cinema|theatre/i.test(combinedContext);
   const hasStudyWil = /study.*wil|wil.*study|\bwil\b|central\s*core/i.test(combinedContext);
   const hasButlers = /butler|pantry.*sink|pantry.*csd|butlers\b/i.test(combinedContext);
@@ -3744,19 +3767,24 @@ export async function analyzeModifiedFloorplanFile(
 
   if (hasCinema && !seenRoomSemanticKeys.has("room_cinema_barn")) {
     seenRoomSemanticKeys.add("room_cinema_barn");
+    const hasBarn = /barn/i.test(combinedContext);
     internalRoomChanges.push({
       id: "mod_room_cinema_barn",
-      roomName: "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door",
+      roomName: hasBarn
+        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
+        : "Cinema room (3.3 × 2.6)",
       roomType: "cinema",
       deltaM2: 0,
-      subtotal: 0,
-      unitRate: 0,
+      subtotal: hasBarn ? 1250 : 0,
+      unitRate: hasBarn ? 1250 : 0,
       baseRatePerM2: 0,
       finishesRatePerM2: 0,
-      isZeroCost: true,
-      category: "zero_cost_layout",
-      description: "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Variation).",
-      furnitureDetected: ["Cinema Lounge", "BARN 1200"],
+      isZeroCost: !hasBarn,
+      category: hasBarn ? "doors_hardware" : "zero_cost_layout",
+      description: hasBarn
+        ? "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00)."
+        : "Formal living area enclosed to create private Cinema (3.3m x 2.6m) ($0.00 Dry Variation).",
+      furnitureDetected: hasBarn ? ["Cinema Lounge", "BARN 1200"] : ["Cinema Lounge"],
       accepted: true,
     });
   }
@@ -3773,7 +3801,7 @@ export async function analyzeModifiedFloorplanFile(
       finishesRatePerM2: 0,
       isZeroCost: true,
       category: "zero_cost_layout",
-      description: "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Variation).",
+      description: "Central study nook and linen store reconfigured into enclosed Study/WIL room ($0.00 Dry Variation).",
       furnitureDetected: ["Study Desk", "Walk-In Linen Shelving"],
       accepted: true,
     });
@@ -3803,13 +3831,13 @@ export async function analyzeModifiedFloorplanFile(
       roomName: "Mud Nook with bench joinery framing",
       roomType: "other",
       deltaM2: 0,
-      subtotal: 0,
-      unitRate: 0,
+      subtotal: 1250,
+      unitRate: 1250,
       baseRatePerM2: 0,
       finishesRatePerM2: 0,
-      isZeroCost: true,
-      category: "zero_cost_layout",
-      description: "Mud Nook transition zone with custom bench joinery and drop zone framing ($0.00 Dry Variation).",
+      isZeroCost: false,
+      category: "joinery",
+      description: "Dedicated built-in Mud Nook joinery and bench framing adjacent to garage internal entry ($1,250.00).",
       furnitureDetected: ["Mud Nook Bench", "Coat Hooks"],
       accepted: true,
     });
@@ -3972,6 +4000,19 @@ export async function analyzeModifiedFloorplanFile(
     for (const inc of inclusionUpgrades) {
       const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`.toLowerCase();
       
+      // Deduplication against internalRoomChanges:
+      // When priced in Tab 2 (Internal Sweep & Rooms), suppress duplicate inclusion items
+      if (internalRoomChanges.some((r) => r.id === "mod_room_mud_nook" && !r.isZeroCost)) {
+        if (inc.id === "upg_mudroom_fitout" || (/mud\s*nook|mudroom/i.test(desc) && !/garage/i.test(desc))) {
+          continue; // Accounted for in Tab 2 Internal Sweep & Rooms!
+        }
+      }
+      if (internalRoomChanges.some((r) => r.id === "mod_room_cinema_barn" && !r.isZeroCost)) {
+        if (inc.id === "upg_feature_barn_door" || (/barn\s*door/i.test(desc) && !/garage/i.test(desc))) {
+          continue; // Accounted for in Tab 2 Internal Sweep & Rooms!
+        }
+      }
+
       // Intelligent deduplication against openingReplacements:
       // Doors and windows belong exclusively in Tab 3 (Doors & Windows Replacement Schedule)
       const isAlreadyInOpeningReplacements = openingReplacements.some((op) => {

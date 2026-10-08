@@ -957,7 +957,9 @@ export function ModifiedPlanReviewModal({
                             </span>
                           ) : (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40">
-                              Wet Area Base + Differential (${room.unitRate}/m²)
+                              {room.category === "wet_area"
+                                ? `Wet Area Base + Differential ($${room.unitRate}/m²)`
+                                : `Internal Upgrade / Variation ($${room.unitRate})`}
                             </span>
                           )}
 
@@ -972,7 +974,7 @@ export function ModifiedPlanReviewModal({
                           {room.description}
                         </p>
 
-                        {!room.isZeroCost && room.baseRatePerM2 && (
+                        {!room.isZeroCost && Boolean(room.baseRatePerM2) && (
                           <div className="text-[10px] font-mono text-purple-300 bg-purple-950/40 border border-purple-800/40 px-2 py-1 rounded inline-block mt-1">
                             Breakdown: {room.deltaM2}m² @ ${room.baseRatePerM2}/m² base prep + ${room.finishesRatePerM2}/m² finishes
                           </div>

@@ -817,26 +817,57 @@ export function performInternalSweep(
     );
   }
 
-  // 7. Cinema / Home Theatre Room Conversion ($0.00 Dry Variation)
+  // 7. Cinema / Home Theatre Room Conversion ($1,250 with BARN 1200 sliding barn door)
   if (/cinema|theatre/i.test(lower)) {
-    roomChanges.push(
-      createZeroCostInternalChange(
-        "Enclosed Home Cinema Room Conversion with Barn Door",
-        0.0,
-        "Standard open Living/Media space converted into an enclosed private Home Cinema room (3.3m x 2.6m) with acoustic partition wall and 1200mm sliding barn door ($0.00 Dry Variation).",
-        ["Sofa / Lounge Suite", "TV Display", "Barn Door"]
-      )
-    );
+    const hasBarnDoor = /barn/i.test(lower);
+    roomChanges.push({
+      id: "mod_room_cinema_barn",
+      roomName: hasBarnDoor
+        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
+        : "Enclosed Home Cinema Room Conversion",
+      roomType: "cinema",
+      deltaM2: 0,
+      furnitureDetected: hasBarnDoor ? ["Cinema Lounge", "BARN 1200"] : ["Sofa / Lounge Suite", "TV Display"],
+      description: hasBarnDoor
+        ? "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00)."
+        : "Standard open Living/Media space converted into an enclosed private Home Cinema room ($0.00 Dry Variation).",
+      isZeroCost: !hasBarnDoor,
+      category: hasBarnDoor ? "doors_hardware" : "zero_cost_layout",
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      unitRate: hasBarnDoor ? 1250 : 0,
+      subtotal: hasBarnDoor ? 1250 : 0,
+      accepted: true,
+    });
   }
 
-  // 8. Central Core Reconfiguration: Mud Nook & Study / WIL ($0.00 Dry Variation)
-  if (/mud\s*nook|mudroom|study.*wil|wil.*study|\bwil\b/i.test(lower)) {
+  // 8. Dedicated Mud Nook with bench joinery framing ($1,250)
+  if (/mud\s*nook|mudroom|mud\s*bench/i.test(lower)) {
+    roomChanges.push({
+      id: "mod_room_mud_nook",
+      roomName: "Mud Nook with bench joinery framing",
+      roomType: "other",
+      deltaM2: 0,
+      furnitureDetected: ["Mud Nook Bench", "Coat Hooks"],
+      description: "Dedicated built-in Mud Nook joinery and bench framing adjacent to garage internal entry ($1,250.00).",
+      isZeroCost: false,
+      category: "joinery",
+      baseRatePerM2: 0,
+      finishesRatePerM2: 0,
+      unitRate: 1250,
+      subtotal: 1250,
+      accepted: true,
+    });
+  }
+
+  // 8b. Central Core Reconfiguration: Study / WIL ($0.00 Dry Variation)
+  if (/study.*wil|wil.*study|\bwil\b|central\s*core/i.test(lower)) {
     roomChanges.push(
       createZeroCostInternalChange(
-        "Central Core Reconfiguration (Mud Nook & Study / WIL)",
+        "Central Core Reconfiguration: Study / WIL combination room & circulation",
         0.0,
-        "Internal timber stud partition framing reconfigured behind garage to accommodate a Mud Nook, enclosed Study / WIL (Walk-In Linen), and adjusted entry hall circulation ($0.00 Dry Variation).",
-        ["Mud Nook Bench", "Study Desk", "Walk-In Linen Shelving"]
+        "Internal timber stud partition framing reconfigured behind garage to accommodate an enclosed Study / WIL (Walk-In Linen) and adjusted entry hall circulation ($0.00 Dry Variation).",
+        ["Study Desk", "Walk-In Linen Shelving"]
       )
     );
   }
