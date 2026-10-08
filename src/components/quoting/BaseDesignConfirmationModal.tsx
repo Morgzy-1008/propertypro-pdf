@@ -212,18 +212,9 @@ export function BaseDesignConfirmationModal({
             <span>Step 1 of 2: Master Floorplan Verification</span>
           </div>
 
-          <h2 className="text-2xl font-black tracking-tight text-white mb-2">
-            Is this floorplan based off the{" "}
-            <span className="underline decoration-cyan-300 decoration-wavy decoration-2">
-              {currentSelection.name}
-            </span>{" "}
-            Design?
+          <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight text-white">
+            Is this floorplan based off the {currentSelection.name} Design?
           </h2>
-
-          <p className="text-cyan-100 text-sm max-w-2xl">
-            {candidate.matchReason ||
-              "The scanning engine recognizes matching architectural boundaries and sheet titles against our standard master files."}
-          </p>
         </div>
 
         {/* Comparison Body */}
