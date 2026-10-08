@@ -215,16 +215,4 @@ export function canAccessLandScout(staffUser?: {
   return isMorganHales(staffUser);
 }
 
-/**
- * Access control for Hudson Plan Training & Calibration Studio.
- * Strictly restricted to Morgan Hales (System Administration / Owner).
- */
-export function canAccessPlanTraining(staffUser?: {
-  id?: string | null;
-  name?: string | null;
-  email?: string | null;
-  role?: string | null;
-} | null): boolean {
-  return isMorganHales(staffUser);
-}
 

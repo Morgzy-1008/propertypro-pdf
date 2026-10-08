@@ -462,5 +462,12 @@ export interface PlanModificationAnalysis {
   geminiNotes?: string;
   canvasNotes?: string;
   ceilingHeightM?: number;
+  scaleCalibration?: {
+    mmPerPixel: number;
+    pixelsPerMeter: number;
+    tierUsed: 1 | 2 | 3;
+    anchorDescription: string;
+    confidence: number;
+  };
 }
 

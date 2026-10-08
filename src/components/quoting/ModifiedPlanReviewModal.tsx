@@ -570,6 +570,28 @@ export function ModifiedPlanReviewModal({
               </div>
             </div>
 
+            {localAnalysis.scaleCalibration && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/60 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <span className="font-bold text-emerald-300">
+                    Tier {localAnalysis.scaleCalibration.tierUsed} Scale-Lock Calibrated:
+                  </span>
+                  <span className="text-slate-200">
+                    {localAnalysis.scaleCalibration.anchorDescription}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 font-mono text-emerald-400 font-bold text-[11px] self-end sm:self-auto">
+                  <span className="px-2 py-0.5 rounded bg-emerald-900/60 border border-emerald-700/80">
+                    {localAnalysis.scaleCalibration.mmPerPixel} mm/px
+                  </span>
+                  <span className="text-slate-400 font-normal">
+                    ({Math.round(localAnalysis.scaleCalibration.confidence * 100)}% confidence)
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
@@ -683,150 +705,199 @@ export function ModifiedPlanReviewModal({
                 No external perimeter footprint extensions detected. Standard external envelope maintained.
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {localAnalysis.areaDeltas.map((area, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-3.5 rounded-xl border transition-all ${
-                      area.accepted
-                        ? isLight
-                          ? "bg-amber-50/50 border-amber-200"
-                          : "bg-slate-900/80 border-slate-700"
-                        : "opacity-50 border-dashed border-slate-800 bg-slate-950/40"
-                    }`}
-                  >
-                    {editingAreaIndex !== idx ? (
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="checkbox"
-                            checked={area.accepted}
-                            onChange={() => handleToggleArea(idx)}
-                            className="h-4 w-4 rounded border-slate-700 text-amber-500 focus:ring-amber-400"
-                          />
-                          <div>
-                            <span className={`text-xs font-bold ${area.accepted ? "text-white" : "text-slate-500 line-through"}`}>
-                              {area.zoneLabel}
+              <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden shadow-lg">
+                {/* Desktop Table Header */}
+                <div className="hidden sm:grid sm:grid-cols-12 gap-2 px-3.5 py-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 bg-slate-950/70 border-b border-slate-800">
+                  <div className="col-span-1 text-center">Inc</div>
+                  <div className="col-span-4">Zone / Building Element</div>
+                  <div className="col-span-1 text-right">Master CAD</div>
+                  <div className="col-span-1 text-right">Scanned</div>
+                  <div className="col-span-2 text-center">Variance</div>
+                  <div className="col-span-1 text-right">Rate/m²</div>
+                  <div className="col-span-1 text-right">Subtotal</div>
+                  <div className="col-span-1 text-center">Edit</div>
+                </div>
+
+                <div className="divide-y divide-slate-800/60">
+                  {localAnalysis.areaDeltas.map((area, idx) => (
+                    <div key={idx} className={`transition-all ${area.accepted ? "bg-slate-900/30 hover:bg-slate-900/60" : "opacity-40 bg-slate-950/40"}`}>
+                      {editingAreaIndex !== idx ? (
+                        <div className="p-3 sm:px-3.5 sm:py-2.5 grid grid-cols-1 sm:grid-cols-12 gap-2 sm:items-center text-xs">
+                          {/* Col 1: Checkbox */}
+                          <div className="sm:col-span-1 flex items-center justify-between sm:justify-center">
+                            <input
+                              type="checkbox"
+                              checked={area.accepted}
+                              onChange={() => handleToggleArea(idx)}
+                              className="h-4 w-4 rounded border-slate-700 text-amber-500 focus:ring-amber-400 cursor-pointer"
+                            />
+                            <span className="sm:hidden font-bold text-white text-xs">{area.zoneLabel}</span>
+                          </div>
+
+                          {/* Col 2: Zone label */}
+                          <div className="hidden sm:block sm:col-span-4 font-bold text-white truncate">
+                            {area.zoneLabel}
+                          </div>
+
+                          {/* Col 3: Master CAD m² */}
+                          <div className="sm:col-span-1 flex items-center justify-between sm:justify-end text-slate-300 font-mono text-[11px]">
+                            <span className="sm:hidden text-slate-400 text-[10px]">Master:</span>
+                            <span>{area.standardM2.toFixed(2)} m²</span>
+                          </div>
+
+                          {/* Col 4: Scanned Modified m² */}
+                          <div className="sm:col-span-1 flex items-center justify-between sm:justify-end text-amber-300 font-mono text-[11px] font-semibold">
+                            <span className="sm:hidden text-slate-400 text-[10px]">Scanned:</span>
+                            <span>{area.modifiedM2.toFixed(2)} m²</span>
+                          </div>
+
+                          {/* Col 5: Variance delta */}
+                          <div className="sm:col-span-2 flex items-center justify-between sm:justify-center">
+                            <span className="sm:hidden text-slate-400 text-[10px]">Variance:</span>
+                            <span className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
+                              area.deltaM2 > 0
+                                ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800"
+                                : area.deltaM2 < 0
+                                ? "text-amber-400 bg-amber-950/60 border border-amber-800"
+                                : "text-slate-400 bg-slate-800 border border-slate-700"
+                            }`}>
+                              {area.deltaM2 > 0 ? `+${area.deltaM2.toFixed(2)}` : `${area.deltaM2.toFixed(2)}`} m²
                             </span>
-                            <p className="text-[11px] text-slate-400 mt-0.5">
-                              {area.standardM2} m² standard &rarr;{" "}
-                              <span className="text-amber-400 font-semibold">{area.modifiedM2} m²</span> (
-                              {area.deltaM2 > 0 ? `+${area.deltaM2}` : `${area.deltaM2}`} m² @ ${area.unitRate}/m²)
-                            </p>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 self-end sm:self-auto">
-                          <span className={`font-mono font-bold px-2 py-0.5 rounded text-[11px] ${
-                            area.deltaM2 >= 0
-                              ? "text-emerald-400 bg-emerald-950/60 border border-emerald-800"
-                              : "text-amber-400 bg-amber-950/60 border border-amber-800"
-                          }`}>
-                            {area.deltaM2 > 0 ? `+${area.deltaM2}` : `${area.deltaM2}`} m²
-                          </span>
-                          <span className="text-xs font-mono font-bold min-w-20 text-right text-white">
-                            {formatAud(area.subtotal)}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setEditingAreaIndex(idx)}
-                            className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors ml-1 cursor-pointer"
-                            title="Edit standard m², modified m², or rate"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Inline Editing Mode for this Area Row */
-                      <div className="space-y-2.5 bg-slate-950/80 p-3 rounded-lg border border-amber-500/40">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
-                            <Pencil className="w-3.5 h-3.5" /> Edit Area Specification
-                          </span>
-                          <div className="flex items-center gap-2">
+                          {/* Col 6: Rate */}
+                          <div className="sm:col-span-1 flex items-center justify-between sm:justify-end text-slate-300 font-mono text-[11px]">
+                            <span className="sm:hidden text-slate-400 text-[10px]">Rate:</span>
+                            <span>${area.unitRate}</span>
+                          </div>
+
+                          {/* Col 7: Subtotal */}
+                          <div className="sm:col-span-1 flex items-center justify-between sm:justify-end font-mono font-bold text-white text-[11px]">
+                            <span className="sm:hidden text-slate-400 text-[10px]">Subtotal:</span>
+                            <span>{formatAud(area.subtotal)}</span>
+                          </div>
+
+                          {/* Col 8: Edit Action */}
+                          <div className="sm:col-span-1 flex items-center justify-end sm:justify-center">
                             <button
                               type="button"
-                              onClick={() => handleDeleteAreaDelta(idx)}
-                              className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 cursor-pointer"
-                              title="Delete this area line item"
+                              onClick={() => setEditingAreaIndex(idx)}
+                              className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800 transition-colors cursor-pointer"
+                              title="Edit standard m², modified m², or rate"
                             >
-                              <Trash2 className="w-3.5 h-3.5" /> Delete
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setEditingAreaIndex(null)}
-                              className="px-2.5 py-0.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 rounded inline-flex items-center gap-1 cursor-pointer"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Done
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
+                      ) : (
+                        /* Inline Editing Mode */
+                        <div className="p-3 bg-slate-950/90 border border-amber-500/40 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                              <Pencil className="w-3.5 h-3.5" /> Edit Area Specification
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAreaDelta(idx)}
+                                className="text-xs text-rose-400 hover:text-rose-300 inline-flex items-center gap-1 cursor-pointer"
+                                title="Delete this area line item"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> Delete
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setEditingAreaIndex(null)}
+                                className="px-2.5 py-0.5 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-800 rounded inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Done
+                              </button>
+                            </div>
+                          </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                          <div className="sm:col-span-4">
-                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
-                              Label / Description
-                            </label>
-                            <input
-                              type="text"
-                              value={area.zoneLabel}
-                              onChange={(e) => handleUpdateAreaDelta(idx, "zoneLabel", e.target.value)}
-                              className="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
-                              Standard m²
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={area.standardM2}
-                              onChange={(e) => handleUpdateAreaDelta(idx, "standardM2", e.target.value)}
-                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
-                              Modified m²
-                            </label>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={area.modifiedM2}
-                              onChange={(e) => handleUpdateAreaDelta(idx, "modifiedM2", e.target.value)}
-                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
-                              Delta m² (auto)
-                            </label>
-                            <input
-                              type="text"
-                              disabled
-                              value={`+${area.deltaM2} m²`}
-                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900/50 border border-slate-800 rounded text-emerald-400"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
-                              Rate ($/m²)
-                            </label>
-                            <input
-                              type="number"
-                              step="10"
-                              value={area.unitRate}
-                              onChange={(e) => handleUpdateAreaDelta(idx, "unitRate", e.target.value)}
-                              className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
-                            />
+                          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                            <div className="sm:col-span-4">
+                              <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                                Zone / Description
+                              </label>
+                              <input
+                                type="text"
+                                value={area.zoneLabel}
+                                onChange={(e) => handleUpdateAreaDelta(idx, "zoneLabel", e.target.value)}
+                                className="w-full px-2 py-1 text-xs bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                                Master CAD (m²)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={area.standardM2}
+                                onChange={(e) => handleUpdateAreaDelta(idx, "standardM2", e.target.value)}
+                                className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                                Scanned Plan (m²)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={area.modifiedM2}
+                                onChange={(e) => handleUpdateAreaDelta(idx, "modifiedM2", e.target.value)}
+                                className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                                Variance (auto)
+                              </label>
+                              <input
+                                type="text"
+                                disabled
+                                value={`+${area.deltaM2.toFixed(2)} m²`}
+                                className="w-full px-2 py-1 text-xs font-mono bg-slate-900/50 border border-slate-800 rounded text-emerald-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] uppercase font-semibold text-slate-400 mb-0.5">
+                                Rate ($/m²)
+                              </label>
+                              <input
+                                type="number"
+                                step="10"
+                                value={area.unitRate}
+                                onChange={(e) => handleUpdateAreaDelta(idx, "unitRate", e.target.value)}
+                                className="w-full px-2 py-1 text-xs font-mono bg-slate-900 border border-slate-700 rounded text-white focus:outline-none focus:border-amber-400"
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Table Footer Summary */}
+                <div className="px-3.5 py-2.5 bg-slate-950/80 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <div className="flex items-center gap-3 text-slate-300">
+                    <span>
+                      Total Building Area (GBA):{" "}
+                      <strong className="text-white font-mono">{localAnalysis.standardTotalM2.toFixed(2)} m²</strong> &rarr;{" "}
+                      <strong className="text-amber-400 font-mono">{localAnalysis.modifiedTotalM2.toFixed(2)} m²</strong>
+                    </span>
+                    <span className="text-slate-500">•</span>
+                    <span className="text-emerald-400 font-bold font-mono">
+                      Net: {localAnalysis.netDeltaM2 >= 0 ? `+${localAnalysis.netDeltaM2.toFixed(2)}` : localAnalysis.netDeltaM2.toFixed(2)} m²
+                    </span>
                   </div>
-                ))}
+                  <span className="font-mono font-bold text-amber-400 text-xs">
+                    Structural Subtotal: {formatAud(localAnalysis.totalAreaCost)}
+                  </span>
+                </div>
               </div>
             )}
           </div>

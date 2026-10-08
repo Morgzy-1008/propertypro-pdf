@@ -14,8 +14,13 @@ import { LOCAL_FLOORPLAN_MAP } from "./localFloorplanMap.data";
 import { parseAreaScheduleFromText } from "@/components/quoting/ModifiedFloorplanModal";
 import {
   calculateScaleCalibration,
+  calibrateForesightDrawingScale,
+  calculatePolygonShoelaceArea,
+  diffPerimeterOpenings,
+  extractArchitecturalCeilingFeatures,
   evaluateVanityDimensions,
   evaluateShowerDimensions,
+  evaluateBenchtopDimensions,
 } from "./scaleCalibrationEngine";
 import {
   parsePresightOpeningTags,
@@ -1136,11 +1141,13 @@ export async function detectVisualModificationsViaCanvas(
     const alfrescoDimRegex = /(?:(?:covered\s*)?a[li1t|]fresco|outdoor\s*living)\s*[\r\n\t:]*\s*(\d+(?:\.\d+)?)\s*(?:m)?\s*[x×*X]\s*(\d+(?:\.\d+)?)/i;
     const alfMatch = searchStr.match(alfrescoDimRegex);
     if (alfMatch) {
-      const wCand = parseFloat(alfMatch[1]);
-      const dCand = parseFloat(alfMatch[2]);
+      let wCand = parseFloat(alfMatch[1]);
+      let dCand = parseFloat(alfMatch[2]);
+      if (wCand > 50) wCand = Math.round((wCand / 1000) * 100) / 100;
+      if (dCand > 50) dCand = Math.round((dCand / 1000) * 100) / 100;
       const candAlfM2 = Math.round(wCand * dCand * 100) / 100;
       const deltaM2 = Math.round((candAlfM2 - standardAlfrescoM2) * 100) / 100;
-      if (deltaM2 >= 0.5) {
+      if (deltaM2 >= 0.5 && candAlfM2 <= 80 && candAlfM2 >= 2) {
         mods.push({
           zone: "alfresco",
           deltaM2,
@@ -1154,11 +1161,15 @@ export async function detectVisualModificationsViaCanvas(
     const garageDimRegex = /(?:garage(?:\s*\+\s*workshop)?|double\s*garage|dlug|carport)\s*[\r\n\t:]*\s*(\d+(?:\.\d+)?)\s*(?:m)?\s*[x×*X]\s*(\d+(?:\.\d+)?)/i;
     const garMatch = searchStr.match(garageDimRegex);
     if (garMatch) {
-      const wCand = parseFloat(garMatch[1]);
-      const dCand = parseFloat(garMatch[2]);
+      let wCand = parseFloat(garMatch[1]);
+      let dCand = parseFloat(garMatch[2]);
+      if (wCand > 50) wCand = Math.round((wCand / 1000) * 100) / 100;
+      if (dCand > 50) dCand = Math.round((dCand / 1000) * 100) / 100;
       const candGarM2 = Math.round(wCand * dCand * 100) / 100;
-      const deltaM2 = Math.round((candGarM2 - standardGarageM2) * 100) / 100;
-      if (deltaM2 >= 1.5) {
+      // Standard garage framing 5.5 x 5.5 = 30.25 m2 matches standard garage (32.89 - 33.32 m2)
+      const isStandardDoubleFraming = (Math.abs(wCand - 5.5) <= 0.2 && Math.abs(dCand - 5.5) <= 0.2) || (wCand <= 5.5 && dCand <= 5.5 && candGarM2 <= 31);
+      const deltaM2 = isStandardDoubleFraming ? 0 : Math.round((candGarM2 - standardGarageM2) * 100) / 100;
+      if (deltaM2 >= 1.5 && candGarM2 <= 120 && candGarM2 >= 14) {
         mods.push({
           zone: "garage",
           deltaM2,
@@ -1172,12 +1183,15 @@ export async function detectVisualModificationsViaCanvas(
     const porchDimRegex = /(?:(?:entry\s*)?porch|portico|covered\s*entry)\s*[\r\n\t:]*\s*(\d+(?:\.\d+)?)\s*(?:m)?\s*[x×*X]\s*(\d+(?:\.\d+)?)/i;
     const porchMatch = searchStr.match(porchDimRegex);
     if (porchMatch) {
-      const wCand = parseFloat(porchMatch[1]);
-      const dCand = parseFloat(porchMatch[2]);
+      let wCand = parseFloat(porchMatch[1]);
+      let dCand = parseFloat(porchMatch[2]);
+      if (wCand > 50) wCand = Math.round((wCand / 1000) * 100) / 100;
+      if (dCand > 50) dCand = Math.round((dCand / 1000) * 100) / 100;
       const candPorchM2 = Math.round(wCand * dCand * 100) / 100;
       const standardPorchM2 = Number(cadSpec?.porchM2) || 2.25;
-      const deltaM2 = Math.round((candPorchM2 - standardPorchM2) * 100) / 100;
-      if (deltaM2 >= 0.5) {
+      const isWithinStandardTolerance = Math.abs(candPorchM2 - standardPorchM2) <= 0.5;
+      const deltaM2 = isWithinStandardTolerance ? 0 : Math.round((candPorchM2 - standardPorchM2) * 100) / 100;
+      if (deltaM2 >= 0.5 && candPorchM2 <= 30 && candPorchM2 >= 0.5) {
         mods.push({
           zone: "porch",
           deltaM2,
@@ -1279,6 +1293,7 @@ async function callGeminiFloorplanAnalysis(
     baseline?: string;
     detected?: string;
   }>;
+  openingTags?: string[];
   internalRoomChanges?: InternalRoomChange[];
   scheduleTable?: {
     livingM2?: number;
@@ -2041,12 +2056,20 @@ export async function identifyBaseDesignCandidate(
 
   const parseCandidateM2 = (pattern: RegExp, maxNormal = 600) => {
     const m = rawText.match(pattern);
-    if (!m) return undefined;
+    if (!m || m.index === undefined) return undefined;
+    // CRITICAL: Ensure this is NOT a dimension callout like "GARAGE 5500 x 5500" or "PORCH 1600 x 2100"!
+    const postMatch = rawText.slice(m.index + m[0].length, m.index + m[0].length + 15).trim();
+    if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
+      return undefined; // Dimension callout, not an area schedule value!
+    }
     const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
     let val = parseFloat(rawNum);
     if (isNaN(val) || val <= 0) return undefined;
-    if (val > maxNormal && val < 100000) {
+    const hasAreaUnit = /m[²2]|sqm|sq\.m/i.test(postMatch) || /m[²2]|sqm|sq\.m/i.test(m[0]);
+    if (val > maxNormal && val < 100000 && hasAreaUnit) {
       val = val / 100;
+    } else if (val > maxNormal) {
+      return undefined;
     }
     return Math.round(val * 100) / 100;
   };
@@ -2311,13 +2334,19 @@ export async function analyzeModifiedFloorplanFile(
   // Dynamically extract brochure table specs if printed on plan
   const extractM2 = (pattern: RegExp, maxNormal = 600) => {
     const m = rawText.match(pattern);
-    if (!m) return undefined;
+    if (!m || m.index === undefined) return undefined;
+    const postMatch = rawText.slice(m.index + m[0].length, m.index + m[0].length + 15).trim();
+    if (/^[xX*×]|^\s*by\b/i.test(postMatch)) {
+      return undefined; // Dimension callout like 5500 x 5500, not an area schedule value!
+    }
     const rawNum = m[1].replace(/[·•]/g, ".").replace(/,/g, "");
     let val = parseFloat(rawNum);
     if (isNaN(val) || val <= 0) return undefined;
-    // Auto-normalize if decimal dot was dropped by PDF glyph encoding (e.g. 20871 -> 208.71, 954 -> 9.54, 3427 -> 34.27)
-    if (val > maxNormal && val < 100000) {
+    const hasAreaUnit = /m[²2]|sqm|sq\.m/i.test(postMatch) || /m[²2]|sqm|sq\.m/i.test(m[0]);
+    if (val > maxNormal && val < 100000 && hasAreaUnit) {
       val = val / 100;
+    } else if (val > maxNormal) {
+      return undefined;
     }
     return Math.round(val * 100) / 100;
   };
@@ -2568,8 +2597,46 @@ export async function analyzeModifiedFloorplanFile(
   // STAGE 2 LOCK: detectedModelName and housingType were locked in Stage 1.
   // Stage 2 discrepancy diffing must NEVER override the base design model!
 
+  // 2b. Scale-Lock Calibration & Geometric Measurement Engine (Foresight Ingestion Standard)
+  const scaleCalibration = calibrateForesightDrawingScale({
+    imageWidthPx: 1600,
+    imageHeightPx: 1200,
+    rawText,
+    masterCAD: {
+      widthM: cadSpec.width,
+      lengthM: cadSpec.length,
+      garageM2: standardGarageM2,
+      garageDims: cadSpec.garageDims,
+      alfrescoDims: cadSpec.alfrescoDims,
+    },
+  });
+
   const areaDeltas: DetectedAreaDelta[] = [];
   const inclusionUpgrades: DetectedInclusionUpgrade[] = [];
+
+  // Scan architectural ceiling features (e.g. raked ceilings, raised entry roofs)
+  const ceilingFeatures = extractArchitecturalCeilingFeatures(rawText, standardLivingM2);
+  for (const cf of ceilingFeatures) {
+    const isRaked = cf.featureType === "raked_ceiling";
+    const existing = inclusionUpgrades.some((u) => u.name.toLowerCase().includes(isRaked ? "raked" : "raised"));
+    if (!existing) {
+      inclusionUpgrades.push({
+        id: `upg_${cf.featureType}`,
+        category: "internal_general",
+        name: isRaked ? "Raked / Cathedral Ceiling to Open Plan Living Zone" : "Architectural Raised Roof / Ceiling Framing at Entrance",
+        description: cf.description,
+        baseline: "Standard 2440mm flat plasterboard ceiling",
+        detected: `${cf.location}: ${cf.areaM2} m² @ $${cf.ratePerM2}/m²`,
+        unitPrice: cf.subtotal,
+        quantity: 1,
+        subtotal: cf.subtotal,
+        accepted: true,
+        confidence: 0.98,
+        isByOwner: false,
+        reason: cf.description,
+      });
+    }
+  }
 
   // 1a. Unify Candidate Table Spec with Gemini Vision schedule table if client regex was undefined
   if (geminiResult?.scheduleTable) {
@@ -2948,24 +3015,26 @@ export async function analyzeModifiedFloorplanFile(
 
   // A. Covered Alfresco room dimension
   const hasSpecificAlfDims = /2\.1\s*[xX*×]\s*5\.4|5\.4\s*[xX*×]\s*2\.1/i.test(combinedScanText);
-  const alfrescoDimMatch = combinedScanText.match(/(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living|patio|verandah?)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
-    combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living)/i);
+  const alfrescoDimMatch = combinedScanText.match(/(?:(?:covered\s*)?a[li1t|]fresc[oa]|outdoor\s*living)\s*[:\-\s\t(]{1,10}(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i);
   if (!candidateTableSpec.alfrescoM2 && (alfrescoDimMatch || hasSpecificAlfDims)) {
-    const w = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[1].replace(/[·•]/g, ".")) : 2.1;
-    const l = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[2].replace(/[·•]/g, ".")) : 5.4;
+    let w = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[1].replace(/[·•]/g, ".")) : 2.1;
+    let l = alfrescoDimMatch ? parseFloat(alfrescoDimMatch[2].replace(/[·•]/g, ".")) : 5.4;
+    if (w > 50) w = Math.round((w / 1000) * 100) / 100;
+    if (l > 50) l = Math.round((l / 1000) * 100) / 100;
     let actualAlfM2 = Math.round(w * l * 100) / 100;
     if (hasSpecificAlfDims || (Math.abs(w - 2.1) < 0.15 && Math.abs(l - 5.4) < 0.15) || (Math.abs(w - 5.4) < 0.15 && Math.abs(l - 2.1) < 0.15)) {
       actualAlfM2 = 11.32; // Exact Hudson 2.1m x 5.4m alfresco slab
     }
     const stdAlf = standardAlfrescoM2 || 12.05;
-    const alfDiff = Math.round((actualAlfM2 - stdAlf) * 100) / 100;
+    const isValidArea = actualAlfM2 >= 2 && actualAlfM2 <= 80;
+    const alfDiff = isValidArea ? Math.round((actualAlfM2 - stdAlf) * 100) / 100 : 0;
     const existingAlf = areaDeltas.find((d) => d.zoneKey === "alfrescoM2");
-    if (existingAlf) {
+    if (existingAlf && isValidArea && Math.abs(alfDiff) >= 0.5) {
       existingAlf.modifiedM2 = actualAlfM2;
       existingAlf.deltaM2 = alfDiff;
       existingAlf.subtotal = alfDiff > 0 ? Math.round(alfDiff * databuildRates.alfresco_m2) : Math.round(alfDiff * databuildRates.alfresco_m2 * 0.8);
       existingAlf.zoneLabel = alfDiff > 0 ? "Covered Alfresco Extension" : "Covered Alfresco Reduction";
-    } else if (Math.abs(alfDiff) >= 0.05) {
+    } else if (isValidArea && Math.abs(alfDiff) >= 0.5) {
       areaDeltas.push({
         zoneKey: "alfrescoM2",
         zoneLabel: alfDiff > 0 ? "Covered Alfresco Extension" : "Covered Alfresco Reduction",
@@ -2999,29 +3068,34 @@ export async function analyzeModifiedFloorplanFile(
 
   // B. Garage room dimension
   const hasSpecificGarDims = /5\.7\s*[xX*×]\s*6\.0|6\.0\s*[xX*×]\s*5\.7/i.test(combinedScanText);
-  const garageDimMatch = combinedScanText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
-    combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:garage|dlug|carport)/i);
+  const garageDimMatch = combinedScanText.match(/(?:garage(?:\s*[\+\/]\s*workshop)?|double\s*garage|dlug|carport)\s*[:\-\s\t(]{1,10}(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i);
   if (!candidateTableSpec.garageM2 && (garageDimMatch || hasSpecificGarDims)) {
-    const w = garageDimMatch ? parseFloat(garageDimMatch[1].replace(/[·•]/g, ".")) : 5.7;
-    const l = garageDimMatch ? parseFloat(garageDimMatch[2].replace(/[·•]/g, ".")) : 6.0;
+    let w = garageDimMatch ? parseFloat(garageDimMatch[1].replace(/[·•]/g, ".")) : 5.7;
+    let l = garageDimMatch ? parseFloat(garageDimMatch[2].replace(/[·•]/g, ".")) : 6.0;
+    if (w > 50) w = Math.round((w / 1000) * 100) / 100;
+    if (l > 50) l = Math.round((l / 1000) * 100) / 100;
     let actualGarM2 = Math.round(w * l * 100) / 100;
+    const isStandardDoubleFraming = (Math.abs(w - 5.5) <= 0.2 && Math.abs(l - 5.5) <= 0.2) || (w <= 5.5 && l <= 5.5 && actualGarM2 <= 31);
     if (hasSpecificGarDims || (Math.abs(w - 5.7) < 0.15 && Math.abs(l - 6.0) < 0.15) || (Math.abs(w - 6.0) < 0.15 && Math.abs(l - 5.7) < 0.15)) {
       actualGarM2 = 38.84; // Exact Hudson 5.7m x 6.0m garage slab dimension with 240mm external perimeter
+    } else if (isStandardDoubleFraming) {
+      actualGarM2 = effectiveStandardGarageM2; // Matches standard framing, delta is 0!
     } else if (actualGarM2 > 28 && actualGarM2 < 36 && (w >= 5.6 || l >= 5.9)) {
       actualGarM2 = Math.round((w + 0.25) * (l + 0.45) * 100) / 100;
     }
     const stdGar = effectiveStandardGarageM2 || 36.00;
-    const garDiff = Math.round((actualGarM2 - stdGar) * 100) / 100;
+    const isValidGarArea = actualGarM2 >= 14 && actualGarM2 <= 120;
+    const garDiff = isStandardDoubleFraming ? 0 : (isValidGarArea ? Math.round((actualGarM2 - stdGar) * 100) / 100 : 0);
     const isWorkshop = /workshop/i.test(combinedScanText);
     const existingGar = areaDeltas.find((d) => d.zoneKey === "garageM2");
-    if (existingGar) {
+    if (existingGar && isValidGarArea && Math.abs(garDiff) >= 1.5) {
       existingGar.modifiedM2 = actualGarM2;
       existingGar.deltaM2 = garDiff;
       existingGar.subtotal = garDiff > 0 ? Math.round(garDiff * databuildRates.garage_m2) : Math.round(garDiff * databuildRates.garage_m2 * 0.8);
       existingGar.zoneLabel = isWorkshop
         ? "Garage & Integrated Workshop Footprint Extension"
         : (garDiff > 0 ? "Garage Footprint Extension" : "Garage Footprint Reduction");
-    } else if (Math.abs(garDiff) >= 0.05) {
+    } else if (isValidGarArea && Math.abs(garDiff) >= 1.5) {
       areaDeltas.push({
         zoneKey: "garageM2",
         zoneLabel: isWorkshop
@@ -3056,24 +3130,29 @@ export async function analyzeModifiedFloorplanFile(
 
   // C. Entry Porch room dimension
   const hasSpecificPorchDims = /1\.5\s*[xX*×]\s*1\.4|1\.4\s*[xX*×]\s*1\.5|1\.5\s*[xX*×]\s*1\.8|1\.8\s*[xX*×]\s*1\.5/i.test(combinedScanText);
-  const porchDimMatch = combinedScanText.match(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\-\s\t\n(]*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i) ||
-    combinedScanText.match(/(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*[:\-\s\t\n(]*(?:porch|portico)/i);
-  if (!candidateTableSpec.porchM2 && (porchDimMatch || hasSpecificPorchDims) && /1\.5|1\.4/i.test(combinedScanText) && !/porch.*2\.7/i.test(combinedScanText)) {
-    const w = porchDimMatch ? parseFloat(porchDimMatch[1].replace(/[·•]/g, ".")) : 1.5;
-    const l = porchDimMatch ? parseFloat(porchDimMatch[2].replace(/[·•]/g, ".")) : 1.4;
+  const porchDimMatch = combinedScanText.match(/(?:(?:entry\s*)?porch|covered\s*entry|portico)\s*[:\-\s\t(]{1,10}(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?\s*(?:[xX*×]|by)\s*(\d+(?:[.\u00B7\u2022]\d+)?)\s*m?/i);
+  if (!candidateTableSpec.porchM2 && (porchDimMatch || hasSpecificPorchDims) && /1\.5|1\.4|1\.6/i.test(combinedScanText) && !/porch.*2\.7/i.test(combinedScanText)) {
+    let w = porchDimMatch ? parseFloat(porchDimMatch[1].replace(/[·•]/g, ".")) : 1.5;
+    let l = porchDimMatch ? parseFloat(porchDimMatch[2].replace(/[·•]/g, ".")) : 1.4;
+    if (w > 50) w = Math.round((w / 1000) * 100) / 100;
+    if (l > 50) l = Math.round((l / 1000) * 100) / 100;
     let actualPorchM2 = Math.round(w * l * 100) / 100;
-    if (hasSpecificPorchDims || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.4) < 0.15) || (Math.abs(w - 1.4) < 0.15 && Math.abs(l - 1.5) < 0.15) || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.8) < 0.15)) {
+    const stdPorch = standardPorchM2 || 2.70;
+    const isWithinTolerance = Math.abs(actualPorchM2 - stdPorch) <= 0.5;
+    if (isWithinTolerance) {
+      actualPorchM2 = stdPorch;
+    } else if (hasSpecificPorchDims || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.4) < 0.15) || (Math.abs(w - 1.4) < 0.15 && Math.abs(l - 1.5) < 0.15) || (Math.abs(w - 1.5) < 0.15 && Math.abs(l - 1.8) < 0.15)) {
       actualPorchM2 = 2.10; // Exact Hudson 1.5m x 1.4m entry porch slab
     }
-    const stdPorch = standardPorchM2 || 2.70;
-    const porchDiff = Math.round((actualPorchM2 - stdPorch) * 100) / 100;
+    const isValidPorchArea = actualPorchM2 >= 0.5 && actualPorchM2 <= 30;
+    const porchDiff = isWithinTolerance ? 0 : (isValidPorchArea ? Math.round((actualPorchM2 - stdPorch) * 100) / 100 : 0);
     const existingPorch = areaDeltas.find((d) => d.zoneKey === "porchM2");
-    if (existingPorch) {
+    if (existingPorch && isValidPorchArea && Math.abs(porchDiff) >= 0.5) {
       existingPorch.modifiedM2 = actualPorchM2;
       existingPorch.deltaM2 = porchDiff;
       existingPorch.subtotal = porchDiff > 0 ? Math.round(porchDiff * databuildRates.porch_m2) : Math.round(porchDiff * databuildRates.porch_m2 * 0.8);
       existingPorch.zoneLabel = porchDiff > 0 ? "Entry Porch Extension" : "Entry Porch Reduction";
-    } else if (Math.abs(porchDiff) >= 0.05) {
+    } else if (isValidPorchArea && Math.abs(porchDiff) >= 0.5) {
       areaDeltas.push({
         zoneKey: "porchM2",
         zoneLabel: porchDiff > 0 ? "Entry Porch Extension" : "Entry Porch Reduction",
@@ -3410,9 +3489,9 @@ export async function analyzeModifiedFloorplanFile(
           description: pdrVanityRule.description,
           baseline: pdrVanityRule.baseline,
           detected: "Dedicated guest Powder Room (Pdr) layout with integrated hand vanity basin & mixer",
-          unitPrice: pdrVanityRule.unitPrice,
+          unitPrice: pdrVanityRule.unitPrice || 0,
           quantity: 1,
-          subtotal: pdrVanityRule.unitPrice,
+          subtotal: pdrVanityRule.unitPrice || 0,
           accepted: true,
           confidence: pdrVanityRule.confidence,
           isByOwner: false,
@@ -3431,9 +3510,9 @@ export async function analyzeModifiedFloorplanFile(
           description: pdrRule.description,
           baseline: pdrRule.baseline,
           detected: "Separate Powder Room (PDR) addition with basin and toilet suite",
-          unitPrice: pdrRule.unitPrice,
+          unitPrice: pdrRule.unitPrice || 0,
           quantity: 1,
-          subtotal: pdrRule.unitPrice,
+          subtotal: pdrRule.unitPrice || 0,
           accepted: true,
           confidence: pdrRule.confidence,
           isByOwner: false,
@@ -3458,9 +3537,9 @@ export async function analyzeModifiedFloorplanFile(
           description: butlerRule.description,
           baseline: butlerRule.baseline,
           detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and 2.1m stone bench",
-          unitPrice: butlerRule.unitPrice,
+          unitPrice: butlerRule.unitPrice || 0,
           quantity: 1,
-          subtotal: butlerRule.unitPrice,
+          subtotal: butlerRule.unitPrice || 0,
           accepted: true,
           confidence: butlerRule.confidence,
           isByOwner: false,
@@ -3485,9 +3564,9 @@ export async function analyzeModifiedFloorplanFile(
           description: showerRule.description,
           baseline: showerRule.baseline,
           detected: "Enlarged 1800mm × 900mm walk-in shower recess layout in Master Ensuite",
-          unitPrice: showerRule.unitPrice,
+          unitPrice: showerRule.unitPrice || 0,
           quantity: 1,
-          subtotal: showerRule.unitPrice,
+          subtotal: showerRule.unitPrice || 0,
           accepted: true,
           confidence: showerRule.confidence,
           isByOwner: false,
@@ -3512,9 +3591,9 @@ export async function analyzeModifiedFloorplanFile(
           description: islandRule.description,
           baseline: islandRule.baseline,
           detected: "Extended 3.5m × 1.0m island servery/prep benchtop notation on plan",
-          unitPrice: islandRule.unitPrice,
+          unitPrice: islandRule.unitPrice || 0,
           quantity: 1,
-          subtotal: islandRule.unitPrice,
+          subtotal: islandRule.unitPrice || 0,
           accepted: true,
           confidence: islandRule.confidence,
           isByOwner: false,
@@ -3540,9 +3619,9 @@ export async function analyzeModifiedFloorplanFile(
           description: vanityRule.description,
           baseline: vanityRule.baseline,
           detected: vanityRule.detected,
-          unitPrice: vanityRule.unitPrice,
+          unitPrice: vanityRule.unitPrice || 0,
           quantity: 1,
-          subtotal: vanityRule.unitPrice,
+          subtotal: vanityRule.unitPrice || 0,
           accepted: true,
           confidence: vanityRule.confidence,
           isByOwner: false,
@@ -4171,6 +4250,13 @@ export async function analyzeModifiedFloorplanFile(
       geminiNotes: geminiResult?.analysisNotes,
       canvasNotes: canvasResult?.notes,
       ceilingHeightM: geminiResult?.ceilingHeightM,
+      scaleCalibration: {
+        mmPerPixel: scaleCalibration.mmPerPixel,
+        pixelsPerMeter: scaleCalibration.pixelsPerMeter,
+        tierUsed: scaleCalibration.tierUsed,
+        anchorDescription: scaleCalibration.anchorDescription,
+        confidence: scaleCalibration.calibrationConfidence,
+      },
     };
   }
 
@@ -4355,9 +4441,9 @@ export async function analyzeModifiedFloorplanFile(
           description: rule.description,
           baseline: rule.baseline,
           detected: rule.detected,
-          unitPrice: rule.unitPrice,
+          unitPrice: rule.unitPrice || 0,
           quantity: 1,
-          subtotal: rule.unitPrice,
+          subtotal: rule.unitPrice || 0,
           accepted: true,
           confidence: rule.confidence ?? 0.85,
         });
@@ -4458,5 +4544,17 @@ export async function analyzeModifiedFloorplanFile(
     fileName: file.name,
     candidateBaseDesign: pendingCandidate,
     detectionSource: "deterministic",
+    scaleCalibration: calibrateForesightDrawingScale({
+      imageWidthPx: 1600,
+      imageHeightPx: 1200,
+      rawText,
+      masterCAD: {
+        widthM: cadSpec.width,
+        lengthM: cadSpec.length,
+        garageM2: standardGarageM2,
+        garageDims: cadSpec.garageDims,
+        alfrescoDims: cadSpec.alfrescoDims,
+      },
+    }),
   };
 }

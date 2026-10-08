@@ -1,0 +1,766 @@
+/**
+ * FORESIGHT FLOORPLAN EDITOR — LAYER & ITEM TAKEOFF CATALOGUE
+ * Standardized Specification Dictionary for Automated Pricing & Estimation Takeoffs
+ * Based on Foresight Architectural Layer Ingestion Standard (Published 30 September 2026)
+ * Scale Reference: 1:100 Scale (50mm on paper = 5m real-world; 10mm = 1m)
+ */
+
+export interface ForesightCatalogueItem {
+  code: string;
+  name: string;
+  trade: string;
+  category:
+    | "walls_structural"
+    | "doors_internal"
+    | "doors_external"
+    | "doors_csd"
+    | "doors_barn"
+    | "doors_sliding"
+    | "doors_stacker"
+    | "doors_bifold"
+    | "doors_garage"
+    | "windows_sliding"
+    | "windows_specialty"
+    | "kitchen_cabinetry"
+    | "kitchen_appliances"
+    | "bathroom_fixtures"
+    | "laundry"
+    | "furniture_beds"
+    | "furniture_living"
+    | "pools"
+    | "infrastructure"
+    | "stairs_site"
+    | "electrical";
+  widthMm: number;
+  lengthMm: number;
+  heightMm?: number;
+  scale100WidthMm: number;
+  scale100LengthMm: number;
+  description: string;
+  isOpening?: boolean;
+  standardRetailPrice?: number;
+  tradeCreditRate?: number; // e.g. 0.80 for 80% trade credit
+}
+
+export const FORESIGHT_CATALOGUE: Record<string, ForesightCatalogueItem> = {
+  // -------------------------------------------------------------
+  // WALLS & STRUCTURAL FRAMING
+  // -------------------------------------------------------------
+  "EXT WALL": {
+    code: "EXT WALL",
+    name: "Exterior Brick Veneer Wall (240mm)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 240,
+    lengthMm: 2400,
+    scale100WidthMm: 2.4,
+    scale100LengthMm: 24.0,
+    description: "240mm double-line brick veneer wall (110mm brick + 40mm cavity + 90mm timber stud frame)",
+  },
+  "INT WALL 90": {
+    code: "INT WALL 90",
+    name: "Internal Stud Wall (90mm)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 90,
+    lengthMm: 2400,
+    scale100WidthMm: 0.9,
+    scale100LengthMm: 24.0,
+    description: "90mm timber/steel stud partition wall for loadbearing internal structural frames",
+  },
+  "INT WALL 70": {
+    code: "INT WALL 70",
+    name: "Internal Stud Wall (70mm)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 70,
+    lengthMm: 2400,
+    scale100WidthMm: 0.7,
+    scale100LengthMm: 24.0,
+    description: "70mm slimline non-loadbearing room partition stud wall",
+  },
+  "CLAD WALL": {
+    code: "CLAD WALL",
+    name: "Cladding Exterior Wall (160mm)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 160,
+    lengthMm: 2400,
+    scale100WidthMm: 1.6,
+    scale100LengthMm: 24.0,
+    description: "160mm lightweight composite external cladding wall over 90mm timber frame",
+  },
+  "NIB 1000H": {
+    code: "NIB 1000H",
+    name: "Nib Wall (1000H)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 90,
+    lengthMm: 1000,
+    heightMm: 1000,
+    scale100WidthMm: 0.9,
+    scale100LengthMm: 10.0,
+    description: "1000mm high short partition / shower return privacy stub wall",
+  },
+  "BULKHEAD": {
+    code: "BULKHEAD",
+    name: "Dropped Bulkhead",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 300,
+    lengthMm: 2400,
+    scale100WidthMm: 3.0,
+    scale100LengthMm: 24.0,
+    description: "Dashed ceiling drop line indicating recessed soffit or service ducting",
+  },
+  "PIER 350": {
+    code: "PIER 350",
+    name: "Brick Pier (350x350)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 350,
+    lengthMm: 350,
+    scale100WidthMm: 3.5,
+    scale100LengthMm: 3.5,
+    description: "350x350mm isolated loadbearing masonry structural pillar",
+  },
+  "PIER 470": {
+    code: "PIER 470",
+    name: "Brick Pier (470x470)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 470,
+    lengthMm: 470,
+    scale100WidthMm: 4.7,
+    scale100LengthMm: 4.7,
+    description: "470x470mm double-brick structural pillar for porticos and alfrescos",
+  },
+  "ROBE": {
+    code: "ROBE",
+    name: "Sliding Robe Framing (1800W)",
+    trade: "Walls & Structural Framing",
+    category: "walls_structural",
+    widthMm: 600,
+    lengthMm: 1800,
+    scale100WidthMm: 6.0,
+    scale100LengthMm: 18.0,
+    description: "Built-in bedroom wardrobe enclosure with front sliding doors and shelf line",
+  },
+
+  // -------------------------------------------------------------
+  // INTERNAL HINGED DOORS
+  // -------------------------------------------------------------
+  "620": {
+    code: "620",
+    name: "Internal Door (620mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 620,
+    lengthMm: 620,
+    scale100WidthMm: 6.2,
+    scale100LengthMm: 6.2,
+    description: "620mm single leaf internal swing door with 90° arc (linen/cupboards)",
+    isOpening: true,
+    standardRetailPrice: 220,
+  },
+  "720": {
+    code: "720",
+    name: "Internal Door (720mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 720,
+    lengthMm: 720,
+    scale100WidthMm: 7.2,
+    scale100LengthMm: 7.2,
+    description: "720mm single leaf internal swing door with 90° arc (WCs and powder rooms)",
+    isOpening: true,
+    standardRetailPrice: 220,
+  },
+  "770": {
+    code: "770",
+    name: "Internal Door (770mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 770,
+    lengthMm: 770,
+    scale100WidthMm: 7.7,
+    scale100LengthMm: 7.7,
+    description: "770mm single leaf internal swing door with 90° arc",
+    isOpening: true,
+    standardRetailPrice: 220,
+  },
+  "820": {
+    code: "820",
+    name: "Internal Door (820mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 820,
+    lengthMm: 820,
+    scale100WidthMm: 8.2,
+    scale100LengthMm: 8.2,
+    description: "820mm standard builder internal passage swing door with 90° arc",
+    isOpening: true,
+    standardRetailPrice: 220,
+  },
+  "870": {
+    code: "870",
+    name: "Internal Door (870mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 870,
+    lengthMm: 870,
+    scale100WidthMm: 8.7,
+    scale100LengthMm: 8.7,
+    description: "870mm single leaf internal swing door with 90° arc",
+    isOpening: true,
+    standardRetailPrice: 260,
+  },
+  "920": {
+    code: "920",
+    name: "Internal Door (920mm)",
+    trade: "Internal Hinged Doors",
+    category: "doors_internal",
+    widthMm: 920,
+    lengthMm: 920,
+    scale100WidthMm: 9.2,
+    scale100LengthMm: 9.2,
+    description: "920mm wide single leaf internal swing door (NCC accessible clear opening)",
+    isOpening: true,
+    standardRetailPrice: 280,
+  },
+
+  // -------------------------------------------------------------
+  // EXTERNAL HINGED DOORS & SIDELIGHTS
+  // -------------------------------------------------------------
+  "EXT 820": {
+    code: "EXT 820",
+    name: "External Door (820mm)",
+    trade: "External Hinged Doors",
+    category: "doors_external",
+    widthMm: 820,
+    lengthMm: 820,
+    scale100WidthMm: 8.2,
+    scale100LengthMm: 8.2,
+    description: "820mm solid external entry door with brick jambs and weather sill",
+    isOpening: true,
+    standardRetailPrice: 550,
+  },
+  "EXT 920": {
+    code: "EXT 920",
+    name: "External Door (920mm)",
+    trade: "External Hinged Doors",
+    category: "doors_external",
+    widthMm: 920,
+    lengthMm: 920,
+    scale100WidthMm: 9.2,
+    scale100LengthMm: 9.2,
+    description: "920mm solid external front entrance door with weather sill",
+    isOpening: true,
+    standardRetailPrice: 650,
+  },
+  "EXT 820+SL": {
+    code: "EXT 820+SL",
+    name: "External Door (820mm) + 400mm Sidelight",
+    trade: "External Hinged Doors",
+    category: "doors_external",
+    widthMm: 820,
+    lengthMm: 1220,
+    scale100WidthMm: 8.2,
+    scale100LengthMm: 12.2,
+    description: "820mm external entrance door with adjacent 400mm glazed fixed sidelight window",
+    isOpening: true,
+    standardRetailPrice: 1100,
+  },
+  "EXT 820+420": {
+    code: "EXT 820+420",
+    name: "External Double Door (820+420)",
+    trade: "External Hinged Doors",
+    category: "doors_external",
+    widthMm: 820,
+    lengthMm: 1240,
+    scale100WidthMm: 8.2,
+    scale100LengthMm: 12.4,
+    description: "820mm primary active entrance leaf with 420mm secondary opening leaf",
+    isOpening: true,
+    standardRetailPrice: 1250,
+  },
+
+  // -------------------------------------------------------------
+  // CAVITY SLIDING DOORS (CSD)
+  // -------------------------------------------------------------
+  "CSD 620": {
+    code: "CSD 620",
+    name: "Cavity Slider (620mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 620,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 6.2,
+    description: "620mm internal pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 420,
+  },
+  "CSD 720": {
+    code: "CSD 720",
+    name: "Cavity Slider (720mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 720,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 7.2,
+    description: "720mm internal pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 420,
+  },
+  "CSD 770": {
+    code: "CSD 770",
+    name: "Cavity Slider (770mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 770,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 7.7,
+    description: "770mm internal pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 420,
+  },
+  "CSD 820": {
+    code: "CSD 820",
+    name: "Cavity Slider (820mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 820,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 8.2,
+    description: "820mm standard builder pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 450,
+  },
+  "CSD 870": {
+    code: "CSD 870",
+    name: "Cavity Slider (870mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 870,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 8.7,
+    description: "870mm internal pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 480,
+  },
+  "CSD 920": {
+    code: "CSD 920",
+    name: "Cavity Slider (920mm)",
+    trade: "Cavity Sliding Doors",
+    category: "doors_csd",
+    widthMm: 100,
+    lengthMm: 920,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 9.2,
+    description: "920mm wide accessible pocket sliding door retracting into stud wall cavity",
+    isOpening: true,
+    standardRetailPrice: 520,
+  },
+
+  // -------------------------------------------------------------
+  // FACE-HUNG BARN DOORS
+  // -------------------------------------------------------------
+  "BARN 820": {
+    code: "BARN 820",
+    name: "Face-Hung Barn Door (820mm)",
+    trade: "Face-Hung Barn Doors",
+    category: "doors_barn",
+    widthMm: 80,
+    lengthMm: 820,
+    scale100WidthMm: 0.8,
+    scale100LengthMm: 8.2,
+    description: "820mm surface-mounted timber sliding barn door on exposed wall track",
+    isOpening: true,
+    standardRetailPrice: 750,
+  },
+  "BARN 920": {
+    code: "BARN 920",
+    name: "Face-Hung Barn Door (920mm)",
+    trade: "Face-Hung Barn Doors",
+    category: "doors_barn",
+    widthMm: 80,
+    lengthMm: 920,
+    scale100WidthMm: 0.8,
+    scale100LengthMm: 9.2,
+    description: "920mm surface-mounted timber sliding barn door on exposed wall track",
+    isOpening: true,
+    standardRetailPrice: 820,
+  },
+  "BARN 1020": {
+    code: "BARN 1020",
+    name: "Face-Hung Barn Door (1020mm)",
+    trade: "Face-Hung Barn Doors",
+    category: "doors_barn",
+    widthMm: 80,
+    lengthMm: 1020,
+    scale100WidthMm: 0.8,
+    scale100LengthMm: 10.2,
+    description: "1020mm surface-mounted timber sliding barn door on exposed wall track",
+    isOpening: true,
+    standardRetailPrice: 950,
+  },
+  "BARN 1200": {
+    code: "BARN 1200",
+    name: "Face-Hung Barn Door (1200mm)",
+    trade: "Face-Hung Barn Doors",
+    category: "doors_barn",
+    widthMm: 80,
+    lengthMm: 1200,
+    scale100WidthMm: 0.8,
+    scale100LengthMm: 12.0,
+    description: "1200mm wide architectural sliding barn door on exposed wall track",
+    isOpening: true,
+    standardRetailPrice: 1100,
+  },
+
+  // -------------------------------------------------------------
+  // SLIDING GLASS DOORS (SD) & STACKERS
+  // -------------------------------------------------------------
+  "SD 21.18": {
+    code: "SD 21.18",
+    name: "Sliding Door (2100H x 1800W)",
+    trade: "Sliding Glass Doors",
+    category: "doors_sliding",
+    widthMm: 1800,
+    lengthMm: 2100,
+    scale100WidthMm: 18.0,
+    scale100LengthMm: 21.0,
+    description: "2100mm high by 1800mm wide 2-panel aluminum glass sliding patio door",
+    isOpening: true,
+    standardRetailPrice: 780,
+  },
+  "SD 21.21": {
+    code: "SD 21.21",
+    name: "Sliding Door (2100H x 2100W)",
+    trade: "Sliding Glass Doors",
+    category: "doors_sliding",
+    widthMm: 2100,
+    lengthMm: 2100,
+    scale100WidthMm: 21.0,
+    scale100LengthMm: 21.0,
+    description: "2100mm high by 2100mm wide 2-panel aluminum glass sliding patio door",
+    isOpening: true,
+    standardRetailPrice: 850,
+  },
+  "SD 21.24": {
+    code: "SD 21.24",
+    name: "Sliding Door (2100H x 2400W)",
+    trade: "Sliding Glass Doors",
+    category: "doors_sliding",
+    widthMm: 2400,
+    lengthMm: 2100,
+    scale100WidthMm: 24.0,
+    scale100LengthMm: 21.0,
+    description: "2100mm high by 2400mm wide 2-panel aluminum glass sliding patio door",
+    isOpening: true,
+    standardRetailPrice: 980,
+  },
+  "SD 21.27": {
+    code: "SD 21.27",
+    name: "Sliding Door (2100H x 2700W)",
+    trade: "Sliding Glass Doors",
+    category: "doors_sliding",
+    widthMm: 2700,
+    lengthMm: 2100,
+    scale100WidthMm: 27.0,
+    scale100LengthMm: 21.0,
+    description: "2100mm high by 2700mm wide 3-panel aluminum glass sliding patio door",
+    isOpening: true,
+    standardRetailPrice: 1150,
+  },
+  "STACKER 21.21": {
+    code: "STACKER 21.21",
+    name: "Stacker Door (2100H x 2100W)",
+    trade: "Stacker Sliding Doors",
+    category: "doors_stacker",
+    widthMm: 2100,
+    lengthMm: 2100,
+    scale100WidthMm: 21.0,
+    scale100LengthMm: 21.0,
+    description: "2100H x 2100W 3-panel glass patio stacker door stacking onto fixed sash",
+    isOpening: true,
+    standardRetailPrice: 1250,
+  },
+  "STACKER 21.24": {
+    code: "STACKER 21.24",
+    name: "Stacker Door (2100H x 2400W)",
+    trade: "Stacker Sliding Doors",
+    category: "doors_stacker",
+    widthMm: 2400,
+    lengthMm: 2100,
+    scale100WidthMm: 24.0,
+    scale100LengthMm: 21.0,
+    description: "2100H x 2400W 3-panel glass patio stacker door stacking onto fixed sash",
+    isOpening: true,
+    standardRetailPrice: 1350,
+  },
+  "STACKER 21.27": {
+    code: "STACKER 21.27",
+    name: "Stacker Door (2100H x 2700W)",
+    trade: "Stacker Sliding Doors",
+    category: "doors_stacker",
+    widthMm: 2700,
+    lengthMm: 2100,
+    scale100WidthMm: 27.0,
+    scale100LengthMm: 21.0,
+    description: "2100H x 2700W 3-panel glass patio stacker door stacking onto fixed sash",
+    isOpening: true,
+    standardRetailPrice: 1450,
+  },
+  "STACKER 21.30": {
+    code: "STACKER 21.30",
+    name: "Stacker Door (2100H x 3000W)",
+    trade: "Stacker Sliding Doors",
+    category: "doors_stacker",
+    widthMm: 3000,
+    lengthMm: 2100,
+    scale100WidthMm: 30.0,
+    scale100LengthMm: 21.0,
+    description: "2100H x 3000W 3-panel glass patio stacker door stacking onto fixed sash",
+    isOpening: true,
+    standardRetailPrice: 1540,
+  },
+
+  // -------------------------------------------------------------
+  // SLIDING WINDOWS (SW)
+  // -------------------------------------------------------------
+  "SW 12.06": {
+    code: "SW 12.06",
+    name: "Sliding Window (1200H x 600W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 600,
+    lengthMm: 1200,
+    scale100WidthMm: 6.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 600W aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 380,
+  },
+  "SW 12.09": {
+    code: "SW 12.09",
+    name: "Sliding Window (1200H x 900W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 900,
+    lengthMm: 1200,
+    scale100WidthMm: 9.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 900W aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 420,
+  },
+  "SW 12.12": {
+    code: "SW 12.12",
+    name: "Sliding Window (1200H x 1200W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 1200,
+    lengthMm: 1200,
+    scale100WidthMm: 12.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 1200W aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 460,
+  },
+  "SW 12.15": {
+    code: "SW 12.15",
+    name: "Sliding Window (1200H x 1500W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 1500,
+    lengthMm: 1200,
+    scale100WidthMm: 15.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 1500W aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 510,
+  },
+  "SW 12.18": {
+    code: "SW 12.18",
+    name: "Sliding Window (1200H x 1800W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 1800,
+    lengthMm: 1200,
+    scale100WidthMm: 18.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 1800W 2-panel aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 560,
+  },
+  "SW 12.21": {
+    code: "SW 12.21",
+    name: "Sliding Window (1200H x 2100W)",
+    trade: "Sliding Windows",
+    category: "windows_sliding",
+    widthMm: 2100,
+    lengthMm: 1200,
+    scale100WidthMm: 21.0,
+    scale100LengthMm: 12.0,
+    description: "1200H x 2100W 3-panel aluminum sliding window unit",
+    isOpening: true,
+    standardRetailPrice: 650,
+  },
+
+  // -------------------------------------------------------------
+  // KITCHEN CABINETRY & APPLIANCES
+  // -------------------------------------------------------------
+  "BENCH": {
+    code: "BENCH",
+    name: "Benchtop Along Wall (600mm Deep)",
+    trade: "Kitchen",
+    category: "kitchen_cabinetry",
+    widthMm: 600,
+    lengthMm: 2400,
+    scale100WidthMm: 6.0,
+    scale100LengthMm: 24.0,
+    description: "600mm deep base cabinetry run with front overhang line",
+  },
+  "ISLAND 900": {
+    code: "ISLAND 900",
+    name: "Island Bench (900mm Deep)",
+    trade: "Kitchen",
+    category: "kitchen_cabinetry",
+    widthMm: 900,
+    lengthMm: 2400,
+    scale100WidthMm: 9.0,
+    scale100LengthMm: 24.0,
+    description: "900mm deep freestanding kitchen island with breakfast bar overhang line",
+  },
+  "ISLAND 1200": {
+    code: "ISLAND 1200",
+    name: "Island Bench (1200mm Deep)",
+    trade: "Kitchen",
+    category: "kitchen_cabinetry",
+    widthMm: 1200,
+    lengthMm: 2700,
+    scale100WidthMm: 12.0,
+    scale100LengthMm: 27.0,
+    description: "1200mm deep luxury island bench with double-sided cabinetry/overhang",
+  },
+  "SINK": {
+    code: "SINK",
+    name: "Kitchen Sink (Double Bowl + Drainer)",
+    trade: "Kitchen",
+    category: "kitchen_appliances",
+    widthMm: 480,
+    lengthMm: 1100,
+    scale100WidthMm: 4.8,
+    scale100LengthMm: 11.0,
+    description: "1100x480mm stainless steel double bowl sink with drainer board and mixer tap",
+  },
+
+  // -------------------------------------------------------------
+  // BATHROOM & SANITARY FIXTURES
+  // -------------------------------------------------------------
+  "BATH 1500": {
+    code: "BATH 1500",
+    name: "Freestanding Bath (1500x750mm)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 750,
+    lengthMm: 1500,
+    scale100WidthMm: 7.5,
+    scale100LengthMm: 15.0,
+    description: "1500x750mm oval double-slipper freestanding acrylic bathtub",
+    standardRetailPrice: 1450,
+  },
+  "BATH 1650": {
+    code: "BATH 1650",
+    name: "Freestanding Bath (1650x800mm)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 800,
+    lengthMm: 1650,
+    scale100WidthMm: 8.0,
+    scale100LengthMm: 16.5,
+    description: "1650x800mm oval double-slipper freestanding acrylic bathtub (Standard)",
+    standardRetailPrice: 1650,
+  },
+  "BATH 1800": {
+    code: "BATH 1800",
+    name: "Freestanding Bath (1800x850mm)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 850,
+    lengthMm: 1800,
+    scale100WidthMm: 8.5,
+    scale100LengthMm: 18.0,
+    description: "1800x850mm luxury executive freestanding acrylic bathtub",
+    standardRetailPrice: 1950,
+  },
+  "SHOWER 900": {
+    code: "SHOWER 900",
+    name: "Shower Enclosure (900x900)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 900,
+    lengthMm: 900,
+    scale100WidthMm: 9.0,
+    scale100LengthMm: 9.0,
+    description: "900x900mm corner glass shower enclosure with center floor waste cross",
+  },
+  "SHOWER 1200x900": {
+    code: "SHOWER 1200x900",
+    name: "Rectangular Shower (1200x900)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 900,
+    lengthMm: 1200,
+    scale100WidthMm: 9.0,
+    scale100LengthMm: 12.0,
+    description: "1200x900mm walk-in semi-frameless glass shower enclosure",
+    standardRetailPrice: 650,
+  },
+  "STRIP DRAIN": {
+    code: "STRIP DRAIN",
+    name: "Linear Strip Drain (900x100)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 100,
+    lengthMm: 900,
+    scale100WidthMm: 1.0,
+    scale100LengthMm: 9.0,
+    description: "900x100mm linear stainless steel tiled floor waste grate",
+    standardRetailPrice: 380,
+  },
+  "BASIN": {
+    code: "BASIN",
+    name: "Vanity Basin (Countertop 500x400)",
+    trade: "Bathroom",
+    category: "bathroom_fixtures",
+    widthMm: 400,
+    lengthMm: 500,
+    scale100WidthMm: 4.0,
+    scale100LengthMm: 5.0,
+    description: "500x400mm oval vitreous china countertop or semi-recessed vanity hand basin",
+  },
+};
+
+/**
+ * Searches the Foresight catalogue by plan code or dimension callout.
+ */
+export function lookupForesightItem(code: string): ForesightCatalogueItem | null {
+  if (!code) return null;
+  const clean = code.trim().toUpperCase();
+  if (FORESIGHT_CATALOGUE[clean]) return FORESIGHT_CATALOGUE[clean];
+
+  // Fuzzy match on key
+  for (const [key, item] of Object.entries(FORESIGHT_CATALOGUE)) {
+    if (clean.includes(key) || key.includes(clean)) {
+      return item;
+    }
+  }
+  return null;
+}
