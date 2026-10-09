@@ -16,20 +16,39 @@ import {
   Check,
   ChevronRight,
   Layers,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
-import { V2_STEPS, type V2StepId } from "./V2Types";
+import {
+  V2_STEPS,
+  POPULAR_VARIATIONS,
+  type V2StepId,
+  type QuickQuoteTemplate,
+} from "./V2Types";
 import { V2StepClient } from "./V2StepClient";
 import { V2StepFloorPlan } from "./V2StepFloorPlan";
 import { V2StepInclusions } from "./V2StepInclusions";
 import { V2StepSiteCosts } from "./V2StepSiteCosts";
 import { V2StepVariations } from "./V2StepVariations";
 import { V2StepReview } from "./V2StepReview";
-import type { FullQuote } from "@/lib/quoting/quoteTypes";
-import { getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import type { FullQuote, QuoteSelectedLineItem } from "@/lib/quoting/quoteTypes";
+import {
+  getEffectiveDesignName,
+  getStandardAreaBreakdown,
+  getTierPrice,
+  getAutomatedPromotionDiscount,
+} from "@/lib/quoting/quoteEngine";
+import {
+  SINGLE_STOREY_PRICES,
+  DOUBLE_STOREY_PRICES,
+  DUAL_OC_PRICES,
+  SPLIT_LEVEL_PRICES,
+} from "@/lib/pricelist.data";
+import { plansForDesign } from "@/components/flyer/floorplans";
+import { toast } from "sonner";
 
 interface QuoteBuilderV2Props {
   quote: FullQuote;
@@ -122,11 +141,94 @@ export function QuoteBuilderV2({
     onUpdateQuote({ lineItems: Array.from(existingMap.values()) });
   };
 
+  // 1-Click Fast Start Quote Template handler
+  const handleApplyTemplate = (tmpl: QuickQuoteTemplate) => {
+    const allModels = [
+      ...SINGLE_STOREY_PRICES,
+      ...DOUBLE_STOREY_PRICES,
+      ...DUAL_OC_PRICES,
+      ...SPLIT_LEVEL_PRICES,
+    ];
+    const matchedModel = allModels.find(
+      (m) => m.name.toLowerCase() === tmpl.designName.toLowerCase()
+    );
+
+    const basePrice = matchedModel
+      ? getTierPrice(matchedModel, tmpl.specTier, tmpl.housingType)
+      : quote.design.basePrice || 349900;
+    const stdM2 = matchedModel ? matchedModel.m2 : 192.24;
+    const stdAreas = getStandardAreaBreakdown(tmpl.designName, tmpl.housingType, stdM2);
+    const plans = plansForDesign(tmpl.designName);
+
+    // Site settings based on preset
+    const sitePatch: Partial<FullQuote["siteConditions"]> = {
+      soilClass: tmpl.sitePresetId === "sloping_reactive" ? "Class H2" : tmpl.sitePresetId === "flat_greenfield" ? "Class M" : "Class H1",
+      fallMeters: tmpl.sitePresetId === "sloping_reactive" ? 1.2 : tmpl.sitePresetId === "flat_greenfield" ? 0 : 0.5,
+      screwPieringRequired: tmpl.sitePresetId !== "flat_greenfield",
+      demolitionAsbestosRequired: tmpl.sitePresetId === "knockdown_rebuild",
+      sedimentAssetProtectionCost: 1950,
+    };
+    if (tmpl.sitePresetId === "knockdown_rebuild") {
+      sitePatch.demolitionAsbestosCost = 34500;
+      sitePatch.trafficControlRequired = true;
+      sitePatch.trafficControlCost = 6500;
+    }
+
+    // Line items
+    const selectedLineItems: QuoteSelectedLineItem[] = POPULAR_VARIATIONS
+      .filter((p) => tmpl.variationIds.includes(p.id))
+      .map((p) => ({
+        id: p.id,
+        catalogueItemId: p.id,
+        category: p.category,
+        name: p.name,
+        description: p.description,
+        unitType: "fixed",
+        unitRate: p.price,
+        quantity: 1,
+        subtotal: p.price,
+        isIncluded: true,
+        isClientSelectable: true,
+        clientSelected: true,
+      }));
+
+    onUpdateQuote({
+      client: {
+        ...quote.client,
+        ...tmpl.client,
+      },
+      design: {
+        ...quote.design,
+        designName: tmpl.designName,
+        housingType: tmpl.housingType as any,
+        specTier: tmpl.specTier,
+        designM2: stdM2,
+        standardDesignM2: stdM2,
+        basePrice,
+        standardBasePrice: basePrice,
+        standardAreas: stdAreas,
+        modifiedAreas: { ...stdAreas },
+        isModifiedFloorplan: false,
+        floorplanUrl: plans[0]?.url || quote.design.floorplanUrl,
+        promotionsDiscount: getAutomatedPromotionDiscount(stdM2),
+      },
+      siteConditions: {
+        ...quote.siteConditions,
+        ...sitePatch,
+      },
+      lineItems: selectedLineItems,
+    });
+
+    toast.success(`Loaded ${tmpl.name} template! Advancing to estimate summary...`);
+    setActiveStep("review");
+    scrollToTop();
+  };
+
   const designName = getEffectiveDesignName(quote.design) || "Design Not Selected";
   const grossTotal = quote.pricing?.grossEstimatedInvestment || 0;
 
   return (
-    <div ref={stepContainerRef} className="space-y-6 pb-28">
+    <div ref={stepContainerRef} className="space-y-6 pb-36">
       {/* V2 Intro & Step Indicator */}
       <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border ${
         isLight
@@ -153,7 +255,9 @@ export function QuoteBuilderV2({
             variant="ghost"
             size="sm"
             onClick={onSwitchToDetailed}
-            className="text-xs text-slate-400 hover:text-slate-200 gap-1.5 h-8"
+            className={`text-xs gap-1.5 h-8 cursor-pointer ${
+              isLight ? "text-slate-600 hover:text-slate-950" : "text-slate-400 hover:text-slate-200"
+            }`}
           >
             <Layers className="h-3.5 w-3.5 text-cyan-400" />
             Switch to Detailed Studio
@@ -230,6 +334,7 @@ export function QuoteBuilderV2({
           <V2StepClient
             client={quote.client}
             onChange={handleClientChange}
+            onApplyTemplate={handleApplyTemplate}
             onNext={handleGoNext}
             isLight={isLight}
           />
@@ -294,7 +399,7 @@ export function QuoteBuilderV2({
         )}
       </div>
 
-      {/* Floating Bottom Estimate Bar (Always visible for real-time clarity) */}
+      {/* Floating Bottom Estimate Bar (Unified with Prev & Next actions) */}
       <div className="fixed bottom-4 left-0 right-0 z-40 px-4 pointer-events-none">
         <div
           className={`max-w-4xl mx-auto rounded-2xl border p-3.5 shadow-2xl backdrop-blur-xl pointer-events-auto flex items-center justify-between gap-4 ${
@@ -335,26 +440,44 @@ export function QuoteBuilderV2({
               </span>
             </div>
 
-            {activeStep !== "review" ? (
-              <Button
-                size="sm"
-                onClick={handleGoNext}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm"
-              >
-                <span>Next</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={onDownloadPdf}
-                disabled={downloading}
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>PDF</span>
-              </Button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {currentStepIndex > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGoPrev}
+                  className={`h-10 px-3 text-xs gap-1 cursor-pointer ${
+                    isLight
+                      ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                      : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
+                  }`}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Prev</span>
+                </Button>
+              )}
+
+              {activeStep !== "review" ? (
+                <Button
+                  size="sm"
+                  onClick={handleGoNext}
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm cursor-pointer"
+                >
+                  <span>Next</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={onDownloadPdf}
+                  disabled={downloading}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm cursor-pointer"
+                >
+                  <Download className="h-3.5 w-3.5" />
+                  <span>PDF</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

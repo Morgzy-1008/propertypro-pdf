@@ -22,36 +22,36 @@ export const V2_STEPS: V2StepConfig[] = [
     id: "floorplan",
     number: 2,
     label: "Floor Plan",
-    shortLabel: "Design",
-    description: "Select design or upload modified plan",
+    shortLabel: "Floor Plan",
+    description: "Standard design or modified plan",
   },
   {
     id: "inclusions",
     number: 3,
     label: "Inclusions",
     shortLabel: "Inclusions",
-    description: "Choose specification level",
+    description: "H1, H2, or H3 specification tier",
   },
   {
     id: "site_costs",
     number: 4,
     label: "Site Costs",
     shortLabel: "Site Costs",
-    description: "Select site preset or adjust land conditions",
+    description: "Smart site packages or custom land works",
   },
   {
     id: "variations",
     number: 5,
     label: "Floor Plan Inclusions & Variations",
     shortLabel: "Variations",
-    description: "Popular upgrades and plan modifications",
+    description: "Popular upgrades, packs & modifications",
   },
   {
     id: "review",
     number: 6,
     label: "Review & Export",
     shortLabel: "Review",
-    description: "Final estimate summary and export",
+    description: "Turnkey investment hero & instant PDF",
   },
 ];
 
@@ -59,7 +59,6 @@ export interface SiteCostPreset {
   id: string;
   title: string;
   tagline: string;
-  estimatedCostLabel: string;
   soilClass: SoilClass;
   fallMeters: number;
   piering: boolean;
@@ -73,7 +72,6 @@ export const SITE_COST_PRESETS: SiteCostPreset[] = [
     id: "flat_greenfield",
     title: "Standard Flat Greenfield",
     tagline: "Standard new estate flat block",
-    estimatedCostLabel: "$0 Included in Base",
     soilClass: "Class M",
     fallMeters: 0,
     piering: false,
@@ -84,20 +82,18 @@ export const SITE_COST_PRESETS: SiteCostPreset[] = [
   {
     id: "typical_suburban",
     title: "Typical Suburban Estate",
-    tagline: "Minor slope & standard reactive clay",
-    estimatedCostLabel: "~$12,500 Allowance",
+    tagline: "Standard reactive clay & piering",
     soilClass: "Class H1",
     fallMeters: 0.5,
     piering: true,
     sediment: true,
     demo: false,
-    description: "Highly reactive Class H1 soil, 0.5m contour fall, concrete screw piering allowance and asset protection.",
+    description: "Class H1 reactive soil, 0.5m contour fall, concrete screw piering allowance and sediment asset protection.",
   },
   {
     id: "sloping_reactive",
     title: "Sloping & Heavy Clay Lot",
     tagline: "Moderate fall, severe soil & rock risk",
-    estimatedCostLabel: "~$28,500 Allowance",
     soilClass: "Class H2",
     fallMeters: 1.2,
     piering: true,
@@ -109,7 +105,6 @@ export const SITE_COST_PRESETS: SiteCostPreset[] = [
     id: "knockdown_rebuild",
     title: "Knockdown Rebuild / Brownfield",
     tagline: "Infill site with existing dwelling",
-    estimatedCostLabel: "~$48,000 Allowance",
     soilClass: "Class H1",
     fallMeters: 0.8,
     piering: true,
@@ -118,6 +113,36 @@ export const SITE_COST_PRESETS: SiteCostPreset[] = [
     description: "Demolition allowance, council traffic control, asbestos removal buffer, post-demo contour & soil survey.",
   },
 ];
+
+/**
+ * Dynamically calculates the estimated site works cost for a preset based on the actual house GFA.
+ */
+export function calculatePresetCost(preset: SiteCostPreset, gfaM2: number, isSplit: boolean = false): number {
+  if (preset.id === "flat_greenfield") return 0;
+  const effectiveGfa = Math.max(100, gfaM2 || 192);
+
+  const soilRate = preset.soilClass === "Class H1" ? 30 : preset.soilClass === "Class H2" ? 55 : preset.soilClass === "Class E" ? 80 : 0;
+  const soilTotal = Math.round(soilRate * effectiveGfa);
+
+  let fallTotal = 0;
+  if (preset.fallMeters > 1.0) {
+    const excess = preset.fallMeters - 1.0;
+    const rate = isSplit ? 12.5 : 15.0;
+    fallTotal = Math.round(excess * 10 * rate * effectiveGfa);
+  }
+
+  const pieringCost = preset.piering ? Math.round(effectiveGfa * 90) : 0;
+  const sedimentCost = preset.sediment ? 1950 : 0;
+
+  let extra = 0;
+  if (preset.id === "sloping_reactive") {
+    extra = 7500 + 5000; // retaining wall + rock excavation
+  } else if (preset.id === "knockdown_rebuild") {
+    extra = 34500 + 6500; // demolition buffer + traffic control
+  }
+
+  return soilTotal + fallTotal + pieringCost + sedimentCost + extra;
+}
 
 export interface PopularVariationPreset {
   id: string;
@@ -208,5 +233,93 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     description: "Dedicated 32A single-phase power supply to garage with isolator switch, ready for EV wallbox charger installation.",
     price: 1250,
     highlight: "Future proofing",
+  },
+];
+
+export interface QuickQuoteTemplate {
+  id: string;
+  name: string;
+  badge: string;
+  tagline: string;
+  client: {
+    clientName: string;
+    clientPhone: string;
+    clientEmail: string;
+    siteAddress: string;
+    suburb: string;
+    estate: string;
+    lotNumber: string;
+    hasClient2?: boolean;
+    client2Name?: string;
+  };
+  designName: string;
+  housingType: string;
+  specTier: "H1 Smart Living" | "H2 Design Collection" | "H3 Luxury Inclusions";
+  sitePresetId: string;
+  variationIds: string[];
+}
+
+export const QUICK_QUOTE_TEMPLATES: QuickQuoteTemplate[] = [
+  {
+    id: "family_amber21",
+    name: "Popular Family Home",
+    badge: "Most Popular",
+    tagline: "Amber 21 • H2 Design • Ducted AC & 2740mm Ceilings",
+    client: {
+      clientName: "David & Sarah Miller",
+      clientPhone: "0412 345 678",
+      clientEmail: "david.miller@example.com.au",
+      siteAddress: "42 Sanctuary Boulevard",
+      suburb: "North Lakes",
+      estate: "The Sanctuary",
+      lotNumber: "Lot 108",
+      hasClient2: true,
+      client2Name: "Sarah Miller",
+    },
+    designName: "Amber 21",
+    housingType: "Single Storey",
+    specTier: "H2 Design Collection",
+    sitePresetId: "typical_suburban",
+    variationIds: ["pop_ceiling_2740", "pop_h1_ducted_ac"],
+  },
+  {
+    id: "first_home_azure19",
+    name: "First Home Buyer Package",
+    badge: "Great Value",
+    tagline: "Azure 19 • H1 Smart Living • Turnkey Greenfield",
+    client: {
+      clientName: "Alex & Jordan Taylor",
+      clientPhone: "0433 112 233",
+      clientEmail: "alex.taylor@example.com.au",
+      siteAddress: "15 Peppercorn Way",
+      suburb: "Ripley",
+      estate: "Ripley Valley",
+      lotNumber: "Lot 44",
+    },
+    designName: "Azure 19",
+    housingType: "Single Storey",
+    specTier: "H1 Smart Living",
+    sitePresetId: "flat_greenfield",
+    variationIds: ["pop_h1_ducted_ac"],
+  },
+  {
+    id: "luxury_double",
+    name: "Executive Knockdown Rebuild",
+    badge: "Luxury Living",
+    tagline: "Deco 30 • H3 Luxury Living • Knockdown Infill Package",
+    client: {
+      clientName: "Michael & Emma Watson",
+      clientPhone: "0401 987 654",
+      clientEmail: "michael.watson@example.com.au",
+      siteAddress: "88 Stanley Terrace",
+      suburb: "Indooroopilly",
+      estate: "Established Metro",
+      lotNumber: "Lot 12",
+    },
+    designName: "Deco 30",
+    housingType: "Double Storey",
+    specTier: "H3 Luxury Inclusions",
+    sitePresetId: "knockdown_rebuild",
+    variationIds: ["pop_waterfall_40mm", "pop_tiles_ceiling_bath", "pop_epoxy_garage"],
   },
 ];

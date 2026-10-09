@@ -294,7 +294,7 @@ export function V2StepFloorPlan({
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
               2
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 2 of 5</span>
+            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 2 of 6</span>
           </div>
           <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
             Which house design are we quoting?
@@ -569,16 +569,16 @@ export function V2StepFloorPlan({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Living Area */}
               <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className="text-xs font-semibold text-slate-300 block mb-1">Living Area</span>
+                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Living Area</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold font-mono text-emerald-400">
+                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     {currentMod.livingM2 || currentMod.groundLivingM2 || 135} m²
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("livingM2", -1)}
                     >
                       <Minus className="h-3 w-3" />
@@ -586,7 +586,7 @@ export function V2StepFloorPlan({
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("livingM2", 1)}
                     >
                       <Plus className="h-3 w-3" />
@@ -600,16 +600,16 @@ export function V2StepFloorPlan({
 
               {/* Garage Area */}
               <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className="text-xs font-semibold text-slate-300 block mb-1">Double Garage</span>
+                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Double Garage</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold font-mono text-emerald-400">
+                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     {currentMod.garageM2 || 34} m²
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("garageM2", -1)}
                     >
                       <Minus className="h-3 w-3" />
@@ -617,7 +617,7 @@ export function V2StepFloorPlan({
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("garageM2", 1)}
                     >
                       <Plus className="h-3 w-3" />
@@ -631,16 +631,16 @@ export function V2StepFloorPlan({
 
               {/* Alfresco Area */}
               <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className="text-xs font-semibold text-slate-300 block mb-1">Outdoor Alfresco</span>
+                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Outdoor Alfresco</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold font-mono text-emerald-400">
+                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     {currentMod.alfrescoM2 || 12} m²
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("alfrescoM2", -1)}
                     >
                       <Minus className="h-3 w-3" />
@@ -648,7 +648,7 @@ export function V2StepFloorPlan({
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("alfrescoM2", 1)}
                     >
                       <Plus className="h-3 w-3" />
@@ -662,16 +662,16 @@ export function V2StepFloorPlan({
 
               {/* Porch Area */}
               <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className="text-xs font-semibold text-slate-300 block mb-1">Entry Porch</span>
+                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Entry Porch</span>
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-bold font-mono text-emerald-400">
+                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     {currentMod.porchM2 || 3} m²
                   </span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("porchM2", -1)}
                     >
                       <Minus className="h-3 w-3" />
@@ -679,7 +679,7 @@ export function V2StepFloorPlan({
                     <Button
                       size="icon"
                       variant="outline"
-                      className="h-7 w-7 text-xs border-slate-700"
+                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
                       onClick={() => handleAdjustArea("porchM2", 1)}
                     >
                       <Plus className="h-3 w-3" />
@@ -690,6 +690,17 @@ export function V2StepFloorPlan({
                   Std: {currentStd.porchM2 || 3} m²
                 </span>
               </div>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-700/30 flex justify-end">
+              <Button
+                type="button"
+                onClick={onNext}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-9"
+              >
+                <span>Continue with Modified Areas</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </div>
         </div>

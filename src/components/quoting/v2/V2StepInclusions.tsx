@@ -1,24 +1,18 @@
 import React from "react";
-import {
-  PackageCheck,
-  Sparkles,
-  Check,
-  CheckCircle2,
-  ArrowRight,
-  ArrowLeft,
-  Flame,
-  ShieldCheck,
-  Star,
-  Layers,
-} from "lucide-react";
+import { Check, Sparkles, ArrowRight, ArrowLeft, Layers, ShieldCheck, Star, Award, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
+import {
+  SINGLE_STOREY_PRICES,
+  DOUBLE_STOREY_PRICES,
+  DUAL_OC_PRICES,
+  SPLIT_LEVEL_PRICES,
+} from "@/lib/pricelist.data";
 import { getTierPrice } from "@/lib/quoting/quoteEngine";
-import { SINGLE_STOREY_PRICES, DOUBLE_STOREY_PRICES, DUAL_OC_PRICES, SPLIT_LEVEL_PRICES } from "@/lib/pricelist.data";
-import type { QuoteDesignSelection, InclusionTier } from "@/lib/quoting/quoteTypes";
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
+import type { QuoteDesignSelection, InclusionTier } from "@/lib/quoting/quoteTypes";
+import { toast } from "sonner";
 
 interface V2StepInclusionsProps {
   design: QuoteDesignSelection;
@@ -28,25 +22,21 @@ interface V2StepInclusionsProps {
   isLight: boolean;
 }
 
-interface TierFeature {
-  text: string;
-  isUpgrade?: boolean;
-}
-
-interface TierCardInfo {
+interface TierCardDef {
   tier: InclusionTier;
   shortCode: "H1" | "H2" | "H3";
   title: string;
   tagline: string;
   badge?: string;
-  features: TierFeature[];
+  badgeColor?: string;
+  features: { text: string; isUpgrade?: boolean }[];
   accentBorder: string;
   glowClass: string;
 }
 
-const TIERS: TierCardInfo[] = [
+const TIERS: TierCardDef[] = [
   {
-    tier: "H1 Smart Inclusions",
+    tier: "H1 Smart Living",
     shortCode: "H1",
     title: "Smart Living",
     tagline: "Essential Value & Reliable Quality",
@@ -62,11 +52,12 @@ const TIERS: TierCardInfo[] = [
     glowClass: "hover:border-slate-400",
   },
   {
-    tier: "H2 Design Inclusions",
+    tier: "H2 Design Collection",
     shortCode: "H2",
     title: "Design Collection",
     tagline: "The Hudson Signature Standard",
     badge: "Most Popular",
+    badgeColor: "bg-emerald-500 text-slate-950",
     features: [
       { text: "900mm Westinghouse gas cooktop & canopy rangehood", isUpgrade: true },
       { text: "20mm stone to kitchen, bathroom & ensuite vanities", isUpgrade: true },
@@ -84,6 +75,7 @@ const TIERS: TierCardInfo[] = [
     title: "Luxury Living",
     tagline: "Executive Architectural Finish",
     badge: "Executive",
+    badgeColor: "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950",
     features: [
       { text: "40mm stone benchtops with dual waterfall ends", isUpgrade: true },
       { text: "2740mm (9ft) high ceilings to ground floor", isUpgrade: true },
@@ -117,7 +109,7 @@ export function V2StepInclusions({
 
   const currentTierNormalized = (design.specTier || "H2").toUpperCase();
 
-  const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3") => {
+  const handleSelectTier = (tier: InclusionTier, shortCode: "H1" | "H2" | "H3", autoShift: boolean = true) => {
     let nextBasePrice = design.basePrice;
     let nextStdBasePrice = design.standardBasePrice;
 
@@ -133,6 +125,12 @@ export function V2StepInclusions({
     });
 
     toast.success(`Inclusion level set to ${tier}!`);
+
+    if (autoShift) {
+      setTimeout(() => {
+        onNext();
+      }, 350);
+    }
   };
 
   // Facades for current design
@@ -150,13 +148,13 @@ export function V2StepInclusions({
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
               3
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 3 of 5</span>
+            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 3 of 6</span>
           </div>
           <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
             Choose an Inclusions Level
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Select the specification package for {design.designName || "your home"}. All inclusions update pricing instantly.
+            Select the specification package for {design.designName || "your home"}. Selecting a tier automatically shifts to Site Costs.
           </p>
         </div>
       </div>
@@ -176,79 +174,103 @@ export function V2StepInclusions({
           return (
             <div
               key={item.shortCode}
-              onClick={() => handleSelectTier(item.tier, item.shortCode)}
+              onClick={() => handleSelectTier(item.tier, item.shortCode, true)}
               className={`rounded-2xl border p-6 flex flex-col justify-between cursor-pointer transition-all duration-200 relative hover:scale-[1.01] ${
                 isSelected
                   ? isLight
-                    ? `bg-emerald-50/70 border-emerald-500 shadow-md ring-2 ring-emerald-500/20`
-                    : `bg-slate-900/90 border-emerald-400 shadow-xl shadow-emerald-500/10 ring-1 ring-emerald-400`
+                    ? "bg-emerald-50/90 border-emerald-500 shadow-lg ring-2 ring-emerald-500/30"
+                    : "bg-emerald-950/30 border-emerald-500 shadow-xl ring-2 ring-emerald-500/40"
                   : isLight
-                  ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
-                  : "bg-slate-900/50 border-slate-800/80 hover:border-slate-700"
+                  ? "bg-white border-slate-200 hover:border-slate-300 shadow-sm"
+                  : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 backdrop-blur-md"
               }`}
             >
-              {/* Top Badge */}
+              {/* Optional Ribbon Badge */}
               {item.badge && (
-                <div className="absolute -top-3 right-6">
-                  <Badge className="bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold text-[10px] shadow-sm uppercase tracking-wider">
+                <div className="absolute -top-3 right-4">
+                  <Badge className={`${item.badgeColor || "bg-emerald-500 text-slate-950"} font-bold text-[10px] uppercase tracking-wider px-2.5 py-0.5 shadow-sm`}>
                     {item.badge}
                   </Badge>
                 </div>
               )}
 
               <div>
+                {/* Header info */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`text-xs font-mono font-bold px-2 py-0.5 rounded-md ${
+                      className={`inline-flex items-center justify-center w-8 h-8 rounded-xl font-bold text-xs ${
                         item.shortCode === "H3"
-                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          ? "bg-amber-500/20 text-amber-400"
                           : item.shortCode === "H2"
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : "bg-slate-500/20 text-slate-300 border border-slate-500/30"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : "bg-slate-500/20 text-slate-300"
                       }`}
                     >
                       {item.shortCode}
                     </span>
-                    <h3 className={`text-lg font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <h3 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {item.title}
                     </h3>
                   </div>
 
                   {isSelected && (
-                    <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center">
-                      <Check className="h-3 w-3 stroke-[3]" />
-                    </span>
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center flex-none">
+                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    </div>
                   )}
                 </div>
 
-                <p className="text-xs text-slate-400 mb-4">{item.tagline}</p>
+                <p className="text-xs text-slate-400 mb-5">{item.tagline}</p>
 
-                {/* Price Display */}
-                <div className="py-3 px-4 rounded-xl bg-slate-950/40 border border-slate-800/60 mb-5">
-                  <span className="text-[10px] uppercase tracking-wider text-slate-400 block">
+                {/* Price Box */}
+                <div
+                  className={`p-3.5 rounded-xl border mb-5 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-200"
+                      : "bg-slate-950/60 border-slate-800/80"
+                  }`}
+                >
+                  <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
                     Base House Price
                   </span>
-                  <div className="flex items-baseline gap-1 mt-0.5">
+                  <div className="flex items-baseline justify-between mt-0.5">
                     <span className={`text-xl font-bold font-mono ${isLight ? "text-slate-900" : "text-white"}`}>
                       {formatAud(tierPrice)}
                     </span>
+                    {currentModel && item.shortCode !== "H2" && (
+                      <span className="text-xs font-semibold font-mono text-slate-400">
+                        {tierPrice > design.basePrice
+                          ? `+${formatAud(tierPrice - design.basePrice)}`
+                          : formatAud(tierPrice - design.basePrice)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {/* Feature Bullet Points */}
+                {/* Feature Bullet Points with High Contrast */}
                 <div className="space-y-2.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                  <span className={`text-[11px] font-bold uppercase tracking-wider block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                     Key Specifications:
                   </span>
                   {item.features.map((feat, idx) => (
                     <div key={idx} className="flex items-start gap-2 text-xs">
                       <CheckCircle2
                         className={`h-3.5 w-3.5 flex-none mt-0.5 ${
-                          feat.isUpgrade ? "text-amber-400" : "text-emerald-400"
+                          feat.isUpgrade ? "text-amber-500" : "text-emerald-500"
                         }`}
                       />
-                      <span className={feat.isUpgrade ? "font-semibold text-slate-200" : "text-slate-400"}>
+                      <span
+                        className={
+                          feat.isUpgrade
+                            ? isLight
+                              ? "font-semibold text-slate-900"
+                              : "font-semibold text-slate-100"
+                            : isLight
+                            ? "text-slate-700"
+                            : "text-slate-300"
+                        }
+                      >
                         {feat.text}
                       </span>
                     </div>
@@ -256,12 +278,16 @@ export function V2StepInclusions({
                 </div>
               </div>
 
-              {/* Select Button */}
+              {/* 1-Click Action Button */}
               <div className="mt-6 pt-4 border-t border-slate-700/30">
                 <Button
                   type="button"
                   size="sm"
-                  className={`w-full text-xs font-bold transition-all ${
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectTier(item.tier, item.shortCode, true);
+                  }}
+                  className={`w-full text-xs font-bold transition-all h-9 cursor-pointer ${
                     isSelected
                       ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
                       : isLight
@@ -269,7 +295,7 @@ export function V2StepInclusions({
                       : "border border-slate-800 bg-slate-800/60 text-slate-200 hover:bg-slate-800"
                   }`}
                 >
-                  {isSelected ? "Selected Specification" : `Select ${item.title}`}
+                  {isSelected ? "Selected ✓ Continue to Site Costs →" : `Select ${item.title} & Continue →`}
                 </Button>
               </div>
             </div>
@@ -294,7 +320,7 @@ export function V2StepInclusions({
               </h3>
             </div>
             <span className="text-xs text-slate-400">
-              Active: <span className="font-bold text-emerald-400">{design.facadeName || "Classic"}</span>
+              Active: <span className="font-bold text-emerald-500">{design.facadeName || "Classic"}</span>
               {design.facadePrice ? ` (+${formatAud(design.facadePrice)})` : " (Included)"}
             </span>
           </div>
@@ -356,7 +382,7 @@ export function V2StepInclusions({
         <Button
           type="button"
           onClick={onNext}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer h-11"
         >
           Continue to Site Costs
           <ArrowRight className="h-4 w-4" />
