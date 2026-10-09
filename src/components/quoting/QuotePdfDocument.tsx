@@ -837,12 +837,15 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const dualLivingCost = siteConditions.dualLivingInfrastructureRequired ? (siteConditions.dualLivingInfrastructureCost ?? 23000) : 0;
   const sedimentCost = Number(siteConditions.sedimentAssetProtectionCost) || 0;
 
-  // Geotechnical Allowances ($90 / m2 default, user editable)
-  const screwPieringCost = siteConditions.screwPieringRequired
-    ? (siteConditions.screwPieringCost !== undefined && !isNaN(Number(siteConditions.screwPieringCost))
-        ? Number(siteConditions.screwPieringCost)
-        : Math.round(gfaM2 * 90))
-    : 0;
+  // Geotechnical Allowances (lump sum allowance, user editable)
+  const pieringRate = siteConditions.siteType === "kdrb" ? 50 : siteConditions.siteType === "brownfield" ? 30 : 25;
+  const pieringCost = (siteConditions.pieringCost !== undefined && !isNaN(Number(siteConditions.pieringCost)) && Number(siteConditions.pieringCost) > 0)
+    ? Number(siteConditions.pieringCost)
+    : (siteConditions.screwPieringRequired
+        ? (siteConditions.screwPieringCost !== undefined && !isNaN(Number(siteConditions.screwPieringCost))
+            ? Number(siteConditions.screwPieringCost)
+            : Math.round(gfaM2 * pieringRate))
+        : 0);
   const rockCost = Number(siteConditions.rockExcavationAllowance) || 0;
   const retainingCost = Number(siteConditions.retainingWallAllowance) || 0;
 
@@ -1094,25 +1097,37 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   ];
 
   const geotechnicalSiteItems = [
-    ...(siteConditions.demolitionAsbestosRequired
+    ...(siteConditions.demolitionAsbestosRequired && siteConditions.kdrbDemolitionOption === "owner"
+      ? [
+          {
+            id: "demolition_owner",
+            name: "Existing House Demolition & Asbestos Removal",
+            description: "Demolition and site clearing to be completed by owner prior to builder site start.",
+            qtyLabel: "By Owner",
+            amount: 0,
+          },
+        ]
+      : siteConditions.demolitionAsbestosRequired && siteConditions.kdrbDemolitionOption !== "none"
       ? [
           {
             id: "demolition_asbestos",
             name: "House Demolition & Asbestos Removal Allowance",
-            description: "Complete existing home demolition, licensed asbestos removal & site clearing. (Note: Demolition to be organised by owner).",
+            description: "Complete existing home demolition, licensed asbestos removal & site clearing.",
             qtyLabel: "1 Allowance",
-            amount: Number(siteConditions.demolitionAsbestosCost ?? (isDoubleStorey ? 40000 : 30000)),
+            amount: Number(siteConditions.demolitionAsbestosCost ?? (isDoubleStorey ? 40000 : 32500)),
           },
         ]
       : []),
-    ...(siteConditions.screwPieringRequired
+    ...(pieringCost > 0
       ? [
           {
-            id: "screw_piering",
-            name: "Allowance for Screw Piering (KDRB / Fill Site)",
-            description: `Helical screw piering driven to solid strata due to KDRB site or uncontrolled fill ($90 × ${pricing.gfaM2} m²).`,
-            qtyLabel: `${pricing.gfaM2} m² GFA`,
-            amount: screwPieringCost,
+            id: "piering_allowance",
+            name: siteConditions.siteType === "kdrb"
+              ? "Allowance for Screw Piering (KDRB Site)"
+              : "Foundation Piering Allowance",
+            description: "Allowance for piering if required, and subject to geotech report.",
+            qtyLabel: "1 Allowance",
+            amount: pieringCost,
           },
         ]
       : []),
@@ -1146,6 +1161,39 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
             description: "Specialized material handling, crane truck offloading, spotters, or restricted access due to limited access, overhead powerlines, or narrow lot.",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.materialHandlingAllowance),
+          },
+        ]
+      : []),
+    ...(Number(siteConditions.outOfZoneSurcharge) > 0
+      ? [
+          {
+            id: "out_of_zone",
+            name: "Out of Zone Surcharge",
+            description: "Builder delivery and contractor travel allowance beyond standard operating zone.",
+            qtyLabel: "1 Allowance",
+            amount: Number(siteConditions.outOfZoneSurcharge),
+          },
+        ]
+      : []),
+    ...(Number(siteConditions.unknownSiteConditionsAllowance) > 0
+      ? [
+          {
+            id: "unknown_site_conditions",
+            name: "Unknown Site Conditions Allowance",
+            description: "Provisional contingency allowance for unforeseen sub-surface or site conditions subject to engineer verification.",
+            qtyLabel: "1 Allowance",
+            amount: Number(siteConditions.unknownSiteConditionsAllowance),
+          },
+        ]
+      : []),
+    ...(siteConditions.sewerBridgingRequired
+      ? [
+          {
+            id: "sewer_bridging",
+            name: "Sewer Line Bridging / Concrete Encasement Allowance",
+            description: "Concrete encasement and footings bridging sewer zone of influence near/under proposed building pad.",
+            qtyLabel: "1 Allowance",
+            amount: Number(siteConditions.sewerBridgingCost || 4500),
           },
         ]
       : []),
@@ -2260,7 +2308,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   INITIAL DEPOSIT TO PROCEED
                 </span>
                 <span className="text-base font-black text-slate-950 flex items-center gap-2 mt-0.5">
-                  {client.depositType === "brownfield" ? "Brownfield Site Allocation" : "Greenfield Site Allocation"}
+                  {client.depositType === "kdrb"
+                    ? "Knock-Down Rebuild (KDRB) Site Allocation"
+                    : client.depositType === "brownfield"
+                    ? "Brownfield Site Allocation"
+                    : "Greenfield Site Allocation"}
                   {client.custom3dTourSelected && (
                     <span className="text-xs font-bold text-cyan-800 bg-cyan-100 border border-cyan-300 px-2 py-0.5 rounded-full font-mono">
                       + Custom 3D Virtual Tour
@@ -2273,7 +2325,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   Deposit Amount
                 </span>
                 <span className="text-3xl font-black text-emerald-700 font-mono">
-                  {formatAud(pricing.initialDepositAmount || (client.custom3dTourSelected ? (client.depositType === "brownfield" ? 4100 : 2450) : (client.depositType === "brownfield" ? 3300 : 1650)))}
+                  {formatAud(pricing.initialDepositAmount || (client.custom3dTourSelected ? (client.depositType === "kdrb" || client.depositType === "brownfield" ? 4100 : 2450) : (client.depositType === "kdrb" || client.depositType === "brownfield" ? 3300 : 1650)))}
                 </span>
               </div>
             </div>

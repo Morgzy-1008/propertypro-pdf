@@ -1,6 +1,6 @@
 import type { FullQuote, SoilClass } from "@/lib/quoting/quoteTypes";
 
-export type V2StepId = "client" | "floorplan" | "inclusions" | "site_costs" | "variations" | "review";
+export type V2StepId = "client" | "floorplan" | "site_costs" | "variations" | "review";
 
 export interface V2StepConfig {
   id: V2StepId;
@@ -21,34 +21,27 @@ export const V2_STEPS: V2StepConfig[] = [
   {
     id: "floorplan",
     number: 2,
-    label: "Floor Plan",
-    shortLabel: "Floor Plan",
-    description: "Standard design or modified plan",
-  },
-  {
-    id: "inclusions",
-    number: 3,
-    label: "Inclusions",
-    shortLabel: "Inclusions",
-    description: "H1, H2, or H3 specification tier",
+    label: "Floor Plan & Inclusions",
+    shortLabel: "Design & Façade",
+    description: "House type, floor plan, inclusions & façade",
   },
   {
     id: "site_costs",
-    number: 4,
+    number: 3,
     label: "Site Costs",
     shortLabel: "Site Costs",
-    description: "Smart site packages or custom land works",
+    description: "Site type, slope fall, soil, allowances & council",
   },
   {
     id: "variations",
-    number: 5,
+    number: 4,
     label: "Floor Plan Inclusions & Variations",
     shortLabel: "Variations",
-    description: "Popular upgrades, packs & modifications",
+    description: "Popular upgrades, sqm rates & modifications",
   },
   {
     id: "review",
-    number: 6,
+    number: 5,
     label: "Review & Export",
     shortLabel: "Review",
     description: "Turnkey investment hero & instant PDF",
@@ -151,9 +144,51 @@ export interface PopularVariationPreset {
   description: string;
   price: number;
   highlight?: string;
+  unitType?: "fixed" | "sqm";
+  unitRate?: number;
 }
 
 export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
+  {
+    id: "pop_driveway_sqm",
+    name: "Exposed Aggregate Concrete Driveway & Path",
+    category: "external",
+    description: "Architectural decorative exposed aggregate driveway and pedestrian porch lead walk path.",
+    price: 125,
+    unitType: "sqm",
+    unitRate: 125,
+    highlight: "$125/m² rate",
+  },
+  {
+    id: "pop_porcelain_sqm",
+    name: "600x600 Rectified Porcelain Floor Tiling Upgrade",
+    category: "colour_upgrades",
+    description: "Premium large-format porcelain vitrified tiles to entry, hallway, kitchen, meals, and family living areas.",
+    price: 85,
+    unitType: "sqm",
+    unitRate: 85,
+    highlight: "$85/m² rate",
+  },
+  {
+    id: "pop_hybrid_flooring_sqm",
+    name: "Hybrid Timber-Look Waterproof Flooring",
+    category: "colour_upgrades",
+    description: "Commercial-grade 8.5mm hybrid acoustic timber plank flooring with acoustic underlay throughout living zones.",
+    price: 95,
+    unitType: "sqm",
+    unitRate: 95,
+    highlight: "$95/m² rate",
+  },
+  {
+    id: "pop_alfresco_slab_sqm",
+    name: "Under-Roof Extended Alfresco Footprint",
+    category: "floorplan_extensions",
+    description: "Structural extension to the concrete slab, roofline, soffit lining, and perimeter columns of the outdoor Alfresco.",
+    price: 490,
+    unitType: "sqm",
+    unitRate: 490,
+    highlight: "$490/m² rate",
+  },
   {
     id: "pop_ceiling_2740",
     name: "2740mm Ground Floor Ceiling Height Upgrade",

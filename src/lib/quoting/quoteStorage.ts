@@ -291,6 +291,12 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     retainingWallAllowance: 0,
     materialHandlingAllowance: 0,
     sedimentAssetProtectionCost: 0,
+    outOfZoneSurcharge: 0,
+    unknownSiteConditionsAllowance: 0,
+    pieringCost: 0,
+    sewerBridgingRequired: false,
+    sewerBridgingCost: 0,
+    siteType: "greenfield",
   };
 
   const defaultDeposit = 1650;

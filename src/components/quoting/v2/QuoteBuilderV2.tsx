@@ -24,31 +24,15 @@ import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
 import {
   V2_STEPS,
-  POPULAR_VARIATIONS,
   type V2StepId,
-  type QuickQuoteTemplate,
 } from "./V2Types";
 import { V2StepClient } from "./V2StepClient";
 import { V2StepFloorPlan } from "./V2StepFloorPlan";
-import { V2StepInclusions } from "./V2StepInclusions";
 import { V2StepSiteCosts } from "./V2StepSiteCosts";
 import { V2StepVariations } from "./V2StepVariations";
 import { V2StepReview } from "./V2StepReview";
-import type { FullQuote, QuoteSelectedLineItem } from "@/lib/quoting/quoteTypes";
-import {
-  getEffectiveDesignName,
-  getStandardAreaBreakdown,
-  getTierPrice,
-  getAutomatedPromotionDiscount,
-} from "@/lib/quoting/quoteEngine";
-import {
-  SINGLE_STOREY_PRICES,
-  DOUBLE_STOREY_PRICES,
-  DUAL_OC_PRICES,
-  SPLIT_LEVEL_PRICES,
-} from "@/lib/pricelist.data";
-import { plansForDesign } from "@/components/flyer/floorplans";
-import { toast } from "sonner";
+import type { FullQuote } from "@/lib/quoting/quoteTypes";
+import { getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
 
 interface QuoteBuilderV2Props {
   quote: FullQuote;
@@ -88,11 +72,12 @@ export function QuoteBuilderV2({
   const currentStepConfig = V2_STEPS.find((s) => s.id === activeStep) || V2_STEPS[0];
   const currentStepIndex = V2_STEPS.findIndex((s) => s.id === activeStep);
 
+  // Instant scroll with zero slow dragging
   const scrollToTop = () => {
     if (stepContainerRef.current) {
-      stepContainerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      stepContainerRef.current.scrollIntoView({ behavior: "instant", block: "start" });
     } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "instant" });
     }
   };
 
@@ -141,132 +126,99 @@ export function QuoteBuilderV2({
     onUpdateQuote({ lineItems: Array.from(existingMap.values()) });
   };
 
-  // 1-Click Fast Start Quote Template handler
-  const handleApplyTemplate = (tmpl: QuickQuoteTemplate) => {
-    const allModels = [
-      ...SINGLE_STOREY_PRICES,
-      ...DOUBLE_STOREY_PRICES,
-      ...DUAL_OC_PRICES,
-      ...SPLIT_LEVEL_PRICES,
-    ];
-    const matchedModel = allModels.find(
-      (m) => m.name.toLowerCase() === tmpl.designName.toLowerCase()
-    );
-
-    const basePrice = matchedModel
-      ? getTierPrice(matchedModel, tmpl.specTier, tmpl.housingType)
-      : quote.design.basePrice || 349900;
-    const stdM2 = matchedModel ? matchedModel.m2 : 192.24;
-    const stdAreas = getStandardAreaBreakdown(tmpl.designName, tmpl.housingType, stdM2);
-    const plans = plansForDesign(tmpl.designName);
-
-    // Site settings based on preset
-    const sitePatch: Partial<FullQuote["siteConditions"]> = {
-      soilClass: tmpl.sitePresetId === "sloping_reactive" ? "Class H2" : tmpl.sitePresetId === "flat_greenfield" ? "Class M" : "Class H1",
-      fallMeters: tmpl.sitePresetId === "sloping_reactive" ? 1.2 : tmpl.sitePresetId === "flat_greenfield" ? 0 : 0.5,
-      screwPieringRequired: tmpl.sitePresetId !== "flat_greenfield",
-      demolitionAsbestosRequired: tmpl.sitePresetId === "knockdown_rebuild",
-      sedimentAssetProtectionCost: 1950,
-    };
-    if (tmpl.sitePresetId === "knockdown_rebuild") {
-      sitePatch.demolitionAsbestosCost = 34500;
-      sitePatch.trafficControlRequired = true;
-      sitePatch.trafficControlCost = 6500;
-    }
-
-    // Line items
-    const selectedLineItems: QuoteSelectedLineItem[] = POPULAR_VARIATIONS
-      .filter((p) => tmpl.variationIds.includes(p.id))
-      .map((p) => ({
-        id: p.id,
-        catalogueItemId: p.id,
-        category: p.category,
-        name: p.name,
-        description: p.description,
-        unitType: "fixed",
-        unitRate: p.price,
-        quantity: 1,
-        subtotal: p.price,
-        isIncluded: true,
-        isClientSelectable: true,
-        clientSelected: true,
-      }));
-
-    onUpdateQuote({
-      client: {
-        ...quote.client,
-        ...tmpl.client,
-      },
-      design: {
-        ...quote.design,
-        designName: tmpl.designName,
-        housingType: tmpl.housingType as any,
-        specTier: tmpl.specTier,
-        designM2: stdM2,
-        standardDesignM2: stdM2,
-        basePrice,
-        standardBasePrice: basePrice,
-        standardAreas: stdAreas,
-        modifiedAreas: { ...stdAreas },
-        isModifiedFloorplan: false,
-        floorplanUrl: plans[0]?.url || quote.design.floorplanUrl,
-        promotionsDiscount: getAutomatedPromotionDiscount(stdM2),
-      },
-      siteConditions: {
-        ...quote.siteConditions,
-        ...sitePatch,
-      },
-      lineItems: selectedLineItems,
-    });
-
-    toast.success(`Loaded ${tmpl.name} template! Advancing to estimate summary...`);
-    setActiveStep("review");
-    scrollToTop();
-  };
-
-  const designName = getEffectiveDesignName(quote.design) || "Design Not Selected";
-  const grossTotal = quote.pricing?.grossEstimatedInvestment || 0;
+  // Pricing values from quote engine
+  const grossTotal = quote.pricing?.grossEstimatedInvestment ?? 0;
+  const designName = getEffectiveDesignName(quote.design) || "Select Floor Plan";
 
   return (
-    <div ref={stepContainerRef} className="space-y-6 pb-36">
-      {/* V2 Intro & Step Indicator */}
-      <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-3.5 rounded-2xl border ${
-        isLight
-          ? "bg-slate-50 border-slate-200"
-          : "bg-slate-900/40 border-slate-800/80"
-      }`}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs flex-none">
-            ⚡
-          </div>
-          <div>
-            <span className={`text-xs font-bold ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-              Quoting Tool V2 — Express Flow
-            </span>
-            <span className="text-[11px] text-slate-400 block">
-              Step {currentStepIndex + 1} of 6: {currentStepConfig.label} • {currentStepConfig.description}
-            </span>
-          </div>
+    <div ref={stepContainerRef} className="space-y-6 pb-28">
+      {/* Top Action Bar */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/50 pb-4">
+        <div className="flex items-center gap-3">
+          <Badge
+            variant="outline"
+            className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[11px] font-bold"
+          >
+            Quoting Tool V2
+          </Badge>
+          <span className="text-xs text-slate-400">
+            Rapid Progressive Quoting Engine • Hudson Homes QLD
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-center">
+        <div className="flex flex-wrap items-center gap-2">
+          {savedQuotesCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onOpenSavedEstimates}
+              className={`text-xs gap-1.5 ${
+                isLight
+                  ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                  : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <FolderOpen className="h-3.5 w-3.5 text-cyan-400" />
+              Saved Estimates ({savedQuotesCount})
+            </Button>
+          )}
+
           <Button
-            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onNewQuote}
+            className={`text-xs gap-1.5 ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            New Blank
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenShare}
+            className={`text-xs gap-1.5 ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <Share2 className="h-3.5 w-3.5 text-indigo-400" />
+            Share
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenAdminCatalogue}
+            className={`text-xs gap-1.5 ${
+              isLight
+                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+            }`}
+          >
+            <FileText className="h-3.5 w-3.5 text-amber-400" />
+            Admin Catalogue
+          </Button>
+
+          <Button
             variant="ghost"
             size="sm"
             onClick={onSwitchToDetailed}
-            className={`text-xs gap-1.5 h-8 cursor-pointer ${
-              isLight ? "text-slate-600 hover:text-slate-950" : "text-slate-400 hover:text-slate-200"
-            }`}
+            className={`text-xs text-slate-400 hover:text-white ${isLight ? "hover:text-slate-900" : ""}`}
+            title="Switch to detailed multi-tab editor"
           >
-            <Layers className="h-3.5 w-3.5 text-cyan-400" />
-            Switch to Detailed Studio
+            Classic Mode
           </Button>
         </div>
       </div>
 
-      {/* Stepper Progress Bar */}
-      <div className="overflow-x-auto pb-2 scrollbar-none">
+      {/* Stepper Navigation Indicator */}
+      <div className="overflow-x-auto pb-1 -mx-2 px-2 scrollbar-none">
         <div className="flex items-center min-w-[640px] gap-2">
           {V2_STEPS.map((step, idx) => {
             const isCurrent = activeStep === step.id;
@@ -334,7 +286,6 @@ export function QuoteBuilderV2({
           <V2StepClient
             client={quote.client}
             onChange={handleClientChange}
-            onApplyTemplate={handleApplyTemplate}
             onNext={handleGoNext}
             isLight={isLight}
           />
@@ -351,21 +302,12 @@ export function QuoteBuilderV2({
           />
         )}
 
-        {activeStep === "inclusions" && (
-          <V2StepInclusions
-            design={quote.design}
-            onChange={handleDesignChange}
-            onNext={handleGoNext}
-            onPrev={handleGoPrev}
-            isLight={isLight}
-          />
-        )}
-
         {activeStep === "site_costs" && (
           <V2StepSiteCosts
             quote={quote}
             site={quote.siteConditions}
             onChange={handleSiteChange}
+            onClientChange={handleClientChange}
             onNext={handleGoNext}
             onPrev={handleGoPrev}
             isLight={isLight}
@@ -424,7 +366,7 @@ export function QuoteBuilderV2({
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 block truncate">
-                {quote.design.specTier || "H2"} • Step {currentStepIndex + 1} of 6: {currentStepConfig.shortLabel}
+                {quote.design.specTier || "H2"} • Step {currentStepIndex + 1} of 5: {currentStepConfig.shortLabel}
               </span>
             </div>
           </div>

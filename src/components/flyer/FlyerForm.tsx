@@ -1117,7 +1117,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       const asideRect = aside.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
       const targetTop = elRect.top - asideRect.top + aside.scrollTop - 48;
-      aside.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+      aside.scrollTo({ top: Math.max(0, targetTop), behavior: "auto" });
     }
   };
 

@@ -1376,27 +1376,32 @@ export function calculateQuotePricing(
   const sedimentCost = Number(site.sedimentAssetProtectionCost) || 0;
 
   // Geotechnical & Site Allowances
-  const screwPieringCost = site.screwPieringRequired
-    ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
-        ? Number(site.screwPieringCost)
-        : Math.round(gfaM2 * 90))
-    : 0;
+  const pieringCost = (site.pieringCost !== undefined && !isNaN(Number(site.pieringCost)) && Number(site.pieringCost) > 0)
+    ? Number(site.pieringCost)
+    : (site.screwPieringRequired
+        ? (site.screwPieringCost !== undefined && !isNaN(Number(site.screwPieringCost))
+            ? Number(site.screwPieringCost)
+            : Math.round(gfaM2 * (site.siteType === "kdrb" ? 50 : site.siteType === "brownfield" ? 30 : 25)))
+        : 0);
   const existingIsDouble = site.existingDwellingStoreys === "double" || isDouble;
   const isBrick = site.existingDwellingMaterial === "brick";
   const defaultDemoCost = (existingIsDouble ? 40000 : 32500) + (isBrick ? 2000 : 0);
 
-  const demolitionAsbestosCost = site.demolitionAsbestosRequired
+  const demolitionAsbestosCost = (site.demolitionAsbestosRequired && site.kdrbDemolitionOption !== "owner" && site.kdrbDemolitionOption !== "none")
     ? (Number(site.demolitionAsbestosCost) !== undefined && !isNaN(Number(site.demolitionAsbestosCost)) && Number(site.demolitionAsbestosCost) > 0
         ? Number(site.demolitionAsbestosCost)
         : defaultDemoCost)
     : 0;
 
-  const postDemoContourCost = (site.demolitionAsbestosRequired && site.postDemoContourSoilTestRequired)
+  const postDemoContourCost = (site.demolitionAsbestosRequired && site.postDemoContourSoilTestRequired && site.kdrbDemolitionOption !== "none")
     ? (Number(site.postDemoContourSoilTestCost) || 2200)
     : 0;
   const rockCost = Number(site.rockExcavationAllowance) || 0;
   const retainingCost = Number(site.retainingWallAllowance) || 0;
   const materialHandlingCost = Number(site.materialHandlingAllowance) || 0;
+  const outOfZoneCost = Number(site.outOfZoneSurcharge) || 0;
+  const unknownConditionsCost = Number(site.unknownSiteConditionsAllowance) || 0;
+  const sewerBridgingCost = site.sewerBridgingRequired ? (Number(site.sewerBridgingCost) || 4500) : 0;
 
   const siteCostsSubtotal =
     soilTotalCost +
@@ -1414,12 +1419,15 @@ export function calculateQuotePricing(
     arboristReportCost +
     cctvSewerReportCost +
     trafficCost +
-    screwPieringCost +
+    pieringCost +
     demolitionAsbestosCost +
     postDemoContourCost +
     rockCost +
     retainingCost +
     materialHandlingCost +
+    outOfZoneCost +
+    unknownConditionsCost +
+    sewerBridgingCost +
     sedimentCost;
 
   const councilStatutorySubtotal =

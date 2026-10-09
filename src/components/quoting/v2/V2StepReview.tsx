@@ -102,9 +102,9 @@ export function V2StepReview({
         <div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
-              6
+              5
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 6 of 6: Review &amp; Export</span>
+            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 5 of 5: Review &amp; Export</span>
           </div>
           <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
             Review &amp; Export Builders Estimate

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Home,
   Sparkles,
@@ -18,6 +18,9 @@ import {
   Plus,
   Minus,
   RefreshCw,
+  ChevronDown,
+  Image as ImageIcon,
+  Building,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,8 +41,13 @@ import {
   getTierPrice,
   getStandardAreaBreakdown,
   calculateModifiedFloorplanPricing,
-  getAutomatedPromotionDiscount,
+  calculateCustomFloorplanPrice,
+  calculateCustomTotalM2,
+  isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
+import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
+import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
 import {
   identifyBaseDesignCandidate,
   analyzeModifiedFloorplanFile,
@@ -47,6 +55,7 @@ import {
 import type {
   QuoteDesignSelection,
   QuoteSelectedLineItem,
+  InclusionTier,
   BaseDesignCandidate,
   PlanModificationAnalysis,
   FloorplanAreaBreakdown,
@@ -63,7 +72,60 @@ interface V2StepFloorPlanProps {
   isLight: boolean;
 }
 
-type HousingTypeTab = "All" | "Single Storey" | "Double Storey" | "Dual Living" | "Granny Flat";
+type HousingTypeTab = "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat";
+
+interface TierCardDef {
+  tier: InclusionTier;
+  shortCode: "H1" | "H2" | "H3";
+  title: string;
+  tagline: string;
+  badge?: string;
+  badgeColor?: string;
+  features: string[];
+}
+
+const INCLUSION_TIERS: TierCardDef[] = [
+  {
+    tier: "H1 Smart Living" as InclusionTier,
+    shortCode: "H1",
+    title: "Smart Living",
+    tagline: "Essential Value & Turnkey Quality",
+    features: [
+      "20mm engineered stone kitchen benchtop",
+      "600mm European stainless appliances",
+      "Semi-frameless shower screens & chrome tapware",
+      "Quality carpet & ceramic floor tiling",
+    ],
+  },
+  {
+    tier: "H2 Design Collection" as InclusionTier,
+    shortCode: "H2",
+    title: "Design Collection",
+    tagline: "The Hudson Signature Standard",
+    badge: "Most Popular",
+    badgeColor: "bg-emerald-500 text-slate-950",
+    features: [
+      "900mm Westinghouse gas cooktop & canopy rangehood",
+      "20mm stone to kitchen, bathroom & ensuite vanities",
+      "Soft-close cabinet doors & drawers throughout",
+      "LED downlights to main living zones & flyscreens",
+    ],
+  },
+  {
+    tier: "H3 Luxury Inclusions" as InclusionTier,
+    shortCode: "H3",
+    title: "Luxury Living",
+    tagline: "Executive Architectural Finish",
+    badge: "Executive",
+    badgeColor: "bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950",
+    features: [
+      "40mm stone benchtops with dual waterfall ends",
+      "2740mm (9ft) high ceilings to ground floor",
+      "Multi-zone reverse cycle ducted air conditioning",
+      "Floor-to-ceiling rectified porcelain bathroom tiling",
+    ],
+  },
+];
 
 export function V2StepFloorPlan({
   design,
@@ -73,30 +135,62 @@ export function V2StepFloorPlan({
   onPrev,
   isLight,
 }: V2StepFloorPlanProps) {
-  const [activeTab, setActiveTab] = useState<"standard" | "modified">(
-    design.isModifiedFloorplan ? "modified" : "standard"
-  );
-  const [typeFilter, setTypeFilter] = useState<HousingTypeTab>("All");
-  const [searchQuery, setSearchQuery] = useState("");
+  // Mode: standard, modified, custom
+  const [designMode, setDesignMode] = useState<"standard" | "modified" | "custom">(() => {
+    if (design.mode === "custom_floorplan") return "custom";
+    if (design.isModifiedFloorplan) return "modified";
+    return "standard";
+  });
+
+  const [houseType, setHouseType] = useState<HousingTypeTab>(() => {
+    const raw = design.housingType || "Single Storey";
+    if (raw.includes("Double")) return "Double Storey";
+    if (raw.includes("Dual") || raw.includes("Duplex")) return "Dual Living";
+    if (raw.includes("Split")) return "Split Level";
+    if (raw.includes("Granny")) return "Granny Flat";
+    return "Single Storey";
+  });
+
+  // Dropdown search query
+  const [searchQuery, setSearchQuery] = useState(design.designName || "");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // File scan states for modified plan
   const [isScanning, setIsScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Modals for modified plan analysis
   const [pendingCandidate, setPendingCandidate] = useState<BaseDesignCandidate | null>(null);
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
-  // All standard price rows grouped
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Sync searchQuery when designName changes from outside
+  useEffect(() => {
+    if (design.designName && design.designName !== searchQuery && !isDropdownOpen) {
+      setSearchQuery(design.designName);
+    }
+  }, [design.designName]);
+
+  // All price rows grouped
   const allModels = useMemo(() => {
-    const list: { row: PriceRow; type: "Single Storey" | "Double Storey" | "Dual Living" | "Granny Flat" | "Split Level" }[] = [];
+    const list: { row: PriceRow; type: HousingTypeTab }[] = [];
     SINGLE_STOREY_PRICES.forEach((r) => list.push({ row: r, type: "Single Storey" }));
     DOUBLE_STOREY_PRICES.forEach((r) => list.push({ row: r, type: "Double Storey" }));
     DUAL_OC_PRICES.forEach((r) => list.push({ row: r, type: "Dual Living" }));
     SPLIT_LEVEL_PRICES.forEach((r) => list.push({ row: r, type: "Split Level" }));
 
-    // Granny Flats
     list.push(
       { row: { name: "Acacia 60", m2: 60, h1: 154000, h2: 169000, h3: 189000 }, type: "Granny Flat" },
       { row: { name: "Banksia 60", m2: 60, h1: 156000, h2: 171000, h3: 192000 }, type: "Granny Flat" }
@@ -104,186 +198,199 @@ export function V2StepFloorPlan({
     return list;
   }, []);
 
-  // Filtered designs
+  // Filtered designs for current house type and search
   const filteredModels = useMemo(() => {
     return allModels.filter(({ row, type }) => {
-      if (typeFilter !== "All" && type !== typeFilter) {
-        return false;
-      }
+      if (type !== houseType) return false;
       if (searchQuery.trim().length > 0) {
         const query = searchQuery.toLowerCase().trim();
-        return row.name.toLowerCase().includes(query) || type.toLowerCase().includes(query);
+        return row.name.toLowerCase().includes(query);
       }
       return true;
     });
-  }, [allModels, typeFilter, searchQuery]);
+  }, [allModels, houseType, searchQuery]);
 
-  // Handle standard design selection
-  const handleSelectModel = (model: PriceRow, housingType: string, autoShift: boolean = true) => {
-    const tier = design.specTier || "H2";
-    const basePrice = getTierPrice(model, tier, housingType);
-    const stdAreas = getStandardAreaBreakdown(model.name, housingType, model.m2);
-    const plans = plansForDesign(model.name);
-    const planRec = plans[0];
+  // Current matched model
+  const currentModel = useMemo(() => {
+    if (!design.designName) return null;
+    return allModels.find(
+      (m) => m.row.name.toLowerCase() === design.designName.toLowerCase()
+    );
+  }, [allModels, design.designName]);
+
+  // Suitable facades for selected design
+  const suitableFacades = useMemo(() => {
+    if (!design.designName) return [];
+    return getFacadesForDesignAndHousingType(design.designName, design.housingType || houseType);
+  }, [design.designName, design.housingType, houseType]);
+
+  // Ensure a valid facade is selected
+  useEffect(() => {
+    if (suitableFacades.length > 0 && !design.facadeName) {
+      const defaultFacade = suitableFacades[0];
+      onChange({
+        facadeName: defaultFacade.name,
+        facadePrice: defaultFacade.uplift,
+      });
+    }
+  }, [suitableFacades, design.facadeName]);
+
+  // RHS Facade Preview image resolver
+  const facadePreviewUrl = useMemo(() => {
+    if (design.isCustomFacade && design.facadeImageUrl) {
+      return design.facadeImageUrl;
+    }
+    const facadeName = design.facadeName || "Classic";
+    const isDouble = isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+    const matched = findFacadeForDesign(facadeName, isDouble, design.housingType || houseType, design.designName);
+
+    if (matched) {
+      if (PRE_RENDERED_FACADES[matched.id]) {
+        return PRE_RENDERED_FACADES[matched.id];
+      }
+      return matched.url || "/facades/classic-facade-single-stry.jpg";
+    }
+    return "/facades/classic-facade-single-stry.jpg";
+  }, [design.facadeName, design.isCustomFacade, design.facadeImageUrl, design.designName, design.housingType, houseType]);
+
+  // Handle selecting a standard catalogue design
+  const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
+    const tier = design.specTier || "H2 Design Collection";
+    const basePrice = getTierPrice(row, tier, type);
+    const planInfo = plansForDesign(row.name);
+    const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
+
+    const facades = getFacadesForDesignAndHousingType(row.name, type);
+    const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
 
     onChange({
-      designName: model.name,
-      housingType: housingType as any,
-      designM2: model.m2,
-      standardDesignM2: model.m2,
-      standardBasePrice: basePrice,
-      basePrice,
-      standardAreas: stdAreas,
-      modifiedAreas: { ...stdAreas },
+      mode: "standard",
       isModifiedFloorplan: false,
-      modifiedDesignM2: 0,
-      promotionsDiscount: getAutomatedPromotionDiscount(model.m2),
-      floorplanUrl: planRec?.url || "",
-      beds: planRec?.beds || "4",
-      baths: planRec?.baths || "2",
-      cars: planRec?.cars || "2",
-      widthM: planRec?.frontage || "14.0m",
+      designName: row.name,
+      modelName: row.name,
+      designM2: row.m2,
+      housingType: type,
+      basePrice,
+      bedrooms: planInfo?.beds ?? (row.m2 > 240 ? 4 : 3),
+      bathrooms: planInfo?.baths ?? (row.m2 > 180 ? 2 : 1),
+      garage: planInfo?.cars ?? (row.m2 > 180 ? 2 : 1),
+      facadeName: initialFacade.name,
+      facadePrice: initialFacade.uplift,
+      areas: stdAreas,
     });
 
-    toast.success(`Selected ${model.name} (${model.m2} m²) — $${basePrice.toLocaleString()}`);
-    if (autoShift) {
-      setTimeout(() => {
-        onNext();
-      }, 350);
+    setSearchQuery(row.name);
+    setIsDropdownOpen(false);
+    toast.success(`Selected ${row.name} (${row.m2} m²)`);
+  };
+
+  // Switch House Type
+  const handleSelectHouseType = (type: HousingTypeTab) => {
+    setHouseType(type);
+    onChange({ housingType: type });
+    // If current design doesn't belong to this house type, prompt user to pick from dropdown
+    if (currentModel && currentModel.type !== type) {
+      setSearchQuery("");
+      setIsDropdownOpen(true);
     }
   };
 
-  // Modified file upload handling
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Switch Inclusion Tier
+  const handleSelectTier = (tierDef: TierCardDef) => {
+    const tier = tierDef.tier;
+    let nextBasePrice = design.basePrice || 350000;
+
+    if (designMode === "standard" && currentModel) {
+      nextBasePrice = getTierPrice(currentModel.row, tier, houseType);
+    } else if (designMode === "modified" && design.baseDesignCandidate) {
+      const candModel = allModels.find(
+        (m) => m.row.name.toLowerCase() === design.baseDesignCandidate!.modelName.toLowerCase()
+      );
+      if (candModel) {
+        const stdBase = getTierPrice(candModel.row, tier, houseType);
+        const calc = calculateModifiedFloorplanPricing({
+          ...design,
+          specTier: tier,
+          basePrice: stdBase,
+        });
+        nextBasePrice = calc.modifiedTotalPrice;
+      }
+    } else if (designMode === "custom") {
+      nextBasePrice = calculateCustomFloorplanPrice(design.customSpec, tier);
+    }
+
+    onChange({
+      specTier: tier,
+      basePrice: nextBasePrice,
+    });
+    toast.success(`Selected ${tierDef.title} (${tierDef.shortCode})`);
+  };
+
+  // Handle Façade Selection from Dropdown
+  const handleSelectFacade = (facadeName: string) => {
+    const matched = suitableFacades.find((f) => f.name.toLowerCase() === facadeName.toLowerCase());
+    const uplift = matched ? matched.uplift : 0;
+    onChange({
+      facadeName,
+      facadePrice: uplift,
+      isCustomFacade: false,
+    });
+    toast.success(`Selected ${facadeName} Façade (${uplift > 0 ? `+${formatAud(uplift)}` : "Included standard"})`);
+  };
+
+  // Modified Area change handler
+  const handleModifiedAreaChange = (field: keyof FloorplanAreaBreakdown, valStr: string) => {
+    const val = parseFloat(valStr) || 0;
+    const currentAreas = design.areas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+    const updatedAreas = { ...currentAreas, [field]: val };
+    const updatedTotal =
+      (updatedAreas.livingM2 || 0) +
+      (updatedAreas.garageM2 || 0) +
+      (updatedAreas.alfrescoM2 || 0) +
+      (updatedAreas.porchM2 || 0);
+
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      areas: { ...updatedAreas, totalM2: updatedTotal },
+      designM2: updatedTotal,
+    });
+
+    onChange({
+      isModifiedFloorplan: true,
+      areas: { ...updatedAreas, totalM2: updatedTotal },
+      designM2: updatedTotal,
+      basePrice: calc.modifiedTotalPrice,
+    });
+  };
+
+  // File Upload scan for architectural modified plans
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsScanning(true);
-    setScanStatus("Scanning title block & floorplan layout...");
     try {
-      const candidate = await identifyBaseDesignCandidate(file, design.designName, design.housingType);
-      setPendingCandidate(candidate);
-      setIsBaseConfirmOpen(true);
-    } catch (err: any) {
-      console.error("Scan failed:", err);
-      toast.error(err?.message || "Could not analyze floorplan file.");
-    } finally {
+      setIsScanning(true);
+      setScanStatus("Parsing architectural drawing & OCR room schedules…");
+      const analysis = await analyzeModifiedFloorplanFile(file);
+      setPendingAnalysis(analysis);
       setIsScanning(false);
       setScanStatus("");
-      e.target.value = "";
-    }
-  };
 
-  const handleApplyModifiedPlan = (approved: PlanModificationAnalysis) => {
-    const stdM2 = approved.standardTotalM2;
-    const stdAreas = getStandardAreaBreakdown(approved.baseDesignName, approved.housingType, stdM2);
-
-    const updatedModifiedAreas: Partial<FloorplanAreaBreakdown> = {
-      ...stdAreas,
-      ...(design.modifiedAreas || {}),
-    };
-
-    for (const delta of approved.areaDeltas) {
-      if (delta.accepted) {
-        (updatedModifiedAreas as any)[delta.zoneKey] = delta.modifiedM2;
+      if (analysis.baseDesignCandidate) {
+        setPendingCandidate(analysis.baseDesignCandidate);
+        setIsBaseConfirmOpen(true);
+      } else {
+        setIsReviewModalOpen(true);
       }
+    } catch (err: any) {
+      setIsScanning(false);
+      setScanStatus("");
+      toast.error(err.message || "Failed to analyze floor plan drawing");
     }
-
-    const effectiveHousingType = approved.housingType;
-    const modelName = approved.baseDesignName;
-    const matchedModel = allModels.find((m) => m.row.name === modelName);
-    const stdPrice = matchedModel
-      ? getTierPrice(matchedModel.row, design.specTier, effectiveHousingType)
-      : design.standardBasePrice || design.basePrice;
-
-    const tempDesign: QuoteDesignSelection = {
-      ...design,
-      mode: "modified",
-      housingType: effectiveHousingType,
-      designName: modelName,
-      standardDesignM2: stdM2,
-      standardBasePrice: stdPrice,
-      standardAreas: stdAreas,
-      modifiedAreas: updatedModifiedAreas,
-      isModifiedFloorplan: true,
-    };
-
-    const modCalc = calculateModifiedFloorplanPricing(tempDesign);
-
-    onChange({
-      mode: "modified",
-      housingType: effectiveHousingType,
-      designName: modelName,
-      standardDesignM2: stdM2,
-      standardBasePrice: stdPrice,
-      standardAreas: stdAreas,
-      modifiedAreas: updatedModifiedAreas,
-      isModifiedFloorplan: true,
-      modifiedDesignM2: modCalc.modifiedTotalM2,
-      basePrice: stdPrice,
-      promotionsDiscount: getAutomatedPromotionDiscount(modCalc.modifiedTotalM2),
-      floorplanUrl: approved.floorplanDataUrl || design.floorplanUrl,
-    });
-
-    if (approved.inclusionUpgrades && approved.inclusionUpgrades.length > 0 && onAddInclusionLineItems) {
-      const newLineItems: QuoteSelectedLineItem[] = approved.inclusionUpgrades.map((upg, idx) => ({
-        id: `mod_${upg.id}_${Date.now()}_${idx}`,
-        catalogueItemId: upg.id,
-        category: (upg.category as any) || "floorplan_extensions",
-        name: upg.name,
-        description: upg.description,
-        unitType: "fixed",
-        unitRate: upg.unitPrice,
-        quantity: 1,
-        subtotal: upg.unitPrice,
-        isIncluded: true,
-        isClientSelectable: true,
-        clientSelected: true,
-      }));
-      onAddInclusionLineItems(newLineItems);
-    }
-
-    toast.success(
-      `Applied Modified Plan for ${modelName}! Total: ${modCalc.modifiedTotalM2} m² (+${formatAud(modCalc.totalCostAdjustment)})`
-    );
-    setIsReviewModalOpen(false);
-    onNext();
   };
 
-  // Quick manual area adjusters (+/- 1m²)
-  const handleAdjustArea = (zoneKey: "livingM2" | "garageM2" | "alfrescoM2" | "porchM2", delta: number) => {
-    const stdAreas = design.standardAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
-    const currentAreas = design.modifiedAreas || { ...stdAreas };
-    const currentVal = Number((currentAreas as any)[zoneKey] || (stdAreas as any)[zoneKey] || 0);
-    const nextVal = Math.max(0, Math.round((currentVal + delta) * 100) / 100);
-
-    const nextModifiedAreas = {
-      ...currentAreas,
-      [zoneKey]: nextVal,
-    };
-
-    const tempDesign: QuoteDesignSelection = {
-      ...design,
-      isModifiedFloorplan: true,
-      standardDesignM2: design.standardDesignM2 || design.designM2,
-      standardAreas: stdAreas,
-      modifiedAreas: nextModifiedAreas,
-    };
-
-    const pricing = calculateModifiedFloorplanPricing(tempDesign);
-
-    onChange({
-      isModifiedFloorplan: true,
-      standardDesignM2: design.standardDesignM2 || design.designM2,
-      standardAreas: stdAreas,
-      modifiedAreas: nextModifiedAreas,
-      modifiedDesignM2: pricing.modifiedTotalM2,
-      promotionsDiscount: getAutomatedPromotionDiscount(pricing.modifiedTotalM2),
-    });
-  };
-
-  const currentStd = design.standardAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
-  const currentMod = design.modifiedAreas || { ...currentStd };
+  const hasFloorPlanSelected = Boolean(design.designName && design.designName.trim().length > 0);
+  const hasInclusionSelected = Boolean(design.specTier);
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -294,206 +401,525 @@ export function V2StepFloorPlan({
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
               2
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 2 of 6</span>
+            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 2 of 5</span>
           </div>
           <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
-            Which house design are we quoting?
+            Floor Plan, Inclusions &amp; Façade
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Pick from the Hudson Homes master collection or upload an altered plan to auto-detect modifications.
+            Select house type, quick search floor plan, choose inclusion specification, and customize façade.
           </p>
         </div>
 
-        {/* Standard vs Modified Mode Switcher */}
-        <div className={`flex rounded-xl p-1 border ${isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"}`}>
-          <button
-            type="button"
-            onClick={() => setActiveTab("standard")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              activeTab === "standard"
-                ? isLight
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "bg-slate-800 text-white shadow-xs"
-                : "text-slate-400 hover:text-slate-200"
+        {/* Selected Plan Snapshot Badge */}
+        {hasFloorPlanSelected && (
+          <div
+            className={`py-2 px-3.5 rounded-xl border flex items-center gap-3 self-start sm:self-center ${
+              isLight ? "bg-emerald-50 border-emerald-300" : "bg-emerald-500/10 border-emerald-500/30"
             }`}
           >
-            Standard Collection
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("modified")}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              activeTab === "modified"
-                ? isLight
-                  ? "bg-emerald-100 text-emerald-900 font-bold shadow-xs border border-emerald-300"
-                  : "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Sparkles className="h-3 w-3 text-amber-400" />
-            Modified Plan Engine
-          </button>
-        </div>
-      </div>
-
-      {/* Selected Design Banner (if chosen) */}
-      {design.designName && (
-        <div
-          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-            isLight
-              ? "bg-emerald-50/70 border-emerald-200"
-              : "bg-emerald-950/20 border-emerald-500/30"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-none">
-              <Home className="h-5 w-5" />
-            </div>
+            <Home className="h-4 w-4 text-emerald-500 flex-none" />
             <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              <div className="flex items-center gap-1.5">
+                <span className={`text-xs font-bold ${isLight ? "text-emerald-950" : "text-white"}`}>
                   {design.designName}
                 </span>
-                <Badge variant="outline" className="border-emerald-500/40 text-emerald-400 text-[10px]">
-                  {design.housingType}
-                </Badge>
-                {design.isModifiedFloorplan && (
-                  <Badge className="bg-amber-500 text-slate-950 text-[10px] font-bold">
-                    Modified ({design.modifiedDesignM2 || design.designM2} m²)
-                  </Badge>
+                <span className="text-[10px] text-slate-400">({design.designM2} m²)</span>
+              </div>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold block">
+                Base: {formatAud(design.basePrice || 0)}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mode Switcher Tabs: Standard Catalogue vs Modified vs Custom */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-700/40 pb-3">
+        <button
+          type="button"
+          onClick={() => {
+            setDesignMode("standard");
+            onChange({ mode: "standard", isModifiedFloorplan: false });
+          }}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+            designMode === "standard"
+              ? isLight
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+              : isLight
+              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+          }`}
+        >
+          📐 Standard Catalogue Floor Plan
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setDesignMode("modified");
+            onChange({ isModifiedFloorplan: true });
+          }}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+            designMode === "modified"
+              ? isLight
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+              : isLight
+              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+          <span>Modified Floor Plan</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setDesignMode("custom");
+            onChange({ mode: "custom_floorplan", isModifiedFloorplan: false });
+          }}
+          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+            designMode === "custom"
+              ? isLight
+                ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+              : isLight
+              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+          }`}
+        >
+          🏛️ Custom Bespoke Design
+        </button>
+      </div>
+
+      {/* BOX 1 & BOX 2: HOUSE TYPE & SEARCHABLE FLOORPLAN DROPDOWN */}
+      <div
+        className={`p-6 rounded-2xl border transition-all ${
+          isLight
+            ? "bg-white border-slate-200 shadow-sm"
+            : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
+        }`}
+      >
+        {/* House Type selector */}
+        <div className="space-y-2 mb-5">
+          <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            1. Select House Type
+          </Label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            {(["Single Storey", "Double Storey", "Dual Living", "Split Level", "Granny Flat"] as HousingTypeTab[]).map(
+              (type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => handleSelectHouseType(type)}
+                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center ${
+                    houseType === type
+                      ? isLight
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500/20"
+                        : "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm ring-1 ring-emerald-400/30"
+                      : isLight
+                      ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                      : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {type}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Floorplan Searchable Dropdown Combobox */}
+        {designMode === "standard" && (
+          <div className="space-y-2 relative" ref={dropdownRef}>
+            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              2. Select Floor Plan (Search by Typing)
+            </Label>
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Input
+                placeholder={`Type to search ${houseType} floor plans (e.g. Jasper 26, Topaz, Sapphire)...`}
+                value={searchQuery}
+                onFocus={() => setIsDropdownOpen(true)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setIsDropdownOpen(true);
+                }}
+                className={`pl-10 pr-10 text-sm h-11 ${
+                  isLight
+                    ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
+                    : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="absolute right-3 top-3 p-0.5 text-slate-400 hover:text-slate-200"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Dropdown Results Menu */}
+            {isDropdownOpen && (
+              <div
+                className={`absolute left-0 right-0 top-full mt-1.5 z-50 max-h-72 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                  isLight
+                    ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
+                    : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
+                }`}
+              >
+                {filteredModels.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400">
+                    No matching floor plans found for "{searchQuery}" in {houseType}.
+                  </div>
+                ) : (
+                  filteredModels.map(({ row, type }) => {
+                    const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
+                    const tierPrice = getTierPrice(row, design.specTier || "H2", type);
+                    const planInfo = plansForDesign(row.name);
+
+                    return (
+                      <div
+                        key={row.name}
+                        onClick={() => handleSelectModel(row, type)}
+                        className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? isLight
+                              ? "bg-emerald-50/90 text-emerald-950"
+                              : "bg-emerald-500/20 text-emerald-300"
+                            : isLight
+                            ? "hover:bg-slate-100"
+                            : "hover:bg-slate-900"
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold truncate">{row.name}</span>
+                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono">
+                              {row.m2} m²
+                            </span>
+                            {isSelected && (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-none" />
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
+                            <span className="flex items-center gap-1">
+                              <Bed className="h-3 w-3" /> {planInfo?.beds ?? (row.m2 > 240 ? 4 : 3)} Beds
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Bath className="h-3 w-3" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Car className="h-3 w-3" /> {planInfo?.cars ?? (row.m2 > 180 ? 2 : 1)} Cars
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex-none">
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">
+                            Base Price
+                          </span>
+                          <span className={`text-sm font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                            {formatAud(tierPrice)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </div>
-              <p className="text-xs text-slate-400">
-                Size: {design.isModifiedFloorplan ? `${design.modifiedDesignM2 || design.designM2} m²` : `${design.designM2} m²`} • Beds: {design.beds || 4} • Baths: {design.baths || 2} • Cars: {design.cars || 2}
+            )}
+          </div>
+        )}
+
+        {/* MODIFIED FLOOR PLAN OPTIONS */}
+        {designMode === "modified" && (
+          <div className="space-y-4 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-xl">
+              <div>
+                <span className="text-xs font-bold text-amber-400 block">
+                  Modified Floor Plan Mode Active
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Select a base catalogue design, then adjust room area dimensions below or scan a drawing.
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isScanning}
+                  className="text-xs gap-1.5 border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  {isScanning ? "Scanning PDF…" : "Scan Architectural Plan"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </div>
+            </div>
+
+            {/* Base Design Dropdown */}
+            <div className="space-y-1.5">
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Base Hudson Design
+              </Label>
+              <div className="relative">
+                <Input
+                  placeholder="Select base design to modify (e.g. Jasper 26)..."
+                  value={searchQuery}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setIsDropdownOpen(true);
+                  }}
+                  className={`text-sm h-11 ${
+                    isLight ? "bg-slate-50 border-slate-300" : "bg-slate-950/80 border-slate-800"
+                  }`}
+                />
+              </div>
+            </div>
+
+            {/* Modified Area Dimensions Grid */}
+            {hasFloorPlanSelected && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-slate-400">Living Area (m²)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={design.areas?.livingM2 || ""}
+                    onChange={(e) => handleModifiedAreaChange("livingM2", e.target.value)}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-slate-400">Garage Area (m²)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={design.areas?.garageM2 || ""}
+                    onChange={(e) => handleModifiedAreaChange("garageM2", e.target.value)}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-slate-400">Alfresco (m²)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={design.areas?.alfrescoM2 || ""}
+                    onChange={(e) => handleModifiedAreaChange("alfrescoM2", e.target.value)}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] text-slate-400">Porch (m²)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={design.areas?.porchM2 || ""}
+                    onChange={(e) => handleModifiedAreaChange("porchM2", e.target.value)}
+                    className="h-10 text-sm font-mono"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CUSTOM FLOOR PLAN OPTIONS */}
+        {designMode === "custom" && (
+          <div className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Custom Design Name
+              </Label>
+              <Input
+                placeholder="e.g. Custom Architectural Residence"
+                value={design.designName || ""}
+                onChange={(e) => {
+                  const name = e.target.value;
+                  onChange({
+                    mode: "custom_floorplan",
+                    designName: name,
+                    modelName: name,
+                  });
+                }}
+                className={`text-sm h-11 ${
+                  isLight ? "bg-slate-50 border-slate-300" : "bg-slate-950/80 border-slate-800"
+                }`}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Ground Living (m²)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={design.customSpec?.groundLivingM2 || 140}
+                  onChange={(e) => {
+                    const gM2 = parseFloat(e.target.value) || 0;
+                    const spec = { ...(design.customSpec || { storeys: "single", firstLivingM2: 0, garageM2: 36, alfrescoM2: 15, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), groundLivingM2: gM2 };
+                    const totalM2 = calculateCustomTotalM2(spec);
+                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
+                    onChange({
+                      customSpec: spec,
+                      designM2: totalM2,
+                      basePrice,
+                    });
+                  }}
+                  className="h-10 text-sm font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Garage (m²)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={design.customSpec?.garageM2 || 36}
+                  onChange={(e) => {
+                    const garM2 = parseFloat(e.target.value) || 0;
+                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, alfrescoM2: 15, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), garageM2: garM2 };
+                    const totalM2 = calculateCustomTotalM2(spec);
+                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
+                    onChange({
+                      customSpec: spec,
+                      designM2: totalM2,
+                      basePrice,
+                    });
+                  }}
+                  className="h-10 text-sm font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Alfresco (m²)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={design.customSpec?.alfrescoM2 || 15}
+                  onChange={(e) => {
+                    const alfM2 = parseFloat(e.target.value) || 0;
+                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, garageM2: 36, porchM2: 4, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), alfrescoM2: alfM2 };
+                    const totalM2 = calculateCustomTotalM2(spec);
+                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
+                    onChange({
+                      customSpec: spec,
+                      designM2: totalM2,
+                      basePrice,
+                    });
+                  }}
+                  className="h-10 text-sm font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-400">Porch (m²)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={design.customSpec?.porchM2 || 4}
+                  onChange={(e) => {
+                    const porM2 = parseFloat(e.target.value) || 0;
+                    const spec = { ...(design.customSpec || { storeys: "single", groundLivingM2: 140, firstLivingM2: 0, garageM2: 36, alfrescoM2: 15, balconyM2: 0, groundRateM2: 0, upperRateM2: 0, ancillaryRateM2: 0, scaffoldingAllowance: 0 }), porchM2: porM2 };
+                    const totalM2 = calculateCustomTotalM2(spec);
+                    const basePrice = calculateCustomFloorplanPrice(spec, design.specTier);
+                    onChange({
+                      customSpec: spec,
+                      designM2: totalM2,
+                      basePrice,
+                    });
+                  }}
+                  className="h-10 text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 2: INCLUSION LEVEL (SMOOTHLY APPEARS ONCE FLOORPLAN SELECTED) */}
+      {hasFloorPlanSelected && (
+        <div
+          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+            isLight
+              ? "bg-white border-slate-200 shadow-sm"
+              : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                3. Select Inclusion Specification Tier
+              </Label>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Choose the standard finishes package for {design.designName}.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 self-end sm:self-center">
-            <div className="text-right">
-              <span className="text-[10px] uppercase tracking-wider text-slate-400 block">Base Price</span>
-              <span className={`text-base font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                {formatAud(design.basePrice || 0)}
-              </span>
-            </div>
-            <Button
-              size="sm"
-              onClick={onNext}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-9"
-            >
-              Continue <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 1: STANDARD COLLECTION */}
-      {activeTab === "standard" && (
-        <div className="space-y-4">
-          {/* Housing Type Filters & Search */}
-          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
-            <div className="flex flex-wrap gap-1.5">
-              {(["All", "Single Storey", "Double Storey", "Dual Living", "Granny Flat"] as HousingTypeTab[]).map(
-                (type) => (
-                  <Button
-                    key={type}
-                    type="button"
-                    variant={typeFilter === type ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setTypeFilter(type)}
-                    className={`text-xs h-8 ${
-                      typeFilter === type
-                        ? isLight
-                          ? "bg-slate-900 text-white"
-                          : "bg-emerald-500 text-slate-950 font-bold"
-                        : isLight
-                        ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-                        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800"
-                    }`}
-                  >
-                    {type}
-                  </Button>
-                )
-              )}
-            </div>
-
-            <div className="relative w-full md:w-72">
-              <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                placeholder="Search design name..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`pl-9 text-xs h-9 ${
-                  isLight
-                    ? "bg-white border-slate-300 text-slate-900"
-                    : "bg-slate-950/80 border-slate-800 text-white"
-                }`}
-              />
-            </div>
-          </div>
-
-          {/* Grid of Designs */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-[520px] overflow-y-auto pr-1 scrollbar-thin">
-            {filteredModels.map(({ row, type }) => {
-              const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
-              const price = getTierPrice(row, design.specTier || "H2", type);
-              const plans = plansForDesign(row.name);
-              const plan = plans[0];
-
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {INCLUSION_TIERS.map((tierDef) => {
+              const isSelected = design.specTier?.includes(tierDef.shortCode) || (tierDef.shortCode === "H2" && !design.specTier);
               return (
                 <div
-                  key={row.name}
-                  onClick={() => handleSelectModel(row, type, true)}
-                  className={`p-4 rounded-xl border text-left cursor-pointer transition-all hover:scale-[1.01] ${
+                  key={tierDef.shortCode}
+                  onClick={() => handleSelectTier(tierDef)}
+                  className={`p-4 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] relative flex flex-col justify-between ${
                     isSelected
                       ? isLight
-                        ? "bg-emerald-50 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
-                        : "bg-emerald-950/40 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400"
+                        ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
+                        : "bg-emerald-950/30 border-emerald-400 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400"
                       : isLight
-                      ? "bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50 shadow-xs"
-                      : "bg-slate-900/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-900"
+                      ? "bg-slate-50 border-slate-200 hover:border-slate-300"
+                      : "bg-slate-950/60 border-slate-800 hover:border-slate-700"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-1 mb-2">
-                    <div>
-                      <h4 className={`text-sm font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
-                        {row.name}
-                      </h4>
-                      <span className="text-[10px] text-slate-400">{type}</span>
+                  {tierDef.badge && (
+                    <span
+                      className={`absolute -top-2.5 right-4 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
+                    >
+                      {tierDef.badge}
+                    </span>
+                  )}
+
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
+                        {tierDef.shortCode}
+                      </span>
+                      {isSelected && <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />}
                     </div>
-                    {isSelected ? (
-                      <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center flex-none">
-                        <Check className="h-3 w-3 stroke-[3]" />
-                      </span>
-                    ) : (
-                      <span className="text-xs font-mono font-bold text-slate-400">
-                        {row.m2} m²
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="flex items-center gap-3 text-[11px] text-slate-400 mb-3 pt-1 border-t border-slate-700/20">
-                    <span className="flex items-center gap-1">
-                      <Bed className="h-3 w-3 text-slate-400" /> {plan?.beds || 4}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Bath className="h-3 w-3 text-slate-400" /> {plan?.baths || 2}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Car className="h-3 w-3 text-slate-400" /> {plan?.cars || 2}
-                    </span>
-                    {plan?.frontage && (
-                      <span className="flex items-center gap-1 text-[10px]">
-                        {plan.frontage}
-                      </span>
-                    )}
-                  </div>
+                    <h4 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {tierDef.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-400 mb-3">{tierDef.tagline}</p>
 
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400 uppercase">From</span>
-                    <span className={`text-xs font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                      {formatAud(price)}
-                    </span>
+                    <ul className="space-y-1.5 text-[11px] text-slate-400 border-t border-slate-700/40 pt-2.5">
+                      {tierDef.features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <Check className="h-3 w-3 text-emerald-500 flex-none mt-0.5" />
+                          <span className="leading-tight">{f}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 </div>
               );
@@ -502,211 +928,137 @@ export function V2StepFloorPlan({
         </div>
       )}
 
-      {/* TAB 2: MODIFIED PLAN ENGINE AUTOMATION */}
-      {activeTab === "modified" && (
-        <div className="space-y-6">
-          {/* AI Modified Plan Dropzone */}
-          <div
-            className={`p-8 rounded-2xl border-2 border-dashed text-center transition-all ${
-              isLight
-                ? "bg-slate-50 border-emerald-300 hover:bg-emerald-50/50"
-                : "bg-slate-900/40 border-emerald-500/40 hover:bg-emerald-950/20"
-            }`}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,image/*"
-              onChange={handleFileChange}
-              disabled={isScanning}
-              className="hidden"
-            />
-            <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center mb-3">
-              <Upload className="h-6 w-6" />
-            </div>
-            <h3 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-              {isScanning ? "Analyzing Modified Floorplan..." : "Drop Modified Architectural Plan (PDF / Image)"}
-            </h3>
-            <p className="text-xs text-slate-400 max-w-md mx-auto mt-1 mb-4">
-              {scanStatus ||
-                "Our automated vision engine reads the sheet title block, matches the base Hudson model, and calculates area & fixture deltas."}
+      {/* SECTION 3: FAÇADE SELECTION & RHS LIVE PREVIEW (SMOOTHLY APPEARS ONCE INCLUSION SELECTED) */}
+      {hasFloorPlanSelected && hasInclusionSelected && (
+        <div
+          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+            isLight
+              ? "bg-white border-slate-200 shadow-sm"
+              : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
+          }`}
+        >
+          <div className="mb-4">
+            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              4. Select Façade (Filtered for {design.designName})
+            </Label>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Only showing façades engineered and certified for this specific floor plan.
             </p>
-
-            <Button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isScanning}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-2 px-6"
-            >
-              <Upload className="h-3.5 w-3.5" />
-              {isScanning ? "Processing..." : "Select Architectural PDF / Image"}
-            </Button>
           </div>
 
-          {/* Quick Manual Area Adjusters */}
-          <div
-            className={`p-6 rounded-2xl border ${
-              isLight
-                ? "bg-white border-slate-200 shadow-sm"
-                : "bg-slate-900/60 border-slate-800/80"
-            }`}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Maximize2 className="h-4 w-4 text-cyan-400" />
-                <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                  Interactive Room Area Adjuster (+/- m²)
-                </h3>
-              </div>
-              <span className="text-xs text-slate-400 font-mono">
-                Standard: {design.standardDesignM2 || design.designM2} m² ➔ Modified:{" "}
-                <span className="text-emerald-400 font-bold">
-                  {design.modifiedDesignM2 || design.designM2} m²
-                </span>
-              </span>
-            </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* LHS: Façade Dropdown Box */}
+            <div className="lg:col-span-6 space-y-3">
+              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Available Façade Options ({suitableFacades.length})
+              </Label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Living Area */}
-              <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Living Area</span>
-                <div className="flex items-center justify-between">
-                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                    {currentMod.livingM2 || currentMod.groundLivingM2 || 135} m²
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("livingM2", -1)}
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {suitableFacades.map((facade) => {
+                  const isSelected = design.facadeName?.toLowerCase() === facade.name.toLowerCase();
+                  return (
+                    <div
+                      key={facade.name}
+                      onClick={() => handleSelectFacade(facade.name)}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                        isSelected
+                          ? isLight
+                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500"
+                            : "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm ring-1 ring-emerald-400"
+                          : isLight
+                          ? "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
+                          : "bg-slate-950/60 border-slate-800 hover:bg-slate-900 text-slate-300"
+                      }`}
                     >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("livingM2", 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Std: {currentStd.livingM2 || currentStd.groundLivingM2 || 135} m²
-                </span>
-              </div>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div
+                          className={`w-4 h-4 rounded-full flex items-center justify-center flex-none border ${
+                            isSelected
+                              ? "bg-emerald-500 border-emerald-500 text-slate-950"
+                              : "border-slate-500 text-transparent"
+                          }`}
+                        >
+                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                        </div>
+                        <span className="text-xs font-bold truncate">{facade.name}</span>
+                      </div>
 
-              {/* Garage Area */}
-              <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Double Garage</span>
-                <div className="flex items-center justify-between">
-                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                    {currentMod.garageM2 || 34} m²
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("garageM2", -1)}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("garageM2", 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Std: {currentStd.garageM2 || 34} m²
-                </span>
-              </div>
-
-              {/* Alfresco Area */}
-              <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Outdoor Alfresco</span>
-                <div className="flex items-center justify-between">
-                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                    {currentMod.alfrescoM2 || 12} m²
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("alfrescoM2", -1)}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("alfrescoM2", 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Std: {currentStd.alfrescoM2 || 12} m²
-                </span>
-              </div>
-
-              {/* Porch Area */}
-              <div className={`p-4 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"}`}>
-                <span className={`text-xs font-semibold block mb-1 ${isLight ? "text-slate-800" : "text-slate-300"}`}>Entry Porch</span>
-                <div className="flex items-center justify-between">
-                  <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                    {currentMod.porchM2 || 3} m²
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("porchM2", -1)}
-                    >
-                      <Minus className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className={`h-7 w-7 text-xs ${isLight ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100" : "border-slate-700 text-slate-200"}`}
-                      onClick={() => handleAdjustArea("porchM2", 1)}
-                    >
-                      <Plus className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Std: {currentStd.porchM2 || 3} m²
-                </span>
+                      <div className="text-right flex-none">
+                        <span
+                          className={`text-xs font-mono font-bold ${
+                            facade.uplift > 0
+                              ? isLight
+                                ? "text-cyan-700"
+                                : "text-cyan-400"
+                              : isLight
+                              ? "text-emerald-700"
+                              : "text-emerald-400"
+                          }`}
+                        >
+                          {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-700/30 flex justify-end">
-              <Button
-                type="button"
-                onClick={onNext}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-9"
+            {/* RHS: Façade Live Preview Card */}
+            <div className="lg:col-span-6">
+              <div
+                className={`rounded-2xl border overflow-hidden shadow-lg ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
+                }`}
               >
-                <span>Continue with Modified Areas</span>
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Button>
+                <div className="relative h-56 sm:h-64 w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                  <img
+                    src={facadePreviewUrl}
+                    alt={design.facadeName || "Façade Preview"}
+                    className="w-full h-full object-cover object-center"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/facades/classic-facade-single-stry.jpg";
+                    }}
+                  />
+
+                  {/* Gradient overlay badge */}
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 flex items-end justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-400 block">
+                        Live Architectural Preview
+                      </span>
+                      <h4 className="text-base font-bold text-white leading-tight">
+                        {design.facadeName || "Classic"} Façade
+                      </h4>
+                    </div>
+
+                    <Badge
+                      className={`text-xs font-mono font-bold ${
+                        (design.facadePrice || 0) > 0
+                          ? "bg-cyan-500 text-slate-950"
+                          : "bg-emerald-500 text-slate-950"
+                      }`}
+                    >
+                      {(design.facadePrice || 0) > 0 ? `+${formatAud(design.facadePrice || 0)}` : "Included Standard"}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="p-3.5 flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center gap-2">
+                    <Building className="h-3.5 w-3.5 text-slate-400" />
+                    <span>{design.designName}</span>
+                  </div>
+                  <span>{design.designM2} m² Total Area</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Navigation Buttons */}
+      {/* Footer Navigation */}
       <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
         <Button
           type="button"
@@ -718,62 +1070,49 @@ export function V2StepFloorPlan({
               : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
           }`}
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Client Details
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>Back to Client</span>
         </Button>
 
         <Button
           type="button"
           onClick={onNext}
-          disabled={!design.designName}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer disabled:opacity-50"
+          disabled={!hasFloorPlanSelected}
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer h-12"
         >
-          Continue to Inclusions
+          Continue to Site Costs
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Modals for Floorplan Detection */}
+      {/* Modals for modified floor plan candidate verification */}
       {pendingCandidate && (
         <BaseDesignConfirmationModal
-          open={isBaseConfirmOpen}
+          isOpen={isBaseConfirmOpen}
           candidate={pendingCandidate}
-          onOpenChange={setIsBaseConfirmOpen}
-          onConfirm={async (confirmed) => {
+          onConfirm={() => {
             setIsBaseConfirmOpen(false);
-            if (confirmed.file) {
-              setIsScanning(true);
-              setScanStatus("Analyzing modified plan geometry & room schedules...");
-              try {
-                const analysis = await analyzeModifiedFloorplanFile(
-                  confirmed.file,
-                  confirmed.designName,
-                  confirmed.housingType,
-                  confirmed.standardDesignM2,
-                  confirmed.standardBasePrice,
-                  confirmed.standardAreas
-                );
-                setPendingAnalysis(analysis);
-                setIsReviewModalOpen(true);
-              } catch (err: any) {
-                toast.error("Deep analysis failed: " + err?.message);
-              } finally {
-                setIsScanning(false);
-                setScanStatus("");
-              }
+            if (pendingAnalysis) {
+              setIsReviewModalOpen(true);
             }
           }}
-          onSelectDifferent={(newCandidate) => {
-            setPendingCandidate(newCandidate);
-          }}
+          onCancel={() => setIsBaseConfirmOpen(false)}
         />
       )}
 
       {pendingAnalysis && (
         <ModifiedPlanReviewModal
-          open={isReviewModalOpen}
+          isOpen={isReviewModalOpen}
           analysis={pendingAnalysis}
-          onOpenChange={setIsReviewModalOpen}
-          onApply={handleApplyModifiedPlan}
+          onApply={(updatedDesign, lineItems) => {
+            onChange(updatedDesign);
+            if (onAddInclusionLineItems && lineItems.length > 0) {
+              onAddInclusionLineItems(lineItems);
+            }
+            setIsReviewModalOpen(false);
+            toast.success("Applied modified floor plan parameters!");
+          }}
+          onClose={() => setIsReviewModalOpen(false)}
         />
       )}
     </div>

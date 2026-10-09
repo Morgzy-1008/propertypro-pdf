@@ -151,9 +151,15 @@ export interface SiteConditions {
   materialHandlingAllowance?: number; // increments of $2,500
   pieringAllowanceMeters?: number;
   pieringCost?: number;
+  outOfZoneSurcharge?: number;
+  unknownSiteConditionsAllowance?: number;
+  siteType?: "greenfield" | "brownfield" | "kdrb";
+  sewerBridgingRequired?: boolean;
+  sewerBridgingCost?: number;
+  kdrbDemolitionOption?: "builder" | "owner" | "none";
 }
 
-export type DepositType = "greenfield" | "brownfield" | "custom";
+export type DepositType = "greenfield" | "brownfield" | "kdrb" | "custom";
 
 export interface ClientDetails {
   clientName: string;

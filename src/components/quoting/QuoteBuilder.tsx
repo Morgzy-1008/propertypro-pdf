@@ -792,9 +792,9 @@ export function QuoteBuilder() {
   const handleNavigateTab = (targetId: TabId) => {
     setActiveTab(targetId);
     if (stepTabsRef.current) {
-      stepTabsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      stepTabsRef.current.scrollIntoView({ behavior: "instant", block: "start" });
     } else {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, behavior: "instant" });
     }
   };
 
