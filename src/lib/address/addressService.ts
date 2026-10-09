@@ -298,6 +298,86 @@ export function synthesizeAddressFromQuery(query: string, preferredState?: strin
   };
 }
 
+export interface MasterplannedStreet {
+  streetName: string;
+  suburb: string;
+  state: "QLD" | "NSW";
+  postcode: string;
+  estate?: string;
+  council: string;
+}
+
+export const MASTERPLANNED_STREETS: MasterplannedStreet[] = [
+  // QLD - Moreton Bay
+  { streetName: "Bottletree Circuit", suburb: "Narangba", state: "QLD", postcode: "4504", estate: "Ridgeview Estate", council: "City of Moreton Bay" },
+  { streetName: "Sanctuary Boulevard", suburb: "North Lakes", state: "QLD", postcode: "4509", estate: "The Sanctuary", council: "City of Moreton Bay" },
+  { streetName: "Endeavour Boulevard", suburb: "North Lakes", state: "QLD", postcode: "4509", estate: "North Lakes Central", council: "City of Moreton Bay" },
+  { streetName: "Discovery Drive", suburb: "North Lakes", state: "QLD", postcode: "4509", estate: "North Lakes", council: "City of Moreton Bay" },
+  { streetName: "Capestone Boulevard", suburb: "Mango Hill", state: "QLD", postcode: "4509", estate: "Capestone (Mango Hill)", council: "City of Moreton Bay" },
+  { streetName: "North Harbour Drive", suburb: "Burpengary East", state: "QLD", postcode: "4505", estate: "North Harbour", council: "City of Moreton Bay" },
+  { streetName: "Buckley Road", suburb: "Burpengary East", state: "QLD", postcode: "4505", estate: "North Harbour", council: "City of Moreton Bay" },
+  { streetName: "Ridgeview Drive", suburb: "Narangba", state: "QLD", postcode: "4504", estate: "Ridgeview Estate", council: "City of Moreton Bay" },
+  { streetName: "Golden Wattle Drive", suburb: "Narangba", state: "QLD", postcode: "4504", estate: "Narangba Heights", council: "City of Moreton Bay" },
+  { streetName: "Boundary Road", suburb: "Narangba", state: "QLD", postcode: "4504", council: "City of Moreton Bay" },
+
+  // QLD - Logan
+  { streetName: "Trailblazer Drive", suburb: "Flagstone", state: "QLD", postcode: "4280", estate: "Flagstone Estate (Peet)", council: "Logan City Council" },
+  { streetName: "Broad Axe Crescent", suburb: "Flagstone", state: "QLD", postcode: "4280", estate: "Flagstone Estate (Peet)", council: "Logan City Council" },
+  { streetName: "Bushman Drive", suburb: "Flagstone", state: "QLD", postcode: "4280", estate: "Flagstone Estate", council: "Logan City Council" },
+  { streetName: "Homestead Drive", suburb: "Flagstone", state: "QLD", postcode: "4280", estate: "Flagstone Rise", council: "Logan City Council" },
+  { streetName: "Paradise Road", suburb: "South Maclean", state: "QLD", postcode: "4280", estate: "Lilywood Landings", council: "Logan City Council" },
+  { streetName: "Lilywood Landings Boulevard", suburb: "South Maclean", state: "QLD", postcode: "4280", estate: "Lilywood Landings", council: "Logan City Council" },
+  { streetName: "Haven Street", suburb: "Bahrs Scrub", state: "QLD", postcode: "4207", estate: "Haven Estate", council: "Logan City Council" },
+  { streetName: "Everleigh Drive", suburb: "Greenbank", state: "QLD", postcode: "4124", estate: "Everleigh (Mirvac)", council: "Logan City Council" },
+  { streetName: "Elegance Drive", suburb: "Greenbank", state: "QLD", postcode: "4124", estate: "Covella (AVID)", council: "Logan City Council" },
+  { streetName: "Sovereign Drive", suburb: "Greenbank", state: "QLD", postcode: "4124", estate: "Covella", council: "Logan City Council" },
+  { streetName: "Yarrabilba Drive", suburb: "Yarrabilba", state: "QLD", postcode: "4207", estate: "Yarrabilba (Lendlease)", council: "Logan City Council" },
+
+  // QLD - Ipswich
+  { streetName: "Spring Mountain Boulevard", suburb: "Spring Mountain", state: "QLD", postcode: "4300", estate: "Springfield Rise (Lendlease)", council: "Ipswich City Council" },
+  { streetName: "Dublin Avenue", suburb: "Spring Mountain", state: "QLD", postcode: "4300", estate: "Springfield Rise", council: "Ipswich City Council" },
+  { streetName: "Ripley Way", suburb: "South Ripley", state: "QLD", postcode: "4306", estate: "South Ripley / Providence", council: "Ipswich City Council" },
+  { streetName: "Providence Parade", suburb: "South Ripley", state: "QLD", postcode: "4306", estate: "Providence", council: "Ipswich City Council" },
+  { streetName: "Amity Way", suburb: "South Ripley", state: "QLD", postcode: "4306", estate: "South Ripley", council: "Ipswich City Council" },
+
+  // QLD - Sunshine Coast & Gold Coast
+  { streetName: "Harmony Boulevard", suburb: "Palmview", state: "QLD", postcode: "4553", estate: "Harmony (AVID)", council: "Sunshine Coast Council" },
+  { streetName: "Baringa Drive", suburb: "Baringa", state: "QLD", postcode: "4551", estate: "Aura (Stockland)", council: "Sunshine Coast Council" },
+  { streetName: "Steiner Crescent", suburb: "Baringa", state: "QLD", postcode: "4551", estate: "Aura", council: "Sunshine Coast Council" },
+  { streetName: "Gainsborough Drive", suburb: "Pimpama", state: "QLD", postcode: "4209", estate: "Gainsborough Greens", council: "City of Gold Coast" },
+  { streetName: "Bourne Street", suburb: "Pimpama", state: "QLD", postcode: "4209", estate: "Gainsborough Greens", council: "City of Gold Coast" },
+  { streetName: "Bowen Street", suburb: "Brisbane City", state: "QLD", postcode: "4000", council: "Brisbane City Council" },
+  { streetName: "Salisbury Road", suburb: "Salisbury", state: "QLD", postcode: "4107", council: "Brisbane City Council" },
+
+  // NSW - The Hills / Box Hill
+  { streetName: "Boundary Road", suburb: "Box Hill", state: "NSW", postcode: "2765", estate: "The Gables", council: "The Hills Shire" },
+  { streetName: "Red Gables Drive", suburb: "Box Hill", state: "NSW", postcode: "2765", estate: "The Gables", council: "The Hills Shire" },
+  { streetName: "Fontana Drive", suburb: "Box Hill", state: "NSW", postcode: "2765", estate: "The Gables", council: "The Hills Shire" },
+  { streetName: "Slidey Rocks Way", suburb: "Box Hill", state: "NSW", postcode: "2765", estate: "The Gables", council: "The Hills Shire" },
+  { streetName: "Sackville Street", suburb: "Box Hill", state: "NSW", postcode: "2765", council: "The Hills Shire" },
+
+  // NSW - Blacktown / Marsden Park
+  { streetName: "Elara Boulevard", suburb: "Marsden Park", state: "NSW", postcode: "2765", estate: "Elara (Stockland)", council: "Blacktown City Council" },
+  { streetName: "Harvest Street", suburb: "Marsden Park", state: "NSW", postcode: "2765", estate: "Elara", council: "Blacktown City Council" },
+  { streetName: "Frontier Avenue", suburb: "Marsden Park", state: "NSW", postcode: "2765", estate: "Elara", council: "Blacktown City Council" },
+
+  // NSW - Camden & Liverpool
+  { streetName: "Central Avenue", suburb: "Oran Park", state: "NSW", postcode: "2570", estate: "Oran Park Town", council: "Camden Council" },
+  { streetName: "Oran Park Drive", suburb: "Oran Park", state: "NSW", postcode: "2570", estate: "Oran Park Town", council: "Camden Council" },
+  { streetName: "Peter Brock Drive", suburb: "Oran Park", state: "NSW", postcode: "2570", estate: "Oran Park Town", council: "Camden Council" },
+  { streetName: "Edmondson Avenue", suburb: "Austral", state: "NSW", postcode: "2179", estate: "Austral Estate", council: "Liverpool City Council" },
+  { streetName: "Gurner Avenue", suburb: "Austral", state: "NSW", postcode: "2179", estate: "Austral Estate", council: "Liverpool City Council" },
+  { streetName: "Rickard Road", suburb: "Leppington", state: "NSW", postcode: "2179", estate: "Leppington Living", council: "Camden Council" },
+  { streetName: "Byron Road", suburb: "Leppington", state: "NSW", postcode: "2179", estate: "Leppington Living", council: "Camden Council" },
+  { streetName: "Escarpment Drive", suburb: "Calderwood", state: "NSW", postcode: "2527", estate: "Calderwood Valley (Lendlease)", council: "Shellharbour City Council" },
+  { streetName: "Macarthur Drive", suburb: "Wilton", state: "NSW", postcode: "2571", estate: "Wilton Greens", council: "Wollondilly Shire Council" },
+  { streetName: "Catherine Fields Road", suburb: "Catherine Field", state: "NSW", postcode: "2557", estate: "Catherine Park", council: "Camden Council" },
+  { streetName: "Lochinvar Downs Drive", suburb: "Lochinvar", state: "NSW", postcode: "2321", estate: "Lochinvar Downs", council: "Maitland City Council" },
+  { streetName: "Bourke Street", suburb: "Sydney", state: "NSW", postcode: "2000", council: "City of Sydney" },
+  { streetName: "Botany Road", suburb: "Alexandria", state: "NSW", postcode: "2015", council: "City of Sydney" },
+  { streetName: "Salisbury Road", suburb: "Camperdown", state: "NSW", postcode: "2050", council: "City of Sydney" },
+];
+
 /**
  * Searches Australian addresses using official suburbs dataset, serverless geocoder,
  * and intelligent synthesis fallback for new estate developments.
@@ -312,7 +392,7 @@ export async function searchAustralianAddresses(
   }
 
   const limit = options?.limit || 10;
-  const stateFilter = options?.state || "";
+  const stateFilter = options?.state ? normalizeState(options.state) : "";
   const cacheKey = `${trimmed.toLowerCase()}_${limit}_${stateFilter}`;
 
   if (IN_MEMORY_CACHE.has(cacheKey)) {
@@ -322,6 +402,14 @@ export async function searchAustralianAddresses(
   // Detect Lot Number
   const lotMatch = trimmed.match(/\blot\s*([0-9A-Za-z]+)\b/i);
   const detectedLot = lotMatch ? lotMatch[1] : "";
+
+  // Extract street number if typed (e.g. "24 ", "42 ", "108 ")
+  let cleanWorking = trimmed.replace(/\blot\s*[0-9A-Za-z]+,?\s*/gi, "").trim();
+  const streetNumMatch = cleanWorking.match(/^(\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)\s+/);
+  const streetNum = streetNumMatch ? streetNumMatch[1] : "";
+  const streetFrag = (streetNum ? cleanWorking.slice(streetNumMatch[0].length) : cleanWorking)
+    .replace(/^lot\b\s*/i, "")
+    .trim();
 
   const suggestions: AddressSuggestion[] = [];
   const seenKeys = new Set<string>();
@@ -339,7 +427,47 @@ export async function searchAustralianAddresses(
     }
   };
 
-  // 1. Synthetic suggestion if the user input contains street/lot + known suburb
+  // 1. Check Masterplanned Estate Streets matching the street fragment
+  if (streetFrag.length >= 2) {
+    const qLower = streetFrag.toLowerCase();
+    const matchedList: { st: MasterplannedStreet; rank: number }[] = [];
+
+    for (const st of MASTERPLANNED_STREETS) {
+      const stateBonus = stateFilter && st.state.toUpperCase() === stateFilter.toUpperCase() ? 0 : 5;
+      const stNameLower = st.streetName.toLowerCase();
+      const words = stNameLower.split(/\s+/);
+      if (stNameLower.startsWith(qLower)) {
+        matchedList.push({ st, rank: 1 + stateBonus });
+      } else if (words.some((w) => w.startsWith(qLower))) {
+        matchedList.push({ st, rank: 2 + stateBonus });
+      } else if (stNameLower.includes(qLower)) {
+        matchedList.push({ st, rank: 3 + stateBonus });
+      }
+    }
+
+    matchedList.sort((a, b) => a.rank - b.rank);
+
+    for (const { st } of matchedList) {
+      const lotPrefix = detectedLot ? `Lot ${detectedLot}, ` : "";
+      const fullStreet = streetNum ? `${streetNum} ${st.streetName}` : st.streetName;
+      const formatted = `${lotPrefix}${fullStreet}, ${st.suburb} ${st.state} ${st.postcode}`;
+      addSuggestion({
+        id: `mp_${st.suburb.toLowerCase()}_${st.streetName.replace(/\s+/g, '_').toLowerCase()}`,
+        formattedAddress: formatted,
+        lotNumber: detectedLot || undefined,
+        streetNumber: streetNum || undefined,
+        streetName: st.streetName,
+        fullStreet: fullStreet,
+        suburb: st.suburb,
+        state: st.state,
+        postcode: st.postcode,
+        estate: st.estate,
+        council: st.council,
+      });
+    }
+  }
+
+  // 2. Synthetic suggestion if the user input contains street/lot + known suburb
   const synthetic = synthesizeAddressFromQuery(trimmed, stateFilter);
   if (synthetic) {
     addSuggestion(synthetic, true);
@@ -367,20 +495,22 @@ export async function searchAustralianAddresses(
     });
   }
 
-  // 3. Try local serverless / Vercel API endpoint
-  try {
-    const url = `/api/address-autocomplete?q=${encodeURIComponent(trimmed)}&limit=${limit}${stateFilter ? `&state=${encodeURIComponent(stateFilter)}` : ""}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(3500) });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
-        for (const item of data.suggestions) {
-          addSuggestion(item);
+  // 3. Try local serverless / Vercel API endpoint (only if more results needed)
+  if (suggestions.length < 5) {
+    try {
+      const url = `/api/address-autocomplete?q=${encodeURIComponent(trimmed)}&limit=${limit}${stateFilter ? `&state=${encodeURIComponent(stateFilter)}` : ""}`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(1500) });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+          for (const item of data.suggestions) {
+            addSuggestion(item);
+          }
         }
       }
+    } catch {
+      // API endpoint skipped or unavailable, proceed to client fallback
     }
-  } catch {
-    // API endpoint skipped or unavailable, proceed to client fallback
   }
 
   // 4. Client-side Direct OpenStreetMap Nominatim Fallback if fewer than 5 results

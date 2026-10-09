@@ -286,6 +286,7 @@ export function QuoteBuilderV2({
           <V2StepClient
             client={quote.client}
             onChange={handleClientChange}
+            onSiteChange={handleSiteChange}
             onNext={handleGoNext}
             isLight={isLight}
           />
