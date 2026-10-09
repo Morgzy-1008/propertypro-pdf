@@ -18,6 +18,7 @@ import {
   Database,
   ChevronLeft,
   ChevronRight,
+  Layers,
 } from "lucide-react";
 import { encodeQuoteForClientLink } from "@/lib/quoting/quoteLinkEncoder";
 import { toast } from "sonner";
@@ -75,6 +76,7 @@ import { QuoteInclusionsStep } from "./QuoteInclusionsStep";
 import { QuoteAdminCatalogue } from "./QuoteAdminCatalogue";
 import { QuotePdfDocument } from "./QuotePdfDocument";
 import { QuoteEstimatesDialog } from "./QuoteEstimatesDialog";
+import { QuoteBuilderV2 } from "./v2/QuoteBuilderV2";
 import { isLocalhost } from "@/lib/isLocalhost";
 import { useTheme } from "@/lib/theme";
 
@@ -84,6 +86,15 @@ export function QuoteBuilder() {
   const isLocal = isLocalhost();
   const { mode } = useTheme();
   const isLight = mode === "normal";
+  const [quotingMode, setQuotingMode] = useState<"v2" | "classic">(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("hudson_quoting_mode");
+        if (stored === "classic") return "classic";
+      } catch {}
+    }
+    return "v2";
+  });
   const [quote, setQuote] = useState<FullQuote>(() => {
     // Ensure any prior draft with data is safely stored in Saved Estimates
     const draft = loadActiveDraftQuote();
@@ -799,11 +810,53 @@ export function QuoteBuilder() {
             <span className={isLight ? "text-slate-400" : "text-slate-400"}>·</span>
             <span className={`text-xs font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>Estimate #{quote.quoteNumber}</span>
           </div>
-          <h1 className={`text-xl sm:text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"} mt-1`}>
-            {quote.client.clientName
-              ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
-              : "Technical Builders Estimate & Quoting"}
-          </h1>
+          <div className="flex flex-wrap items-center gap-3 mt-1">
+            <h1 className={`text-xl sm:text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              {quote.client.clientName
+                ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
+                : "Technical Builders Estimate & Quoting"}
+            </h1>
+
+            {/* Mode Switcher */}
+            <div className={`inline-flex rounded-xl p-0.5 border ${isLight ? "bg-slate-100 border-slate-300" : "bg-slate-900 border-slate-800"}`}>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuotingMode("v2");
+                  try {
+                    localStorage.setItem("hudson_quoting_mode", "v2");
+                  } catch {}
+                  toast.success("Switched to Quoting Tool V2 (Express Flow)");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  quotingMode === "v2"
+                    ? "bg-emerald-500 text-slate-950 shadow-xs"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-slate-950" />
+                <span>V2 Express Flow</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuotingMode("classic");
+                  try {
+                    localStorage.setItem("hudson_quoting_mode", "classic");
+                  } catch {}
+                  toast.info("Switched to Detailed Studio (Advanced)");
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  quotingMode === "classic"
+                    ? isLight ? "bg-white text-slate-900 shadow-xs" : "bg-slate-800 text-white shadow-xs"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                <span>Detailed Studio</span>
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -919,8 +972,32 @@ export function QuoteBuilder() {
         </div>
       </div>
 
-      {/* Main Grid: Steps Container (Left) + Summary Sidebar (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px] gap-6 items-start">
+      {quotingMode === "v2" ? (
+        <QuoteBuilderV2
+          quote={quote}
+          onUpdateQuote={updateQuote}
+          onSaveQuote={handleSaveQuote}
+          onDownloadPdf={handleDownloadPdf}
+          onOpenShare={() => setIsShareOpen(true)}
+          onOpenSavedEstimates={async () => {
+            await refreshSavedQuotes();
+            setIsEstimatesDialogOpen(true);
+          }}
+          onOpenAdminCatalogue={() => setIsAdminOpen(true)}
+          onNewQuote={handleNewQuote}
+          onSwitchToDetailed={() => {
+            setQuotingMode("classic");
+            try {
+              localStorage.setItem("hudson_quoting_mode", "classic");
+            } catch {}
+          }}
+          savedQuotesCount={savedQuotes.length}
+          saving={saving}
+          downloading={downloading}
+        />
+      ) : (
+        /* Main Grid: Steps Container (Left) + Summary Sidebar (Right) */
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px] gap-6 items-start">
         {/* Left Column: Multi-Step Navigation & Tab Content */}
         <div className="space-y-6 min-w-0">
           {/* Step Selector Tabs */}
@@ -1111,6 +1188,7 @@ export function QuoteBuilder() {
           />
         </div>
       </div>
+      )}
 
       {/* Saved Estimates Manager Modal */}
       <QuoteEstimatesDialog
