@@ -346,22 +346,24 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const customSpec = quote.design.customSpec;
   const customTotalM2 = customSpec ? calculateCustomTotalM2(customSpec) : 0;
 
-  const effectiveDesignM2 =
+  const rawEffectiveDesignM2 =
     isCustomMode
       ? customTotalM2 || quote.design.designM2 || 200
       : quote.design.isModifiedFloorplan && quote.design.modifiedDesignM2
       ? quote.design.modifiedDesignM2
       : quote.design.designM2 || 200;
+  const effectiveDesignM2 = Math.round(rawEffectiveDesignM2 * 100) / 100;
 
   const activeTargetName =
     activeDwellingTab === "dwelling2"
       ? secondDwelling?.designName || "2nd Dwelling / Granny Flat"
       : quote.design.designName || "Primary Dwelling";
 
-  const activeTargetM2 =
+  const rawActiveTargetM2 =
     activeDwellingTab === "dwelling2"
       ? secondDwelling?.designM2 || 60
       : effectiveDesignM2;
+  const activeTargetM2 = Math.round(rawActiveTargetM2 * 100) / 100;
 
   const activeTargetStoreys =
     activeDwellingTab === "dwelling2"
@@ -378,7 +380,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
   const isTargetH1 = !isTargetH3 && !isTargetH2;
 
   // Ceiling height upgrades apply to the entire level (living + garage + porch + alfresco)
-  const singleStoreyLevelM2 =
+  const rawSingleStoreyLevelM2 =
     activeDwellingTab === "dwelling2"
       ? activeTargetM2
       : isCustomMode && customSpec
@@ -391,8 +393,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
          Number(quote.design.modifiedAreas?.porchM2 ?? quote.design.standardAreas?.porchM2 ?? 0) +
          Number(quote.design.modifiedAreas?.alfrescoM2 ?? quote.design.standardAreas?.alfrescoM2 ?? 0)) ||
         effectiveDesignM2;
+  const singleStoreyLevelM2 = Math.round(rawSingleStoreyLevelM2 * 100) / 100;
 
-  const gfLevelM2 =
+  const rawGfLevelM2 =
     activeDwellingTab === "dwelling2"
       ? Math.round(activeTargetM2 * 0.6)
       : isCustomMode && customSpec
@@ -405,8 +408,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
          Number(quote.design.modifiedAreas?.porchM2 ?? quote.design.standardAreas?.porchM2 ?? 0) +
          Number(quote.design.modifiedAreas?.alfrescoM2 ?? quote.design.standardAreas?.alfrescoM2 ?? 0)) ||
         Math.round(effectiveDesignM2 * 0.6);
+  const gfLevelM2 = Math.round(rawGfLevelM2 * 100) / 100;
 
-  const ffLevelM2 =
+  const rawFfLevelM2 =
     activeDwellingTab === "dwelling2"
       ? Math.round(activeTargetM2 * 0.4)
       : isCustomMode && customSpec
@@ -414,6 +418,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       : (Number(quote.design.modifiedAreas?.firstLivingM2 ?? quote.design.standardAreas?.firstLivingM2 ?? 0) +
          Number(quote.design.modifiedAreas?.balconyM2 ?? quote.design.standardAreas?.balconyM2 ?? 0)) ||
         Math.round(effectiveDesignM2 * 0.4);
+  const ffLevelM2 = Math.round(rawFfLevelM2 * 100) / 100;
 
   // Backward compatibility aliases
   const singleStoreyLivingM2 = singleStoreyLevelM2;
@@ -657,7 +662,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       ) {
         const expectedQty = singleStoreyLevelM2;
         const expectedRate = 38;
-        const expectedSubtotal = expectedQty * expectedRate;
+        const expectedSubtotal = Math.round(expectedQty * expectedRate);
         const expectedName = `${dwellingPrefix}Upgrade to 3,000mm (10'0") Ceiling Height (from 2,740mm)`;
         if (
           item.id !== `pop_ceiling_3000_h3${pfx}` ||
@@ -688,13 +693,14 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       ) {
         const expectedQty = singleStoreyLevelM2;
         const expectedRate = 76;
-        if (item.quantity !== expectedQty || item.unitRate !== expectedRate) {
+        const expectedSubtotal = Math.round(expectedQty * expectedRate);
+        if (item.quantity !== expectedQty || item.unitRate !== expectedRate || item.subtotal !== expectedSubtotal) {
           hasChanges = true;
           return {
             ...item,
             quantity: expectedQty,
             unitRate: expectedRate,
-            subtotal: expectedQty * expectedRate,
+            subtotal: expectedSubtotal,
           };
         }
       }
@@ -707,12 +713,13 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
         item.id === `pop_ceiling_2740_h2${pfx}`
       ) {
         const expectedQty = singleStoreyLevelM2;
-        if (item.quantity !== expectedQty) {
+        const expectedSubtotal = Math.round(expectedQty * item.unitRate);
+        if (item.quantity !== expectedQty || item.subtotal !== expectedSubtotal) {
           hasChanges = true;
           return {
             ...item,
             quantity: expectedQty,
-            subtotal: expectedQty * item.unitRate,
+            subtotal: expectedSubtotal,
           };
         }
       }
@@ -725,13 +732,14 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
       ) {
         const expectedQty = gfLevelM2;
         const expectedRate = isTargetH1 ? 104 : isTargetH3 ? 68 : 76;
-        if (item.quantity !== expectedQty || item.unitRate !== expectedRate) {
+        const expectedSubtotal = Math.round(expectedQty * expectedRate);
+        if (item.quantity !== expectedQty || item.unitRate !== expectedRate || item.subtotal !== expectedSubtotal) {
           hasChanges = true;
           return {
             ...item,
             quantity: expectedQty,
             unitRate: expectedRate,
-            subtotal: expectedQty * expectedRate,
+            subtotal: expectedSubtotal,
           };
         }
       }
@@ -745,12 +753,13 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
           item.id === `pop_ceiling_ff_2590${pfx}`)
       ) {
         const expectedQty = ffLevelM2;
-        if (item.quantity !== expectedQty) {
+        const expectedSubtotal = Math.round(expectedQty * item.unitRate);
+        if (item.quantity !== expectedQty || item.subtotal !== expectedSubtotal) {
           hasChanges = true;
           return {
             ...item,
             quantity: expectedQty,
-            subtotal: expectedQty * item.unitRate,
+            subtotal: expectedSubtotal,
           };
         }
       }
@@ -1197,8 +1206,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
           {/* CATEGORY 1: COUNCIL & SITE */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Council &amp; Site Allowances
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-cyan-800 font-extrabold" : "text-cyan-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-cyan-600" : "bg-cyan-400"}`} /> Council &amp; Site Allowances
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {/* Covenant & Unknown Site Allowance */}
@@ -1215,60 +1226,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "fixed",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   covenantItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Covenant &amp; Unknown Site</span>
-                  <span className="text-[10px] text-slate-400 font-mono">+$2,500 steps</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Covenant &amp; Unknown Site
+                    </span>
+                    {covenantItem?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Allowance for covenant &amp; unknown site requirements
+                  </p>
                 </div>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = covenantItem?.unitRate || 2500;
-                      const next = Math.max(0, cur - 2500);
-                      upsertPopularItem("pop_covenant_site", {
-                        isIncluded: next > 0,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Covenant & Unknown Site Requirements",
-                        category: "council_statutory",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${covenantItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? covenantItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-600"
+                      : covenantItem?.isIncluded ? "text-emerald-400 font-bold" : "text-slate-400"
+                  }`}>
                     {formatAud(covenantItem?.isIncluded ? covenantItem.subtotal : 0)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = covenantItem?.unitRate || 0;
-                      const next = cur + 2500;
-                      upsertPopularItem("pop_covenant_site", {
-                        isIncluded: true,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Covenant & Unknown Site Requirements",
-                        category: "council_statutory",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                  <div
+                    className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = covenantItem?.unitRate || 2500;
+                        const next = Math.max(0, cur - 2500);
+                        upsertPopularItem("pop_covenant_site", {
+                          isIncluded: next > 0,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Covenant & Unknown Site Requirements",
+                          category: "council_statutory",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Decrease allowance"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                      covenantItem?.isIncluded
+                        ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                        : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                    }`}>
+                      {covenantItem?.isIncluded ? formatAud(covenantItem.unitRate) : "$0"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = covenantItem?.unitRate || 0;
+                        const next = cur + 2500;
+                        upsertPopularItem("pop_covenant_site", {
+                          isIncluded: true,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Covenant & Unknown Site Requirements",
+                          category: "council_statutory",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Increase allowance"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1276,8 +1330,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
           {/* CATEGORY 2: STRUCTURAL & CEILINGS (INC +$3 JOINERY) */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Structural &amp; Ceilings (Inc. +$3 Joinery)
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-amber-800 font-extrabold" : "text-amber-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-amber-600" : "bg-amber-400"}`} /> Structural &amp; Ceilings (Inc. +$3 Joinery)
             </span>
             {!activeTargetStoreys ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
@@ -1285,19 +1341,48 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 {isTargetH3 ? (
                   <>
                     {/* H3 Standard 2,740mm Ceilings Badge */}
-                    <div className="p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-950/20 flex items-center justify-between gap-2 shadow-sm">
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-emerald-300 block truncate flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                          2,740mm (9'0") Ceilings Standard
+                    <div className={`p-3 rounded-xl border transition-all flex flex-col justify-between gap-2.5 shadow-sm ${
+                      isLight
+                        ? "border-emerald-600/50 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/20"
+                        : "border-emerald-500/40 bg-emerald-950/20 ring-1 ring-emerald-500/30 shadow-sm"
+                    }`}>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs flex items-center gap-1.5 ${
+                            isLight ? "text-emerald-950 font-extrabold" : "text-emerald-300"
+                          }`}>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-none" />
+                            2,740mm (9'0") Ceilings Standard
+                          </span>
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none tracking-wide ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold"
+                              : "bg-emerald-900/60 text-emerald-400 border-emerald-500/30"
+                          }`}>
+                            ✓ INCLUDED
+                          </span>
+                        </div>
+                        <p className={`text-[10px] font-mono ${
+                          isLight ? "text-emerald-800/90 font-medium" : "text-emerald-400/80"
+                        }`}>
+                          Included in H3 Luxury &bull; {singleStoreyLevelM2} m² Level Area
+                        </p>
+                      </div>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-emerald-200/60" : "border-emerald-800/40"
+                      }`}>
+                        <span className={`text-[11px] font-sans font-semibold ${
+                          isLight ? "text-emerald-800" : "text-emerald-400"
+                        }`}>
+                          Standard Baseline
                         </span>
-                        <span className="text-[10px] text-emerald-400/80 font-mono">
-                          Included in H3 Luxury • {singleStoreyLevelM2} m² Level Area
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight ? "text-emerald-900 font-extrabold" : "text-emerald-300"
+                        }`}>
+                          $0 (Included)
                         </span>
                       </div>
-                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-900/60 px-2 py-0.5 rounded border border-emerald-500/30 flex-none tracking-wide">
-                        ✓ INCLUDED
-                      </span>
                     </div>
 
                     {/* H3 3000mm ($38/m2 = $35 + $3 joinery) */}
@@ -1316,19 +1401,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                         ceiling3000H3Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                            : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                          : isLight
+                          ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$38 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            Upgrade to 3,000mm Ceilings
+                          </span>
+                          {ceiling3000H3Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $38 per sqm (inc joinery) &bull; {singleStoreyLevelM2} m²
+                        </p>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling3000H3Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 38)}
-                      </span>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $38/m²
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight
+                            ? ceiling3000H3Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceiling3000H3Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceiling3000H3Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 38)}
+                        </span>
+                      </div>
                     </div>
                   </>
                 ) : isTargetH2 ? (
@@ -1348,19 +1464,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                         ceiling2740H2Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                            : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                          : isLight
+                          ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$58 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            Upgrade to 2,740mm Ceilings
+                          </span>
+                          {ceiling2740H2Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $58 per sqm (inc joinery) &bull; {singleStoreyLevelM2} m²
+                        </p>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 58)}
-                      </span>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $58/m²
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight
+                            ? ceiling2740H2Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceiling2740H2Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceiling2740H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 58)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* H2 3000mm ($76/m2 = $73 + $3 joinery) */}
@@ -1378,19 +1525,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                         ceiling3000H2Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                            : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                          : isLight
+                          ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 3,000mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            Upgrade to 3,000mm Ceilings
+                          </span>
+                          {ceiling3000H2Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $76 per sqm (inc joinery) &bull; {singleStoreyLevelM2} m²
+                        </p>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
-                      </span>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $76/m²
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight
+                            ? ceiling3000H2Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceiling3000H2Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceiling3000H2Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
+                        </span>
+                      </div>
                     </div>
                   </>
                 ) : (
@@ -1410,19 +1588,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                         ceiling2590H1Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                            : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                          : isLight
+                          ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,590mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            Upgrade to 2,590mm Ceilings
+                          </span>
+                          {ceiling2590H1Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $51 per sqm (inc joinery) &bull; {singleStoreyLevelM2} m²
+                        </p>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 51)}
-                      </span>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $51/m²
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight
+                            ? ceiling2590H1Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceiling2590H1Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceiling2590H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 51)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* H1 2740mm ($76/m2 = $73 + $3 joinery) */}
@@ -1440,19 +1649,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                         ceiling2740H1Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                            : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                          : isLight
+                          ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                           : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">Upgrade to 2,740mm Ceilings</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$76 per sqm (inc joinery) • {singleStoreyLevelM2} m²</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            Upgrade to 2,740mm Ceilings
+                          </span>
+                          {ceiling2740H1Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $76 per sqm (inc joinery) &bull; {singleStoreyLevelM2} m²
+                        </p>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
-                      </span>
+
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $76/m²
+                        </span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isLight
+                            ? ceiling2740H1Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceiling2740H1Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceiling2740H1Item?.isIncluded ? "✓ " : ""}+{formatAud(singleStoreyLevelM2 * 76)}
+                        </span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1471,60 +1711,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                       unitType: "per_m2",
                     });
                   }}
-                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                     rakedItem?.isIncluded
-                      ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                      ? isLight
+                        ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                        : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                      : isLight
+                      ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                       : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                   }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <span className="font-bold text-xs text-white block truncate">Raked / Cathedral Ceiling</span>
-                    <span className="text-[10px] text-slate-400 font-mono">$310 per sqm</span>
+                  <div>
+                    <div className="flex items-center justify-between gap-1.5 mb-1">
+                      <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Raked / Cathedral Ceilings
+                      </span>
+                      {rakedItem?.isIncluded && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                          isLight
+                            ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                            : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                        }`}>
+                          SELECTED
+                        </span>
+                      )}
+                    </div>
+                    <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                      $310 per sqm &bull; Entertainment Space
+                    </p>
                   </div>
 
-                  <div
-                    className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cur = rakedItem?.quantity || 35;
-                        const next = Math.max(5, cur - 5);
-                        upsertPopularItem("pop_raked_entertainment", {
-                          isIncluded: true,
-                          quantity: next,
-                          unitRate: 310,
-                          name: "Raked / Cathedral Ceilings to Entertainment Space",
-                          category: "structural",
-                          unitType: "per_m2",
-                        });
-                      }}
-                      className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                    >
-                      <Minus className="h-3 w-3" />
-                    </button>
-                    <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
-                      {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
+                  <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                    isLight ? "border-slate-200" : "border-slate-800/80"
+                  }`}>
+                    <span className={`text-xs font-mono font-bold ${
+                      isLight
+                        ? rakedItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-700"
+                        : rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-300"
+                    }`}>
+                      {formatAud((rakedItem?.quantity || 35) * 310)}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cur = rakedItem?.quantity || 35;
-                        const next = cur + 5;
-                        upsertPopularItem("pop_raked_entertainment", {
-                          isIncluded: true,
-                          quantity: next,
-                          unitRate: 310,
-                          name: "Raked / Cathedral Ceilings to Entertainment Space",
-                          category: "structural",
-                          unitType: "per_m2",
-                        });
-                      }}
-                      className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                    <div
+                      className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                      }`}
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      <Plus className="h-3 w-3" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = rakedItem?.quantity || 35;
+                          const next = Math.max(5, cur - 5);
+                          upsertPopularItem("pop_raked_entertainment", {
+                            isIncluded: true,
+                            quantity: next,
+                            unitRate: 310,
+                            name: "Raked / Cathedral Ceilings to Entertainment Space",
+                            category: "structural",
+                            unitType: "per_m2",
+                          });
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                        }`}
+                        title="Decrease sqm"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </button>
+                      <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                        rakedItem?.isIncluded
+                          ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                          : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                      }`}>
+                        {rakedItem?.quantity || 35} sqm
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const cur = rakedItem?.quantity || 35;
+                          const next = cur + 5;
+                          upsertPopularItem("pop_raked_entertainment", {
+                            isIncluded: true,
+                            quantity: next,
+                            unitRate: 310,
+                            name: "Raked / Cathedral Ceilings to Entertainment Space",
+                            category: "structural",
+                            unitType: "per_m2",
+                          });
+                        }}
+                        className={`p-1 rounded transition-colors ${
+                          isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                        }`}
+                        title="Increase sqm"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1532,12 +1815,16 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
               /* Double Storey & 2-Storey Duplex Separate GF and FF Ceiling Height Options */
               <div className="space-y-3">
                 {/* 1. Ground Floor Ceilings */}
-                <div className="rounded-xl border border-cyan-500/20 bg-cyan-950/15 p-2.5">
+                <div className={`rounded-xl border p-3 ${
+                  isLight ? "border-cyan-200 bg-cyan-50/40" : "border-cyan-500/20 bg-cyan-950/15"
+                }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5 uppercase tracking-wide">
-                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Ground Floor Ceilings (GF Level: {gfLevelM2} m²)
+                    <span className={`text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wide ${
+                      isLight ? "text-cyan-900 font-extrabold" : "text-cyan-300"
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" /> Ground Floor Ceilings (GF Level: {gfLevelM2} m²)
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       Base: {isTargetH3 ? "2,740mm standard" : isTargetH2 ? "2,590mm standard" : "2,440mm standard"}
                     </span>
                   </div>
@@ -1545,19 +1832,41 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     {isTargetH3 ? (
                       <>
                         {/* H3 GF 2,740mm Standard Badge */}
-                        <div className="p-2 rounded-lg border border-emerald-500/40 bg-emerald-950/30 flex items-center justify-between gap-1.5">
-                          <div className="min-w-0 flex-1">
-                            <span className="font-bold text-xs text-emerald-300 block truncate flex items-center gap-1">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                              GF 2,740mm (9'0") Standard
-                            </span>
-                            <span className="text-[10px] text-emerald-400/80 font-mono">
-                              Included in H3 Luxury • {gfLevelM2} m² GF Level
+                        <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2 shadow-sm ${
+                          isLight
+                            ? "border-emerald-500/50 bg-white ring-1 ring-emerald-500/20"
+                            : "border-emerald-500/40 bg-emerald-950/30"
+                        }`}>
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5 mb-1">
+                              <span className={`font-bold text-xs flex items-center gap-1 ${
+                                isLight ? "text-emerald-900 font-extrabold" : "text-emerald-300"
+                              }`}>
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-none" />
+                                GF 2,740mm (9'0") Standard
+                              </span>
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none tracking-wide ${
+                                isLight
+                                  ? "bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold"
+                                  : "bg-emerald-900/60 text-emerald-400 border-emerald-500/30"
+                              }`}>
+                                ✓ INCLUDED
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-mono block ${isLight ? "text-emerald-800" : "text-emerald-400/80"}`}>
+                              Included in H3 Luxury &bull; {gfLevelM2} m² GF
                             </span>
                           </div>
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-900/60 px-1.5 py-0.5 rounded border border-emerald-500/30 flex-none tracking-wide">
-                            ✓ INCLUDED
-                          </span>
+                          <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                            isLight ? "border-emerald-200/60" : "border-emerald-800/40"
+                          }`}>
+                            <span className={`text-[11px] font-sans font-semibold ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
+                              Standard Baseline
+                            </span>
+                            <span className={`text-xs font-mono font-bold ${isLight ? "text-emerald-900 font-extrabold" : "text-emerald-300"}`}>
+                              $0
+                            </span>
+                          </div>
                         </div>
 
                         {/* GF 3000mm from 2740mm */}
@@ -1574,19 +1883,47 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                               },
                             );
                           }}
-                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                             ceilingGf3000Item?.isIncluded
-                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              ? isLight
+                                ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                                : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : isLight
+                              ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                               : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                           }`}
                         >
-                          <div className="min-w-0 flex-1">
-                            <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
-                            <span className="text-[10px] text-slate-400 font-mono">$68/m² • {gfLevelM2} m² GF</span>
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5 mb-1">
+                              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                                GF to 3,000mm (10'0")
+                              </span>
+                              {ceilingGf3000Item?.isIncluded && (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                                  isLight
+                                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                    : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                }`}>
+                                  SELECTED
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                              $68/m² &bull; {gfLevelM2} m² GF Level
+                            </span>
                           </div>
-                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                            {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 68)}
-                          </span>
+                          <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                            isLight ? "border-slate-200" : "border-slate-800/80"
+                          }`}>
+                            <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>$68/m²</span>
+                            <span className={`font-bold text-xs font-mono ${
+                              isLight
+                                ? ceilingGf3000Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                                : ceilingGf3000Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                            }`}>
+                              {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 68)}
+                            </span>
+                          </div>
                         </div>
                       </>
                     ) : (
@@ -1606,37 +1943,87 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                                 },
                               )
                             }
-                            className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                            className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                               ceilingGf2590Item?.isIncluded
-                                ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                                ? isLight
+                                  ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                                  : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                                : isLight
+                                ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                                 : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                             }`}
                           >
-                            <div className="min-w-0 flex-1">
-                              <span className="font-bold text-xs text-white block truncate">GF to 2,590mm (8'6")</span>
-                              <span className="text-[10px] text-slate-400 font-mono">$51/m² • {gfLevelM2} m² GF</span>
+                            <div>
+                              <div className="flex items-center justify-between gap-1.5 mb-1">
+                                <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                                  GF to 2,590mm (8'6")
+                                </span>
+                                {ceilingGf2590Item?.isIncluded && (
+                                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                                    isLight
+                                      ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                      : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                  }`}>
+                                    SELECTED
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                                $51/m² &bull; {gfLevelM2} m² GF Level
+                              </span>
                             </div>
-                            <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                              {ceilingGf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 51)}
-                            </span>
+                            <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                              isLight ? "border-slate-200" : "border-slate-800/80"
+                            }`}>
+                              <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>$51/m²</span>
+                              <span className={`font-bold text-xs font-mono ${
+                                isLight
+                                  ? ceilingGf2590Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                                  : ceilingGf2590Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                              }`}>
+                                {ceilingGf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * 51)}
+                              </span>
+                            </div>
                           </div>
                         )}
 
                         {/* H2 Standard Badge if H2 */}
                         {isTargetH2 && (
-                          <div className="p-2 rounded-lg border border-cyan-500/40 bg-cyan-950/30 flex items-center justify-between gap-1.5">
-                            <div className="min-w-0 flex-1">
-                              <span className="font-bold text-xs text-cyan-300 block truncate flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                                GF 2,590mm (8'6") Standard
-                              </span>
-                              <span className="text-[10px] text-cyan-400/80 font-mono">
-                                Included in H2 Design • {gfLevelM2} m² GF Level
+                          <div className={`p-3 rounded-xl border flex flex-col justify-between gap-2 shadow-sm ${
+                            isLight
+                              ? "border-cyan-500/50 bg-white ring-1 ring-cyan-500/20"
+                              : "border-cyan-500/40 bg-cyan-950/30"
+                          }`}>
+                            <div>
+                              <div className="flex items-center justify-between gap-1.5 mb-1">
+                                <span className={`font-bold text-xs flex items-center gap-1 ${
+                                  isLight ? "text-cyan-900 font-extrabold" : "text-cyan-300"
+                                }`}>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 flex-none" />
+                                  GF 2,590mm (8'6") Standard
+                                </span>
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none tracking-wide ${
+                                  isLight
+                                    ? "bg-cyan-100 text-cyan-900 border-cyan-300 font-extrabold"
+                                    : "bg-cyan-900/60 text-cyan-400 border-cyan-500/30"
+                                }`}>
+                                  ✓ INCLUDED
+                                </span>
+                              </div>
+                              <span className={`text-[10px] font-mono block ${isLight ? "text-cyan-800" : "text-cyan-400/80"}`}>
+                                Included in H2 Design &bull; {gfLevelM2} m² GF
                               </span>
                             </div>
-                            <span className="text-[10px] font-bold text-cyan-400 bg-cyan-900/60 px-1.5 py-0.5 rounded border border-cyan-500/30 flex-none tracking-wide">
-                              ✓ INCLUDED
-                            </span>
+                            <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                              isLight ? "border-cyan-200/60" : "border-cyan-800/40"
+                            }`}>
+                              <span className={`text-[11px] font-sans font-semibold ${isLight ? "text-cyan-800" : "text-cyan-400"}`}>
+                                Standard Baseline
+                              </span>
+                              <span className={`text-xs font-mono font-bold ${isLight ? "text-cyan-900 font-extrabold" : "text-cyan-300"}`}>
+                                $0
+                              </span>
+                            </div>
                           </div>
                         )}
 
@@ -1655,21 +2042,49 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                               },
                             );
                           }}
-                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                             ceilingGf2740Item?.isIncluded
-                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              ? isLight
+                                ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                                : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : isLight
+                              ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                               : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                           }`}
                         >
-                          <div className="min-w-0 flex-1">
-                            <span className="font-bold text-xs text-white block truncate">GF to 2,740mm (9'0")</span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ${isTargetH1 ? 76 : 58}/m² • {gfLevelM2} m² GF
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5 mb-1">
+                              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                                GF to 2,740mm (9'0")
+                              </span>
+                              {ceilingGf2740Item?.isIncluded && (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                                  isLight
+                                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                    : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                }`}>
+                                  SELECTED
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                              ${isTargetH1 ? 76 : 58}/m² &bull; {gfLevelM2} m² GF Level
                             </span>
                           </div>
-                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                            {ceilingGf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 76 : 58))}
-                          </span>
+                          <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                            isLight ? "border-slate-200" : "border-slate-800/80"
+                          }`}>
+                            <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                              ${isTargetH1 ? 76 : 58}/m²
+                            </span>
+                            <span className={`font-bold text-xs font-mono ${
+                              isLight
+                                ? ceilingGf2740Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                                : ceilingGf2740Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                            }`}>
+                              {ceilingGf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 76 : 58))}
+                            </span>
+                          </div>
                         </div>
 
                         {/* GF 3000mm */}
@@ -1687,21 +2102,49 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                               },
                             );
                           }}
-                          className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                          className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                             ceilingGf3000Item?.isIncluded
-                              ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              ? isLight
+                                ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                                : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                              : isLight
+                              ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                               : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                           }`}
                         >
-                          <div className="min-w-0 flex-1">
-                            <span className="font-bold text-xs text-white block truncate">GF to 3,000mm (10'0")</span>
-                            <span className="text-[10px] text-slate-400 font-mono">
-                              ${isTargetH1 ? 104 : 76}/m² • {gfLevelM2} m² GF
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5 mb-1">
+                              <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                                GF to 3,000mm (10'0")
+                              </span>
+                              {ceilingGf3000Item?.isIncluded && (
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                                  isLight
+                                    ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                    : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                                }`}>
+                                  SELECTED
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                              ${isTargetH1 ? 104 : 76}/m² &bull; {gfLevelM2} m² GF Level
                             </span>
                           </div>
-                          <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                            {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 104 : 76))}
-                          </span>
+                          <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                            isLight ? "border-slate-200" : "border-slate-800/80"
+                          }`}>
+                            <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                              ${isTargetH1 ? 104 : 76}/m²
+                            </span>
+                            <span className={`font-bold text-xs font-mono ${
+                              isLight
+                                ? ceilingGf3000Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                                : ceilingGf3000Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                            }`}>
+                              {ceilingGf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(gfLevelM2 * (isTargetH1 ? 104 : 76))}
+                            </span>
+                          </div>
                         </div>
                       </>
                     )}
@@ -1709,12 +2152,16 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                 </div>
 
                 {/* 2. First Floor Ceilings */}
-                <div className="rounded-xl border border-purple-500/20 bg-purple-950/15 p-2.5">
+                <div className={`rounded-xl border p-3 ${
+                  isLight ? "border-purple-200 bg-purple-50/40" : "border-purple-500/20 bg-purple-950/15"
+                }`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-purple-300 flex items-center gap-1.5 uppercase tracking-wide">
-                      <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> First Floor Ceilings (FF Level: {ffLevelM2} m²)
+                    <span className={`text-[11px] font-bold flex items-center gap-1.5 uppercase tracking-wide ${
+                      isLight ? "text-purple-900 font-extrabold" : "text-purple-300"
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-purple-500" /> First Floor Ceilings (FF Level: {ffLevelM2} m²)
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <span className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                       Base: 2,440mm standard upper floor
                     </span>
                   </div>
@@ -1733,19 +2180,47 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         )
                       }
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                         ceilingFf2590Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                            : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : isLight
+                          ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                           : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">FF to 2,590mm (8'6")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">$51/m² • {ffLevelM2} m² FF</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            FF to 2,590mm (8'6")
+                          </span>
+                          {ceilingFf2590Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          $51/m² &bull; {ffLevelM2} m² FF Level
+                        </span>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * 51)}
-                      </span>
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>$51/m²</span>
+                        <span className={`font-bold text-xs font-mono ${
+                          isLight
+                            ? ceilingFf2590Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceilingFf2590Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceilingFf2590Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * 51)}
+                        </span>
+                      </div>
                     </div>
 
                     {/* FF 2740mm */}
@@ -1763,19 +2238,49 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                         ceilingFf2740Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                            : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : isLight
+                          ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                           : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">FF to 2,740mm (9'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 76 : 58}/m² • {ffLevelM2} m² FF</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            FF to 2,740mm (9'0")
+                          </span>
+                          {ceilingFf2740Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          ${isTargetH1 ? 76 : 58}/m² &bull; {ffLevelM2} m² FF Level
+                        </span>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 76 : 58))}
-                      </span>
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          ${isTargetH1 ? 76 : 58}/m²
+                        </span>
+                        <span className={`font-bold text-xs font-mono ${
+                          isLight
+                            ? ceilingFf2740Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceilingFf2740Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceilingFf2740Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 76 : 58))}
+                        </span>
+                      </div>
                     </div>
 
                     {/* FF 3000mm */}
@@ -1793,19 +2298,49 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                           },
                         );
                       }}
-                      className={`p-2 rounded-lg border cursor-pointer transition-all flex items-center justify-between gap-1.5 ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 ${
                         ceilingFf3000Item?.isIncluded
-                          ? "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          ? isLight
+                            ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
+                            : "border-emerald-500 bg-emerald-950/30 ring-1 ring-emerald-500/40"
+                          : isLight
+                          ? "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/80"
                           : "border-slate-800 bg-slate-900/70 hover:border-slate-700"
                       }`}
                     >
-                      <div className="min-w-0 flex-1">
-                        <span className="font-bold text-xs text-white block truncate">FF to 3,000mm (10'0")</span>
-                        <span className="text-[10px] text-slate-400 font-mono">${isTargetH1 ? 104 : 76}/m² • {ffLevelM2} m² FF</span>
+                      <div>
+                        <div className="flex items-center justify-between gap-1.5 mb-1">
+                          <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                            FF to 3,000mm (10'0")
+                          </span>
+                          {ceilingFf3000Item?.isIncluded && (
+                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                              isLight
+                                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                                : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                            }`}>
+                              SELECTED
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-mono block ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          ${isTargetH1 ? 104 : 76}/m² &bull; {ffLevelM2} m² FF Level
+                        </span>
                       </div>
-                      <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                        {ceilingFf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 104 : 76))}
-                      </span>
+                      <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                        isLight ? "border-slate-200" : "border-slate-800/80"
+                      }`}>
+                        <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                          ${isTargetH1 ? 104 : 76}/m²
+                        </span>
+                        <span className={`font-bold text-xs font-mono ${
+                          isLight
+                            ? ceilingFf3000Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                            : ceilingFf3000Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                        }`}>
+                          {ceilingFf3000Item?.isIncluded ? "✓ " : ""}+{formatAud(ffLevelM2 * (isTargetH1 ? 104 : 76))}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1825,60 +2360,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                         unitType: "per_m2",
                       });
                     }}
-                    className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                       rakedItem?.isIncluded
-                        ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                        ? isLight
+                          ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                          : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                        : isLight
+                        ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                         : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                     }`}
                   >
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold text-xs text-white block truncate">Raked / Cathedral Ceiling</span>
-                      <span className="text-[10px] text-slate-400 font-mono">$310 per sqm</span>
+                    <div>
+                      <div className="flex items-center justify-between gap-1.5 mb-1">
+                        <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                          Raked / Cathedral Ceilings
+                        </span>
+                        {rakedItem?.isIncluded && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                            isLight
+                              ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                              : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                          }`}>
+                            SELECTED
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                        $310 per sqm &bull; Entertainment Space
+                      </p>
                     </div>
 
-                    <div
-                      className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const cur = rakedItem?.quantity || 35;
-                          const next = Math.max(5, cur - 5);
-                          upsertPopularItem("pop_raked_entertainment", {
-                            isIncluded: true,
-                            quantity: next,
-                            unitRate: 310,
-                            name: "Raked / Cathedral Ceilings to Entertainment Space",
-                            category: "structural",
-                            unitType: "per_m2",
-                          });
-                        }}
-                        className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </button>
-                      <span className={`font-bold text-xs font-mono px-1 ${rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
-                        {formatAud((rakedItem?.quantity || 35) * 310)} ({rakedItem?.quantity || 35} sqm)
+                    <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                      isLight ? "border-slate-200" : "border-slate-800/80"
+                    }`}>
+                      <span className={`text-xs font-mono font-bold ${
+                        isLight
+                          ? rakedItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-700"
+                          : rakedItem?.isIncluded ? "text-emerald-400" : "text-slate-300"
+                      }`}>
+                        {formatAud((rakedItem?.quantity || 35) * 310)}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const cur = rakedItem?.quantity || 35;
-                          const next = cur + 5;
-                          upsertPopularItem("pop_raked_entertainment", {
-                            isIncluded: true,
-                            quantity: next,
-                            unitRate: 310,
-                            name: "Raked / Cathedral Ceilings to Entertainment Space",
-                            category: "structural",
-                            unitType: "per_m2",
-                          });
-                        }}
-                        className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                      <div
+                        className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                          isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                        }`}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Plus className="h-3 w-3" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = rakedItem?.quantity || 35;
+                            const next = Math.max(5, cur - 5);
+                            upsertPopularItem("pop_raked_entertainment", {
+                              isIncluded: true,
+                              quantity: next,
+                              unitRate: 310,
+                              name: "Raked / Cathedral Ceilings to Entertainment Space",
+                              category: "structural",
+                              unitType: "per_m2",
+                            });
+                          }}
+                          className={`p-1 rounded transition-colors ${
+                            isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                          }`}
+                          title="Decrease sqm"
+                        >
+                          <Minus className="h-3 w-3" />
+                        </button>
+                        <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                          rakedItem?.isIncluded
+                            ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                            : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                        }`}>
+                          {rakedItem?.quantity || 35} sqm
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const cur = rakedItem?.quantity || 35;
+                            const next = cur + 5;
+                            upsertPopularItem("pop_raked_entertainment", {
+                              isIncluded: true,
+                              quantity: next,
+                              unitRate: 310,
+                              name: "Raked / Cathedral Ceilings to Entertainment Space",
+                              category: "structural",
+                              unitType: "per_m2",
+                            });
+                          }}
+                          className={`p-1 rounded transition-colors ${
+                            isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                          }`}
+                          title="Increase sqm"
+                        >
+                          <Plus className="h-3 w-3" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1888,8 +2466,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
           {/* CATEGORY 3: DOORS & WINDOWS */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" /> Doors &amp; Windows
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-indigo-800 font-extrabold" : "text-indigo-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-indigo-600" : "bg-indigo-400"}`} /> Doors &amp; Windows
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {/* 1020mm Entry Door */}
@@ -1908,19 +2488,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     upsertPopularItem("pop_door_1200", { isIncluded: false, unitRate: 1500 });
                   }
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   door1020Item?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">1020mm Front Entry Door</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Wide entrance door</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      1020mm Front Entry Door
+                    </span>
+                    {door1020Item?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Wide statement entrance door
+                  </p>
                 </div>
-                <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                  {door1020Item?.isIncluded ? "✓ " : ""}+$800
-                </span>
+
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Fixed Upgrade
+                  </span>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? door1020Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                      : door1020Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                  }`}>
+                    {door1020Item?.isIncluded ? "✓ " : ""}+$800
+                  </span>
+                </div>
               </div>
 
               {/* 1200mm Entry Door */}
@@ -1939,27 +2550,60 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     upsertPopularItem("pop_door_1020", { isIncluded: false, unitRate: 800 });
                   }
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   door1200Item?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">1200mm Front Entry Door</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Statement pivot entrance</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      1200mm Front Entry Door
+                    </span>
+                    {door1200Item?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Statement pivot entrance door
+                  </p>
                 </div>
-                <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                  {door1200Item?.isIncluded ? "✓ " : ""}+$1,500
-                </span>
+
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Fixed Upgrade
+                  </span>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? door1200Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                      : door1200Item?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                  }`}>
+                    {door1200Item?.isIncluded ? "✓ " : ""}+$1,500
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* CATEGORY 4: KITCHEN & LAUNDRY */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Kitchen &amp; Laundry
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-emerald-600" : "bg-emerald-400"}`} /> Kitchen &amp; Laundry
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {/* 40mm Stone Edge Upgrade ($245 / lm) */}
@@ -1976,60 +2620,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "per_lm",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   stone40Item?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">40mm Stone Edge Upgrade</span>
-                  <span className="text-[10px] text-slate-400 font-mono">$245 per lm</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      40mm Stone Edge Upgrade
+                    </span>
+                    {stone40Item?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    $245 per lm &bull; Kitchen Island &amp; Benchtops
+                  </p>
                 </div>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = stone40Item?.quantity || 6;
-                      const next = Math.max(1, cur - 1);
-                      upsertPopularItem("pop_stone_40mm", {
-                        isIncluded: true,
-                        quantity: next,
-                        unitRate: 245,
-                        name: "Upgrade Stone Benchtop Thickness to 40mm (ilo 20mm)",
-                        category: "internal_kitchen",
-                        unitType: "per_lm",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${stone40Item?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
-                    {formatAud((stone40Item?.quantity || 6) * 245)} ({stone40Item?.quantity || 6} lm)
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? stone40Item?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-700"
+                      : stone40Item?.isIncluded ? "text-emerald-400" : "text-slate-300"
+                  }`}>
+                    {formatAud((stone40Item?.quantity || 6) * 245)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = stone40Item?.quantity || 6;
-                      const next = cur + 1;
-                      upsertPopularItem("pop_stone_40mm", {
-                        isIncluded: true,
-                        quantity: next,
-                        unitRate: 245,
-                        name: "Upgrade Stone Benchtop Thickness to 40mm (ilo 20mm)",
-                        category: "internal_kitchen",
-                        unitType: "per_lm",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                  <div
+                    className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = stone40Item?.quantity || 6;
+                        const next = Math.max(1, cur - 1);
+                        upsertPopularItem("pop_stone_40mm", {
+                          isIncluded: true,
+                          quantity: next,
+                          unitRate: 245,
+                          name: "Upgrade Stone Benchtop Thickness to 40mm (ilo 20mm)",
+                          category: "internal_kitchen",
+                          unitType: "per_lm",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Decrease length"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                      stone40Item?.isIncluded
+                        ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                        : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                    }`}>
+                      {stone40Item?.quantity || 6} lm
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = stone40Item?.quantity || 6;
+                        const next = cur + 1;
+                        upsertPopularItem("pop_stone_40mm", {
+                          isIncluded: true,
+                          quantity: next,
+                          unitRate: 245,
+                          name: "Upgrade Stone Benchtop Thickness to 40mm (ilo 20mm)",
+                          category: "internal_kitchen",
+                          unitType: "per_lm",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Increase length"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -2047,60 +2734,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "fixed",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   laundryItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Laundry Custom Fit-out</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Benchtop &amp; overheads ($500 steps)</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Laundry Custom Fit-out
+                    </span>
+                    {laundryItem?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Benchtop &amp; overhead cabinetry ($500 steps)
+                  </p>
                 </div>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = laundryItem?.unitRate || 2500;
-                      const next = Math.max(0, cur - 500);
-                      upsertPopularItem("pop_laundry_fitout", {
-                        isIncluded: next > 0,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Laundry Fit-out (Benchtop & O'head Cabinetry)",
-                        category: "internal_laundry",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${laundryItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? laundryItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-600"
+                      : laundryItem?.isIncluded ? "text-emerald-400 font-bold" : "text-slate-400"
+                  }`}>
                     {formatAud(laundryItem?.isIncluded ? laundryItem.subtotal : 0)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = laundryItem?.unitRate || 2000;
-                      const next = cur + 500;
-                      upsertPopularItem("pop_laundry_fitout", {
-                        isIncluded: true,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Laundry Fit-out (Benchtop & O'head Cabinetry)",
-                        category: "internal_laundry",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                  <div
+                    className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = laundryItem?.unitRate || 2500;
+                        const next = Math.max(0, cur - 500);
+                        upsertPopularItem("pop_laundry_fitout", {
+                          isIncluded: next > 0,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Laundry Fit-out (Benchtop & O'head Cabinetry)",
+                          category: "internal_laundry",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Decrease allowance"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                      laundryItem?.isIncluded
+                        ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                        : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                    }`}>
+                      {laundryItem?.isIncluded ? formatAud(laundryItem.unitRate) : "$0"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = laundryItem?.unitRate || 2000;
+                        const next = cur + 500;
+                        upsertPopularItem("pop_laundry_fitout", {
+                          isIncluded: true,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Laundry Fit-out (Benchtop & O'head Cabinetry)",
+                          category: "internal_laundry",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Increase allowance"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2108,8 +2838,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
           {/* CATEGORY 5: BATHROOM & ENSUITE */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Bathroom &amp; Ensuite
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-rose-800 font-extrabold" : "text-rose-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-rose-600" : "bg-rose-400"}`} /> Bathroom &amp; Ensuite
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {/* Floor to Ceiling Tiles ($3,000 / room) */}
@@ -2126,60 +2858,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "custom_qty",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   tilesItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Floor to Ceiling Tiles</span>
-                  <span className="text-[10px] text-slate-400 font-mono">$3,000 per room</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Floor to Ceiling Tiles
+                    </span>
+                    {tilesItem?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    $3,000 per room &bull; Bathroom &amp; Ensuite
+                  </p>
                 </div>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = tilesItem?.quantity || 1;
-                      const next = Math.max(0, cur - 1);
-                      upsertPopularItem("pop_tiles_ftc", {
-                        isIncluded: next > 0,
-                        quantity: next,
-                        unitRate: 3000,
-                        name: "Allowance for Floor to Ceiling Tiles in Bathroom/Ensuite",
-                        category: "internal_bathroom",
-                        unitType: "custom_qty",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${tilesItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
-                    {formatAud(tilesItem?.isIncluded ? tilesItem.subtotal : 0)} ({tilesItem?.quantity || 0} rooms)
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? tilesItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-700"
+                      : tilesItem?.isIncluded ? "text-emerald-400" : "text-slate-300"
+                  }`}>
+                    {formatAud(tilesItem?.isIncluded ? tilesItem.subtotal : 0)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = tilesItem?.quantity || 0;
-                      const next = cur + 1;
-                      upsertPopularItem("pop_tiles_ftc", {
-                        isIncluded: true,
-                        quantity: next,
-                        unitRate: 3000,
-                        name: "Allowance for Floor to Ceiling Tiles in Bathroom/Ensuite",
-                        category: "internal_bathroom",
-                        unitType: "custom_qty",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                  <div
+                    className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = tilesItem?.quantity || 1;
+                        const next = Math.max(0, cur - 1);
+                        upsertPopularItem("pop_tiles_ftc", {
+                          isIncluded: next > 0,
+                          quantity: next,
+                          unitRate: 3000,
+                          name: "Allowance for Floor to Ceiling Tiles in Bathroom/Ensuite",
+                          category: "internal_bathroom",
+                          unitType: "custom_qty",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Decrease rooms"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                      tilesItem?.isIncluded
+                        ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                        : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                    }`}>
+                      {tilesItem?.quantity || 0} {tilesItem?.quantity === 1 ? "room" : "rooms"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = tilesItem?.quantity || 0;
+                        const next = cur + 1;
+                        upsertPopularItem("pop_tiles_ftc", {
+                          isIncluded: true,
+                          quantity: next,
+                          unitRate: 3000,
+                          name: "Allowance for Floor to Ceiling Tiles in Bathroom/Ensuite",
+                          category: "internal_bathroom",
+                          unitType: "custom_qty",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Increase rooms"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2187,8 +2962,10 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
           {/* CATEGORY 6: ELECTRICAL & AIR-CONDITIONING */}
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" /> Electrical &amp; Air-Conditioning
+            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+              isLight ? "text-purple-800 font-extrabold" : "text-purple-400"
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${isLight ? "bg-purple-600" : "bg-purple-400"}`} /> Electrical &amp; Air-Conditioning
             </span>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {/* Upgrade to Ducted AC in Lieu of H1 standard Split-System AC (H1 only) */}
@@ -2206,7 +2983,7 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                       unitType: "fixed",
                     });
                   }}
-                  className={`p-2.5 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-1.5 sm:col-span-2 lg:col-span-1 ${
+                  className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2 sm:col-span-2 lg:col-span-1 ${
                     h1DuctedAcItem?.isIncluded
                       ? isLight
                         ? "border-emerald-600 bg-emerald-50/70 ring-1 ring-emerald-500/30 shadow-xs"
@@ -2265,19 +3042,50 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "fixed",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   airtouchItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">AirTouch 5 Controller</span>
-                  <span className="text-[10px] text-slate-400 font-mono">Smart Wi-Fi 8-zone tablet</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      AirTouch 5 Smart Controller
+                    </span>
+                    {airtouchItem?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Smart Wi-Fi 8-zone tablet touchscreen
+                  </p>
                 </div>
-                <span className="font-bold text-xs text-emerald-400 font-mono flex-none">
-                  {airtouchItem?.isIncluded ? "✓ " : ""}+$1,200
-                </span>
+
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Fixed Upgrade
+                  </span>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? airtouchItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-800"
+                      : airtouchItem?.isIncluded ? "text-emerald-400" : "text-slate-200"
+                  }`}>
+                    {airtouchItem?.isIncluded ? "✓ " : ""}+$1,200
+                  </span>
+                </div>
               </div>
 
               {/* Spectrum Colour Studio & Electrical Upgrades */}
@@ -2294,60 +3102,103 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
                     unitType: "fixed",
                   });
                 }}
-                className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
+                className={`p-3 rounded-xl border cursor-pointer transition-all flex flex-col justify-between gap-2.5 ${
                   spectrumItem?.isIncluded
-                    ? "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40"
+                    ? isLight
+                      ? "border-emerald-600 bg-emerald-50/70 shadow-xs ring-1 ring-emerald-500/30"
+                      : "border-emerald-500 bg-emerald-950/25 ring-1 ring-emerald-500/40 shadow-sm"
+                    : isLight
+                    ? "border-slate-200 bg-slate-50/80 hover:border-slate-300 hover:bg-white"
                     : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
                 }`}
               >
-                <div className="min-w-0 flex-1">
-                  <span className="font-bold text-xs text-white block truncate">Spectrum Colour &amp; Electrical</span>
-                  <span className="text-[10px] text-slate-400 font-mono">+$2,500 showroom steps</span>
+                <div>
+                  <div className="flex items-center justify-between gap-1.5 mb-1">
+                    <span className={`font-bold text-xs ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Spectrum Colour &amp; Electrical
+                    </span>
+                    {spectrumItem?.isIncluded && (
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border flex-none ${
+                        isLight
+                          ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                          : "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+                      }`}>
+                        SELECTED
+                      </span>
+                    )}
+                  </div>
+                  <p className={`text-[10px] leading-relaxed ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                    Showroom colour selection &amp; electrical provisional allowance
+                  </p>
                 </div>
 
-                <div
-                  className="flex items-center gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800 flex-none"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = spectrumItem?.unitRate || 2500;
-                      const next = Math.max(0, cur - 2500);
-                      upsertPopularItem("pop_spectrum_colour", {
-                        isIncluded: next > 0,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Spectrum Colour Studio & Electrical Upgrades",
-                        category: "colour_upgrades",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
-                  >
-                    <Minus className="h-3 w-3" />
-                  </button>
-                  <span className={`font-bold text-xs font-mono px-1 ${spectrumItem?.isIncluded ? "text-emerald-400" : "text-slate-400"}`}>
+                <div className={`flex items-center justify-between gap-2 pt-2 border-t mt-1 ${
+                  isLight ? "border-slate-200" : "border-slate-800/80"
+                }`}>
+                  <span className={`text-xs font-mono font-bold ${
+                    isLight
+                      ? spectrumItem?.isIncluded ? "text-emerald-700 font-extrabold" : "text-slate-600"
+                      : spectrumItem?.isIncluded ? "text-emerald-400 font-bold" : "text-slate-400"
+                  }`}>
                     {formatAud(spectrumItem?.isIncluded ? spectrumItem.subtotal : 0)}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const cur = spectrumItem?.unitRate || 0;
-                      const next = cur + 2500;
-                      upsertPopularItem("pop_spectrum_colour", {
-                        isIncluded: true,
-                        quantity: 1,
-                        unitRate: next,
-                        name: "Allowance for Spectrum Colour Studio & Electrical Upgrades",
-                        category: "colour_upgrades",
-                        unitType: "fixed",
-                      });
-                    }}
-                    className="p-1 rounded hover:bg-slate-800 text-slate-300"
+
+                  <div
+                    className={`flex items-center gap-1 p-0.5 rounded-lg border flex-none ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Plus className="h-3 w-3" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = spectrumItem?.unitRate || 2500;
+                        const next = Math.max(0, cur - 2500);
+                        upsertPopularItem("pop_spectrum_colour", {
+                          isIncluded: next > 0,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Spectrum Colour Studio & Electrical Upgrades",
+                          category: "colour_upgrades",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Decrease allowance"
+                    >
+                      <Minus className="h-3 w-3" />
+                    </button>
+                    <span className={`font-bold text-xs font-mono px-1 min-w-[50px] text-center ${
+                      spectrumItem?.isIncluded
+                        ? isLight ? "text-emerald-800 font-extrabold" : "text-emerald-400 font-bold"
+                        : isLight ? "text-slate-600 font-semibold" : "text-slate-400"
+                    }`}>
+                      {spectrumItem?.isIncluded ? formatAud(spectrumItem.unitRate) : "$0"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = spectrumItem?.unitRate || 0;
+                        const next = cur + 2500;
+                        upsertPopularItem("pop_spectrum_colour", {
+                          isIncluded: true,
+                          quantity: 1,
+                          unitRate: next,
+                          name: "Allowance for Spectrum Colour Studio & Electrical Upgrades",
+                          category: "colour_upgrades",
+                          unitType: "fixed",
+                        });
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        isLight ? "hover:bg-slate-100 text-slate-700" : "hover:bg-slate-800 text-slate-300"
+                      }`}
+                      title="Increase allowance"
+                    >
+                      <Plus className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
