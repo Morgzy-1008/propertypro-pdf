@@ -427,12 +427,12 @@ export function ModifiedPlanReviewModal({
             </div>
           </div>
 
-          {/* Historical Tender Knowledge & Consultant Approval Notice */}
+          {/* Detected Floorplan Variations Review Notice */}
           <div className="mt-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
             <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
             <div className="text-xs text-slate-300 leading-relaxed">
-              <span className="font-semibold text-amber-300">Prompt to Approve Price Changes &amp; Variation Additions:</span>{" "}
-              The engine has matched items against authentic client tenders (Job 700469 Dacayanan Jan 2026, Job 700529 Diamond May 2026, Job 700548 Flagstone Sep 2026, Job TR-Lyons Aug 2026, Job 700512-DUAL Dave &amp; Selena Aug 2026). Review and check the boxes to approve each variation addition and price adjustment before applying to the quote.
+              <span className="font-semibold text-amber-300">Prompt to Approve Variations &amp; Sizing:</span>{" "}
+              Review and check the boxes to approve each detected variation addition, footprint delta, and price adjustment before applying to the quote.
             </div>
           </div>
 
@@ -1144,34 +1144,6 @@ export function ModifiedPlanReviewModal({
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
                             {Math.round(inc.confidence * 100)}% Verified
                           </span>
-                          {(() => {
-                            const desc = `${inc.id || ""} ${inc.name || ""} ${inc.description || ""} ${inc.reason || ""}`;
-                            const tenderMatch = desc.match(/Job\s+([\w-]+)\s+([\d/]+|[A-Za-z]+\s+\d{4})/i) ||
-                              desc.match(/Job\s+([\w-]+).*?dated\s+([^.]+)\./i);
-                            const isTenderItem = tenderMatch || /tender_bench_|cornerless|freestanding|double shower|full ht|sq\. set|barn door|laundry.*stone|overhead cupboards|scullery stone|front gable|dual 18-09/i.test(desc);
-
-                            if (!isTenderItem) return null;
-
-                            const jobLabel = tenderMatch
-                              ? `Job ${tenderMatch[1]} (${tenderMatch[2].trim()})`
-                              : /700469/i.test(desc)
-                              ? "Job 700469 (27 Jan 2026)"
-                              : /700548/i.test(desc)
-                              ? "Job 700548 (29 Sep 2026)"
-                              : /700529/i.test(desc)
-                              ? "Job 700529 (19 May 2026)"
-                              : /lyons/i.test(desc)
-                              ? "Job TR-Lyons (12 Aug 2026)"
-                              : /700512|alabaster/i.test(desc)
-                              ? "Job 700512-DUAL (23 Aug 2026)"
-                              : "Historical Tender Benchmark";
-
-                            return (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 font-medium">
-                                Tender Benchmark: {jobLabel}
-                              </span>
-                            );
-                          })()}
                         </div>
                         <p className="text-[11px] text-slate-400">{inc.description}</p>
                       </div>
