@@ -26,6 +26,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
 import {
@@ -948,59 +955,72 @@ export function V2StepFloorPlan({
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* LHS: Façade Dropdown Box */}
-            <div className="lg:col-span-6 space-y-3">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Available Façade Options ({suitableFacades.length})
-              </Label>
-
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                {suitableFacades.map((facade) => {
-                  const isSelected = design.facadeName?.toLowerCase() === facade.name.toLowerCase();
-                  return (
-                    <div
-                      key={facade.name}
-                      onClick={() => handleSelectFacade(facade.name)}
-                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
-                        isSelected
-                          ? isLight
-                            ? "bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500"
-                            : "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm ring-1 ring-emerald-400"
-                          : isLight
-                          ? "bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700"
-                          : "bg-slate-950/60 border-slate-800 hover:bg-slate-900 text-slate-300"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div
-                          className={`w-4 h-4 rounded-full flex items-center justify-center flex-none border ${
-                            isSelected
-                              ? "bg-emerald-500 border-emerald-500 text-slate-950"
-                              : "border-slate-500 text-transparent"
-                          }`}
-                        >
-                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+            <div className="lg:col-span-6 space-y-4">
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Choose Façade ({suitableFacades.length} certified options)
+                </Label>
+                <Select
+                  value={design.facadeName || (suitableFacades[0]?.name ?? "Classic")}
+                  onValueChange={handleSelectFacade}
+                >
+                  <SelectTrigger
+                    data-testid="facade-select-trigger"
+                    className={`h-12 text-sm font-bold ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600 shadow-xs"
+                        : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
+                    }`}
+                  >
+                    <SelectValue placeholder="Select compatible façade…" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-80">
+                    {suitableFacades.map((facade) => (
+                      <SelectItem key={facade.name} value={facade.name} className="py-2.5 cursor-pointer">
+                        <div className="flex items-center justify-between w-full gap-4">
+                          <span className="font-bold">{facade.name}</span>
+                          <span className="text-xs font-mono font-bold text-emerald-500">
+                            {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
+                          </span>
                         </div>
-                        <span className="text-xs font-bold truncate">{facade.name}</span>
-                      </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                      <div className="text-right flex-none">
-                        <span
-                          className={`text-xs font-mono font-bold ${
-                            facade.uplift > 0
-                              ? isLight
-                                ? "text-cyan-700"
-                                : "text-cyan-400"
-                              : isLight
-                              ? "text-emerald-700"
-                              : "text-emerald-400"
-                          }`}
-                        >
-                          {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Selected Façade Summary Badge Card */}
+              <div
+                className={`p-4 rounded-xl border flex items-center justify-between gap-3 ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                }`}
+              >
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                    Selected Architectural Model
+                  </span>
+                  <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    {design.facadeName || "Classic"} Façade
+                  </span>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    Full architectural elevations and brickwork included.
+                  </span>
+                </div>
+
+                <div className="text-right flex-none">
+                  <Badge
+                    variant="outline"
+                    className={`font-mono font-bold text-xs py-1 px-2.5 ${
+                      (design.facadePrice || 0) > 0
+                        ? "border-cyan-500/40 text-cyan-500 bg-cyan-500/10"
+                        : "border-emerald-500/40 text-emerald-500 bg-emerald-500/10"
+                    }`}
+                  >
+                    {(design.facadePrice || 0) > 0
+                      ? `+${formatAud(design.facadePrice || 0)}`
+                      : "Standard Included"}
+                  </Badge>
+                </div>
               </div>
             </div>
 

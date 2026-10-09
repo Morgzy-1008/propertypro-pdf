@@ -103,40 +103,11 @@ export function V2StepClient({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-emerald-400" />
-              <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                Primary Client Information
-              </h3>
-            </div>
-
-            {/* Little tab "add 2nd client" right beside / under client 1 */}
-            <button
-              type="button"
-              onClick={handleToggleClient2}
-              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
-                showClient2
-                  ? isLight
-                    ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
-                    : "bg-rose-950/30 text-rose-300 border-rose-800/50 hover:bg-rose-900/40"
-                  : isLight
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100 shadow-xs"
-                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
-              }`}
-            >
-              {showClient2 ? (
-                <>
-                  <UserMinus className="h-3 w-3" />
-                  <span>Remove 2nd Client</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="h-3 w-3" />
-                  <span>Add 2nd Client</span>
-                </>
-              )}
-            </button>
+          <div className="flex items-center gap-2 mb-4">
+            <User className="h-4 w-4 text-emerald-400" />
+            <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+              Primary Client Information
+            </h3>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -191,10 +162,39 @@ export function V2StepClient({
             </div>
           </div>
 
+          {/* Little tab "Add 2nd client" positioned directly below 1st client details */}
+          <div className="mt-4 pt-3 flex items-center justify-start border-t border-slate-700/20">
+            <button
+              type="button"
+              onClick={handleToggleClient2}
+              className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all border cursor-pointer ${
+                showClient2
+                  ? isLight
+                    ? "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100 shadow-xs"
+                    : "bg-rose-950/30 text-rose-300 border-rose-800/50 hover:bg-rose-900/40"
+                  : isLight
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 shadow-xs"
+                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20"
+              }`}
+            >
+              {showClient2 ? (
+                <>
+                  <UserMinus className="h-3.5 w-3.5" />
+                  <span>Remove 2nd Client</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add 2nd Client</span>
+                </>
+              )}
+            </button>
+          </div>
+
           {/* 2nd Client Details Box smoothly appearing directly below 1st client */}
           {showClient2 && (
             <div
-              className={`mt-5 pt-5 border-t transition-all animate-in fade-in-50 duration-200 ${
+              className={`mt-4 pt-4 border-t transition-all animate-in fade-in slide-in-from-top-2 duration-300 ${
                 isLight ? "border-slate-200" : "border-slate-800"
               }`}
             >

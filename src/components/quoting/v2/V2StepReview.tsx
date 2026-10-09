@@ -27,6 +27,7 @@ import {
 } from "@/lib/quoting/quoteEngine";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
+import { QuotePdfDocument } from "../QuotePdfDocument";
 
 interface V2StepReviewProps {
   quote: FullQuote;
@@ -381,6 +382,60 @@ export function V2StepReview({
                 {quote.client.consultantName || "Hudson New Home Consultant"}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FULL ESTIMATE PDF DOCUMENT PREVIEW */}
+      <div
+        className={`rounded-3xl border overflow-hidden shadow-2xl transition-all ${
+          isLight ? "bg-white border-slate-200" : "bg-slate-900/60 border-slate-800 backdrop-blur-md"
+        }`}
+      >
+        <div
+          className={`p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b ${
+            isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/80 border-slate-800"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center flex-none">
+              <FileText className="h-5 w-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  Official Builders Estimate PDF Document
+                </h3>
+                <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/40">
+                  Live Multi-Page Preview
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Full 4-page estimate presentation document matching final contract specifications.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={onDownloadPdf}
+              disabled={downloading}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-9 px-4 shadow-sm cursor-pointer"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span>{downloading ? "Generating..." : "Download Estimate PDF"}</span>
+            </Button>
+          </div>
+        </div>
+
+        <div
+          className="pdf-preview-stage p-4 sm:p-8 overflow-x-auto flex justify-center bg-slate-950/80 light normal-mode"
+          style={{ colorScheme: "light" }}
+        >
+          <div className="shadow-2xl rounded-xl overflow-hidden bg-white max-w-full">
+            <QuotePdfDocument quote={quote} coverVersion="v1" />
           </div>
         </div>
       </div>

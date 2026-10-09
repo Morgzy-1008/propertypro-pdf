@@ -102,9 +102,17 @@ export function V2StepSiteCosts({
     return "greenfield";
   });
 
-  const [hasInteractedSiteType, setHasInteractedSiteType] = useState(
-    Boolean(site.siteType || quote.client.depositType)
-  );
+  // Progressive 1-by-1 disclosure stage (1 to 7)
+  const [revealedStage, setRevealedStage] = useState<number>(() => {
+    // If the estimate already has explicit site conditions saved, reveal up to that stage
+    if (site.councilRegion || (site.councilFee ?? 0) > 0 || site.bushfireReportRequired || site.floodReportRequired) return 7;
+    if (site.retainingWallAllowance || site.materialHandlingAllowance || site.outOfZoneSurcharge) return 5;
+    if (site.kdrbDemolitionOption && site.kdrbDemolitionOption !== "none") return 4;
+    if (site.soilClass && site.soilClass !== "Class M") return 3;
+    if (site.fallMeters !== undefined && site.fallMeters > 0) return 2;
+    // For fresh unconfigured quotes, start strictly at Stage 1 (only Site Type is visible!)
+    return site.siteType ? 2 : 1;
+  });
 
   const gfaM2 = useMemo(() => calculateDesignGFA(quote.design), [quote.design]);
   const isSplit = useMemo(
@@ -119,10 +127,18 @@ export function V2StepSiteCosts({
     return 25; // Greenfield
   }, [siteType]);
 
+  // Default council fee based on selected region
+  const defaultCouncilFee = useMemo(() => {
+    const matched = COUNCIL_REGIONS.find((c) => c.name === (site.councilRegion || "Moreton Bay Regional Council"));
+    return matched ? matched.fee : 2227;
+  }, [site.councilRegion]);
+
+  const currentCouncilFee = site.councilFee !== undefined && site.councilFee > 0 ? site.councilFee : defaultCouncilFee;
+
   // Handle Site Type Selection (Greenfield, Brownfield, KDRB)
   const handleSelectSiteType = (type: SiteTypeOption) => {
     setSiteType(type);
-    setHasInteractedSiteType(true);
+    setRevealedStage((prev) => Math.max(prev, 2));
 
     const depositAmount = type === "greenfield" ? 1650 : 3300;
     const rate = type === "kdrb" ? 50 : type === "brownfield" ? 30 : 25;
@@ -137,6 +153,8 @@ export function V2StepSiteCosts({
       demolitionAsbestosRequired: type === "kdrb",
       kdrbDemolitionOption: type === "kdrb" ? "builder" : "none",
       demolitionAsbestosCost: type === "kdrb" ? 34500 : 0,
+      councilRegion: site.councilRegion || "Moreton Bay Regional Council",
+      councilFee: currentCouncilFee,
     };
     onChange(patch);
 
@@ -164,6 +182,7 @@ export function V2StepSiteCosts({
     const val = typeof rawMeters === "string" ? parseFloat(rawMeters) || 0 : rawMeters;
     const fallMeters = Math.max(0, val);
     const fallTotalCost = calculateTopographyFallCost(fallMeters, gfaM2, isSplit);
+    setRevealedStage((prev) => Math.max(prev, 3));
     onChange({
       fallMeters,
       fallTotalCost,
@@ -174,6 +193,7 @@ export function V2StepSiteCosts({
   const handleSoilClassChange = (soilClass: SoilClass) => {
     const rate = getSoilRatePerM2(soilClass);
     const soilTotalCost = Math.round(rate * gfaM2);
+    setRevealedStage((prev) => Math.max(prev, siteType === "kdrb" ? 4 : 5));
     onChange({
       soilClass,
       soilCostSqm: rate,
@@ -311,18 +331,30 @@ export function V2StepSiteCosts({
           </p>
         </div>
 
-        {/* Live Site Subtotal */}
-        <div
-          className={`py-2 px-4 rounded-xl border text-right self-start sm:self-center ${
-            isLight ? "bg-slate-50 border-slate-200 shadow-xs" : "bg-slate-950/60 border-slate-800"
-          }`}
-        >
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
-            Site Costs Subtotal
-          </span>
-          <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-            +{formatAud((quote.pricing?.siteCostsSubtotal || 0) + (quote.pricing?.councilStatutorySubtotal || 0))}
-          </span>
+        {/* Action Controls & Live Site Subtotal */}
+        <div className="flex items-center gap-3 self-start sm:self-center">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRevealedStage((prev) => (prev < 7 ? 7 : 2))}
+            className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold h-8 px-2.5 border border-emerald-500/20 rounded-lg cursor-pointer"
+          >
+            {revealedStage < 7 ? "⚡ Show All Sections" : "Step-by-Step Mode"}
+          </Button>
+
+          <div
+            className={`py-2 px-4 rounded-xl border text-right ${
+              isLight ? "bg-slate-50 border-slate-200 shadow-xs" : "bg-slate-950/60 border-slate-800"
+            }`}
+          >
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
+              Site Costs Subtotal
+            </span>
+            <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+              +{formatAud((quote.pricing?.siteCostsSubtotal || 0) + (quote.pricing?.councilStatutorySubtotal || 0))}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -440,7 +472,7 @@ export function V2StepSiteCosts({
       </div>
 
       {/* STEP 2: SLOPE FALL (ONLY APPEARS ONCE SITE TYPE SELECTED) */}
-      {hasInteractedSiteType && (
+      {revealedStage >= 2 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -504,7 +536,7 @@ export function V2StepSiteCosts({
                     key={m}
                     type="button"
                     onClick={() => handleFallChange(m)}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
                       site.fallMeters === m
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold"
                         : isLight
@@ -518,11 +550,25 @@ export function V2StepSiteCosts({
               </div>
             </div>
           </div>
+
+          {revealedStage === 2 && (
+            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setRevealedStage((prev) => Math.max(prev, 3))}
+                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+              >
+                <span>Proceed to Soil Class &amp; Foundations</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* STEP 3: SOIL CLASS, 32MPA CONCRETE, FLEXIBLE SERVICES & PIERING ALLOWANCE */}
-      {hasInteractedSiteType && (
+      {revealedStage >= 3 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -662,11 +708,25 @@ export function V2StepSiteCosts({
               </div>
             </div>
           </div>
+
+          {revealedStage === 3 && (
+            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setRevealedStage((prev) => Math.max(prev, siteType === "kdrb" ? 4 : 5))}
+                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+              >
+                <span>{siteType === "kdrb" ? "Proceed to Demolition & Asbestos" : "Proceed to Site Allowances"}</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* STEP 4: KDRB HOUSE DEMOLITION & ASBESTOS (ONLY APPEARS IF KDRB SELECTED) */}
-      {siteType === "kdrb" && (
+      {siteType === "kdrb" && revealedStage >= 4 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -753,11 +813,25 @@ export function V2StepSiteCosts({
               );
             })}
           </div>
+
+          {revealedStage === 4 && (
+            <div className="flex justify-end pt-3 mt-4 border-t border-amber-500/20">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setRevealedStage((prev) => Math.max(prev, 5))}
+                className="text-xs bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 gap-1.5 font-bold cursor-pointer"
+              >
+                <span>Proceed to Site Allowances</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* STEP 5: NEW SITE COSTS SECTION (RETAINING, MATERIAL HANDLING, OUT OF ZONE, ROCK BREAKER, UNKNOWN CONDITIONS) */}
-      {hasInteractedSiteType && (
+      {revealedStage >= 5 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -865,11 +939,25 @@ export function V2StepSiteCosts({
               </div>
             </div>
           </div>
+
+          {revealedStage === 5 && (
+            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setRevealedStage((prev) => Math.max(prev, 6))}
+                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+              >
+                <span>Proceed to Overlays &amp; Site Problems</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* STEP 6: OVERLAYS / SITE PROBLEMS (BUSHFIRE, FLOOD, ACOUSTIC, SEWER LINE) */}
-      {hasInteractedSiteType && (
+      {revealedStage >= 6 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -1121,11 +1209,25 @@ export function V2StepSiteCosts({
               )}
             </div>
           </div>
+
+          {revealedStage === 6 && (
+            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setRevealedStage((prev) => Math.max(prev, 7))}
+                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+              >
+                <span>Proceed to Council Fees &amp; Statutory Applications</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* STEP 7: COUNCIL FEES & STATUTORY LODGEMENT */}
-      {hasInteractedSiteType && (
+      {revealedStage >= 7 && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
@@ -1181,7 +1283,7 @@ export function V2StepSiteCosts({
                 </Label>
                 <Input
                   type="number"
-                  value={site.councilFee ?? 2227}
+                  value={currentCouncilFee}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ councilFee: parseFloat(e.target.value) || 0 })}
                   className="h-10 text-sm font-mono font-bold"

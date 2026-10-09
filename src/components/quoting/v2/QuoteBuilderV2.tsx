@@ -131,7 +131,7 @@ export function QuoteBuilderV2({
   const designName = getEffectiveDesignName(quote.design) || "Select Floor Plan";
 
   return (
-    <div ref={stepContainerRef} className="space-y-6 pb-28">
+    <div ref={stepContainerRef} className="space-y-6 pb-12">
       {/* Top Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/50 pb-4">
         <div className="flex items-center gap-3">
@@ -212,7 +212,7 @@ export function QuoteBuilderV2({
             className={`text-xs text-slate-400 hover:text-white ${isLight ? "hover:text-slate-900" : ""}`}
             title="Switch to detailed multi-tab editor"
           >
-            Classic Mode
+            Detailed Studio
           </Button>
         </div>
       </div>
@@ -339,89 +339,6 @@ export function QuoteBuilderV2({
             isLight={isLight}
           />
         )}
-      </div>
-
-      {/* Floating Bottom Estimate Bar (Unified with Prev & Next actions) */}
-      <div className="fixed bottom-4 left-0 right-0 z-40 px-4 pointer-events-none">
-        <div
-          className={`max-w-4xl mx-auto rounded-2xl border p-3.5 shadow-2xl backdrop-blur-xl pointer-events-auto flex items-center justify-between gap-4 ${
-            isLight
-              ? "bg-white/95 border-slate-200 text-slate-900 shadow-slate-900/10"
-              : "bg-slate-950/95 border-slate-800 text-white shadow-black/40"
-          }`}
-        >
-          {/* Left summary info */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="hidden sm:flex w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 items-center justify-center flex-none">
-              <Home className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5 truncate">
-                <span className="text-xs font-bold truncate">
-                  {quote.client.clientName || "Draft Estimate"}
-                </span>
-                <span className="text-slate-400">·</span>
-                <span className="text-xs text-slate-400 truncate">
-                  {designName}
-                </span>
-              </div>
-              <span className="text-[10px] text-slate-400 block truncate">
-                {quote.design.specTier || "H2"} • Step {currentStepIndex + 1} of 5: {currentStepConfig.shortLabel}
-              </span>
-            </div>
-          </div>
-
-          {/* Right total and action */}
-          <div className="flex items-center gap-3 flex-none">
-            <div className="text-right">
-              <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">
-                Turnkey Investment
-              </span>
-              <span className={`text-base sm:text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                {formatAud(grossTotal)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5">
-              {currentStepIndex > 0 && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleGoPrev}
-                  className={`h-10 px-3 text-xs gap-1 cursor-pointer ${
-                    isLight
-                      ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                      : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
-                  }`}
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Prev</span>
-                </Button>
-              )}
-
-              {activeStep !== "review" ? (
-                <Button
-                  size="sm"
-                  onClick={handleGoNext}
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm cursor-pointer"
-                >
-                  <span>Next</span>
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={onDownloadPdf}
-                  disabled={downloading}
-                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 text-slate-950 font-bold text-xs gap-1.5 h-10 px-4 shadow-sm cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>PDF</span>
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -133,7 +133,7 @@
 }
 
 @layer base {
-  html, body {
+  *, *::before, *::after, html, body {
     scroll-behavior: auto !important;
   }
 

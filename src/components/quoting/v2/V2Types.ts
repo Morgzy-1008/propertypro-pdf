@@ -35,9 +35,9 @@ export const V2_STEPS: V2StepConfig[] = [
   {
     id: "variations",
     number: 4,
-    label: "Floor Plan Inclusions & Variations",
+    label: "House Variations",
     shortLabel: "Variations",
-    description: "Popular upgrades, sqm rates & modifications",
+    description: "Popular upgrades, sqm rates & client requests",
   },
   {
     id: "review",

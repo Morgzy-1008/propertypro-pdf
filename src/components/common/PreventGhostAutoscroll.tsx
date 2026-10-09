@@ -25,10 +25,39 @@ export function PreventGhostAutoscroll() {
     // 1. SUPPRESS PROGRAMMATIC ROGUE SMOOTH SCROLLING THAT DRAGS THE PAGE SLOWLY
     const origScrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (options) {
-      if (typeof options === "object" && options !== null && options.behavior === "smooth") {
+      if (typeof options === "object" && options !== null) {
         options = { ...options, behavior: "instant" };
+      } else {
+        options = { behavior: "instant", block: "start" };
       }
       return origScrollIntoView.call(this, options);
+    };
+
+    const origElementScrollTo = Element.prototype.scrollTo;
+    Element.prototype.scrollTo = function (optionsOrX: any, y?: any) {
+      if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
+        optionsOrX = { ...optionsOrX, behavior: "instant" };
+        return origElementScrollTo.call(this, optionsOrX);
+      }
+      return origElementScrollTo.apply(this, arguments as any);
+    };
+
+    const origElementScroll = Element.prototype.scroll;
+    Element.prototype.scroll = function (optionsOrX: any, y?: any) {
+      if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
+        optionsOrX = { ...optionsOrX, behavior: "instant" };
+        return origElementScroll.call(this, optionsOrX);
+      }
+      return origElementScroll.apply(this, arguments as any);
+    };
+
+    const origElementScrollBy = Element.prototype.scrollBy;
+    Element.prototype.scrollBy = function (optionsOrX: any, y?: any) {
+      if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
+        optionsOrX = { ...optionsOrX, behavior: "instant" };
+        return origElementScrollBy.call(this, optionsOrX);
+      }
+      return origElementScrollBy.apply(this, arguments as any);
     };
 
     const origWindowScrollTo = window.scrollTo;
@@ -49,11 +78,20 @@ export function PreventGhostAutoscroll() {
       return origWindowScrollBy.apply(window, arguments as any);
     };
 
+    // Prevent programmatic .focus() from triggering viewport crawling scroll
+    const origFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function (options?: FocusOptions) {
+      if (options && typeof options === "object") {
+        return origFocus.call(this, { ...options, preventScroll: options.preventScroll ?? true });
+      }
+      return origFocus.call(this, { preventScroll: true });
+    };
+
     // 2. SUPPRESS WINDOWS MIDDLE-CLICK AUTOSCROLL
     // Button 1 is the middle mouse button (scroll wheel click).
     // In Windows Chrome/Edge, this engages the circular autoscroll cursor.
     // If the mouse moves even 2px, the page starts scrolling very slowly on its own.
-    const handleMiddleMouseDown = (e: MouseEvent) => {
+    const handleMiddleMouseDown = (e: MouseEvent | PointerEvent) => {
       if (e.button === 1) {
         const target = e.target as HTMLElement | null;
         const anchor = target?.closest("a[href]");
@@ -126,6 +164,7 @@ export function PreventGhostAutoscroll() {
     };
 
     // Attach capture-phase listeners on window
+    window.addEventListener("pointerdown", handleMiddleMouseDown as any, { capture: true, passive: false });
     window.addEventListener("mousedown", handleMiddleMouseDown, { capture: true, passive: false });
     window.addEventListener("auxclick", handleAuxClick, { capture: true, passive: false });
     window.addEventListener("blur", handleBlur);
@@ -134,8 +173,13 @@ export function PreventGhostAutoscroll() {
 
     return () => {
       Element.prototype.scrollIntoView = origScrollIntoView;
+      Element.prototype.scrollTo = origElementScrollTo;
+      Element.prototype.scroll = origElementScroll;
+      Element.prototype.scrollBy = origElementScrollBy;
+      HTMLElement.prototype.focus = origFocus;
       window.scrollTo = origWindowScrollTo;
       window.scrollBy = origWindowScrollBy;
+      window.removeEventListener("pointerdown", handleMiddleMouseDown as any, { capture: true });
       window.removeEventListener("mousedown", handleMiddleMouseDown, { capture: true });
       window.removeEventListener("auxclick", handleAuxClick, { capture: true });
       window.removeEventListener("blur", handleBlur);
