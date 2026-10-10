@@ -26,9 +26,9 @@ export function PreventGhostAutoscroll() {
     const origScrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (options) {
       if (typeof options === "object" && options !== null) {
-        options = { ...options, behavior: "instant" };
+        options = { ...options, behavior: "instant", block: options.block ?? "nearest" };
       } else {
-        options = { behavior: "instant", block: "start" };
+        options = { behavior: "instant", block: "nearest" };
       }
       return origScrollIntoView.call(this, options);
     };
@@ -163,6 +163,90 @@ export function PreventGhostAutoscroll() {
       // Release any lingering pointer capture if stuck
     };
 
+    // 5. REAL-TIME SCROLL TELEMETRY & HARDWARE PROOF ENGINE
+    // Automatically records the physical trigger of all scroll events.
+    // Distinguishes between hardware wheel/touchpad vs programmatic code calls.
+    let lastWheelTime = 0;
+    let lastWheelDeltaY = 0;
+    let lastKeyTime = 0;
+    let lastKey = "";
+
+    const handleWheelTelemetry = (e: WheelEvent) => {
+      lastWheelTime = Date.now();
+      lastWheelDeltaY = e.deltaY;
+      const isUp = e.deltaY < 0;
+
+      (window as any).__lastHardwareWheelEvent = {
+        timestamp: new Date().toLocaleTimeString(),
+        deltaY: e.deltaY,
+        direction: isUp ? "UP" : "DOWN",
+        source: "Laptop Physical Device (Mouse wheel or Trackpad)",
+      };
+
+      if ((window as any).__debugScrollLogging) {
+        console.warn(
+          `%c[Hardware Input] Mouse Wheel / Touchpad scrolled ${isUp ? "UP ⬆️" : "DOWN ⬇️"} (deltaY: ${e.deltaY.toFixed(1)}px). Source: Laptop Hardware.`,
+          "color: #f59e0b; font-weight: bold;"
+        );
+      }
+    };
+
+    const handleKeyTelemetry = (e: KeyboardEvent) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End", " "].includes(e.key)) {
+        lastKeyTime = Date.now();
+        lastKey = e.key;
+      }
+    };
+
+    const handleScrollTelemetry = () => {
+      const now = Date.now();
+      const isFromWheel = now - lastWheelTime < 350;
+      const isFromKey = now - lastKeyTime < 350;
+
+      const detail = isFromWheel
+        ? `Laptop Mouse/Touchpad Hardware (deltaY: ${lastWheelDeltaY.toFixed(1)}px ${lastWheelDeltaY < 0 ? "UP ⬆️" : "DOWN ⬇️"})`
+        : isFromKey
+        ? `Laptop Keyboard (${lastKey})`
+        : "Programmatic / Layout Shift";
+
+      (window as any).__lastScrollDiagnostic = {
+        time: new Date().toLocaleTimeString(),
+        scrollY: Math.round(window.scrollY),
+        cause: detail,
+        isHardwareTriggered: isFromWheel || isFromKey,
+      };
+
+      if ((window as any).__debugScrollLogging) {
+        console.info(
+          `%c[Scroll Diagnostic] Scrolled to Y=${Math.round(window.scrollY)}px | Triggered by: ${detail}`,
+          isFromWheel ? "color: #06b6d4;" : "color: #10b981;"
+        );
+      }
+    };
+
+    // Global helper exposed to user in console
+    (window as any).checkScrollSource = () => {
+      const last = (window as any).__lastScrollDiagnostic;
+      if (!last) return "No scroll events have occurred yet.";
+      return {
+        "Last Scroll Time": last.time,
+        "Current Scroll Position": `${last.scrollY}px from top`,
+        "Triggered By": last.cause,
+        "Is Laptop Hardware": last.isHardwareTriggered
+          ? "YES (Hardware Mouse / Trackpad)"
+          : "NO (Website Programmatic Code)",
+      };
+    };
+
+    (window as any).enableScrollLiveLog = () => {
+      (window as any).__debugScrollLogging = true;
+      console.log(
+        "%c[Scroll Live Logging Active] Scroll events will be printed to console as they happen.",
+        "color: #06b6d4; font-weight: bold;"
+      );
+      return "Scroll logging enabled.";
+    };
+
     // Attach capture-phase listeners on window
     window.addEventListener("pointerdown", handleMiddleMouseDown as any, { capture: true, passive: false });
     window.addEventListener("mousedown", handleMiddleMouseDown, { capture: true, passive: false });
@@ -170,6 +254,9 @@ export function PreventGhostAutoscroll() {
     window.addEventListener("blur", handleBlur);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("pointerup", handleGlobalPointerUp, { capture: true });
+    window.addEventListener("wheel", handleWheelTelemetry, { passive: true });
+    window.addEventListener("keydown", handleKeyTelemetry, { passive: true });
+    window.addEventListener("scroll", handleScrollTelemetry, { passive: true });
 
     return () => {
       Element.prototype.scrollIntoView = origScrollIntoView;
@@ -185,6 +272,9 @@ export function PreventGhostAutoscroll() {
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("pointerup", handleGlobalPointerUp, { capture: true });
+      window.removeEventListener("wheel", handleWheelTelemetry);
+      window.removeEventListener("keydown", handleKeyTelemetry);
+      window.removeEventListener("scroll", handleScrollTelemetry);
     };
   }, []);
 
