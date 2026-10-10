@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Compass,
   Check,
@@ -217,8 +217,13 @@ export function V2StepSiteCosts({
     });
   };
 
+  const [isManualPiering, setIsManualPiering] = useState(false);
+  const prevGfaRef = useRef<number>(gfaM2);
+  const prevRateRef = useRef<number>(pieringSqmRate);
+
   // Piering Lump Sum Handler (user can directly edit the lump sum amount without seeing $/sqm)
   const handlePieringLumpSumChange = (valStr: string) => {
+    setIsManualPiering(true);
     const cost = parseFloat(valStr) || 0;
     onChange({
       screwPieringRequired: cost > 0,
@@ -227,17 +232,28 @@ export function V2StepSiteCosts({
     });
   };
 
-  // Ensure initial fall, soil, and piering costs are calibrated if fresh
+  // Ensure initial fall, soil, and piering costs are calibrated if fresh or if design footprint GFA changes
   useEffect(() => {
-    if (!site.pieringCost && gfaM2 > 0) {
+    if (gfaM2 > 0) {
       const lump = Math.round(gfaM2 * pieringSqmRate);
-      onChange({
-        screwPieringRequired: true,
-        screwPieringCost: lump,
-        pieringCost: lump,
-      });
+      const currentCost = Number(site.pieringCost ?? site.screwPieringCost ?? 0);
+      const isOldBuggedAmount = currentCost > 0 && Math.abs(currentCost - Math.round(55.78 * pieringSqmRate)) <= 50;
+
+      if (
+        !site.pieringCost ||
+        isOldBuggedAmount ||
+        (!isManualPiering && (prevGfaRef.current !== gfaM2 || prevRateRef.current !== pieringSqmRate))
+      ) {
+        prevGfaRef.current = gfaM2;
+        prevRateRef.current = pieringSqmRate;
+        onChange({
+          screwPieringRequired: true,
+          screwPieringCost: lump,
+          pieringCost: lump,
+        });
+      }
     }
-  }, [gfaM2, pieringSqmRate]);
+  }, [gfaM2, pieringSqmRate, isManualPiering]);
 
   // Current piering allowance
   const currentPieringCost = site.pieringCost ?? site.screwPieringCost ?? Math.round(gfaM2 * pieringSqmRate);

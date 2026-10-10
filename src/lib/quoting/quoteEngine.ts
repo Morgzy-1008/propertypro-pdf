@@ -494,6 +494,18 @@ export function isDoubleStoreyDesign(
   const dn = (designName || "").toLowerCase();
   const ht = (housingType || "").toLowerCase();
 
+  // Explicit single-storey checks (e.g. Alabaster, Single Storey, Granny Flat)
+  if (
+    housingType === "Single Storey" ||
+    housingType === "Granny Flat" ||
+    storeys === "single" ||
+    storeys === "1" ||
+    storeys === "one" ||
+    dn.includes("alabaster")
+  ) {
+    return false;
+  }
+
   if (
     dn.includes("two story") ||
     dn.includes("two storey") ||
@@ -501,7 +513,6 @@ export function isDoubleStoreyDesign(
     dn.includes("2 storey") ||
     dn.includes("2-storey") ||
     dn.includes("2stry") ||
-    dn.includes(" - td") ||
     dn.includes("double storey") ||
     dn.includes("double-storey") ||
     (dn.includes(" - sd") && (dn.includes("two") || dn.includes("2")))
@@ -518,7 +529,8 @@ export function isDoubleStoreyDesign(
     dn.includes("raven") ||
     dn.includes("teal 45") ||
     dn.includes("teal 48") ||
-    dn.includes("wisteria 32")
+    dn.includes("teal 37") ||
+    dn.includes("wisteria")
   ) {
     return true;
   }
@@ -1100,14 +1112,15 @@ export function getAutomatedPromotionDiscount(designM2: number): number {
 export function calculateDesignGFA(design: QuoteDesignSelection): number {
   if (design.mode === "custom_floorplan") {
     const spec = design.customSpec;
-    return Number(
-      (
-        (Number(spec.groundLivingM2) || 0) +
-        (Number(spec.garageM2) || 0) +
-        (Number(spec.alfrescoM2) || 0) +
-        (Number(spec.porchM2) || 0)
-      ).toFixed(2),
-    );
+    const gLiving = Number(spec?.groundLivingM2) || 0;
+    const garage = Number(spec?.garageM2) || 0;
+    const alfresco = Number(spec?.alfrescoM2) || 0;
+    const porch = Number(spec?.porchM2) || 0;
+    const totalGround = gLiving + garage + alfresco + porch;
+    if (totalGround > 0) {
+      return Number(totalGround.toFixed(2));
+    }
+    return Number((Number(design.designM2) || 200).toFixed(2));
   }
 
   const isDouble = isDoubleStoreyDesign(
@@ -1117,41 +1130,70 @@ export function calculateDesignGFA(design: QuoteDesignSelection): number {
   );
   const isSplit = design.housingType === "Split Level";
 
-  if (design.isModifiedFloorplan) {
-    const calc = calculateModifiedFloorplanPricing(design);
-    if (isDouble || isSplit) {
-      const gLiving = calc.zones.find((z) => z.key === "groundLivingM2")?.modifiedM2 || 0;
-      const garage = calc.zones.find((z) => z.key === "garageM2")?.modifiedM2 || 0;
-      const alfresco = calc.zones.find((z) => z.key === "alfrescoM2")?.modifiedM2 || 0;
-      const porch = calc.zones.find((z) => z.key === "porchM2")?.modifiedM2 || 0;
-      if (gLiving > 0 || garage > 0) {
-        return Number((gLiving + garage + alfresco + porch).toFixed(2));
-      }
-    }
-    if (!isDouble) {
+  const totalM2 = Number(design.designM2) || Number(design.standardDesignM2) || 192;
+
+  // 1. Single Storey (including Single Storey Dual Occupancy / Duplexes like Alabaster)
+  // The entire slab area is Ground Living + Garage + Porch + Alfresco = total plan area!
+  if (!isDouble && !isSplit) {
+    if (design.isModifiedFloorplan) {
+      const calc = calculateModifiedFloorplanPricing(design);
       return Number(calc.modifiedTotalM2.toFixed(2));
     }
-  }
-
-  const totalM2 = Number(design.designM2) || 192;
-
-  if (isDouble || isSplit) {
     const stdAreas = getStandardAreaBreakdown(
       design.designName,
       design.housingType,
       totalM2,
     );
-    const gLiving = stdAreas.groundLivingM2 || 0;
+    const living = stdAreas.livingM2 || stdAreas.groundLivingM2 || 0;
     const garage = stdAreas.garageM2 || 0;
     const alfresco = stdAreas.alfrescoM2 || 0;
     const porch = stdAreas.porchM2 || 0;
-    if (gLiving > 0 || garage > 0) {
-      return Number((gLiving + garage + alfresco + porch).toFixed(2));
+    const sum = living + garage + alfresco + porch;
+    if (sum > 0) {
+      return Number(sum.toFixed(2));
     }
-    return Number(((totalM2 || 200) * 0.58).toFixed(2));
+    return Number((totalM2 || 192).toFixed(2));
   }
 
-  return Number((totalM2 || 192).toFixed(2));
+  // 2. Double Storey or Split Level:
+  // Footprint is ground floor slab: Ground Living + Garage + Porch + Alfresco
+  if (design.isModifiedFloorplan) {
+    const calc = calculateModifiedFloorplanPricing(design);
+    const gLiving = calc.zones.find((z) => z.key === "groundLivingM2")?.modifiedM2 || 0;
+    const garage = calc.zones.find((z) => z.key === "garageM2")?.modifiedM2 || 0;
+    const alfresco = calc.zones.find((z) => z.key === "alfrescoM2")?.modifiedM2 || 0;
+    const porch = calc.zones.find((z) => z.key === "porchM2")?.modifiedM2 || 0;
+    if (gLiving > 0) {
+      return Number((gLiving + garage + alfresco + porch).toFixed(2));
+    }
+    return Number(calc.modifiedTotalM2.toFixed(2));
+  }
+
+  const stdAreas = getStandardAreaBreakdown(
+    design.designName,
+    design.housingType,
+    totalM2,
+  );
+  const gLiving = stdAreas.groundLivingM2 || 0;
+  const garage = stdAreas.garageM2 || 0;
+  const alfresco = stdAreas.alfrescoM2 || 0;
+  const porch = stdAreas.porchM2 || 0;
+
+  // If explicit ground living is provided and > 0
+  if (gLiving > 0) {
+    return Number((gLiving + garage + alfresco + porch).toFixed(2));
+  }
+
+  // If stdAreas only has livingM2 (not split into ground/first), DO NOT drop ground living to 0!
+  if (stdAreas.livingM2 && stdAreas.livingM2 > 0) {
+    if (!stdAreas.firstLivingM2) {
+      return Number(((stdAreas.livingM2 || 0) + garage + alfresco + porch).toFixed(2));
+    }
+    const estimatedGroundLiving = +(stdAreas.livingM2 * 0.50).toFixed(2);
+    return Number((estimatedGroundLiving + garage + alfresco + porch).toFixed(2));
+  }
+
+  return Number(((totalM2 || 200) * 0.58).toFixed(2));
 }
 
 /**
@@ -2017,6 +2059,17 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     ) {
       quote.siteConditions.acousticTier = "None";
       quote.siteConditions.acousticCost = 0;
+    }
+
+    // Clean legacy/bugged piering allowance that was calculated from the 55sqm bug
+    const gfa = calculateDesignGFA(quote.design);
+    const pRate = quote.siteConditions.siteType === "kdrb" ? 50 : quote.siteConditions.siteType === "brownfield" ? 30 : 25;
+    const currentPCost = Number(quote.siteConditions.pieringCost ?? quote.siteConditions.screwPieringCost ?? 0);
+    const isOldBuggedPiering = currentPCost > 0 && Math.abs(currentPCost - Math.round(55.78 * pRate)) <= 50;
+    if (isOldBuggedPiering && gfa > 0) {
+      const correctLump = Math.round(gfa * pRate);
+      quote.siteConditions.pieringCost = correctLump;
+      quote.siteConditions.screwPieringCost = correctLump;
     }
   }
 
