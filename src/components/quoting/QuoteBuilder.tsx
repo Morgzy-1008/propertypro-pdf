@@ -829,44 +829,44 @@ export function QuoteBuilder() {
       {/* Top Header Bar with Live Estimate ID, Status & Primary Actions */}
       <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 border-b ${isLight ? "border-slate-200" : "border-slate-800"} pb-5`}>
         <div>
-          <div className="flex items-center gap-2">
-            <span className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               Hudson Quoting System
             </span>
             <span className={isLight ? "text-slate-400" : "text-slate-400"}>·</span>
-            <span className={`text-xs font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>Estimate #{quote.quoteNumber}</span>
+            <span className={`text-xs font-mono font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>Estimate #{quote.quoteNumber}</span>
           </div>
-          <div className="flex flex-wrap items-center gap-3 mt-1">
-            <h1 className={`text-xl sm:text-2xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-1">
+            <h1 className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${isLight ? "text-slate-900" : "text-white"}`}>
               {quote.client.clientName
                 ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
                 : "Technical Builders Estimate & Quoting"}
             </h1>
 
             {/* Mode Switcher */}
-            <div className={`inline-flex rounded-xl p-0.5 border ${isLight ? "bg-slate-100 border-slate-300" : "bg-slate-900 border-slate-800"}`}>
+            <div className={`inline-flex rounded-xl p-1 border shadow-xs ${isLight ? "bg-slate-100 border-slate-300" : "bg-slate-900 border-slate-800"}`}>
               <button
                 type="button"
                 onClick={() => switchQuotingMode("v2")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   quotingMode === "v2"
                     ? "bg-emerald-500 text-slate-950 shadow-xs"
-                    : "text-slate-400 hover:text-slate-200"
+                    : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                <Sparkles className="h-3.5 w-3.5 text-slate-950" />
+                <Sparkles className="h-4 w-4 text-slate-950" />
                 <span>V2 Express Flow</span>
               </button>
               <button
                 type="button"
                 onClick={() => switchQuotingMode("classic")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
                   quotingMode === "classic"
                     ? isLight ? "bg-white text-slate-900 shadow-xs" : "bg-slate-800 text-white shadow-xs"
-                    : "text-slate-400 hover:text-slate-200"
+                    : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                <Layers className="h-3.5 w-3.5 text-cyan-400" />
+                <Layers className="h-4 w-4 text-cyan-400" />
                 <span>Detailed Studio</span>
               </button>
             </div>

@@ -133,11 +133,11 @@ export function QuoteBuilderV2({
         <div className="flex items-center gap-3">
           <Badge
             variant="outline"
-            className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 font-mono text-[11px] font-bold"
+            className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 px-3 py-1 font-mono text-xs font-bold"
           >
             Quoting Tool V2
           </Badge>
-          <span className="text-xs text-slate-400">
+          <span className="text-sm text-slate-400 font-medium">
             Rapid Progressive Quoting Engine • Hudson Homes QLD
           </span>
         </div>
@@ -148,13 +148,13 @@ export function QuoteBuilderV2({
               variant="outline"
               size="sm"
               onClick={onOpenSavedEstimates}
-              className={`text-xs gap-1.5 ${
+              className={`text-sm h-9 px-3 gap-2 ${
                 isLight
                   ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                   : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
               }`}
             >
-              <FolderOpen className="h-3.5 w-3.5 text-cyan-400" />
+              <FolderOpen className="h-4 w-4 text-cyan-400" />
               Saved Estimates ({savedQuotesCount})
             </Button>
           )}
@@ -163,13 +163,13 @@ export function QuoteBuilderV2({
             variant="outline"
             size="sm"
             onClick={onNewQuote}
-            className={`text-xs gap-1.5 ${
+            className={`text-sm h-9 px-3 gap-2 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-4 w-4" />
             New Blank
           </Button>
 
@@ -177,13 +177,13 @@ export function QuoteBuilderV2({
             variant="outline"
             size="sm"
             onClick={onOpenShare}
-            className={`text-xs gap-1.5 ${
+            className={`text-sm h-9 px-3 gap-2 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <Share2 className="h-3.5 w-3.5 text-indigo-400" />
+            <Share2 className="h-4 w-4 text-indigo-400" />
             Share
           </Button>
 
@@ -191,22 +191,21 @@ export function QuoteBuilderV2({
             variant="outline"
             size="sm"
             onClick={onOpenAdminCatalogue}
-            className={`text-xs gap-1.5 ${
+            className={`text-sm h-9 px-3 gap-2 ${
               isLight
                 ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
             }`}
           >
-            <FileText className="h-3.5 w-3.5 text-amber-400" />
+            <FileText className="h-4 w-4 text-amber-400" />
             Admin Catalogue
           </Button>
-
         </div>
       </div>
 
       {/* Stepper Navigation Indicator */}
       <div className="overflow-x-auto pb-1 -mx-2 px-2 scrollbar-none">
-        <div className="flex items-center min-w-[640px] gap-2">
+        <div className="flex items-center min-w-[720px] gap-2.5">
           {V2_STEPS.map((step, idx) => {
             const isCurrent = activeStep === step.id;
             const isCompleted = idx < currentStepIndex;
@@ -216,14 +215,14 @@ export function QuoteBuilderV2({
                 <button
                   type="button"
                   onClick={() => handleStepClick(step.id)}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                     isCurrent
                       ? isLight
-                        ? "bg-emerald-100 text-emerald-950 font-bold border border-emerald-400 shadow-xs"
-                        : "bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/50 shadow-sm"
+                        ? "bg-emerald-100 text-emerald-950 font-extrabold border-2 border-emerald-500 shadow-xs"
+                        : "bg-emerald-500/25 text-emerald-300 font-extrabold border-2 border-emerald-400 shadow-md"
                       : isCompleted
                       ? isLight
-                        ? "bg-slate-100 text-slate-800 border border-slate-200"
+                        ? "bg-slate-100 text-slate-800 border border-slate-300"
                         : "bg-slate-900/80 text-slate-300 border border-slate-800 hover:border-slate-700"
                       : isLight
                       ? "text-slate-400 hover:text-slate-600 border border-transparent"
@@ -231,7 +230,7 @@ export function QuoteBuilderV2({
                   }`}
                 >
                   <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                       isCurrent
                         ? "bg-emerald-500 text-slate-950"
                         : isCompleted
@@ -239,16 +238,16 @@ export function QuoteBuilderV2({
                         : "bg-slate-800 text-slate-400"
                     }`}
                   >
-                    {isCompleted ? <Check className="h-3 w-3 stroke-[3]" /> : step.number}
+                    {isCompleted ? <Check className="h-3.5 w-3.5 stroke-[3]" /> : step.number}
                   </span>
                   <span>{step.label}</span>
                 </button>
 
                 {idx < V2_STEPS.length - 1 && (
                   <div
-                    className={`h-[2px] flex-1 min-w-[12px] rounded-full transition-colors ${
+                    className={`h-[2px] flex-1 min-w-[16px] rounded-full transition-colors ${
                       idx < currentStepIndex
-                        ? "bg-emerald-500/50"
+                        ? "bg-emerald-500/60"
                         : isLight
                         ? "bg-slate-200"
                         : "bg-slate-800"

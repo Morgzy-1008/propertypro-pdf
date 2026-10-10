@@ -329,45 +329,45 @@ export function V2StepSiteCosts({
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/50 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-xs">
               3
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 3 of 5</span>
+            <span className="text-xs uppercase tracking-wider font-extrabold text-emerald-400">Step 3 of 5</span>
           </div>
-          <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
+          <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
             Site Costs &amp; Earthworks
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-sm sm:text-base text-slate-400 mt-1 max-w-3xl">
             Configure site type, slope fall, foundation piering, allowances, overlays, and statutory council fees.
           </p>
         </div>
 
         {/* Action Controls & Live Site Subtotal */}
-        <div className="flex items-center gap-3 self-start sm:self-center">
+        <div className="flex items-center gap-3.5 self-start sm:self-center">
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => setRevealedStage((prev) => (prev < 7 ? 7 : 1))}
-            className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold h-8 px-2.5 border border-emerald-500/20 rounded-lg cursor-pointer"
+            className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold h-9 px-3 border border-emerald-500/20 rounded-xl cursor-pointer"
           >
             {revealedStage < 7 ? "⚡ Show All Sections" : "Step-by-Step Mode"}
           </Button>
 
           <div
-            className={`py-2 px-4 rounded-xl border text-right ${
+            className={`py-2.5 px-5 rounded-2xl border text-right ${
               isLight ? "bg-slate-50 border-slate-200 shadow-xs" : "bg-slate-950/60 border-slate-800"
             }`}
           >
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
+            <span className="text-xs uppercase tracking-wider text-slate-400 block font-bold">
               Site Costs Subtotal
             </span>
-            <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+            <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               +{formatAud((quote.pricing?.siteCostsSubtotal || 0) + (quote.pricing?.councilStatutorySubtotal || 0))}
             </span>
           </div>
@@ -376,11 +376,11 @@ export function V2StepSiteCosts({
 
       {/* Interactive Progressive Stage Stepper / Breadcrumbs */}
       <div
-        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 overflow-x-auto ${
+        className={`p-3 rounded-2xl border flex items-center justify-between gap-3 overflow-x-auto ${
           isLight ? "bg-slate-50/80 border-slate-200" : "bg-slate-950/40 border-slate-800/80"
         }`}
       >
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {stagesList.map((stg) => {
             const isCompleted = revealedStage > stg.num;
             const isCurrent = revealedStage === stg.num;
@@ -392,7 +392,7 @@ export function V2StepSiteCosts({
                 type="button"
                 disabled={!isAccessible}
                 onClick={() => setRevealedStage(stg.num)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${
                   isCurrent
                     ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
                     : isCompleted
@@ -405,7 +405,7 @@ export function V2StepSiteCosts({
                 }`}
               >
                 <span
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
                     isCurrent
                       ? "bg-slate-950 text-emerald-400"
                       : isCompleted
@@ -415,7 +415,7 @@ export function V2StepSiteCosts({
                       : "bg-slate-800 text-slate-400"
                   }`}
                 >
-                  {isCompleted ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : stg.displayNum}
+                  {isCompleted ? <Check className="w-3 h-3 stroke-[3]" /> : stg.displayNum}
                 </span>
                 <span>{stg.title}</span>
               </button>
@@ -423,43 +423,43 @@ export function V2StepSiteCosts({
           })}
         </div>
 
-        <span className="text-[11px] font-medium text-slate-400 hidden md:inline px-2">
+        <span className="text-xs font-semibold text-slate-400 hidden md:inline px-3">
           Stage {Math.min(revealedStage, stagesList.length)} of {stagesList.length}
         </span>
       </div>
 
       {/* STEP 1: TYPE OF SITE WE'RE BUILDING ON (Greenfield, Brownfield, KDRB) */}
       <div
-        className={`p-6 rounded-2xl border transition-all ${
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
             : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
         }`}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="flex items-center gap-3">
+              <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                 1. Select Site Type
               </Label>
               {revealedStage > 1 && (
-                <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
-                  <Check className="h-3 w-3 mr-1" />
+                <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
+                  <Check className="h-3.5 w-3.5 mr-1" />
                   {siteType === "greenfield" ? "Greenfield" : siteType === "brownfield" ? "Brownfield" : "KDRB"}
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
               Automatically updates the preliminary deposit and banking schedule on your estimate PDF.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Greenfield */}
           <div
             onClick={() => handleSelectSiteType("greenfield")}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
+            className={`p-5 sm:p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
               siteType === "greenfield"
                 ? isLight
                   ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -470,27 +470,27 @@ export function V2StepSiteCosts({
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xl">🌿</span>
-                {siteType === "greenfield" && <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl">🌿</span>
+                {siteType === "greenfield" && <Check className="h-5 w-5 text-emerald-500 stroke-[3]" />}
               </div>
-              <h4 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              <h4 className={`text-lg sm:text-xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                 Greenfield Site
               </h4>
-              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1.5 leading-relaxed">
                 New masterplanned estate or registered residential subdivision with engineered services.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-700/40 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-semibold">Tender Deposit</span>
-              <span className="text-xs font-bold font-mono text-emerald-400">$1,650 Deposit</span>
+            <div className="mt-5 pt-3.5 border-t border-slate-700/40 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-semibold">Tender Deposit</span>
+              <span className="text-sm font-bold font-mono text-emerald-400">$1,650 Deposit</span>
             </div>
           </div>
 
           {/* Brownfield */}
           <div
             onClick={() => handleSelectSiteType("brownfield")}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
+            className={`p-5 sm:p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
               siteType === "brownfield"
                 ? isLight
                   ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -501,27 +501,27 @@ export function V2StepSiteCosts({
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xl">🏘️</span>
-                {siteType === "brownfield" && <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl">🏘️</span>
+                {siteType === "brownfield" && <Check className="h-5 w-5 text-emerald-500 stroke-[3]" />}
               </div>
-              <h4 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              <h4 className={`text-lg sm:text-xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                 Brownfield Site
               </h4>
-              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1.5 leading-relaxed">
                 Established suburb, infill vacant allotment, or battle-axe parcel subject to local council planning.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-700/40 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-semibold">Tender Deposit</span>
-              <span className="text-xs font-bold font-mono text-emerald-400">$3,300 Deposit</span>
+            <div className="mt-5 pt-3.5 border-t border-slate-700/40 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-semibold">Tender Deposit</span>
+              <span className="text-sm font-bold font-mono text-emerald-400">$3,300 Deposit</span>
             </div>
           </div>
 
           {/* KDRB */}
           <div
             onClick={() => handleSelectSiteType("kdrb")}
-            className={`p-4 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
+            className={`p-5 sm:p-6 rounded-2xl border cursor-pointer transition-all hover:scale-[1.01] flex flex-col justify-between ${
               siteType === "kdrb"
                 ? isLight
                   ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -532,34 +532,34 @@ export function V2StepSiteCosts({
             }`}
           >
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xl">🏗️</span>
-                {siteType === "kdrb" && <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-2xl">🏗️</span>
+                {siteType === "kdrb" && <Check className="h-5 w-5 text-emerald-500 stroke-[3]" />}
               </div>
-              <h4 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+              <h4 className={`text-lg sm:text-xl font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                 Knock-Down Rebuild (KDRB)
               </h4>
-              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1.5 leading-relaxed">
                 Existing home to be demolished and replaced with a new build. Includes screw piering allowance.
               </p>
             </div>
-            <div className="mt-4 pt-3 border-t border-slate-700/40 flex items-center justify-between">
-              <span className="text-[10px] text-slate-400 font-semibold">Tender Deposit</span>
-              <span className="text-xs font-bold font-mono text-emerald-400">$3,300 Deposit</span>
+            <div className="mt-5 pt-3.5 border-t border-slate-700/40 flex items-center justify-between">
+              <span className="text-xs text-slate-400 font-semibold">Tender Deposit</span>
+              <span className="text-sm font-bold font-mono text-emerald-400">$3,300 Deposit</span>
             </div>
           </div>
         </div>
 
         {revealedStage === 1 && (
-          <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+          <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
             <Button
               type="button"
               size="sm"
               onClick={() => setRevealedStage((prev) => Math.max(prev, 2))}
-              className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+              className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
             >
               <span>Confirm Site Type &amp; Proceed to Slope Fall</span>
-              <ArrowRight className="h-3.5 w-3.5" />
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         )}
@@ -568,42 +568,42 @@ export function V2StepSiteCosts({
       {/* STEP 2: SLOPE FALL (ONLY APPEARS ONCE SITE TYPE SELECTED) */}
       {revealedStage >= 2 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div>
-              <div className="flex items-center gap-2">
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="flex items-center gap-3">
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   2. Land Slope &amp; Contour Fall
                 </Label>
                 {revealedStage > 2 && (
-                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
-                    <Check className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {site.fallMeters || 0}m Fall
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Type the exact elevation fall across your proposed building envelope in metres.
               </p>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] uppercase text-slate-400 font-semibold block">Fall Earthworks Cost</span>
-              <span className={`text-sm font-mono font-bold ${isLight ? "text-slate-900" : "text-emerald-400"}`}>
+              <span className="text-xs uppercase text-slate-400 font-bold block">Fall Earthworks Cost</span>
+              <span className={`text-xl font-mono font-extrabold ${isLight ? "text-slate-900" : "text-emerald-400"}`}>
                 {formatAud(site.fallTotalCost || 0)}
               </span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
             {/* Exact typed slope input */}
-            <div className="sm:col-span-5 space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="sm:col-span-5 space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Exact Fall (Metres)
               </Label>
               <div className="relative">
@@ -615,18 +615,18 @@ export function V2StepSiteCosts({
                   value={site.fallMeters || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => handleFallChange(e.target.value)}
-                  className={`text-sm h-11 font-mono font-bold pl-3 pr-12 ${
+                  className={`text-base h-12 rounded-xl font-mono font-bold pl-4 pr-12 ${
                     isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
                   }`}
                 />
-                <span className="absolute right-3.5 top-3.5 text-xs text-slate-400 font-bold">m</span>
+                <span className="absolute right-4 top-3.5 text-sm text-slate-400 font-bold">m</span>
               </div>
             </div>
 
             {/* Quick selector buttons */}
-            <div className="sm:col-span-7 space-y-1.5">
-              <Label className="text-xs text-slate-400">Quick Preset Contours</Label>
-              <div className="flex flex-wrap gap-2">
+            <div className="sm:col-span-7 space-y-2">
+              <Label className="text-sm font-bold uppercase tracking-wider text-slate-400">Quick Preset Contours</Label>
+              <div className="flex flex-wrap gap-2.5">
                 {[
                   { m: 0, label: "0m Flat" },
                   { m: 0.5, label: "0.5m Gentle" },
@@ -638,9 +638,9 @@ export function V2StepSiteCosts({
                     key={m}
                     type="button"
                     onClick={() => handleFallChange(m)}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold transition-all border cursor-pointer ${
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
                       site.fallMeters === m
-                        ? "bg-emerald-500 text-slate-950 border-emerald-400 font-bold"
+                        ? "bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold shadow-sm"
                         : isLight
                         ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
                         : "bg-slate-900/60 border-slate-800 text-slate-300 hover:bg-slate-800"
@@ -654,15 +654,15 @@ export function V2StepSiteCosts({
           </div>
 
           {revealedStage === 2 && (
-            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+            <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setRevealedStage((prev) => Math.max(prev, 3))}
-                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Soil Class &amp; Foundations</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -672,35 +672,35 @@ export function V2StepSiteCosts({
       {/* STEP 3: SOIL CLASS, 32MPA CONCRETE, FLEXIBLE SERVICES & PIERING ALLOWANCE */}
       {revealedStage >= 3 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="flex items-center gap-3">
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   3. Soil Class, Concrete Specification &amp; Piering Allowance
                 </Label>
                 {revealedStage > 3 && (
-                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
-                    <Check className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {site.soilClass || "Class M"} • {formatAud(currentPieringCost)} Piering
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Foundation slab engineering, 32MPa concrete, flexible services, and piering allowance.
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Soil Class Dropdown */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Geotechnical Soil Classification
               </Label>
               <Select
@@ -708,7 +708,7 @@ export function V2StepSiteCosts({
                 onValueChange={(val) => handleSoilClassChange(val as SoilClass)}
               >
                 <SelectTrigger
-                  className={`h-11 text-sm ${
+                  className={`h-12 text-base font-bold rounded-xl ${
                     isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
                   }`}
                 >
@@ -716,7 +716,7 @@ export function V2StepSiteCosts({
                 </SelectTrigger>
                 <SelectContent>
                   {SOIL_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
+                    <SelectItem key={opt.id} value={opt.id} className="py-2.5 text-sm cursor-pointer">
                       <span className="font-bold mr-2">{opt.label}</span>
                       <span className="text-slate-400 text-xs">({opt.desc})</span>
                     </SelectItem>
@@ -726,17 +726,17 @@ export function V2StepSiteCosts({
             </div>
 
             {/* 32MPa Concrete & Flexible Services Toggles */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div
-                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-3 ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                 }`}
               >
                 <div>
-                  <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                     32MPa High-Strength Concrete
                   </span>
-                  <span className="text-[10px] text-slate-400 block">
+                  <span className="text-xs text-slate-400 block mt-0.5">
                     Higher compressive slab rating for reactive soil
                   </span>
                 </div>
@@ -752,15 +752,15 @@ export function V2StepSiteCosts({
               </div>
 
               <div
-                className={`p-3.5 rounded-xl border flex items-center justify-between gap-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-3 ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                 }`}
               >
                 <div>
-                  <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                     Flexible Plumbing Service Connections
                   </span>
-                  <span className="text-[10px] text-slate-400 block">
+                  <span className="text-xs text-slate-400 block mt-0.5">
                     Articulated pipe couplings for reactive soil movement
                   </span>
                 </div>
@@ -778,42 +778,42 @@ export function V2StepSiteCosts({
 
             {/* PIERING ALLOWANCE (LUMP SUM - RATE HIDDEN PER REQUIREMENT) */}
             <div
-              className={`p-4 rounded-xl border ${
+              className={`p-5 sm:p-6 rounded-2xl border ${
                 isLight ? "bg-emerald-50/60 border-emerald-300" : "bg-emerald-950/20 border-emerald-500/40"
               }`}
             >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
                 <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-extrabold text-emerald-500 uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-extrabold text-emerald-500 uppercase tracking-wider">
                       {siteType === "kdrb" ? "Screw Piering Allowance" : "Foundation Piering Allowance"}
                     </span>
-                    <Badge variant="outline" className="text-[10px] text-emerald-400 border-emerald-500/40">
+                    <Badge variant="outline" className="text-xs font-bold text-emerald-400 border-emerald-500/40">
                       Auto-Calculated
                     </Badge>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
+                  <p className="text-xs sm:text-sm text-slate-400 mt-1">
                     Allowance for piering if required, and subject to geotech report.
                   </p>
                 </div>
 
-                <div className="w-full sm:w-48">
+                <div className="w-full sm:w-56">
                   <div className="relative">
-                    <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                    <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                     <Input
                       type="number"
                       step="100"
                       value={currentPieringCost}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => handlePieringLumpSumChange(e.target.value)}
-                      className="h-10 text-sm font-mono font-bold pl-7 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50"
+                      className="h-12 text-base font-mono font-bold pl-8 pr-3 bg-white dark:bg-slate-950 border-emerald-500/50 rounded-xl"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="text-[10px] text-slate-400 pt-1 flex items-center gap-1.5">
-                <HelpCircle className="h-3 w-3 text-emerald-500" />
+              <div className="text-xs text-slate-400 pt-1.5 flex items-center gap-2">
+                <HelpCircle className="h-4 w-4 text-emerald-500 flex-none" />
                 <span>
                   Calibrated for {quote.design.designName || "home"} ground floor area ({gfaM2} m² footprint). User-editable lump sum.
                 </span>
@@ -822,15 +822,15 @@ export function V2StepSiteCosts({
           </div>
 
           {revealedStage === 3 && (
-            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+            <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setRevealedStage((prev) => Math.max(prev, siteType === "kdrb" ? 4 : 5))}
-                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>{siteType === "kdrb" ? "Proceed to Demolition & Asbestos" : "Proceed to Site Allowances"}</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -840,22 +840,22 @@ export function V2StepSiteCosts({
       {/* STEP 4: KDRB HOUSE DEMOLITION & ASBESTOS (ONLY APPEARS IF KDRB SELECTED) */}
       {siteType === "kdrb" && revealedStage >= 4 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-amber-50/70 border-amber-300 shadow-sm"
               : "bg-amber-950/20 border-amber-500/40 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Hammer className="h-4 w-4 text-amber-500" />
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+              <div className="flex items-center gap-3">
+                <Hammer className="h-5 w-5 text-amber-500" />
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-amber-950" : "text-amber-300"}`}>
                   4. Existing House Demolition &amp; Asbestos Removal (KDRB)
                 </Label>
                 {revealedStage > 4 && (
-                  <Badge variant="outline" className="text-[10px] font-semibold text-amber-500 border-amber-500/30">
-                    <Check className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs font-bold text-amber-500 border-amber-500/30 px-2.5 py-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {site.kdrbDemolitionOption === "builder"
                       ? "Builder Demo ($34.5k)"
                       : site.kdrbDemolitionOption === "owner"
@@ -864,13 +864,13 @@ export function V2StepSiteCosts({
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Specify how the existing residential structure will be cleared prior to construction start.
               </p>
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {[
               {
                 id: "builder",
@@ -903,34 +903,34 @@ export function V2StepSiteCosts({
                     });
                     setRevealedStage((prev) => Math.max(prev, 5));
                   }}
-                  className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${
                     isSelected
                       ? isLight
-                        ? "bg-white border-amber-500 shadow-xs ring-1 ring-amber-500"
+                        ? "bg-white border-amber-500 shadow-xs ring-2 ring-amber-500/30"
                         : "bg-amber-500/20 border-amber-400 text-white shadow-sm ring-1 ring-amber-400"
                       : isLight
                       ? "bg-white/60 border-slate-200 hover:bg-white text-slate-700"
                       : "bg-slate-900/60 border-slate-800 hover:bg-slate-900 text-slate-300"
                   }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
-                      className={`w-4 h-4 rounded-full flex items-center justify-center flex-none border ${
+                      className={`w-5 h-5 rounded-full flex items-center justify-center flex-none border ${
                         isSelected
                           ? "bg-amber-500 border-amber-500 text-slate-950"
                           : "border-slate-500 text-transparent"
                       }`}
                     >
-                      <Check className="h-2.5 w-2.5 stroke-[3]" />
+                      <Check className="h-3 w-3 stroke-[3]" />
                     </div>
                     <div>
-                      <span className="text-xs font-bold block">{opt.title}</span>
-                      <span className="text-[10px] text-slate-400 block">{opt.desc}</span>
+                      <span className="text-sm sm:text-base font-bold block">{opt.title}</span>
+                      <span className="text-xs text-slate-400 block mt-0.5">{opt.desc}</span>
                     </div>
                   </div>
 
                   <div className="text-right flex-none">
-                    <span className="text-xs font-bold font-mono">
+                    <span className="text-sm sm:text-base font-bold font-mono">
                       {opt.amount > 0 ? formatAud(opt.amount) : "$0"}
                     </span>
                   </div>
@@ -940,15 +940,15 @@ export function V2StepSiteCosts({
           </div>
 
           {revealedStage === 4 && (
-            <div className="flex justify-end pt-3 mt-4 border-t border-amber-500/20">
+            <div className="flex justify-end pt-4 mt-5 border-t border-amber-500/20">
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setRevealedStage((prev) => Math.max(prev, 5))}
-                className="text-xs bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 gap-1.5 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Site Allowances</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -958,21 +958,21 @@ export function V2StepSiteCosts({
       {/* STEP 5: NEW SITE COSTS SECTION (RETAINING, MATERIAL HANDLING, OUT OF ZONE, ROCK BREAKER, UNKNOWN CONDITIONS) */}
       {revealedStage >= 5 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="flex items-center gap-3">
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   {siteType === "kdrb" ? "5." : "4."} Site Specific Allowances &amp; Surcharges
                 </Label>
                 {revealedStage > 5 && (
-                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
-                    <Check className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {formatAud(
                       (site.retainingWallAllowance || 0) +
                       (site.materialHandlingAllowance || 0) +
@@ -983,114 +983,114 @@ export function V2StepSiteCosts({
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Enter provisional contingency allowances for retaining walls, materials handling, travel zones, rock excavation, and unforeseen ground conditions.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {/* Retaining Wall Allowance */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Retaining Wall Allowance
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                 <Input
                   type="number"
                   step="500"
                   value={site.retainingWallAllowance || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ retainingWallAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono pl-7"
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
                 />
               </div>
             </div>
 
             {/* Material Handling Allowance */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Material Handling &amp; Access
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                 <Input
                   type="number"
                   step="500"
                   value={site.materialHandlingAllowance || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ materialHandlingAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono pl-7"
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
                 />
               </div>
             </div>
 
             {/* Out of Zone Surcharge */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Out of Zone Surcharge
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                 <Input
                   type="number"
                   step="500"
                   value={site.outOfZoneSurcharge || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ outOfZoneSurcharge: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono pl-7"
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
                 />
               </div>
             </div>
 
             {/* Rock Breaker Allowance */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Rock Breaker Allowance
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                 <Input
                   type="number"
                   step="500"
                   value={site.rockExcavationAllowance || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ rockExcavationAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono pl-7"
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
                 />
               </div>
             </div>
 
             {/* Unknown Site Conditions Allowance */}
-            <div className="space-y-1.5 sm:col-span-2 lg:col-span-2">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Unknown Site Conditions Allowance (Contingency)
               </Label>
               <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">$</span>
+                <span className="absolute left-3.5 top-3 text-sm text-slate-400 font-bold">$</span>
                 <Input
                   type="number"
                   step="500"
                   value={site.unknownSiteConditionsAllowance || 0}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ unknownSiteConditionsAllowance: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono pl-7"
+                  className="h-12 text-base font-mono pl-8 rounded-xl font-bold"
                 />
               </div>
             </div>
           </div>
 
           {revealedStage === 5 && (
-            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+            <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setRevealedStage((prev) => Math.max(prev, 6))}
-                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Overlays &amp; Site Problems</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -1100,26 +1100,26 @@ export function V2StepSiteCosts({
       {/* STEP 6: OVERLAYS / SITE PROBLEMS (BUSHFIRE, FLOOD, ACOUSTIC, SEWER LINE) */}
       {revealedStage >= 6 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="flex items-center gap-3">
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   {siteType === "kdrb" ? "6." : "5."} Overlays &amp; Site Problems
                 </Label>
                 {revealedStage > 6 && (
-                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
-                    <Check className="h-3 w-3 mr-1" />
+                  <Badge variant="outline" className="text-xs font-bold text-emerald-500 border-emerald-500/30 px-2.5 py-0.5">
+                    <Check className="h-3.5 w-3.5 mr-1" />
                     {[hasBushfire, hasFlood, hasAcoustic, hasSewer].filter(Boolean).length} Overlays Active
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Select any applicable environmental planning overlays. Selecting an overlay automatically includes the specialist engineering report and unlocks editable construction costs.
               </p>
             </div>
@@ -1128,24 +1128,24 @@ export function V2StepSiteCosts({
           <div className="space-y-4">
             {/* 1. BUSHFIRE */}
             <div
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-5 rounded-2xl border transition-all ${
                 hasBushfire
                   ? isLight
-                    ? "bg-orange-50/70 border-orange-400"
+                    ? "bg-orange-50/70 border-orange-400 shadow-xs"
                     : "bg-orange-950/20 border-orange-500/40"
                   : isLight
                   ? "bg-slate-50 border-slate-200"
                   : "bg-slate-950/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <Flame className="h-4 w-4 text-orange-500" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Flame className="h-5 w-5 text-orange-500 flex-none" />
                   <div>
-                    <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                       Bushfire Overlay (BAL Rating)
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $850 Bushfire Management Report
                     </span>
                   </div>
@@ -1154,9 +1154,9 @@ export function V2StepSiteCosts({
               </div>
 
               {hasBushfire && (
-                <div className="mt-3 pt-3 border-t border-orange-500/20 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">BAL Rating Level</Label>
+                <div className="mt-4 pt-4 border-t border-orange-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">BAL Rating Level</Label>
                     <Select
                       value={site.bushfireBal || "BAL-12.5"}
                       onValueChange={(val) => {
@@ -1167,12 +1167,12 @@ export function V2StepSiteCosts({
                         });
                       }}
                     >
-                      <SelectTrigger className="h-9 text-xs">
+                      <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {BAL_OPTIONS.map((b) => (
-                          <SelectItem key={b.id} value={b.id}>
+                          <SelectItem key={b.id} value={b.id} className="py-2 text-sm">
                             {b.label}
                           </SelectItem>
                         ))}
@@ -1180,15 +1180,15 @@ export function V2StepSiteCosts({
                     </Select>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">BAL Construction Cost ($)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">BAL Construction Cost ($)</Label>
                     <Input
                       type="number"
                       step="100"
                       value={site.bushfireCost || 5500}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onChange({ bushfireCost: parseFloat(e.target.value) || 0 })}
-                      className="h-9 text-xs font-mono"
+                      className="h-11 text-base font-mono font-bold rounded-xl"
                     />
                   </div>
                 </div>
@@ -1197,24 +1197,24 @@ export function V2StepSiteCosts({
 
             {/* 2. FLOOD */}
             <div
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-5 rounded-2xl border transition-all ${
                 hasFlood
                   ? isLight
-                    ? "bg-blue-50/70 border-blue-400"
+                    ? "bg-blue-50/70 border-blue-400 shadow-xs"
                     : "bg-blue-950/20 border-blue-500/40"
                   : isLight
                   ? "bg-slate-50 border-slate-200"
                   : "bg-slate-950/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <Waves className="h-4 w-4 text-blue-500" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Waves className="h-5 w-5 text-blue-500 flex-none" />
                   <div>
-                    <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                       Flood Overlay (Defined Flood Level)
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $7,600 Hydraulic Assessment Report
                     </span>
                   </div>
@@ -1223,20 +1223,20 @@ export function V2StepSiteCosts({
               </div>
 
               {hasFlood && (
-                <div className="mt-3 pt-3 border-t border-blue-500/20 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                  <div className="text-[11px] text-slate-400">
+                <div className="mt-4 pt-4 border-t border-blue-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div className="text-xs sm:text-sm text-slate-400">
                     Slab elevation &amp; elevated piering construction works
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">Flood Allowance Cost ($)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Flood Allowance Cost ($)</Label>
                     <Input
                       type="number"
                       step="500"
                       value={site.floodOverlayCost || 6500}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onChange({ floodOverlayCost: parseFloat(e.target.value) || 0 })}
-                      className="h-9 text-xs font-mono"
+                      className="h-11 text-base font-mono font-bold rounded-xl"
                     />
                   </div>
                 </div>
@@ -1245,24 +1245,24 @@ export function V2StepSiteCosts({
 
             {/* 3. ACOUSTIC */}
             <div
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-5 rounded-2xl border transition-all ${
                 hasAcoustic
                   ? isLight
-                    ? "bg-purple-50/70 border-purple-400"
+                    ? "bg-purple-50/70 border-purple-400 shadow-xs"
                     : "bg-purple-950/20 border-purple-500/40"
                   : isLight
                   ? "bg-slate-50 border-slate-200"
                   : "bg-slate-950/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <Volume2 className="h-4 w-4 text-purple-500" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Volume2 className="h-5 w-5 text-purple-500 flex-none" />
                   <div>
-                    <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                       Acoustic Overlay / Noise Corridor
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $1,200 Certified Acoustic Engineer Report
                     </span>
                   </div>
@@ -1271,9 +1271,9 @@ export function V2StepSiteCosts({
               </div>
 
               {hasAcoustic && (
-                <div className="mt-3 pt-3 border-t border-purple-500/20 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">Noise Category</Label>
+                <div className="mt-4 pt-4 border-t border-purple-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Noise Category</Label>
                     <Select
                       value={site.acousticTier || "Category 1"}
                       onValueChange={(val) => {
@@ -1284,12 +1284,12 @@ export function V2StepSiteCosts({
                         });
                       }}
                     >
-                      <SelectTrigger className="h-9 text-xs">
+                      <SelectTrigger className="h-11 text-sm font-bold rounded-xl">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         {ACOUSTIC_CATEGORIES.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
+                          <SelectItem key={c.id} value={c.id} className="py-2 text-sm">
                             {c.label}
                           </SelectItem>
                         ))}
@@ -1297,15 +1297,15 @@ export function V2StepSiteCosts({
                     </Select>
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">Acoustic Glazing &amp; Seals Cost ($)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Acoustic Glazing &amp; Seals Cost ($)</Label>
                     <Input
                       type="number"
                       step="200"
                       value={site.acousticCost || 3800}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onChange({ acousticCost: parseFloat(e.target.value) || 0 })}
-                      className="h-9 text-xs font-mono"
+                      className="h-11 text-base font-mono font-bold rounded-xl"
                     />
                   </div>
                 </div>
@@ -1314,24 +1314,24 @@ export function V2StepSiteCosts({
 
             {/* 4. SEWER LINE */}
             <div
-              className={`p-4 rounded-xl border transition-all ${
+              className={`p-5 rounded-2xl border transition-all ${
                 hasSewer
                   ? isLight
-                    ? "bg-teal-50/70 border-teal-400"
+                    ? "bg-teal-50/70 border-teal-400 shadow-xs"
                     : "bg-teal-950/20 border-teal-500/40"
                   : isLight
                   ? "bg-slate-50 border-slate-200"
                   : "bg-slate-950/60 border-slate-800"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <Shovel className="h-4 w-4 text-teal-500" />
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Shovel className="h-5 w-5 text-teal-500 flex-none" />
                   <div>
-                    <span className={`text-xs font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
                       Sewer Line Near / Under Proposed Building Pad
                     </span>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $850 CCTV Pipe Camera Inspection
                     </span>
                   </div>
@@ -1340,20 +1340,20 @@ export function V2StepSiteCosts({
               </div>
 
               {hasSewer && (
-                <div className="mt-3 pt-3 border-t border-teal-500/20 grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                  <div className="text-[11px] text-slate-400">
+                <div className="mt-4 pt-4 border-t border-teal-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                  <div className="text-xs sm:text-sm text-slate-400">
                     Concrete encasement &amp; zone-of-influence pier bridging allowance
                   </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-[11px] text-slate-400">Sewer Bridging Allowance ($)</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Sewer Bridging Allowance ($)</Label>
                     <Input
                       type="number"
                       step="250"
                       value={site.sewerBridgingCost || 4500}
                       onFocus={(e) => e.target.select()}
                       onChange={(e) => onChange({ sewerBridgingCost: parseFloat(e.target.value) || 0 })}
-                      className="h-9 text-xs font-mono"
+                      className="h-11 text-base font-mono font-bold rounded-xl"
                     />
                   </div>
                 </div>
@@ -1362,15 +1362,15 @@ export function V2StepSiteCosts({
           </div>
 
           {revealedStage === 6 && (
-            <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+            <div className="flex justify-end pt-4 mt-5 border-t border-slate-700/20">
               <Button
                 type="button"
                 size="sm"
                 onClick={() => setRevealedStage((prev) => Math.max(prev, 7))}
-                className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+                className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Council Fees &amp; Statutory Applications</span>
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -1380,35 +1380,35 @@ export function V2StepSiteCosts({
       {/* STEP 7: COUNCIL FEES & STATUTORY LODGEMENT */}
       {revealedStage >= 7 && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-5 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-cyan-400" />
-                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-cyan-400" />
+                <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                   {siteType === "kdrb" ? "7." : "6."} Council Fees &amp; Statutory Applications
                 </Label>
-                <Badge variant="outline" className="text-[10px] font-semibold text-cyan-500 border-cyan-500/30">
-                  <Check className="h-3 w-3 mr-1" />
+                <Badge variant="outline" className="text-xs font-bold text-cyan-500 border-cyan-500/30 px-2.5 py-0.5">
+                  <Check className="h-3.5 w-3.5 mr-1" />
                   {site.councilRegion || "Moreton Bay Regional Council"} ({formatAud(currentCouncilFee)})
                 </Badge>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Standard council fee automated by location with optional statutory applications.
               </p>
             </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Standard council selection */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
-              <div className="sm:col-span-8 space-y-1.5">
-                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+              <div className="sm:col-span-8 space-y-2">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                   Local Government Council Region
                 </Label>
                 <Select
@@ -1421,12 +1421,12 @@ export function V2StepSiteCosts({
                     });
                   }}
                 >
-                  <SelectTrigger className="h-10 text-sm">
+                  <SelectTrigger className="h-12 text-base font-bold rounded-xl">
                     <SelectValue placeholder="Select Council" />
                   </SelectTrigger>
                   <SelectContent>
                     {COUNCIL_REGIONS.map((c) => (
-                      <SelectItem key={c.name} value={c.name}>
+                      <SelectItem key={c.name} value={c.name} className="py-2.5 text-sm">
                         {c.name} ({formatAud(c.fee)})
                       </SelectItem>
                     ))}
@@ -1434,8 +1434,8 @@ export function V2StepSiteCosts({
                 </Select>
               </div>
 
-              <div className="sm:col-span-4 space-y-1.5">
-                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="sm:col-span-4 space-y-2">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                   Statutory Fee ($)
                 </Label>
                 <Input
@@ -1443,27 +1443,27 @@ export function V2StepSiteCosts({
                   value={currentCouncilFee}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => onChange({ councilFee: parseFloat(e.target.value) || 0 })}
-                  className="h-10 text-sm font-mono font-bold"
+                  className="h-12 text-base font-mono font-bold rounded-xl"
                 />
               </div>
             </div>
 
             {/* Other Council Options */}
-            <div className="space-y-2 pt-2 border-t border-slate-700/40">
-              <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="space-y-3 pt-3 border-t border-slate-700/40">
+              <Label className="text-sm font-bold text-slate-400 uppercase tracking-wider block">
                 Additional Council &amp; Statutory Applications (Optional)
               </Label>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Council DA */}
                 <div
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-bold block">Council DA / Town Planning</span>
-                    <span className="text-[10px] text-slate-400">Material Change of Use ($11,000)</span>
+                    <span className="text-sm sm:text-base font-bold block">Council DA / Town Planning</span>
+                    <span className="text-xs text-slate-400 mt-0.5 block">Material Change of Use ($11,000)</span>
                   </div>
                   <Switch
                     checked={Boolean(site.councilDaRequired)}
@@ -1475,13 +1475,13 @@ export function V2StepSiteCosts({
 
                 {/* Setback Relaxation */}
                 <div
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-bold block">Setback Relaxation / Dispensation</span>
-                    <span className="text-[10px] text-slate-400">Boundary variation lodgement ($2,000)</span>
+                    <span className="text-sm sm:text-base font-bold block">Setback Relaxation / Dispensation</span>
+                    <span className="text-xs text-slate-400 mt-0.5 block">Boundary variation lodgement ($2,000)</span>
                   </div>
                   <Switch
                     checked={Boolean(site.councilSetbackRelaxationRequired)}
@@ -1496,13 +1496,13 @@ export function V2StepSiteCosts({
 
                 {/* Traffic Control */}
                 <div
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-bold block">Traffic Guidance &amp; Safety Control</span>
-                    <span className="text-[10px] text-slate-400">Permits, spotters &amp; signs ($6,500)</span>
+                    <span className="text-sm sm:text-base font-bold block">Traffic Guidance &amp; Safety Control</span>
+                    <span className="text-xs text-slate-400 mt-0.5 block">Permits, spotters &amp; signs ($6,500)</span>
                   </div>
                   <Switch
                     checked={Boolean(site.trafficControlRequired)}
@@ -1517,13 +1517,13 @@ export function V2StepSiteCosts({
 
                 {/* Sediment & Asset Protection */}
                 <div
-                  className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                     isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-xs font-bold block">Sediment &amp; Asset Protection</span>
-                    <span className="text-[10px] text-slate-400">Silt fences &amp; crossover ($1,950)</span>
+                    <span className="text-sm sm:text-base font-bold block">Sediment &amp; Asset Protection</span>
+                    <span className="text-xs text-slate-400 mt-0.5 block">Silt fences &amp; crossover ($1,950)</span>
                   </div>
                   <Switch
                     checked={Boolean((site.sedimentAssetProtectionCost || 0) > 0)}
@@ -1539,28 +1539,28 @@ export function V2StepSiteCosts({
       )}
 
       {/* Footer Navigation */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-700/50">
         <Button
           type="button"
           variant="outline"
           onClick={onPrev}
-          className={`text-xs gap-1.5 ${
+          className={`h-14 px-8 text-sm font-bold rounded-xl gap-2 cursor-pointer ${
             isLight
               ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
               : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
           }`}
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-4 w-4" />
           <span>Back to Floor Plan</span>
         </Button>
 
         <Button
           type="button"
           onClick={onNext}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer h-12"
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 h-14 text-base rounded-xl shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
         >
           Continue to House Variations
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-5 w-5" />
         </Button>
       </div>
     </div>

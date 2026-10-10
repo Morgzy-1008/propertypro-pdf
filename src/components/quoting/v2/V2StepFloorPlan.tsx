@@ -643,20 +643,20 @@ export function V2StepFloorPlan({
   const hasInclusionSelected = Boolean(design.specTier);
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/50 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/50 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-xs">
               2
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 2 of 5</span>
+            <span className="text-sm uppercase tracking-wider font-extrabold text-emerald-500">Step 2 of 5</span>
           </div>
-          <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
+          <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
             Floor Plan, Inclusions &amp; Façade
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-sm sm:text-base text-slate-400 mt-1">
             Select house type, quick search floor plan, choose inclusion specification, and customize façade.
           </p>
         </div>
@@ -664,19 +664,19 @@ export function V2StepFloorPlan({
         {/* Selected Plan Snapshot Badge */}
         {hasFloorPlanSelected && (
           <div
-            className={`py-2 px-3.5 rounded-xl border flex items-center gap-3 self-start sm:self-center ${
+            className={`py-2.5 px-4 rounded-xl border flex items-center gap-3 self-start sm:self-center shadow-xs ${
               isLight ? "bg-emerald-50 border-emerald-300" : "bg-emerald-500/10 border-emerald-500/30"
             }`}
           >
-            <Home className="h-4 w-4 text-emerald-500 flex-none" />
+            <Home className="h-5 w-5 text-emerald-500 flex-none" />
             <div>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-xs font-bold ${isLight ? "text-emerald-950" : "text-white"}`}>
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-bold ${isLight ? "text-emerald-950" : "text-white"}`}>
                   {design.designName}
                 </span>
-                <span className="text-[10px] text-slate-400">({design.designM2} m²)</span>
+                <span className="text-xs text-slate-400 font-mono">({design.designM2} m²)</span>
               </div>
-              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold block">
+              <span className="text-xs text-emerald-600 dark:text-emerald-400 font-mono font-bold block">
                 Base: {formatAud(design.basePrice || 0)}
               </span>
             </div>
@@ -685,21 +685,21 @@ export function V2StepFloorPlan({
       </div>
 
       {/* Mode Switcher Tabs: Standard Catalogue vs Modified vs Custom */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-700/40 pb-3">
+      <div className="flex flex-wrap items-center gap-2.5 border-b border-slate-700/40 pb-4">
         <button
           type="button"
           onClick={() => {
             setDesignMode("standard");
             onChange({ mode: "standard", isModifiedFloorplan: false });
           }}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
             designMode === "standard"
               ? isLight
                 ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                 : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
               : isLight
-              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white"
           }`}
         >
           📐 Standard Catalogue Floor Plan
@@ -711,17 +711,17 @@ export function V2StepFloorPlan({
             setDesignMode("modified");
             onChange({ isModifiedFloorplan: true });
           }}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border flex items-center gap-2 cursor-pointer ${
             designMode === "modified"
               ? isLight
                 ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                 : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
               : isLight
-              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white"
           }`}
         >
-          <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+          <Sparkles className="h-4 w-4 text-amber-400" />
           <span>Modified Floor Plan</span>
         </button>
 
@@ -731,14 +731,14 @@ export function V2StepFloorPlan({
             setDesignMode("custom");
             onChange({ mode: "custom_floorplan", isModifiedFloorplan: false });
           }}
-          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+          className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
             designMode === "custom"
               ? isLight
                 ? "bg-slate-900 text-white border-slate-900 shadow-sm"
                 : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
               : isLight
-              ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-100"
-              : "bg-slate-900/60 text-slate-400 border-slate-800 hover:text-white"
+              ? "bg-white text-slate-700 border-slate-300 hover:bg-slate-100"
+              : "bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white"
           }`}
         >
           🏛️ Custom Bespoke Design
@@ -747,32 +747,32 @@ export function V2StepFloorPlan({
 
       {/* BOX 1 & BOX 2: HOUSE TYPE & SEARCHABLE FLOORPLAN DROPDOWN */}
       <div
-        className={`p-6 rounded-2xl border transition-all ${
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
             : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
         }`}
       >
         {/* House Type selector */}
-        <div className="space-y-2 mb-5">
-          <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+        <div className="space-y-3 mb-6">
+          <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
             1. Select House Type
           </Label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {(["Single Storey", "Double Storey", "Dual Living", "Split Level", "Granny Flat"] as HousingTypeTab[]).map(
               (type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => handleSelectHouseType(type)}
-                  className={`py-2 px-3 rounded-xl text-xs font-bold transition-all border text-center ${
+                  className={`py-3 px-4 rounded-xl text-sm font-bold transition-all border text-center cursor-pointer ${
                     houseType === type
                       ? isLight
-                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-1 ring-emerald-500/20"
+                        ? "bg-emerald-50 border-emerald-500 text-emerald-950 shadow-xs ring-2 ring-emerald-500/20"
                         : "bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-sm ring-1 ring-emerald-400/30"
                       : isLight
-                      ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                      : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200"
+                      ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                      : "bg-slate-950/60 border-slate-800 text-slate-300 hover:text-white"
                   }`}
                 >
                   {type}
@@ -784,12 +784,12 @@ export function V2StepFloorPlan({
 
         {/* Floorplan Searchable Dropdown Combobox */}
         {designMode === "standard" && (
-          <div className="space-y-2 relative" ref={dropdownRef}>
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+          <div className="space-y-3 relative" ref={dropdownRef}>
+            <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
               2. Select Floor Plan (Search by Typing)
             </Label>
             <div className="relative">
-              <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+              <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
               <Input
                 placeholder={
                   houseType === "Granny Flat"
@@ -802,7 +802,7 @@ export function V2StepFloorPlan({
                   setSearchQuery(e.target.value);
                   setIsDropdownOpen(true);
                 }}
-                className={`pl-10 pr-10 text-sm h-11 ${
+                className={`pl-12 pr-12 text-base h-12 rounded-xl ${
                   isLight
                     ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
                     : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
@@ -811,23 +811,23 @@ export function V2StepFloorPlan({
               <button
                 type="button"
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="absolute right-3 top-3 p-0.5 text-slate-400 hover:text-slate-200"
+                className="absolute right-4 top-3.5 p-0.5 text-slate-400 hover:text-slate-200 cursor-pointer"
               >
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="h-5 w-5" />
               </button>
             </div>
 
             {/* Dropdown Results Menu */}
             {isDropdownOpen && (
               <div
-                className={`absolute left-0 right-0 top-full mt-1.5 z-50 max-h-72 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
                   isLight
                     ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
                     : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
                 }`}
               >
                 {filteredModels.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400">
+                  <div className="p-5 text-center text-sm text-slate-400">
                     No matching floor plans found for "{searchQuery}" in {houseType}.
                   </div>
                 ) : (
@@ -842,45 +842,45 @@ export function V2StepFloorPlan({
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => handleSelectModel(row, type)}
-                        className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                        className={`p-4 cursor-pointer transition-all flex items-center justify-between gap-4 ${
                           isSelected
                             ? isLight
-                              ? "bg-emerald-50/90 text-emerald-950"
-                              : "bg-emerald-500/20 text-emerald-300"
+                              ? "bg-emerald-50/90 text-emerald-950 font-bold"
+                              : "bg-emerald-500/20 text-emerald-300 font-bold"
                             : isLight
                             ? "hover:bg-slate-100"
                             : "hover:bg-slate-900"
                         }`}
                       >
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold truncate">{row.name}</span>
-                            <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono">
+                          <div className="flex items-center gap-2.5">
+                            <span className="text-base font-extrabold truncate">{row.name}</span>
+                            <span className="text-xs px-2.5 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono font-semibold">
                               {row.m2} m²
                             </span>
                             {isSelected && (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-none" />
+                              <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-none" />
                             )}
                           </div>
 
-                          <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Bed className="h-3 w-3" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
+                          <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                            <span className="flex items-center gap-1.5">
+                              <Bed className="h-3.5 w-3.5" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Bath className="h-3 w-3" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
+                            <span className="flex items-center gap-1.5">
+                              <Bath className="h-3.5 w-3.5" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
                             </span>
-                            <span className="flex items-center gap-1">
-                              <Car className="h-3 w-3" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
+                            <span className="flex items-center gap-1.5">
+                              <Car className="h-3.5 w-3.5" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
                             </span>
                           </div>
                         </div>
 
                         <div className="text-right flex-none">
-                          <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">
+                          <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
                             Base Price
                           </span>
-                          <span className={`text-sm font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                          <span className={`text-base font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                             {formatAud(tierPrice)}
                           </span>
                         </div>
@@ -951,45 +951,45 @@ export function V2StepFloorPlan({
 
             {/* Modified Area Dimensions Grid */}
             {hasFloorPlanSelected && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-400">Living Area (m²)</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-400">Living Area (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={design.areas?.livingM2 || ""}
                     onChange={(e) => handleModifiedAreaChange("livingM2", e.target.value)}
-                    className="h-10 text-sm font-mono"
+                    className="h-12 text-base font-mono font-bold rounded-xl"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-400">Garage Area (m²)</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-400">Garage Area (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={design.areas?.garageM2 || ""}
                     onChange={(e) => handleModifiedAreaChange("garageM2", e.target.value)}
-                    className="h-10 text-sm font-mono"
+                    className="h-12 text-base font-mono font-bold rounded-xl"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-400">Alfresco (m²)</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={design.areas?.alfrescoM2 || ""}
                     onChange={(e) => handleModifiedAreaChange("alfrescoM2", e.target.value)}
-                    className="h-10 text-sm font-mono"
+                    className="h-12 text-base font-mono font-bold rounded-xl"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] text-slate-400">Porch (m²)</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
                   <Input
                     type="number"
                     step="0.1"
                     value={design.areas?.porchM2 || ""}
                     onChange={(e) => handleModifiedAreaChange("porchM2", e.target.value)}
-                    className="h-10 text-sm font-mono"
+                    className="h-12 text-base font-mono font-bold rounded-xl"
                   />
                 </div>
               </div>
@@ -1001,7 +1001,7 @@ export function V2StepFloorPlan({
         {designMode === "custom" && (
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 Custom Design Name
               </Label>
               <Input
@@ -1015,15 +1015,15 @@ export function V2StepFloorPlan({
                     modelName: name,
                   });
                 }}
-                className={`text-sm h-11 ${
+                className={`text-base h-12 rounded-xl ${
                   isLight ? "bg-slate-50 border-slate-300" : "bg-slate-950/80 border-slate-800"
                 }`}
               />
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Ground Living (m²)</Label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-400">Ground Living (m²)</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1039,12 +1039,12 @@ export function V2StepFloorPlan({
                       basePrice,
                     });
                   }}
-                  className="h-10 text-sm font-mono"
+                  className="h-12 text-base font-mono font-bold rounded-xl"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Garage (m²)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-400">Garage (m²)</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1060,12 +1060,12 @@ export function V2StepFloorPlan({
                       basePrice,
                     });
                   }}
-                  className="h-10 text-sm font-mono"
+                  className="h-12 text-base font-mono font-bold rounded-xl"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Alfresco (m²)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1081,12 +1081,12 @@ export function V2StepFloorPlan({
                       basePrice,
                     });
                   }}
-                  className="h-10 text-sm font-mono"
+                  className="h-12 text-base font-mono font-bold rounded-xl"
                 />
               </div>
 
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-400">Porch (m²)</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -1102,7 +1102,7 @@ export function V2StepFloorPlan({
                       basePrice,
                     });
                   }}
-                  className="h-10 text-sm font-mono"
+                  className="h-12 text-base font-mono font-bold rounded-xl"
                 />
               </div>
             </div>
@@ -1111,14 +1111,14 @@ export function V2StepFloorPlan({
 
         {/* Primary Floor Plan Confirmation & Option to Add 2nd Dwelling */}
         {hasFloorPlanSelected && (
-          <div className="pt-4 mt-5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <span className={`text-xs font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+          <div className="pt-5 mt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <span className={`text-sm font-bold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
                 Selected Primary Design:
               </span>
               <Badge
                 variant="outline"
-                className={`font-mono text-xs font-bold py-1 px-2.5 ${
+                className={`font-mono text-sm font-bold py-1.5 px-3 rounded-lg ${
                   isLight ? "bg-slate-100 text-slate-900 border-slate-300" : "bg-slate-800 text-white border-slate-700"
                 }`}
               >
@@ -1133,18 +1133,18 @@ export function V2StepFloorPlan({
                 size="sm"
                 data-testid="add-second-dwelling-btn"
                 onClick={handleEnableSecondDwelling}
-                className={`text-xs font-bold gap-1.5 transition-all cursor-pointer ${
+                className={`text-sm font-bold h-10 px-4 gap-2 transition-all cursor-pointer rounded-xl ${
                   isLight
                     ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 shadow-xs"
                     : "border-emerald-500/40 bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-500/60"
                 }`}
               >
-                <Plus className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" />
+                <Plus className="h-4 w-4 text-emerald-500 stroke-[3]" />
                 Add 2nd Dwelling
               </Button>
             ) : (
-              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-mono text-xs font-bold py-1 px-2.5 flex items-center gap-1.5">
-                <Building2 className="h-3.5 w-3.5 text-cyan-400" />
+              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-mono text-sm font-bold py-1.5 px-3 flex items-center gap-2 rounded-lg">
+                <Building2 className="h-4 w-4 text-cyan-400" />
                 2nd Dwelling Active: {design.secondDwelling?.designName || "Secondary"}
               </Badge>
             )}
@@ -1156,28 +1156,28 @@ export function V2StepFloorPlan({
       {hasFloorPlanSelected && isSecondDwellingActive && (
         <div
           data-testid="second-dwelling-card"
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-gradient-to-br from-white via-cyan-50/20 to-slate-50 border-cyan-300/80 shadow-md shadow-cyan-500/5"
               : "bg-gradient-to-br from-slate-900/90 via-cyan-950/20 to-slate-900/60 border-cyan-500/40 backdrop-blur-md shadow-lg shadow-cyan-950/20"
           }`}
         >
           {/* Header with Title and Remove Button */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-cyan-500/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 flex items-center justify-center flex-none">
-                <Building2 className="h-5 w-5" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-5 border-b border-cyan-500/20">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 flex items-center justify-center flex-none">
+                <Building2 className="h-6 w-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2">
-                  <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>
+                <div className="flex items-center gap-2.5">
+                  <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>
                     Second Dwelling / Auxiliary Residence
                   </h3>
-                  <Badge variant="outline" className="text-[10px] text-cyan-600 dark:text-cyan-400 border-cyan-500/40 font-bold">
+                  <Badge variant="outline" className="text-xs text-cyan-600 dark:text-cyan-400 border-cyan-500/40 font-bold px-2.5 py-0.5">
                     Dual Occupancy / Granny Flat
                   </Badge>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
                   Configure independent secondary living, granny flat, or duplex second home.
                 </p>
               </div>
@@ -1189,31 +1189,31 @@ export function V2StepFloorPlan({
               size="sm"
               data-testid="remove-second-dwelling-btn"
               onClick={handleRemoveSecondDwelling}
-              className="text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 gap-1.5 h-8 font-semibold cursor-pointer self-start sm:self-center"
+              className="text-sm text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 gap-1.5 h-9 px-3 font-semibold cursor-pointer self-start sm:self-center rounded-xl"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-4 w-4" />
               Remove 2nd Dwelling
             </Button>
           </div>
 
           {/* 2nd Dwelling Form Fields */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* 1. House Type for 2nd Dwelling */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 2nd Dwelling Type
               </Label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                 {(["Granny Flat", "Single Storey", "Double Storey", "Dual Living", "Split Level"] as HousingTypeTab[]).map(
                   (type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => handleSelectSecondHouseType(type)}
-                      className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                      className={`py-2.5 px-3 rounded-xl text-sm font-bold transition-all border text-center cursor-pointer ${
                         secondHouseType === type
                           ? isLight
-                            ? "bg-cyan-50 border-cyan-500 text-cyan-950 shadow-xs ring-1 ring-cyan-500/20"
+                            ? "bg-cyan-50 border-cyan-500 text-cyan-950 shadow-xs ring-2 ring-cyan-500/20"
                             : "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-sm ring-1 ring-cyan-400/30"
                           : isLight
                           ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
@@ -1228,12 +1228,12 @@ export function V2StepFloorPlan({
             </div>
 
             {/* 2. Searchable Floorplan Dropdown for 2nd Dwelling */}
-            <div className="space-y-1.5 relative" ref={secondDropdownRef}>
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <div className="space-y-2 relative" ref={secondDropdownRef}>
+              <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                 2nd Dwelling Floor Plan (Search by Typing)
               </Label>
               <div className="relative">
-                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
                 <Input
                   data-testid="second-dwelling-search-input"
                   placeholder={
@@ -1247,7 +1247,7 @@ export function V2StepFloorPlan({
                     setSecondSearchQuery(e.target.value);
                     setIsSecondDropdownOpen(true);
                   }}
-                  className={`pl-10 pr-10 text-sm h-11 ${
+                  className={`pl-12 pr-12 text-base h-12 rounded-xl ${
                     isLight
                       ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-cyan-600"
                       : "bg-slate-950/80 border-slate-800 text-white focus:border-cyan-500"
@@ -1256,9 +1256,9 @@ export function V2StepFloorPlan({
                 <button
                   type="button"
                   onClick={() => setIsSecondDropdownOpen(!isSecondDropdownOpen)}
-                  className="absolute right-3 top-3 p-0.5 text-slate-400 hover:text-slate-200"
+                  className="absolute right-4 top-3.5 p-0.5 text-slate-400 hover:text-slate-200"
                 >
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-5 w-5" />
                 </button>
               </div>
 
@@ -1266,14 +1266,14 @@ export function V2StepFloorPlan({
               {isSecondDropdownOpen && (
                 <div
                   role="listbox"
-                  className={`absolute left-0 right-0 top-full mt-1.5 z-50 max-h-64 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                  className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-72 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
                     isLight
                       ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
                       : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
                   }`}
                 >
                   {filteredSecondModels.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-slate-400">
+                    <div className="p-4 text-center text-sm text-slate-400">
                       No matching floor plans found for "{secondSearchQuery}" in {secondHouseType}.
                     </div>
                   ) : (
@@ -1288,44 +1288,44 @@ export function V2StepFloorPlan({
                           role="option"
                           aria-selected={isSelected}
                           onClick={() => handleSelectSecondModel(row, type)}
-                          className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                          className={`p-4 cursor-pointer transition-all flex items-center justify-between gap-4 ${
                             isSelected
                               ? isLight
-                                ? "bg-cyan-50/90 text-cyan-950"
-                                : "bg-cyan-500/20 text-cyan-300"
+                                ? "bg-cyan-50/90 text-cyan-950 font-bold"
+                                : "bg-cyan-500/20 text-cyan-300 font-bold"
                               : isLight
                               ? "hover:bg-slate-100"
                               : "hover:bg-slate-900"
                           }`}
                         >
                           <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold truncate">{row.name}</span>
-                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono">
+                            <div className="flex items-center gap-2.5">
+                              <span className="text-base font-extrabold truncate">{row.name}</span>
+                              <span className="text-xs px-2.5 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono font-semibold">
                                 {row.m2} m²
                               </span>
                               {isSelected && (
-                                <CheckCircle2 className="h-4 w-4 text-cyan-500 flex-none" />
+                                <CheckCircle2 className="h-5 w-5 text-cyan-500 flex-none" />
                               )}
                             </div>
-                            <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
-                              <span className="flex items-center gap-1">
-                                <Bed className="h-3 w-3" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 150 ? 3 : 2))} Beds
+                            <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                              <span className="flex items-center gap-1.5">
+                                <Bed className="h-3.5 w-3.5" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 150 ? 3 : 2))} Beds
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Bath className="h-3 w-3" /> {planInfo?.baths ?? 1} Bath
+                              <span className="flex items-center gap-1.5">
+                                <Bath className="h-3.5 w-3.5" /> {planInfo?.baths ?? 1} Bath
                               </span>
-                              <span className="flex items-center gap-1">
-                                <Car className="h-3 w-3" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : 1)} Cars
+                              <span className="flex items-center gap-1.5">
+                                <Car className="h-3.5 w-3.5" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : 1)} Cars
                               </span>
                             </div>
                           </div>
 
                           <div className="text-right flex-none">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
                               Base Price
                             </span>
-                            <span className={`text-sm font-mono font-bold ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                            <span className={`text-base font-mono font-extrabold ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
                               {formatAud(tierPrice)}
                             </span>
                           </div>
@@ -1340,11 +1340,11 @@ export function V2StepFloorPlan({
             {/* 3. Inclusions & Façade Row for 2nd Dwelling */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               {/* Inclusions Tier */}
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="space-y-2">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                   2nd Dwelling Inclusions
                 </Label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-2.5">
                   {[
                     { code: "H1" as const, label: "H1 Smart" },
                     { code: "H2" as const, label: "H2 Design" },
@@ -1356,10 +1356,10 @@ export function V2StepFloorPlan({
                         key={code}
                         type="button"
                         onClick={() => handleSelectSecondTier(code)}
-                        className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                        className={`py-2.5 px-3 rounded-xl text-sm font-bold transition-all border text-center cursor-pointer ${
                           isSelected
                             ? isLight
-                              ? "bg-cyan-50 border-cyan-500 text-cyan-950 ring-1 ring-cyan-500/20"
+                              ? "bg-cyan-50 border-cyan-500 text-cyan-950 ring-2 ring-cyan-500/20"
                               : "bg-cyan-500/20 border-cyan-400 text-cyan-300 ring-1 ring-cyan-400/30"
                             : isLight
                             ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
@@ -1374,8 +1374,8 @@ export function V2StepFloorPlan({
               </div>
 
               {/* Façade Selection */}
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="space-y-2">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                   2nd Dwelling Façade
                 </Label>
                 <Select
@@ -1383,7 +1383,7 @@ export function V2StepFloorPlan({
                   onValueChange={handleSelectSecondFacade}
                 >
                   <SelectTrigger
-                    className={`h-10 text-xs font-bold ${
+                    className={`h-12 text-sm font-bold rounded-xl ${
                       isLight
                         ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-cyan-600 shadow-xs"
                         : "bg-slate-950/80 border-slate-800 text-white focus:border-cyan-500"
@@ -1393,10 +1393,10 @@ export function V2StepFloorPlan({
                   </SelectTrigger>
                   <SelectContent className="max-h-60">
                     {secondSuitableFacades.map((facade) => (
-                      <SelectItem key={facade.name} value={facade.name} className="text-xs py-2 cursor-pointer">
+                      <SelectItem key={facade.name} value={facade.name} className="text-sm py-2.5 cursor-pointer">
                         <div className="flex items-center justify-between w-full gap-4">
                           <span className="font-bold">{facade.name}</span>
-                          <span className="text-xs font-mono font-bold text-cyan-500">
+                          <span className="text-sm font-mono font-bold text-cyan-500">
                             {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
                           </span>
                         </div>
@@ -1409,12 +1409,12 @@ export function V2StepFloorPlan({
 
             {/* 4. Live 2nd Dwelling Subtotal & Summary Strip */}
             <div
-              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+              className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
                 isLight ? "bg-white/80 border-cyan-200" : "bg-slate-950/60 border-cyan-500/20"
               }`}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-10 rounded-lg overflow-hidden bg-slate-900 flex-none border border-cyan-500/30">
+              <div className="flex items-center gap-3.5">
+                <div className="w-16 h-12 rounded-xl overflow-hidden bg-slate-900 flex-none border border-cyan-500/30">
                   <img
                     src={secondFacadePreviewUrl}
                     alt="2nd Dwelling"
@@ -1425,25 +1425,25 @@ export function V2StepFloorPlan({
                   />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <div className="flex items-center gap-2.5">
+                    <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {design.secondDwelling?.designName || "Aqua 1"}
                     </span>
-                    <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 font-bold">
+                    <span className="text-xs sm:text-sm font-mono text-cyan-600 dark:text-cyan-400 font-bold">
                       {design.secondDwelling?.designM2 || 59.96} m²
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                  <span className="text-xs text-slate-400 block mt-0.5">
                     {design.secondDwelling?.specTier || "H1 Smart Living"} • {design.secondDwelling?.facadeName || "Classic"} Façade
                   </span>
                 </div>
               </div>
 
               <div className="text-right flex-none flex items-center sm:flex-col justify-between sm:justify-center">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                <span className="text-xs uppercase font-bold text-slate-400 tracking-wider">
                   2nd Dwelling Total
                 </span>
-                <span className={`text-base font-mono font-black ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                <span className={`text-xl font-mono font-black ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
                   +{formatAud(secondDwellingTotalPrice)}
                 </span>
               </div>
@@ -1453,31 +1453,31 @@ export function V2StepFloorPlan({
       )}
       {hasFloorPlanSelected && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <div>
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
                 3. Select Inclusion Specification Tier
               </Label>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
                 Choose the standard finishes package for {design.designName}.
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {INCLUSION_TIERS.map((tierDef) => {
               const isSelected = design.specTier?.includes(tierDef.shortCode) || (tierDef.shortCode === "H2" && !design.specTier);
               return (
                 <div
                   key={tierDef.shortCode}
                   onClick={() => handleSelectTier(tierDef)}
-                  className={`p-4 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] relative flex flex-col justify-between ${
+                  className={`p-5 sm:p-6 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] relative flex flex-col justify-between ${
                     isSelected
                       ? isLight
                         ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -1489,30 +1489,30 @@ export function V2StepFloorPlan({
                 >
                   {tierDef.badge && (
                     <span
-                      className={`absolute -top-2.5 right-4 text-[9px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
+                      className={`absolute -top-3 right-4 text-[10px] uppercase tracking-wider font-extrabold px-2.5 py-0.5 rounded-full shadow-xs ${tierDef.badgeColor}`}
                     >
                       {tierDef.badge}
                     </span>
                   )}
 
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-extrabold text-emerald-400 uppercase tracking-wider">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs sm:text-sm font-extrabold text-emerald-400 uppercase tracking-wider">
                         {tierDef.shortCode}
                       </span>
-                      {isSelected && <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />}
+                      {isSelected && <Check className="h-5 w-5 text-emerald-500 stroke-[3]" />}
                     </div>
 
-                    <h4 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    <h4 className={`text-lg sm:text-xl font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
                       {tierDef.title}
                     </h4>
-                    <p className="text-[11px] text-slate-400 mb-3">{tierDef.tagline}</p>
+                    <p className="text-xs sm:text-sm text-slate-400 mb-4">{tierDef.tagline}</p>
 
-                    <ul className="space-y-1.5 text-[11px] text-slate-400 border-t border-slate-700/40 pt-2.5">
+                    <ul className="space-y-2 text-xs sm:text-sm text-slate-400 border-t border-slate-700/40 pt-3">
                       {tierDef.features.map((f, i) => (
-                        <li key={i} className="flex items-start gap-1.5">
-                          <Check className="h-3 w-3 text-emerald-500 flex-none mt-0.5" />
-                          <span className="leading-tight">{f}</span>
+                        <li key={i} className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-emerald-500 flex-none mt-0.5" />
+                          <span className="leading-snug">{f}</span>
                         </li>
                       ))}
                     </ul>
@@ -1527,17 +1527,17 @@ export function V2StepFloorPlan({
       {/* SECTION 3: FAÇADE SELECTION & RHS LIVE PREVIEW (SMOOTHLY APPEARS ONCE INCLUSION SELECTED) */}
       {hasFloorPlanSelected && hasInclusionSelected && (
         <div
-          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+          <div className="mb-5">
+            <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
               4. Select Façade (Filtered for {design.designName})
             </Label>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs sm:text-sm text-slate-400 mt-1">
               Only showing façades engineered and certified for this specific floor plan.
             </p>
           </div>
@@ -1545,8 +1545,8 @@ export function V2StepFloorPlan({
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* LHS: Façade Dropdown Box */}
             <div className="lg:col-span-6 space-y-4">
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+              <div className="space-y-2">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
                   Choose Façade ({suitableFacades.length} certified options)
                 </Label>
                 <Select
@@ -1555,7 +1555,7 @@ export function V2StepFloorPlan({
                 >
                   <SelectTrigger
                     data-testid="facade-select-trigger"
-                    className={`h-12 text-sm font-bold ${
+                    className={`h-12 text-base font-bold rounded-xl ${
                       isLight
                         ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600 shadow-xs"
                         : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
@@ -1565,10 +1565,10 @@ export function V2StepFloorPlan({
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
                     {suitableFacades.map((facade) => (
-                      <SelectItem key={facade.name} value={facade.name} className="py-2.5 cursor-pointer">
+                      <SelectItem key={facade.name} value={facade.name} className="py-2.5 text-sm cursor-pointer">
                         <div className="flex items-center justify-between w-full gap-4">
                           <span className="font-bold">{facade.name}</span>
-                          <span className="text-xs font-mono font-bold text-emerald-500">
+                          <span className="text-sm font-mono font-bold text-emerald-500">
                             {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
                           </span>
                         </div>
@@ -1580,18 +1580,18 @@ export function V2StepFloorPlan({
 
               {/* Selected Façade Summary Badge Card */}
               <div
-                className={`p-4 rounded-xl border flex items-center justify-between gap-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                 }`}
               >
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                  <span className="text-xs uppercase font-bold text-slate-400 block tracking-wider">
                     Selected Architectural Model
                   </span>
-                  <span className={`text-sm font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
                     {design.facadeName || "Classic"} Façade
                   </span>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                  <span className="text-xs sm:text-sm text-slate-400 block mt-0.5">
                     Full architectural elevations and brickwork included.
                   </span>
                 </div>
@@ -1599,7 +1599,7 @@ export function V2StepFloorPlan({
                 <div className="text-right flex-none">
                   <Badge
                     variant="outline"
-                    className={`font-mono font-bold text-xs py-1 px-2.5 ${
+                    className={`font-mono font-bold text-sm py-1.5 px-3 rounded-lg ${
                       (design.facadePrice || 0) > 0
                         ? "border-cyan-500/40 text-cyan-500 bg-cyan-500/10"
                         : "border-emerald-500/40 text-emerald-500 bg-emerald-500/10"
@@ -1616,11 +1616,11 @@ export function V2StepFloorPlan({
             {/* RHS: Façade Live Preview Card */}
             <div className="lg:col-span-6">
               <div
-                className={`rounded-2xl border overflow-hidden shadow-lg ${
+                className={`rounded-2xl sm:rounded-3xl border overflow-hidden shadow-xl ${
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
                 }`}
               >
-                <div className="relative h-56 sm:h-64 w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                <div className="relative h-64 sm:h-80 w-full bg-slate-900 overflow-hidden flex items-center justify-center">
                   <img
                     src={facadePreviewUrl}
                     alt={design.facadeName || "Façade Preview"}
@@ -1632,18 +1632,18 @@ export function V2StepFloorPlan({
                   />
 
                   {/* Gradient overlay badge */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 flex items-end justify-between">
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-5 sm:p-6 flex items-end justify-between">
                     <div>
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider text-emerald-400 block">
+                      <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400 block">
                         Live Architectural Preview
                       </span>
-                      <h4 className="text-base font-bold text-white leading-tight">
+                      <h4 className="text-lg sm:text-xl font-bold text-white leading-tight">
                         {design.facadeName || "Classic"} Façade
                       </h4>
                     </div>
 
                     <Badge
-                      className={`text-xs font-mono font-bold ${
+                      className={`text-sm font-mono font-bold py-1 px-3 ${
                         (design.facadePrice || 0) > 0
                           ? "bg-cyan-500 text-slate-950"
                           : "bg-emerald-500 text-slate-950"
@@ -1654,12 +1654,12 @@ export function V2StepFloorPlan({
                   </div>
                 </div>
 
-                <div className="p-3.5 flex items-center justify-between text-xs text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <Building className="h-3.5 w-3.5 text-slate-400" />
+                <div className="p-4 sm:p-5 flex items-center justify-between text-sm text-slate-400">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Building className="h-4 w-4 text-slate-400" />
                     <span>{design.designName}</span>
                   </div>
-                  <span>{design.designM2} m² Total Area</span>
+                  <span className="font-semibold">{design.designM2} m² Total Area</span>
                 </div>
               </div>
             </div>
@@ -1668,18 +1668,18 @@ export function V2StepFloorPlan({
       )}
 
       {/* Footer Navigation */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-700/50">
         <Button
           type="button"
           variant="outline"
           onClick={onPrev}
-          className={`text-xs gap-1.5 ${
+          className={`h-14 px-8 text-sm font-bold rounded-xl gap-2 cursor-pointer ${
             isLight
               ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
               : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
           }`}
         >
-          <ArrowLeft className="h-3.5 w-3.5" />
+          <ArrowLeft className="h-4 w-4" />
           <span>Back to Client</span>
         </Button>
 
@@ -1687,10 +1687,10 @@ export function V2StepFloorPlan({
           type="button"
           onClick={onNext}
           disabled={!hasFloorPlanSelected}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer h-12"
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 h-14 text-base rounded-xl shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
         >
           Continue to Site Costs
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-5 w-5" />
         </Button>
       </div>
 

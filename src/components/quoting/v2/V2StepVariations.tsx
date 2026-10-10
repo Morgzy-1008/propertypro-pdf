@@ -284,36 +284,36 @@ export function V2StepVariations({
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/50 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-5">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 text-emerald-400 font-extrabold text-xs">
               4
             </span>
-            <span className="text-xs uppercase tracking-wider font-bold text-emerald-400">Step 4 of 5</span>
+            <span className="text-xs uppercase tracking-wider font-extrabold text-emerald-400">Step 4 of 5</span>
           </div>
-          <h2 className={`text-2xl font-bold mt-1 ${isLight ? "text-slate-900" : "text-white"}`}>
+          <h2 className={`text-3xl sm:text-4xl font-extrabold tracking-tight mt-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
             House Variations &amp; Upgrades
           </h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-sm sm:text-base text-slate-400 mt-1 max-w-3xl">
             Select popular client upgrades, review plan-detected variations, or type custom m² quantities.
           </p>
         </div>
 
         {/* Live Variations Total */}
         <div
-          className={`py-2 px-4 rounded-xl border text-right self-start sm:self-center ${
+          className={`py-2.5 px-5 rounded-2xl border text-right self-start sm:self-center ${
             isLight
               ? "bg-slate-50 border-slate-200 shadow-xs"
               : "bg-slate-950/60 border-slate-800"
           }`}
         >
-          <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-semibold">
+          <span className="text-xs uppercase tracking-wider text-slate-400 block font-bold">
             Variations Total
           </span>
-          <span className={`text-lg font-bold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+          <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
             +{formatAud(variationsTotal)}
           </span>
         </div>
@@ -322,27 +322,27 @@ export function V2StepVariations({
       {/* SECTION 1: AUTO-DETECTED MODIFIED PLAN VARIATIONS (IF PRESENT) */}
       {autoDetectedItems.length > 0 && (
         <div
-          className={`p-6 rounded-2xl border ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border ${
             isLight
               ? "bg-amber-50/80 border-amber-300 shadow-xs"
               : "bg-amber-950/20 border-amber-500/40"
           }`}
         >
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="h-4 w-4 text-amber-500" />
-            <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+          <div className="flex items-center gap-2.5 mb-3">
+            <Sparkles className="h-5 w-5 text-amber-500" />
+            <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-amber-950" : "text-amber-300"}`}>
               Auto-Detected Plan Variations ({autoDetectedItems.length})
             </h3>
           </div>
-          <p className={`text-xs mb-4 ${isLight ? "text-amber-900/80" : "text-slate-400"}`}>
+          <p className={`text-xs sm:text-sm mb-5 ${isLight ? "text-amber-900/80" : "text-slate-400"}`}>
             These upgrades were identified by the modified floorplan engine based on your architectural drawing.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {autoDetectedItems.map((item) => (
               <div
                 key={item.id}
-                className={`p-3 rounded-xl border flex items-center justify-between gap-3 ${
+                className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
                   item.isIncluded
                     ? isLight
                       ? "bg-white border-emerald-400 shadow-xs"
@@ -353,11 +353,11 @@ export function V2StepVariations({
                 }`}
               >
                 <div className="min-w-0">
-                  <span className={`text-xs font-bold block truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <span className={`text-sm sm:text-base font-bold block truncate ${isLight ? "text-slate-900" : "text-white"}`}>
                     {item.name}
                   </span>
-                  <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>
-                  <span className={`text-xs font-mono font-bold mt-1 block ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                  <span className="text-xs text-slate-400 block truncate mt-0.5">{item.description}</span>
+                  <span className={`text-sm sm:text-base font-mono font-bold mt-1.5 block ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     {formatAud(item.subtotal || item.unitRate)}
                   </span>
                 </div>
@@ -381,12 +381,12 @@ export function V2StepVariations({
 
       {/* SECTION 2: POPULAR UPGRADES (WITH SQM TEXT BOX AUTO-HIGHLIGHTING) */}
       <div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div>
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+            <Label className={`text-base sm:text-lg font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
               ⭐ Popular Client Upgrades
             </Label>
-            <span className="text-[11px] text-slate-400">
+            <span className="text-xs sm:text-sm text-slate-400">
               For m² items, click the text box to automatically highlight the 0 and type your area.
             </span>
           </div>
@@ -396,18 +396,18 @@ export function V2StepVariations({
             variant="outline"
             size="sm"
             onClick={handleAddEssentialsBundle}
-            className={`text-xs gap-1.5 font-bold self-start sm:self-auto ${
+            className={`text-xs sm:text-sm gap-2 font-bold h-10 px-4 rounded-xl self-start sm:self-auto cursor-pointer ${
               isLight
                 ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
                 : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
             }`}
           >
-            <Zap className="h-3.5 w-3.5 text-amber-500" />
+            <Zap className="h-4 w-4 text-amber-500" />
             + 1-Click Builder Essentials (Ceilings + Ducted AC + 40mm Stone)
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
           {POPULAR_VARIATIONS.map((preset) => {
             const existing = lineItems.find(
               (it) => it.id === preset.id || it.catalogueItemId === preset.id
@@ -422,7 +422,7 @@ export function V2StepVariations({
               return (
                 <div
                   key={preset.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between gap-3 ${
+                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
                     isIncluded
                       ? isLight
                         ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -434,26 +434,26 @@ export function V2StepVariations({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className={`text-xs font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <h4 className={`text-sm sm:text-base font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
                           {preset.name}
                         </h4>
                         {preset.highlight && (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex-none font-semibold">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/30 flex-none font-bold">
                             {preset.highlight}
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                      <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
                         {preset.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Quantity input: text box with auto-select on focus (no spinner arrows) */}
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-700/30">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-700/30">
                     <div className="flex items-center gap-2">
-                      <Label className="text-[11px] text-slate-400 font-semibold">Area (m²):</Label>
+                      <Label className="text-xs text-slate-400 font-bold">Area (m²):</Label>
                       <div className="relative">
                         <Input
                           type="text"
@@ -461,14 +461,14 @@ export function V2StepVariations({
                           value={currentQty > 0 ? currentQty : "0"}
                           onFocus={(e) => e.target.select()}
                           onChange={(e) => handleSqmChange(preset, e.target.value)}
-                          className="w-20 h-9 text-center font-mono font-bold text-xs bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700"
+                          className="w-24 h-10 text-center font-mono font-bold text-sm bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-700 rounded-xl"
                         />
                       </div>
-                      <span className="text-[11px] text-slate-400 font-semibold">m²</span>
+                      <span className="text-xs text-slate-400 font-semibold">m²</span>
                     </div>
 
                     <div className="text-right">
-                      <span className={`text-xs font-bold font-mono ${isIncluded ? (isLight ? "text-emerald-700" : "text-emerald-400") : "text-slate-400"}`}>
+                      <span className={`text-sm font-bold font-mono ${isIncluded ? (isLight ? "text-emerald-700" : "text-emerald-400") : "text-slate-400"}`}>
                         {subtotal > 0 ? `+${formatAud(subtotal)}` : `$${preset.unitRate || preset.price}/m²`}
                       </span>
                     </div>
@@ -482,7 +482,7 @@ export function V2StepVariations({
               <div
                 key={preset.id}
                 onClick={() => handleTogglePopular(preset)}
-                className={`p-4 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] flex items-start justify-between gap-3 ${
+                className={`p-5 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] flex items-start justify-between gap-4 ${
                   isIncluded
                     ? isLight
                       ? "bg-emerald-50/90 border-emerald-500 shadow-md ring-2 ring-emerald-500/20"
@@ -493,35 +493,35 @@ export function V2StepVariations({
                 }`}
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className={`text-xs font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h4 className={`text-sm sm:text-base font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
                       {preset.name}
                     </h4>
                     {preset.highlight && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex-none font-semibold">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 flex-none font-bold">
                         {preset.highlight}
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                  <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
                     {preset.description}
                   </p>
-                  <span className={`text-xs font-bold font-mono mt-2 block ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                  <span className={`text-sm sm:text-base font-bold font-mono mt-2.5 block ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                     +{formatAud(preset.price)}
                   </span>
                 </div>
 
                 <div className="flex-none pt-1">
                   <div
-                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
+                    className={`w-7 h-7 rounded-full flex items-center justify-center transition-all ${
                       isIncluded
                         ? "bg-emerald-500 text-slate-950 shadow-xs"
                         : isLight
-                        ? "border border-slate-300 text-transparent"
-                        : "border border-slate-700 text-transparent"
+                        ? "border-2 border-slate-300 text-transparent"
+                        : "border-2 border-slate-700 text-transparent"
                     }`}
                   >
-                    <Check className="h-3.5 w-3.5 stroke-[3]" />
+                    <Check className="h-4 w-4 stroke-[3]" />
                   </div>
                 </div>
               </div>
@@ -532,15 +532,15 @@ export function V2StepVariations({
 
       {/* SECTION 3: QUICK SEARCH & ADD FROM FULL CATALOGUE */}
       <div
-        className={`p-6 rounded-2xl border transition-all ${
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
             : "bg-slate-900/60 border-slate-800/80"
         }`}
       >
-        <div className="flex items-center gap-2 mb-3">
-          <Search className="h-4 w-4 text-cyan-400" />
-          <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <Search className="h-5 w-5 text-cyan-400" />
+          <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
             Search Full Databuild Catalogue
           </h3>
         </div>
@@ -550,7 +550,7 @@ export function V2StepVariations({
             placeholder="Search items by code, trade, or keyword (e.g. cavity slider, insulation, downlight, timber)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={`text-sm h-11 pl-4 pr-10 ${
+            className={`text-base h-12 rounded-xl pl-4 pr-10 ${
               isLight
                 ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
                 : "bg-slate-950/80 border-slate-800 text-white"
@@ -559,35 +559,35 @@ export function V2StepVariations({
         </div>
 
         {searchResults.length > 0 && (
-          <div className="mt-3 divide-y divide-slate-700/40 border border-slate-700/40 rounded-xl overflow-hidden">
+          <div className="mt-4 divide-y divide-slate-700/40 border border-slate-700/40 rounded-xl overflow-hidden">
             {searchResults.map((item) => (
               <div
                 key={item.id}
-                className={`p-3 flex items-center justify-between gap-3 text-xs ${
+                className={`p-4 flex items-center justify-between gap-4 text-sm ${
                   isLight ? "bg-white hover:bg-slate-50" : "bg-slate-950 hover:bg-slate-900"
                 }`}
               >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold truncate">{item.name}</span>
-                    <Badge variant="outline" className="text-[9px] uppercase px-1.5 py-0 font-mono">
+                    <span className="font-bold text-base truncate">{item.name}</span>
+                    <Badge variant="outline" className="text-xs uppercase px-2 py-0.5 font-mono">
                       {item.unitType}
                     </Badge>
                   </div>
-                  <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>
+                  <span className="text-xs text-slate-400 block truncate mt-0.5">{item.description}</span>
                 </div>
 
-                <div className="flex items-center gap-3 flex-none">
-                  <span className="font-mono font-bold text-emerald-400">
+                <div className="flex items-center gap-3.5 flex-none">
+                  <span className="font-mono font-bold text-base text-emerald-400">
                     {formatAud(item.unitRate)}
                   </span>
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleAddCatalogueItem(item)}
-                    className="h-8 text-xs gap-1 cursor-pointer"
+                    className="h-9 px-3.5 text-xs font-bold rounded-xl gap-1.5 cursor-pointer"
                   >
-                    <Plus className="h-3.5 w-3.5" /> Add
+                    <Plus className="h-4 w-4" /> Add
                   </Button>
                 </div>
               </div>
@@ -598,29 +598,29 @@ export function V2StepVariations({
 
       {/* SECTION 4: ADD CUSTOM CLIENT VARIATION */}
       <div
-        className={`p-6 rounded-2xl border transition-all ${
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
             : "bg-slate-900/60 border-slate-800/80"
         }`}
       >
-        <div className="flex items-center gap-2 mb-3">
-          <Plus className="h-4 w-4 text-emerald-400" />
-          <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <Plus className="h-5 w-5 text-emerald-400" />
+          <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
             Add Custom Client Request / Variation
           </h3>
         </div>
 
-        <form onSubmit={handleAddCustom} className="flex flex-col sm:flex-row gap-3 items-end">
-          <div className="flex-1 space-y-1.5 w-full">
-            <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+        <form onSubmit={handleAddCustom} className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1 space-y-2 w-full">
+            <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
               Item Description
             </Label>
             <Input
               placeholder="e.g. Supply and install 2x double GPO powerpoints to island bench"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}
-              className={`text-xs h-10 ${
+              className={`text-base h-12 rounded-xl ${
                 isLight
                   ? "bg-white border-slate-300 text-slate-900"
                   : "bg-slate-950/80 border-slate-800 text-white"
@@ -628,8 +628,8 @@ export function V2StepVariations({
             />
           </div>
 
-          <div className="w-full sm:w-44 space-y-1.5">
-            <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+          <div className="w-full sm:w-52 space-y-2">
+            <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
               Quoted Price ($)
             </Label>
             <Input
@@ -639,7 +639,7 @@ export function V2StepVariations({
               value={customPrice}
               onFocus={(e) => e.target.select()}
               onChange={(e) => setCustomPrice(e.target.value)}
-              className={`text-xs h-10 font-mono ${
+              className={`text-base h-12 rounded-xl font-mono ${
                 isLight
                   ? "bg-white border-slate-300 text-slate-900"
                   : "bg-slate-950/80 border-slate-800 text-white"
@@ -649,9 +649,9 @@ export function V2StepVariations({
 
           <Button
             type="submit"
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-10 px-5 gap-1.5 flex-none cursor-pointer"
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm h-12 px-6 rounded-xl gap-2 flex-none cursor-pointer"
           >
-            <Plus className="h-3.5 w-3.5" /> Add Variation
+            <Plus className="h-4 w-4" /> Add Variation
           </Button>
         </form>
       </div>
@@ -659,20 +659,20 @@ export function V2StepVariations({
       {/* SECTION 5: CURRENTLY INCLUDED VARIATIONS LIST */}
       {activeIncludedItems.length > 0 && (
         <div
-          className={`p-6 rounded-2xl border transition-all ${
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
             isLight
               ? "bg-slate-50 border-slate-200"
               : "bg-slate-900/40 border-slate-800/60"
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <PackageCheck className="h-4 w-4 text-emerald-400" />
-              <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+            <div className="flex items-center gap-2.5">
+              <PackageCheck className="h-5 w-5 text-emerald-400" />
+              <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                 Selected Upgrades Summary ({activeIncludedItems.length})
               </h3>
             </div>
-            <span className={`text-xs font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+            <span className={`text-sm sm:text-base font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
               Total: +{formatAud(variationsTotal)}
             </span>
           </div>
@@ -681,40 +681,40 @@ export function V2StepVariations({
             {activeIncludedItems.map((item) => {
               const isSqm = item.unitType === "sqm";
               return (
-                <div key={item.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                <div key={item.id} className="py-3.5 flex items-center justify-between gap-4 text-sm">
                   <div className="min-w-0 flex-1">
-                    <span className={`font-semibold block truncate ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                    <span className={`font-bold text-base block truncate ${isLight ? "text-slate-900" : "text-slate-200"}`}>
                       {item.name}
                     </span>
-                    <span className="text-[10px] text-slate-400 block truncate">{item.description}</span>
+                    <span className="text-xs text-slate-400 block truncate mt-0.5">{item.description}</span>
                   </div>
 
                   {/* Quantity editor if sqm */}
                   {isSqm && (
-                    <div className="flex items-center gap-1.5 flex-none">
+                    <div className="flex items-center gap-2 flex-none">
                       <Input
                         type="text"
                         inputMode="decimal"
                         value={item.quantity || 0}
                         onFocus={(e) => e.target.select()}
                         onChange={(e) => handleItemQuantityChange(item.id, e.target.value)}
-                        className="w-16 h-8 text-center font-mono font-bold text-xs"
+                        className="w-20 h-10 rounded-xl text-center font-mono font-bold text-sm"
                       />
-                      <span className="text-[10px] text-slate-400 font-semibold">m²</span>
+                      <span className="text-xs text-slate-400 font-bold">m²</span>
                     </div>
                   )}
 
-                  <div className="flex items-center gap-3 flex-none">
-                    <span className={`font-mono font-bold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                  <div className="flex items-center gap-3.5 flex-none">
+                    <span className={`font-mono font-extrabold text-base ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
                       +{formatAud(item.subtotal || item.unitRate)}
                     </span>
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => handleRemoveItem(item.id)}
-                      className="h-7 w-7 text-slate-400 hover:text-rose-500 cursor-pointer"
+                      className="h-8 w-8 text-slate-400 hover:text-rose-500 cursor-pointer"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -725,27 +725,27 @@ export function V2StepVariations({
       )}
 
       {/* Navigation Buttons */}
-      <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+      <div className="flex items-center justify-between pt-6 border-t border-slate-700/50">
         <Button
           type="button"
           variant="outline"
           onClick={onPrev}
-          className={`text-xs gap-1.5 ${
+          className={`h-14 px-8 rounded-xl text-sm font-bold gap-2 ${
             isLight
               ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
               : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
           }`}
         >
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Site Costs
+          <ArrowLeft className="h-4 w-4" /> Back to Site Costs
         </Button>
 
         <Button
           type="button"
           onClick={onNext}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold px-8 shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer h-11"
+          className="h-14 px-10 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold text-base shadow-lg shadow-emerald-500/20 gap-2.5 cursor-pointer"
         >
           Review &amp; Export Estimate
-          <ArrowRight className="h-4 w-4" />
+          <ArrowRight className="h-5 w-5" />
         </Button>
       </div>
     </div>
