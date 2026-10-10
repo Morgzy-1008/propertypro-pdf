@@ -14,6 +14,7 @@ import {
 } from "@/lib/pricelist.nsw.data";
 import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
 import { HUDSON_DESIGNS_CATALOG } from "@/lib/site-studio/hudsonDesignCatalog";
+import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 
 export type HouseTypeFilter =
@@ -152,34 +153,38 @@ function buildPriceMap(priceRows: PriceRow[]): Map<string, PriceRow> {
   return map;
 }
 
-/** Check if design is compatible with Built-to-Boundary (BTB) */
+/**
+ * Check if design is compatible with Built-to-Boundary (BTB).
+ * Strictly requires an engineered garage step-out wall (e.g. Jasper)
+ * or explicit BTB architectural classification.
+ */
 export function isFloorplanBtb(plan: FloorplanRecord): { isBtb: boolean; reason?: string } {
   const normLabel = plan.label.toLowerCase();
   const normDesign = plan.design.toLowerCase();
 
-  if (normLabel.includes("btb") || normLabel.includes("zero lot") || normDesign.includes("btb")) {
-    return { isBtb: true, reason: "Engineered BTB Zero-Lot Design" };
+  // 1. Explicit BTB naming in plan or brochure
+  if (
+    normLabel.includes("btb") ||
+    normLabel.includes("zero lot") ||
+    normLabel.includes("zero-lot") ||
+    normDesign.includes("btb")
+  ) {
+    return { isBtb: true, reason: "Engineered BTB Zero-Lot Design with Stepped Garage" };
   }
 
-  const catalogMatch = HUDSON_DESIGNS_CATALOG.find(
-    (d) =>
-      d.name.toLowerCase() === normLabel ||
-      d.id === normDesign ||
-      normLabel.startsWith(d.name.toLowerCase())
-  );
-  if (catalogMatch && catalogMatch.hasBtbOption) {
-    return { isBtb: true, reason: "Zero-lot garage boundary wall ready (200mm clearance)" };
+  // 2. Hudson Homes designs with engineered garage step-out wall
+  // The Jasper design family is Hudson Homes' primary architectural plan engineered with a 600mm garage step-out.
+  if (normDesign === "jasper" || normLabel.startsWith("jasper")) {
+    return { isBtb: true, reason: "Engineered 600mm garage step-out for zero-lot boundary wall" };
   }
 
-  const frontage = parseFloat(String(plan.frontage || "0"));
-  const width = parseFloat(String(plan.houseWidth || plan.width || "0"));
-
-  if (frontage > 0 && frontage <= 12.5) {
-    return { isBtb: true, reason: "Narrow lot compatible (≤12.5m frontage with zero-lot garage)" };
-  }
-
-  if (width > 0 && width <= 11.5) {
-    return { isBtb: true, reason: "Narrow building width (≤11.5m) allows 200mm garage offset" };
+  // 3. Check CAD registry for positive garageStepOutM
+  const cad = HUDSON_CAD_REGISTRY[plan.label];
+  if (cad && cad.garageStepOutM > 0) {
+    return {
+      isBtb: true,
+      reason: `Engineered ${(cad.garageStepOutM * 1000).toFixed(0)}mm garage step-out for zero-lot boundary wall`,
+    };
   }
 
   return { isBtb: false };

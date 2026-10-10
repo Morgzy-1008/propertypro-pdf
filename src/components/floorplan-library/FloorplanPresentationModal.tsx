@@ -116,8 +116,8 @@ export function FloorplanPresentationModal({
                         : "text-slate-400 hover:text-white hover:bg-slate-800/70"
                     }`}
                   >
-                    <span>{v.sizeLabel}</span>
-                    <span className="text-[10px] opacity-75 font-mono">({v.squares}sq)</span>
+                    <span className="font-extrabold">{v.sizeLabel}</span>
+                    <span className="text-[10px] opacity-80 font-bold">sq</span>
                   </button>
                 );
               })}
@@ -257,10 +257,9 @@ export function FloorplanPresentationModal({
               </div>
             </div>
             <div className="text-xs text-slate-400 hidden lg:inline">
-              Width: <strong className="text-white">{activeVariant.widthM}m</strong> • Depth:{" "}
-              <strong className="text-white">{activeVariant.lengthM}m</strong> • Lot:{" "}
-              <strong className="text-amber-400">{activeVariant.frontageM || 12.5}m</strong> • Size:{" "}
-              <strong className="text-emerald-400">{activeVariant.totalM2.toFixed(1)}m² ({activeVariant.squares}sq)</strong>
+              Width: <strong className={isLight ? "text-slate-900" : "text-white"}>{activeVariant.widthM}m</strong> • Depth:{" "}
+              <strong className={isLight ? "text-slate-900" : "text-white"}>{activeVariant.lengthM}m</strong> • Size:{" "}
+              <strong className="text-emerald-400">{activeVariant.totalM2.toFixed(1)}m²</strong>
             </div>
           </div>
 
