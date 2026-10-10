@@ -117,14 +117,7 @@ export function getHousingTypePrices(division: Division = getActiveDivision()): 
     "Double Storey": isNsw ? NSW_DOUBLE_STOREY_PRICES : DOUBLE_STOREY_PRICES,
     "Split Level": isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES,
     "Dual Living": dual,
-    "Granny Flat": [
-      ...aquaPrices,
-      { name: "Acacia 60", m2: 60, h1: 154000, h2: 159000, h3: 167000, hbs: 154000 },
-      { name: "Banksia 60", m2: 60, h1: 156000, h2: 161000, h3: 169000, hbs: 156000 },
-      { name: "Coral 65", m2: 65, h1: 168000, h2: 174000, h3: 182000, hbs: 168000 },
-      { name: "Myrtle 70", m2: 70, h1: 178000, h2: 184000, h3: 193000, hbs: 178000 },
-      ...dual,
-    ],
+    "Granny Flat": aquaPrices,
   };
 }
 
@@ -552,19 +545,19 @@ export function QuoteDesignStep({
   const secondDwelling: SecondDwellingSelection = design.secondDwelling || {
     enabled: false,
     housingType: "Granny Flat",
-    designName: "Acacia 60",
-    designM2: 60,
+    designName: "Aqua 1",
+    designM2: 59.96,
     facadeName: "Classic",
     facadePrice: 0,
     specTier: "H1 Smart Inclusions",
-    basePrice: 154000,
+    basePrice: 138900,
     beds: "2",
     baths: "1",
     cars: "0",
-    widthM: "8.5m",
-    lengthM: "8.5m",
-    standardAreas: { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 },
-    modifiedAreas: { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 },
+    widthM: "6.8m",
+    lengthM: "8.82m",
+    standardAreas: { livingM2: 55.9, porchM2: 4.06, alfrescoM2: 0, totalM2: 59.96 },
+    modifiedAreas: { livingM2: 55.9, porchM2: 4.06, alfrescoM2: 0, totalM2: 59.96 },
   };
 
   const secondModels = housingTypePrices[secondDwelling.housingType] || housingTypePrices["Granny Flat"] || SINGLE_STOREY_PRICES;
@@ -576,10 +569,10 @@ export function QuoteDesignStep({
 
   const handleToggleSecondDwelling = (enabled: boolean) => {
     if (enabled && (!design.secondDwelling || !design.secondDwelling.designName)) {
-      const defaultModel = housingTypePrices["Granny Flat"]?.[0] || { name: "Acacia 60", m2: 60, h1: 154000 };
+      const defaultModel = housingTypePrices["Granny Flat"]?.[0] || { name: "Aqua 1", m2: 59.96, h1: 138900 };
       const defaultTier: InclusionTier = "H1 Smart Inclusions";
-      const defaultPrice = defaultModel.h1 || 154000;
-      const defaultStdAreas = { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 };
+      const defaultPrice = defaultModel.h1 || 138900;
+      const defaultStdAreas = { livingM2: 55.9, porchM2: 4.06, alfrescoM2: 0, totalM2: 59.96 };
       onChange({
         hasSecondDwelling: true,
         secondDwelling: {

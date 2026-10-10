@@ -215,20 +215,19 @@ export function V2StepFloorPlan({
   // All price rows grouped
   const allModels = useMemo(() => {
     const list: { row: PriceRow; type: HousingTypeTab }[] = [];
-    SINGLE_STOREY_PRICES.forEach((r) => list.push({ row: r, type: "Single Storey" }));
+    const isGrannyFlat = (r: PriceRow) => /^aqua\b/i.test(r.name);
+
+    SINGLE_STOREY_PRICES.forEach((r) => {
+      if (isGrannyFlat(r)) {
+        list.push({ row: r, type: "Granny Flat" });
+      } else {
+        list.push({ row: r, type: "Single Storey" });
+      }
+    });
     DOUBLE_STOREY_PRICES.forEach((r) => list.push({ row: r, type: "Double Storey" }));
     DUAL_OC_PRICES.forEach((r) => list.push({ row: r, type: "Dual Living" }));
     SPLIT_LEVEL_PRICES.forEach((r) => list.push({ row: r, type: "Split Level" }));
 
-    list.push(
-      { row: { name: "Acacia 60", m2: 60, h1: 154000, h2: 169000, h3: 189000 }, type: "Granny Flat" },
-      { row: { name: "Banksia 60", m2: 60, h1: 156000, h2: 171000, h3: 192000 }, type: "Granny Flat" },
-      { row: { name: "Aqua 1", m2: 59.96, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
-      { row: { name: "Aqua 2", m2: 60, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
-      { row: { name: "Aqua 3", m2: 59.9, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
-      { row: { name: "Aqua 4", m2: 59.94, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
-      { row: { name: "Aqua 5", m2: 59.14, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" }
-    );
     return list;
   }, []);
 
@@ -348,13 +347,14 @@ export function V2StepFloorPlan({
 
   // Handlers for 2nd Dwelling
   const handleEnableSecondDwelling = () => {
-    const defaultModel = { name: "Acacia 60", m2: 60, h1: 154000, h2: 169000, h3: 189000 };
+    const grannyModels = allModels.filter((m) => m.type === "Granny Flat");
+    const defaultModel = grannyModels[0]?.row || { name: "Aqua 1", m2: 59.96, h1: 138900, h2: 158900, h3: 185900 };
     const initialTier: InclusionTier = design.specTier || "H1 Smart Living";
-    const basePrice = getTierPrice(defaultModel, initialTier, "Granny Flat") || 154000;
-    const defaultStdAreas = { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 };
+    const basePrice = getTierPrice(defaultModel, initialTier, "Granny Flat") || 138900;
+    const defaultStdAreas = getStandardAreaBreakdown(defaultModel.name, "Granny Flat", defaultModel.m2);
     const facades = getFacadesForDesignAndHousingType(defaultModel.name, "Granny Flat");
     const defaultFacade = facades[0] || { name: "Classic", uplift: 0 };
-    const planInfo = plansForDesign(defaultModel.name);
+    const planInfo = plansForDesign(defaultModel.name)[0];
 
     onChange({
       hasSecondDwelling: true,
@@ -375,13 +375,13 @@ export function V2StepFloorPlan({
         beds: String(planInfo?.beds ?? "2"),
         baths: String(planInfo?.baths ?? "1"),
         cars: String(planInfo?.cars ?? "0"),
-        widthM: planInfo?.width || "8.5m",
-        lengthM: planInfo?.length || "8.5m",
+        widthM: planInfo?.width || "6.8m",
+        lengthM: planInfo?.length || "8.82m",
       },
     });
     setSecondHouseType("Granny Flat");
     setSecondSearchQuery(defaultModel.name);
-    toast.success("Added 2nd Dwelling (Granny Flat / Auxiliary Unit)");
+    toast.success("Added 2nd Dwelling (Aqua Granny Flat / Auxiliary Unit)");
   };
 
   const handleRemoveSecondDwelling = () => {
@@ -398,12 +398,12 @@ export function V2StepFloorPlan({
   const handleSelectSecondHouseType = (type: HousingTypeTab) => {
     setSecondHouseType(type);
     const modelsForType = allModels.filter((m) => m.type === type);
-    const firstModel = modelsForType[0]?.row || { name: "Acacia 60", m2: 60, h1: 154000 };
+    const firstModel = modelsForType[0]?.row || { name: "Aqua 1", m2: 59.96, h1: 138900 };
     const currentTier = design.secondDwelling?.specTier || design.specTier || "H1 Smart Living";
     const basePrice = getTierPrice(firstModel, currentTier, type);
     const facades = getFacadesForDesignAndHousingType(firstModel.name, type);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
-    const planInfo = plansForDesign(firstModel.name);
+    const planInfo = plansForDesign(firstModel.name)[0];
     const stdAreas = getStandardAreaBreakdown(firstModel.name, type, firstModel.m2);
 
     onChange({
@@ -434,7 +434,7 @@ export function V2StepFloorPlan({
   const handleSelectSecondModel = (row: PriceRow, type: HousingTypeTab) => {
     const currentTier = design.secondDwelling?.specTier || design.specTier || "H1 Smart Living";
     const basePrice = getTierPrice(row, currentTier, type);
-    const planInfo = plansForDesign(row.name);
+    const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
     const facades = getFacadesForDesignAndHousingType(row.name, type);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
@@ -454,9 +454,9 @@ export function V2StepFloorPlan({
         specTier: currentTier,
         standardAreas: stdAreas,
         modifiedAreas: stdAreas,
-        beds: String(planInfo?.beds ?? (row.m2 > 150 ? 3 : 2)),
-        baths: String(planInfo?.baths ?? 1),
-        cars: String(planInfo?.cars ?? 0),
+        beds: String(planInfo?.beds ?? (type === "Granny Flat" ? "2" : (row.m2 > 150 ? "3" : "2"))),
+        baths: String(planInfo?.baths ?? "1"),
+        cars: String(planInfo?.cars ?? (type === "Granny Flat" ? "0" : "1")),
         widthM: planInfo?.width || "",
         lengthM: planInfo?.length || "",
       },
@@ -507,7 +507,7 @@ export function V2StepFloorPlan({
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
     const tier = design.specTier || "H2 Design Collection";
     const basePrice = getTierPrice(row, tier, type);
-    const planInfo = plansForDesign(row.name);
+    const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
 
     const facades = getFacadesForDesignAndHousingType(row.name, type);
@@ -521,9 +521,9 @@ export function V2StepFloorPlan({
       designM2: row.m2,
       housingType: type,
       basePrice,
-      bedrooms: planInfo?.beds ?? (row.m2 > 240 ? 4 : 3),
-      bathrooms: planInfo?.baths ?? (row.m2 > 180 ? 2 : 1),
-      garage: planInfo?.cars ?? (row.m2 > 180 ? 2 : 1),
+      bedrooms: planInfo?.beds ? Number(planInfo.beds) : (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3)),
+      bathrooms: planInfo?.baths ? Number(planInfo.baths) : 1,
+      garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
       facadeName: initialFacade.name,
       facadePrice: initialFacade.uplift,
       areas: stdAreas,
@@ -791,7 +791,11 @@ export function V2StepFloorPlan({
             <div className="relative">
               <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
               <Input
-                placeholder={`Type to search ${houseType} floor plans (e.g. Jasper 26, Topaz, Sapphire)...`}
+                placeholder={
+                  houseType === "Granny Flat"
+                    ? "Type to search Aqua Granny Flats (e.g. Aqua 1, Aqua 2)..."
+                    : `Type to search ${houseType} floor plans (e.g. Jasper 26, Topaz, Sapphire)...`
+                }
                 value={searchQuery}
                 onFocus={() => setIsDropdownOpen(true)}
                 onChange={(e) => {
@@ -830,7 +834,7 @@ export function V2StepFloorPlan({
                   filteredModels.map(({ row, type }) => {
                     const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
                     const tierPrice = getTierPrice(row, design.specTier || "H2", type);
-                    const planInfo = plansForDesign(row.name);
+                    const planInfo = plansForDesign(row.name)[0];
 
                     return (
                       <div
@@ -861,13 +865,13 @@ export function V2StepFloorPlan({
 
                           <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
                             <span className="flex items-center gap-1">
-                              <Bed className="h-3 w-3" /> {planInfo?.beds ?? (row.m2 > 240 ? 4 : 3)} Beds
+                              <Bed className="h-3 w-3" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
                             </span>
                             <span className="flex items-center gap-1">
                               <Bath className="h-3 w-3" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
                             </span>
                             <span className="flex items-center gap-1">
-                              <Car className="h-3 w-3" /> {planInfo?.cars ?? (row.m2 > 180 ? 2 : 1)} Cars
+                              <Car className="h-3 w-3" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
                             </span>
                           </div>
                         </div>
@@ -1232,7 +1236,11 @@ export function V2StepFloorPlan({
                 <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
                 <Input
                   data-testid="second-dwelling-search-input"
-                  placeholder={`Search ${secondHouseType} models (e.g. Acacia 60, Banksia 60)...`}
+                  placeholder={
+                    secondHouseType === "Granny Flat"
+                      ? "Search Aqua Granny Flats (e.g. Aqua 1, Aqua 2)..."
+                      : `Search ${secondHouseType} models (e.g. Jasper 26, Topaz)...`
+                  }
                   value={secondSearchQuery}
                   onFocus={() => setIsSecondDropdownOpen(true)}
                   onChange={(e) => {
@@ -1272,7 +1280,7 @@ export function V2StepFloorPlan({
                     filteredSecondModels.map(({ row, type }) => {
                       const isSelected = design.secondDwelling?.designName?.toLowerCase() === row.name.toLowerCase();
                       const tierPrice = getTierPrice(row, design.secondDwelling?.specTier || "H1", type);
-                      const planInfo = plansForDesign(row.name);
+                      const planInfo = plansForDesign(row.name)[0];
 
                       return (
                         <div
@@ -1302,13 +1310,13 @@ export function V2StepFloorPlan({
                             </div>
                             <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
                               <span className="flex items-center gap-1">
-                                <Bed className="h-3 w-3" /> {planInfo?.beds ?? (row.m2 > 150 ? 3 : 2)} Beds
+                                <Bed className="h-3 w-3" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 150 ? 3 : 2))} Beds
                               </span>
                               <span className="flex items-center gap-1">
                                 <Bath className="h-3 w-3" /> {planInfo?.baths ?? 1} Bath
                               </span>
                               <span className="flex items-center gap-1">
-                                <Car className="h-3 w-3" /> {planInfo?.cars ?? 0} Cars
+                                <Car className="h-3 w-3" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : 1)} Cars
                               </span>
                             </div>
                           </div>
@@ -1419,10 +1427,10 @@ export function V2StepFloorPlan({
                 <div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      {design.secondDwelling?.designName || "Acacia 60"}
+                      {design.secondDwelling?.designName || "Aqua 1"}
                     </span>
                     <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 font-bold">
-                      {design.secondDwelling?.designM2 || 60} m²
+                      {design.secondDwelling?.designM2 || 59.96} m²
                     </span>
                   </div>
                   <span className="text-[11px] text-slate-400 block mt-0.5">
