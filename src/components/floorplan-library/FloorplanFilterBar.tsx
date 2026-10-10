@@ -7,7 +7,8 @@ import {
   Zap,
   ArrowUpDown,
   LayoutList,
-  LayoutGrid,
+  Columns2,
+  Columns3,
   ChevronDown,
   ChevronUp,
   MapPin,
@@ -16,6 +17,8 @@ import {
   Bath,
   Car,
   Maximize,
+  Ruler,
+  DollarSign,
 } from "lucide-react";
 import type {
   FloorplanFiltersState,
@@ -46,36 +49,36 @@ interface FloorplanFilterBarProps {
   isLight: boolean;
 }
 
-const HOUSE_TYPES: { label: string; value: HouseTypeFilter }[] = [
-  { label: "All House Types", value: "All" },
-  { label: "Single Storey", value: "Single Storey" },
-  { label: "Double Storey", value: "Double Storey" },
-  { label: "Dual Living / Duplex", value: "Dual Living" },
-  { label: "Split Level", value: "Split Level" },
-  { label: "Granny Flat", value: "Granny Flat" },
+const HOUSE_TYPES: { label: string; short: string; count: number; value: HouseTypeFilter }[] = [
+  { label: "All House Types", short: "All", count: 221, value: "All" },
+  { label: "Single Storey", short: "Single", count: 87, value: "Single Storey" },
+  { label: "Double Storey", short: "Double", count: 85, value: "Double Storey" },
+  { label: "Dual Living", short: "Dual", count: 29, value: "Dual Living" },
+  { label: "Split Level", short: "Split", count: 15, value: "Split Level" },
+  { label: "Granny Flat", short: "Granny", count: 5, value: "Granny Flat" },
 ];
 
 const INCLUSIONS_TIERS: { label: string; sub: string; value: InclusionsTier }[] = [
   { label: "H1", sub: "Smart Living", value: "H1" },
-  { label: "H2", sub: "Design Collection", value: "H2" },
-  { label: "H3", sub: "Luxury Inclusions", value: "H3" },
-  { label: "HBS", sub: "Home Builder", value: "HBS" },
+  { label: "H2", sub: "Design", value: "H2" },
+  { label: "H3", sub: "Luxury", value: "H3" },
+  { label: "HBS", sub: "Builder", value: "HBS" },
 ];
 
-const LOT_FRONTAGE_PRESETS = [
-  { label: "All Lots", width: 30 },
-  { label: "10m Lot", width: 8.5 },
-  { label: "12.5m Lot", width: 11.4 },
-  { label: "14m Lot", width: 12.5 },
-  { label: "16m+ Lot", width: 30 },
+const LOT_WIDTH_PRESETS = [
+  { id: "all", label: "All Lots", badge: "" },
+  { id: "10m", label: "10m Lot", badge: "≤8.8m" },
+  { id: "12.5m", label: "12.5m Lot", badge: "8.8–11.4m" },
+  { id: "14m", label: "14m Lot", badge: "11.4–12.8m" },
+  { id: "16m+", label: "16m+ Lot", badge: ">12.8m" },
 ];
 
 const PRICE_PRESETS = [
-  { label: "All Prices", min: 0, max: 2000000 },
-  { label: "Under $350k", min: 0, max: 350000 },
-  { label: "$350k - $450k", min: 350000, max: 450000 },
-  { label: "$450k - $550k", min: 450000, max: 550000 },
-  { label: "$550k+", min: 550000, max: 2000000 },
+  { id: "all", label: "All Prices" },
+  { id: "under-350", label: "< $350k" },
+  { id: "350-450", label: "$350k–$450k" },
+  { id: "450-550", label: "$450k–$550k" },
+  { id: "550-plus", label: "$550k+" },
 ];
 
 export function FloorplanFilterBar({
@@ -96,6 +99,8 @@ export function FloorplanFilterBar({
   if (filters.searchQuery.trim()) activeFilterCount++;
   if (filters.houseType !== "All") activeFilterCount++;
   if (filters.btbOnly) activeFilterCount++;
+  if (filters.lotWidthPreset && filters.lotWidthPreset !== "all") activeFilterCount++;
+  if (filters.pricePreset && filters.pricePreset !== "all") activeFilterCount++;
   if (filters.bedrooms !== null) activeFilterCount++;
   if (filters.bathrooms !== null) activeFilterCount++;
   if (filters.cars !== null) activeFilterCount++;
@@ -106,25 +111,26 @@ export function FloorplanFilterBar({
 
   return (
     <div
-      className={`rounded-2xl border transition-all shadow-xl backdrop-blur-xl ${
+      className={`rounded-3xl border transition-all shadow-xl backdrop-blur-xl ${
         isLight
           ? "bg-white/95 border-slate-200/90 text-slate-900 shadow-slate-200/50"
           : "bg-slate-950/90 border-slate-800/80 text-white shadow-black/60"
       }`}
     >
-      {/* Primary Top Bar */}
-      <div className="p-4 sm:p-5 flex flex-col gap-4">
-        {/* Row 1: Search + House Type + View Switcher */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+      {/* ─────────────────────────────────────────────────────────────
+          ROW 1: Primary Command Strip (Search + House Type + View Mode)
+          ───────────────────────────────────────────────────────────── */}
+      <div className="p-4 sm:p-5 pb-3.5 flex flex-col gap-3">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3">
           {/* Quick Search */}
-          <div className="relative flex-1 min-w-[260px]">
+          <div className="relative flex-1 min-w-[240px]">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search design (e.g. Amber 21, Jasper, Ruby, Double Storey)..."
+              placeholder="Search designs (e.g. Amber 21, Jasper, Ruby, Double Storey)..."
               value={filters.searchQuery}
               onChange={(e) => onFilterChange("searchQuery", e.target.value)}
-              className={`w-full pl-10 pr-9 py-2.5 rounded-xl border text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-amber-500/40 ${
+              className={`w-full pl-10 pr-9 py-2 rounded-xl border text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-amber-500/40 ${
                 isLight
                   ? "bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400"
                   : "bg-slate-900/90 border-slate-700/80 text-white placeholder-slate-500"
@@ -141,108 +147,12 @@ export function FloorplanFilterBar({
             )}
           </div>
 
-          {/* Regional Division Toggle: QLD vs NSW */}
+          {/* House Types Segmented Bar */}
           <div
-            className={`flex items-center p-1 rounded-xl border shrink-0 ${
+            className={`flex items-center p-1 rounded-xl border overflow-x-auto scrollbar-none shrink-0 ${
               isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
             }`}
           >
-            <button
-              type="button"
-              onClick={() => onFilterChange("division", "QLD")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                filters.division === "QLD"
-                  ? "bg-amber-500 text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <MapPin className="h-3 w-3" />
-              QLD Pricing
-            </button>
-            <button
-              type="button"
-              onClick={() => onFilterChange("division", "NSW")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                filters.division === "NSW"
-                  ? "bg-amber-500 text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <MapPin className="h-3 w-3" />
-              NSW Pricing
-            </button>
-          </div>
-
-          {/* Inclusions Tier Selector */}
-          <div
-            className={`flex items-center p-1 rounded-xl border shrink-0 overflow-x-auto ${
-              isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
-            }`}
-          >
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 px-2 font-bold hidden sm:inline">
-              Tier:
-            </span>
-            {INCLUSIONS_TIERS.map((tier) => {
-              const active = filters.inclusionsTier === tier.value;
-              return (
-                <button
-                  key={tier.value}
-                  type="button"
-                  onClick={() => onFilterChange("inclusionsTier", tier.value)}
-                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
-                    active
-                      ? "bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 shadow-sm font-extrabold"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                  title={`${tier.label} - ${tier.sub}`}
-                >
-                  <Tag className="h-3 w-3" />
-                  <span>{tier.label}</span>
-                  <span className="hidden xl:inline text-[10px] opacity-80">({tier.sub})</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* View Mode Toggle: Showcase Feed vs Grid */}
-          <div
-            className={`flex items-center p-1 rounded-xl border shrink-0 ${
-              isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
-            }`}
-          >
-            <button
-              type="button"
-              onClick={() => onViewModeChange("feed")}
-              className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "feed"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-              title="Showcase Feed (Extra Large High-Def Plans for effortless scanning)"
-            >
-              <LayoutList className="h-4 w-4" />
-              <span className="text-xs hidden md:inline">Showcase Feed</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onViewModeChange("grid")}
-              className={`p-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                viewMode === "grid"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-              title="Dual Column Grid (Side-by-side Large Plans)"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="text-xs hidden md:inline">Dual Grid</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Row 2: House Types Segmented Bar + BTB Quick Button + Bedrooms */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
-          {/* House Types Pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
             {HOUSE_TYPES.map((type) => {
               const active = filters.houseType === type.value;
               return (
@@ -250,72 +160,281 @@ export function FloorplanFilterBar({
                   key={type.value}
                   type="button"
                   onClick={() => onFilterChange("houseType", type.value)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 shrink-0 ${
                     active
-                      ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30 font-bold scale-[1.02]"
-                      : isLight
-                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      : "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                      ? "bg-indigo-600 text-white shadow-sm font-extrabold"
+                      : "text-slate-400 hover:text-slate-200"
                   }`}
                 >
-                  {type.label}
+                  <span>{type.short}</span>
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                      active
+                        ? "bg-indigo-700/80 text-white"
+                        : isLight
+                        ? "bg-slate-200 text-slate-600"
+                        : "bg-slate-800 text-slate-400"
+                    }`}
+                  >
+                    {type.count}
+                  </span>
                 </button>
               );
             })}
           </div>
 
-          {/* BTB (Built to Boundary) Pill Button */}
-          <div className="flex items-center gap-2">
+          {/* Right Controls: BTB + Pricing Division + View Switcher */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* BTB Ready Toggle */}
             <button
               type="button"
               onClick={() => onFilterChange("btbOnly", !filters.btbOnly)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border shadow-sm ${
                 filters.btbOnly
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-400 font-extrabold shadow-amber-500/20 scale-[1.02]"
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 border-amber-400 font-extrabold shadow-amber-500/20"
                   : isLight
                   ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border-amber-300/50"
                   : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30"
               }`}
-              title="Filter plans ready for Built-To-Boundary / Zero-Lot garage walls (200mm clearance)"
+              title="Filter plans engineered for Built-To-Boundary / Zero-Lot garage walls"
             >
               <Zap className={`h-3.5 w-3.5 ${filters.btbOnly ? "text-slate-950 fill-current" : "text-amber-500"}`} />
-              <span>BTB Ready Only</span>
-              {filters.btbOnly && <span className="h-1.5 w-1.5 rounded-full bg-slate-950 animate-pulse ml-0.5" />}
+              <span>BTB Ready</span>
             </button>
 
-            {/* Advanced Filters Expand/Collapse */}
-            <button
-              type="button"
-              onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
-                activeFilterCount > 0
-                  ? "bg-amber-500/15 border-amber-500/40 text-amber-300 font-bold"
-                  : isLight
-                  ? "bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200"
-                  : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
+            {/* Division Toggle (QLD / NSW) */}
+            <div
+              className={`flex items-center p-1 rounded-xl border shrink-0 ${
+                isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
               }`}
             >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black">
-                  {activeFilterCount}
-                </span>
-              )}
-              {isAdvancedOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            </button>
+              <button
+                type="button"
+                onClick={() => onFilterChange("division", "QLD")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  filters.division === "QLD"
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                QLD
+              </button>
+              <button
+                type="button"
+                onClick={() => onFilterChange("division", "NSW")}
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  filters.division === "NSW"
+                    ? "bg-amber-500 text-slate-950 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                NSW
+              </button>
+            </div>
+
+            {/* View Mode Switcher: 3 Across (Default) vs 2 Across vs Feed */}
+            <div
+              className={`flex items-center p-1 rounded-xl border shrink-0 ${
+                isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onViewModeChange("grid-3")}
+                className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "grid-3"
+                    ? "bg-indigo-600 text-white shadow-sm font-extrabold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="3 Floorplans Across (Scan more plans side-by-side)"
+              >
+                <Columns3 className="h-4 w-4" />
+                <span className="hidden sm:inline">3 Across</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewModeChange("grid-2")}
+                className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "grid-2"
+                    ? "bg-indigo-600 text-white shadow-sm font-extrabold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="2 Floorplans Across (Dual Grid)"
+              >
+                <Columns2 className="h-4 w-4" />
+                <span className="hidden sm:inline">2 Across</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onViewModeChange("feed")}
+                className={`p-1.5 px-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  viewMode === "feed"
+                    ? "bg-indigo-600 text-white shadow-sm font-extrabold"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+                title="Single Column Showcase Feed"
+              >
+                <LayoutList className="h-4 w-4" />
+                <span className="hidden sm:inline">Feed</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Expandable Advanced Filters Tray */}
+      {/* ─────────────────────────────────────────────────────────────
+          ROW 2: Fast Uncluttered Filters: Floorplan Widths & Inclusions Pricing
+          ───────────────────────────────────────────────────────────── */}
+      <div
+        className={`px-4 sm:px-5 py-3 border-t flex flex-wrap items-center justify-between gap-3 ${
+          isLight ? "border-slate-100 bg-slate-50/50" : "border-slate-800/80 bg-slate-900/30"
+        }`}
+      >
+        <div className="flex flex-wrap items-center gap-4 lg:gap-6">
+          {/* Section 1: Lot Width / Floorplan Width Chips */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 text-slate-400 mr-1">
+              <Ruler className="h-3.5 w-3.5 text-cyan-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Width:</span>
+            </div>
+            {LOT_WIDTH_PRESETS.map((preset) => {
+              const active = (filters.lotWidthPreset || "all") === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => onFilterChange("lotWidthPreset", preset.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                    active
+                      ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 font-black shadow-xs scale-[1.02]"
+                      : isLight
+                      ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span>{preset.label}</span>
+                  {preset.badge && (
+                    <span className="text-[10px] opacity-75 font-mono">({preset.badge})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Divider */}
+          <div className={`hidden md:block h-5 w-[1px] ${isLight ? "bg-slate-200" : "bg-slate-800"}`} />
+
+          {/* Section 2: Inclusions Tier & Price Brackets */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Inclusions Tier */}
+            <div className="flex items-center gap-1">
+              <Tag className="h-3.5 w-3.5 text-amber-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mr-0.5">Tier:</span>
+              <div
+                className={`flex items-center p-0.5 rounded-lg border shrink-0 ${
+                  isLight ? "bg-white border-slate-200" : "bg-slate-900 border-slate-800"
+                }`}
+              >
+                {INCLUSIONS_TIERS.map((tier) => {
+                  const active = filters.inclusionsTier === tier.value;
+                  return (
+                    <button
+                      key={tier.value}
+                      type="button"
+                      onClick={() => onFilterChange("inclusionsTier", tier.value)}
+                      className={`px-2 py-0.5 rounded text-xs font-bold transition-all cursor-pointer ${
+                        active
+                          ? "bg-amber-500 text-slate-950 font-black shadow-xs"
+                          : "text-slate-400 hover:text-slate-200"
+                      }`}
+                      title={`${tier.label} - ${tier.sub}`}
+                    >
+                      {tier.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Price Brackets */}
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Price:</span>
+              {PRICE_PRESETS.map((preset) => {
+                const active = (filters.pricePreset || "all") === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => onFilterChange("pricePreset", preset.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                      active
+                        ? "bg-emerald-500/20 border-emerald-400 text-emerald-300 font-black shadow-xs scale-[1.02]"
+                        : isLight
+                        ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                        : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: More Specs Drawer Trigger + Reset */}
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          {/* Expandable Advanced Specs */}
+          <button
+            type="button"
+            onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border ${
+              isAdvancedOpen || activeFilterCount > 0
+                ? "bg-indigo-500/15 border-indigo-500/40 text-indigo-300 font-extrabold"
+                : isLight
+                ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                : "bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800"
+            }`}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            <span>More Specs</span>
+            {activeFilterCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black">
+                {activeFilterCount}
+              </span>
+            )}
+            {isAdvancedOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+
+          {/* Quick Clear if active */}
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
+              onClick={onResetFilters}
+              className={`p-1.5 px-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 border ${
+                isLight
+                  ? "bg-white border-slate-200 text-slate-600 hover:text-slate-900"
+                  : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+              }`}
+              title="Reset all filters to defaults"
+            >
+              <RotateCcw className="h-3 w-3 text-amber-500" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          EXPANDABLE TRAY: Secondary Specs (Beds, Baths, Cars, Sort, Sliders)
+          ───────────────────────────────────────────────────────────── */}
       {isAdvancedOpen && (
         <div
           className={`border-t px-4 sm:px-5 py-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-in fade-in duration-200 ${
             isLight ? "border-slate-200 bg-slate-50/70" : "border-slate-800/80 bg-slate-900/40"
           }`}
         >
-          {/* Col 1: Bedrooms & Bathrooms */}
+          {/* Col 1: Bedrooms */}
           <div className="space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Bed className="h-3.5 w-3.5 text-indigo-400" />
@@ -337,7 +456,7 @@ export function FloorplanFilterBar({
                     onClick={() => onFilterChange("bedrooms", opt.val)}
                     className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       active
-                        ? "bg-indigo-600 text-white shadow-sm"
+                        ? "bg-indigo-600 text-white shadow-sm font-black"
                         : isLight
                         ? "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
                         : "bg-slate-900 border border-slate-700 text-slate-300 hover:bg-slate-800"
@@ -386,113 +505,48 @@ export function FloorplanFilterBar({
             </div>
           </div>
 
-          {/* Col 2: Width & Lot Frontage */}
+          {/* Col 2: Custom Width Range & House Length */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
                 <Maximize className="h-3.5 w-3.5 text-cyan-400" />
-                Floorplan Width
+                Custom Width (m)
               </label>
               <span className="text-xs font-mono font-bold text-cyan-400">
                 {filters.minWidth.toFixed(1)}m – {filters.maxWidth.toFixed(1)}m
               </span>
             </div>
 
-            {/* Quick lot width presets */}
-            <div className="flex flex-wrap gap-1">
-              {LOT_FRONTAGE_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    if (preset.label === "All Lots") {
-                      onFilterChange("minWidth", bounds.minWidth);
-                      onFilterChange("maxWidth", bounds.maxWidth);
-                    } else {
-                      onFilterChange("minWidth", bounds.minWidth);
-                      onFilterChange("maxWidth", preset.width);
-                    }
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
-                    filters.maxWidth === preset.width
-                      ? "bg-cyan-500/20 border-cyan-400 text-cyan-300"
-                      : isLight
-                      ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            <div className="grid grid-cols-2 gap-2">
               <div>
-                <span className="text-[10px] text-slate-400 block mb-0.5">Min Width (m)</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5">Min Width</span>
                 <input
                   type="number"
                   step="0.1"
                   min={bounds.minWidth}
                   max={filters.maxWidth}
                   value={filters.minWidth}
-                  onChange={(e) => onFilterChange("minWidth", parseFloat(e.target.value) || bounds.minWidth)}
+                  onChange={(e) => {
+                    onFilterChange("lotWidthPreset", "all");
+                    onFilterChange("minWidth", parseFloat(e.target.value) || bounds.minWidth);
+                  }}
                   className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
                     isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
                   }`}
                 />
               </div>
               <div>
-                <span className="text-[10px] text-slate-400 block mb-0.5">Max Width (m)</span>
+                <span className="text-[10px] text-slate-400 block mb-0.5">Max Width</span>
                 <input
                   type="number"
                   step="0.1"
                   min={filters.minWidth}
                   max={bounds.maxWidth}
                   value={filters.maxWidth}
-                  onChange={(e) => onFilterChange("maxWidth", parseFloat(e.target.value) || bounds.maxWidth)}
-                  className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
-                  }`}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Col 3: Length & Size (m²) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Total Size (m²)
-              </label>
-              <span className="text-xs font-mono font-bold text-amber-400">
-                {filters.minSize}m² – {filters.maxSize}m²
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <span className="text-[10px] text-slate-400 block mb-0.5">Min m²</span>
-                <input
-                  type="number"
-                  step="5"
-                  min={bounds.minSize}
-                  max={filters.maxSize}
-                  value={filters.minSize}
-                  onChange={(e) => onFilterChange("minSize", parseInt(e.target.value, 10) || bounds.minSize)}
-                  className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
-                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
-                  }`}
-                />
-              </div>
-              <div>
-                <span className="text-[10px] text-slate-400 block mb-0.5">Max m²</span>
-                <input
-                  type="number"
-                  step="5"
-                  min={filters.minSize}
-                  max={bounds.maxSize}
-                  value={filters.maxSize}
-                  onChange={(e) => onFilterChange("maxSize", parseInt(e.target.value, 10) || bounds.maxSize)}
+                  onChange={(e) => {
+                    onFilterChange("lotWidthPreset", "all");
+                    onFilterChange("maxWidth", parseFloat(e.target.value) || bounds.maxWidth);
+                  }}
                   className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
                     isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
                   }`}
@@ -536,77 +590,97 @@ export function FloorplanFilterBar({
             </div>
           </div>
 
-          {/* Col 4: Price & Sort */}
+          {/* Col 3: Total Area (m²) */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Price ({filters.inclusionsTier})
+                Total Size (m²)
               </label>
-              <span className="text-xs font-mono font-bold text-emerald-400">
-                ${(filters.minPrice / 1000).toFixed(0)}k – ${(filters.maxPrice / 1000).toFixed(0)}k
+              <span className="text-xs font-mono font-bold text-amber-400">
+                {filters.minSize}m² – {filters.maxSize}m²
               </span>
             </div>
 
-            {/* Quick Price presets */}
-            <div className="flex flex-wrap gap-1">
-              {PRICE_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    onFilterChange("minPrice", preset.min);
-                    onFilterChange("maxPrice", preset.max);
-                  }}
-                  className={`px-2 py-1 rounded-md text-[11px] font-bold border transition-all cursor-pointer ${
-                    filters.maxPrice === preset.max && filters.minPrice === preset.min
-                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-300"
-                      : isLight
-                      ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-[10px] text-slate-400 block mb-0.5">Min m²</span>
+                <input
+                  type="number"
+                  step="5"
+                  min={bounds.minSize}
+                  max={filters.maxSize}
+                  value={filters.minSize}
+                  onChange={(e) => onFilterChange("minSize", parseInt(e.target.value, 10) || bounds.minSize)}
+                  className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
+                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
                   }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+                />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-400 block mb-0.5">Max m²</span>
+                <input
+                  type="number"
+                  step="5"
+                  min={filters.minSize}
+                  max={bounds.maxSize}
+                  value={filters.maxSize}
+                  onChange={(e) => onFilterChange("maxSize", parseInt(e.target.value, 10) || bounds.maxSize)}
+                  className={`w-full px-2.5 py-1.5 rounded-lg border text-xs font-mono font-bold ${
+                    isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
+                  }`}
+                />
+              </div>
             </div>
+          </div>
 
-            {/* Sort Dropdown */}
-            <div className="pt-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mb-1">
-                <ArrowUpDown className="h-3.5 w-3.5 text-amber-400" />
-                Sort Floorplans
-              </label>
-              <select
-                value={filters.sortBy}
-                onChange={(e) => onFilterChange("sortBy", e.target.value as SortOption)}
-                className={`w-full px-3 py-1.5 rounded-lg border text-xs font-bold outline-none cursor-pointer ${
-                  isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
-                }`}
-              >
-                <option value="size-desc">Size: Largest to Smallest</option>
-                <option value="size-asc">Size: Smallest to Largest</option>
-                <option value="price-asc">Price: Lowest to Highest</option>
-                <option value="price-desc">Price: Highest to Lowest</option>
-                <option value="width-asc">Width: Narrowest (Lot Fit)</option>
-                <option value="width-desc">Width: Widest First</option>
-                <option value="name-asc">Alphabetical: A to Z</option>
-              </select>
-            </div>
+          {/* Col 4: Sort Option */}
+          <div className="space-y-3">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <ArrowUpDown className="h-3.5 w-3.5 text-amber-400" />
+              Sort Floorplans
+            </label>
+            <select
+              value={filters.sortBy}
+              onChange={(e) => onFilterChange("sortBy", e.target.value as SortOption)}
+              className={`w-full px-3 py-2 rounded-xl border text-xs font-bold outline-none cursor-pointer ${
+                isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-700 text-white"
+              }`}
+            >
+              <option value="size-desc">Size: Largest to Smallest</option>
+              <option value="size-asc">Size: Smallest to Largest</option>
+              <option value="price-asc">Price: Lowest to Highest</option>
+              <option value="price-desc">Price: Highest to Lowest</option>
+              <option value="width-asc">Width: Narrowest (Lot Fit)</option>
+              <option value="width-desc">Width: Widest First</option>
+              <option value="name-asc">Alphabetical: A to Z</option>
+            </select>
           </div>
         </div>
       )}
 
-      {/* Results Telemetry & Reset Bar */}
+      {/* ─────────────────────────────────────────────────────────────
+          FOOTER STRIP: Matches Count & Active Filter Indicators
+          ───────────────────────────────────────────────────────────── */}
       <div
         className={`px-4 sm:px-5 py-2.5 border-t flex items-center justify-between gap-3 text-xs ${
           isLight ? "border-slate-200 bg-slate-100/70 text-slate-600" : "border-slate-800/80 bg-slate-950/70 text-slate-400"
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold">
             Showing <strong className="text-amber-500 font-extrabold">{filteredCount}</strong> of{" "}
             <strong>{totalCount}</strong> Hudson floorplans
           </span>
+          {filters.lotWidthPreset && filters.lotWidthPreset !== "all" && (
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold font-mono">
+              Width: {filters.lotWidthPreset}
+            </span>
+          )}
+          {filters.pricePreset && filters.pricePreset !== "all" && (
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold font-mono">
+              Price: {PRICE_PRESETS.find((p) => p.id === filters.pricePreset)?.label}
+            </span>
+          )}
           {filters.btbOnly && (
             <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold font-mono">
               ⚡ BTB Only

@@ -55,12 +55,14 @@ export function FloorplanLibraryView() {
     cars: null,
     minWidth: bounds.minWidth,
     maxWidth: bounds.maxWidth,
+    lotWidthPreset: "all",
     minLength: bounds.minLength,
     maxLength: bounds.maxLength,
     minSize: bounds.minSize,
     maxSize: bounds.maxSize,
     minPrice: bounds.minPrice,
     maxPrice: bounds.maxPrice,
+    pricePreset: "all",
     sortBy: "size-desc",
   }));
 
@@ -99,18 +101,20 @@ export function FloorplanLibraryView() {
       cars: null,
       minWidth: bounds.minWidth,
       maxWidth: bounds.maxWidth,
+      lotWidthPreset: "all",
       minLength: bounds.minLength,
       maxLength: bounds.maxLength,
       minSize: bounds.minSize,
       maxSize: bounds.maxSize,
       minPrice: bounds.minPrice,
       maxPrice: bounds.maxPrice,
+      pricePreset: "all",
       sortBy: "size-desc",
     });
   };
 
-  // 3. View Mode (Showcase Feed vs Dual Grid)
-  const [viewMode, setViewMode] = useState<ViewMode>("feed");
+  // 3. View Mode: 3-across grid by default for scanning more floorplans
+  const [viewMode, setViewMode] = useState<ViewMode>("grid-3");
 
   // 4. Modal presentation state
   const [selectedZoomItem, setSelectedZoomItem] = useState<FloorplanLibraryItem | null>(null);
@@ -288,8 +292,10 @@ export function FloorplanLibraryView() {
           <div
             className={
               viewMode === "feed"
-                ? "flex flex-col gap-10 max-w-6xl mx-auto w-full"
-                : "grid grid-cols-1 md:grid-cols-2 gap-8 w-full"
+                ? "flex flex-col gap-10 max-w-5xl mx-auto w-full"
+                : viewMode === "grid-2"
+                ? "grid grid-cols-1 lg:grid-cols-2 gap-8 w-full"
+                : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full"
             }
           >
             {filteredPlans.map((item) => (

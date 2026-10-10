@@ -35,7 +35,7 @@ export type SortOption =
   | "width-desc"
   | "name-asc";
 
-export type ViewMode = "feed" | "grid";
+export type ViewMode = "grid-3" | "grid-2" | "feed";
 
 export interface FloorplanPrices {
   h1: number;
@@ -78,12 +78,14 @@ export interface FloorplanFiltersState {
   cars: number | null;
   minWidth: number;
   maxWidth: number;
+  lotWidthPreset: string; // "all", "10m", "12.5m", "14m", "16m+"
   minLength: number;
   maxLength: number;
   minSize: number;
   maxSize: number;
   minPrice: number;
   maxPrice: number;
+  pricePreset: string; // "all", "under-350", "350-450", "450-550", "550-650", "650-plus"
   sortBy: SortOption;
 }
 
@@ -360,8 +362,28 @@ export function filterAndSortFloorplans(
       }
     }
 
-    // 7. Width Range
-    if (item.widthM > 0) {
+    // 7. Width & Lot Frontage Filter
+    if (filters.lotWidthPreset && filters.lotWidthPreset !== "all") {
+      const w = item.widthM;
+      const f = item.frontageM;
+      if (filters.lotWidthPreset === "10m") {
+        // Fits on 10m Lot: building width <= 8.85m or frontage <= 10.5m
+        const matches = (w > 0 && w <= 8.85) || (f > 0 && f <= 10.5);
+        if (!matches) return false;
+      } else if (filters.lotWidthPreset === "12.5m") {
+        // 12.5m Lot: building width 8.85m to 11.45m or frontage ~12.5m
+        const matches = (w > 8.85 && w <= 11.45) || (f > 10.5 && f <= 12.8);
+        if (!matches) return false;
+      } else if (filters.lotWidthPreset === "14m") {
+        // 14m Lot: building width 11.45m to 12.85m or frontage ~14m
+        const matches = (w > 11.45 && w <= 12.85) || (f > 12.8 && f <= 14.5);
+        if (!matches) return false;
+      } else if (filters.lotWidthPreset === "16m+") {
+        // 16m+ Lot: building width > 12.85m or frontage >= 15m
+        const matches = w > 12.85 || f >= 15.0;
+        if (!matches) return false;
+      }
+    } else if (item.widthM > 0) {
       if (item.widthM < filters.minWidth || item.widthM > filters.maxWidth) {
         return false;
       }
@@ -384,8 +406,15 @@ export function filterAndSortFloorplans(
     // 10. Price Range for Selected Inclusion Tier
     const currentPrice = getActiveTierPrice(item, filters.inclusionsTier);
     if (currentPrice > 0) {
-      if (currentPrice < filters.minPrice || currentPrice > filters.maxPrice) {
-        return false;
+      if (filters.pricePreset && filters.pricePreset !== "all") {
+        if (filters.pricePreset === "under-350" && currentPrice > 350000) return false;
+        if (filters.pricePreset === "350-450" && (currentPrice < 350000 || currentPrice > 450000)) return false;
+        if (filters.pricePreset === "450-550" && (currentPrice < 450000 || currentPrice > 550000)) return false;
+        if (filters.pricePreset === "550-plus" && currentPrice < 550000) return false;
+      } else {
+        if (currentPrice < filters.minPrice || currentPrice > filters.maxPrice) {
+          return false;
+        }
       }
     }
 
