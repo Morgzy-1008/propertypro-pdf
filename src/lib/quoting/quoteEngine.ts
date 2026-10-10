@@ -56,24 +56,25 @@ export function getHousingTypeForDesign(
   fallbackType?: QuoteDesignSelection["housingType"],
 ): "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat" {
   if (!designName) return fallbackType || "Single Storey";
-  const norm = designName.trim().toLowerCase();
+  const raw = designName.trim().toLowerCase();
+  const clean = raw.replace(/\s*\([^)]*\)/g, " ").replace(/\s+/g, " ").trim();
 
   // 0. Granny Flat / Secondary Dwelling detection
   if (
-    /^aqua\b/i.test(norm) ||
-    /granny|auxiliary|secondary\s*dwelling/i.test(norm) ||
-    ["acacia 60", "banksia 60", "coral 65", "myrtle 70"].includes(norm)
+    /^aqua\b/i.test(clean) ||
+    /granny|auxiliary|secondary\s*dwelling/i.test(clean) ||
+    ["acacia 60", "banksia 60", "coral 65", "myrtle 70"].includes(clean)
   ) {
     return "Granny Flat";
   }
 
   // 1. Dual Living / Duplex detection
   if (
-    DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    NSW_DUAL_OC_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    / - td\b| - sd\b|\bdual[-\s]?oc|\bduplex\b|\bdual living\b/i.test(norm) ||
+    DUAL_OC_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    NSW_DUAL_OC_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    / - td\b| - sd\b|\bdual[-\s]?oc|\bduplex\b|\bdual living\b/i.test(raw) ||
     ["alabaster", "cayenne", "cayene", "teal", "wisteria", "magnolia", "maize", "raven", "lavender"].some((f) =>
-      norm.startsWith(f)
+      clean.startsWith(f)
     )
   ) {
     return "Dual Living";
@@ -81,25 +82,34 @@ export function getHousingTypeForDesign(
 
   // 2. Double Storey detection
   if (
-    DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    NSW_DOUBLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)
+    DOUBLE_STOREY_PRICES.some((m) => {
+      const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
+      return mn === clean || mn.startsWith(clean + " ") || clean.startsWith(mn.split(" ")[0] + " ");
+    }) ||
+    NSW_DOUBLE_STOREY_PRICES.some((m) => {
+      const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
+      return mn === clean || mn.startsWith(clean + " ") || clean.startsWith(mn.split(" ")[0] + " ");
+    }) ||
+    ["violet", "mahogany", "pearl", "carolina", "turquoise", "sabel", "sable", "burgundy", "topaz", "diamond", "emerald", "onyx", "garnet", "quartz", "sardonyx", "tanzanite", "tourmaline", "alexandrite", "aston"].some((f) =>
+      clean.startsWith(f)
+    )
   ) {
     return "Double Storey";
   }
 
   // 3. Split Level detection
   if (
-    SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    NSW_SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    /split/i.test(norm)
+    SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    NSW_SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    /split/i.test(clean)
   ) {
     return "Split Level";
   }
 
   // 4. Single Storey detection
   if (
-    SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm) ||
-    NSW_SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase() === norm)
+    SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    NSW_SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean)
   ) {
     return "Single Storey";
   }

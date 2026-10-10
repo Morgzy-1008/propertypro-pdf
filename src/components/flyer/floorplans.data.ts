@@ -1781,7 +1781,7 @@ export const HUDSON_FLOORPLANS: FloorplanRecord[] = [
     beds: "5",
     baths: "3",
     cars: "3",
-    size: "51583",
+    size: "515.83",
     frontage: "18.13",
     houseWidth: "13.50",
     houseLength: "25.20",

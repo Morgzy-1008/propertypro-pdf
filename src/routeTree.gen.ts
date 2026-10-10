@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
 import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_authenticated/floorplan-editor'
+import { Route as AuthenticatedFloorplanLibraryRouteImport } from './routes/_authenticated/floorplan-library'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
 import { Route as AuthenticatedHubRouteImport } from './routes/_authenticated/hub'
 import { Route as AuthenticatedLandScoutRouteImport } from './routes/_authenticated/land-scout'
@@ -81,6 +82,12 @@ const AuthenticatedFloorplanEditorRoute =
   AuthenticatedFloorplanEditorRouteImport.update({
     id: '/floorplan-editor',
     path: '/floorplan-editor',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedFloorplanLibraryRoute =
+  AuthenticatedFloorplanLibraryRouteImport.update({
+    id: '/floorplan-library',
+    path: '/floorplan-library',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedFlyerRoute = AuthenticatedFlyerRouteImport.update({
@@ -161,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
+  '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/land-scout': typeof AuthenticatedLandScoutRoute
@@ -185,6 +193,7 @@ export interface FileRoutesByTo {
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
+  '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
   '/hub': typeof AuthenticatedHubRoute
   '/land-scout': typeof AuthenticatedLandScoutRoute
@@ -211,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
   '/_authenticated/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
+  '/_authenticated/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
   '/_authenticated/hub': typeof AuthenticatedHubRoute
   '/_authenticated/land-scout': typeof AuthenticatedLandScoutRoute
@@ -237,6 +247,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/database'
     | '/floorplan-editor'
+    | '/floorplan-library'
     | '/flyer'
     | '/hub'
     | '/land-scout'
@@ -261,6 +272,7 @@ export interface FileRouteTypes {
     | '/crm'
     | '/database'
     | '/floorplan-editor'
+    | '/floorplan-library'
     | '/flyer'
     | '/hub'
     | '/land-scout'
@@ -286,6 +298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/crm'
     | '/_authenticated/database'
     | '/_authenticated/floorplan-editor'
+    | '/_authenticated/floorplan-library'
     | '/_authenticated/flyer'
     | '/_authenticated/hub'
     | '/_authenticated/land-scout'
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedFloorplanEditorRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/floorplan-library': {
+      id: '/_authenticated/floorplan-library'
+      path: '/floorplan-library'
+      fullPath: '/floorplan-library'
+      preLoaderRoute: typeof AuthenticatedFloorplanLibraryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/flyer': {
       id: '/_authenticated/flyer'
       path: '/flyer'
@@ -488,6 +508,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
   AuthenticatedFloorplanEditorRoute: typeof AuthenticatedFloorplanEditorRoute
+  AuthenticatedFloorplanLibraryRoute: typeof AuthenticatedFloorplanLibraryRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
   AuthenticatedHubRoute: typeof AuthenticatedHubRoute
   AuthenticatedLandScoutRoute: typeof AuthenticatedLandScoutRoute
@@ -500,6 +521,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
   AuthenticatedFloorplanEditorRoute: AuthenticatedFloorplanEditorRoute,
+  AuthenticatedFloorplanLibraryRoute: AuthenticatedFloorplanLibraryRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,
   AuthenticatedHubRoute: AuthenticatedHubRoute,
   AuthenticatedLandScoutRoute: AuthenticatedLandScoutRoute,

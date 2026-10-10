@@ -1,0 +1,458 @@
+import { HUDSON_FLOORPLANS, type FloorplanRecord } from "@/components/flyer/floorplans.data";
+import {
+  SINGLE_STOREY_PRICES,
+  DOUBLE_STOREY_PRICES,
+  SPLIT_LEVEL_PRICES,
+  DUAL_OC_PRICES,
+  type PriceRow,
+} from "@/lib/pricelist.data";
+import {
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+  NSW_DUAL_OC_PRICES,
+} from "@/lib/pricelist.nsw.data";
+import { getHousingTypeForDesign } from "@/lib/quoting/quoteEngine";
+import { HUDSON_DESIGNS_CATALOG } from "@/lib/site-studio/hudsonDesignCatalog";
+import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
+
+export type HouseTypeFilter =
+  | "All"
+  | "Single Storey"
+  | "Double Storey"
+  | "Dual Living"
+  | "Split Level"
+  | "Granny Flat";
+
+export type InclusionsTier = "H1" | "H2" | "H3" | "HBS" | "SS";
+
+export type SortOption =
+  | "size-desc"
+  | "size-asc"
+  | "price-asc"
+  | "price-desc"
+  | "width-asc"
+  | "width-desc"
+  | "name-asc";
+
+export type ViewMode = "feed" | "grid";
+
+export interface FloorplanPrices {
+  h1: number;
+  h2: number;
+  h3: number;
+  hbs: number;
+  ss: number;
+}
+
+export interface FloorplanLibraryItem {
+  id: string;
+  label: string;
+  design: string;
+  housingType: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat";
+  beds: number;
+  baths: number;
+  cars: number;
+  totalM2: number;
+  squares: number;
+  widthM: number;
+  lengthM: number;
+  frontageM: number;
+  url: string;
+  pdfUrl?: string;
+  isBtbReady: boolean;
+  btbDescription?: string;
+  facadeUrl?: string;
+  prices: FloorplanPrices;
+  matchedPriceName?: string;
+}
+
+export interface FloorplanFiltersState {
+  searchQuery: string;
+  houseType: HouseTypeFilter;
+  inclusionsTier: InclusionsTier;
+  division: "QLD" | "NSW";
+  btbOnly: boolean;
+  bedrooms: number | null; // null = all, 1, 2, 3, 4, 5 (for 5+)
+  bathrooms: number | null;
+  cars: number | null;
+  minWidth: number;
+  maxWidth: number;
+  minLength: number;
+  maxLength: number;
+  minSize: number;
+  maxSize: number;
+  minPrice: number;
+  maxPrice: number;
+  sortBy: SortOption;
+}
+
+const DESIGN_ALIASES: Record<string, string> = {
+  cayene: "cayenne",
+};
+
+export function planKey(name: string): string {
+  const m = /^\s*([a-z]+)[^0-9]*(\d+)/i.exec(name.replace(/[^a-z0-9 ]+/gi, " "));
+  if (!m) return name.trim().toLowerCase();
+  const family = m[1].toLowerCase();
+  return `${DESIGN_ALIASES[family] ?? family} ${m[2]}`;
+}
+
+/** Builds a lookup table for PriceRow by canonical planKey */
+function buildPriceMap(priceRows: PriceRow[]): Map<string, PriceRow> {
+  const map = new Map<string, PriceRow>();
+  for (const row of priceRows) {
+    const k = planKey(row.name);
+    if (!map.has(k)) {
+      map.set(k, row);
+    }
+    // Also store normalized alphanumeric key for fallback
+    const norm = row.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (!map.has(norm)) {
+      map.set(norm, row);
+    }
+  }
+  return map;
+}
+
+/** Check if design is compatible with Built-to-Boundary (BTB) */
+export function isFloorplanBtb(plan: FloorplanRecord): { isBtb: boolean; reason?: string } {
+  const normLabel = plan.label.toLowerCase();
+  const normDesign = plan.design.toLowerCase();
+
+  if (normLabel.includes("btb") || normLabel.includes("zero lot") || normDesign.includes("btb")) {
+    return { isBtb: true, reason: "Engineered BTB Zero-Lot Design" };
+  }
+
+  const catalogMatch = HUDSON_DESIGNS_CATALOG.find(
+    (d) =>
+      d.name.toLowerCase() === normLabel ||
+      d.id === normDesign ||
+      normLabel.startsWith(d.name.toLowerCase())
+  );
+  if (catalogMatch && catalogMatch.hasBtbOption) {
+    return { isBtb: true, reason: "Zero-lot garage boundary wall ready (200mm clearance)" };
+  }
+
+  const frontage = parseFloat(String(plan.frontage || "0"));
+  const width = parseFloat(String(plan.houseWidth || plan.width || "0"));
+
+  if (frontage > 0 && frontage <= 12.5) {
+    return { isBtb: true, reason: "Narrow lot compatible (≤12.5m frontage with zero-lot garage)" };
+  }
+
+  if (width > 0 && width <= 11.5) {
+    return { isBtb: true, reason: "Narrow building width (≤11.5m) allows 200mm garage offset" };
+  }
+
+  return { isBtb: false };
+}
+
+/** Fallback pricing for auxiliary dwellings (Granny Flats) */
+const GRANNY_FLAT_PRICES: Record<string, FloorplanPrices> = {
+  "aqua 1": { h1: 154000, h2: 159000, h3: 167000, hbs: 154000, ss: 156000 },
+  "aqua 2": { h1: 156000, h2: 161000, h3: 169000, hbs: 156000, ss: 158000 },
+  "aqua 3": { h1: 154000, h2: 159000, h3: 167000, hbs: 154000, ss: 156000 },
+  "aqua 4": { h1: 155000, h2: 160000, h3: 168000, hbs: 155000, ss: 157000 },
+  "aqua 5": { h1: 153000, h2: 158000, h3: 166000, hbs: 153000, ss: 155000 },
+};
+
+/**
+ * Loads and enriches all 221 Hudson floorplans with pricing,
+ * BTB classification, dimensions, and facade renders.
+ */
+export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): FloorplanLibraryItem[] {
+  const isNsw = division === "NSW";
+
+  const allPriceRows: PriceRow[] = isNsw
+    ? [
+        ...NSW_SINGLE_STOREY_PRICES,
+        ...NSW_DOUBLE_STOREY_PRICES,
+        ...NSW_SPLIT_LEVEL_PRICES,
+        ...NSW_DUAL_OC_PRICES,
+      ]
+    : [
+        ...SINGLE_STOREY_PRICES,
+        ...DOUBLE_STOREY_PRICES,
+        ...SPLIT_LEVEL_PRICES,
+        ...DUAL_OC_PRICES,
+      ];
+
+  const priceMap = buildPriceMap(allPriceRows);
+
+  return HUDSON_FLOORPLANS.map((plan) => {
+    const rawDesign = plan.design || "";
+    const rawLabel = plan.label || rawDesign;
+    const housingType = getHousingTypeForDesign(rawLabel || rawDesign);
+
+    // Dimensions
+    let widthM = parseFloat(String(plan.houseWidth || plan.width || "0"));
+    let lengthM = parseFloat(String(plan.houseLength || plan.depth || "0"));
+    let frontageM = parseFloat(String(plan.frontage || "0"));
+
+    // Patch known missing dimension for Sabel 28
+    if (rawLabel.includes("Sabel") && (!widthM || !lengthM)) {
+      widthM = 8.5;
+      lengthM = 20.5;
+      frontageM = 10.0;
+    }
+
+    let rawM2 = parseFloat(String(plan.size || "0")) || 0;
+    if (rawM2 > 1000) rawM2 = rawM2 / 100;
+    const totalM2 = rawM2;
+    const squares = Math.round((totalM2 / 9.2903) * 10) / 10;
+    const beds = parseInt(String(plan.beds || "0"), 10) || 0;
+    const baths = parseFloat(String(plan.baths || "0")) || 0;
+    const cars = parseInt(String(plan.cars || "0"), 10) || 0;
+
+    // BTB check
+    const btb = isFloorplanBtb(plan);
+
+    // Facade render lookup
+    const isDouble = housingType === "Double Storey";
+    const facadeItem = findFacadeForDesign("Classic", isDouble, housingType, rawLabel);
+    const facadeUrl = facadeItem?.url || "/facades/classic-double-garage.jpg";
+
+    // Pricing lookup
+    const key = planKey(rawLabel);
+    const norm = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+    let priceRow = priceMap.get(key) || priceMap.get(norm);
+
+    if (!priceRow) {
+      // Try base design without sub-letters (e.g. "Amaranth 23A" -> "Amaranth 23")
+      const strippedKey = planKey(rawLabel.replace(/[AB]$/, ""));
+      priceRow = priceMap.get(strippedKey);
+    }
+
+    let prices: FloorplanPrices;
+    let matchedPriceName: string | undefined;
+
+    if (priceRow) {
+      matchedPriceName = priceRow.name;
+      prices = {
+        h1: priceRow.h1 || 0,
+        h2: priceRow.h2 || 0,
+        h3: priceRow.h3 || 0,
+        hbs: priceRow.hbs || priceRow.h1 || 0,
+        ss: priceRow.ss || priceRow.h1 || 0,
+      };
+    } else {
+      // Fallback for granny flats or uncommon variants
+      const lowerLabel = rawLabel.toLowerCase();
+      if (GRANNY_FLAT_PRICES[lowerLabel]) {
+        prices = GRANNY_FLAT_PRICES[lowerLabel];
+        matchedPriceName = "Standard Auxiliary Dwelling";
+      } else {
+        // Derive reasonable estimated price based on sqm rate
+        const baseRate = housingType === "Double Storey" ? 1750 : 1600;
+        const estH1 = Math.round((totalM2 * baseRate) / 100) * 100;
+        prices = {
+          h1: estH1,
+          h2: Math.round(estH1 * 1.085),
+          h3: Math.round(estH1 * 1.185),
+          hbs: Math.round(estH1 * 0.94),
+          ss: Math.round(estH1 * 0.97),
+        };
+        matchedPriceName = "Estimated Base Rate";
+      }
+    }
+
+    return {
+      id: rawLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      label: rawLabel,
+      design: rawDesign,
+      housingType,
+      beds,
+      baths,
+      cars,
+      totalM2,
+      squares,
+      widthM,
+      lengthM,
+      frontageM,
+      url: plan.url,
+      pdfUrl: plan.pdfUrl,
+      isBtbReady: btb.isBtb,
+      btbDescription: btb.reason,
+      facadeUrl,
+      prices,
+      matchedPriceName,
+    };
+  });
+}
+
+/** Get price of an item for the chosen tier */
+export function getActiveTierPrice(item: FloorplanLibraryItem, tier: InclusionsTier): number {
+  switch (tier) {
+    case "H1":
+      return item.prices.h1;
+    case "H2":
+      return item.prices.h2;
+    case "H3":
+      return item.prices.h3;
+    case "HBS":
+      return item.prices.hbs;
+    case "SS":
+      return item.prices.ss;
+    default:
+      return item.prices.h2;
+  }
+}
+
+/**
+ * Filter and sort library items based on user filters
+ */
+export function filterAndSortFloorplans(
+  items: FloorplanLibraryItem[],
+  filters: FloorplanFiltersState
+): FloorplanLibraryItem[] {
+  const query = filters.searchQuery.trim().toLowerCase();
+
+  const filtered = items.filter((item) => {
+    // 1. Text Search
+    if (query) {
+      const matchLabel = item.label.toLowerCase().includes(query);
+      const matchDesign = item.design.toLowerCase().includes(query);
+      const matchType = item.housingType.toLowerCase().includes(query);
+      if (!matchLabel && !matchDesign && !matchType) {
+        return false;
+      }
+    }
+
+    // 2. House Type
+    if (filters.houseType !== "All") {
+      if (filters.houseType === "Dual Living") {
+        if (item.housingType !== "Dual Living") return false;
+      } else if (item.housingType !== filters.houseType) {
+        return false;
+      }
+    }
+
+    // 3. BTB Only Filter
+    if (filters.btbOnly && !item.isBtbReady) {
+      return false;
+    }
+
+    // 4. Bedrooms
+    if (filters.bedrooms !== null) {
+      if (filters.bedrooms >= 5) {
+        if (item.beds < 5) return false;
+      } else if (item.beds !== filters.bedrooms) {
+        return false;
+      }
+    }
+
+    // 5. Bathrooms
+    if (filters.bathrooms !== null) {
+      if (filters.bathrooms >= 3) {
+        if (item.baths < 3) return false;
+      } else if (Math.floor(item.baths) !== filters.bathrooms) {
+        return false;
+      }
+    }
+
+    // 6. Cars
+    if (filters.cars !== null) {
+      if (filters.cars >= 3) {
+        if (item.cars < 3) return false;
+      } else if (item.cars !== filters.cars) {
+        return false;
+      }
+    }
+
+    // 7. Width Range
+    if (item.widthM > 0) {
+      if (item.widthM < filters.minWidth || item.widthM > filters.maxWidth) {
+        return false;
+      }
+    }
+
+    // 8. Length Range
+    if (item.lengthM > 0) {
+      if (item.lengthM < filters.minLength || item.lengthM > filters.maxLength) {
+        return false;
+      }
+    }
+
+    // 9. Total Size (m²) Range
+    if (item.totalM2 > 0) {
+      if (item.totalM2 < filters.minSize || item.totalM2 > filters.maxSize) {
+        return false;
+      }
+    }
+
+    // 10. Price Range for Selected Inclusion Tier
+    const currentPrice = getActiveTierPrice(item, filters.inclusionsTier);
+    if (currentPrice > 0) {
+      if (currentPrice < filters.minPrice || currentPrice > filters.maxPrice) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  // Sort
+  return filtered.sort((a, b) => {
+    const priceA = getActiveTierPrice(a, filters.inclusionsTier);
+    const priceB = getActiveTierPrice(b, filters.inclusionsTier);
+
+    switch (filters.sortBy) {
+      case "size-desc":
+        return b.totalM2 - a.totalM2;
+      case "size-asc":
+        return a.totalM2 - b.totalM2;
+      case "price-asc":
+        return priceA - priceB;
+      case "price-desc":
+        return priceB - priceA;
+      case "width-asc":
+        return a.widthM - b.widthM;
+      case "width-desc":
+        return b.widthM - a.widthM;
+      case "name-asc":
+        return a.label.localeCompare(b.label);
+      default:
+        return b.totalM2 - a.totalM2;
+    }
+  });
+}
+
+/** Compute overall stats for slider bounds */
+export function getFilterBounds(items: FloorplanLibraryItem[]) {
+  let minW = 100, maxW = 0;
+  let minL = 100, maxL = 0;
+  let minS = 1000, maxS = 0;
+  let minP = 1000000, maxP = 0;
+
+  for (const item of items) {
+    if (item.widthM > 0) {
+      if (item.widthM < minW) minW = item.widthM;
+      if (item.widthM > maxW) maxW = item.widthM;
+    }
+    if (item.lengthM > 0) {
+      if (item.lengthM < minL) minL = item.lengthM;
+      if (item.lengthM > maxL) maxL = item.lengthM;
+    }
+    if (item.totalM2 > 0) {
+      if (item.totalM2 < minS) minS = item.totalM2;
+      if (item.totalM2 > maxS) maxS = item.totalM2;
+    }
+    const p = item.prices.h2;
+    if (p > 0) {
+      if (p < minP) minP = p;
+      if (p > maxP) maxP = p;
+    }
+  }
+
+  return {
+    minWidth: Math.floor(minW) || 6,
+    maxWidth: Math.ceil(maxW) || 30,
+    minLength: Math.floor(minL) || 6,
+    maxLength: Math.ceil(maxL) || 35,
+    minSize: Math.floor(minS) || 50,
+    maxSize: Math.ceil(maxS) || 450,
+    minPrice: Math.floor(minP / 10000) * 10000 || 150000,
+    maxPrice: Math.ceil(maxP / 10000) * 10000 || 850000,
+  };
+}

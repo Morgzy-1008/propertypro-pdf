@@ -17,6 +17,7 @@ import {
   Clock,
   Trophy,
   X,
+  LayoutGrid,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -540,10 +541,34 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 02: House & Land Database */}
+          {/* Portal 02: Floorplan Library (Accessible to all logins) */}
+          <PortalCard
+            to="/floorplan-library"
+            portalNumber="PORTAL // 02"
+            categoryBadge="Display Suite & Catalog"
+            statusBadge={{
+              text: "220+ Plans • Live Pricing",
+              pulse: true,
+              style: "text-indigo-400 bg-indigo-500/15 border-indigo-500/30 font-mono",
+            }}
+            title="Floorplan Library"
+            description="Scan through Hudson floorplans with clients in display homes. Filter by width, length, bedrooms, size, BTB zero-lot, and live multi-tier pricelists."
+            icon={LayoutGrid}
+            features="Large Client Showcase • Multi-Tier Pricing • BTB Ready"
+            actionText="Open Library"
+            glowGradient="from-blue-600 via-indigo-500 to-cyan-400"
+            lightBeam="from-transparent via-indigo-400 to-transparent"
+            innerGlow="from-indigo-500/25 to-transparent"
+            iconColor="text-indigo-400"
+            iconBg="from-indigo-500/20 to-blue-500/10 border-indigo-500/30"
+            badgeStyle="text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+            isLight={isLight}
+          />
+
+          {/* Portal 03: House & Land Database */}
           <PortalCard
             to="/database"
-            portalNumber="PORTAL // 02"
+            portalNumber="PORTAL // 03"
             categoryBadge="Land Inventory"
             title="House & Land Database"
             description="Search live developer estate lots, import price lists with AI parsing, and generate 1-click packages."
@@ -559,10 +584,10 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 03: House & Land Package Studio (Flyer Builder) */}
+          {/* Portal 04: House & Land Package Studio (Flyer Builder) */}
           <PortalCard
             to="/flyer"
-            portalNumber="PORTAL // 03"
+            portalNumber="PORTAL // 04"
             categoryBadge="Flyer Builder"
             title="House & Land Package Studio"
             description="Generate branded 1-page & 2-page package brochures, social marketing tiles, and facade showcase renders."
@@ -578,10 +603,10 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 04: Concept Floorplan Editor (Accessible to all logins) */}
+          {/* Portal 05: Concept Floorplan Editor (Accessible to all logins) */}
           <PortalCard
             to="/floorplan-editor"
-            portalNumber="PORTAL // 04"
+            portalNumber="PORTAL // 05"
             categoryBadge="Concept Studio"
             title="Concept Floorplan Editor"
             description="Interact with live floorplans on a high-precision canvas, modify zone dimensions, and preview instant 3D geometry."
@@ -597,10 +622,10 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 05: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
+          {/* Portal 06: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
             to="/land-scout"
-            portalNumber="PORTAL // 05"
+            portalNumber="PORTAL // 06"
             categoryBadge="Land Intelligence"
             statusBadge={{
               text: "Live Cadastre & Estates",
@@ -622,10 +647,10 @@ function WelcomeHubPage() {
             isComingSoon={!isMorgan}
           />
 
-          {/* Portal 06: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
+          {/* Portal 07: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
             to="/tender-request"
-            portalNumber="PORTAL // 06"
+            portalNumber="PORTAL // 07"
             categoryBadge="Tender Portal"
             statusBadge={{
               text: "Tender Archive Engine",
@@ -647,10 +672,10 @@ function WelcomeHubPage() {
             isComingSoon={!isMorgan}
           />
 
-          {/* Portal 07: Hudson Horizon CRM (Only accessible by Morgan Hales; Coming Soon for others) */}
+          {/* Portal 08: Hudson Horizon CRM (Only accessible by Morgan Hales; Coming Soon for others) */}
           <PortalCard
             to="/crm"
-            portalNumber="PORTAL // 07"
+            portalNumber="PORTAL // 08"
             categoryBadge="Builder CRM"
             statusBadge={{
               text: "Pipeline Management",
