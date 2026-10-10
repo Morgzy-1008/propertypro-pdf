@@ -1,15 +1,14 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import React from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { QuoteBuilder } from "@/components/quoting/QuoteBuilder";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
-import { ShieldCheck, FileText, Database, Home } from "lucide-react";
+import { FileText, Database, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useTheme } from "@/lib/theme";
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
-import { getActiveStaffUser } from "@/lib/authSession";
 
 export const Route = createFileRoute("/_authenticated/quote-builder")({
-
   head: () => ({
     meta: [
       { title: "Hudson Quoting System | Technical House & Land Quoting" },
@@ -35,7 +34,7 @@ function QuoteBuilderPage() {
 
       {/* Top Header */}
       <header className={`border-b ${isLight ? "border-slate-200 bg-white/95 shadow-xs" : "border-slate-800 bg-slate-900/60"} backdrop-blur-md sticky top-0 z-40`}>
-        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between">
+        <div className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link to="/hub" className="flex items-center">
               <HudsonMark size={9} className="sm:hidden" />
@@ -52,6 +51,7 @@ function QuoteBuilderPage() {
               </span>
             </div>
           </div>
+
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -96,7 +96,7 @@ function QuoteBuilderPage() {
       </header>
 
       {/* Main Quoting Workspace */}
-      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1 relative z-10">
+      <main className="w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 flex-1 relative z-10 scroll-pt-24">
         <QuoteBuilder />
       </main>
     </div>

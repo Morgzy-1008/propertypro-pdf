@@ -72,13 +72,9 @@ export function QuoteBuilderV2({
   const currentStepConfig = V2_STEPS.find((s) => s.id === activeStep) || V2_STEPS[0];
   const currentStepIndex = V2_STEPS.findIndex((s) => s.id === activeStep);
 
-  // Instant scroll with zero slow dragging
+  // Instant scroll to top of window so top header and quoting mode switcher are never cut off
   const scrollToTop = () => {
-    if (stepContainerRef.current) {
-      stepContainerRef.current.scrollIntoView({ behavior: "instant", block: "start" });
-    } else {
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   const handleGoNext = () => {
@@ -205,15 +201,6 @@ export function QuoteBuilderV2({
             Admin Catalogue
           </Button>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onSwitchToDetailed}
-            className={`text-xs text-slate-400 hover:text-white ${isLight ? "hover:text-slate-900" : ""}`}
-            title="Switch to detailed multi-tab editor"
-          >
-            Detailed Studio
-          </Button>
         </div>
       </div>
 

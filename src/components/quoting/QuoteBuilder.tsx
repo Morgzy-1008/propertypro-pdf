@@ -95,6 +95,36 @@ export function QuoteBuilder() {
     }
     return "v2";
   });
+
+  // Sync mode changes across sticky navbar, V2 and Detailed Studio
+  useEffect(() => {
+    const handleStorageOrEvent = (e: any) => {
+      const newMode = e.detail || (typeof window !== "undefined" ? localStorage.getItem("hudson_quoting_mode") : null);
+      if (newMode === "v2" || newMode === "classic") {
+        setQuotingMode(newMode);
+      }
+    };
+    window.addEventListener("hudson_quoting_mode_change", handleStorageOrEvent);
+    window.addEventListener("storage", handleStorageOrEvent);
+    return () => {
+      window.removeEventListener("hudson_quoting_mode_change", handleStorageOrEvent);
+      window.removeEventListener("storage", handleStorageOrEvent);
+    };
+  }, []);
+
+  const switchQuotingMode = (nextMode: "v2" | "classic") => {
+    setQuotingMode(nextMode);
+    try {
+      localStorage.setItem("hudson_quoting_mode", nextMode);
+      window.dispatchEvent(new CustomEvent("hudson_quoting_mode_change", { detail: nextMode }));
+    } catch {}
+    if (nextMode === "v2") {
+      toast.success("Switched to Quoting Tool V2 (Express Flow)");
+    } else {
+      toast.info("Switched to Detailed Studio (Advanced)");
+    }
+  };
+
   const [quote, setQuote] = useState<FullQuote>(() => {
     // Ensure any prior draft with data is safely stored in Saved Estimates
     const draft = loadActiveDraftQuote();
@@ -791,11 +821,7 @@ export function QuoteBuilder() {
 
   const handleNavigateTab = (targetId: TabId) => {
     setActiveTab(targetId);
-    if (stepTabsRef.current) {
-      stepTabsRef.current.scrollIntoView({ behavior: "instant", block: "start" });
-    } else {
-      window.scrollTo({ top: 0, behavior: "instant" });
-    }
+    window.scrollTo({ top: 0, behavior: "instant" });
   };
 
   return (
@@ -821,13 +847,7 @@ export function QuoteBuilder() {
             <div className={`inline-flex rounded-xl p-0.5 border ${isLight ? "bg-slate-100 border-slate-300" : "bg-slate-900 border-slate-800"}`}>
               <button
                 type="button"
-                onClick={() => {
-                  setQuotingMode("v2");
-                  try {
-                    localStorage.setItem("hudson_quoting_mode", "v2");
-                  } catch {}
-                  toast.success("Switched to Quoting Tool V2 (Express Flow)");
-                }}
+                onClick={() => switchQuotingMode("v2")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   quotingMode === "v2"
                     ? "bg-emerald-500 text-slate-950 shadow-xs"
@@ -839,13 +859,7 @@ export function QuoteBuilder() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setQuotingMode("classic");
-                  try {
-                    localStorage.setItem("hudson_quoting_mode", "classic");
-                  } catch {}
-                  toast.info("Switched to Detailed Studio (Advanced)");
-                }}
+                onClick={() => switchQuotingMode("classic")}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   quotingMode === "classic"
                     ? isLight ? "bg-white text-slate-900 shadow-xs" : "bg-slate-800 text-white shadow-xs"
@@ -986,10 +1000,7 @@ export function QuoteBuilder() {
           onOpenAdminCatalogue={() => setIsAdminOpen(true)}
           onNewQuote={handleNewQuote}
           onSwitchToDetailed={() => {
-            setQuotingMode("classic");
-            try {
-              localStorage.setItem("hudson_quoting_mode", "classic");
-            } catch {}
+            switchQuotingMode("classic");
           }}
           savedQuotesCount={savedQuotes.length}
           saving={saving}
