@@ -30,6 +30,64 @@ import type {
   CatalogueCategory,
 } from "@/lib/quoting/quoteTypes";
 
+export type VariationCategoryFilter =
+  | "all"
+  | "flooring"
+  | "kitchen"
+  | "structural"
+  | "outdoor"
+  | "electrical";
+
+export const CATEGORY_TABS: { id: VariationCategoryFilter; label: string; icon: string }[] = [
+  { id: "all", label: "All Upgrades", icon: "⭐" },
+  { id: "flooring", label: "Flooring & Tiling", icon: "🧱" },
+  { id: "kitchen", label: "Kitchen & Bathrooms", icon: "🍳" },
+  { id: "structural", label: "Ceilings & Structural", icon: "🏛️" },
+  { id: "outdoor", label: "Alfresco & Outdoor", icon: "🌿" },
+  { id: "electrical", label: "Air Con & Electrical", icon: "⚡" },
+];
+
+export function matchesVariationCategory(preset: PopularVariationPreset, filter: VariationCategoryFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "flooring") {
+    return (
+      preset.id === "pop_porcelain_sqm" ||
+      preset.id === "pop_hybrid_flooring_sqm" ||
+      preset.id === "pop_tiles_ceiling_bath"
+    );
+  }
+  if (filter === "kitchen") {
+    return (
+      preset.id === "pop_waterfall_40mm" ||
+      preset.id === "pop_cooker_900" ||
+      preset.category === "internal_kitchen" ||
+      preset.category === "internal_bathroom"
+    );
+  }
+  if (filter === "structural") {
+    return (
+      preset.id === "pop_ceiling_2740" ||
+      preset.id === "pop_alfresco_rake" ||
+      preset.category === "structural"
+    );
+  }
+  if (filter === "outdoor") {
+    return (
+      preset.id === "pop_driveway_sqm" ||
+      preset.id === "pop_alfresco_slab_sqm" ||
+      preset.id === "pop_alfresco_extension_12m" ||
+      preset.id === "pop_colourbond_roof" ||
+      preset.id === "pop_epoxy_garage" ||
+      preset.category === "external" ||
+      preset.category === "floorplan_extensions"
+    );
+  }
+  if (filter === "electrical") {
+    return preset.id === "pop_h1_ducted_ac" || preset.id === "pop_ev_charger_32a";
+  }
+  return true;
+}
+
 interface V2StepVariationsProps {
   quote: FullQuote;
   lineItems: QuoteSelectedLineItem[];
@@ -48,6 +106,7 @@ export function V2StepVariations({
   isLight,
 }: V2StepVariationsProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<VariationCategoryFilter>("all");
 
   // Custom Variation Input State
   const [customName, setCustomName] = useState("");
@@ -284,7 +343,7 @@ export function V2StepVariations({
   };
 
   return (
-    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-5">
         <div>
@@ -407,8 +466,45 @@ export function V2StepVariations({
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
-          {POPULAR_VARIATIONS.map((preset) => {
+        {/* Category Filter Tabs Bar */}
+        <div className="flex flex-wrap items-center gap-2 mb-5">
+          {CATEGORY_TABS.map((tab) => {
+            const count = POPULAR_VARIATIONS.filter((p) => matchesVariationCategory(p, tab.id)).length;
+            const isSelected = categoryFilter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                data-testid={`variation-tab-${tab.id}`}
+                onClick={() => setCategoryFilter(tab.id)}
+                className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-2 cursor-pointer ${
+                  isSelected
+                    ? isLight
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+                    : isLight
+                    ? "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
+                    : "bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700"
+                }`}
+              >
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
+                    isSelected
+                      ? isLight ? "bg-slate-800 text-slate-200" : "bg-emerald-600 text-slate-950"
+                      : isLight ? "bg-slate-100 text-slate-600" : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-5">
+          {POPULAR_VARIATIONS.filter((p) => matchesVariationCategory(p, categoryFilter)).map((preset) => {
             const existing = lineItems.find(
               (it) => it.id === preset.id || it.catalogueItemId === preset.id
             );

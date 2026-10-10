@@ -36,7 +36,6 @@ interface V2StepReviewProps {
   onSaveQuote: () => Promise<void>;
   onDownloadPdf: () => Promise<void>;
   onOpenShare: () => void;
-  onSwitchToDetailed: () => void;
   onNewQuote: () => void;
   saving: boolean;
   downloading: boolean;
@@ -49,7 +48,6 @@ export function V2StepReview({
   onSaveQuote,
   onDownloadPdf,
   onOpenShare,
-  onSwitchToDetailed,
   onNewQuote,
   saving,
   downloading,
@@ -98,7 +96,7 @@ export function V2StepReview({
   };
 
   return (
-    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-5">
         <div>
@@ -115,21 +113,6 @@ export function V2StepReview({
             Estimate #{quote.quoteNumber || "MH"} for {quote.client.clientName || "Client"} • Ready for PDF generation &amp; client presentation.
           </p>
         </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onSwitchToDetailed}
-          className={`h-11 px-5 text-sm gap-2 font-bold rounded-xl cursor-pointer ${
-            isLight
-              ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 shadow-xs"
-              : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-          }`}
-        >
-          <Layers className="h-4 w-4 text-cyan-400" />
-          Open Detailed Studio Mode
-        </Button>
       </div>
 
       {/* Main Financial Hero Card */}

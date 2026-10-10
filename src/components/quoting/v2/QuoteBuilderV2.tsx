@@ -43,7 +43,6 @@ interface QuoteBuilderV2Props {
   onOpenSavedEstimates: () => void;
   onOpenAdminCatalogue: () => void;
   onNewQuote: () => void;
-  onSwitchToDetailed: () => void;
   savedQuotesCount: number;
   saving: boolean;
   downloading: boolean;
@@ -58,7 +57,6 @@ export function QuoteBuilderV2({
   onOpenSavedEstimates,
   onOpenAdminCatalogue,
   onNewQuote,
-  onSwitchToDetailed,
   savedQuotesCount,
   saving,
   downloading,
@@ -319,7 +317,6 @@ export function QuoteBuilderV2({
             onSaveQuote={onSaveQuote}
             onDownloadPdf={onDownloadPdf}
             onOpenShare={onOpenShare}
-            onSwitchToDetailed={onSwitchToDetailed}
             onNewQuote={onNewQuote}
             saving={saving}
             downloading={downloading}

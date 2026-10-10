@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
+import { pdfDocumentToPagesAndText } from "@/lib/pdfPages";
+import { parseAreaScheduleFromText } from "@/lib/floorplan/areaScheduleParser";
 import {
   SINGLE_STOREY_PRICES,
   DOUBLE_STOREY_PRICES,
@@ -175,10 +177,30 @@ export function V2StepFloorPlan({
   const [isSecondDropdownOpen, setIsSecondDropdownOpen] = useState(false);
   const secondDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Explicit user tier selection state (so Point 4 is hidden until Point 3 is clicked)
+  const [selectedTierCode, setSelectedTierCode] = useState<"H1" | "H2" | "H3" | null>(() => {
+    if (design.hasExplicitlySelectedTier && design.specTier) {
+      if (design.specTier.includes("H1")) return "H1";
+      if (design.specTier.includes("H3")) return "H3";
+      return "H2";
+    }
+    return null;
+  });
+
   // File scan states for modified plan
   const [isScanning, setIsScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const customElevationInputRef = useRef<HTMLInputElement>(null);
+  const [modifiedPlanPreviewUrl, setModifiedPlanPreviewUrl] = useState<string>(() => design.modifiedPlanImageUrl || "");
+  const [isDimensionTableUnchanged, setIsDimensionTableUnchanged] = useState(false);
+  const [scanMessage, setScanMessage] = useState<{ type: "success" | "warning" | "info"; text: string } | null>(null);
+
+  // Façade selection mode: "catalogue" | "custom"
+  const [facadeMode, setFacadeMode] = useState<"catalogue" | "custom">(() => {
+    return design.isCustomFacade ? "custom" : "catalogue";
+  });
+
   const [pendingCandidate, setPendingCandidate] = useState<BaseDesignCandidate | null>(null);
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
@@ -505,7 +527,9 @@ export function V2StepFloorPlan({
 
   // Handle selecting a standard catalogue design
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
-    const tier = design.specTier || "H2 Design Collection";
+    const tier = selectedTierCode
+      ? (selectedTierCode === "H1" ? "H1 Smart Living" : selectedTierCode === "H2" ? "H2 Design Collection" : "H3 Luxury Inclusions")
+      : (design.specTier || "H2 Design Collection");
     const basePrice = getTierPrice(row, tier, type);
     const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
@@ -545,7 +569,7 @@ export function V2StepFloorPlan({
     }
   };
 
-  // Switch Inclusion Tier
+  // Switch Inclusion Tier (Point 3)
   const handleSelectTier = (tierDef: TierCardDef) => {
     const tier = tierDef.tier;
     let nextBasePrice = design.basePrice || 350000;
@@ -565,13 +589,23 @@ export function V2StepFloorPlan({
         });
         nextBasePrice = calc.modifiedTotalPrice;
       }
+    } else if (designMode === "modified" && currentModel) {
+      const stdBase = getTierPrice(currentModel.row, tier, houseType);
+      const calc = calculateModifiedFloorplanPricing({
+        ...design,
+        specTier: tier,
+        basePrice: stdBase,
+      });
+      nextBasePrice = calc.modifiedTotalPrice;
     } else if (designMode === "custom") {
       nextBasePrice = calculateCustomFloorplanPrice(design.customSpec, tier);
     }
 
+    setSelectedTierCode(tierDef.shortCode);
     onChange({
       specTier: tier,
       basePrice: nextBasePrice,
+      hasExplicitlySelectedTier: true,
     });
     toast.success(`Selected ${tierDef.title} (${tierDef.shortCode})`);
   };
@@ -588,62 +622,184 @@ export function V2StepFloorPlan({
     toast.success(`Selected ${facadeName} Façade (${uplift > 0 ? `+${formatAud(uplift)}` : "Included standard"})`);
   };
 
+  // Custom Elevation Image Upload
+  const handleCustomElevationUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = (ev.target?.result as string) || "";
+      onChange({
+        isCustomFacade: true,
+        facadeImageUrl: dataUrl,
+      });
+      toast.success("Uploaded custom façade elevation render!");
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Modified Area change handler
   const handleModifiedAreaChange = (field: keyof FloorplanAreaBreakdown, valStr: string) => {
     const val = parseFloat(valStr) || 0;
     const currentAreas = design.areas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
     const updatedAreas = { ...currentAreas, [field]: val };
-    const updatedTotal =
-      (updatedAreas.livingM2 || 0) +
+    const updatedTotal = Math.round(
+      ((updatedAreas.livingM2 || 0) +
       (updatedAreas.garageM2 || 0) +
       (updatedAreas.alfrescoM2 || 0) +
-      (updatedAreas.porchM2 || 0);
+      (updatedAreas.porchM2 || 0)) * 100
+    ) / 100;
 
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       areas: { ...updatedAreas, totalM2: updatedTotal },
       designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
     });
 
     onChange({
       isModifiedFloorplan: true,
       areas: { ...updatedAreas, totalM2: updatedTotal },
       designM2: updatedTotal,
+      modifiedDesignM2: updatedTotal,
       basePrice: calc.modifiedTotalPrice,
     });
   };
 
-  // File Upload scan for architectural modified plans
+  // File Upload scan for architectural modified plans (extract schedule or prompt for manual sizes)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     try {
       setIsScanning(true);
-      setScanStatus("Parsing architectural drawing & OCR room schedules…");
-      const analysis = await analyzeModifiedFloorplanFile(file);
-      setPendingAnalysis(analysis);
+      setScanStatus("Parsing architectural drawing & scanning dimension table…");
+
+      let rawText = "";
+      let previewUrl = "";
+
+      if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+        try {
+          const parsed = await pdfDocumentToPagesAndText(file, 1);
+          rawText = parsed.rawText || "";
+          previewUrl = parsed.primaryFloorplanDataUrl || parsed.pages[0] || "";
+        } catch (pdfErr) {
+          console.warn("PDF parse error:", pdfErr);
+        }
+      } else {
+        // Image file (JPG / PNG)
+        previewUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve((ev.target?.result as string) || "");
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (previewUrl) {
+        setModifiedPlanPreviewUrl(previewUrl);
+      }
+
+      // Check for dimension table in extracted text
+      const parsedSchedule = rawText ? parseAreaScheduleFromText(rawText) : null;
+      const baselineAreas = design.areas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+
+      const hasParsedDimensions = Boolean(
+        parsedSchedule &&
+        (parsedSchedule.totalM2 || parsedSchedule.livingM2)
+      );
+
+      // Check if the extracted dimensions are changed from baseline
+      const isChangedFromBaseline = Boolean(hasParsedDimensions && (
+        (parsedSchedule?.totalM2 && Math.abs(parsedSchedule.totalM2 - (baselineAreas.totalM2 || 0)) > 0.1) ||
+        (parsedSchedule?.livingM2 && Math.abs(parsedSchedule.livingM2 - (baselineAreas.livingM2 || 0)) > 0.1) ||
+        (parsedSchedule?.garageM2 && Math.abs(parsedSchedule.garageM2 - (baselineAreas.garageM2 || 0)) > 0.1) ||
+        (parsedSchedule?.alfrescoM2 && Math.abs(parsedSchedule.alfrescoM2 - (baselineAreas.alfrescoM2 || 0)) > 0.1) ||
+        (parsedSchedule?.porchM2 && Math.abs(parsedSchedule.porchM2 - (baselineAreas.porchM2 || 0)) > 0.1)
+      ));
+
+      if (hasParsedDimensions && isChangedFromBaseline && parsedSchedule) {
+        const newLiving = parsedSchedule.livingM2 || baselineAreas.livingM2 || 0;
+        const newGarage = parsedSchedule.garageM2 || baselineAreas.garageM2 || 0;
+        const newAlfresco = parsedSchedule.alfrescoM2 || baselineAreas.alfrescoM2 || 0;
+        const newPorch = parsedSchedule.porchM2 || baselineAreas.porchM2 || 0;
+        const newTotal = parsedSchedule.totalM2 || Math.round((newLiving + newGarage + newAlfresco + newPorch) * 100) / 100;
+
+        const updatedAreas: FloorplanAreaBreakdown = {
+          livingM2: newLiving,
+          garageM2: newGarage,
+          alfrescoM2: newAlfresco,
+          porchM2: newPorch,
+          totalM2: newTotal,
+        };
+
+        const calc = calculateModifiedFloorplanPricing({
+          ...design,
+          areas: updatedAreas,
+          designM2: newTotal,
+        });
+
+        onChange({
+          isModifiedFloorplan: true,
+          areas: updatedAreas,
+          designM2: newTotal,
+          modifiedDesignM2: newTotal,
+          basePrice: calc.modifiedTotalPrice,
+          modifiedPlanFileName: file.name,
+          modifiedPlanImageUrl: previewUrl,
+        });
+
+        setIsDimensionTableUnchanged(false);
+        setScanMessage({
+          type: "success",
+          text: `Dimension table detected! Living: ${newLiving} m², Garage: ${newGarage} m², Alfresco: ${newAlfresco} m², Porch: ${newPorch} m² (Total: ${newTotal} m²)`,
+        });
+        toast.success(`Extracted modified areas: Total ${newTotal} m²`);
+      } else {
+        // Dimension table was unchanged or not detected
+        setIsDimensionTableUnchanged(true);
+        onChange({
+          isModifiedFloorplan: true,
+          modifiedPlanFileName: file.name,
+          modifiedPlanImageUrl: previewUrl,
+        });
+        setScanMessage({
+          type: "warning",
+          text: "Schedule of areas was unchanged or not detected on drawing. Please enter the new modified sizes below:",
+        });
+        toast.info("Dimension table not changed or detected on plan. Please enter the modified sizes below.");
+      }
+
       setIsScanning(false);
       setScanStatus("");
-
-      if (analysis.baseDesignCandidate) {
-        setPendingCandidate(analysis.baseDesignCandidate);
-        setIsBaseConfirmOpen(true);
-      } else {
-        setIsReviewModalOpen(true);
-      }
     } catch (err: any) {
       setIsScanning(false);
       setScanStatus("");
-      toast.error(err.message || "Failed to analyze floor plan drawing");
+      setIsDimensionTableUnchanged(true);
+      setScanMessage({
+        type: "warning",
+        text: "Could not scan dimension table automatically. Please enter the new modified sizes below:",
+      });
+      toast.error("Could not scan dimensions. Please input sizes manually below.");
     }
   };
 
   const hasFloorPlanSelected = Boolean(design.designName && design.designName.trim().length > 0);
-  const hasInclusionSelected = Boolean(design.specTier);
+  const hasInclusionSelected = Boolean(selectedTierCode);
+
+  // Baseline reference areas for modified plan comparison
+  const standardBaselineAreas = useMemo(() => {
+    return getStandardAreaBreakdown(design.designName, design.housingType, design.standardDesignM2 || design.designM2);
+  }, [design.designName, design.housingType, design.standardDesignM2, design.designM2]);
+
+  const currentLiving = design.areas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0;
+  const currentGarage = design.areas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0;
+  const currentAlfresco = design.areas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0;
+  const currentPorch = design.areas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0;
+  const currentTotal = design.areas?.totalM2 ?? design.designM2 ?? 0;
+  const totalVariance = Math.round((currentTotal - (standardBaselineAreas.totalM2 || 0)) * 100) / 100;
 
   return (
-    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/50 pb-5">
         <div>
@@ -895,28 +1051,34 @@ export function V2StepFloorPlan({
 
         {/* MODIFIED FLOOR PLAN OPTIONS */}
         {designMode === "modified" && (
-          <div className="space-y-4 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-xl">
+          <div className="space-y-5 pt-2">
+            {/* Top Action & Upload Bar */}
+            <div
+              className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                isLight ? "bg-amber-50/80 border-amber-300 shadow-xs" : "bg-amber-950/20 border-amber-500/30"
+              }`}
+            >
               <div>
-                <span className="text-xs font-bold text-amber-400 block">
-                  Modified Floor Plan Mode Active
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  Select a base catalogue design, then adjust room area dimensions below or scan a drawing.
-                </span>
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span className={`text-sm sm:text-base font-bold ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                    Modified Floor Plan Mode
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                  Upload an architectural plan to scan for schedule of areas, or enter customized room sizes below.
+                </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 self-start sm:self-auto">
                 <Button
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isScanning}
-                  className="text-xs gap-1.5 border-amber-500/40 text-amber-300 hover:bg-amber-500/20"
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm h-11 px-4 gap-2 rounded-xl shadow-md cursor-pointer"
                 >
-                  <Upload className="h-3.5 w-3.5" />
-                  {isScanning ? "Scanning PDF…" : "Scan Architectural Plan"}
+                  <Upload className="h-4 w-4 stroke-[2.5]" />
+                  {isScanning ? (scanStatus || "Scanning Plan…") : "Upload Modified Design (PDF / Image)"}
                 </Button>
                 <input
                   ref={fileInputRef}
@@ -928,69 +1090,301 @@ export function V2StepFloorPlan({
               </div>
             </div>
 
+            {/* Uploaded Drawing Preview Thumbnail & File Info */}
+            {modifiedPlanPreviewUrl && (
+              <div
+                className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300 ${
+                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                }`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-none flex items-center justify-center">
+                    {modifiedPlanPreviewUrl.startsWith("data:image") || modifiedPlanPreviewUrl.includes(".jpg") || modifiedPlanPreviewUrl.includes(".png") ? (
+                      <img
+                        src={modifiedPlanPreviewUrl}
+                        alt="Uploaded modified plan"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FileText className="h-8 w-8 text-amber-400" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-amber-500 block">
+                      Uploaded Architectural Drawing
+                    </span>
+                    <span className={`text-sm font-bold truncate block ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {design.modifiedPlanFileName || "Custom Modified Plan Drawing"}
+                    </span>
+                    <span className="text-xs text-slate-400 block mt-0.5">
+                      Drawing sheet attached to quote package.
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs h-9 px-3 font-semibold rounded-xl self-start sm:self-auto cursor-pointer"
+                >
+                  Replace Drawing
+                </Button>
+              </div>
+            )}
+
             {/* Base Design Dropdown */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Base Hudson Design
+            <div className="space-y-2">
+              <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Base Hudson Design to Modify
               </Label>
               <div className="relative">
+                <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
                 <Input
-                  placeholder="Select base design to modify (e.g. Jasper 26)..."
+                  placeholder="Select base design to modify (e.g. Jasper 26, Tiffany 22)..."
                   value={searchQuery}
                   onFocus={() => setIsDropdownOpen(true)}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     setIsDropdownOpen(true);
                   }}
-                  className={`text-sm h-11 ${
-                    isLight ? "bg-slate-50 border-slate-300" : "bg-slate-950/80 border-slate-800"
+                  className={`pl-12 text-base h-12 rounded-xl ${
+                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
                   }`}
                 />
               </div>
             </div>
 
-            {/* Modified Area Dimensions Grid */}
+            {/* Guidance / Alert Message Banner */}
+            {scanMessage && (
+              <div
+                className={`p-4 rounded-xl border flex items-start gap-3 animate-in fade-in duration-300 ${
+                  scanMessage.type === "success"
+                    ? isLight
+                      ? "bg-emerald-50 border-emerald-300 text-emerald-950"
+                      : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : isLight
+                    ? "bg-amber-50 border-amber-300 text-amber-950"
+                    : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                }`}
+              >
+                {scanMessage.type === "success" ? (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-none mt-0.5" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-amber-500 flex-none mt-0.5" />
+                )}
+                <div>
+                  <span className="text-sm font-bold block">{scanMessage.text}</span>
+                  {scanMessage.type === "warning" && (
+                    <span className="text-xs text-slate-400 block mt-0.5">
+                      Adjust living, garage, alfresco, or porch sizes below. The base price and tender delta update live.
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Side-by-Side Modified Area Dimensions Grid */}
             {hasFloorPlanSelected && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400">Living Area (m²)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={design.areas?.livingM2 || ""}
-                    onChange={(e) => handleModifiedAreaChange("livingM2", e.target.value)}
-                    className="h-12 text-base font-mono font-bold rounded-xl"
-                  />
+              <div className="space-y-4 pt-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                      Modified Dimensions Schedule (m²)
+                    </Label>
+                    <span className="text-xs text-slate-400">
+                      Enter customized sizes. Base CAD reference values shown for comparison.
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs font-bold py-1 px-2.5">
+                      Baseline: {standardBaselineAreas.totalM2} m²
+                    </Badge>
+                    <Badge
+                      className={`font-mono text-xs font-bold py-1 px-2.5 ${
+                        totalVariance > 0
+                          ? "bg-emerald-500 text-slate-950"
+                          : totalVariance < 0
+                          ? "bg-rose-500 text-white"
+                          : "bg-slate-700 text-white"
+                      }`}
+                    >
+                      Modified: {currentTotal} m² ({totalVariance >= 0 ? `+${totalVariance}` : `${totalVariance}`} m²)
+                    </Badge>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400">Garage Area (m²)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={design.areas?.garageM2 || ""}
-                    onChange={(e) => handleModifiedAreaChange("garageM2", e.target.value)}
-                    className="h-12 text-base font-mono font-bold rounded-xl"
-                  />
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Living Area */}
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Living Area
+                      </Label>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Std: {standardBaselineAreas.livingM2} m²
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={design.areas?.livingM2 ?? currentLiving}
+                      onChange={(e) => handleModifiedAreaChange("livingM2", e.target.value)}
+                      className="h-12 text-lg font-mono font-bold rounded-xl"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
+                      <span className="text-slate-400">Variance:</span>
+                      <span
+                        className={`font-bold ${
+                          (design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0) >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {Math.round(((design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
+                        {Math.round(((design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0)) * 100) / 100} m²
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Garage Area */}
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Garage Area
+                      </Label>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Std: {standardBaselineAreas.garageM2} m²
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={design.areas?.garageM2 ?? currentGarage}
+                      onChange={(e) => handleModifiedAreaChange("garageM2", e.target.value)}
+                      className="h-12 text-lg font-mono font-bold rounded-xl"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
+                      <span className="text-slate-400">Variance:</span>
+                      <span
+                        className={`font-bold ${
+                          (design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0) >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {Math.round(((design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
+                        {Math.round(((design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0)) * 100) / 100} m²
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Alfresco Area */}
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Alfresco
+                      </Label>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Std: {standardBaselineAreas.alfrescoM2} m²
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={design.areas?.alfrescoM2 ?? currentAlfresco}
+                      onChange={(e) => handleModifiedAreaChange("alfrescoM2", e.target.value)}
+                      className="h-12 text-lg font-mono font-bold rounded-xl"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
+                      <span className="text-slate-400">Variance:</span>
+                      <span
+                        className={`font-bold ${
+                          (design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0) >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {Math.round(((design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
+                        {Math.round(((design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0)) * 100) / 100} m²
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Porch Area */}
+                  <div
+                    className={`p-4 rounded-2xl border transition-all ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                        Porch
+                      </Label>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Std: {standardBaselineAreas.porchM2} m²
+                      </span>
+                    </div>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={design.areas?.porchM2 ?? currentPorch}
+                      onChange={(e) => handleModifiedAreaChange("porchM2", e.target.value)}
+                      className="h-12 text-lg font-mono font-bold rounded-xl"
+                    />
+                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
+                      <span className="text-slate-400">Variance:</span>
+                      <span
+                        className={`font-bold ${
+                          (design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0) >= 0
+                            ? "text-emerald-500"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {Math.round(((design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
+                        {Math.round(((design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0)) * 100) / 100} m²
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400">Alfresco (m²)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={design.areas?.alfrescoM2 || ""}
-                    onChange={(e) => handleModifiedAreaChange("alfrescoM2", e.target.value)}
-                    className="h-12 text-base font-mono font-bold rounded-xl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-400">Porch (m²)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={design.areas?.porchM2 || ""}
-                    onChange={(e) => handleModifiedAreaChange("porchM2", e.target.value)}
-                    className="h-12 text-base font-mono font-bold rounded-xl"
-                  />
+
+                {/* Live Base Price Summary Bar */}
+                <div
+                  className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isLight ? "bg-emerald-50/70 border-emerald-200" : "bg-emerald-950/20 border-emerald-500/20"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-500">
+                      Modified Design Base
+                    </span>
+                    <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {design.designName} ({currentTotal} m²)
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400 font-mono">
+                      Standard: {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                    </span>
+                    <span className={`text-lg font-mono font-black ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                      Total Base: {formatAud(design.basePrice || 0)}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
@@ -1472,10 +1866,11 @@ export function V2StepFloorPlan({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {INCLUSION_TIERS.map((tierDef) => {
-              const isSelected = design.specTier?.includes(tierDef.shortCode) || (tierDef.shortCode === "H2" && !design.specTier);
+              const isSelected = selectedTierCode === tierDef.shortCode;
               return (
                 <div
                   key={tierDef.shortCode}
+                  data-testid={`tier-card-${tierDef.shortCode.toLowerCase()}`}
                   onClick={() => handleSelectTier(tierDef)}
                   className={`p-5 sm:p-6 rounded-2xl border text-left cursor-pointer transition-all hover:scale-[1.01] relative flex flex-col justify-between ${
                     isSelected
@@ -1524,7 +1919,7 @@ export function V2StepFloorPlan({
         </div>
       )}
 
-      {/* SECTION 3: FAÇADE SELECTION & RHS LIVE PREVIEW (SMOOTHLY APPEARS ONCE INCLUSION SELECTED) */}
+      {/* SECTION 3: FAÇADE SELECTION & RHS LIVE PREVIEW (SMOOTHLY APPEARS ONLY AFTER INCLUSION TIER SELECTED) */}
       {hasFloorPlanSelected && hasInclusionSelected && (
         <div
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
@@ -1533,84 +1928,229 @@ export function V2StepFloorPlan({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-5">
-            <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-              4. Select Façade (Filtered for {design.designName})
-            </Label>
-            <p className="text-xs sm:text-sm text-slate-400 mt-1">
-              Only showing façades engineered and certified for this specific floor plan.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div>
+              <Label className={`text-sm sm:text-base font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+                4. Select Façade (Filtered for {design.designName})
+              </Label>
+              <p className="text-xs sm:text-sm text-slate-400 mt-1">
+                Choose a certified catalogue façade or specify an architectural custom bespoke façade.
+              </p>
+            </div>
+
+            {/* Catalogue vs Custom Toggle */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => {
+                  setFacadeMode("catalogue");
+                  onChange({ isCustomFacade: false });
+                }}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all cursor-pointer ${
+                  facadeMode === "catalogue"
+                    ? isLight
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+                    : isLight
+                    ? "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                    : "bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white"
+                }`}
+              >
+                📐 Certified Catalogue ({suitableFacades.length})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setFacadeMode("custom");
+                  onChange({
+                    isCustomFacade: true,
+                    facadeName: design.facadeName && !suitableFacades.some((f) => f.name === design.facadeName) ? design.facadeName : "Custom Architectural Façade",
+                    facadePrice: design.facadePrice || 0,
+                  });
+                }}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
+                  facadeMode === "custom"
+                    ? isLight
+                      ? "bg-slate-900 text-white border-slate-900 shadow-sm"
+                      : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+                    : isLight
+                    ? "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200"
+                    : "bg-slate-950/60 text-slate-400 border-slate-800 hover:text-white"
+                }`}
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+                🎨 Custom Bespoke Façade
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            {/* LHS: Façade Dropdown Box */}
+            {/* LHS: Façade Controls */}
             <div className="lg:col-span-6 space-y-4">
-              <div className="space-y-2">
-                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Choose Façade ({suitableFacades.length} certified options)
-                </Label>
-                <Select
-                  value={design.facadeName || (suitableFacades[0]?.name ?? "Classic")}
-                  onValueChange={handleSelectFacade}
-                >
-                  <SelectTrigger
-                    data-testid="facade-select-trigger"
-                    className={`h-12 text-base font-bold rounded-xl ${
-                      isLight
-                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600 shadow-xs"
-                        : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
+              {facadeMode === "catalogue" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      Choose Façade ({suitableFacades.length} certified options)
+                    </Label>
+                    <Select
+                      value={design.facadeName || (suitableFacades[0]?.name ?? "Classic")}
+                      onValueChange={handleSelectFacade}
+                    >
+                      <SelectTrigger
+                        data-testid="facade-select-trigger"
+                        className={`h-12 text-base font-bold rounded-xl ${
+                          isLight
+                            ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600 shadow-xs"
+                            : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
+                        }`}
+                      >
+                        <SelectValue placeholder="Select compatible façade…" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-80">
+                        {suitableFacades.map((facade) => (
+                          <SelectItem key={facade.name} value={facade.name} className="py-2.5 text-sm cursor-pointer">
+                            <div className="flex items-center justify-between w-full gap-4">
+                              <span className="font-bold">{facade.name}</span>
+                              <span className="text-sm font-mono font-bold text-emerald-500">
+                                {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Selected Façade Summary Badge Card */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                     }`}
                   >
-                    <SelectValue placeholder="Select compatible façade…" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-80">
-                    {suitableFacades.map((facade) => (
-                      <SelectItem key={facade.name} value={facade.name} className="py-2.5 text-sm cursor-pointer">
-                        <div className="flex items-center justify-between w-full gap-4">
-                          <span className="font-bold">{facade.name}</span>
-                          <span className="text-sm font-mono font-bold text-emerald-500">
-                            {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                    <div>
+                      <span className="text-xs uppercase font-bold text-slate-400 block tracking-wider">
+                        Selected Architectural Model
+                      </span>
+                      <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                        {design.facadeName || "Classic"} Façade
+                      </span>
+                      <span className="text-xs sm:text-sm text-slate-400 block mt-0.5">
+                        Full architectural elevations and brickwork included.
+                      </span>
+                    </div>
 
-              {/* Selected Façade Summary Badge Card */}
-              <div
-                className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                }`}
-              >
-                <div>
-                  <span className="text-xs uppercase font-bold text-slate-400 block tracking-wider">
-                    Selected Architectural Model
-                  </span>
-                  <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
-                    {design.facadeName || "Classic"} Façade
-                  </span>
-                  <span className="text-xs sm:text-sm text-slate-400 block mt-0.5">
-                    Full architectural elevations and brickwork included.
-                  </span>
-                </div>
+                    <div className="text-right flex-none">
+                      <Badge
+                        variant="outline"
+                        className={`font-mono font-bold text-sm py-1.5 px-3 rounded-lg ${
+                          (design.facadePrice || 0) > 0
+                            ? "border-cyan-500/40 text-cyan-500 bg-cyan-500/10"
+                            : "border-emerald-500/40 text-emerald-500 bg-emerald-500/10"
+                        }`}
+                      >
+                        {(design.facadePrice || 0) > 0
+                          ? `+${formatAud(design.facadePrice || 0)}`
+                          : "Standard Included"}
+                      </Badge>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Custom Bespoke Façade Form */
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      Custom Façade Name / Specification
+                    </Label>
+                    <Input
+                      placeholder="e.g. Architectural Coastal Hampton Elevation"
+                      value={design.facadeName || ""}
+                      onChange={(e) => {
+                        onChange({
+                          isCustomFacade: true,
+                          facadeName: e.target.value,
+                        });
+                      }}
+                      className={`h-12 text-base font-bold rounded-xl ${
+                        isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
+                      }`}
+                    />
+                  </div>
 
-                <div className="text-right flex-none">
-                  <Badge
-                    variant="outline"
-                    className={`font-mono font-bold text-sm py-1.5 px-3 rounded-lg ${
-                      (design.facadePrice || 0) > 0
-                        ? "border-cyan-500/40 text-cyan-500 bg-cyan-500/10"
-                        : "border-emerald-500/40 text-emerald-500 bg-emerald-500/10"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                        Façade Uplift / Price ($)
+                      </Label>
+                      <Input
+                        type="number"
+                        step="100"
+                        value={design.facadePrice || ""}
+                        placeholder="0"
+                        onChange={(e) => {
+                          const val = parseFloat(e.target.value) || 0;
+                          onChange({
+                            isCustomFacade: true,
+                            facadePrice: val,
+                          });
+                        }}
+                        className={`h-12 text-base font-mono font-bold rounded-xl ${
+                          isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                        Custom Elevation Render
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => customElevationInputRef.current?.click()}
+                        className="w-full h-12 rounded-xl text-xs sm:text-sm font-bold gap-2 cursor-pointer"
+                      >
+                        <Upload className="h-4 w-4" />
+                        {design.facadeImageUrl ? "Replace Elevation Image" : "Upload Elevation Render"}
+                      </Button>
+                      <input
+                        ref={customElevationInputRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={handleCustomElevationUpload}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Custom Façade Summary Badge Card */}
+                  <div
+                    className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                      isLight ? "bg-amber-50/80 border-amber-300" : "bg-amber-950/20 border-amber-500/30"
                     }`}
                   >
-                    {(design.facadePrice || 0) > 0
-                      ? `+${formatAud(design.facadePrice || 0)}`
-                      : "Standard Included"}
-                  </Badge>
+                    <div>
+                      <span className="text-xs uppercase font-bold text-amber-500 block tracking-wider">
+                        Bespoke Architectural Façade
+                      </span>
+                      <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                        {design.facadeName || "Custom Elevation"}
+                      </span>
+                      <span className="text-xs sm:text-sm text-slate-400 block mt-0.5">
+                        Client custom design tailored to architectural drawing.
+                      </span>
+                    </div>
+
+                    <div className="text-right flex-none">
+                      <Badge className="font-mono font-bold text-sm py-1.5 px-3 bg-amber-500 text-slate-950">
+                        +{(design.facadePrice || 0) > 0 ? formatAud(design.facadePrice || 0) : "$0 Included"}
+                      </Badge>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* RHS: Façade Live Preview Card */}
@@ -1635,16 +2175,18 @@ export function V2StepFloorPlan({
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-5 sm:p-6 flex items-end justify-between">
                     <div>
                       <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400 block">
-                        Live Architectural Preview
+                        {design.isCustomFacade ? "Custom Bespoke Façade" : "Live Architectural Preview"}
                       </span>
                       <h4 className="text-lg sm:text-xl font-bold text-white leading-tight">
-                        {design.facadeName || "Classic"} Façade
+                        {design.facadeName || (design.isCustomFacade ? "Custom Elevation" : "Classic Façade")}
                       </h4>
                     </div>
 
                     <Badge
                       className={`text-sm font-mono font-bold py-1 px-3 ${
-                        (design.facadePrice || 0) > 0
+                        design.isCustomFacade
+                          ? "bg-amber-500 text-slate-950"
+                          : (design.facadePrice || 0) > 0
                           ? "bg-cyan-500 text-slate-950"
                           : "bg-emerald-500 text-slate-950"
                       }`}

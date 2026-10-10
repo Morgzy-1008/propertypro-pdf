@@ -329,7 +329,7 @@ export function V2StepSiteCosts({
   };
 
   return (
-    <div className="space-y-8 max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4">
+    <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-5">
         <div>
@@ -698,31 +698,53 @@ export function V2StepSiteCosts({
           </div>
 
           <div className="space-y-5">
-            {/* Soil Class Dropdown */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Geotechnical Soil Classification
-              </Label>
-              <Select
-                value={site.soilClass || "Class M"}
-                onValueChange={(val) => handleSoilClassChange(val as SoilClass)}
-              >
-                <SelectTrigger
-                  className={`h-12 text-base font-bold rounded-xl ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                >
-                  <SelectValue placeholder="Select Soil Class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOIL_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id} className="py-2.5 text-sm cursor-pointer">
-                      <span className="font-bold mr-2">{opt.label}</span>
-                      <span className="text-slate-400 text-xs">({opt.desc})</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* Geotechnical Soil Classification - Side by Side Cards */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Geotechnical Soil Classification
+                </Label>
+                <Badge variant="outline" className="text-xs font-mono font-bold text-emerald-500 border-emerald-500/30">
+                  {site.soilClass || "Class M"} Active
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                {SOIL_OPTIONS.map((opt) => {
+                  const isSelected = (site.soilClass || "Class M") === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      data-testid={`soil-option-${opt.id.toLowerCase().replace(/\s+/g, "-")}`}
+                      onClick={() => handleSoilClassChange(opt.id)}
+                      className={`p-3.5 sm:p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? isLight
+                            ? "bg-emerald-50/90 border-emerald-500 text-slate-900 shadow-md ring-2 ring-emerald-500/20"
+                            : "bg-emerald-500/20 border-emerald-400 text-white shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-400"
+                          : isLight
+                          ? "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
+                          : "bg-slate-950/60 border-slate-800 text-slate-300 hover:text-white hover:border-slate-700"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-base sm:text-lg font-black tracking-tight">
+                            {opt.label}
+                          </span>
+                          {isSelected && (
+                            <Check className="h-4 w-4 text-emerald-500 stroke-[3]" />
+                          )}
+                        </div>
+                        <span className="text-xs text-slate-400 leading-tight block">
+                          {opt.desc}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* 32MPa Concrete & Flexible Services Toggles */}

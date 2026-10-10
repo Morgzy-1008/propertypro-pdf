@@ -842,34 +842,6 @@ export function QuoteBuilder() {
                 ? `${quote.client.clientName} — ${getEffectiveDesignName(quote.design)}`
                 : "Technical Builders Estimate & Quoting"}
             </h1>
-
-            {/* Mode Switcher */}
-            <div className={`inline-flex rounded-xl p-1 border shadow-xs ${isLight ? "bg-slate-100 border-slate-300" : "bg-slate-900 border-slate-800"}`}>
-              <button
-                type="button"
-                onClick={() => switchQuotingMode("v2")}
-                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  quotingMode === "v2"
-                    ? "bg-emerald-500 text-slate-950 shadow-xs"
-                    : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Sparkles className="h-4 w-4 text-slate-950" />
-                <span>V2 Express Flow</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => switchQuotingMode("classic")}
-                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-bold transition-all flex items-center gap-2 cursor-pointer ${
-                  quotingMode === "classic"
-                    ? isLight ? "bg-white text-slate-900 shadow-xs" : "bg-slate-800 text-white shadow-xs"
-                    : isLight ? "text-slate-600 hover:text-slate-900" : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Layers className="h-4 w-4 text-cyan-400" />
-                <span>Detailed Studio</span>
-              </button>
-            </div>
           </div>
         </div>
 
@@ -986,220 +958,22 @@ export function QuoteBuilder() {
         </div>
       </div>
 
-      {quotingMode === "v2" ? (
-        <QuoteBuilderV2
-          quote={quote}
-          onUpdateQuote={updateQuote}
-          onSaveQuote={handleSaveQuote}
-          onDownloadPdf={handleDownloadPdf}
-          onOpenShare={() => setIsShareOpen(true)}
-          onOpenSavedEstimates={async () => {
-            await refreshSavedQuotes();
-            setIsEstimatesDialogOpen(true);
-          }}
-          onOpenAdminCatalogue={() => setIsAdminOpen(true)}
-          onNewQuote={handleNewQuote}
-          onSwitchToDetailed={() => {
-            switchQuotingMode("classic");
-          }}
-          savedQuotesCount={savedQuotes.length}
-          saving={saving}
-          downloading={downloading}
-        />
-      ) : (
-        /* Main Grid: Steps Container (Left) + Summary Sidebar (Right) */
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] xl:grid-cols-[1fr_360px] gap-6 items-start">
-        {/* Left Column: Multi-Step Navigation & Tab Content */}
-        <div className="space-y-6 min-w-0">
-          {/* Step Selector Tabs */}
-          <div ref={stepTabsRef} className={`flex items-center gap-1.5 overflow-x-auto pb-2 border-b ${isLight ? "border-slate-200" : "border-slate-800/80"} scrollbar-thin`}>
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id as TabId)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-                    isActive
-                      ? isLight
-                        ? "bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-xs font-bold"
-                        : "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm"
-                      : isLight
-                      ? "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
-                  }`}
-                >
-                  <Icon className={`h-3.5 w-3.5 flex-none ${isActive ? (isLight ? "text-emerald-700" : "text-emerald-400") : (isLight ? "text-slate-500" : "text-slate-400")}`} />
-                  <span className="hidden 2xl:inline">{tab.label}</span>
-                  <span className="inline 2xl:hidden">{tab.id === "pdf_preview" ? "5. Estimate PDF" : tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Active Tab Step Content */}
-          <div className={`rounded-2xl border p-6 shadow-2xl ${
-            isLight
-              ? "border-slate-200 bg-white shadow-slate-900/5"
-              : "border-slate-800/80 bg-slate-900/80 backdrop-blur-xl"
-          }`}>
-            {activeTab === "client" && (
-              <QuoteClientDetails
-                client={quote.client}
-                site={quote.siteConditions}
-                onChange={handleClientChange}
-                onSiteChange={handleSiteChange}
-                onLoadEntireQuote={(loaded) => {
-                  setQuote(loaded);
-                  saveQuote(loaded);
-                  setSavedQuotes(loadAllQuotes());
-                }}
-              />
-            )}
-
-            {activeTab === "design" && (
-              <QuoteDesignStep
-                design={quote.design}
-                onChange={handleDesignChange}
-                onAddInclusionLineItems={handleAddInclusionLineItems}
-              />
-            )}
-
-            {activeTab === "site" && (
-              <QuoteSiteCostsStep
-                quote={quote}
-                site={quote.siteConditions}
-                onSiteChange={handleSiteChange}
-                onFeasibilityApply={handleFeasibilityApply}
-              />
-            )}
-
-            {activeTab === "inclusions" && (
-              <QuoteInclusionsStep
-                quote={quote}
-                lineItems={quote.lineItems}
-                onChange={handleLineItemsChange}
-              />
-            )}
-
-            {activeTab === "pdf_preview" && (
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-800">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-xs text-slate-400 font-medium">
-                      Builders Estimate Document Preview
-                    </span>
-                  </div>
-
-                  <Button
-                    size="sm"
-                    onClick={handleDownloadPdf}
-                    disabled={downloading}
-                    className="bg-emerald-500 text-slate-950 font-bold hover:bg-emerald-400 text-xs gap-1.5"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    {downloading ? "Creating PDF…" : "Export Builders Estimate PDF"}
-                  </Button>
-                </div>
-                <div
-                  className="pdf-preview-stage rounded-xl overflow-hidden border border-slate-700/50 bg-slate-900/60 p-4 light normal-mode"
-                  style={{ colorScheme: "light" }}
-                >
-                  <QuotePdfDocument quote={quote} coverVersion={coverVersion} />
-                </div>
-              </div>
-            )}
-
-            {/* Bottom Step Navigation Bar across all Quoting Steps */}
-            <div className={`mt-8 pt-6 border-t ${
-              isLight ? "border-slate-200" : "border-slate-800"
-            } flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-4`}>
-              <div>
-                {prevTab ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleNavigateTab(prevTab.id)}
-                    className={`w-full sm:w-auto text-xs font-bold gap-2 py-5 px-5 rounded-xl transition-all shadow-xs ${
-                      isLight
-                        ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100 hover:text-slate-950"
-                        : "border-slate-800 bg-slate-900/90 text-slate-300 hover:bg-slate-800 hover:text-white"
-                    }`}
-                  >
-                    <ChevronLeft className="h-4 w-4 text-slate-400" />
-                    <span>Previous: <span className={isLight ? "text-slate-600 font-semibold" : "text-slate-400 font-semibold"}>{prevTab.shortLabel}</span></span>
-                  </Button>
-                ) : (
-                  <div className="hidden sm:block" />
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                {nextTab ? (
-                  <Button
-                    type="button"
-                    onClick={() => handleNavigateTab(nextTab.id)}
-                    className={`w-full sm:w-auto text-xs font-bold gap-2 py-5 px-6 rounded-xl transition-all shadow-md ${
-                      isLight
-                        ? "bg-gradient-to-r from-emerald-600 to-teal-700 text-white hover:from-emerald-700 hover:to-teal-800 shadow-emerald-700/20"
-                        : "bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-500/20"
-                    }`}
-                  >
-                    <span>Next: {nextTab.label}</span>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsShareOpen(true)}
-                      className={`flex-1 sm:flex-none text-xs gap-1.5 font-bold py-5 px-4 rounded-xl ${
-                        isLight
-                          ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-                          : "border-slate-800 bg-slate-900/90 text-slate-200 hover:bg-slate-800"
-                      }`}
-                    >
-                      <Share2 className="h-4 w-4 text-cyan-400" />
-                      Share Client Link
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleDownloadPdf}
-                      disabled={downloading}
-                      className="flex-1 sm:flex-none bg-gradient-to-r from-emerald-500 to-teal-600 text-slate-950 font-bold hover:from-emerald-400 text-xs gap-2 py-5 px-6 rounded-xl shadow-md shadow-emerald-500/20"
-                    >
-                      <Download className="h-4 w-4" />
-                      {downloading ? "Creating PDF…" : "Download Estimate PDF"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Sticky Real-Time Financial Summary */}
-        <div className="lg:sticky lg:top-20">
-          <QuoteSummarySidebar
-            quote={quote}
-            onSave={handleSaveQuote}
-            onDownloadPdf={handleDownloadPdf}
-            onOpenClientShare={() => setIsShareOpen(true)}
-            onOpenAdminCatalogue={() => setIsAdminOpen(true)}
-            onOpenSavedEstimates={async () => {
-              await refreshSavedQuotes();
-              setIsEstimatesDialogOpen(true);
-            }}
-            savedQuotesCount={savedQuotes.length}
-            saving={saving}
-            downloading={downloading}
-          />
-        </div>
-      </div>
-      )}
+      <QuoteBuilderV2
+        quote={quote}
+        onUpdateQuote={updateQuote}
+        onSaveQuote={handleSaveQuote}
+        onDownloadPdf={handleDownloadPdf}
+        onOpenShare={() => setIsShareOpen(true)}
+        onOpenSavedEstimates={async () => {
+          await refreshSavedQuotes();
+          setIsEstimatesDialogOpen(true);
+        }}
+        onOpenAdminCatalogue={() => setIsAdminOpen(true)}
+        onNewQuote={handleNewQuote}
+        savedQuotesCount={savedQuotes.length}
+        saving={saving}
+        downloading={downloading}
+      />
 
       {/* Saved Estimates Manager Modal */}
       <QuoteEstimatesDialog
