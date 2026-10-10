@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   PackageCheck,
   Sparkles,
@@ -10,12 +10,21 @@ import {
   ArrowLeft,
   Zap,
   Minus,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatAud } from "@/lib/pricing";
 import {
@@ -129,9 +138,27 @@ export function V2StepVariations({
   const [categoryFilter, setCategoryFilter] = useState<VariationCategoryFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Custom Variation Input State
+  // Custom Variation Input & Modal State
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
+  const [customCategory, setCustomCategory] = useState("internal_general");
+  const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
+
+  // Top Search Dropdown State & Refs
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Close search dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // Collapsible state for Custom/Catalogue section
   const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
@@ -380,55 +407,23 @@ export function V2StepVariations({
     onChange(updated);
   };
 
-  // Add 1-Click Builder Essentials Bundle
-  const handleAddEssentialsBundle = () => {
-    const targetIds = ["pop_ceiling_2740", "pop_h1_ducted_ac", "pop_waterfall_40mm"];
-    const targets = POPULAR_VARIATIONS.filter((p) => targetIds.includes(p.id));
-
-    let updated = [...lineItems];
-    for (const preset of targets) {
-      const existingIdx = updated.findIndex((it) => it.id === preset.id || it.catalogueItemId === preset.id);
-      if (existingIdx >= 0) {
-        updated[existingIdx] = {
-          ...updated[existingIdx],
-          isIncluded: true,
-          clientSelected: true,
-          subtotal: updated[existingIdx].unitRate * (updated[existingIdx].quantity || 1),
-        };
-      } else {
-        updated.push({
-          id: preset.id,
-          catalogueItemId: preset.id,
-          category: preset.category,
-          name: preset.name,
-          description: preset.description,
-          unitType: "fixed",
-          unitRate: preset.price,
-          quantity: 1,
-          subtotal: preset.price,
-          isIncluded: true,
-          isClientSelectable: true,
-          clientSelected: true,
-        });
-      }
-    }
-    onChange(updated);
-    toast.success("Applied Builder Essentials Pack (+Ceilings, +AC, +40mm Waterfall)");
-  };
-
   // Add Custom Variation
-  const handleAddCustom = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddCustom = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!customName.trim()) {
       toast.error("Please enter a variation description");
       return;
     }
     const price = parseFloat(customPrice) || 0;
+    if (price <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
 
     const newItem: QuoteSelectedLineItem = {
       id: `custom_${Date.now()}`,
       catalogueItemId: `custom_${Date.now()}`,
-      category: "internal_general",
+      category: (customCategory as any) || "internal_general",
       name: customName.trim(),
       description: "Custom client variation request",
       unitType: "fixed",
@@ -443,7 +438,9 @@ export function V2StepVariations({
     onChange([...lineItems, newItem]);
     setCustomName("");
     setCustomPrice("");
-    toast.success(`Added custom variation: ${newItem.name}`);
+    setIsCustomDialogOpen(false);
+    setShowCustomForm(false);
+    toast.success(`Added custom variation: ${newItem.name} (+${formatAud(price)})`);
   };
 
   // Remove Line Item
@@ -451,19 +448,75 @@ export function V2StepVariations({
     onChange(lineItems.filter((it) => it.id !== id));
   };
 
-  // Search catalogue filtered
+  // Search variations & catalogue filtered
   const searchResults = useMemo(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
     const query = searchQuery.toLowerCase().trim();
-    return DEFAULT_CATALOGUE.filter(
-      (item) =>
-        item.name.toLowerCase().includes(query) ||
-        item.description.toLowerCase().includes(query) ||
-        item.category.toLowerCase().includes(query)
-    ).slice(0, 8);
-  }, [searchQuery]);
 
-  const handleAddCatalogueItem = (catItem: (typeof DEFAULT_CATALOGUE)[0]) => {
+    // 1. Matched popular variations (tailored to design)
+    const matchedPresets = POPULAR_VARIATIONS.filter(
+      (p) =>
+        isItemVisibleForDesign(p) &&
+        (p.name.toLowerCase().includes(query) ||
+          p.description.toLowerCase().includes(query) ||
+          p.group.toLowerCase().includes(query))
+    ).map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      category: p.category,
+      unitType: p.unitType || "fixed",
+      unitRate: p.unitRate || p.price,
+      isPreset: true,
+      preset: p,
+    }));
+
+    // 2. Matched Databuild catalogue items
+    const matchedCatalogue = DEFAULT_CATALOGUE.filter(
+      (c) =>
+        c.name.toLowerCase().includes(query) ||
+        c.description.toLowerCase().includes(query) ||
+        c.category.toLowerCase().includes(query)
+    ).map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      category: c.category,
+      unitType: c.unitType,
+      unitRate: c.unitRate,
+      isPreset: false,
+      preset: null as any,
+    }));
+
+    // Deduplicate by name/id
+    const combined = [...matchedPresets];
+    for (const cat of matchedCatalogue) {
+      if (!combined.some((item) => item.name.toLowerCase() === cat.name.toLowerCase() || item.id === cat.id)) {
+        combined.push(cat);
+      }
+    }
+
+    return combined.slice(0, 10);
+  }, [searchQuery, isDouble, isH3]);
+
+  // Add Item from Search Dropdown
+  const handleAddFromSearch = (item: (typeof searchResults)[0]) => {
+    if (item.isPreset && item.preset) {
+      if (item.preset.unitType === "sqm") {
+        handleToggleSqm(item.preset);
+      } else if (item.preset.unitType === "per_bath") {
+        handleBathChange(item.preset, 2);
+      } else {
+        handleTogglePreset(item.preset);
+      }
+    } else {
+      handleAddCatalogueItem(item);
+    }
+    setIsSearchOpen(false);
+    setSearchQuery("");
+  };
+
+  const handleAddCatalogueItem = (catItem: { id: string; category: any; name: string; description: string; unitType: any; unitRate: number }) => {
     const existing = lineItems.find((it) => it.catalogueItemId === catItem.id);
     if (existing) {
       const updated = lineItems.map((it) =>
@@ -520,23 +573,147 @@ export function V2StepVariations({
           </p>
         </div>
 
-        {/* Live Variations Total */}
-        <div className="flex items-center gap-3 self-start sm:self-center">
+        {/* Header Controls: Variation Search Bar + Custom Variation Button + Live Variations Total */}
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 self-start sm:self-center">
+          {/* Variation Search Bar */}
+          <div className="relative w-64 sm:w-72 md:w-80" ref={searchContainerRef}>
+            <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search variations & catalogue..."
+              value={searchQuery}
+              onFocus={() => setIsSearchOpen(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              className={`h-11 pl-9.5 pr-8 text-xs sm:text-sm rounded-xl transition-all ${
+                isLight
+                  ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-500 shadow-xs"
+                  : "bg-slate-950/70 border-slate-800 text-white focus:border-emerald-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setIsSearchOpen(false);
+                }}
+                className="absolute right-2.5 top-3.5 text-slate-400 hover:text-slate-200 cursor-pointer p-0.5"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+
+            {/* Floating Dropdown Results */}
+            {isSearchOpen && searchResults.length > 0 && (
+              <div
+                className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                  isLight
+                    ? "bg-white/98 border-slate-200 text-slate-900 divide-y divide-slate-100 shadow-slate-900/10"
+                    : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80 shadow-black/50"
+                }`}
+              >
+                {searchResults.map((item) => {
+                  const isAlreadyAdded = lineItems.some(
+                    (it) => (it.catalogueItemId === item.id || it.id === item.id) && it.isIncluded
+                  );
+                  return (
+                    <div
+                      key={item.id}
+                      className={`p-3 flex items-center justify-between gap-3 text-xs transition-colors ${
+                        isLight ? "hover:bg-slate-50" : "hover:bg-slate-900/80"
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`font-bold text-xs sm:text-sm truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                            {item.name}
+                          </span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-mono font-semibold uppercase">
+                            {item.unitType}
+                          </span>
+                        </div>
+                        {item.description && (
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5 max-w-xs">
+                            {item.description}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 flex-none">
+                        <span className="font-mono font-bold text-xs text-emerald-500">
+                          {formatAud(item.unitRate)}
+                        </span>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isAlreadyAdded ? "secondary" : "outline"}
+                          onClick={() => handleAddFromSearch(item)}
+                          className={`h-7 px-2.5 text-xs font-bold rounded-lg gap-1 cursor-pointer ${
+                            isAlreadyAdded
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                              : ""
+                          }`}
+                        >
+                          {isAlreadyAdded ? (
+                            <>
+                              <Check className="h-3 w-3 text-emerald-400" /> Added
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-3 w-3" /> Add
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {isSearchOpen && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
+              <div
+                className={`absolute left-0 right-0 top-full mt-2 z-50 p-4 rounded-2xl border text-center text-xs shadow-2xl backdrop-blur-xl ${
+                  isLight ? "bg-white border-slate-200 text-slate-500" : "bg-slate-950 border-slate-800 text-slate-400"
+                }`}
+              >
+                No matching variations found for "{searchQuery}".
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomName(searchQuery);
+                    setIsCustomDialogOpen(true);
+                    setIsSearchOpen(false);
+                  }}
+                  className="block mx-auto mt-2 text-emerald-500 font-bold hover:underline cursor-pointer"
+                >
+                  + Add "{searchQuery}" as Custom Variation
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* + Custom Variation Button */}
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={handleAddEssentialsBundle}
+            onClick={() => setIsCustomDialogOpen(true)}
             className={`text-xs gap-1.5 font-bold h-11 px-3.5 rounded-xl cursor-pointer ${
               isLight
-                ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 shadow-xs"
                 : "border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20"
             }`}
           >
-            <Zap className="h-3.5 w-3.5 text-amber-500" />
-            + 1-Click Builder Essentials
+            <Plus className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" />
+            + Custom Variation
           </Button>
 
+          {/* Live Variations Total */}
           <div
             className={`py-2 px-4 rounded-xl border text-right ${
               isLight
@@ -631,7 +808,13 @@ export function V2StepVariations({
               key={tab.id}
               type="button"
               data-testid={`variation-tab-${tab.id}`}
-              onClick={() => setCategoryFilter(tab.id)}
+              onClick={() => {
+                setCategoryFilter(tab.id);
+                if (tab.id === "custom") {
+                  searchInputRef.current?.focus();
+                  setIsSearchOpen(true);
+                }
+              }}
               className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
                 isSelected
                   ? isLight
@@ -1158,6 +1341,113 @@ export function V2StepVariations({
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
+
+      {/* Modal Dialog for + Custom Variation */}
+      <Dialog open={isCustomDialogOpen} onOpenChange={setIsCustomDialogOpen}>
+        <DialogContent
+          className={`max-w-md ${
+            isLight
+              ? "bg-white text-slate-900 border-slate-200"
+              : "bg-slate-950 text-white border-slate-800"
+          }`}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold flex items-center gap-2">
+              <Plus className="h-5 w-5 text-emerald-500 stroke-[3]" />
+              Add Custom Variation
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-400">
+              Specify a custom client request, builder variation allowance, or site upgrade.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddCustom(e);
+            }}
+            className="space-y-4 pt-2"
+          >
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Item Title / Scope of Work *
+              </Label>
+              <Input
+                autoFocus
+                placeholder="e.g. Supply and install 2x double GPO to island bench"
+                value={customName}
+                onChange={(e) => setCustomName(e.target.value)}
+                className={`text-sm h-11 rounded-xl ${
+                  isLight
+                    ? "bg-slate-50 border-slate-300 text-slate-900"
+                    : "bg-slate-900 border-slate-700 text-white"
+                }`}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Quoted Price ($) *
+                </Label>
+                <Input
+                  type="number"
+                  step="10"
+                  placeholder="e.g. 450"
+                  value={customPrice}
+                  onFocus={(e) => e.target.select()}
+                  onChange={(e) => setCustomPrice(e.target.value)}
+                  className={`text-sm h-11 rounded-xl font-mono ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900"
+                      : "bg-slate-900 border-slate-700 text-white"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  Category
+                </Label>
+                <select
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className={`w-full text-xs h-11 rounded-xl px-3 font-semibold border ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900"
+                      : "bg-slate-900 border-slate-700 text-white"
+                  }`}
+                >
+                  <option value="internal_general">General Variation</option>
+                  <option value="colour_upgrades">Electrical / Lighting</option>
+                  <option value="internal_kitchen">Kitchen &amp; Joinery</option>
+                  <option value="internal_bathroom">Bathroom &amp; Wet Areas</option>
+                  <option value="structural">Structural / Framing</option>
+                  <option value="external">External / Concrete</option>
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCustomDialogOpen(false)}
+                className="text-xs h-10 px-4 rounded-xl cursor-pointer"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={!customName.trim() || !customPrice}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-10 px-5 rounded-xl gap-1.5 cursor-pointer"
+              >
+                <Plus className="h-4 w-4" /> Add to Estimate
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
