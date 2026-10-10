@@ -104,14 +104,10 @@ export function V2StepSiteCosts({
 
   // Progressive 1-by-1 disclosure stage (1 to 7)
   const [revealedStage, setRevealedStage] = useState<number>(() => {
-    // If the estimate already has explicit site conditions saved, reveal up to that stage
-    if (site.councilRegion || (site.councilFee ?? 0) > 0 || site.bushfireReportRequired || site.floodReportRequired) return 7;
-    if (site.retainingWallAllowance || site.materialHandlingAllowance || site.outOfZoneSurcharge) return 5;
-    if (site.kdrbDemolitionOption && site.kdrbDemolitionOption !== "none") return 4;
-    if (site.soilClass && site.soilClass !== "Class M") return 3;
-    if (site.fallMeters !== undefined && site.fallMeters > 0) return 2;
-    // For fresh unconfigured quotes, start strictly at Stage 1 (only Site Type is visible!)
-    return site.siteType ? 2 : 1;
+    // Only if quote already progressed to variations step or beyond, show all sections
+    if (quote.selectedUpgrades && quote.selectedUpgrades.length > 0) return 7;
+    // Otherwise start strictly at Stage 1 so user starts with only Site Type
+    return 1;
   });
 
   const gfaM2 = useMemo(() => calculateDesignGFA(quote.design), [quote.design]);
@@ -134,6 +130,26 @@ export function V2StepSiteCosts({
   }, [site.councilRegion]);
 
   const currentCouncilFee = site.councilFee !== undefined && site.councilFee > 0 ? site.councilFee : defaultCouncilFee;
+
+  // Progressive breadcrumbs stages list
+  const stagesList = useMemo(() => {
+    const list = [
+      { id: "type", num: 1, displayNum: 1, title: "Site Type" },
+      { id: "slope", num: 2, displayNum: 2, title: "Slope Fall" },
+      { id: "foundations", num: 3, displayNum: 3, title: "Soil & Piering" },
+    ];
+    if (siteType === "kdrb") {
+      list.push({ id: "demo", num: 4, displayNum: 4, title: "Demolition" });
+      list.push({ id: "allowances", num: 5, displayNum: 5, title: "Site Allowances" });
+      list.push({ id: "overlays", num: 6, displayNum: 6, title: "Overlays" });
+      list.push({ id: "council", num: 7, displayNum: 7, title: "Council Fees" });
+    } else {
+      list.push({ id: "allowances", num: 5, displayNum: 4, title: "Site Allowances" });
+      list.push({ id: "overlays", num: 6, displayNum: 5, title: "Overlays" });
+      list.push({ id: "council", num: 7, displayNum: 6, title: "Council Fees" });
+    }
+    return list;
+  }, [siteType]);
 
   // Handle Site Type Selection (Greenfield, Brownfield, KDRB)
   const handleSelectSiteType = (type: SiteTypeOption) => {
@@ -337,7 +353,7 @@ export function V2StepSiteCosts({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setRevealedStage((prev) => (prev < 7 ? 7 : 2))}
+            onClick={() => setRevealedStage((prev) => (prev < 7 ? 7 : 1))}
             className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-semibold h-8 px-2.5 border border-emerald-500/20 rounded-lg cursor-pointer"
           >
             {revealedStage < 7 ? "⚡ Show All Sections" : "Step-by-Step Mode"}
@@ -358,6 +374,60 @@ export function V2StepSiteCosts({
         </div>
       </div>
 
+      {/* Interactive Progressive Stage Stepper / Breadcrumbs */}
+      <div
+        className={`p-2.5 rounded-xl border flex items-center justify-between gap-2 overflow-x-auto ${
+          isLight ? "bg-slate-50/80 border-slate-200" : "bg-slate-950/40 border-slate-800/80"
+        }`}
+      >
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {stagesList.map((stg) => {
+            const isCompleted = revealedStage > stg.num;
+            const isCurrent = revealedStage === stg.num;
+            const isAccessible = revealedStage >= stg.num || revealedStage === 7;
+
+            return (
+              <button
+                key={stg.id}
+                type="button"
+                disabled={!isAccessible}
+                onClick={() => setRevealedStage(stg.num)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold whitespace-nowrap transition-all border ${
+                  isCurrent
+                    ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
+                    : isCompleted
+                    ? isLight
+                      ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                      : "bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+                    : isLight
+                    ? "bg-transparent border-transparent text-slate-400 opacity-60 cursor-not-allowed"
+                    : "bg-transparent border-transparent text-slate-600 opacity-60 cursor-not-allowed"
+                }`}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    isCurrent
+                      ? "bg-slate-950 text-emerald-400"
+                      : isCompleted
+                      ? "bg-emerald-500 text-slate-950"
+                      : isLight
+                      ? "bg-slate-200 text-slate-600"
+                      : "bg-slate-800 text-slate-400"
+                  }`}
+                >
+                  {isCompleted ? <Check className="w-2.5 h-2.5 stroke-[3]" /> : stg.displayNum}
+                </span>
+                <span>{stg.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <span className="text-[11px] font-medium text-slate-400 hidden md:inline px-2">
+          Stage {Math.min(revealedStage, stagesList.length)} of {stagesList.length}
+        </span>
+      </div>
+
       {/* STEP 1: TYPE OF SITE WE'RE BUILDING ON (Greenfield, Brownfield, KDRB) */}
       <div
         className={`p-6 rounded-2xl border transition-all ${
@@ -366,13 +436,23 @@ export function V2StepSiteCosts({
             : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
         }`}
       >
-        <div className="mb-4">
-          <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-            1. Select Site Type
-          </Label>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Automatically updates the preliminary deposit and banking schedule on your estimate PDF.
-          </p>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                1. Select Site Type
+              </Label>
+              {revealedStage > 1 && (
+                <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  {siteType === "greenfield" ? "Greenfield" : siteType === "brownfield" ? "Brownfield" : "KDRB"}
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Automatically updates the preliminary deposit and banking schedule on your estimate PDF.
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -469,6 +549,20 @@ export function V2StepSiteCosts({
             </div>
           </div>
         </div>
+
+        {revealedStage === 1 && (
+          <div className="flex justify-end pt-3 mt-4 border-t border-slate-700/20">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setRevealedStage((prev) => Math.max(prev, 2))}
+              className="text-xs bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-1.5 font-bold cursor-pointer"
+            >
+              <span>Confirm Site Type &amp; Proceed to Slope Fall</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* STEP 2: SLOPE FALL (ONLY APPEARS ONCE SITE TYPE SELECTED) */}
@@ -482,9 +576,17 @@ export function V2StepSiteCosts({
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                2. Land Slope &amp; Contour Fall
-              </Label>
+              <div className="flex items-center gap-2">
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  2. Land Slope &amp; Contour Fall
+                </Label>
+                {revealedStage > 2 && (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {site.fallMeters || 0}m Fall
+                  </Badge>
+                )}
+              </div>
               <p className="text-xs text-slate-400 mt-0.5">
                 Type the exact elevation fall across your proposed building envelope in metres.
               </p>
@@ -576,13 +678,23 @@ export function V2StepSiteCosts({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-              3. Soil Class, Concrete Specification &amp; Piering Allowance
-            </Label>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Foundation slab engineering, 32MPa concrete, flexible services, and piering allowance.
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  3. Soil Class, Concrete Specification &amp; Piering Allowance
+                </Label>
+                {revealedStage > 3 && (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {site.soilClass || "Class M"} • {formatAud(currentPieringCost)} Piering
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Foundation slab engineering, 32MPa concrete, flexible services, and piering allowance.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -734,16 +846,28 @@ export function V2StepSiteCosts({
               : "bg-amber-950/20 border-amber-500/40 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <Hammer className="h-4 w-4 text-amber-500" />
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-amber-950" : "text-amber-300"}`}>
-                4. Existing House Demolition &amp; Asbestos Removal (KDRB)
-              </Label>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Hammer className="h-4 w-4 text-amber-500" />
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-amber-950" : "text-amber-300"}`}>
+                  4. Existing House Demolition &amp; Asbestos Removal (KDRB)
+                </Label>
+                {revealedStage > 4 && (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-amber-500 border-amber-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {site.kdrbDemolitionOption === "builder"
+                      ? "Builder Demo ($34.5k)"
+                      : site.kdrbDemolitionOption === "owner"
+                      ? "By Owner ($0)"
+                      : "Not Required ($0)"}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Specify how the existing residential structure will be cleared prior to construction start.
+              </p>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Specify how the existing residential structure will be cleared prior to construction start.
-            </p>
           </div>
 
           <div className="space-y-3">
@@ -777,6 +901,7 @@ export function V2StepSiteCosts({
                       demolitionAsbestosRequired: opt.id !== "none",
                       demolitionAsbestosCost: opt.amount,
                     });
+                    setRevealedStage((prev) => Math.max(prev, 5));
                   }}
                   className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
                     isSelected
@@ -839,13 +964,29 @@ export function V2StepSiteCosts({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-              {siteType === "kdrb" ? "5." : "4."} Site Specific Allowances &amp; Surcharges
-            </Label>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Enter provisional contingency allowances for retaining walls, materials handling, travel zones, rock excavation, and unforeseen ground conditions.
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  {siteType === "kdrb" ? "5." : "4."} Site Specific Allowances &amp; Surcharges
+                </Label>
+                {revealedStage > 5 && (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {formatAud(
+                      (site.retainingWallAllowance || 0) +
+                      (site.materialHandlingAllowance || 0) +
+                      (site.outOfZoneSurcharge || 0) +
+                      (site.rockExcavationAllowance || 0) +
+                      (site.unknownSiteConditionsAllowance || 0)
+                    )}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Enter provisional contingency allowances for retaining walls, materials handling, travel zones, rock excavation, and unforeseen ground conditions.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -965,13 +1106,23 @@ export function V2StepSiteCosts({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-              {siteType === "kdrb" ? "6." : "5."} Overlays &amp; Site Problems
-            </Label>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Select any applicable environmental planning overlays. Selecting an overlay automatically includes the specialist engineering report and unlocks editable construction costs.
-            </p>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  {siteType === "kdrb" ? "6." : "5."} Overlays &amp; Site Problems
+                </Label>
+                {revealedStage > 6 && (
+                  <Badge variant="outline" className="text-[10px] font-semibold text-emerald-500 border-emerald-500/30">
+                    <Check className="h-3 w-3 mr-1" />
+                    {[hasBushfire, hasFlood, hasAcoustic, hasSewer].filter(Boolean).length} Overlays Active
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Select any applicable environmental planning overlays. Selecting an overlay automatically includes the specialist engineering report and unlocks editable construction costs.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -1235,16 +1386,22 @@ export function V2StepSiteCosts({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="mb-4">
-            <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-cyan-400" />
-              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                {siteType === "kdrb" ? "7." : "6."} Council Fees &amp; Statutory Applications
-              </Label>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-cyan-400" />
+                <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  {siteType === "kdrb" ? "7." : "6."} Council Fees &amp; Statutory Applications
+                </Label>
+                <Badge variant="outline" className="text-[10px] font-semibold text-cyan-500 border-cyan-500/30">
+                  <Check className="h-3 w-3 mr-1" />
+                  {site.councilRegion || "Moreton Bay Regional Council"} ({formatAud(currentCouncilFee)})
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Standard council fee automated by location with optional statutory applications.
+              </p>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Standard council fee automated by location with optional statutory applications.
-            </p>
           </div>
 
           <div className="space-y-4">
