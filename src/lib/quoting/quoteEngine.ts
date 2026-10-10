@@ -2154,7 +2154,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
       (quote.design.housingType || "").toLowerCase().includes("split");
 
     quote.lineItems = quote.lineItems.map((it) => {
-      if (it.id.startsWith("pop_h1_ducted_ac")) {
+      if (it.id.startsWith("pop_h1_ducted_ac") || it.id === "hvac_ducted_aircon") {
         if (!isH1) {
           // Ducted AC is already standard in H2 and H3 inclusions
           return {

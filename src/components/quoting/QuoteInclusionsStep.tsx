@@ -560,8 +560,11 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
 
   // Auto-sync H1 ducted AC item if design area or storeys change while it is selected
   useEffect(() => {
-    if (h1DuctedAcItem?.isIncluded && isTargetH1) {
-      if (
+    if (h1DuctedAcItem?.isIncluded) {
+      if (!isTargetH1) {
+        // Ducted AC is already standard in H2 and H3 inclusions - auto-remove upgrade
+        onChange(lineItems.filter((i) => i.id !== `pop_h1_ducted_ac${pfx}`));
+      } else if (
         h1DuctedAcItem.unitRate !== h1DuctedAcSpec.upgradeCost ||
         h1DuctedAcItem.description !== h1DuctedAcSpec.description
       ) {
@@ -582,6 +585,9 @@ export function QuoteInclusionsStep({ quote, lineItems, onChange }: QuoteInclusi
     h1DuctedAcItem?.description,
     isTargetH1,
     h1DuctedAcSpec,
+    lineItems,
+    onChange,
+    pfx,
   ]);
 
   // Auto-sync ceiling upgrades if design area, storeys, or tier change

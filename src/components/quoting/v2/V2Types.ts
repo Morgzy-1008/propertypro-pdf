@@ -266,6 +266,7 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     description: "Multi-zone reverse-cycle ducted air conditioning system with digital touchpad controller.",
     price: 9450,
     highlight: "Essential QLD comfort",
+    hideIfH3: true,
   },
   {
     id: "pop_ev_charger_32a",
@@ -452,7 +453,7 @@ export const QUICK_QUOTE_TEMPLATES: QuickQuoteTemplate[] = [
     housingType: "Single Storey",
     specTier: "H2 Design Collection",
     sitePresetId: "typical_suburban",
-    variationIds: ["pop_ceiling_2740", "pop_h1_ducted_ac"],
+    variationIds: ["pop_ceiling_2740", "pop_ev_charger_32a"],
   },
   {
     id: "first_home_azure19",

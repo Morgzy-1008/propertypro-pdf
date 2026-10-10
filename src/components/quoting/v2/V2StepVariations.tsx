@@ -214,10 +214,29 @@ export function V2StepVariations({
   const isItemVisibleForDesign = (preset: PopularVariationPreset): boolean => {
     // Hide upper floor items if design is single storey
     if (preset.doubleStoreyOnly && !isDouble) return false;
-    // Hide 600x600 tiles and hybrid flooring if H3 (already standard in H3!)
+    // Hide 600x600 tiles, hybrid flooring, and ducted AC if H3 (already standard in H3!)
     if (preset.hideIfH3 && isH3) return false;
+    // Ducted AC is already included as standard in H3 inclusions
+    if ((preset.id === "pop_h1_ducted_ac" || preset.id === "hvac_ducted_aircon") && isH3) return false;
     return true;
   };
+
+  // Auto-purge items that are already standard in H3 (e.g. Ducted AC, 600x600 porcelain tiles, hybrid flooring)
+  useEffect(() => {
+    if (isH3) {
+      const invalidH3Ids = ["pop_h1_ducted_ac", "hvac_ducted_aircon"];
+      const hasInvalidItem = lineItems.some(
+        (it) => invalidH3Ids.some((id) => it.id.startsWith(id)) && it.isIncluded
+      );
+      if (hasInvalidItem) {
+        onChange(
+          lineItems.filter(
+            (it) => !invalidH3Ids.some((id) => it.id.startsWith(id))
+          )
+        );
+      }
+    }
+  }, [isH3, lineItems, onChange]);
 
   // Auto-detected modified plan line items
   const autoDetectedItems = useMemo(() => {
@@ -472,12 +491,17 @@ export function V2StepVariations({
     }));
 
     // 2. Matched Databuild catalogue items
-    const matchedCatalogue = DEFAULT_CATALOGUE.filter(
-      (c) =>
+    const matchedCatalogue = DEFAULT_CATALOGUE.filter((c) => {
+      // Ducted AC is already included as standard in H3
+      if (isH3 && (c.id === "hvac_ducted_aircon" || c.name.toLowerCase().includes("ilo h1 split system"))) {
+        return false;
+      }
+      return (
         c.name.toLowerCase().includes(query) ||
         c.description.toLowerCase().includes(query) ||
         c.category.toLowerCase().includes(query)
-    ).map((c) => ({
+      );
+    }).map((c) => ({
       id: c.id,
       name: c.name,
       description: c.description,
@@ -872,10 +896,15 @@ export function V2StepVariations({
               <div className="flex items-center justify-between border-b border-slate-700/30 pb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{sec.icon}</span>
-                  <div>
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                       {sec.label}
                     </h3>
+                    {sec.id === "electrical" && isH3 && (
+                      <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
+                        ✓ Ducted AC Included in H3
+                      </Badge>
+                    )}
                   </div>
                 </div>
 
