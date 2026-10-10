@@ -21,6 +21,9 @@ import {
   ChevronDown,
   Image as ImageIcon,
   Building,
+  Building2,
+  X,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -163,6 +166,15 @@ export function V2StepFloorPlan({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // 2nd Dwelling states
+  const isSecondDwellingActive = Boolean(design.hasSecondDwelling && design.secondDwelling?.enabled);
+  const [secondHouseType, setSecondHouseType] = useState<HousingTypeTab>(() => {
+    return (design.secondDwelling?.housingType as HousingTypeTab) || "Granny Flat";
+  });
+  const [secondSearchQuery, setSecondSearchQuery] = useState(design.secondDwelling?.designName || "");
+  const [isSecondDropdownOpen, setIsSecondDropdownOpen] = useState(false);
+  const secondDropdownRef = useRef<HTMLDivElement>(null);
+
   // File scan states for modified plan
   const [isScanning, setIsScanning] = useState(false);
   const [scanStatus, setScanStatus] = useState("");
@@ -178,6 +190,9 @@ export function V2StepFloorPlan({
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);
       }
+      if (secondDropdownRef.current && !secondDropdownRef.current.contains(e.target as Node)) {
+        setIsSecondDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -190,6 +205,13 @@ export function V2StepFloorPlan({
     }
   }, [design.designName]);
 
+  // Sync secondSearchQuery when secondDwelling.designName changes from outside
+  useEffect(() => {
+    if (design.secondDwelling?.designName && design.secondDwelling.designName !== secondSearchQuery && !isSecondDropdownOpen) {
+      setSecondSearchQuery(design.secondDwelling.designName);
+    }
+  }, [design.secondDwelling?.designName]);
+
   // All price rows grouped
   const allModels = useMemo(() => {
     const list: { row: PriceRow; type: HousingTypeTab }[] = [];
@@ -200,7 +222,12 @@ export function V2StepFloorPlan({
 
     list.push(
       { row: { name: "Acacia 60", m2: 60, h1: 154000, h2: 169000, h3: 189000 }, type: "Granny Flat" },
-      { row: { name: "Banksia 60", m2: 60, h1: 156000, h2: 171000, h3: 192000 }, type: "Granny Flat" }
+      { row: { name: "Banksia 60", m2: 60, h1: 156000, h2: 171000, h3: 192000 }, type: "Granny Flat" },
+      { row: { name: "Aqua 1", m2: 59.96, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
+      { row: { name: "Aqua 2", m2: 60, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
+      { row: { name: "Aqua 3", m2: 59.9, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
+      { row: { name: "Aqua 4", m2: 59.94, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" },
+      { row: { name: "Aqua 5", m2: 59.14, h1: 138900, h2: 158900, h3: 185900 }, type: "Granny Flat" }
     );
     return list;
   }, []);
@@ -259,6 +286,222 @@ export function V2StepFloorPlan({
     }
     return "/facades/classic-facade-single-stry.jpg";
   }, [design.facadeName, design.isCustomFacade, design.facadeImageUrl, design.designName, design.housingType, houseType]);
+
+  // Filtered designs for 2nd dwelling search
+  const filteredSecondModels = useMemo(() => {
+    return allModels.filter(({ row, type }) => {
+      if (type !== secondHouseType) return false;
+      if (secondSearchQuery.trim().length > 0) {
+        const query = secondSearchQuery.toLowerCase().trim();
+        return row.name.toLowerCase().includes(query);
+      }
+      return true;
+    });
+  }, [allModels, secondHouseType, secondSearchQuery]);
+
+  // Suitable facades for 2nd dwelling
+  const secondSuitableFacades = useMemo(() => {
+    if (!design.secondDwelling?.designName) return [];
+    return getFacadesForDesignAndHousingType(
+      design.secondDwelling.designName,
+      design.secondDwelling.housingType || secondHouseType
+    );
+  }, [design.secondDwelling?.designName, design.secondDwelling?.housingType, secondHouseType]);
+
+  // Ensure valid facade for 2nd dwelling when active
+  useEffect(() => {
+    if (isSecondDwellingActive && secondSuitableFacades.length > 0 && !design.secondDwelling?.facadeName) {
+      const def = secondSuitableFacades[0];
+      onChange({
+        secondDwelling: {
+          ...(design.secondDwelling as any),
+          facadeName: def.name,
+          facadePrice: def.uplift,
+        },
+      });
+    }
+  }, [isSecondDwellingActive, secondSuitableFacades, design.secondDwelling?.facadeName]);
+
+  // 2nd Dwelling Facade Preview image
+  const secondFacadePreviewUrl = useMemo(() => {
+    if (!design.secondDwelling?.facadeName) return "/facades/classic-facade-single-stry.jpg";
+    const matched = findFacadeForDesign(
+      design.secondDwelling.facadeName,
+      design.secondDwelling.housingType === "Double Storey",
+      design.secondDwelling.housingType || "Granny Flat",
+      design.secondDwelling.designName
+    );
+    if (matched) {
+      if (PRE_RENDERED_FACADES[matched.id]) {
+        return PRE_RENDERED_FACADES[matched.id];
+      }
+      return matched.url || "/facades/classic-facade-single-stry.jpg";
+    }
+    return "/facades/classic-facade-single-stry.jpg";
+  }, [design.secondDwelling?.facadeName, design.secondDwelling?.housingType, design.secondDwelling?.designName]);
+
+  const secondDwellingTotalPrice = useMemo(() => {
+    const base = Number(design.secondDwelling?.basePrice) || 0;
+    const facade = Number(design.secondDwelling?.facadePrice) || 0;
+    return base + facade;
+  }, [design.secondDwelling?.basePrice, design.secondDwelling?.facadePrice]);
+
+  // Handlers for 2nd Dwelling
+  const handleEnableSecondDwelling = () => {
+    const defaultModel = { name: "Acacia 60", m2: 60, h1: 154000, h2: 169000, h3: 189000 };
+    const initialTier: InclusionTier = design.specTier || "H1 Smart Living";
+    const basePrice = getTierPrice(defaultModel, initialTier, "Granny Flat") || 154000;
+    const defaultStdAreas = { livingM2: 52, porchM2: 4, alfrescoM2: 4, totalM2: 60 };
+    const facades = getFacadesForDesignAndHousingType(defaultModel.name, "Granny Flat");
+    const defaultFacade = facades[0] || { name: "Classic", uplift: 0 };
+    const planInfo = plansForDesign(defaultModel.name);
+
+    onChange({
+      hasSecondDwelling: true,
+      secondDwelling: {
+        enabled: true,
+        housingType: "Granny Flat",
+        designName: defaultModel.name,
+        designM2: defaultModel.m2,
+        standardDesignM2: defaultModel.m2,
+        standardBasePrice: basePrice,
+        basePrice,
+        facadeName: defaultFacade.name,
+        facadePrice: defaultFacade.uplift,
+        specTier: initialTier,
+        standardAreas: defaultStdAreas,
+        modifiedAreas: defaultStdAreas,
+        isModifiedFloorplan: false,
+        beds: String(planInfo?.beds ?? "2"),
+        baths: String(planInfo?.baths ?? "1"),
+        cars: String(planInfo?.cars ?? "0"),
+        widthM: planInfo?.width || "8.5m",
+        lengthM: planInfo?.length || "8.5m",
+      },
+    });
+    setSecondHouseType("Granny Flat");
+    setSecondSearchQuery(defaultModel.name);
+    toast.success("Added 2nd Dwelling (Granny Flat / Auxiliary Unit)");
+  };
+
+  const handleRemoveSecondDwelling = () => {
+    onChange({
+      hasSecondDwelling: false,
+      secondDwelling: {
+        ...(design.secondDwelling || {}),
+        enabled: false,
+      } as any,
+    });
+    toast.info("Removed 2nd Dwelling");
+  };
+
+  const handleSelectSecondHouseType = (type: HousingTypeTab) => {
+    setSecondHouseType(type);
+    const modelsForType = allModels.filter((m) => m.type === type);
+    const firstModel = modelsForType[0]?.row || { name: "Acacia 60", m2: 60, h1: 154000 };
+    const currentTier = design.secondDwelling?.specTier || design.specTier || "H1 Smart Living";
+    const basePrice = getTierPrice(firstModel, currentTier, type);
+    const facades = getFacadesForDesignAndHousingType(firstModel.name, type);
+    const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
+    const planInfo = plansForDesign(firstModel.name);
+    const stdAreas = getStandardAreaBreakdown(firstModel.name, type, firstModel.m2);
+
+    onChange({
+      secondDwelling: {
+        ...(design.secondDwelling || { enabled: true }),
+        enabled: true,
+        housingType: type,
+        designName: firstModel.name,
+        designM2: firstModel.m2,
+        standardDesignM2: firstModel.m2,
+        standardBasePrice: basePrice,
+        basePrice,
+        facadeName: initialFacade.name,
+        facadePrice: initialFacade.uplift,
+        specTier: currentTier,
+        standardAreas: stdAreas,
+        modifiedAreas: stdAreas,
+        beds: String(planInfo?.beds ?? (firstModel.m2 > 150 ? 3 : 2)),
+        baths: String(planInfo?.baths ?? 1),
+        cars: String(planInfo?.cars ?? 0),
+        widthM: planInfo?.width || "",
+        lengthM: planInfo?.length || "",
+      },
+    });
+    setSecondSearchQuery(firstModel.name);
+  };
+
+  const handleSelectSecondModel = (row: PriceRow, type: HousingTypeTab) => {
+    const currentTier = design.secondDwelling?.specTier || design.specTier || "H1 Smart Living";
+    const basePrice = getTierPrice(row, currentTier, type);
+    const planInfo = plansForDesign(row.name);
+    const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
+    const facades = getFacadesForDesignAndHousingType(row.name, type);
+    const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
+
+    onChange({
+      secondDwelling: {
+        ...(design.secondDwelling || { enabled: true }),
+        enabled: true,
+        housingType: type,
+        designName: row.name,
+        designM2: row.m2,
+        standardDesignM2: row.m2,
+        standardBasePrice: basePrice,
+        basePrice,
+        facadeName: initialFacade.name,
+        facadePrice: initialFacade.uplift,
+        specTier: currentTier,
+        standardAreas: stdAreas,
+        modifiedAreas: stdAreas,
+        beds: String(planInfo?.beds ?? (row.m2 > 150 ? 3 : 2)),
+        baths: String(planInfo?.baths ?? 1),
+        cars: String(planInfo?.cars ?? 0),
+        widthM: planInfo?.width || "",
+        lengthM: planInfo?.length || "",
+      },
+    });
+    setSecondSearchQuery(row.name);
+    setIsSecondDropdownOpen(false);
+    toast.success(`Selected 2nd Dwelling: ${row.name} (${row.m2} m²)`);
+  };
+
+  const handleSelectSecondTier = (tierCode: "H1" | "H2" | "H3") => {
+    const currentModelRow = allModels.find(
+      (m) => m.row.name.toLowerCase() === (design.secondDwelling?.designName || "").toLowerCase()
+    )?.row;
+
+    const targetTier: InclusionTier =
+      tierCode === "H1" ? "H1 Smart Living" : tierCode === "H2" ? "H2 Design Collection" : "H3 Luxury Inclusions";
+
+    const nextBasePrice = currentModelRow
+      ? getTierPrice(currentModelRow, targetTier, secondHouseType)
+      : design.secondDwelling?.basePrice || 154000;
+
+    onChange({
+      secondDwelling: {
+        ...(design.secondDwelling as any),
+        specTier: targetTier,
+        basePrice: nextBasePrice,
+      },
+    });
+  };
+
+  const handleSelectSecondFacade = (facadeName: string) => {
+    const facades = getFacadesForDesignAndHousingType(
+      design.secondDwelling?.designName,
+      design.secondDwelling?.housingType || secondHouseType
+    );
+    const chosen = facades.find((f) => f.name === facadeName) || { name: facadeName, uplift: 0 };
+
+    onChange({
+      secondDwelling: {
+        ...(design.secondDwelling as any),
+        facadeName: chosen.name,
+        facadePrice: chosen.uplift,
+      },
+    });
+  };
 
   // Handle selecting a standard catalogue design
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
@@ -592,6 +835,8 @@ export function V2StepFloorPlan({
                     return (
                       <div
                         key={row.name}
+                        role="option"
+                        aria-selected={isSelected}
                         onClick={() => handleSelectModel(row, type)}
                         className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 ${
                           isSelected
@@ -859,9 +1104,345 @@ export function V2StepFloorPlan({
             </div>
           </div>
         )}
+
+        {/* Primary Floor Plan Confirmation & Option to Add 2nd Dwelling */}
+        {hasFloorPlanSelected && (
+          <div className="pt-4 mt-5 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-semibold ${isLight ? "text-slate-600" : "text-slate-400"}`}>
+                Selected Primary Design:
+              </span>
+              <Badge
+                variant="outline"
+                className={`font-mono text-xs font-bold py-1 px-2.5 ${
+                  isLight ? "bg-slate-100 text-slate-900 border-slate-300" : "bg-slate-800 text-white border-slate-700"
+                }`}
+              >
+                🏠 {design.designName} • {design.designM2} m²
+              </Badge>
+            </div>
+
+            {!isSecondDwellingActive ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-testid="add-second-dwelling-btn"
+                onClick={handleEnableSecondDwelling}
+                className={`text-xs font-bold gap-1.5 transition-all cursor-pointer ${
+                  isLight
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 shadow-xs"
+                    : "border-emerald-500/40 bg-emerald-950/20 text-emerald-300 hover:bg-emerald-950/40 hover:border-emerald-500/60"
+                }`}
+              >
+                <Plus className="h-3.5 w-3.5 text-emerald-500 stroke-[3]" />
+                Add 2nd Dwelling
+              </Button>
+            ) : (
+              <Badge className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 font-mono text-xs font-bold py-1 px-2.5 flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-cyan-400" />
+                2nd Dwelling Active: {design.secondDwelling?.designName || "Secondary"}
+              </Badge>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* SECTION 2: INCLUSION LEVEL (SMOOTHLY APPEARS ONCE FLOORPLAN SELECTED) */}
+      {/* 2ND DWELLING CONFIGURATION CARD (SMOOTHLY APPEARS WHEN ADD 2ND DWELLING IS CLICKED) */}
+      {hasFloorPlanSelected && isSecondDwellingActive && (
+        <div
+          data-testid="second-dwelling-card"
+          className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+            isLight
+              ? "bg-gradient-to-br from-white via-cyan-50/20 to-slate-50 border-cyan-300/80 shadow-md shadow-cyan-500/5"
+              : "bg-gradient-to-br from-slate-900/90 via-cyan-950/20 to-slate-900/60 border-cyan-500/40 backdrop-blur-md shadow-lg shadow-cyan-950/20"
+          }`}
+        >
+          {/* Header with Title and Remove Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-4 border-b border-cyan-500/20">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-500 flex items-center justify-center flex-none">
+                <Building2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>
+                    Second Dwelling / Auxiliary Residence
+                  </h3>
+                  <Badge variant="outline" className="text-[10px] text-cyan-600 dark:text-cyan-400 border-cyan-500/40 font-bold">
+                    Dual Occupancy / Granny Flat
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Configure independent secondary living, granny flat, or duplex second home.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="remove-second-dwelling-btn"
+              onClick={handleRemoveSecondDwelling}
+              className="text-xs text-rose-500 hover:text-rose-400 hover:bg-rose-500/10 gap-1.5 h-8 font-semibold cursor-pointer self-start sm:self-center"
+            >
+              <X className="h-3.5 w-3.5" />
+              Remove 2nd Dwelling
+            </Button>
+          </div>
+
+          {/* 2nd Dwelling Form Fields */}
+          <div className="space-y-4">
+            {/* 1. House Type for 2nd Dwelling */}
+            <div className="space-y-1.5">
+              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                2nd Dwelling Type
+              </Label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {(["Granny Flat", "Single Storey", "Double Storey", "Dual Living", "Split Level"] as HousingTypeTab[]).map(
+                  (type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSelectSecondHouseType(type)}
+                      className={`py-2 px-2.5 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                        secondHouseType === type
+                          ? isLight
+                            ? "bg-cyan-50 border-cyan-500 text-cyan-950 shadow-xs ring-1 ring-cyan-500/20"
+                            : "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-sm ring-1 ring-cyan-400/30"
+                          : isLight
+                          ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                          : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* 2. Searchable Floorplan Dropdown for 2nd Dwelling */}
+            <div className="space-y-1.5 relative" ref={secondDropdownRef}>
+              <Label className={`text-xs font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                2nd Dwelling Floor Plan (Search by Typing)
+              </Label>
+              <div className="relative">
+                <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                <Input
+                  data-testid="second-dwelling-search-input"
+                  placeholder={`Search ${secondHouseType} models (e.g. Acacia 60, Banksia 60)...`}
+                  value={secondSearchQuery}
+                  onFocus={() => setIsSecondDropdownOpen(true)}
+                  onChange={(e) => {
+                    setSecondSearchQuery(e.target.value);
+                    setIsSecondDropdownOpen(true);
+                  }}
+                  className={`pl-10 pr-10 text-sm h-11 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-cyan-600"
+                      : "bg-slate-950/80 border-slate-800 text-white focus:border-cyan-500"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsSecondDropdownOpen(!isSecondDropdownOpen)}
+                  className="absolute right-3 top-3 p-0.5 text-slate-400 hover:text-slate-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* 2nd Dropdown Results Menu */}
+              {isSecondDropdownOpen && (
+                <div
+                  role="listbox"
+                  className={`absolute left-0 right-0 top-full mt-1.5 z-50 max-h-64 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                    isLight
+                      ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
+                      : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
+                  }`}
+                >
+                  {filteredSecondModels.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-400">
+                      No matching floor plans found for "{secondSearchQuery}" in {secondHouseType}.
+                    </div>
+                  ) : (
+                    filteredSecondModels.map(({ row, type }) => {
+                      const isSelected = design.secondDwelling?.designName?.toLowerCase() === row.name.toLowerCase();
+                      const tierPrice = getTierPrice(row, design.secondDwelling?.specTier || "H1", type);
+                      const planInfo = plansForDesign(row.name);
+
+                      return (
+                        <div
+                          key={row.name}
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelectSecondModel(row, type)}
+                          className={`p-3.5 cursor-pointer transition-all flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? isLight
+                                ? "bg-cyan-50/90 text-cyan-950"
+                                : "bg-cyan-500/20 text-cyan-300"
+                              : isLight
+                              ? "hover:bg-slate-100"
+                              : "hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-bold truncate">{row.name}</span>
+                              <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-400 font-mono">
+                                {row.m2} m²
+                              </span>
+                              {isSelected && (
+                                <CheckCircle2 className="h-4 w-4 text-cyan-500 flex-none" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Bed className="h-3 w-3" /> {planInfo?.beds ?? (row.m2 > 150 ? 3 : 2)} Beds
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Bath className="h-3 w-3" /> {planInfo?.baths ?? 1} Bath
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Car className="h-3 w-3" /> {planInfo?.cars ?? 0} Cars
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-none">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-semibold">
+                              Base Price
+                            </span>
+                            <span className={`text-sm font-mono font-bold ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                              {formatAud(tierPrice)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Inclusions & Façade Row for 2nd Dwelling */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              {/* Inclusions Tier */}
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  2nd Dwelling Inclusions
+                </Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { code: "H1" as const, label: "H1 Smart" },
+                    { code: "H2" as const, label: "H2 Design" },
+                    { code: "H3" as const, label: "H3 Luxury" },
+                  ].map(({ code, label }) => {
+                    const isSelected = design.secondDwelling?.specTier?.includes(code) || (code === "H1" && !design.secondDwelling?.specTier);
+                    return (
+                      <button
+                        key={code}
+                        type="button"
+                        onClick={() => handleSelectSecondTier(code)}
+                        className={`py-2 px-2 rounded-xl text-xs font-bold transition-all border text-center cursor-pointer ${
+                          isSelected
+                            ? isLight
+                              ? "bg-cyan-50 border-cyan-500 text-cyan-950 ring-1 ring-cyan-500/20"
+                              : "bg-cyan-500/20 border-cyan-400 text-cyan-300 ring-1 ring-cyan-400/30"
+                            : isLight
+                            ? "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                            : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-slate-200"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Façade Selection */}
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-semibold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  2nd Dwelling Façade
+                </Label>
+                <Select
+                  value={design.secondDwelling?.facadeName || (secondSuitableFacades[0]?.name ?? "Classic")}
+                  onValueChange={handleSelectSecondFacade}
+                >
+                  <SelectTrigger
+                    className={`h-10 text-xs font-bold ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-cyan-600 shadow-xs"
+                        : "bg-slate-950/80 border-slate-800 text-white focus:border-cyan-500"
+                    }`}
+                  >
+                    <SelectValue placeholder="Select 2nd dwelling façade…" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    {secondSuitableFacades.map((facade) => (
+                      <SelectItem key={facade.name} value={facade.name} className="text-xs py-2 cursor-pointer">
+                        <div className="flex items-center justify-between w-full gap-4">
+                          <span className="font-bold">{facade.name}</span>
+                          <span className="text-xs font-mono font-bold text-cyan-500">
+                            {facade.uplift > 0 ? `+${formatAud(facade.uplift)}` : "Standard Included"}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 4. Live 2nd Dwelling Subtotal & Summary Strip */}
+            <div
+              className={`p-3.5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                isLight ? "bg-white/80 border-cyan-200" : "bg-slate-950/60 border-cyan-500/20"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-10 rounded-lg overflow-hidden bg-slate-900 flex-none border border-cyan-500/30">
+                  <img
+                    src={secondFacadePreviewUrl}
+                    alt="2nd Dwelling"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "/facades/classic-facade-single-stry.jpg";
+                    }}
+                  />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {design.secondDwelling?.designName || "Acacia 60"}
+                    </span>
+                    <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 font-bold">
+                      {design.secondDwelling?.designM2 || 60} m²
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-slate-400 block mt-0.5">
+                    {design.secondDwelling?.specTier || "H1 Smart Living"} • {design.secondDwelling?.facadeName || "Classic"} Façade
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right flex-none flex items-center sm:flex-col justify-between sm:justify-center">
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                  2nd Dwelling Total
+                </span>
+                <span className={`text-base font-mono font-black ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                  +{formatAud(secondDwellingTotalPrice)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {hasFloorPlanSelected && (
         <div
           className={`p-6 rounded-2xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${

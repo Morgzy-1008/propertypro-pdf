@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   RotateCcw,
   Layers,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -198,7 +199,7 @@ export function V2StepReview({
         </div>
 
         {/* Financial Line Item Breakdown */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-6">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${(pricing?.secondDwellingPrice || 0) > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"} gap-4 pt-6`}>
           {/* Base House */}
           <div className="space-y-1">
             <span className="text-[11px] uppercase tracking-wider text-slate-400 block font-semibold">
@@ -211,6 +212,21 @@ export function V2StepReview({
               {designName} • {quote.design.designM2} m²
             </span>
           </div>
+
+          {/* 2nd Dwelling if applicable */}
+          {(pricing?.secondDwellingPrice || 0) > 0 && (
+            <div className="space-y-1">
+              <span className="text-[11px] uppercase tracking-wider text-cyan-600 dark:text-cyan-400 block font-semibold flex items-center gap-1">
+                🏡 2nd Dwelling
+              </span>
+              <span className="text-xl font-bold font-mono text-cyan-600 dark:text-cyan-400">
+                +{formatAud(pricing?.secondDwellingPrice || 0)}
+              </span>
+              <span className="text-[10px] text-slate-400 block truncate">
+                {quote.design.secondDwelling?.designName} • {quote.design.secondDwelling?.designM2} m²
+              </span>
+            </div>
+          )}
 
           {/* Modification Delta */}
           <div className="space-y-1">
@@ -273,7 +289,7 @@ export function V2StepReview({
       </div>
 
       {/* Client & Project Details Recap Cards with High-Contrast Light Mode */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <div className={`grid grid-cols-1 ${quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled ? "lg:grid-cols-3 md:grid-cols-2" : "md:grid-cols-2"} gap-5`}>
         {/* Client & Site */}
         <div
           className={`p-6 rounded-2xl border transition-all ${
@@ -384,6 +400,70 @@ export function V2StepReview({
             </div>
           </div>
         </div>
+
+        {/* 2nd Dwelling Specifications */}
+        {quote.design.hasSecondDwelling && quote.design.secondDwelling?.enabled && (
+          <div
+            className={`p-6 rounded-2xl border transition-all ${
+              isLight
+                ? "bg-white border-cyan-200 shadow-sm"
+                : "bg-slate-900/60 border-cyan-500/30"
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b border-cyan-500/20">
+              <Building2 className="h-4 w-4 text-cyan-500" />
+              <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                2nd Dwelling (Auxiliary)
+              </h3>
+            </div>
+
+            <div className="space-y-2.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Design Model:</span>
+                <span className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  {quote.design.secondDwelling.designName}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Housing Type:</span>
+                <span className={isLight ? "text-slate-800" : "text-slate-300"}>
+                  {quote.design.secondDwelling.housingType}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Inclusions Tier:</span>
+                <span className={`font-bold ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                  {quote.design.secondDwelling.specTier || "H1 Smart Living"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Exterior Facade:</span>
+                <span className={isLight ? "text-slate-800" : "text-slate-300"}>
+                  {quote.design.secondDwelling.facadeName || "Classic"}
+                  {quote.design.secondDwelling.facadePrice ? ` (+${formatAud(quote.design.secondDwelling.facadePrice)})` : " (Included)"}
+                </span>
+              </div>
+              <div className={`flex justify-between pt-2 border-t ${isLight ? "border-slate-200" : "border-slate-700/20"}`}>
+                <span className="text-slate-400">Total Area:</span>
+                <span className={`font-mono font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                  {quote.design.secondDwelling.designM2} m²
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Bed / Bath / Car:</span>
+                <span className={isLight ? "text-slate-800" : "text-slate-300"}>
+                  {quote.design.secondDwelling.beds || 2} Bed • {quote.design.secondDwelling.baths || 1} Bath • {quote.design.secondDwelling.cars || 0} Car
+                </span>
+              </div>
+              <div className="flex justify-between font-bold pt-1 border-t border-cyan-500/20">
+                <span className="text-slate-400">2nd Dwelling Subtotal:</span>
+                <span className={`font-mono ${isLight ? "text-cyan-700" : "text-cyan-400"}`}>
+                  +{formatAud((Number(quote.design.secondDwelling.basePrice) || 0) + (Number(quote.design.secondDwelling.facadePrice) || 0))}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* FULL ESTIMATE PDF DOCUMENT PREVIEW */}
