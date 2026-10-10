@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
@@ -11,11 +11,9 @@ import {
   Zap,
   Share2,
   Check,
-  Eye,
   Bed,
   Bath,
   Car,
-  Ruler,
   Layers,
   ArrowRight,
 } from "lucide-react";
@@ -42,14 +40,25 @@ export function FloorplanCard({
   isLight,
 }: FloorplanCardProps) {
   const navigate = useNavigate();
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(item.defaultVariantIndex || 0);
   const [isMirrored, setIsMirrored] = useState(false);
   const [showFacade, setShowFacade] = useState(false);
   const [cardTierOverride, setCardTierOverride] = useState<InclusionsTier | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Sync selected variant when defaultVariantIndex changes from filter updates
+  useEffect(() => {
+    if (item.defaultVariantIndex !== undefined) {
+      setSelectedVariantIndex(item.defaultVariantIndex);
+    }
+  }, [item.defaultVariantIndex, item.id]);
+
+  // Active variant (falls back to first variant or item)
+  const activeVariant = item.variants?.[selectedVariantIndex] ?? item.variants?.[0] ?? item;
+
   // Sync card tier when parent activeTier changes, unless overridden locally
   const currentTier = cardTierOverride ?? activeTier;
-  const currentPrice = getActiveTierPrice(item, currentTier);
+  const currentPrice = getActiveTierPrice(activeVariant, currentTier);
 
   // Format currency
   const formattedPrice = currentPrice > 0 ? `$${currentPrice.toLocaleString()}` : "Price on Application";
@@ -57,11 +66,11 @@ export function FloorplanCard({
   const handleLaunchQuoting = () => {
     try {
       const bridge = {
-        designName: item.label,
-        standardDesignM2: item.totalM2,
-        totalM2: item.totalM2,
-        housingType: item.housingType,
-        floorplanUrl: item.url,
+        designName: activeVariant.label,
+        standardDesignM2: activeVariant.totalM2,
+        totalM2: activeVariant.totalM2,
+        housingType: activeVariant.housingType,
+        floorplanUrl: activeVariant.url,
       };
       sessionStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));
       localStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));
@@ -73,10 +82,10 @@ export function FloorplanCard({
 
   const handleCopyLink = () => {
     try {
-      const url = `${window.location.origin}/floorplan-library?design=${encodeURIComponent(item.label)}`;
+      const url = `${window.location.origin}/floorplan-library?design=${encodeURIComponent(activeVariant.label)}`;
       navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success(`Copied shareable link for ${item.label}!`);
+      toast.success(`Copied shareable link for ${activeVariant.label}!`);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy link");
@@ -104,12 +113,12 @@ export function FloorplanCard({
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-slate-400">
-                {item.housingType}
+                {activeVariant.housingType}
               </span>
-              {item.isBtbReady && (
+              {activeVariant.isBtbReady && (
                 <span
                   className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/40 text-amber-400 text-[10px] font-bold font-mono flex items-center gap-1 shadow-xs"
-                  title={item.btbDescription || "Built to boundary zero-lot garage ready"}
+                  title={activeVariant.btbDescription || "Built to boundary zero-lot garage ready"}
                 >
                   <Zap className="h-3 w-3 fill-current text-amber-400" />
                   BTB Ready
@@ -127,7 +136,7 @@ export function FloorplanCard({
                 viewMode === "grid-3" ? "text-xl sm:text-2xl" : "text-2xl sm:text-3xl"
               }`}
             >
-              {item.label}
+              {activeVariant.label}
             </h2>
           </div>
 
@@ -165,6 +174,39 @@ export function FloorplanCard({
           </div>
         </div>
 
+        {/* SIZE VARIANTS SELECTOR: Click any size right at the top of the plan to switch sizes */}
+        {item.variants && item.variants.length > 1 && (
+          <div className="flex items-center gap-1.5 flex-wrap mt-3 pt-2.5 border-t border-dashed border-inherit">
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider flex items-center gap-1 mr-1">
+              <Layers className="h-3.5 w-3.5 text-indigo-400" />
+              Sizes:
+            </span>
+            {item.variants.map((v, idx) => {
+              const isSelected = selectedVariantIndex === idx;
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setSelectedVariantIndex(idx)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? "bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-md scale-105"
+                      : isLight
+                      ? "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                      : "bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800"
+                  }`}
+                  title={`${v.label} • ${v.totalM2.toFixed(1)}m² (${v.squares}sq) • Width ${v.widthM}m`}
+                >
+                  <span>{v.sizeLabel}</span>
+                  <span className={`text-[10px] font-mono ${isSelected ? "opacity-90 font-bold" : "text-slate-400"}`}>
+                    ({v.squares}sq)
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* Telemetry Dimensions & Features Pill Grid */}
         <div
           className={`gap-1.5 mt-3 pt-3 border-t border-dashed border-inherit ${
@@ -181,7 +223,7 @@ export function FloorplanCard({
           >
             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Width</span>
             <span className="text-xs font-black font-mono text-cyan-400">
-              {item.widthM ? `${item.widthM.toFixed(2)}m` : "—"}
+              {activeVariant.widthM ? `${activeVariant.widthM.toFixed(2)}m` : "—"}
             </span>
           </div>
 
@@ -193,7 +235,7 @@ export function FloorplanCard({
           >
             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Length</span>
             <span className="text-xs font-black font-mono text-cyan-400">
-              {item.lengthM ? `${item.lengthM.toFixed(2)}m` : "—"}
+              {activeVariant.lengthM ? `${activeVariant.lengthM.toFixed(2)}m` : "—"}
             </span>
           </div>
 
@@ -205,7 +247,7 @@ export function FloorplanCard({
           >
             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Min Lot</span>
             <span className="text-xs font-black font-mono text-amber-400">
-              {item.frontageM ? `${item.frontageM.toFixed(1)}m` : "12.5m"}
+              {activeVariant.frontageM ? `${activeVariant.frontageM.toFixed(1)}m` : "12.5m"}
             </span>
           </div>
 
@@ -217,7 +259,7 @@ export function FloorplanCard({
           >
             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Size</span>
             <span className="text-xs font-black font-mono text-emerald-400">
-              {item.totalM2.toFixed(1)}m²
+              {activeVariant.totalM2.toFixed(1)}m²
             </span>
           </div>
 
@@ -232,7 +274,7 @@ export function FloorplanCard({
               <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold leading-none">
                 Beds
               </span>
-              <span className="text-xs font-black font-mono">{item.beds}</span>
+              <span className="text-xs font-black font-mono">{activeVariant.beds}</span>
             </div>
           </div>
 
@@ -247,7 +289,7 @@ export function FloorplanCard({
               <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold leading-none">
                 Baths
               </span>
-              <span className="text-xs font-black font-mono">{item.baths}</span>
+              <span className="text-xs font-black font-mono">{activeVariant.baths}</span>
             </div>
           </div>
 
@@ -262,19 +304,18 @@ export function FloorplanCard({
               <span className="text-[8px] uppercase tracking-wider text-slate-400 block font-bold leading-none">
                 Cars
               </span>
-              <span className="text-xs font-black font-mono">{item.cars}</span>
+              <span className="text-xs font-black font-mono">{activeVariant.cars}</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Floorplan Large Display Viewport */}
-      {/* USER REQUIREMENT: Must be large enough to see each plan clearly while scrolling past */}
       <div className="relative p-3 sm:p-5 flex-1 flex flex-col justify-center items-center">
         {/* Floating Quick Action Overlay at top-right of canvas */}
         <div className="absolute top-6 right-6 z-20 flex items-center gap-2">
           {/* Facade / Floorplan Switcher */}
-          {item.facadeUrl && (
+          {activeVariant.facadeUrl && (
             <button
               type="button"
               onClick={() => setShowFacade(!showFacade)}
@@ -312,7 +353,21 @@ export function FloorplanCard({
           {/* Zoom Modal Button */}
           <button
             type="button"
-            onClick={() => onOpenZoom(item)}
+            onClick={() =>
+              onOpenZoom({
+                ...item,
+                defaultVariantIndex: selectedVariantIndex,
+                label: activeVariant.label,
+                totalM2: activeVariant.totalM2,
+                squares: activeVariant.squares,
+                widthM: activeVariant.widthM,
+                lengthM: activeVariant.lengthM,
+                frontageM: activeVariant.frontageM,
+                url: activeVariant.url,
+                pdfUrl: activeVariant.pdfUrl,
+                prices: activeVariant.prices,
+              })
+            }
             className={`p-2 rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer flex items-center justify-center border backdrop-blur-md ${
               isLight
                 ? "bg-white/90 border-slate-200 text-slate-700 hover:bg-white"
@@ -335,20 +390,20 @@ export function FloorplanCard({
           } ${
             isLight
               ? "bg-white border-slate-200"
-              : "bg-white border-slate-300" // Note: Architectural plans are drawn with dark lines, so a white canvas renders highest clarity in both themes!
+              : "bg-white border-slate-300"
           }`}
         >
-          {showFacade && item.facadeUrl ? (
+          {showFacade && activeVariant.facadeUrl ? (
             <img
-              src={item.facadeUrl}
-              alt={`${item.label} Classic Facade Render`}
+              src={activeVariant.facadeUrl}
+              alt={`${activeVariant.label} Classic Facade Render`}
               className="max-h-full max-w-full object-contain rounded-xl shadow-lg transition-transform duration-300"
               loading="lazy"
             />
           ) : (
             <img
-              src={item.url}
-              alt={`${item.label} Architectural Floorplan`}
+              src={activeVariant.url}
+              alt={`${activeVariant.label} Architectural Floorplan`}
               className={`max-h-full max-w-full object-contain transition-transform duration-300 ${
                 isMirrored ? "scale-x-[-1]" : ""
               } filter contrast-[1.04]`}
@@ -360,10 +415,10 @@ export function FloorplanCard({
         {/* Plan Caption & Dimensions Reminder */}
         <div className="w-full flex items-center justify-between pt-2 px-1 text-[11px] text-slate-400">
           <span className="truncate pr-2">
-            {item.label} • {item.housingType} • {item.totalM2.toFixed(1)} m²
+            {activeVariant.label} • {activeVariant.housingType} • {activeVariant.totalM2.toFixed(1)} m² ({activeVariant.squares} sq)
           </span>
           <span className="font-mono shrink-0">
-            Lot: {item.frontageM || 12.5}m • {item.widthM}m × {item.lengthM}m
+            Lot: {activeVariant.frontageM || 12.5}m • {activeVariant.widthM}m × {activeVariant.lengthM}m
           </span>
         </div>
       </div>
@@ -389,7 +444,7 @@ export function FloorplanCard({
           {/* Package Studio (Flyer) Launch */}
           <Link
             to="/flyer"
-            search={{ design: item.label }}
+            search={{ design: activeVariant.label }}
             className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1 ${
               isLight
                 ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-xs"
@@ -403,7 +458,7 @@ export function FloorplanCard({
           {/* Siting Launch */}
           <Link
             to="/site-studio"
-            search={{ design: item.id }}
+            search={{ design: activeVariant.id }}
             className={`px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1 ${
               isLight
                 ? "bg-white hover:bg-slate-100 border-slate-300 text-slate-800 shadow-xs"

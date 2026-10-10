@@ -45,11 +45,45 @@ export interface FloorplanPrices {
   ss: number;
 }
 
+export interface FloorplanVariantItem {
+  id: string; // e.g. "amber-21"
+  label: string; // e.g. "Amber 21"
+  sizeLabel: string; // e.g. "21"
+  beds: number;
+  baths: number;
+  cars: number;
+  totalM2: number;
+  squares: number;
+  widthM: number;
+  lengthM: number;
+  frontageM: number;
+  url: string;
+  pdfUrl?: string;
+  isBtbReady: boolean;
+  btbDescription?: string;
+  facadeUrl?: string;
+  prices: FloorplanPrices;
+  matchedPriceName?: string;
+}
+
 export interface FloorplanLibraryItem {
-  id: string;
-  label: string;
+  id: string; // e.g. "amber"
+  designName: string; // e.g. "Amber"
+  label: string; // Default or active variant label, e.g. "Amber 21"
   design: string;
   housingType: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat";
+  defaultVariantIndex: number;
+  variants: FloorplanVariantItem[];
+  // Bounds across variants for quick filtering
+  minM2: number;
+  maxM2: number;
+  minSquares: number;
+  maxSquares: number;
+  minWidthM: number;
+  maxWidthM: number;
+  minFrontageM: number;
+  maxFrontageM: number;
+  // Default variant fields for backwards-compatibility:
   beds: number;
   baths: number;
   cars: number;
@@ -79,13 +113,14 @@ export interface FloorplanFiltersState {
   minWidth: number;
   maxWidth: number;
   lotWidthPreset: string; // "all", "10m", "12.5m", "14m", "16m+"
+  sizePreset: string; // "all", "under-20", "20-25", "25-30", "30-35", "35-plus"
   minLength: number;
   maxLength: number;
   minSize: number;
   maxSize: number;
   minPrice: number;
   maxPrice: number;
-  pricePreset: string; // "all", "under-350", "350-450", "450-550", "550-650", "650-plus"
+  pricePreset: string; // "all", "under-350", "350-450", "450-550", "550-plus"
   sortBy: SortOption;
 }
 
@@ -159,9 +194,21 @@ const GRANNY_FLAT_PRICES: Record<string, FloorplanPrices> = {
   "aqua 5": { h1: 153000, h2: 158000, h3: 166000, hbs: 153000, ss: 155000 },
 };
 
+/** Extracts clean size variant label (e.g. "Amber 21" -> "21") */
+export function extractSizeVariantLabel(label: string, design: string): string {
+  const escaped = design.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  let s = label.replace(new RegExp(`^${escaped}`, "i"), "").trim();
+  if (!s) {
+    const m = label.match(/\d+.*$/);
+    if (m) s = m[0];
+    else s = label;
+  }
+  return s.replace(/^[-_ ]+/, "") || label;
+}
+
 /**
- * Loads and enriches all 221 Hudson floorplans with pricing,
- * BTB classification, dimensions, and facade renders.
+ * Loads all 221 Hudson floorplans and groups them into 58 Standard Design Plans
+ * with interactive size variants.
  */
 export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): FloorplanLibraryItem[] {
   const isNsw = division === "NSW";
@@ -182,109 +229,195 @@ export function loadAllFloorplanLibraryItems(division: "QLD" | "NSW" = "QLD"): F
 
   const priceMap = buildPriceMap(allPriceRows);
 
-  return HUDSON_FLOORPLANS.map((plan) => {
-    const rawDesign = plan.design || "";
-    const rawLabel = plan.label || rawDesign;
-    const housingType = getHousingTypeForDesign(rawLabel || rawDesign);
+  // 1. Process all 221 raw floorplans into variant items
+  const rawVariants: (FloorplanVariantItem & { designName: string; housingType: "Single Storey" | "Double Storey" | "Dual Living" | "Split Level" | "Granny Flat" })[] =
+    HUDSON_FLOORPLANS.map((plan) => {
+      const rawDesign = (plan.design || "").trim();
+      const rawLabel = (plan.label || rawDesign).trim();
+      const housingType = getHousingTypeForDesign(rawLabel || rawDesign);
 
-    // Dimensions
-    let widthM = parseFloat(String(plan.houseWidth || plan.width || "0"));
-    let lengthM = parseFloat(String(plan.houseLength || plan.depth || "0"));
-    let frontageM = parseFloat(String(plan.frontage || "0"));
+      // Dimensions
+      let widthM = parseFloat(String(plan.houseWidth || plan.width || "0"));
+      let lengthM = parseFloat(String(plan.houseLength || plan.depth || "0"));
+      let frontageM = parseFloat(String(plan.frontage || "0"));
 
-    // Patch known missing dimension for Sabel 28
-    if (rawLabel.includes("Sabel") && (!widthM || !lengthM)) {
-      widthM = 8.5;
-      lengthM = 20.5;
-      frontageM = 10.0;
-    }
+      // Patch known missing dimension for Sabel 28
+      if (rawLabel.includes("Sabel") && (!widthM || !lengthM)) {
+        widthM = 8.5;
+        lengthM = 20.5;
+        frontageM = 10.0;
+      }
 
-    let rawM2 = parseFloat(String(plan.size || "0")) || 0;
-    if (rawM2 > 1000) rawM2 = rawM2 / 100;
-    const totalM2 = rawM2;
-    const squares = Math.round((totalM2 / 9.2903) * 10) / 10;
-    const beds = parseInt(String(plan.beds || "0"), 10) || 0;
-    const baths = parseFloat(String(plan.baths || "0")) || 0;
-    const cars = parseInt(String(plan.cars || "0"), 10) || 0;
+      let rawM2 = parseFloat(String(plan.size || "0")) || 0;
+      if (rawM2 > 1000) rawM2 = rawM2 / 100;
+      const totalM2 = rawM2;
+      const squares = Math.round((totalM2 / 9.2903) * 10) / 10;
+      const beds = parseInt(String(plan.beds || "0"), 10) || 0;
+      const baths = parseFloat(String(plan.baths || "0")) || 0;
+      const cars = parseInt(String(plan.cars || "0"), 10) || 0;
 
-    // BTB check
-    const btb = isFloorplanBtb(plan);
+      // BTB check
+      const btb = isFloorplanBtb(plan);
 
-    // Facade render lookup
-    const isDouble = housingType === "Double Storey";
-    const facadeItem = findFacadeForDesign("Classic", isDouble, housingType, rawLabel);
-    const facadeUrl = facadeItem?.url || "/facades/classic-double-garage.jpg";
+      // Facade render lookup
+      const isDouble = housingType === "Double Storey";
+      const facadeItem = findFacadeForDesign("Classic", isDouble, housingType, rawLabel);
+      const facadeUrl = facadeItem?.url || "/facades/classic-double-garage.jpg";
 
-    // Pricing lookup
-    const key = planKey(rawLabel);
-    const norm = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
-    let priceRow = priceMap.get(key) || priceMap.get(norm);
+      // Pricing lookup
+      const key = planKey(rawLabel);
+      const norm = rawLabel.toLowerCase().replace(/[^a-z0-9]/g, "");
+      let priceRow = priceMap.get(key) || priceMap.get(norm);
 
-    if (!priceRow) {
-      // Try base design without sub-letters (e.g. "Amaranth 23A" -> "Amaranth 23")
-      const strippedKey = planKey(rawLabel.replace(/[AB]$/, ""));
-      priceRow = priceMap.get(strippedKey);
-    }
+      if (!priceRow) {
+        const strippedKey = planKey(rawLabel.replace(/[AB]$/, ""));
+        priceRow = priceMap.get(strippedKey);
+      }
 
-    let prices: FloorplanPrices;
-    let matchedPriceName: string | undefined;
+      let prices: FloorplanPrices;
+      let matchedPriceName: string | undefined;
 
-    if (priceRow) {
-      matchedPriceName = priceRow.name;
-      prices = {
-        h1: priceRow.h1 || 0,
-        h2: priceRow.h2 || 0,
-        h3: priceRow.h3 || 0,
-        hbs: priceRow.hbs || priceRow.h1 || 0,
-        ss: priceRow.ss || priceRow.h1 || 0,
-      };
-    } else {
-      // Fallback for granny flats or uncommon variants
-      const lowerLabel = rawLabel.toLowerCase();
-      if (GRANNY_FLAT_PRICES[lowerLabel]) {
-        prices = GRANNY_FLAT_PRICES[lowerLabel];
-        matchedPriceName = "Standard Auxiliary Dwelling";
-      } else {
-        // Derive reasonable estimated price based on sqm rate
-        const baseRate = housingType === "Double Storey" ? 1750 : 1600;
-        const estH1 = Math.round((totalM2 * baseRate) / 100) * 100;
+      if (priceRow) {
+        matchedPriceName = priceRow.name;
         prices = {
-          h1: estH1,
-          h2: Math.round(estH1 * 1.085),
-          h3: Math.round(estH1 * 1.185),
-          hbs: Math.round(estH1 * 0.94),
-          ss: Math.round(estH1 * 0.97),
+          h1: priceRow.h1 || 0,
+          h2: priceRow.h2 || 0,
+          h3: priceRow.h3 || 0,
+          hbs: priceRow.hbs || priceRow.h1 || 0,
+          ss: priceRow.ss || priceRow.h1 || 0,
         };
-        matchedPriceName = "Estimated Base Rate";
+      } else {
+        const lowerLabel = rawLabel.toLowerCase();
+        if (GRANNY_FLAT_PRICES[lowerLabel]) {
+          prices = GRANNY_FLAT_PRICES[lowerLabel];
+          matchedPriceName = "Standard Auxiliary Dwelling";
+        } else {
+          const baseRate = housingType === "Double Storey" ? 1750 : 1600;
+          const estH1 = Math.round((totalM2 * baseRate) / 100) * 100;
+          prices = {
+            h1: estH1,
+            h2: Math.round(estH1 * 1.085),
+            h3: Math.round(estH1 * 1.185),
+            hbs: Math.round(estH1 * 0.94),
+            ss: Math.round(estH1 * 0.97),
+          };
+          matchedPriceName = "Estimated Base Rate";
+        }
+      }
+
+      const sizeLabel = extractSizeVariantLabel(rawLabel, rawDesign);
+
+      return {
+        id: rawLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+        label: rawLabel,
+        sizeLabel,
+        designName: rawDesign,
+        housingType,
+        beds,
+        baths,
+        cars,
+        totalM2,
+        squares,
+        widthM,
+        lengthM,
+        frontageM,
+        url: plan.url,
+        pdfUrl: plan.pdfUrl,
+        isBtbReady: btb.isBtb,
+        btbDescription: btb.reason,
+        facadeUrl,
+        prices,
+        matchedPriceName,
+      };
+    });
+
+  // 2. Group into standard design plans
+  const designGroups = new Map<string, typeof rawVariants>();
+  for (const v of rawVariants) {
+    const d = v.designName;
+    if (!designGroups.has(d)) {
+      designGroups.set(d, []);
+    }
+    designGroups.get(d)!.push(v);
+  }
+
+  // 3. Construct Standard Plan objects with sorted size variants
+  const standardPlans: FloorplanLibraryItem[] = [];
+  for (const [designName, variants] of designGroups.entries()) {
+    // Sort variants by size/squares ascending
+    variants.sort((a, b) => a.totalM2 - b.totalM2);
+
+    const first = variants[0];
+    const housingType = first.housingType;
+
+    // Bounds across variants
+    let minM2 = Infinity, maxM2 = 0;
+    let minSquares = Infinity, maxSquares = 0;
+    let minWidthM = Infinity, maxWidthM = 0;
+    let minFrontageM = Infinity, maxFrontageM = 0;
+
+    for (const v of variants) {
+      if (v.totalM2 < minM2) minM2 = v.totalM2;
+      if (v.totalM2 > maxM2) maxM2 = v.totalM2;
+      if (v.squares < minSquares) minSquares = v.squares;
+      if (v.squares > maxSquares) maxSquares = v.squares;
+      if (v.widthM > 0) {
+        if (v.widthM < minWidthM) minWidthM = v.widthM;
+        if (v.widthM > maxWidthM) maxWidthM = v.widthM;
+      }
+      if (v.frontageM > 0) {
+        if (v.frontageM < minFrontageM) minFrontageM = v.frontageM;
+        if (v.frontageM > maxFrontageM) maxFrontageM = v.frontageM;
       }
     }
 
-    return {
-      id: rawLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      label: rawLabel,
-      design: rawDesign,
+    // Default variant is the baseline (first) size variant
+    const defaultIndex = 0;
+    const def = variants[defaultIndex];
+
+    standardPlans.push({
+      id: designName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+      designName,
+      label: def.label,
+      design: designName,
       housingType,
-      beds,
-      baths,
-      cars,
-      totalM2,
-      squares,
-      widthM,
-      lengthM,
-      frontageM,
-      url: plan.url,
-      pdfUrl: plan.pdfUrl,
-      isBtbReady: btb.isBtb,
-      btbDescription: btb.reason,
-      facadeUrl,
-      prices,
-      matchedPriceName,
-    };
-  });
+      defaultVariantIndex: defaultIndex,
+      variants,
+      minM2: minM2 === Infinity ? def.totalM2 : minM2,
+      maxM2: maxM2 === 0 ? def.totalM2 : maxM2,
+      minSquares: minSquares === Infinity ? def.squares : minSquares,
+      maxSquares: maxSquares === 0 ? def.squares : maxSquares,
+      minWidthM: minWidthM === Infinity ? def.widthM : minWidthM,
+      maxWidthM: maxWidthM === 0 ? def.widthM : maxWidthM,
+      minFrontageM: minFrontageM === Infinity ? def.frontageM : minFrontageM,
+      maxFrontageM: maxFrontageM === 0 ? def.frontageM : maxFrontageM,
+      // Default variant fields:
+      beds: def.beds,
+      baths: def.baths,
+      cars: def.cars,
+      totalM2: def.totalM2,
+      squares: def.squares,
+      widthM: def.widthM,
+      lengthM: def.lengthM,
+      frontageM: def.frontageM,
+      url: def.url,
+      pdfUrl: def.pdfUrl,
+      isBtbReady: variants.some((v) => v.isBtbReady),
+      btbDescription: def.btbDescription,
+      facadeUrl: def.facadeUrl,
+      prices: def.prices,
+      matchedPriceName: def.matchedPriceName,
+    });
+  }
+
+  return standardPlans;
 }
 
-/** Get price of an item for the chosen tier */
-export function getActiveTierPrice(item: FloorplanLibraryItem, tier: InclusionsTier): number {
+/** Get price of an item or variant for the chosen tier */
+export function getActiveTierPrice(
+  item: { prices: FloorplanPrices },
+  tier: InclusionsTier
+): number {
   switch (tier) {
     case "H1":
       return item.prices.h1;
@@ -302,7 +435,7 @@ export function getActiveTierPrice(item: FloorplanLibraryItem, tier: InclusionsT
 }
 
 /**
- * Filter and sort library items based on user filters
+ * Filter and sort standard design library items based on user filters
  */
 export function filterAndSortFloorplans(
   items: FloorplanLibraryItem[],
@@ -310,116 +443,157 @@ export function filterAndSortFloorplans(
 ): FloorplanLibraryItem[] {
   const query = filters.searchQuery.trim().toLowerCase();
 
-  const filtered = items.filter((item) => {
-    // 1. Text Search
-    if (query) {
-      const matchLabel = item.label.toLowerCase().includes(query);
-      const matchDesign = item.design.toLowerCase().includes(query);
-      const matchType = item.housingType.toLowerCase().includes(query);
-      if (!matchLabel && !matchDesign && !matchType) {
-        return false;
-      }
-    }
+  const filtered = items
+    .map((item) => {
+      // Find matching variants for this standard plan
+      const matchingVariantIndices: number[] = [];
 
-    // 2. House Type
-    if (filters.houseType !== "All") {
-      if (filters.houseType === "Dual Living") {
-        if (item.housingType !== "Dual Living") return false;
-      } else if (item.housingType !== filters.houseType) {
-        return false;
-      }
-    }
+      for (let idx = 0; idx < item.variants.length; idx++) {
+        const v = item.variants[idx];
+        let matches = true;
 
-    // 3. BTB Only Filter
-    if (filters.btbOnly && !item.isBtbReady) {
-      return false;
-    }
+        // 1. Text Search
+        if (query) {
+          const matchDesign = item.designName.toLowerCase().includes(query);
+          const matchLabel = v.label.toLowerCase().includes(query);
+          const matchSize = v.sizeLabel.toLowerCase().includes(query);
+          const matchType = item.housingType.toLowerCase().includes(query);
+          if (!matchDesign && !matchLabel && !matchSize && !matchType) {
+            matches = false;
+          }
+        }
 
-    // 4. Bedrooms
-    if (filters.bedrooms !== null) {
-      if (filters.bedrooms >= 5) {
-        if (item.beds < 5) return false;
-      } else if (item.beds !== filters.bedrooms) {
-        return false;
-      }
-    }
+        // 2. House Type
+        if (filters.houseType !== "All") {
+          if (filters.houseType === "Dual Living") {
+            if (item.housingType !== "Dual Living") matches = false;
+          } else if (item.housingType !== filters.houseType) {
+            matches = false;
+          }
+        }
 
-    // 5. Bathrooms
-    if (filters.bathrooms !== null) {
-      if (filters.bathrooms >= 3) {
-        if (item.baths < 3) return false;
-      } else if (Math.floor(item.baths) !== filters.bathrooms) {
-        return false;
-      }
-    }
+        // 3. BTB Only Filter
+        if (filters.btbOnly && !v.isBtbReady) {
+          matches = false;
+        }
 
-    // 6. Cars
-    if (filters.cars !== null) {
-      if (filters.cars >= 3) {
-        if (item.cars < 3) return false;
-      } else if (item.cars !== filters.cars) {
-        return false;
-      }
-    }
+        // 4. Bedrooms
+        if (filters.bedrooms !== null) {
+          if (filters.bedrooms >= 5) {
+            if (v.beds < 5) matches = false;
+          } else if (v.beds !== filters.bedrooms) {
+            matches = false;
+          }
+        }
 
-    // 7. Width & Lot Frontage Filter
-    if (filters.lotWidthPreset && filters.lotWidthPreset !== "all") {
-      const w = item.widthM;
-      const f = item.frontageM;
-      if (filters.lotWidthPreset === "10m") {
-        // Fits on 10m Lot: building width <= 8.85m or frontage <= 10.5m
-        const matches = (w > 0 && w <= 8.85) || (f > 0 && f <= 10.5);
-        if (!matches) return false;
-      } else if (filters.lotWidthPreset === "12.5m") {
-        // 12.5m Lot: building width 8.85m to 11.45m or frontage ~12.5m
-        const matches = (w > 8.85 && w <= 11.45) || (f > 10.5 && f <= 12.8);
-        if (!matches) return false;
-      } else if (filters.lotWidthPreset === "14m") {
-        // 14m Lot: building width 11.45m to 12.85m or frontage ~14m
-        const matches = (w > 11.45 && w <= 12.85) || (f > 12.8 && f <= 14.5);
-        if (!matches) return false;
-      } else if (filters.lotWidthPreset === "16m+") {
-        // 16m+ Lot: building width > 12.85m or frontage >= 15m
-        const matches = w > 12.85 || f >= 15.0;
-        if (!matches) return false;
-      }
-    } else if (item.widthM > 0) {
-      if (item.widthM < filters.minWidth || item.widthM > filters.maxWidth) {
-        return false;
-      }
-    }
+        // 5. Bathrooms
+        if (filters.bathrooms !== null) {
+          if (filters.bathrooms >= 3) {
+            if (v.baths < 3) matches = false;
+          } else if (Math.floor(v.baths) !== filters.bathrooms) {
+            matches = false;
+          }
+        }
 
-    // 8. Length Range
-    if (item.lengthM > 0) {
-      if (item.lengthM < filters.minLength || item.lengthM > filters.maxLength) {
-        return false;
-      }
-    }
+        // 6. Cars
+        if (filters.cars !== null) {
+          if (filters.cars >= 3) {
+            if (v.cars < 3) matches = false;
+          } else if (v.cars !== filters.cars) {
+            matches = false;
+          }
+        }
 
-    // 9. Total Size (m²) Range
-    if (item.totalM2 > 0) {
-      if (item.totalM2 < filters.minSize || item.totalM2 > filters.maxSize) {
-        return false;
-      }
-    }
+        // 7. Width & Lot Frontage Filter
+        if (filters.lotWidthPreset && filters.lotWidthPreset !== "all") {
+          const w = v.widthM;
+          const f = v.frontageM;
+          if (filters.lotWidthPreset === "10m") {
+            const fits = (w > 0 && w <= 8.85) || (f > 0 && f <= 10.5);
+            if (!fits) matches = false;
+          } else if (filters.lotWidthPreset === "12.5m") {
+            const fits = (w > 8.85 && w <= 11.45) || (f > 10.5 && f <= 12.8);
+            if (!fits) matches = false;
+          } else if (filters.lotWidthPreset === "14m") {
+            const fits = (w > 11.45 && w <= 12.85) || (f > 12.8 && f <= 14.5);
+            if (!fits) matches = false;
+          } else if (filters.lotWidthPreset === "16m+") {
+            const fits = w > 12.85 || f >= 15.0;
+            if (!fits) matches = false;
+          }
+        } else if (v.widthM > 0) {
+          if (v.widthM < filters.minWidth || v.widthM > filters.maxWidth) {
+            matches = false;
+          }
+        }
 
-    // 10. Price Range for Selected Inclusion Tier
-    const currentPrice = getActiveTierPrice(item, filters.inclusionsTier);
-    if (currentPrice > 0) {
-      if (filters.pricePreset && filters.pricePreset !== "all") {
-        if (filters.pricePreset === "under-350" && currentPrice > 350000) return false;
-        if (filters.pricePreset === "350-450" && (currentPrice < 350000 || currentPrice > 450000)) return false;
-        if (filters.pricePreset === "450-550" && (currentPrice < 450000 || currentPrice > 550000)) return false;
-        if (filters.pricePreset === "550-plus" && currentPrice < 550000) return false;
-      } else {
-        if (currentPrice < filters.minPrice || currentPrice > filters.maxPrice) {
-          return false;
+        // 8. Size Preset (Squares)
+        if (filters.sizePreset && filters.sizePreset !== "all") {
+          const sq = v.squares;
+          if (filters.sizePreset === "under-20" && sq >= 20) matches = false;
+          if (filters.sizePreset === "20-25" && (sq < 20 || sq >= 25)) matches = false;
+          if (filters.sizePreset === "25-30" && (sq < 25 || sq >= 30)) matches = false;
+          if (filters.sizePreset === "30-35" && (sq < 30 || sq >= 35)) matches = false;
+          if (filters.sizePreset === "35-plus" && sq < 35) matches = false;
+        } else if (v.totalM2 > 0) {
+          if (v.totalM2 < filters.minSize || v.totalM2 > filters.maxSize) {
+            matches = false;
+          }
+        }
+
+        // 9. Length Range
+        if (v.lengthM > 0) {
+          if (v.lengthM < filters.minLength || v.lengthM > filters.maxLength) {
+            matches = false;
+          }
+        }
+
+        // 10. Price Range for Selected Inclusion Tier
+        const currentPrice = getActiveTierPrice(v, filters.inclusionsTier);
+        if (currentPrice > 0) {
+          if (filters.pricePreset && filters.pricePreset !== "all") {
+            if (filters.pricePreset === "under-350" && currentPrice > 350000) matches = false;
+            if (filters.pricePreset === "350-450" && (currentPrice < 350000 || currentPrice > 450000)) matches = false;
+            if (filters.pricePreset === "450-550" && (currentPrice < 450000 || currentPrice > 550000)) matches = false;
+            if (filters.pricePreset === "550-plus" && currentPrice < 550000) matches = false;
+          } else {
+            if (currentPrice < filters.minPrice || currentPrice > filters.maxPrice) {
+              matches = false;
+            }
+          }
+        }
+
+        if (matches) {
+          matchingVariantIndices.push(idx);
         }
       }
-    }
 
-    return true;
-  });
+      // If at least one variant matches, return the plan with best matching variant pre-selected
+      if (matchingVariantIndices.length > 0) {
+        const bestIndex = matchingVariantIndices[0];
+        const bestVariant = item.variants[bestIndex];
+        return {
+          ...item,
+          defaultVariantIndex: bestIndex,
+          label: bestVariant.label,
+          beds: bestVariant.beds,
+          baths: bestVariant.baths,
+          cars: bestVariant.cars,
+          totalM2: bestVariant.totalM2,
+          squares: bestVariant.squares,
+          widthM: bestVariant.widthM,
+          lengthM: bestVariant.lengthM,
+          frontageM: bestVariant.frontageM,
+          url: bestVariant.url,
+          pdfUrl: bestVariant.pdfUrl,
+          prices: bestVariant.prices,
+          matchedPriceName: bestVariant.matchedPriceName,
+        };
+      }
+
+      return null;
+    })
+    .filter((item): item is FloorplanLibraryItem => item !== null);
 
   // Sort
   return filtered.sort((a, b) => {
@@ -440,7 +614,7 @@ export function filterAndSortFloorplans(
       case "width-desc":
         return b.widthM - a.widthM;
       case "name-asc":
-        return a.label.localeCompare(b.label);
+        return a.designName.localeCompare(b.designName);
       default:
         return b.totalM2 - a.totalM2;
     }
@@ -455,18 +629,15 @@ export function getFilterBounds(items: FloorplanLibraryItem[]) {
   let minP = 1000000, maxP = 0;
 
   for (const item of items) {
-    if (item.widthM > 0) {
-      if (item.widthM < minW) minW = item.widthM;
-      if (item.widthM > maxW) maxW = item.widthM;
-    }
+    if (item.minWidthM > 0 && item.minWidthM < minW) minW = item.minWidthM;
+    if (item.maxWidthM > maxW) maxW = item.maxWidthM;
     if (item.lengthM > 0) {
       if (item.lengthM < minL) minL = item.lengthM;
       if (item.lengthM > maxL) maxL = item.lengthM;
     }
-    if (item.totalM2 > 0) {
-      if (item.totalM2 < minS) minS = item.totalM2;
-      if (item.totalM2 > maxS) maxS = item.totalM2;
-    }
+    if (item.minM2 > 0 && item.minM2 < minS) minS = item.minM2;
+    if (item.maxM2 > maxS) maxS = item.maxM2;
+
     const p = item.prices.h2;
     if (p > 0) {
       if (p < minP) minP = p;
@@ -480,8 +651,8 @@ export function getFilterBounds(items: FloorplanLibraryItem[]) {
     minLength: Math.floor(minL) || 6,
     maxLength: Math.ceil(maxL) || 35,
     minSize: Math.floor(minS) || 50,
-    maxSize: Math.ceil(maxS) || 450,
+    maxSize: Math.ceil(maxS) || 590,
     minPrice: Math.floor(minP / 10000) * 10000 || 150000,
-    maxPrice: Math.ceil(maxP / 10000) * 10000 || 850000,
+    maxPrice: Math.ceil(maxP / 10000) * 10000 || 960000,
   };
 }

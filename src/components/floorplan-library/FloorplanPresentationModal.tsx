@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   X,
   FlipHorizontal,
@@ -10,10 +10,7 @@ import {
   Compass,
   FileText,
   Zap,
-  Bed,
-  Bath,
-  Car,
-  Maximize2,
+  Layers,
 } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { FloorplanLibraryItem } from "@/lib/floorplan-library/floorplanLibraryEngine";
@@ -30,20 +27,29 @@ export function FloorplanPresentationModal({
   isLight,
 }: FloorplanPresentationModalProps) {
   const navigate = useNavigate();
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(item?.defaultVariantIndex || 0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isMirrored, setIsMirrored] = useState(false);
   const [showFacade, setShowFacade] = useState(false);
 
+  useEffect(() => {
+    if (item?.defaultVariantIndex !== undefined) {
+      setSelectedVariantIndex(item.defaultVariantIndex);
+    }
+  }, [item?.defaultVariantIndex, item?.id]);
+
   if (!item) return null;
+
+  const activeVariant = item.variants?.[selectedVariantIndex] ?? item.variants?.[0] ?? item;
 
   const handleLaunchQuoting = () => {
     try {
       const bridge = {
-        designName: item.label,
-        standardDesignM2: item.totalM2,
-        totalM2: item.totalM2,
-        housingType: item.housingType,
-        floorplanUrl: item.url,
+        designName: activeVariant.label,
+        standardDesignM2: activeVariant.totalM2,
+        totalM2: activeVariant.totalM2,
+        housingType: activeVariant.housingType,
+        floorplanUrl: activeVariant.url,
       };
       sessionStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));
       localStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));
@@ -61,29 +67,64 @@ export function FloorplanPresentationModal({
         }`}
       >
         {/* Modal Header */}
-        <div
-          className={`px-6 py-4 border-b flex items-center justify-between gap-4 ${
+        <header
+          className={`px-6 py-4 border-b flex flex-wrap items-center justify-between gap-4 ${
             isLight ? "border-slate-200 bg-white" : "border-slate-800 bg-slate-900/80"
           }`}
         >
+          {/* Left Title & Category */}
           <div className="flex items-center gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
-                  {item.housingType}
+                  {activeVariant.housingType}
                 </span>
-                {item.isBtbReady && (
+                {activeVariant.isBtbReady && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold font-mono flex items-center gap-1">
                     <Zap className="h-3 w-3 fill-current text-amber-400" />
                     BTB Ready
                   </span>
                 )}
               </div>
-              <h2 className="text-xl sm:text-2xl font-black">{item.label}</h2>
+              <h2 className="text-xl sm:text-2xl font-black">{activeVariant.label}</h2>
             </div>
           </div>
 
-          {/* Quick Controls */}
+          {/* Center: Prominent Size Variant Selector at the top of the screen */}
+          {item.variants && item.variants.length > 1 && (
+            <div
+              className={`flex items-center p-1 rounded-xl border flex-wrap gap-1 ${
+                isLight ? "bg-slate-100 border-slate-200" : "bg-slate-900 border-slate-800"
+              }`}
+            >
+              <span className="text-[10px] uppercase font-bold text-slate-400 px-2 flex items-center gap-1">
+                <Layers className="h-3.5 w-3.5 text-indigo-400" />
+                Select Size:
+              </span>
+              {item.variants.map((v, idx) => {
+                const active = selectedVariantIndex === idx;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => setSelectedVariantIndex(idx)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                      active
+                        ? "bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 font-black shadow-md scale-105"
+                        : isLight
+                        ? "text-slate-600 hover:text-slate-950 hover:bg-slate-200/70"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/70"
+                    }`}
+                  >
+                    <span>{v.sizeLabel}</span>
+                    <span className="text-[10px] opacity-75 font-mono">({v.squares}sq)</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Right Controls */}
           <div className="flex items-center gap-2">
             {/* Zoom Controls */}
             <div
@@ -135,7 +176,7 @@ export function FloorplanPresentationModal({
             </button>
 
             {/* Facade Switch */}
-            {item.facadeUrl && (
+            {activeVariant.facadeUrl && (
               <button
                 type="button"
                 onClick={() => setShowFacade(!showFacade)}
@@ -164,7 +205,7 @@ export function FloorplanPresentationModal({
               <X className="h-5 w-5" />
             </button>
           </div>
-        </div>
+        </header>
 
         {/* Modal Body: Interactive Zoomable Canvas */}
         <div className="flex-1 overflow-auto p-4 sm:p-6 flex items-center justify-center bg-slate-900/20 select-none">
@@ -175,16 +216,16 @@ export function FloorplanPresentationModal({
               transformOrigin: "center center",
             }}
           >
-            {showFacade && item.facadeUrl ? (
+            {showFacade && activeVariant.facadeUrl ? (
               <img
-                src={item.facadeUrl}
-                alt={`${item.label} Facade`}
+                src={activeVariant.facadeUrl}
+                alt={`${activeVariant.label} Facade`}
                 className="max-h-[75vh] max-w-full object-contain rounded-xl shadow-xl"
               />
             ) : (
               <img
-                src={item.url}
-                alt={`${item.label} Floorplan Full High Res`}
+                src={activeVariant.url}
+                alt={`${activeVariant.label} Floorplan Full High Res`}
                 className={`max-h-[75vh] max-w-full object-contain transition-transform duration-300 ${
                   isMirrored ? "scale-x-[-1]" : ""
                 } filter contrast-[1.04]`}
@@ -206,19 +247,20 @@ export function FloorplanPresentationModal({
                 Pricelist:
               </span>
               <div className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold">
-                H1: ${item.prices.h1.toLocaleString()}
+                H1: ${activeVariant.prices.h1.toLocaleString()}
               </div>
               <div className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-mono font-black shadow-xs">
-                H2: ${item.prices.h2.toLocaleString()}
+                H2: ${activeVariant.prices.h2.toLocaleString()}
               </div>
               <div className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 text-xs font-mono font-bold">
-                H3: ${item.prices.h3.toLocaleString()}
+                H3: ${activeVariant.prices.h3.toLocaleString()}
               </div>
             </div>
             <div className="text-xs text-slate-400 hidden lg:inline">
-              Width: <strong className="text-white">{item.widthM}m</strong> • Depth:{" "}
-              <strong className="text-white">{item.lengthM}m</strong> • Lot:{" "}
-              <strong className="text-amber-400">{item.frontageM || 12.5}m</strong>
+              Width: <strong className="text-white">{activeVariant.widthM}m</strong> • Depth:{" "}
+              <strong className="text-white">{activeVariant.lengthM}m</strong> • Lot:{" "}
+              <strong className="text-amber-400">{activeVariant.frontageM || 12.5}m</strong> • Size:{" "}
+              <strong className="text-emerald-400">{activeVariant.totalM2.toFixed(1)}m² ({activeVariant.squares}sq)</strong>
             </div>
           </div>
 
@@ -234,11 +276,19 @@ export function FloorplanPresentationModal({
             </button>
             <Link
               to="/flyer"
-              search={{ design: item.label }}
+              search={{ design: activeVariant.label }}
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
             >
               <FileText className="h-3.5 w-3.5 text-amber-400" />
               <span>Package Studio</span>
+            </Link>
+            <Link
+              to="/site-studio"
+              search={{ design: activeVariant.id }}
+              className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Compass className="h-3.5 w-3.5 text-cyan-400" />
+              <span>Site</span>
             </Link>
           </div>
         </div>

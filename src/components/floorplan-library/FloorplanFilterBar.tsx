@@ -11,14 +11,13 @@ import {
   Columns3,
   ChevronDown,
   ChevronUp,
-  MapPin,
   Tag,
   Bed,
   Bath,
   Car,
   Maximize,
   Ruler,
-  DollarSign,
+  Layers,
 } from "lucide-react";
 import type {
   FloorplanFiltersState,
@@ -34,6 +33,7 @@ interface FloorplanFilterBarProps {
   onResetFilters: () => void;
   totalCount: number;
   filteredCount: number;
+  typeCounts?: Record<HouseTypeFilter, number>;
   bounds: {
     minWidth: number;
     maxWidth: number;
@@ -49,13 +49,13 @@ interface FloorplanFilterBarProps {
   isLight: boolean;
 }
 
-const HOUSE_TYPES: { label: string; short: string; count: number; value: HouseTypeFilter }[] = [
-  { label: "All House Types", short: "All", count: 221, value: "All" },
-  { label: "Single Storey", short: "Single", count: 87, value: "Single Storey" },
-  { label: "Double Storey", short: "Double", count: 85, value: "Double Storey" },
-  { label: "Dual Living", short: "Dual", count: 29, value: "Dual Living" },
-  { label: "Split Level", short: "Split", count: 15, value: "Split Level" },
-  { label: "Granny Flat", short: "Granny", count: 5, value: "Granny Flat" },
+const HOUSE_TYPES: { label: string; short: string; value: HouseTypeFilter }[] = [
+  { label: "All House Types", short: "All", value: "All" },
+  { label: "Single Storey", short: "Single", value: "Single Storey" },
+  { label: "Double Storey", short: "Double", value: "Double Storey" },
+  { label: "Dual Living", short: "Dual", value: "Dual Living" },
+  { label: "Split Level", short: "Split", value: "Split Level" },
+  { label: "Granny Flat", short: "Granny", value: "Granny Flat" },
 ];
 
 const INCLUSIONS_TIERS: { label: string; sub: string; value: InclusionsTier }[] = [
@@ -73,6 +73,15 @@ const LOT_WIDTH_PRESETS = [
   { id: "16m+", label: "16m+ Lot", badge: ">12.8m" },
 ];
 
+const SIZE_PRESETS = [
+  { id: "all", label: "All Sizes", badge: "" },
+  { id: "under-20", label: "< 20sq", badge: "≤185m²" },
+  { id: "20-25", label: "20–25sq", badge: "185–232m²" },
+  { id: "25-30", label: "25–30sq", badge: "232–278m²" },
+  { id: "30-35", label: "30–35sq", badge: "278–325m²" },
+  { id: "35-plus", label: "35sq+", badge: ">325m²" },
+];
+
 const PRICE_PRESETS = [
   { id: "all", label: "All Prices" },
   { id: "under-350", label: "< $350k" },
@@ -87,6 +96,7 @@ export function FloorplanFilterBar({
   onResetFilters,
   totalCount,
   filteredCount,
+  typeCounts,
   bounds,
   viewMode,
   onViewModeChange,
@@ -100,6 +110,7 @@ export function FloorplanFilterBar({
   if (filters.houseType !== "All") activeFilterCount++;
   if (filters.btbOnly) activeFilterCount++;
   if (filters.lotWidthPreset && filters.lotWidthPreset !== "all") activeFilterCount++;
+  if (filters.sizePreset && filters.sizePreset !== "all") activeFilterCount++;
   if (filters.pricePreset && filters.pricePreset !== "all") activeFilterCount++;
   if (filters.bedrooms !== null) activeFilterCount++;
   if (filters.bathrooms !== null) activeFilterCount++;
@@ -127,7 +138,7 @@ export function FloorplanFilterBar({
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search designs (e.g. Amber 21, Jasper, Ruby, Double Storey)..."
+              placeholder="Search design (e.g. Amber 21, Jasper, Ruby, Double Storey)..."
               value={filters.searchQuery}
               onChange={(e) => onFilterChange("searchQuery", e.target.value)}
               className={`w-full pl-10 pr-9 py-2 rounded-xl border text-sm font-medium transition-all outline-none focus:ring-2 focus:ring-amber-500/40 ${
@@ -155,6 +166,7 @@ export function FloorplanFilterBar({
           >
             {HOUSE_TYPES.map((type) => {
               const active = filters.houseType === type.value;
+              const count = typeCounts ? typeCounts[type.value] : undefined;
               return (
                 <button
                   key={type.value}
@@ -167,17 +179,19 @@ export function FloorplanFilterBar({
                   }`}
                 >
                   <span>{type.short}</span>
-                  <span
-                    className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
-                      active
-                        ? "bg-indigo-700/80 text-white"
-                        : isLight
-                        ? "bg-slate-200 text-slate-600"
-                        : "bg-slate-800 text-slate-400"
-                    }`}
-                  >
-                    {type.count}
-                  </span>
+                  {count !== undefined && (
+                    <span
+                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${
+                        active
+                          ? "bg-indigo-700/80 text-white"
+                          : isLight
+                          ? "bg-slate-200 text-slate-600"
+                          : "bg-slate-800 text-slate-400"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -196,7 +210,7 @@ export function FloorplanFilterBar({
                   ? "bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border-amber-300/50"
                   : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30"
               }`}
-              title="Filter plans engineered for Built-To-Boundary / Zero-Lot garage walls"
+              title="Filter standard designs engineered for Built-To-Boundary / Zero-Lot garage walls"
             >
               <Zap className={`h-3.5 w-3.5 ${filters.btbOnly ? "text-slate-950 fill-current" : "text-amber-500"}`} />
               <span>BTB Ready</span>
@@ -283,17 +297,17 @@ export function FloorplanFilterBar({
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          ROW 2: Fast Uncluttered Filters: Floorplan Widths & Inclusions Pricing
+          ROW 2: Fast Uncluttered Filters: Width, Size Variants, and Pricing
           ───────────────────────────────────────────────────────────── */}
       <div
         className={`px-4 sm:px-5 py-3 border-t flex flex-wrap items-center justify-between gap-3 ${
           isLight ? "border-slate-100 bg-slate-50/50" : "border-slate-800/80 bg-slate-900/30"
         }`}
       >
-        <div className="flex flex-wrap items-center gap-4 lg:gap-6">
-          {/* Section 1: Lot Width / Floorplan Width Chips */}
+        <div className="flex flex-wrap items-center gap-3 lg:gap-5">
+          {/* Section 1: Lot Width Chips */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <div className="flex items-center gap-1 text-slate-400 mr-1">
+            <div className="flex items-center gap-1 text-slate-400 mr-0.5">
               <Ruler className="h-3.5 w-3.5 text-cyan-400" />
               <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Width:</span>
             </div>
@@ -324,7 +338,40 @@ export function FloorplanFilterBar({
           {/* Divider */}
           <div className={`hidden md:block h-5 w-[1px] ${isLight ? "bg-slate-200" : "bg-slate-800"}`} />
 
-          {/* Section 2: Inclusions Tier & Price Brackets */}
+          {/* Section 2: Size Variants / Squares (Selectable from screen top!) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1 text-slate-400 mr-0.5">
+              <Layers className="h-3.5 w-3.5 text-indigo-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Size:</span>
+            </div>
+            {SIZE_PRESETS.map((preset) => {
+              const active = (filters.sizePreset || "all") === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => onFilterChange("sizePreset", preset.id)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+                    active
+                      ? "bg-indigo-500/20 border-indigo-400 text-indigo-300 font-black shadow-xs scale-[1.02]"
+                      : isLight
+                      ? "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                      : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white"
+                  }`}
+                >
+                  <span>{preset.label}</span>
+                  {preset.badge && (
+                    <span className="text-[10px] opacity-75 font-mono">({preset.badge})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Divider */}
+          <div className={`hidden md:block h-5 w-[1px] ${isLight ? "bg-slate-200" : "bg-slate-800"}`} />
+
+          {/* Section 3: Inclusions Tier & Price Brackets */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Inclusions Tier */}
             <div className="flex items-center gap-1">
@@ -382,7 +429,7 @@ export function FloorplanFilterBar({
           </div>
         </div>
 
-        {/* Section 3: More Specs Drawer Trigger + Reset */}
+        {/* Section 4: More Specs Drawer Trigger + Reset */}
         <div className="flex items-center gap-2 shrink-0 ml-auto">
           {/* Expandable Advanced Specs */}
           <button
@@ -434,7 +481,7 @@ export function FloorplanFilterBar({
             isLight ? "border-slate-200 bg-slate-50/70" : "border-slate-800/80 bg-slate-900/40"
           }`}
         >
-          {/* Col 1: Bedrooms */}
+          {/* Col 1: Bedrooms & Bathrooms */}
           <div className="space-y-3">
             <label className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Bed className="h-3.5 w-3.5 text-indigo-400" />
@@ -669,11 +716,16 @@ export function FloorplanFilterBar({
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold">
             Showing <strong className="text-amber-500 font-extrabold">{filteredCount}</strong> of{" "}
-            <strong>{totalCount}</strong> Hudson floorplans
+            <strong>{totalCount}</strong> Standard Designs (221 Size Variants)
           </span>
           {filters.lotWidthPreset && filters.lotWidthPreset !== "all" && (
             <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-[10px] font-bold font-mono">
               Width: {filters.lotWidthPreset}
+            </span>
+          )}
+          {filters.sizePreset && filters.sizePreset !== "all" && (
+            <span className="px-2 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 text-[10px] font-bold font-mono">
+              Size: {SIZE_PRESETS.find((p) => p.id === filters.sizePreset)?.label}
             </span>
           )}
           {filters.pricePreset && filters.pricePreset !== "all" && (

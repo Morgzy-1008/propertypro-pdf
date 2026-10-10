@@ -22,6 +22,7 @@ import {
   getFilterBounds,
   type FloorplanLibraryItem,
   type FloorplanFiltersState,
+  type HouseTypeFilter,
   type ViewMode,
 } from "@/lib/floorplan-library/floorplanLibraryEngine";
 import { FloorplanFilterBar } from "./FloorplanFilterBar";
@@ -56,6 +57,7 @@ export function FloorplanLibraryView() {
     minWidth: bounds.minWidth,
     maxWidth: bounds.maxWidth,
     lotWidthPreset: "all",
+    sizePreset: "all",
     minLength: bounds.minLength,
     maxLength: bounds.maxLength,
     minSize: bounds.minSize,
@@ -102,6 +104,7 @@ export function FloorplanLibraryView() {
       minWidth: bounds.minWidth,
       maxWidth: bounds.maxWidth,
       lotWidthPreset: "all",
+      sizePreset: "all",
       minLength: bounds.minLength,
       maxLength: bounds.maxLength,
       minSize: bounds.minSize,
@@ -124,6 +127,24 @@ export function FloorplanLibraryView() {
     () => filterAndSortFloorplans(allFloorplans, filters),
     [allFloorplans, filters]
   );
+
+  // 6. House type counts
+  const typeCounts = useMemo(() => {
+    const counts: Record<HouseTypeFilter, number> = {
+      All: allFloorplans.length,
+      "Single Storey": 0,
+      "Double Storey": 0,
+      "Dual Living": 0,
+      "Split Level": 0,
+      "Granny Flat": 0,
+    };
+    for (const plan of allFloorplans) {
+      if (counts[plan.housingType] !== undefined) {
+        counts[plan.housingType]++;
+      }
+    }
+    return counts;
+  }, [allFloorplans]);
 
   // Scroll to top button visibility
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -260,6 +281,7 @@ export function FloorplanLibraryView() {
           onResetFilters={handleResetFilters}
           totalCount={allFloorplans.length}
           filteredCount={filteredPlans.length}
+          typeCounts={typeCounts}
           bounds={bounds}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
