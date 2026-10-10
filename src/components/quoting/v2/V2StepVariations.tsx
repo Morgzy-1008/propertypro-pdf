@@ -9,8 +9,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Zap,
-  ChevronDown,
-  ChevronUp,
+  Minus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +24,11 @@ import {
   type PopularVariationGroup,
 } from "./V2Types";
 import { DEFAULT_CATALOGUE } from "@/lib/quoting/quoteCatalogue";
+import {
+  isDoubleStoreyDesign,
+  getStandardAreaBreakdown,
+} from "@/lib/quoting/quoteEngine";
+import { normalizeInclusionTier } from "@/lib/quoting/quoteCatalogue";
 import type {
   FullQuote,
   QuoteSelectedLineItem,
@@ -35,7 +39,8 @@ export type VariationCategoryFilter =
   | "extensions"
   | "ceiling_height"
   | "electrical"
-  | "kitchen_bath"
+  | "kitchen"
+  | "bathroom"
   | "flooring"
   | "external"
   | "custom";
@@ -64,13 +69,19 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
     id: "electrical",
     label: "Air Conditioning & Electrical",
     icon: "⚡",
-    subtitle: "Ducted air con, LED lighting packages, EV circuits & smart home",
+    subtitle: "Multi-zone ducted air conditioning & 32A EV vehicle circuit",
   },
   {
-    id: "kitchen_bath",
-    label: "Kitchen & Bathrooms",
+    id: "kitchen",
+    label: "Kitchen & Joinery",
     icon: "🍳",
-    subtitle: "Stone waterfall ends, 900mm cooker, undermount sinks & full wall tiles",
+    subtitle: "40mm stone waterfall ends, undermount sink & butler's pantry",
+  },
+  {
+    id: "bathroom",
+    label: "Bathrooms & Wet Areas",
+    icon: "🚿",
+    subtitle: "Floor to ceiling tiles, frameless screens & recessed soap niche",
   },
   {
     id: "flooring",
@@ -82,7 +93,7 @@ export const VARIATION_SECTIONS: VariationSectionDef[] = [
     id: "external",
     label: "External, Roof & Driveway",
     icon: "🌿",
-    subtitle: "Colorbond steel roof, exposed aggregate driveway & epoxy garage floor",
+    subtitle: "Exposed aggregate driveway, garage epoxy flake & barrier screens",
   },
 ];
 
@@ -91,7 +102,8 @@ export const CATEGORY_TABS: { id: VariationCategoryFilter; label: string; icon: 
   { id: "extensions", label: "Extensions", icon: "📐" },
   { id: "ceiling_height", label: "Ceiling Height", icon: "🏛️" },
   { id: "electrical", label: "Electrical", icon: "⚡" },
-  { id: "kitchen_bath", label: "Kitchen & Bath", icon: "🍳" },
+  { id: "kitchen", label: "Kitchen", icon: "🍳" },
+  { id: "bathroom", label: "Bathrooms", icon: "🚿" },
   { id: "flooring", label: "Flooring", icon: "🧱" },
   { id: "external", label: "External", icon: "🌿" },
   { id: "custom", label: "Custom / Search", icon: "➕" },
@@ -125,7 +137,62 @@ export function V2StepVariations({
   const [showCatalogueSearch, setShowCatalogueSearch] = useState(false);
   const [showCustomForm, setShowCustomForm] = useState(false);
 
-  // Auto-detected modified plan line items (those starting with "mod_")
+  // 1. Resolve design specifications & areas
+  const totalM2 = Number(quote.design.designM2) || Number(quote.design.standardDesignM2) || 200;
+  const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.storeys);
+  const tier = normalizeInclusionTier(quote.design.specTier);
+  const isH3 = tier === "H3" || quote.design.specTier?.toLowerCase().includes("h3") || quote.design.specTier?.toLowerCase().includes("luxury");
+
+  const stdAreas = useMemo(() => {
+    return getStandardAreaBreakdown(quote.design.designName, quote.design.housingType, totalM2);
+  }, [quote.design.designName, quote.design.housingType, totalM2]);
+
+  const livingM2 = useMemo(() => {
+    if (quote.design.isModifiedFloorplan && quote.design.modifiedAreas?.livingM2) {
+      return Number(quote.design.modifiedAreas.livingM2);
+    }
+    return (
+      stdAreas.livingM2 ||
+      (stdAreas.groundLivingM2 ? (stdAreas.groundLivingM2 + (stdAreas.firstLivingM2 || 0)) : 0) ||
+      Math.round(totalM2 * 0.75)
+    );
+  }, [quote.design, stdAreas, totalM2]);
+
+  const garageM2 = useMemo(() => {
+    if (quote.design.isModifiedFloorplan && quote.design.modifiedAreas?.garageM2) {
+      return Number(quote.design.modifiedAreas.garageM2);
+    }
+    return stdAreas.garageM2 || 36;
+  }, [quote.design, stdAreas]);
+
+  // Automated flooring calculations based on Hudson Homes standard specifications:
+  // Tiled areas (Entry, Hall, Kitchen, Meals, Family, Wet Areas) = ~58% of living space
+  // Carpet areas (Bedrooms, Robes, Media) = ~42% of living space
+  const automatedTiledM2 = useMemo(() => Math.round(livingM2 * 0.58), [livingM2]);
+  const automatedCarpetM2 = useMemo(() => Math.round(livingM2 * 0.42), [livingM2]);
+
+  // Default suggested quantity for each item when selected
+  const getSuggestedQuantity = (preset: PopularVariationPreset): number => {
+    if (preset.id === "pop_driveway_sqm") return 55; // Pre-filled at 55 sqm
+    if (preset.id === "pop_epoxy_garage") return Math.round(garageM2); // Tailored to garage area
+    if (preset.id === "pop_porcelain_sqm") return automatedTiledM2; // Tailored to tiled areas
+    if (preset.id === "pop_hybrid_flooring_sqm") return automatedTiledM2; // Tailored to living/tiled areas
+    if (preset.id === "pop_carpet_underlay_sqm") return automatedCarpetM2; // Tailored to bedroom carpet
+    if (preset.id === "pop_raked_ceiling_sqm") return 35; // Default 35 sqm entertainment space
+    if (preset.id === "pop_tiles_ceiling_bath") return 2; // Default 2 bathrooms
+    return 0;
+  };
+
+  // Filter presets tailored to the specific design and tier
+  const isItemVisibleForDesign = (preset: PopularVariationPreset): boolean => {
+    // Hide upper floor items if design is single storey
+    if (preset.doubleStoreyOnly && !isDouble) return false;
+    // Hide 600x600 tiles and hybrid flooring if H3 (already standard in H3!)
+    if (preset.hideIfH3 && isH3) return false;
+    return true;
+  };
+
+  // Auto-detected modified plan line items
   const autoDetectedItems = useMemo(() => {
     return lineItems.filter((it) => it.id.startsWith("mod_") || it.name.toLowerCase().includes("modified"));
   }, [lineItems]);
@@ -182,7 +249,7 @@ export function V2StepVariations({
     }
   };
 
-  // Change quantity for sqm-based popular variation
+  // Toggle or change quantity for sqm-based popular variation
   const handleSqmChange = (preset: PopularVariationPreset, valStr: string) => {
     const qty = parseFloat(valStr) || 0;
     const rate = preset.unitRate || preset.price;
@@ -217,11 +284,77 @@ export function V2StepVariations({
         catalogueItemId: preset.id,
         category: preset.category,
         name: preset.name,
-        description: preset.description, // Retain full description in quote & PDF
+        description: preset.description,
         unitType: "sqm",
         unitRate: rate,
         quantity: qty,
         subtotal: Math.round(qty * rate),
+        isIncluded: true,
+        isClientSelectable: true,
+        clientSelected: true,
+      };
+      onChange([...lineItems, newItem]);
+    }
+  };
+
+  // Toggle sqm item on/off using suggested default
+  const handleToggleSqm = (preset: PopularVariationPreset) => {
+    const existingIndex = lineItems.findIndex(
+      (it) => it.id === preset.id || it.catalogueItemId === preset.id
+    );
+    const existing = lineItems[existingIndex];
+    const isCurrentlyIncluded = Boolean(existing?.isIncluded && (existing.quantity || 0) > 0);
+
+    if (isCurrentlyIncluded) {
+      handleSqmChange(preset, "0");
+      toast.info(`Removed ${preset.name}`);
+    } else {
+      const suggested = existing?.quantity && existing.quantity > 0 ? existing.quantity : getSuggestedQuantity(preset);
+      handleSqmChange(preset, String(suggested));
+      toast.success(`Added ${preset.name} (${suggested} m²)`);
+    }
+  };
+
+  // Handle per-bathroom quantity (e.g. Floor-to-Ceiling tiles @ $3,000/bath)
+  const handleBathChange = (preset: PopularVariationPreset, qty: number) => {
+    const validQty = Math.max(0, qty);
+    const rate = preset.unitRate || preset.price;
+    const existingIndex = lineItems.findIndex(
+      (it) => it.id === preset.id || it.catalogueItemId === preset.id
+    );
+
+    if (existingIndex >= 0) {
+      const updated = [...lineItems];
+      if (validQty > 0) {
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: validQty,
+          unitRate: rate,
+          subtotal: validQty * rate,
+          isIncluded: true,
+          clientSelected: true,
+        };
+      } else {
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: 0,
+          subtotal: 0,
+          isIncluded: false,
+          clientSelected: false,
+        };
+      }
+      onChange(updated);
+    } else if (validQty > 0) {
+      const newItem: QuoteSelectedLineItem = {
+        id: preset.id,
+        catalogueItemId: preset.id,
+        category: preset.category,
+        name: preset.name,
+        description: preset.description,
+        unitType: "fixed",
+        unitRate: rate,
+        quantity: validQty,
+        subtotal: validQty * rate,
         isIncluded: true,
         isClientSelectable: true,
         clientSelected: true,
@@ -382,7 +515,8 @@ export function V2StepVariations({
             House Variations &amp; Upgrades
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 mt-0.5 max-w-3xl">
-            Select upgrades filtered in vertical order: Extensions at top, then Ceiling Height, Electrical, and finishes.
+            Tailored to <span className="font-bold text-slate-300">{quote.design.designName || "Selected Design"}</span> ({quote.design.specTier || "H2 Design Inclusions"}).
+            Ordered vertically from Extensions down to Finishes.
           </p>
         </div>
 
@@ -480,12 +614,17 @@ export function V2StepVariations({
       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
         {CATEGORY_TABS.map((tab) => {
           const isSelected = categoryFilter === tab.id;
-          const count =
+          const availableCount =
             tab.id === "all"
-              ? POPULAR_VARIATIONS.length
+              ? POPULAR_VARIATIONS.filter(isItemVisibleForDesign).length
               : tab.id === "custom"
               ? 0
-              : POPULAR_VARIATIONS.filter((p) => p.group === tab.id).length;
+              : POPULAR_VARIATIONS.filter((p) => p.group === tab.id && isItemVisibleForDesign(p)).length;
+
+          // If a category has no applicable items for this design (e.g. empty), still allow viewing unless count 0
+          if (availableCount === 0 && tab.id !== "custom" && tab.id !== "all") {
+            return null;
+          }
 
           return (
             <button
@@ -505,7 +644,7 @@ export function V2StepVariations({
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>
-              {count > 0 && (
+              {availableCount > 0 && (
                 <span
                   className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
                     isSelected
@@ -513,7 +652,7 @@ export function V2StepVariations({
                       : isLight ? "bg-slate-100 text-slate-600" : "bg-slate-800 text-slate-400"
                   }`}
                 >
-                  {count}
+                  {availableCount}
                 </span>
               )}
             </button>
@@ -521,23 +660,27 @@ export function V2StepVariations({
         })}
       </div>
 
-      {/* VERTICAL ORDERED SECTIONS (EXTENSIONS AT TOP -> CEILING HEIGHT -> ELECTRICAL -> OTHERS) */}
+      {/* VERTICAL ORDERED SECTIONS (EXTENSIONS AT TOP -> CEILING HEIGHT -> ELECTRICAL -> KITCHEN -> BATHROOM -> FLOORING -> EXTERNAL) */}
       <div className="space-y-6">
         {visibleSections.map((sec) => {
-          const presets = POPULAR_VARIATIONS.filter((p) => p.group === sec.id);
+          const presets = POPULAR_VARIATIONS.filter((p) => p.group === sec.id && isItemVisibleForDesign(p));
+
+          if (presets.length === 0) return null;
 
           // Calculate how many items and subtotal are selected in this section
           const sectionActiveItems = presets.filter((p) => {
             const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
             const isSqm = p.unitType === "sqm";
-            return Boolean(existing?.isIncluded && (isSqm ? (existing.quantity || 0) > 0 : true));
+            const isBath = p.unitType === "per_bath";
+            return Boolean(existing?.isIncluded && (isSqm || isBath ? (existing.quantity || 0) > 0 : true));
           });
 
           const sectionTotal = sectionActiveItems.reduce((acc, p) => {
             const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
             const isSqm = p.unitType === "sqm";
+            const isBath = p.unitType === "per_bath";
             const qty = existing?.quantity || 0;
-            return acc + (existing?.subtotal ?? (isSqm ? qty * (p.unitRate || p.price) : p.price));
+            return acc + (existing?.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price));
           }, 0);
 
           return (
@@ -567,11 +710,91 @@ export function V2StepVariations({
                     (it) => it.id === preset.id || it.catalogueItemId === preset.id
                   );
                   const isSqm = preset.unitType === "sqm";
+                  const isBath = preset.unitType === "per_bath";
                   const currentQty = existing?.quantity ?? 0;
-                  const isIncluded = Boolean(existing?.isIncluded && (isSqm ? currentQty > 0 : true));
-                  const subtotal = existing?.subtotal ?? (isSqm ? currentQty * (preset.unitRate || preset.price) : preset.price);
+                  const isIncluded = Boolean(existing?.isIncluded && (isSqm || isBath ? currentQty > 0 : true));
+                  const subtotal = existing?.subtotal ?? (isSqm || isBath ? currentQty * (preset.unitRate || preset.price) : preset.price);
 
-                  // RENDER SQM-BASED COMPACT ITEM
+                  // 1. RENDER PER-BATHROOM UPGRADE (e.g. Floor-to-Ceiling Tiles)
+                  if (isBath) {
+                    return (
+                      <div
+                        key={preset.id}
+                        className={`px-3.5 py-2.5 rounded-xl border transition-all flex items-center justify-between gap-3 ${
+                          isIncluded
+                            ? isLight
+                              ? "bg-emerald-50/90 border-emerald-500 shadow-xs ring-1 ring-emerald-500/30"
+                              : "bg-emerald-950/25 border-emerald-500/60 shadow-sm ring-1 ring-emerald-500/30"
+                            : isLight
+                            ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                            : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+                        }`}
+                      >
+                        <div
+                          onClick={() => handleBathChange(preset, isIncluded ? 0 : 2)}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                        >
+                          <div
+                            className={`w-5 h-5 rounded-full flex items-center justify-center flex-none transition-all ${
+                              isIncluded
+                                ? "bg-emerald-500 text-slate-950"
+                                : isLight
+                                ? "border border-slate-300 text-transparent"
+                                : "border border-slate-700 text-transparent"
+                            }`}
+                          >
+                            <Check className="h-3 w-3 stroke-[3]" />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className={`text-xs sm:text-sm font-bold truncate ${isLight ? "text-slate-900" : "text-white"}`}>
+                                {preset.name}
+                              </span>
+                              {preset.highlight && (
+                                <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-semibold flex-none">
+                                  {preset.highlight}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bathrooms counter & price */}
+                        <div className="flex items-center gap-2 flex-none">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleBathChange(preset, currentQty - 1)}
+                              className="h-7 w-7 text-slate-400 hover:text-slate-100"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="font-mono font-bold text-xs px-1 min-w-[20px] text-center">
+                              {currentQty}
+                            </span>
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleBathChange(preset, currentQty + 1)}
+                              className="h-7 w-7 text-slate-400 hover:text-slate-100"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                            <span className="text-[11px] text-slate-400 font-semibold">baths</span>
+                          </div>
+                          <span className={`text-xs font-mono font-bold w-18 text-right ${isIncluded ? (isLight ? "text-emerald-700" : "text-emerald-400") : "text-slate-400"}`}>
+                            {subtotal > 0 ? `+${formatAud(subtotal)}` : `$${preset.unitRate}/ea`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 2. RENDER SQM-BASED COMPACT ITEM
                   if (isSqm) {
                     return (
                       <div
@@ -586,7 +809,10 @@ export function V2StepVariations({
                             : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <div
+                          onClick={() => handleToggleSqm(preset)}
+                          className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                        >
                           <div
                             className={`w-5 h-5 rounded-full flex items-center justify-center flex-none transition-all ${
                               isIncluded
@@ -634,7 +860,7 @@ export function V2StepVariations({
                     );
                   }
 
-                  // RENDER FIXED-PRICE COMPACT ITEM
+                  // 3. RENDER FIXED-PRICE COMPACT ITEM
                   return (
                     <div
                       key={preset.id}

@@ -141,7 +141,8 @@ export type PopularVariationGroup =
   | "extensions"
   | "ceiling_height"
   | "electrical"
-  | "kitchen_bath"
+  | "kitchen"
+  | "bathroom"
   | "flooring"
   | "external";
 
@@ -153,8 +154,10 @@ export interface PopularVariationPreset {
   description: string;
   price: number;
   highlight?: string;
-  unitType?: "fixed" | "sqm";
+  unitType?: "fixed" | "sqm" | "per_bath";
   unitRate?: number;
+  doubleStoreyOnly?: boolean;
+  hideIfH3?: boolean;
 }
 
 export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
@@ -171,15 +174,6 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     highlight: "$490/m² rate",
   },
   {
-    id: "pop_alfresco_extension_12m",
-    name: "Under-Roof Alfresco Extension (+12m²)",
-    group: "extensions",
-    category: "floorplan_extensions",
-    description: "Structural extension to the concrete slab, roofline, soffit lining, and perimeter columns of the outdoor Alfresco.",
-    price: 5880,
-    highlight: "Extra outdoor space",
-  },
-  {
     id: "pop_living_extension_sqm",
     name: "Extended Living / Family Room Footprint",
     group: "extensions",
@@ -192,7 +186,7 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
   },
   {
     id: "pop_garage_extension_sqm",
-    name: "Extended Double Garage Footprint",
+    name: "Extended Garage Footprint",
     group: "extensions",
     category: "floorplan_extensions",
     description: "Extended garage depth or workshop footprint including reinforced concrete slab extension, brickwork, and roofline.",
@@ -233,13 +227,15 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     highlight: "Spacious upgrade",
   },
   {
-    id: "pop_alfresco_rake",
-    name: "High Rake Rafter Ceiling to Alfresco",
+    id: "pop_raked_ceiling_sqm",
+    name: "Allowance for Raked Ceilings",
     group: "ceiling_height",
     category: "structural",
-    description: "Vaulted rake ceiling with James Hardie lining and outdoor ceiling fan pre-wire to outdoor living.",
-    price: 3200,
-    highlight: "Great outdoor entertaining",
+    description: "Architectural pitched raked ceiling structure with engineered scissor trusses to selected living/family/alfresco area in lieu of standard flat ceiling.",
+    price: 310,
+    unitType: "sqm",
+    unitRate: 310,
+    highlight: "$310/m² rate",
   },
   {
     id: "pop_square_set",
@@ -257,7 +253,8 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     category: "structural",
     description: "Upgrade first floor ceiling height to 2590mm for double-storey floorplans.",
     price: 4250,
-    highlight: "Double Storey",
+    highlight: "Double Storey Only",
+    doubleStoreyOnly: true,
   },
 
   // 3. AIR CONDITIONING & ELECTRICAL (THEN ELECTRICAL)
@@ -271,15 +268,6 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     highlight: "Essential QLD comfort",
   },
   {
-    id: "pop_led_downlights_pack",
-    name: "Additional LED Downlights Pack (10x Pack)",
-    group: "electrical",
-    category: "colour_upgrades",
-    description: "Supply and installation of 10x additional warm/cool tricolour flush-mount LED ceiling downlights.",
-    price: 950,
-    highlight: "10x Pack",
-  },
-  {
     id: "pop_ev_charger_32a",
     name: "32A Electric Vehicle (EV) Dedicated Circuit",
     group: "electrical",
@@ -288,119 +276,79 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     price: 1250,
     highlight: "Future proofing",
   },
-  {
-    id: "pop_extra_gpos_pack",
-    name: "Double Powerpoints (GPO) Pack (5x Extra)",
-    group: "electrical",
-    category: "colour_upgrades",
-    description: "Supply and installation of 5x additional internal double GPO electrical powerpoints.",
-    price: 425,
-    highlight: "5x Pack",
-  },
-  {
-    id: "pop_smart_hub",
-    name: "Smart Home Automation Hub & Dimmers",
-    group: "electrical",
-    category: "colour_upgrades",
-    description: "Integrated smart lighting controller with wireless app connectivity and smart master dimmers.",
-    price: 1850,
-    highlight: "Smart Living",
-  },
 
-  // 4. THE OTHERS: KITCHEN & BATHROOMS
+  // 4. KITCHEN & JOINERY (SEPARATE CATEGORY)
   {
     id: "pop_waterfall_40mm",
     name: "40mm Engineered Stone Island Waterfall Ends",
-    group: "kitchen_bath",
+    group: "kitchen",
     category: "internal_kitchen",
     description: "40mm engineered stone mitred waterfall ends to both sides of the central kitchen island bench.",
     price: 2450,
     highlight: "Designer kitchen feature",
   },
   {
-    id: "pop_cooker_900",
-    name: "900mm Freestanding European Cooker & Canopy",
-    group: "kitchen_bath",
-    category: "internal_kitchen",
-    description: "Upgrade to 900mm stainless steel freestanding gas/electric range cooker and ducted canopy rangehood.",
-    price: 1850,
-    highlight: "Chef's kitchen",
-  },
-  {
     id: "pop_undermount_sink",
     name: "Undermount Double Bowl Kitchen Sink",
-    group: "kitchen_bath",
+    group: "kitchen",
     category: "internal_kitchen",
     description: "High-grade stainless steel undermount double bowl kitchen sink with designer gooseneck pull-out mixer tap.",
     price: 650,
     highlight: "Sleek look",
   },
   {
-    id: "pop_soft_close",
-    name: "Soft-Close Cabinet Drawers Throughout",
-    group: "kitchen_bath",
-    category: "internal_kitchen",
-    description: "Soft-close Blum runner mechanisms to all kitchen, pantry, and vanity cabinetry drawers.",
-    price: 450,
-    highlight: "Quiet luxury",
-  },
-  {
     id: "pop_butlers_pantry",
     name: "Butler's Pantry Fitout with Stone Benchtop",
-    group: "kitchen_bath",
+    group: "kitchen",
     category: "internal_kitchen",
     description: "Full cabinetry fitout to walk-in pantry including 20mm stone top, sink provision, and overhead shelving.",
     price: 3200,
     highlight: "Walk-in luxury",
   },
+
+  // 5. BATHROOMS & WET AREAS (SEPARATE CATEGORY)
   {
     id: "pop_tiles_ceiling_bath",
-    name: "Floor-to-Ceiling Bathroom & Ensuite Wall Tiles",
-    group: "kitchen_bath",
+    name: "Floor-to-Ceiling Tiles (Per Bathroom)",
+    group: "bathroom",
     category: "internal_bathroom",
-    description: "Rectified porcelain wall tiles laid floor-to-ceiling across Main Bathroom and Master Ensuite.",
-    price: 3850,
-    highlight: "Sleek hotel finish",
+    description: "Allowance for rectified porcelain wall tiles laid floor-to-ceiling across Main Bathroom and Master Ensuite ($3,000 per bathroom).",
+    price: 3000,
+    unitType: "per_bath",
+    unitRate: 3000,
+    highlight: "$3,000 / bath",
   },
   {
     id: "pop_frameless_shower",
     name: "Frameless Glass Shower Screens",
-    group: "kitchen_bath",
+    group: "bathroom",
     category: "internal_bathroom",
     description: "Clear toughened frameless safety glass shower screens with chrome/black minimalist hardware.",
     price: 850,
     highlight: "Designer style",
   },
   {
-    id: "pop_freestanding_bath",
-    name: "Freestanding Designer Acrylic Bath Tub",
-    group: "kitchen_bath",
-    category: "internal_bathroom",
-    description: "1700mm freestanding architectural oval acrylic bath tub to main bathroom.",
-    price: 1150,
-    highlight: "Spa luxury",
-  },
-  {
     id: "pop_shower_niche",
-    name: "Recessed Tiled Soap Shelf (Per Shower)",
-    group: "kitchen_bath",
+    name: "Recessed Tiled Soap Shelf (In lieu of H2 Shower Niche)",
+    group: "bathroom",
     category: "internal_bathroom",
-    description: "400x300mm recessed tiled shower niche with polished chrome edge trim.",
+    description: "400x300mm recessed tiled shower niche with polished chrome edge trim, in lieu of standard shower niche.",
     price: 450,
-    highlight: "Tiled feature",
+    highlight: "In lieu of H2 Niche",
   },
 
-  // 5. THE OTHERS: FLOORING & INTERNAL FINISHES
+  // 6. FLOORING & INTERNAL FINISHES (TAILORED TO DESIGN AREAS; HIDDEN IN H3)
   {
     id: "pop_porcelain_sqm",
     name: "600x600 Rectified Porcelain Floor Tiling",
     group: "flooring",
     category: "colour_upgrades",
-    description: "Premium large-format porcelain vitrified tiles to entry, hallway, kitchen, meals, and family living areas.",
+    description: "Premium large-format porcelain vitrified tiles to entry, hallway, kitchen, meals, family, and wet areas.",
     price: 85,
     unitType: "sqm",
     unitRate: 85,
     highlight: "$85/m² rate",
+    hideIfH3: true,
   },
   {
     id: "pop_hybrid_flooring_sqm",
@@ -412,6 +360,7 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     unitType: "sqm",
     unitRate: 95,
     highlight: "$95/m² rate",
+    hideIfH3: true,
   },
   {
     id: "pop_carpet_underlay_sqm",
@@ -425,35 +374,28 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     highlight: "$45/m² rate",
   },
 
-  // 6. THE OTHERS: EXTERNAL & DRIVEWAY
+  // 7. EXTERNAL & DRIVEWAY
   {
     id: "pop_driveway_sqm",
     name: "Exposed Aggregate Concrete Driveway & Path",
     group: "external",
     category: "external",
-    description: "Architectural decorative exposed aggregate driveway and pedestrian porch lead walk path.",
-    price: 125,
+    description: "Architectural decorative exposed aggregate driveway and pedestrian porch lead walk path ($230/m² allowance, standard 55m²).",
+    price: 230,
     unitType: "sqm",
-    unitRate: 125,
-    highlight: "$125/m² rate",
-  },
-  {
-    id: "pop_colourbond_roof",
-    name: "Colorbond® Steel Roof Upgrade",
-    group: "external",
-    category: "external",
-    description: "Upgrade from standard concrete roof tiles to Bluescope Colorbond® custom orb steel sheeting with Thermatech® technology.",
-    price: 4950,
-    highlight: "Modern street appeal",
+    unitRate: 230,
+    highlight: "$230/m² rate",
   },
   {
     id: "pop_epoxy_garage",
     name: "Seamless Epoxy Coating to Garage Floor",
     group: "external",
     category: "external",
-    description: "Two-coat commercial-grade epoxy coating with decorative flake finish to double garage concrete slab.",
-    price: 1950,
-    highlight: "Clean & durable",
+    description: "Two-coat commercial-grade epoxy coating with decorative flake finish to garage concrete slab ($100/m²).",
+    price: 100,
+    unitType: "sqm",
+    unitRate: 100,
+    highlight: "$100/m² rate",
   },
   {
     id: "pop_barrier_screens",
