@@ -12,7 +12,7 @@ import {
   Clock,
   UserCheck,
 } from "lucide-react";
-import { type LandParcel, type AvailabilityStatus } from "@/lib/land-scout/landScoutTypes";
+import { type LandParcel, type AvailabilityStatus, formatLotDisplay } from "@/lib/land-scout/landScoutTypes";
 import { generateAgentOutreachMessage } from "@/lib/land-scout/landScoutAiMatching";
 import { logAgentOutreach } from "@/lib/land-scout/landScoutStorage";
 import { getActiveStaffUser } from "@/lib/authSession";
@@ -113,7 +113,7 @@ export function AgentOutreachModal({
                 Contact Listing Agent · AI Outreach Engine
               </h2>
               <p className="text-xs text-slate-400">
-                Lot {parcel.lotNumber} {parcel.estate ? `(${parcel.estate})` : ""} · {parcel.suburb}
+                {formatLotDisplay(parcel.lotNumber)} {parcel.estate ? `(${parcel.estate})` : ""} · {parcel.suburb}
               </p>
             </div>
           </div>

@@ -11,7 +11,7 @@ import {
   Calendar,
   UserCheck,
 } from "lucide-react";
-import { type LandParcel, type AvailabilityStatus } from "@/lib/land-scout/landScoutTypes";
+import { type LandParcel, type AvailabilityStatus, formatLotDisplay } from "@/lib/land-scout/landScoutTypes";
 
 interface LandParcelCardProps {
   parcel: LandParcel;
@@ -147,7 +147,7 @@ export function LandParcelCard({
           <div className="flex items-start justify-between gap-2">
             <div>
               <h3 className={`text-base font-bold leading-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-                Lot {parcel.lotNumber} · {parcel.streetAddress || `${parcel.suburb}`}
+                {formatLotDisplay(parcel.lotNumber)} · {parcel.streetAddress || `${parcel.suburb}`}
               </h3>
               <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                 <MapPin className="h-3 w-3 text-brand-gold flex-none" />

@@ -42,6 +42,34 @@ export function isTestParcel(id: string, parcel?: Partial<LandParcel>): boolean 
     ) {
       return true;
     }
+    const phone = (parcel.agentPhone || "").trim();
+    if (
+      phone === "02 8888 8888" ||
+      phone === "02 9999 9999" ||
+      phone === "1300 000 000" ||
+      phone === "02 9600 0000" ||
+      phone === "02 9822 0000" ||
+      phone === "02 9600 1111" ||
+      phone === "02 4230 0000" ||
+      phone === "02 8800 0000" ||
+      phone === "07 3810 0000" ||
+      phone === "07 3810 1111"
+    ) {
+      return true;
+    }
+    const agency = (parcel.agentAgency || "").toLowerCase();
+    if (
+      agency.includes("nelson quarter") ||
+      agency.includes("box hill rise") ||
+      agency.includes("box hill land co") ||
+      agency.includes("calderwood heights") ||
+      agency.includes("marsden central") ||
+      agency.includes("monterea ripley") ||
+      agency.includes("riverfront releases") ||
+      agency.includes("south maclean rise")
+    ) {
+      return true;
+    }
   }
   return false;
 }

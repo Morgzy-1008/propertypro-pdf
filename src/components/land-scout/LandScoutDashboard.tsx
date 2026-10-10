@@ -24,6 +24,7 @@ import {
 import {
   type LandParcel,
   type LandScoutFilterState,
+  formatLotDisplay,
 } from "@/lib/land-scout/landScoutTypes";
 import {
   getLandParcels,
@@ -101,6 +102,7 @@ export function LandScoutDashboard() {
   // Web Search State
   const [isWebSearching, setIsWebSearching] = useState(false);
   const [searchStatusMsg, setSearchStatusMsg] = useState("");
+  const [lastSearchSummary, setLastSearchSummary] = useState("");
 
   // Filter & Search State
   const [filterState, setFilterState] = useState<LandScoutFilterState>({
@@ -180,6 +182,7 @@ export function LandScoutDashboard() {
 
     try {
       const result = await searchLiveWebForLand(rawQuery, filterState.state);
+      setLastSearchSummary(result.sourceSummary || "");
       const updated = getLandParcels();
       const deduped = Array.from(new Map(updated.map((p) => [p.id, p])).values());
       setParcels(deduped);
@@ -197,8 +200,13 @@ export function LandScoutDashboard() {
 
         toast.success(`Found ${result.parcels.length} available blocks in ${canonicalSuburb} (${resultState})!`);
       } else {
+        setFilterState((prev) => ({
+          ...prev,
+          searchQuery: rawQuery,
+          suburbOrEstate: "",
+        }));
         toast.info(`No active vacant blocks found for "${rawQuery}".`, {
-          description: "Try searching another area like Box Hill, Flagstone, Ripley, or Austral.",
+          description: result.sourceSummary || "Try searching another area like Box Hill, Flagstone, Ripley, or Austral.",
         });
       }
     } catch (err: any) {
@@ -779,31 +787,27 @@ export function LandScoutDashboard() {
             <div className="h-12 w-12 mx-auto rounded-xl bg-slate-800 flex items-center justify-center text-slate-400">
               <Search className="h-6 w-6" />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-2">
               <h3 className="text-base font-bold text-white">No vacant blocks match this search</h3>
-              <p className="text-xs text-slate-400">
-                {filterState.searchQuery
-                  ? `No blocks in your current list match "${filterState.searchQuery}".`
-                  : "Try clearing your filters to see more results."}
-              </p>
+              {lastSearchSummary ? (
+                <p className="text-xs text-amber-300/90 leading-relaxed max-w-md mx-auto bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                  {lastSearchSummary}
+                </p>
+              ) : (
+                <p className="text-xs text-slate-400">
+                  {filterState.searchQuery
+                    ? `No blocks in your current list match "${filterState.searchQuery}".`
+                    : "Try clearing your filters to see more results."}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-              {filterState.searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => handleExecuteSearch()}
-                  className="px-4 py-2 rounded-xl bg-brand-gold text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors flex items-center gap-1.5 cursor-pointer shadow-md"
-                >
-                  <Search className="h-4 w-4" />
-                  <span>Search Online for "{filterState.searchQuery}"</span>
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-slate-200 text-xs font-semibold hover:bg-slate-700 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-brand-gold text-slate-950 font-bold text-xs hover:bg-amber-400 transition-colors cursor-pointer shadow-md"
               >
-                Clear Filters
+                Browse All Available Lots
               </button>
             </div>
           </div>
@@ -859,7 +863,7 @@ export function LandScoutDashboard() {
                     isLight ? "hover:bg-slate-50" : "hover:bg-slate-800/40"
                   }`}>
                     <td className={`p-3 pl-4 font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Lot {parcel.lotNumber}
+                      {formatLotDisplay(parcel.lotNumber)}
                       <span className={`block text-[10px] font-normal ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                         {parcel.streetAddress}
                       </span>

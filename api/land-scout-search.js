@@ -108,6 +108,19 @@ export const SUBURB_ALIASES = {
   cobbitty: "cobbitty",
   schofields: "schofields",
   riverstone: "riverstone",
+  elara: "marsden park",
+  newpark: "marsden park",
+  "the gables": "box hill",
+  "hills of carmel": "box hill",
+  "the hills of carmel": "box hill",
+  "wilton greens": "wilton",
+  "calderwood valley": "calderwood",
+  providence: "ripley",
+  "providence ripley": "ripley",
+  "lilywood landings": "south maclean",
+  everleigh: "greenbank",
+  covella: "greenbank",
+  "pebble creek": "flagstone",
 };
 
 // Levenshtein distance for fuzzy typo correction
@@ -216,76 +229,59 @@ export function resolveSuburbQuery(query) {
 }
 const MASTER_ESTATE_INVENTORY = {
   "box hill": [
-    { lotNumber: "Lot 4607", streetAddress: "4 Gelderland Ave", estate: "The Hills of Carmel", landSizeM2: 250, frontageM: 10, depthM: 25, price: 722000, isRegistered: true, agentName: "Catherine Cao", agentAgency: "The Hills of Carmel Sales Centre", agentPhone: "1800 227 635" },
-    { lotNumber: "Lot 4612", streetAddress: "14 Gelderland Ave", estate: "The Hills of Carmel", landSizeM2: 300, frontageM: 10, depthM: 30, price: 795000, isRegistered: true, agentName: "Sales Office", agentAgency: "The Hills of Carmel", agentPhone: "1800 227 635" },
-    { lotNumber: "Lot 3108", streetAddress: "Gables Parkway", estate: "The Gables (Stockland)", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 865000, isRegistered: true, agentName: "Stockland Sales Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
-    { lotNumber: "Lot 3115", streetAddress: "Old Pitt Town Road", estate: "The Gables (Stockland)", landSizeM2: 450, frontageM: 15, depthM: 30, price: 975000, isRegistered: true, agentName: "Stockland Sales Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
-    { lotNumber: "Lot 502", streetAddress: "Nelson Road", estate: "Nelson Quarter", landSizeM2: 320, frontageM: 10.5, depthM: 30.5, price: 810000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Project Sales", agentAgency: "Nelson Quarter", agentPhone: "1300 000 000" },
-    { lotNumber: "Lot 214", streetAddress: "Box Road", estate: "Box Hill Rise", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 840000, isRegistered: true, agentName: "Agency Team", agentAgency: "Box Hill Rise", agentPhone: "02 8888 8888" },
-    { lotNumber: "Lot 108", streetAddress: "Terry Road", estate: "Box Hill Quarter", landSizeM2: 400, frontageM: 13, depthM: 30.8, price: 920000, isRegistered: true, agentName: "Land Specialist", agentAgency: "Box Hill Land Co", agentPhone: "02 9999 9999" },
-    { lotNumber: "Lot 703", streetAddress: "Boundary Road", estate: "The Gables", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 1080000, isRegistered: true, agentName: "Stockland Sales", agentAgency: "Stockland", agentPhone: "13 52 63" },
+    { lotNumber: "3108", streetAddress: "Gables Parkway", estate: "The Gables (Stockland)", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 865000, isRegistered: true, agentName: "Stockland Sales Centre", agentAgency: "Stockland", agentPhone: "13 52 63", agentEmail: "thegables@stockland.com.au", sourcePortal: "Stockland", listingUrl: "https://www.stockland.com.au/residential/nsw/the-gables" },
+    { lotNumber: "3115", streetAddress: "Old Pitt Town Road", estate: "The Gables (Stockland)", landSizeM2: 450, frontageM: 15, depthM: 30, price: 975000, isRegistered: true, agentName: "Stockland Sales Centre", agentAgency: "Stockland", agentPhone: "13 52 63", agentEmail: "thegables@stockland.com.au", sourcePortal: "Stockland", listingUrl: "https://www.stockland.com.au/residential/nsw/the-gables" },
+    { lotNumber: "703", streetAddress: "Boundary Road", estate: "The Gables", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 1080000, isRegistered: true, agentName: "Stockland Sales Centre", agentAgency: "Stockland", agentPhone: "13 52 63", agentEmail: "thegables@stockland.com.au", sourcePortal: "Stockland", listingUrl: "https://www.stockland.com.au/residential/nsw/the-gables" },
+    { lotNumber: "4607", streetAddress: "4 Gelderland Ave", estate: "The Hills of Carmel", landSizeM2: 250, frontageM: 10, depthM: 25, price: 722000, isRegistered: true, agentName: "Catherine Cao", agentAgency: "The Hills of Carmel Sales Centre", agentPhone: "1800 227 635", agentEmail: "sales@thehillsofcarmel.com.au", sourcePortal: "Developer Direct", listingUrl: "https://thehillsofcarmel.com.au" },
+    { lotNumber: "4612", streetAddress: "14 Gelderland Ave", estate: "The Hills of Carmel", landSizeM2: 300, frontageM: 10, depthM: 30, price: 795000, isRegistered: true, agentName: "Sales Office", agentAgency: "The Hills of Carmel Sales Centre", agentPhone: "1800 227 635", agentEmail: "sales@thehillsofcarmel.com.au", sourcePortal: "Developer Direct", listingUrl: "https://thehillsofcarmel.com.au" },
   ],
-  austral: [
-    { lotNumber: "Lot 112", streetAddress: "Fifteenth Ave", estate: "Austral Central", landSizeM2: 300, frontageM: 10, depthM: 30, price: 680000, isRegistered: true, agentName: "Local Agency", agentAgency: "Ray White Austral", agentPhone: "02 9600 0000" },
-    { lotNumber: "Lot 125", streetAddress: "Edmondson Ave", estate: "Austral Estate", landSizeM2: 350, frontageM: 11.5, depthM: 30.5, price: 740000, isRegistered: true, agentName: "Sales Team", agentAgency: "First National", agentPhone: "02 9822 0000" },
-    { lotNumber: "Lot 204", streetAddress: "Craik Ave", estate: "Austral Green", landSizeM2: 420, frontageM: 14, depthM: 30, price: 825000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Ingenia Land", agentAgency: "Austral Living", agentPhone: "1300 123 456" },
-    { lotNumber: "Lot 318", streetAddress: "Gurner Ave", estate: "Austral Parklands", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 775000, isRegistered: true, agentName: "Sales Office", agentAgency: "Austral Parklands", agentPhone: "02 9600 1111" },
-    { lotNumber: "Lot 405", streetAddress: "Fourth Ave", estate: "Austral Estate", landSizeM2: 450, frontageM: 15, depthM: 30, price: 860000, isRegistered: true, agentName: "Ray White Team", agentAgency: "Ray White Austral", agentPhone: "02 9600 0000" },
+  "oran park": [
+    { lotNumber: "2575", streetAddress: "Kingfisher Circuit", estate: "Oran Park Town", landSizeM2: 450, frontageM: 15, depthM: 30, price: 842500, isRegistered: true, agentName: "Greenfields Development Company", agentAgency: "Oran Park Town Sales Centre", agentPhone: "02 9043 7500", agentEmail: "sales@oranpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://oranpark.com.au/property/lot-2575/" },
+    { lotNumber: "2583", streetAddress: "Kingfisher Circuit", estate: "Oran Park Town", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 816500, isRegistered: true, agentName: "Greenfields Development Company", agentAgency: "Oran Park Town Sales Centre", agentPhone: "02 9043 7500", agentEmail: "sales@oranpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://oranpark.com.au/property/lot-2583/" },
+    { lotNumber: "8312", streetAddress: "Chickpea Street", estate: "Oran Park Town", landSizeM2: 450, frontageM: 15, depthM: 30, price: 852500, isRegistered: true, agentName: "Greenfields Development Company", agentAgency: "Oran Park Town Sales Centre", agentPhone: "02 9043 7500", agentEmail: "sales@oranpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://oranpark.com.au/property/lot-8312/" },
+    { lotNumber: "2571", streetAddress: "Oran Park Drive", estate: "Oran Park Town", landSizeM2: 440, frontageM: 12.5, depthM: 35.2, price: 739500, isRegistered: true, agentName: "Greenfields Development Company", agentAgency: "Oran Park Town Sales Centre", agentPhone: "02 9043 7500", agentEmail: "sales@oranpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://oranpark.com.au/property/lot-2571/" },
   ],
   calderwood: [
-    { lotNumber: "Lot 1204", streetAddress: "12 Rosebank Drive", estate: "Calderwood Valley", landSizeM2: 450, frontageM: 15, depthM: 30, price: 545000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
-    { lotNumber: "Lot 1218", streetAddress: "Escarpment Way", estate: "Calderwood Valley", landSizeM2: 520, frontageM: 16, depthM: 32.5, price: 595000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
-    { lotNumber: "Lot 845", streetAddress: "Illawarra View Circuit", estate: "Calderwood Valley", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 495000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
-    { lotNumber: "Lot 852", streetAddress: "Valley Vista Street", estate: "Calderwood Valley", landSizeM2: 420, frontageM: 14, depthM: 30, price: 520000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600" },
-    { lotNumber: "Lot 910", streetAddress: "Calderwood Road", estate: "Calderwood Heights", landSizeM2: 600, frontageM: 18, depthM: 33.3, price: 650000, isRegistered: true, agentName: "Project Sales Team", agentAgency: "Calderwood Heights", agentPhone: "02 4230 0000" },
+    { lotNumber: "1204", streetAddress: "12 Rosebank Drive", estate: "Calderwood Valley", landSizeM2: 450, frontageM: 15, depthM: 30, price: 545000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600", agentEmail: "calderwoodvalley@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/new-south-wales/calderwood-valley/" },
+    { lotNumber: "1218", streetAddress: "Escarpment Way", estate: "Calderwood Valley", landSizeM2: 520, frontageM: 16, depthM: 32.5, price: 595000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600", agentEmail: "calderwoodvalley@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/new-south-wales/calderwood-valley/" },
+    { lotNumber: "845", streetAddress: "Illawarra View Circuit", estate: "Calderwood Valley", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 495000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600", agentEmail: "calderwoodvalley@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/new-south-wales/calderwood-valley/" },
+    { lotNumber: "852", streetAddress: "Valley Vista Street", estate: "Calderwood Valley", landSizeM2: 420, frontageM: 14, depthM: 30, price: 520000, isRegistered: true, agentName: "Lendlease Sales Centre", agentAgency: "Lendlease", agentPhone: "1800 034 600", agentEmail: "calderwoodvalley@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/new-south-wales/calderwood-valley/" },
   ],
   wilton: [
-    { lotNumber: "Lot 305", streetAddress: "Wilton Park Road", estate: "Wilton Greens", landSizeM2: 450, frontageM: 15, depthM: 30, price: 560000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838" },
-    { lotNumber: "Lot 312", streetAddress: "Macarthur Circuit", estate: "Wilton Greens", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 515000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838" },
-    { lotNumber: "Lot 418", streetAddress: "Fairway Drive", estate: "Bingara Gorge", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 630000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888" },
-    { lotNumber: "Lot 425", streetAddress: "Pembroke Way", estate: "Bingara Gorge", landSizeM2: 550, frontageM: 17, depthM: 32.4, price: 675000, isRegistered: true, agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888" },
-    { lotNumber: "Lot 110", streetAddress: "Greenmeadow Blvd", estate: "Wilton West", landSizeM2: 400, frontageM: 13, depthM: 30.8, price: 535000, isRegistered: true, agentName: "Wilton Greens Team", agentAgency: "Risland", agentPhone: "133 838" },
+    { lotNumber: "305", streetAddress: "Wilton Park Road", estate: "Wilton Greens", landSizeM2: 450, frontageM: 15, depthM: 30, price: 560000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838", agentEmail: "info@wiltongreens.com.au", sourcePortal: "Developer Direct", listingUrl: "https://wiltongreens.com.au" },
+    { lotNumber: "312", streetAddress: "Macarthur Circuit", estate: "Wilton Greens", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 515000, isRegistered: true, agentName: "Risland Sales Gallery", agentAgency: "Risland", agentPhone: "133 838", agentEmail: "info@wiltongreens.com.au", sourcePortal: "Developer Direct", listingUrl: "https://wiltongreens.com.au" },
+    { lotNumber: "418", streetAddress: "Fairway Drive", estate: "Bingara Gorge", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 630000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888", agentEmail: "info@bingaragorge.com.au", sourcePortal: "Developer Direct", listingUrl: "https://bingaragorge.com.au" },
+    { lotNumber: "425", streetAddress: "Pembroke Way", estate: "Bingara Gorge", landSizeM2: 550, frontageM: 17, depthM: 32.4, price: 675000, isRegistered: true, agentName: "Metro Property Group", agentAgency: "Bingara Gorge Sales", agentPhone: "1800 647 888", agentEmail: "info@bingaragorge.com.au", sourcePortal: "Developer Direct", listingUrl: "https://bingaragorge.com.au" },
   ],
   "marsden park": [
-    { lotNumber: "Lot 2408", streetAddress: "Northbourne Drive", estate: "Elara", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 795000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
-    { lotNumber: "Lot 2415", streetAddress: "Elara Boulevard", estate: "Elara", landSizeM2: 450, frontageM: 15, depthM: 30, price: 890000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63" },
-    { lotNumber: "Lot 1502", streetAddress: "Richmond Road", estate: "Newpark", landSizeM2: 300, frontageM: 10, depthM: 30, price: 710000, isRegistered: true, agentName: "Winten Property Group", agentAgency: "Newpark Sales", agentPhone: "1300 122 600" },
-    { lotNumber: "Lot 1510", streetAddress: "Horizon Way", estate: "Newpark", landSizeM2: 350, frontageM: 11.5, depthM: 30.4, price: 760000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Winten Property Group", agentAgency: "Newpark Sales", agentPhone: "1300 122 600" },
-    { lotNumber: "Lot 604", streetAddress: "Glengarrie Road", estate: "Marsden Central", landSizeM2: 400, frontageM: 13.5, depthM: 29.6, price: 830000, isRegistered: true, agentName: "Agency Partner", agentAgency: "Marsden Living", agentPhone: "02 8800 0000" },
+    { lotNumber: "2408", streetAddress: "Northbourne Drive", estate: "Elara", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 795000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63", agentEmail: "elara@stockland.com.au", sourcePortal: "Stockland", listingUrl: "https://www.stockland.com.au/residential/nsw/elara" },
+    { lotNumber: "2415", streetAddress: "Elara Boulevard", estate: "Elara", landSizeM2: 450, frontageM: 15, depthM: 30, price: 890000, isRegistered: true, agentName: "Stockland Elara Centre", agentAgency: "Stockland", agentPhone: "13 52 63", agentEmail: "elara@stockland.com.au", sourcePortal: "Stockland", listingUrl: "https://www.stockland.com.au/residential/nsw/elara" },
+    { lotNumber: "1502", streetAddress: "Richmond Road", estate: "Newpark", landSizeM2: 300, frontageM: 10, depthM: 30, price: 710000, isRegistered: true, agentName: "Winten Property Group", agentAgency: "Newpark Sales Centre", agentPhone: "1300 122 600", agentEmail: "info@newpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://newpark.com.au" },
+    { lotNumber: "1510", streetAddress: "Horizon Way", estate: "Newpark", landSizeM2: 350, frontageM: 11.5, depthM: 30.4, price: 760000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Winten Property Group", agentAgency: "Newpark Sales Centre", agentPhone: "1300 122 600", agentEmail: "info@newpark.com.au", sourcePortal: "Developer Direct", listingUrl: "https://newpark.com.au" },
   ],
   flagstone: [
-    { lotNumber: "Lot 2577", streetAddress: "61 Paradise Road", estate: "Flagstone City", landSizeM2: 306, frontageM: 10.2, depthM: 30, price: 295000, isRegistered: true, uploadDate: "2026-10-04", sourcePortal: "Peet", listingUrl: "https://www.peet.com.au/communities/brisbane-and-surrounds/flagstone", agentName: "Cameron Vance", agentAgency: "Peet Flagstone Sales Office", agentPhone: "1800 638 360", agentEmail: "flagstone@peet.com.au" },
-    { lotNumber: "Lot 2580", streetAddress: "Trailblazer Drive", estate: "Flagstone City", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 335000, isRegistered: true, uploadDate: "2026-10-03", sourcePortal: "OpenLot", listingUrl: "https://www.openlot.com.au/land-for-sale/flagstone", agentName: "Matthew Groves", agentAgency: "Avenues Flagstone / OpenLot", agentPhone: "07 3810 0000", agentEmail: "sales@flagstone.com.au" },
-    { lotNumber: "Lot 2592", streetAddress: "Trailblazer Drive", estate: "Flagstone City", landSizeM2: 450, frontageM: 15, depthM: 30, price: 375000, isRegistered: true, uploadDate: "2026-10-02", sourcePortal: "RealEstate", listingUrl: "https://www.realestate.com.au/buy/property-land-in-flagstone,+qld+4280/list-1", agentName: "Kylie Rodwell", agentAgency: "Ray White Flagstone", agentPhone: "0435 838 888", agentEmail: "kylie.rodwell@raywhite.com" },
-    { lotNumber: "Lot 1804", streetAddress: "Flinders Lakes Blvd", estate: "Flagstone Central", landSizeM2: 512, frontageM: 16, depthM: 32, price: 410000, isRegistered: false, expectedRegistrationDate: "Q4 2026", uploadDate: "2026-10-01", sourcePortal: "Domain", listingUrl: "https://www.domain.com.au/sale/?ptype=vacant-land&suburb=flagstone-qld-4280", agentName: "Nathan Strudwick", agentAgency: "LJ Hooker Land Team", agentPhone: "0455 588 777", agentEmail: "nstrudwick@ljhooker.com.au" },
-    { lotNumber: "Lot 142", streetAddress: "Pebble Creek Way", estate: "Pebble Creek", landSizeM2: 400, frontageM: 12.5, depthM: 32, price: 355000, isRegistered: true, uploadDate: "2026-09-30", sourcePortal: "OpenLot", listingUrl: "https://www.openlot.com.au/land-for-sale/pebble-creek", agentName: "Orchard Sales Office", agentAgency: "Orchard Property Group", agentPhone: "1300 056 848", agentEmail: "sales@pebblecreek.com.au" },
+    { lotNumber: "2577", streetAddress: "61 Paradise Road", estate: "Flagstone City", landSizeM2: 306, frontageM: 10.2, depthM: 30, price: 295000, isRegistered: true, uploadDate: "2026-10-04", sourcePortal: "Peet", listingUrl: "https://www.peet.com.au/communities/brisbane-and-surrounds/flagstone", agentName: "Cameron Vance", agentAgency: "Peet Flagstone Sales Office", agentPhone: "1800 638 360", agentEmail: "flagstone@peet.com.au" },
+    { lotNumber: "2580", streetAddress: "Trailblazer Drive", estate: "Flagstone City", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 335000, isRegistered: true, uploadDate: "2026-10-03", sourcePortal: "Peet", listingUrl: "https://www.peet.com.au/communities/brisbane-and-surrounds/flagstone", agentName: "Sales Office", agentAgency: "Peet Flagstone Sales Office", agentPhone: "1800 638 360", agentEmail: "flagstone@peet.com.au" },
+    { lotNumber: "2592", streetAddress: "Trailblazer Drive", estate: "Flagstone City", landSizeM2: 450, frontageM: 15, depthM: 30, price: 375000, isRegistered: true, uploadDate: "2026-10-02", sourcePortal: "Peet", listingUrl: "https://www.peet.com.au/communities/brisbane-and-surrounds/flagstone", agentName: "Sales Office", agentAgency: "Peet Flagstone Sales Office", agentPhone: "1800 638 360", agentEmail: "flagstone@peet.com.au" },
+    { lotNumber: "142", streetAddress: "Pebble Creek Way", estate: "Pebble Creek", landSizeM2: 400, frontageM: 12.5, depthM: 32, price: 355000, isRegistered: true, uploadDate: "2026-09-30", sourcePortal: "Developer Direct", listingUrl: "https://www.openlot.com.au/land-for-sale/pebble-creek", agentName: "Orchard Sales Office", agentAgency: "Orchard Property Group", agentPhone: "1300 056 848", agentEmail: "sales@pebblecreek.com.au" },
   ],
   ripley: [
-    { lotNumber: "Lot 412", streetAddress: "Monterea Circuit", estate: "Monterea Ripley", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 340000, isRegistered: true, agentName: "Monterea Sales", agentAgency: "Monterea Ripley", agentPhone: "07 3810 0000" },
-    { lotNumber: "Lot 805", streetAddress: "Harmony Way", estate: "Providence Ripley", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 375000, isRegistered: true, agentName: "Sekisui House Team", agentAgency: "Sekisui House", agentPhone: "1800 004 774" },
-    { lotNumber: "Lot 816", streetAddress: "Soul Street", estate: "Providence Ripley", landSizeM2: 480, frontageM: 16, depthM: 30, price: 420000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Sekisui House Team", agentAgency: "Sekisui House", agentPhone: "1800 004 774" },
-    { lotNumber: "Lot 920", streetAddress: "Green Valley Road", estate: "Ripley Valley", landSizeM2: 450, frontageM: 15, depthM: 30, price: 395000, isRegistered: true, agentName: "Ripley Valley Sales", agentAgency: "Ripley Land Team", agentPhone: "07 3810 1111" },
+    { lotNumber: "805", streetAddress: "Harmony Way", estate: "Providence Ripley", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 375000, isRegistered: true, agentName: "Sekisui House Sales Centre", agentAgency: "Sekisui House", agentPhone: "1800 004 774", agentEmail: "providence@sekisuihouse.com.au", sourcePortal: "Developer Direct", listingUrl: "https://www.sekisuihouse.com.au/providence/" },
+    { lotNumber: "816", streetAddress: "Soul Street", estate: "Providence Ripley", landSizeM2: 480, frontageM: 16, depthM: 30, price: 420000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Sekisui House Sales Centre", agentAgency: "Sekisui House", agentPhone: "1800 004 774", agentEmail: "providence@sekisuihouse.com.au", sourcePortal: "Developer Direct", listingUrl: "https://www.sekisuihouse.com.au/providence/" },
   ],
   "south maclean": [
-    { lotNumber: "Lot 104", streetAddress: "Olley Way", estate: "Lilywood Landings", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 325000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588" },
-    { lotNumber: "Lot 118", streetAddress: "Lilywood Road", estate: "Lilywood Landings", landSizeM2: 450, frontageM: 15, depthM: 30, price: 365000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588" },
-    { lotNumber: "Lot 202", streetAddress: "Teviot Road", estate: "Logan Riverfront", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 395000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "Estate Sales Team", agentAgency: "Riverfront Releases", agentPhone: "1300 246 700" },
-    { lotNumber: "Lot 215", streetAddress: "Loganview Circuit", estate: "Pebble Creek South", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 345000, isRegistered: true, agentName: "Orchard Team", agentAgency: "Orchard Property", agentPhone: "1300 056 848" },
-    { lotNumber: "Lot 308", streetAddress: "Flagstone Creek Road", estate: "South Maclean Rise", landSizeM2: 420, frontageM: 14, depthM: 30, price: 350000, isRegistered: true, agentName: "Land Acquisitions", agentAgency: "Hudson Land Partner", agentPhone: "1300 246 700" },
+    { lotNumber: "104", streetAddress: "Olley Way", estate: "Lilywood Landings", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 325000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588", agentEmail: "lilywood@avid.com.au", sourcePortal: "Developer Direct", listingUrl: "https://avid.com.au/communities/lilywood-landings/" },
+    { lotNumber: "118", streetAddress: "Lilywood Road", estate: "Lilywood Landings", landSizeM2: 450, frontageM: 15, depthM: 30, price: 365000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "AVID / Villa World", agentPhone: "1800 875 588", agentEmail: "lilywood@avid.com.au", sourcePortal: "Developer Direct", listingUrl: "https://avid.com.au/communities/lilywood-landings/" },
   ],
   yarrabilba: [
-    { lotNumber: "Lot 3204", streetAddress: "Darnell Street", estate: "Yarrabilba", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 320000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
-    { lotNumber: "Lot 3218", streetAddress: "Yarrabilba Drive", estate: "The Parks", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 355000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
-    { lotNumber: "Lot 4102", streetAddress: "Highlands Way", estate: "The Highlands Yarrabilba", landSizeM2: 480, frontageM: 16, depthM: 30, price: 395000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
-    { lotNumber: "Lot 4115", streetAddress: "Sandstone Blvd", estate: "Sandstone Release", landSizeM2: 512, frontageM: 16, depthM: 32, price: 415000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
-    { lotNumber: "Lot 105", streetAddress: "Shaw Street", estate: "Yarrabilba Central", landSizeM2: 300, frontageM: 10, depthM: 30, price: 285000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700" },
+    { lotNumber: "3204", streetAddress: "Darnell Street", estate: "Yarrabilba", landSizeM2: 350, frontageM: 12.5, depthM: 28, price: 320000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700", agentEmail: "yarrabilba@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/queensland/yarrabilba/" },
+    { lotNumber: "3218", streetAddress: "Yarrabilba Drive", estate: "The Parks Yarrabilba", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 355000, isRegistered: true, agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700", agentEmail: "yarrabilba@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/queensland/yarrabilba/" },
+    { lotNumber: "4102", streetAddress: "Highlands Way", estate: "The Highlands Yarrabilba", landSizeM2: 480, frontageM: 16, depthM: 30, price: 395000, isRegistered: false, expectedRegistrationDate: "Q4 2026", agentName: "Lendlease Sales Office", agentAgency: "Lendlease", agentPhone: "1800 246 700", agentEmail: "yarrabilba@lendlease.com", sourcePortal: "Lendlease", listingUrl: "https://communities.lendlease.com/queensland/yarrabilba/" },
   ],
   greenbank: [
-    { lotNumber: "Lot 1402", streetAddress: "Everleigh Drive", estate: "Everleigh", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 345000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960" },
-    { lotNumber: "Lot 1410", streetAddress: "Kessels Way", estate: "Everleigh", landSizeM2: 450, frontageM: 15, depthM: 30, price: 385000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960" },
-    { lotNumber: "Lot 1505", streetAddress: "Amberley Court", estate: "Covella", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 360000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "Covella by AVID", agentPhone: "1800 875 588" },
-    { lotNumber: "Lot 1520", streetAddress: "Pub Lane", estate: "Covella", landSizeM2: 500, frontageM: 16, depthM: 31.25, price: 410000, isRegistered: false, expectedRegistrationDate: "Q3 2026", agentName: "AVID Property Group", agentAgency: "Covella by AVID", agentPhone: "1800 875 588" },
-    { lotNumber: "Lot 208", streetAddress: "Teviot Road", estate: "Greenbank Rise", landSizeM2: 600, frontageM: 18, depthM: 33.3, price: 450000, isRegistered: true, agentName: "Sales Team", agentAgency: "Greenbank Land Hub", agentPhone: "1300 246 700" },
+    { lotNumber: "1402", streetAddress: "Everleigh Drive", estate: "Everleigh", landSizeM2: 375, frontageM: 12.5, depthM: 30, price: 345000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960", agentEmail: "everleigh@mirvac.com", sourcePortal: "Developer Direct", listingUrl: "https://everleigh.mirvac.com/" },
+    { lotNumber: "1410", streetAddress: "Kessels Way", estate: "Everleigh", landSizeM2: 450, frontageM: 15, depthM: 30, price: 385000, isRegistered: true, agentName: "Mirvac Sales Centre", agentAgency: "Mirvac", agentPhone: "07 3859 5960", agentEmail: "everleigh@mirvac.com", sourcePortal: "Developer Direct", listingUrl: "https://everleigh.mirvac.com/" },
+    { lotNumber: "1505", streetAddress: "Amberley Court", estate: "Covella", landSizeM2: 400, frontageM: 14, depthM: 28.5, price: 360000, isRegistered: true, agentName: "AVID Property Group", agentAgency: "Covella by AVID", agentPhone: "1800 875 588", agentEmail: "covella@avid.com.au", sourcePortal: "Developer Direct", listingUrl: "https://avid.com.au/communities/covella/" },
   ],
 };
 
@@ -331,23 +327,38 @@ export default async function handler(req, res) {
   const seenKeys = new Set();
 
   const addParcel = (p) => {
-    const key = `${p.lotNumber}-${p.suburb}-${p.landSizeM2}`.toLowerCase();
+    const cleanLotNumber = String(p.lotNumber || "").replace(/^Lot\s*/i, "").trim();
+    if (!cleanLotNumber) return;
+    const key = `${cleanLotNumber}-${p.suburb}-${p.landSizeM2}`.toLowerCase();
     if (!seenKeys.has(key)) {
       seenKeys.add(key);
-      combinedParcels.push(p);
+      combinedParcels.push({
+        ...p,
+        lotNumber: cleanLotNumber,
+      });
     }
   };
 
   // 1. Ingest Master Estate Pre-Indexed Lots for Instant Availability
   for (const [subKey, estateLots] of Object.entries(MASTER_ESTATE_INVENTORY)) {
-    if (resolvedKey === subKey || cleanQuery.includes(subKey) || subKey.includes(cleanQuery)) {
-      for (const lot of estateLots) {
+    const isDirectMatch = resolvedKey === subKey || cleanQuery.includes(subKey) || subKey.includes(cleanQuery);
+    for (const lot of estateLots) {
+      const estateName = (lot.estate || "").toLowerCase();
+      const agencyName = (lot.agentAgency || "").toLowerCase();
+      if (
+        isDirectMatch ||
+        cleanQuery.includes(estateName) ||
+        (estateName.length > 3 && estateName.includes(cleanQuery)) ||
+        (agencyName && cleanQuery.includes(agencyName))
+      ) {
         addParcel({
           ...lot,
-          suburb: targetSuburbName,
+          suburb: lot.suburb || targetSuburbName,
           state: targetState,
           postcode: defaultPostcode,
           council: defaultCouncil,
+          lat: lot.lat || matchedCentroid?.lat || (targetState === "NSW" ? -33.8688 : -27.8184),
+          lng: lot.lng || lot.lon || matchedCentroid?.lon || (targetState === "NSW" ? 151.2093 : 152.9621),
           uploadDate: lot.uploadDate || "2026-10-04",
           sourcePortal: lot.sourcePortal || "RealEstate",
           listingUrl:
@@ -379,43 +390,35 @@ export default async function handler(req, res) {
     key = clientKey.trim().replace(/["']/g, "");
   }
 
-  if (combinedParcels.length < 4 && key) {
-    const prompt = `You are a senior Australian property acquisition analyst for Hudson Homes.
-Task: Search the web (specifically checking openlot.com.au, domain.com.au, realestate.com.au, stockland.com.au, peet.com.au, and lendlease.com.au) for active, genuinely available vacant land lots for sale matching: "${query.trim()}".
-Target State / Area: ${targetState}.
-
-Find genuine active vacant land lots and return them strictly in JSON format.
-Each parcel must have:
-- "lotNumber": string (e.g. "Lot 104")
-- "streetAddress": string
-- "suburb": string
-- "estate": string
-- "state": "${targetState}"
-- "postcode": string
-- "council": string
-- "landSizeM2": number (e.g. 450)
-- "frontageM": number (e.g. 15.0)
-- "depthM": number (e.g. 30.0)
-- "price": number (e.g. 345000)
-- "isRegistered": boolean
-- "expectedRegistrationDate": string (e.g. "Registered Now" or "Q3 2026")
-- "sourcePortal": "RealEstate" | "Domain" | "OpenLot" | "Stockland" | "Peet" | "Lendlease"
-- "listingUrl": string
-- "agentName": string
-- "agentAgency": string
-- "agentPhone": string
-- "agentEmail": string
-
-CRITICAL ACCURACY RULES:
-- Only return GENUINE, VERIFIABLE vacant land listings currently advertised for sale.
-- NEVER invent or hallucinate lot numbers, prices, or agents.
-- If no active vacant land releases exist in this area, return an empty "parcels" array [].
-
-CRITICAL: Output ONLY a valid JSON object matching:
+  if (combinedParcels.length === 0 && key) {
+    const prompt = `Search the web for up to 4 real, active vacant residential land lots currently advertised for sale in ${query.trim()} Australia.
+Return ONLY a valid JSON object matching:
 {
-  "summary": "Short 1-2 sentence description of active land releases found",
-  "parcels": [ ... ]
-}`;
+  "summary": "Brief summary of active land releases found",
+  "parcels": [
+    {
+      "lotNumber": "Lot number or street number",
+      "streetAddress": "Street address",
+      "suburb": "${targetSuburbName}",
+      "state": "${targetState}",
+      "postcode": "${defaultPostcode}",
+      "council": "${defaultCouncil}",
+      "landSizeM2": 450,
+      "frontageM": 15,
+      "depthM": 30,
+      "price": 450000,
+      "isRegistered": true,
+      "expectedRegistrationDate": "Registered",
+      "sourcePortal": "RealEstate, Domain, or Developer",
+      "listingUrl": "URL if available",
+      "agentName": "Agent or sales office name",
+      "agentAgency": "Agency name",
+      "agentPhone": "Phone number",
+      "agentEmail": "Email"
+    }
+  ]
+}
+CRITICAL: Only return genuine listings. If no active vacant land releases currently exist for sale in this area, return {"summary": "No active vacant land releases currently found", "parcels": []}. Output JSON only.`;
 
     const models = ["gemini-3.8-flash", "gemini-flash-latest"];
     for (const model of models) {
@@ -429,7 +432,7 @@ CRITICAL: Output ONLY a valid JSON object matching:
               contents: [{ parts: [{ text: prompt }] }],
               tools: [{ googleSearch: {} }],
             }),
-            signal: AbortSignal.timeout(50000),
+            signal: AbortSignal.timeout(18000),
           }
         );
 
@@ -450,13 +453,17 @@ CRITICAL: Output ONLY a valid JSON object matching:
             const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
             if (Array.isArray(parsed.parcels)) {
               for (const p of parsed.parcels) {
-                if (p && p.lotNumber && Number(p.price) > 0 && Number(p.landSizeM2) > 0) {
+                const cleanLot = String(p.lotNumber || "").replace(/^Lot\s*/i, "").trim();
+                if (cleanLot && Number(p.price) > 0 && Number(p.landSizeM2) > 0) {
                   addParcel({
                     ...p,
+                    lotNumber: cleanLot,
                     suburb: p.suburb || targetSuburbName,
                     state: p.state || targetState,
                     postcode: p.postcode || defaultPostcode,
                     council: p.council || defaultCouncil,
+                    lat: p.lat || matchedCentroid?.lat || (targetState === "NSW" ? -33.8688 : -27.8184),
+                    lng: p.lng || p.lon || matchedCentroid?.lon || (targetState === "NSW" ? 151.2093 : 152.9621),
                     uploadDate: p.uploadDate || new Date().toISOString().split("T")[0],
                     sourcePortal: p.sourcePortal || "RealEstate",
                     listingUrl: p.listingUrl || `https://www.realestate.com.au/buy/property-land-in-${(p.suburb || targetSuburbName).toLowerCase().replace(/\s+/g, "+")},+${(p.state || targetState).toLowerCase()}/list-1`,
@@ -473,6 +480,9 @@ CRITICAL: Output ONLY a valid JSON object matching:
         }
       } catch (err) {
         console.warn(`[land-scout-search] Gemini search attempt with ${model} warning:`, err.message);
+        if (err.name === "TimeoutError" || err.message?.includes("aborted")) {
+          break; // Stop immediately on timeout to avoid doubling user wait time
+        }
       }
     }
   }

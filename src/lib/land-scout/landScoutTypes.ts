@@ -149,3 +149,16 @@ export interface LandScoutFilterState {
   strongBuysOnly?: boolean;
   sortBy: "deal_score" | "price_asc" | "price_desc" | "size_desc" | "frontage_desc" | "newest";
 }
+
+/**
+ * Formats a lot number for display, preventing "Lot Lot 101" duplication.
+ * e.g. "4607" -> "Lot 4607", "Lot 4607" -> "Lot 4607", "" -> "Lot"
+ */
+export function formatLotDisplay(lotNumber?: string | number): string {
+  if (!lotNumber) return "Lot";
+  const str = String(lotNumber).trim();
+  if (/^lot\b/i.test(str)) {
+    return str;
+  }
+  return `Lot ${str}`;
+}

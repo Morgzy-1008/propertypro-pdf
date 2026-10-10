@@ -10,7 +10,7 @@ import {
   ArrowUpRight,
   ShieldCheck,
 } from "lucide-react";
-import { type LandParcel } from "@/lib/land-scout/landScoutTypes";
+import { type LandParcel, formatLotDisplay } from "@/lib/land-scout/landScoutTypes";
 import { useTheme } from "@/lib/theme";
 
 interface LandValuationDrawerProps {
@@ -49,7 +49,7 @@ export function LandValuationDrawer({
             <div>
               <div className="flex items-center gap-2">
                 <h2 className={`text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
-                  Lot {parcel.lotNumber} · Value &amp; Yield Appraisal
+                  {formatLotDisplay(parcel.lotNumber)} · Value &amp; Yield Appraisal
                 </h2>
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase ${

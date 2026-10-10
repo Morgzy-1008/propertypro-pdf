@@ -50,10 +50,10 @@ function LandScoutPage() {
               Under Development
             </div>
             <h1 className="text-xl font-bold text-white">
-              Hudson Land Scout · Restricted Access
+              Hudson Land Scout · Staff Authentication
             </h1>
             <p className="text-xs text-slate-400 leading-relaxed">
-              This portal is currently under active development and restricted to system administration (Morgan Hales).
+              This portal is accessible to all authenticated Hudson Homes staff members. Please sign in via the portal hub.
             </p>
           </div>
 

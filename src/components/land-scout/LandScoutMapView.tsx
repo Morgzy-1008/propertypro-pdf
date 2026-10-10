@@ -9,7 +9,7 @@ import {
   Layers,
   CheckCircle2,
 } from "lucide-react";
-import { type LandParcel } from "@/lib/land-scout/landScoutTypes";
+import { type LandParcel, formatLotDisplay } from "@/lib/land-scout/landScoutTypes";
 
 interface LandScoutMapViewProps {
   parcels: LandParcel[];
@@ -141,7 +141,7 @@ export function LandScoutMapView({
                       />
                       <div className="text-left">
                         <span className="text-[11px] font-bold block leading-tight">
-                          Lot {parcel.lotNumber} · {parcel.suburb}
+                          {formatLotDisplay(parcel.lotNumber)} · {parcel.suburb}
                         </span>
                         <span className="text-[10px] text-brand-gold font-semibold font-mono">
                           ${parcel.price.toLocaleString()} ({parcel.landSizeM2}m²)
@@ -174,7 +174,7 @@ export function LandScoutMapView({
                   {selectedParcel.sourcePortal} · {selectedParcel.state}
                 </span>
                 <h3 className="text-lg font-bold text-white mt-1.5 leading-tight">
-                  Lot {selectedParcel.lotNumber}
+                  {formatLotDisplay(selectedParcel.lotNumber)}
                 </h3>
                 <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
                   <MapPin className="h-3 w-3 text-brand-gold" />

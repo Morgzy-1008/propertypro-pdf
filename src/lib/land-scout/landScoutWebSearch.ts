@@ -289,8 +289,8 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       agentAgency: raw.agentAgency || "Estate Land Sales",
       agentPhone: raw.agentPhone || "1300 246 700",
       agentEmail: raw.agentEmail || "sales@hudsonhomes.com.au",
-      lat: state === "NSW" ? -33.8688 : -27.8184,
-      lng: state === "NSW" ? 151.2093 : 152.9621,
+      lat: raw.lat ? Number(raw.lat) : (state === "NSW" ? -33.8688 : -27.8184),
+      lng: (raw.lng || raw.lon) ? Number(raw.lng || raw.lon) : (state === "NSW" ? 151.2093 : 152.9621),
       feasibility: {
         fallEstimateM: 0.6,
         slopeCategory: "flat",
@@ -332,7 +332,7 @@ export async function searchLiveWebForLand(
   // This utilizes the active system-configured Gemini key in the background with zero user setup.
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 55000);
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const proxyRes = await fetch("/api/land-scout-search", {
       method: "POST",
@@ -348,15 +348,24 @@ export async function searchLiveWebForLand(
 
     if (proxyRes.ok) {
       const data = await proxyRes.json();
-      if (data.success && Array.isArray(data.parcels) && data.parcels.length > 0) {
-        const hydratedParcels = hydrateRawLandParcels(data.parcels);
-        bulkAddOrUpdateParcels(hydratedParcels);
-        return {
-          parcels: hydratedParcels,
-          sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online via Google Search Grounding.`,
-          targetSuburb: data.targetSuburb,
-          targetState: data.targetState,
-        };
+      if (data.success && Array.isArray(data.parcels)) {
+        if (data.parcels.length > 0) {
+          const hydratedParcels = hydrateRawLandParcels(data.parcels);
+          bulkAddOrUpdateParcels(hydratedParcels);
+          return {
+            parcels: hydratedParcels,
+            sourceSummary: data.summary || `Found ${hydratedParcels.length} active lots online.`,
+            targetSuburb: data.targetSuburb,
+            targetState: data.targetState,
+          };
+        } else {
+          return {
+            parcels: [],
+            sourceSummary: data.summary || `No active vacant land releases currently found online for "${query}".`,
+            targetSuburb: data.targetSuburb,
+            targetState: data.targetState,
+          };
+        }
       }
       if (data.isAuthError) {
         clearGeminiApiKey();
