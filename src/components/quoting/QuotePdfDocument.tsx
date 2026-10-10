@@ -820,7 +820,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = siteConditions.arboristReportRequired ? (siteConditions.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 3300) : 0;
+  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 3500) : 0;
 
   // Site Overlay Allowances (RHS)
   const slabHeight = siteConditions.slabElevationMeters ?? 0.3;
@@ -1191,7 +1191,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           {
             id: "sewer_bridging",
             name: "Sewer Line Bridging / Concrete Encasement Allowance",
-            description: "Concrete encasement and footings bridging sewer zone of influence near/under proposed building pad.",
+            description: "Concrete encasement and footings bridging sewer zone of influence near/under proposed building pad (in addition to CCTV inspection).",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.sewerBridgingCost || 4500),
           },

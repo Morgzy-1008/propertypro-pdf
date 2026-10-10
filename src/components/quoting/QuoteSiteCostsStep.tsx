@@ -25,6 +25,7 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCcw,
+  Shovel,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,7 +154,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 3300) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 3500) : 0;
 
   const totalReportsCost =
     bushfireReportCost +
@@ -456,6 +457,15 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
     onSiteChange({
       materialHandlingAllowance: next,
       materialHandlingRequired: next > 0,
+    });
+  };
+
+  const handleSewerBridgingStep = (delta: number) => {
+    const current = Number(site.sewerBridgingCost) || 0;
+    const next = Math.max(0, current + delta);
+    onSiteChange({
+      sewerBridgingCost: next,
+      sewerBridgingRequired: next > 0,
     });
   };
 
@@ -1419,7 +1429,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </span>
           </div>
 
-          {/* CCTV Sewer Pipe Inspection ($3,300) */}
+          {/* CCTV Sewer Pipe Inspection ($3,500) */}
           <div
             onClick={() => onSiteChange({ cctvSewerReportRequired: !site.cctvSewerReportRequired })}
             className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-2 ${
@@ -1433,7 +1443,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
               {site.cctvSewerReportRequired && <Check className="h-3.5 w-3.5 text-teal-400 flex-none" />}
             </div>
             <span className="font-bold text-xs text-teal-400 font-mono flex-none">
-              +{formatAud(site.cctvSewerReportCost ?? 3300)}
+              +{formatAud(site.cctvSewerReportCost ?? 3500)}
             </span>
           </div>
         </div>
@@ -2254,6 +2264,88 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
                     : "bg-slate-800 hover:bg-slate-700 text-slate-300"
                 }`}
                 title="Increase $2,500"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+
+          {/* Sewer Line Bridging Allowance (On Top of CCTV Inspection) */}
+          <div
+            onClick={() => {
+              const current = Number(site.sewerBridgingCost) || 0;
+              const next = current > 0 ? 0 : 4500;
+              onSiteChange({
+                sewerBridgingCost: next,
+                sewerBridgingRequired: next > 0,
+              });
+            }}
+            className={`p-4 rounded-xl border cursor-pointer transition-all flex flex-col justify-between ${
+              (site.sewerBridgingCost ?? 0) > 0
+                ? isLight
+                  ? "border-teal-500 bg-teal-50 ring-1 ring-teal-500/40 shadow-sm"
+                  : "border-teal-500 bg-teal-950/20 ring-1 ring-teal-500/40 shadow-sm"
+                : isLight
+                  ? "border-slate-200 bg-white hover:border-slate-300 shadow-xs"
+                  : "border-slate-800 bg-slate-900/60 hover:border-slate-700"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`font-bold text-xs flex items-center gap-1.5 ${isLight ? "text-slate-900" : "text-white"}`}>
+                <Shovel className={`h-3.5 w-3.5 ${isLight ? "text-teal-600" : "text-teal-400"}`} />
+                Sewer Bridging (On Top)
+              </span>
+              {(site.sewerBridgingCost ?? 0) > 0 ? (
+                <span className={`text-[10px] px-2 py-0.5 rounded font-semibold flex items-center gap-1 ${
+                  isLight ? "bg-teal-100 text-teal-800" : "bg-teal-500/20 text-teal-300"
+                }`}>
+                  <Check className="h-3 w-3" /> Selected
+                </span>
+              ) : (
+                <span className={`text-[10px] px-2 py-0.5 rounded border font-medium ${
+                  isLight
+                    ? "bg-slate-100 text-slate-700 border-slate-300"
+                    : "bg-slate-900/80 text-slate-300 border-slate-700"
+                }`}>
+                  Optional
+                </span>
+              )}
+            </div>
+
+            <div
+              className={`flex items-center justify-between gap-1.5 pt-2 mt-2 border-t ${
+                isLight ? "border-slate-200" : "border-slate-800"
+              }`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => handleSewerBridgingStep(-500)}
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
+                title="Decrease $500"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className={`font-bold text-xs font-mono ${
+                (site.sewerBridgingCost ?? 0) > 0
+                  ? (isLight ? "text-teal-700" : "text-teal-400")
+                  : (isLight ? "text-slate-700" : "text-slate-400")
+              }`}>
+                {formatAud(site.sewerBridgingCost ?? 0)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSewerBridgingStep(500)}
+                className={`p-1 rounded transition-colors ${
+                  isLight
+                    ? "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 shadow-xs"
+                    : "bg-slate-800 hover:bg-slate-700 text-slate-300"
+                }`}
+                title="Increase $500"
               >
                 <Plus className="h-3 w-3" />
               </button>

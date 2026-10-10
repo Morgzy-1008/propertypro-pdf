@@ -111,7 +111,7 @@ export interface SiteConditions {
   arboristReportRequired?: boolean;
   arboristReportCost?: number; // default $1,100
   cctvSewerReportRequired?: boolean;
-  cctvSewerReportCost?: number; // default $850
+  cctvSewerReportCost?: number; // default $3,500
 
   // Site Overlay Allowances & Physical Works (RHS)
   bushfireBal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";

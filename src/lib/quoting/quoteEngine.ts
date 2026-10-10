@@ -1393,7 +1393,7 @@ export function calculateQuotePricing(
   const landslideReportCost = site.landslideReportRequired ? (Number(site.landslideReportCost) || 7000) : 0;
   const acousticReportCost = site.acousticReportRequired ? (Number(site.acousticReportCost) || 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (Number(site.arboristReportCost) || 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 3300) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (Number(site.cctvSewerReportCost) || 3500) : 0;
 
   // Site Overlay Physical Allowances (RHS)
   const bushfireCost =

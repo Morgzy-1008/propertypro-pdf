@@ -330,9 +330,9 @@ export function V2StepSiteCosts({
     if (active) {
       onChange({
         cctvSewerReportRequired: true,
-        cctvSewerReportCost: 850,
+        cctvSewerReportCost: site.cctvSewerReportCost && site.cctvSewerReportCost > 0 ? site.cctvSewerReportCost : 3500,
         sewerBridgingRequired: true,
-        sewerBridgingCost: site.sewerBridgingCost > 0 ? site.sewerBridgingCost : 4500,
+        sewerBridgingCost: site.sewerBridgingCost && site.sewerBridgingCost > 0 ? site.sewerBridgingCost : 4500,
       });
     } else {
       onChange({
@@ -1370,7 +1370,7 @@ export function V2StepSiteCosts({
                       Sewer Line Near / Under Proposed Building Pad
                     </span>
                     <span className="text-xs text-slate-400 mt-0.5 block">
-                      Auto-includes $850 CCTV Pipe Camera Inspection
+                      Auto-includes $3,500 CCTV Pipe Camera Inspection + Bridging Allowance on top
                     </span>
                   </div>
                 </div>
@@ -1378,21 +1378,67 @@ export function V2StepSiteCosts({
               </div>
 
               {hasSewer && (
-                <div className="mt-4 pt-4 border-t border-teal-500/20 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                  <div className="text-xs sm:text-sm text-slate-400">
-                    Concrete encasement &amp; zone-of-influence pier bridging allowance
+                <div className="mt-4 pt-4 border-t border-teal-500/20 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                    {/* CCTV Inspection Cost */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          1. CCTV Pipe Camera Inspection ($)
+                        </Label>
+                        <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 font-mono">
+                          {formatAud(site.cctvSewerReportCost ?? 3500)}
+                        </span>
+                      </div>
+                      <Input
+                        type="number"
+                        step="100"
+                        value={site.cctvSewerReportCost ?? 3500}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => onChange({ cctvSewerReportCost: parseFloat(e.target.value) || 0 })}
+                        className="h-11 text-base font-mono font-bold rounded-xl"
+                      />
+                      <span className="text-[11px] text-slate-400 block">
+                        Robotic drainage camera log, connection point depth verification &amp; asset check
+                      </span>
+                    </div>
+
+                    {/* Sewer Bridging Cost (On Top) */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          2. Sewer Bridging Allowance (On Top) ($)
+                        </Label>
+                        <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 font-mono">
+                          {formatAud(site.sewerBridgingCost || 4500)}
+                        </span>
+                      </div>
+                      <Input
+                        type="number"
+                        step="250"
+                        value={site.sewerBridgingCost || 4500}
+                        onFocus={(e) => e.target.select()}
+                        onChange={(e) => onChange({ sewerBridgingCost: parseFloat(e.target.value) || 0 })}
+                        className="h-11 text-base font-mono font-bold rounded-xl"
+                      />
+                      <span className="text-[11px] text-slate-400 block">
+                        Concrete encasement &amp; pier footings bridging sewer zone of influence (ZOI)
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">Sewer Bridging Allowance ($)</Label>
-                    <Input
-                      type="number"
-                      step="250"
-                      value={site.sewerBridgingCost || 4500}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => onChange({ sewerBridgingCost: parseFloat(e.target.value) || 0 })}
-                      className="h-11 text-base font-mono font-bold rounded-xl"
-                    />
+                  {/* Combined Callout */}
+                  <div
+                    className={`px-4 py-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+                      isLight
+                        ? "bg-teal-100/70 border-teal-300 text-teal-900"
+                        : "bg-teal-900/30 border-teal-500/30 text-teal-300"
+                    }`}
+                  >
+                    <span>Combined Sewer Protection Total (CCTV + Bridging):</span>
+                    <span className="font-mono font-black text-sm">
+                      {formatAud((site.cctvSewerReportCost ?? 3500) + (site.sewerBridgingCost || 4500))}
+                    </span>
                   </div>
                 </div>
               )}

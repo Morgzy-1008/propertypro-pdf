@@ -464,7 +464,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 1850) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 850) : 0;
+  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 3500) : 0;
 
   const slabHeight = site.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
@@ -1172,6 +1172,19 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                 </div>
                 <span className="font-mono font-bold text-teal-400">
                   +{formatAud(cctvSewerReportCost)}
+                </span>
+              </div>
+            )}
+
+            {/* Sewer Line Bridging Allowance */}
+            {site.sewerBridgingRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Sewer Line Bridging Allowance</span>
+                  <span className="text-slate-400 text-[11px]">Concrete Encasement &amp; Pier Bridging (On Top)</span>
+                </div>
+                <span className="font-mono font-bold text-teal-400">
+                  +{formatAud(Number(site.sewerBridgingCost) || 4500)}
                 </span>
               </div>
             )}

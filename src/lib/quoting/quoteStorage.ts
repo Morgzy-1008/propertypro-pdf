@@ -257,7 +257,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     arboristReportRequired: false,
     arboristReportCost: 1100,
     cctvSewerReportRequired: false,
-    cctvSewerReportCost: 3300,
+    cctvSewerReportCost: 3500,
 
     bushfireBal: "BAL-LOW",
     floodOverlayRequired: false,

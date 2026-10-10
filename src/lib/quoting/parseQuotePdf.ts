@@ -222,6 +222,7 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
   const acousticReportRequired = text.includes("Acoustic Noise Assessment Report");
   const arboristReportRequired = text.includes("Arborist Tree Assessment Report");
   const cctvSewerReportRequired = text.includes("CCTV Sewer Pipe Camera Inspection");
+  const sewerBridgingRequired = text.includes("Sewer Line Bridging");
   const councilDaRequired = text.includes("Council Development Application (DA)");
   const trafficControlRequired = text.includes("Traffic Management Plan & Safety Control");
   const dualLivingInfrastructureRequired = text.includes("Dual Living Infrastructure Charge");
@@ -319,6 +320,7 @@ export function parseQuoteFromEstimatePdf(rawText: string, filename?: string): F
     acousticReportRequired,
     arboristReportRequired,
     cctvSewerReportRequired,
+    sewerBridgingRequired,
     councilDaRequired,
     trafficControlRequired,
     dualLivingInfrastructureRequired,
