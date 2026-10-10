@@ -622,13 +622,13 @@ function WelcomeHubPage() {
             isLight={isLight}
           />
 
-          {/* Portal 06: Hudson Land Scout (Only accessible by Morgan Hales; Coming Soon for others) */}
+          {/* Portal 06: Hudson Land Scout (Accessible by all Hudson Staff) */}
           <PortalCard
             to="/land-scout"
             portalNumber="PORTAL // 06"
             categoryBadge="Land Intelligence"
             statusBadge={{
-              text: "Live Cadastre & Estates",
+              text: "Live Land Scout",
               pulse: true,
               style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
             }}
@@ -644,7 +644,7 @@ function WelcomeHubPage() {
             iconBg="from-amber-500/20 to-yellow-500/10 border-brand-gold/30"
             badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
             isLight={isLight}
-            isComingSoon={!isMorgan}
+            isComingSoon={false}
           />
 
           {/* Portal 07: Submit Your Tender Request (Only accessible by Morgan Hales; Coming Soon for others) */}

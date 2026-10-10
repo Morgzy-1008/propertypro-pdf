@@ -204,7 +204,7 @@ export function isMorganHales(staffUser?: {
 
 /**
  * Access control for Hudson Land Scout (Vacant Land Intelligence & Acquisition).
- * Strictly restricted to Morgan Hales (System Administration / Owner).
+ * Accessible to all authenticated Hudson staff.
  */
 export function canAccessLandScout(staffUser?: {
   id?: string | null;
@@ -212,7 +212,7 @@ export function canAccessLandScout(staffUser?: {
   email?: string | null;
   role?: string | null;
 } | null): boolean {
-  return isMorganHales(staffUser);
+  return !!staffUser;
 }
 
 

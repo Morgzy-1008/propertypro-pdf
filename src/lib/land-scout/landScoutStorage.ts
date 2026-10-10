@@ -8,22 +8,47 @@ import { upsertLocalLot, type Lot } from "@/lib/databaseStorage";
 const STORAGE_KEY_LAND_SCOUT = "hudson_land_scout_parcels_v1";
 
 /**
- * Checks if a parcel is an old synthetic test/seed record that should be purged.
+ * Checks if a parcel is an old synthetic test/seed record or hallucinated cadastre lot that should be purged.
  */
-export function isTestParcel(id: string): boolean {
+export function isTestParcel(id: string, parcel?: Partial<LandParcel>): boolean {
   if (!id) return true;
-  return (
+  if (
     id.startsWith("scout-qld-") ||
     id.startsWith("scout-nsw-") ||
     id.startsWith("scout-test-") ||
     id.startsWith("test-") ||
     id.startsWith("scout-")
-  );
+  ) {
+    return true;
+  }
+  if (parcel) {
+    const portal = (parcel.sourcePortal || "").toLowerCase();
+    if (
+      portal.includes("cadastre") ||
+      portal.includes("spatialservices") ||
+      portal.includes("spatial_services")
+    ) {
+      return true;
+    }
+    const street = (parcel.streetAddress || "").toLowerCase();
+    if (
+      street.includes(" on dp") ||
+      street.includes(" on sp") ||
+      street.includes("pioneer way") ||
+      street.includes("heritage boulevard") ||
+      street.includes("parkside circuit") ||
+      street.includes("grandview terrace") ||
+      street.includes("horizon drive")
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
- * Purges old test parcels from local storage.
- * Ensures zero dummy or synthetic test listings ever display.
+ * Purges old test parcels and hallucinated lot records from local storage.
+ * Ensures zero dummy, synthetic, or fabricated cadastre listings ever display.
  */
 export function purgeOldTestParcels(): void {
   if (typeof window === "undefined") return;
@@ -32,7 +57,7 @@ export function purgeOldTestParcels(): void {
     if (!raw) return;
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      const realOnly = parsed.filter((p: LandParcel) => !isTestParcel(p.id));
+      const realOnly = parsed.filter((p: LandParcel) => !isTestParcel(p.id, p));
       localStorage.setItem(STORAGE_KEY_LAND_SCOUT, JSON.stringify(realOnly));
     }
   } catch (e) {
@@ -54,7 +79,7 @@ export function clearAllLandParcels(): void {
 
 /**
  * Retrieves all real land parcels from store.
- * Always strips out any synthetic test parcels. Initial state is empty [] (no fake listings).
+ * Always strips out any synthetic or hallucinated parcels.
  */
 export function getLandParcels(): LandParcel[] {
   if (typeof window === "undefined") return [];
@@ -69,8 +94,8 @@ export function getLandParcels(): LandParcel[] {
       return [];
     }
 
-    // Filter out any leftover test items from earlier development
-    const cleaned = parsed.filter((p) => !isTestParcel(p.id));
+    // Filter out any leftover test or hallucinated items
+    const cleaned = parsed.filter((p) => !isTestParcel(p.id, p));
     if (cleaned.length !== parsed.length) {
       localStorage.setItem(STORAGE_KEY_LAND_SCOUT, JSON.stringify(cleaned));
     }
@@ -95,6 +120,7 @@ export function bulkAddOrUpdateParcels(incoming: LandParcel[]): LandParcel[] {
 
     // Key existing items
     for (const p of existing) {
+      if (isTestParcel(p.id, p)) continue;
       idMap.set(p.id, p);
       const dedupKey = `${(p.estate || p.suburb || "").toLowerCase()}__${(p.lotNumber || "").toLowerCase()}`;
       if (p.lotNumber) {
@@ -104,7 +130,7 @@ export function bulkAddOrUpdateParcels(incoming: LandParcel[]): LandParcel[] {
 
     // Merge incoming real items
     for (const item of incoming) {
-      if (isTestParcel(item.id)) continue;
+      if (isTestParcel(item.id, item)) continue;
       const dedupKey = `${(item.estate || item.suburb || "").toLowerCase()}__${(item.lotNumber || "").toLowerCase()}`;
       const existingId = (item.lotNumber && dedupToId.get(dedupKey)) || (idMap.has(item.id) ? item.id : undefined);
 

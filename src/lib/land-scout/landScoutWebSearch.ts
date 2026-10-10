@@ -69,7 +69,7 @@ export async function validateGeminiApiKey(key?: string): Promise<{ valid: boole
 
   try {
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(trimmed)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(trimmed)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -304,17 +304,7 @@ export function hydrateRawLandParcels(rawList: any[]): LandParcel[] {
       matchingDesigns,
       suggestedDesign,
       valuation,
-      outreachHistory: [
-        {
-          id: `outreach-${Date.now()}-${idx}`,
-          timestamp: new Date().toISOString(),
-          consultantName: "Morgan Hales",
-          channel: "email",
-          inquiryType: "availability_check",
-          notes: `Discovered via live web search on ${raw.sourcePortal || "Web"}. Availability confirmed.`,
-          status: "sent",
-        },
-      ],
+      outreachHistory: [],
     };
   });
 }
@@ -342,7 +332,7 @@ export async function searchLiveWebForLand(
   // This utilizes the active system-configured Gemini key in the background with zero user setup.
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
 
     const proxyRes = await fetch("/api/land-scout-search", {
       method: "POST",
@@ -415,17 +405,14 @@ CRITICAL: Output ONLY a valid JSON object matching this schema:
 }`;
 
     const models = [
-      "gemini-flash-latest",
       "gemini-3.8-flash",
-      "gemini-3.6-flash",
-      "gemini-2.5-flash",
-      "gemini-2.0-flash",
+      "gemini-flash-latest",
     ];
 
     for (const model of models) {
       try {
         const clientController = new AbortController();
-        const clientTimeout = setTimeout(() => clientController.abort(), 30000);
+        const clientTimeout = setTimeout(() => clientController.abort(), 50000);
 
         const res = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,

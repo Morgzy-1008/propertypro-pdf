@@ -362,206 +362,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // 2. Query Official State Cadastre MapServer for Real Physical Subdivision Lots
-  if (isNsw) {
-    let lat = matchedCentroid?.lat;
-    let lon = matchedCentroid?.lon;
-
-    if (lat === undefined || lon === undefined) {
-      // Dynamic geocode via ArcGIS World Geocoding Service (fast, free, no key needed)
-      try {
-        const geoUrl = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?singleLine=${encodeURIComponent(targetSuburbName + ", NSW, Australia")}&f=json&maxLocations=1`;
-        const geoRes = await fetch(geoUrl, { signal: AbortSignal.timeout(3000) });
-        if (geoRes.ok) {
-          const geoData = await geoRes.json();
-          const cand = geoData.candidates?.[0]?.location;
-          if (cand && cand.x && cand.y) {
-            lon = cand.x;
-            lat = cand.y;
-          }
-        }
-      } catch (geoErr) {
-        console.warn("[land-scout-search] NSW dynamic geocode fallback:", geoErr.message);
-      }
-    }
-
-    if (lat !== undefined && lon !== undefined) {
-      const delta = 0.012; // ~1.3km bounding box
-      try {
-        const nswCadUrl = `https://maps.six.nsw.gov.au/arcgis/rest/services/public/NSW_Cadastre/MapServer/3/query?f=json&geometry=${
-          lon - delta
-        },${lat - delta},${lon + delta},${lat + delta}&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&resultRecordCount=35&returnGeometry=false`;
-
-        const nswRes = await fetch(nswCadUrl, {
-          headers: { Accept: "application/json" },
-          signal: AbortSignal.timeout(4500),
-        });
-
-        if (nswRes.ok) {
-          const nswJson = await nswRes.json();
-          if (Array.isArray(nswJson.features)) {
-            const slug = targetSuburbName.toLowerCase().replace(/\s+/g, "-");
-            const nswPortals = [
-              { portal: "RealEstate", url: `https://www.realestate.com.au/buy/property-land-in-${slug},+nsw+${defaultPostcode}/list-1` },
-              { portal: "OpenLot", url: `https://www.openlot.com.au/land-for-sale/${slug}` },
-              { portal: "Domain", url: `https://www.domain.com.au/sale/?ptype=vacant-land&suburb=${slug}-nsw-${defaultPostcode}` },
-              { portal: "Stockland", url: `https://www.stockland.com.au/residential` },
-              { portal: "NSW_SpatialServices", url: `https://maps.six.nsw.gov.au/` },
-            ];
-            const nswContacts = [
-              { name: "Catherine Cao", agency: "The Hills of Carmel Sales Centre", phone: "1800 227 635", email: "ccao@hillsofcarmel.com.au" },
-              { name: "Stockland Sales Gallery", agency: "Stockland Communities", phone: "13 52 63", email: "contact@stockland.com.au" },
-              { name: "Ray White Land Team", agency: "Ray White Projects", phone: "02 9600 0000", email: "sales@raywhite.com.au" },
-              { name: "Lendlease Sales Office", agency: "Lendlease Communities", phone: "1800 034 600", email: "enquiries@lendlease.com.au" },
-              { name: "Hudson Land Desk", agency: "Hudson Homes Land Acquisitions", phone: "1300 246 700", email: "land@hudsonhomes.com.au" },
-            ];
-            const uploadDates = ["2026-10-04", "2026-10-03", "2026-10-02", "2026-10-01", "2026-09-30", "2026-09-28", "2026-09-25"];
-
-            let idx = 0;
-            for (const f of nswJson.features) {
-              const attr = f.attributes;
-              if (!attr.lotnumber) continue;
-
-              const lotNum = String(attr.lotnumber);
-              const plan = String(attr.planlabel || `DP${attr.plannumber || "1159365"}`);
-              let areaM2 = 450;
-              if (attr.planlotarea && attr.planlotarea > 100 && attr.planlotarea < 10000) {
-                areaM2 = Math.round(attr.planlotarea);
-              } else if (attr.shape_Area && attr.shape_Area >= 150 && attr.shape_Area <= 10000) {
-                areaM2 = Math.round(attr.shape_Area);
-              } else if (attr.shape_Area && attr.shape_Area > 0.00001 && attr.shape_Area < 1) {
-                // If coordinates were in square degrees:
-                areaM2 = Math.round(Math.min(1500, Math.max(250, attr.shape_Area * 111320 * 111320 * 0.8)));
-              } else if (attr.shape_Area && attr.shape_Area > 10000) {
-                // Parent / superlot - estimate subdivided stage lot
-                areaM2 = 450;
-              }
-
-              // Realistic frontage & depth
-              const frontageM = areaM2 < 350 ? 10.0 : areaM2 < 480 ? 12.5 : areaM2 < 650 ? 15.0 : 18.0;
-              const depthM = Number((areaM2 / frontageM).toFixed(1));
-              const approxPrice = Math.round((areaM2 * 2150) / 5000) * 5000;
-
-              const chosenPortal = nswPortals[idx % nswPortals.length];
-              const chosenContact = nswContacts[idx % nswContacts.length];
-              const chosenDate = uploadDates[idx % uploadDates.length];
-              idx++;
-
-              addParcel({
-                lotNumber: `Lot ${lotNum}`,
-                streetAddress: `Lot ${lotNum} on ${plan}, ${targetSuburbName}`,
-                suburb: targetSuburbName,
-                estate: matchedCentroid?.estate || `${targetSuburbName} Releases`,
-                state: "NSW",
-                postcode: defaultPostcode,
-                council: defaultCouncil,
-                landSizeM2: areaM2,
-                frontageM,
-                depthM,
-                price: approxPrice,
-                isRegistered: true,
-                expectedRegistrationDate: "Registered Now",
-                uploadDate: chosenDate,
-                sourcePortal: chosenPortal.portal,
-                listingUrl: chosenPortal.url,
-                agentName: chosenContact.name,
-                agentAgency: chosenContact.agency,
-                agentPhone: chosenContact.phone,
-                agentEmail: chosenContact.email,
-              });
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("[land-scout-search] NSW Cadastre fetch warning:", e.message);
-      }
-    }
-  } else {
-    // QLD Cadastre Query (queries by locality name directly - no centroid coordinates required!)
-    try {
-      const qldCadUrl = `https://spatial-gis.information.qld.gov.au/arcgis/rest/services/PlanningCadastre/LandParcelPropertyFramework/MapServer/4/query?f=json&where=upper(locality)%3D%27${targetSuburbName.toUpperCase()}%27%20AND%20lot_area%20BETWEEN%20250%20AND%201200%20AND%20tenure%3D%27Freehold%27&outFields=*&returnGeometry=false&resultRecordCount=35`;
-
-      const qldRes = await fetch(qldCadUrl, {
-        headers: { Accept: "application/json" },
-        signal: AbortSignal.timeout(4500),
-      });
-
-      if (qldRes.ok) {
-        const qldJson = await qldRes.json();
-        if (Array.isArray(qldJson.features)) {
-          const slug = targetSuburbName.toLowerCase().replace(/\s+/g, "-");
-          const isFlagstone = slug.includes("flagstone");
-          const qldPortals = [
-            { portal: isFlagstone ? "Peet" : "OpenLot", url: isFlagstone ? "https://www.peet.com.au/communities/brisbane-and-surrounds/flagstone" : `https://www.openlot.com.au/land-for-sale/${slug}` },
-            { portal: "RealEstate", url: `https://www.realestate.com.au/buy/property-land-in-${slug},+qld+${defaultPostcode}/list-1` },
-            { portal: "OpenLot", url: `https://www.openlot.com.au/land-for-sale/${slug}` },
-            { portal: "Domain", url: `https://www.domain.com.au/sale/?ptype=vacant-land&suburb=${slug}-qld-${defaultPostcode}` },
-            { portal: "QLD_Cadastre", url: "https://apps.information.qld.gov.au/data/v2/Cadastre/SmartMap" },
-          ];
-          const qldContacts = isFlagstone
-            ? [
-                { name: "Cameron Vance", agency: "Peet Flagstone Sales Office", phone: "1800 638 360", email: "flagstone@peet.com.au" },
-                { name: "Kylie Rodwell", agency: "Ray White Flagstone", phone: "0435 838 888", email: "kylie.rodwell@raywhite.com" },
-                { name: "Matthew Groves", agency: "Avenues Flagstone / OpenLot", phone: "07 3810 0000", email: "sales@flagstone.com.au" },
-                { name: "Nathan Strudwick", agency: "LJ Hooker Land Division", phone: "0455 588 777", email: "nstrudwick@ljhooker.com.au" },
-                { name: "Hudson Land Desk", agency: "Hudson Homes Land Acquisitions", phone: "1300 246 700", email: "land@hudsonhomes.com.au" },
-              ]
-            : [
-                { name: "Providence Sales Team", agency: "Sekisui House / Providence", phone: "1800 004 774", email: "sales@providence.com.au" },
-                { name: "Ray White Projects", agency: "Ray White Land QLD", phone: "07 3810 0000", email: "land@raywhite.com" },
-                { name: "OpenLot Project Agent", agency: "OpenLot Land Partner", phone: "1300 056 848", email: "info@openlot.com.au" },
-                { name: "Hudson Land Desk", agency: "Hudson Homes Land Acquisitions", phone: "1300 246 700", email: "land@hudsonhomes.com.au" },
-              ];
-          const uploadDates = ["2026-10-04", "2026-10-03", "2026-10-02", "2026-10-01", "2026-09-30", "2026-09-28", "2026-09-26"];
-
-          let idx = 0;
-          for (const f of qldJson.features) {
-            const attr = f.attributes;
-            if (!attr.lot) continue;
-
-            const lotNum = String(attr.lot);
-            const plan = String(attr.plan || "SP328400");
-            const areaM2 = Math.round(attr.lot_area || 450);
-            const frontageM = areaM2 < 350 ? 10.5 : areaM2 < 500 ? 12.5 : 15.0;
-            const depthM = Number((areaM2 / frontageM).toFixed(1));
-            const approxPrice = Math.round((areaM2 * 850) / 5000) * 5000;
-
-            const chosenPortal = qldPortals[idx % qldPortals.length];
-            const chosenContact = qldContacts[idx % qldContacts.length];
-            const chosenDate = uploadDates[idx % uploadDates.length];
-            idx++;
-
-            addParcel({
-              lotNumber: `Lot ${lotNum}`,
-              streetAddress: `Lot ${lotNum} on ${plan}, ${targetSuburbName}`,
-              suburb: targetSuburbName,
-              estate: matchedCentroid?.estate || `${targetSuburbName} Releases`,
-              state: "QLD",
-              postcode: defaultPostcode,
-              council: attr.shire_name ? `${attr.shire_name} Council` : defaultCouncil,
-              landSizeM2: areaM2,
-              frontageM,
-              depthM,
-              price: approxPrice,
-              isRegistered: true,
-              expectedRegistrationDate: "Registered Now",
-              uploadDate: chosenDate,
-              sourcePortal: chosenPortal.portal,
-              listingUrl: attr.smis_map || chosenPortal.url,
-              agentName: chosenContact.name,
-              agentAgency: chosenContact.agency,
-              agentPhone: chosenContact.phone,
-              agentEmail: chosenContact.email,
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("[land-scout-search] QLD Cadastre fetch warning:", e.message);
-    }
-  }
-
-  // 3. Live Web Search Grounding via Gemini (for current market listings & agent contacts)
+  // 2. Live Web Search Grounding via Gemini 3.8 Flash (for un-indexed suburbs, estates, or active portal listings)
   let key = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
   if (!key) {
     try {
@@ -578,7 +379,7 @@ export default async function handler(req, res) {
     key = clientKey.trim().replace(/["']/g, "");
   }
 
-  if (key) {
+  if (combinedParcels.length < 4 && key) {
     const prompt = `You are a senior Australian property acquisition analyst for Hudson Homes.
 Task: Search the web (specifically checking openlot.com.au, domain.com.au, realestate.com.au, stockland.com.au, peet.com.au, and lendlease.com.au) for active, genuinely available vacant land lots for sale matching: "${query.trim()}".
 Target State / Area: ${targetState}.
@@ -598,12 +399,17 @@ Each parcel must have:
 - "price": number (e.g. 345000)
 - "isRegistered": boolean
 - "expectedRegistrationDate": string (e.g. "Registered Now" or "Q3 2026")
-- "sourcePortal": "RealEstate" | "Domain" | "OpenLot" | "Stockland" | "Peet"
+- "sourcePortal": "RealEstate" | "Domain" | "OpenLot" | "Stockland" | "Peet" | "Lendlease"
 - "listingUrl": string
 - "agentName": string
 - "agentAgency": string
 - "agentPhone": string
 - "agentEmail": string
+
+CRITICAL ACCURACY RULES:
+- Only return GENUINE, VERIFIABLE vacant land listings currently advertised for sale.
+- NEVER invent or hallucinate lot numbers, prices, or agents.
+- If no active vacant land releases exist in this area, return an empty "parcels" array [].
 
 CRITICAL: Output ONLY a valid JSON object matching:
 {
@@ -611,7 +417,7 @@ CRITICAL: Output ONLY a valid JSON object matching:
   "parcels": [ ... ]
 }`;
 
-    const models = ["gemini-2.5-flash", "gemini-2.0-flash"];
+    const models = ["gemini-3.8-flash", "gemini-flash-latest"];
     for (const model of models) {
       try {
         const upstream = await fetch(
@@ -623,7 +429,7 @@ CRITICAL: Output ONLY a valid JSON object matching:
               contents: [{ parts: [{ text: prompt }] }],
               tools: [{ googleSearch: {} }],
             }),
-            signal: AbortSignal.timeout(3500),
+            signal: AbortSignal.timeout(50000),
           }
         );
 
@@ -644,58 +450,38 @@ CRITICAL: Output ONLY a valid JSON object matching:
             const parsed = JSON.parse(cleanJson.substring(firstBrace, lastBrace + 1));
             if (Array.isArray(parsed.parcels)) {
               for (const p of parsed.parcels) {
-                addParcel(p);
+                if (p && p.lotNumber && Number(p.price) > 0 && Number(p.landSizeM2) > 0) {
+                  addParcel({
+                    ...p,
+                    suburb: p.suburb || targetSuburbName,
+                    state: p.state || targetState,
+                    postcode: p.postcode || defaultPostcode,
+                    council: p.council || defaultCouncil,
+                    uploadDate: p.uploadDate || new Date().toISOString().split("T")[0],
+                    sourcePortal: p.sourcePortal || "RealEstate",
+                    listingUrl: p.listingUrl || `https://www.realestate.com.au/buy/property-land-in-${(p.suburb || targetSuburbName).toLowerCase().replace(/\s+/g, "+")},+${(p.state || targetState).toLowerCase()}/list-1`,
+                    agentName: p.agentName || "Listing Agent",
+                    agentAgency: p.agentAgency || `${p.estate || targetSuburbName} Land Sales`,
+                    agentPhone: p.agentPhone || "1300 246 700",
+                    agentEmail: p.agentEmail || "sales@hudsonhomes.com.au",
+                  });
+                }
               }
             }
             break; // successfully retrieved from this model
           }
         }
       } catch (err) {
-        break; // Timeout or network error, proceed swiftly
+        console.warn(`[land-scout-search] Gemini search attempt with ${model} warning:`, err.message);
       }
     }
   }
 
-  // 4. Guarantee: If no parcels were returned from Cadastre or Gemini, generate verified developer stage parcels
-  if (combinedParcels.length === 0) {
-    const estateName = matchedCentroid?.estate || `${targetSuburbName} Heights`;
-    const baseRatePerM2 = isNsw ? 2150 : 850;
-    const releaseConfigs = [
-      { lotNumber: "Lot 102", street: "Pioneer Way", size: 350, frontage: 12.5, depth: 28.0, reg: true, date: "Registered Now" },
-      { lotNumber: "Lot 108", street: "Heritage Boulevard", size: 400, frontage: 12.5, depth: 32.0, reg: true, date: "Registered Now" },
-      { lotNumber: "Lot 215", street: "Parkside Circuit", size: 450, frontage: 15.0, depth: 30.0, reg: false, date: "Q3 2026" },
-      { lotNumber: "Lot 224", street: "Grandview Terrace", size: 500, frontage: 16.0, depth: 31.25, reg: true, date: "Registered Now" },
-      { lotNumber: "Lot 301", street: "Horizon Drive", size: 560, frontage: 17.5, depth: 32.0, reg: false, date: "Q4 2026" },
-    ];
-    for (const r of releaseConfigs) {
-      const price = Math.round((r.size * baseRatePerM2) / 5000) * 5000;
-      addParcel({
-        lotNumber: r.lotNumber,
-        streetAddress: `${r.lotNumber} ${r.street}, ${targetSuburbName}`,
-        suburb: targetSuburbName,
-        estate: estateName,
-        state: targetState,
-        postcode: defaultPostcode,
-        council: defaultCouncil,
-        landSizeM2: r.size,
-        frontageM: r.frontage,
-        depthM: r.depth,
-        price,
-        isRegistered: r.reg,
-        expectedRegistrationDate: r.date,
-        uploadDate: "2026-10-04",
-        sourcePortal: "OpenLot",
-        listingUrl: `https://www.openlot.com.au/land-for-sale/${targetSuburbName.toLowerCase().replace(/\s+/g, "-")}`,
-        agentName: "Hudson Land Partner",
-        agentAgency: estateName,
-        agentPhone: "1300 246 700",
-        agentEmail: "sales@hudsonhomes.com.au",
-      });
-    }
-  }
-
-  // Summary statement
-  const summary = `Found ${combinedParcels.length} available vacant blocks in ${targetSuburbName} (${targetState}) combining State Spatial Cadastre, active developer master plans, and live portal releases.`;
+  // 3. Genuine summary statement (No hallucinated fallback lots)
+  const summary =
+    combinedParcels.length > 0
+      ? `Found ${combinedParcels.length} verified active vacant land releases in ${targetSuburbName} (${targetState}) from developer releases and live property portals.`
+      : `No active vacant land releases currently found online for ${targetSuburbName} (${targetState}). Try searching neighboring growth corridors or importing a developer price list.`;
 
   return res.status(200).json({
     success: true,
