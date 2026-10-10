@@ -650,18 +650,28 @@ export function V2StepFloorPlan({
       (updatedAreas.porchM2 || 0)) * 100
     ) / 100;
 
+    const currentBasePrice = design.standardBasePrice || currentModelPrice || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
+      isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: { ...updatedAreas, totalM2: updatedTotal },
       areas: { ...updatedAreas, totalM2: updatedTotal },
       designM2: updatedTotal,
       modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
     });
 
     onChange({
       isModifiedFloorplan: true,
+      standardAreas: standardBaselineAreas,
+      modifiedAreas: { ...updatedAreas, totalM2: updatedTotal },
       areas: { ...updatedAreas, totalM2: updatedTotal },
       designM2: updatedTotal,
       modifiedDesignM2: updatedTotal,
+      standardDesignM2: standardBaselineAreas.totalM2,
+      standardBasePrice: currentBasePrice,
       basePrice: calc.modifiedTotalPrice,
     });
   };
@@ -732,17 +742,28 @@ export function V2StepFloorPlan({
           totalM2: newTotal,
         };
 
+        const currentBasePrice = design.standardBasePrice || currentModelPrice || design.basePrice || 0;
         const calc = calculateModifiedFloorplanPricing({
           ...design,
+          isModifiedFloorplan: true,
+          standardAreas: baselineAreas,
+          modifiedAreas: updatedAreas,
           areas: updatedAreas,
           designM2: newTotal,
+          modifiedDesignM2: newTotal,
+          standardDesignM2: baselineAreas.totalM2,
+          standardBasePrice: currentBasePrice,
         });
 
         onChange({
           isModifiedFloorplan: true,
+          standardAreas: baselineAreas,
+          modifiedAreas: updatedAreas,
           areas: updatedAreas,
           designM2: newTotal,
           modifiedDesignM2: newTotal,
+          standardDesignM2: baselineAreas.totalM2,
+          standardBasePrice: currentBasePrice,
           basePrice: calc.modifiedTotalPrice,
           modifiedPlanFileName: file.name,
           modifiedPlanImageUrl: previewUrl,

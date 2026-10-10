@@ -1459,18 +1459,27 @@ export function calculateQuotePricing(
     const effectiveRate = getItemRateForInclusion(item, design?.specTier);
     const qty = Number(item.quantity) || 1;
     const subtotal = Math.round(qty * effectiveRate);
-    if (categoryGroups[cat]) {
-      categoryGroups[cat].push({
-        ...item,
-        category: cat,
-        unitRate: effectiveRate,
-        subtotal,
-      });
-    }
+    const targetGroup = categoryGroups[cat] || categoryGroups.internal_general;
+    targetGroup.push({
+      ...item,
+      category: cat in categoryGroups ? cat : "internal_general",
+      unitRate: effectiveRate,
+      subtotal,
+    });
   }
 
   // Universal: If design is a modified floorplan and has area deltas, ensure structural footprint line items exist
-  if (design.isModifiedFloorplan && design.modifiedAreas && design.standardAreas) {
+  if (design.isModifiedFloorplan && ((design.modifiedAreas && design.standardAreas) || design.areas)) {
+    if (!design.standardAreas && design.designName) {
+      design.standardAreas = getStandardAreaBreakdown(
+        design.designName,
+        design.housingType,
+        Number(design.standardDesignM2) || Number(design.designM2)
+      );
+    }
+    if (!design.modifiedAreas && design.areas) {
+      design.modifiedAreas = design.areas;
+    }
     const modCalc = calculateModifiedFloorplanPricing(design);
     for (const z of modCalc.zones) {
       if (z.deltaM2 !== 0) {
@@ -1517,14 +1526,22 @@ export function calculateQuotePricing(
     "internal_bathroom",
     "internal_bedrooms",
     "internal_laundry",
+    "internal_general",
     "colour_upgrades",
     "site_earthworks",
     "council_statutory",
   ];
 
+  // Also collect any other category in categoryGroups that wasn't explicitly listed in categoryOrder
+  for (const cat of Object.keys(categoryGroups) as CatalogueCategory[]) {
+    if (!categoryOrder.includes(cat)) {
+      categoryOrder.push(cat);
+    }
+  }
+
   for (const cat of categoryOrder) {
     const items = categoryGroups[cat] || [];
-    const catAmount = items.reduce((sum, it) => sum + computeLineItemSubtotal(it), 0);
+    const catAmount = items.reduce((sum, it) => sum + computeLineItemSubtotal(it, design?.specTier), 0);
     if (catAmount > 0 || items.length > 0) {
       categorySubtotals.push({
         category: cat,

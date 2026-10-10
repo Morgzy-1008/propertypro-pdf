@@ -1298,8 +1298,18 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
       id: it.id,
       name: it.name,
       description: it.description,
-      qtyLabel: it.unitRate === 0 ? "$0.00 Variation" : (it.quantity > 1 ? `${it.quantity} × ${formatAud(it.unitRate)}` : "1 Item"),
-      amount: it.quantity * it.unitRate,
+      qtyLabel:
+        it.unitType === "sqm" && it.quantity > 0
+          ? `${it.quantity} m² @ ${formatAud(it.unitRate)}/m²`
+          : it.unitRate === 0
+          ? "$0.00 Variation"
+          : it.quantity > 1
+          ? `${it.quantity} × ${formatAud(it.unitRate)}`
+          : "1 Item",
+      amount:
+        typeof it.subtotal === "number" && !isNaN(it.subtotal)
+          ? it.subtotal
+          : (Number(it.quantity) || 1) * (Number(it.unitRate) || 0),
     })),
   }));
 
@@ -1634,19 +1644,62 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   </tr>
                 )}
 
-                {/* Variations & Turnkey Packages Subtotal if any */}
+                {/* Variations & Turnkey Packages Section with Itemized Breakdown */}
                 {totalVariationsAndPackagesAmount > 0 && (
-                  <tr className="bg-white">
-                    <td className="py-2.5 px-4 text-slate-800">
-                      <span className="font-bold text-slate-950 text-sm">Estimate Variations, Upgrades &amp; Turnkey Packages:</span>
-                      <span className="block text-xs text-slate-600 mt-0.5">
-                        Detailed in Advanced Estimate Specification schedule{pricing.landscapingCost > 0 ? " (includes Turnkey Landscaping Package)" : ""}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-mono text-slate-950 font-black text-sm">
-                      +{formatAud(totalVariationsAndPackagesAmount)}
-                    </td>
-                  </tr>
+                  <>
+                    <tr className="bg-slate-50 border-t border-slate-300">
+                      <td className="py-2.5 px-4 text-slate-800">
+                        <span className="font-bold text-slate-950 text-sm">Estimate Variations, Upgrades &amp; Turnkey Packages:</span>
+                        <span className="block text-xs text-slate-600 mt-0.5">
+                          Specification breakdown detailed below and in Section Schedule:
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-4 text-right font-mono text-cyan-950 font-black text-sm">
+                        +{formatAud(totalVariationsAndPackagesAmount)}
+                      </td>
+                    </tr>
+
+                    {/* Turnkey Landscaping Package if selected */}
+                    {pricing.landscapingCost > 0 && (
+                      <tr className="bg-white text-xs border-l-4 border-l-emerald-500">
+                        <td className="py-1.5 px-4 pl-7 text-slate-800">
+                          <span className="font-semibold text-slate-950">• Turnkey Landscaping &amp; Paving Package</span>
+                          <span className="ml-2 font-mono text-[10.5px] text-slate-500">({design.landscapingLandSize || 450} m² Lot)</span>
+                        </td>
+                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
+                          +{formatAud(pricing.landscapingCost)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Standalone Driveway if selected */}
+                    {pricing.exposedDrivewayCost > 0 && !design.landscapingSelected && (
+                      <tr className="bg-white text-xs border-l-4 border-l-cyan-600">
+                        <td className="py-1.5 px-4 pl-7 text-slate-800">
+                          <span className="font-semibold text-slate-950">• Exposed Aggregate Concrete Driveway &amp; Porch Path</span>
+                          <span className="ml-2 font-mono text-[10.5px] text-slate-500">({design.exposedDrivewayM2 || 55} m²)</span>
+                        </td>
+                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
+                          +{formatAud(pricing.exposedDrivewayCost)}
+                        </td>
+                      </tr>
+                    )}
+
+                    {/* Selected Variations Breakdown */}
+                    {variationGroups.flatMap((g) => g.items).map((it) => (
+                      <tr key={it.id} className="bg-white text-xs border-l-4 border-l-cyan-600">
+                        <td className="py-1.5 px-4 pl-7 text-slate-800">
+                          <span className="font-semibold text-slate-950">• {it.name}</span>
+                          {it.qtyLabel && it.qtyLabel !== "1 Item" && (
+                            <span className="ml-2 font-mono text-[10.5px] text-slate-500">({it.qtyLabel})</span>
+                          )}
+                        </td>
+                        <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
+                          {it.amount === 0 ? "INCLUDED" : `+${formatAud(it.amount)}`}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 )}
 
                 {/* Total Cost Line */}

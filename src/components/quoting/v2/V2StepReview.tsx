@@ -74,6 +74,12 @@ export function V2StepReview({
     return lineTotal + facadeTotal;
   }, [quote.lineItems, quote.design.facadePrice]);
 
+  const includedVariations = useMemo(() => {
+    return (quote.lineItems || []).filter(
+      (it) => it.isIncluded && !it.id.startsWith("mod_area_") && !it.id.startsWith("mod_")
+    );
+  }, [quote.lineItems]);
+
   const clientShareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/quote/${quote.id}`
@@ -448,6 +454,91 @@ export function V2StepReview({
           </div>
         )}
       </div>
+
+      {/* Selected Variations & Upgrades Itemized Recap Card */}
+      {(includedVariations.length > 0 || (quote.design.facadePrice || 0) > 0 || (quote.design.isModifiedFloorplan && modCalc && modCalc.totalCostAdjustment !== 0)) && (
+        <div
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
+            isLight
+              ? "bg-white border-slate-200 shadow-sm"
+              : "bg-slate-900/60 border-slate-800/80"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-700/30">
+            <div className="flex items-center gap-2.5">
+              <PackageCheck className="h-5 w-5 text-emerald-500" />
+              <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                Selected Variations &amp; Upgrades Breakdown
+              </h3>
+            </div>
+            <span className="font-mono font-extrabold text-base text-emerald-600 dark:text-emerald-400">
+              +{formatAud(nonModVariationsSubtotal + (quote.design.isModifiedFloorplan ? modAdjustment : 0))}
+            </span>
+          </div>
+
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
+            {/* Selected Facade */}
+            {(quote.design.facadePrice || 0) > 0 && (
+              <div className="py-2.5 flex items-center justify-between">
+                <div>
+                  <span className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    Selected Façade: {quote.design.facadeName}
+                  </span>
+                  <span className="block text-xs text-slate-400">
+                    {quote.design.isCustomFacade ? "Custom bespoke architectural elevation" : "Architectural catalogue façade"}
+                  </span>
+                </div>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  +{formatAud(quote.design.facadePrice || 0)}
+                </span>
+              </div>
+            )}
+
+            {/* Plan Modifications */}
+            {quote.design.isModifiedFloorplan && modCalc && modCalc.zones.filter((z) => z.deltaM2 !== 0).map((z) => (
+              <div key={z.key} className="py-2.5 flex items-center justify-between">
+                <div>
+                  <span className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+                    {z.label} {z.deltaM2 > 0 ? "Extension" : "Reduction"} ({z.deltaM2 > 0 ? `+${z.deltaM2.toFixed(2)}` : z.deltaM2.toFixed(2)} m²)
+                  </span>
+                  <span className="block text-xs text-slate-400">
+                    Baseline: {z.standardM2.toFixed(2)} m² → Modified: {z.modifiedM2.toFixed(2)} m² @ {formatAud(z.ratePerM2)}/m²
+                  </span>
+                </div>
+                <span className={`font-mono font-bold ${z.costAdjustment >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500"}`}>
+                  {z.costAdjustment >= 0 ? `+${formatAud(z.costAdjustment)}` : `-${formatAud(Math.abs(z.costAdjustment))}`}
+                </span>
+              </div>
+            ))}
+
+            {/* Selected Line Item Variations */}
+            {includedVariations.map((it) => (
+              <div key={it.id} className="py-2.5 flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {it.name}
+                    </span>
+                    {it.quantity > 1 && (
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                        Qty: {it.quantity} {it.unitType === "sqm" ? "m²" : ""}
+                      </span>
+                    )}
+                  </div>
+                  {it.description && (
+                    <span className="block text-xs text-slate-400 line-clamp-1 mt-0.5">
+                      {it.description}
+                    </span>
+                  )}
+                </div>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
+                  +{formatAud(it.subtotal || it.unitRate * (it.quantity || 1))}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* FULL ESTIMATE PDF DOCUMENT PREVIEW */}
       <div
