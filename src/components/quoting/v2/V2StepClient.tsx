@@ -17,6 +17,7 @@ import {
   Search,
   ShieldCheck,
   Users,
+  Lock,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,8 @@ export function V2StepClient({
   isLight,
 }: V2StepClientProps) {
   const [showClient2, setShowClient2] = useState(Boolean(client.hasClient2 || client.client2Name));
+  const [manualAdvanceToLot, setManualAdvanceToLot] = useState(false);
+  const lotSectionRef = useRef<HTMLDivElement>(null);
 
   // Address search and autofill states
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
@@ -142,6 +145,8 @@ export function V2StepClient({
   const handleSelectCrmLead = (leadId: string) => {
     const found = crmLeads.find((l) => l.id === leadId);
     if (!found) return;
+
+    setManualAdvanceToLot(true);
 
     const suburbClean = found.suburb && found.suburb !== "Queensland" && found.suburb !== "New South Wales" ? found.suburb : "";
     const estateClean = found.targetEstate && found.targetEstate !== "Unspecified Estate" ? found.targetEstate : "";
@@ -230,6 +235,45 @@ export function V2StepClient({
     client.siteAddress?.toLowerCase().includes("to be advised") ||
     (client.lotNumber === "TBA" && client.suburb === "Location TBA")
   );
+
+  // Progressive disclosure:
+  // 1. Contact info is filled if client name is entered AND (phone OR email is entered)
+  const hasBasicContactInfo = Boolean(
+    client.clientName?.trim() &&
+    client.clientName.trim().length >= 2 &&
+    (
+      Boolean(client.clientPhone && client.clientPhone.trim().length >= 3) ||
+      Boolean(client.clientEmail && client.clientEmail.trim().length >= 3)
+    )
+  );
+
+  // If quote already has site or lot data saved/imported, never hide it
+  const hasExistingLotData = Boolean(
+    isAddressTba ||
+    Boolean(client.siteAddress && client.siteAddress.trim().length > 0) ||
+    Boolean(client.suburb && client.suburb.trim().length > 0) ||
+    Boolean(client.estate && client.estate.trim().length > 0) ||
+    Boolean(client.lotNumber && client.lotNumber.trim().length > 0)
+  );
+
+  // Section 2 (Lot info) is unlocked when contact info is filled, or if lot data already exists, or user advanced manually
+  const isLotSectionUnlocked = hasBasicContactInfo || hasExistingLotData || manualAdvanceToLot;
+
+  // 2. Lot info is completed if Address TBA is active, or a street address / suburb is provided
+  const isLotInfoDone = Boolean(
+    isAddressTba ||
+    Boolean(client.siteAddress && client.siteAddress.trim().length >= 3 && client.siteAddress !== "Address TBA") ||
+    Boolean(client.suburb && client.suburb.trim().length >= 2 && client.suburb !== "Location TBA")
+  );
+
+  // Auto-scroll to lot section when unlocked
+  useEffect(() => {
+    if (isLotSectionUnlocked && !hasExistingLotData && manualAdvanceToLot) {
+      setTimeout(() => {
+        lotSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 60);
+    }
+  }, [isLotSectionUnlocked, manualAdvanceToLot, hasExistingLotData]);
 
   // Auto-detect and sync council region on mount or address changes
   useEffect(() => {
@@ -461,6 +505,10 @@ export function V2StepClient({
       toast.error("Please enter a client name to continue");
       return;
     }
+    if (!isLotInfoDone) {
+      toast.error("Please enter a site address or toggle 'Address TBA' to continue");
+      return;
+    }
     onNext();
   };
 
@@ -534,15 +582,23 @@ export function V2StepClient({
                 Primary Client Information
               </h3>
             </div>
-            {client.estimateNumber && (
-              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-black tracking-wide border shadow-xs ${
-                isLight 
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-300" 
-                  : "bg-emerald-950/60 text-emerald-400 border-emerald-500/40"
-              }`}>
-                <span className="opacity-75 text-[11px] font-bold uppercase">Estimate</span> #{client.estimateNumber.replace(/^#/, "")}
-              </span>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {hasBasicContactInfo && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                  <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  <span>Contact Details Added</span>
+                </span>
+              )}
+              {client.estimateNumber && (
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-black tracking-wide border shadow-xs ${
+                  isLight 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-300" 
+                    : "bg-emerald-950/60 text-emerald-400 border-emerald-500/40"
+                }`}>
+                  <span className="opacity-75 text-[11px] font-bold uppercase">Estimate</span> #{client.estimateNumber.replace(/^#/, "")}
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -554,6 +610,12 @@ export function V2StepClient({
                 placeholder="e.g. David Miller"
                 value={client.clientName || ""}
                 onChange={(e) => onChange({ clientName: e.target.value })}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (client.clientName || "").trim().length >= 2) {
+                    e.preventDefault();
+                    setManualAdvanceToLot(true);
+                  }
+                }}
                 className={`text-base h-12 rounded-xl px-4 ${
                   isLight
                     ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
@@ -693,24 +755,89 @@ export function V2StepClient({
               </div>
             </div>
           )}
+
+          {/* Quick manual unlock if user provided name only */}
+          {!isLotSectionUnlocked && (client.clientName || "").trim().length >= 2 && (
+            <div className="mt-5 pt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs border-t border-slate-700/20">
+              <span className={isLight ? "text-slate-500" : "text-slate-400"}>
+                Enter phone or email to auto-unlock site &amp; lot details, or proceed with name only:
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setManualAdvanceToLot(true)}
+                className={`text-xs h-8 px-3 gap-1.5 font-semibold cursor-pointer shrink-0 ${
+                  isLight
+                    ? "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <span>Proceed to Site Details</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
 
 
-        {/* Land / Site Location Card */}
-        <div
-          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
-            isLight
-              ? "bg-white border-slate-200 shadow-sm"
-              : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-            <div className="flex items-center gap-2.5">
-              <MapPin className="h-5 w-5 text-cyan-400" />
-              <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
-                Proposed Site / Property Location
-              </h3>
+        {/* Progressive Disclosure: Section 2 (Lot info) */}
+        {!isLotSectionUnlocked ? (
+          <div
+            className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border border-dashed transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+              isLight
+                ? "bg-slate-50/70 border-slate-300 text-slate-500"
+                : "bg-slate-900/30 border-slate-800/80 text-slate-400"
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                isLight ? "bg-slate-200 text-slate-600" : "bg-slate-800 text-slate-400"
+              }`}>
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className={`text-base font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Proposed Site / Property Location
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Complete client contact info above to reveal lot number and site address fields.
+                </p>
+              </div>
             </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-200/50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                <Lock className="h-3 w-3" />
+                <span>Awaiting Contact Info</span>
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Land / Site Location Card */
+          <div
+            ref={lotSectionRef}
+            className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
+              isLight
+                ? "bg-white border-slate-200 shadow-sm"
+                : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
+            }`}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-2.5">
+                  <MapPin className="h-5 w-5 text-cyan-400" />
+                  <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
+                    Proposed Site / Property Location
+                  </h3>
+                </div>
+                {isLotInfoDone && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <span>Location Set</span>
+                  </span>
+                )}
+              </div>
 
             {/* Address TBA Option Toggle */}
             <div className="flex items-center gap-2 self-start sm:self-center">
@@ -1027,18 +1154,43 @@ export function V2StepClient({
             </div>
           </div>
         </div>
+      )}
 
-        {/* Continue to Step 2 */}
-        <div className="flex justify-end pt-4">
-          <Button
-            type="submit"
-            size="lg"
-            className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 shadow-lg shadow-emerald-500/20 gap-2.5 cursor-pointer h-14 text-base rounded-xl"
-          >
-            Continue to Floor Plan &amp; Inclusions
-            <ArrowRight className="h-5 w-5" />
-          </Button>
-        </div>
+        {/* Continue to Step 2: Only show once lot info is done */}
+        {isLotSectionUnlocked && (
+          isLotInfoDone ? (
+            <div className="flex justify-end pt-4 animate-in fade-in slide-in-from-top-4 duration-300">
+              <Button
+                type="submit"
+                size="lg"
+                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 shadow-lg shadow-emerald-500/20 gap-2.5 cursor-pointer h-14 text-base rounded-xl"
+              >
+                Continue to Floor Plan &amp; Inclusions
+                <ArrowRight className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : (
+            <div className={`p-4 rounded-2xl border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all animate-in fade-in duration-200 ${
+              isLight ? "bg-slate-50 border-slate-200 text-slate-600" : "bg-slate-900/40 border-slate-800 text-slate-400"
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="h-4 w-4 text-cyan-400 shrink-0" />
+                <span>
+                  Enter a street address, select a suburb, or toggle <strong>Address TBA</strong> above to proceed to Floor Plans &amp; Inclusions.
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleToggleAddressTba}
+                className="text-xs h-7 px-2.5 font-bold text-cyan-500 hover:text-cyan-400 cursor-pointer self-start sm:self-center"
+              >
+                Use Address TBA &rarr;
+              </Button>
+            </div>
+          )
+        )}
       </form>
     </div>
   );
