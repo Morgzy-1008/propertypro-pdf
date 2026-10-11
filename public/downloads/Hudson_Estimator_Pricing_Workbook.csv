@@ -1,0 +1,173 @@
+HUDSON HOMES - ESTIMATOR PRICING SCHEDULE & COST MATRIX,,,,,,
+Manual Estimator Pricing Capture Workbook,,,,,,
+Estimator Name:,,Date Completed:,,Region / State:,NSW [ ]  QLD [ ],
+
+SECTION 1: STRUCTURAL PURE EXTENSION RATES (CONCRETE SLAB + FRAME + ROOF STRUCTURE ONLY),,,,,,
+"Note: Excludes all internal finishes (flooring, cabinetry, electrical, plumbing, painting). Provide base structural $/sqm rate for each building size range.",,,,,,
+Area / Element,Unit Type,50-100m²,100-150m²,150-200m²,200-250m²,250-300m²,300-350m²,350-400m²,400-500m²,500m²+
+Ground Floor Living (GF Living Extension),Per m²,,,,,,,,,
+First Floor Living (FF Upper Storey Living),Per m²,,,,,,,,,
+Alfresco / Outdoor Living (Concrete slab under main roof),Per m²,,,,,,,,,
+Porch / Covered Portico (Concrete slab under roof),Per m²,,,,,,,,,
+First Floor Balcony (Waterproofed slab / cantilever),Per m²,,,,,,,,,
+Garage Footprint Extension (Slab + Frame/Brick + Roof),Per m²,,,,,,,,,
+
+SECTION 2: DOORS & WINDOWS SCHEDULE,,,,,,
+Item Code / Ref,Item Description & Dimensions,Unit Type,Base Cost ($),Builder Margin %,Retail Price ($),Estimator Notes / Databuild Cost Centre
+WIN-0606,06-06 Awning / Fixed Window (600h x 610w),Each,,,,0200 Aluminium Windows
+WIN-0612,06-12 Awning / Fixed Window (600h x 1210w),Each,,,,0200 Aluminium Windows
+WIN-0618-PW,06-18 Kitchen Picture Splashback Window (600h x 1810w),Each,,,,0200 Aluminium Windows
+WIN-0624-PW,06-24 Kitchen Picture Splashback Window (600h x 2410w),Each,,,,0200 Aluminium Windows
+WIN-0906,09-06 Sliding Window (860h x 610w) - Ensuite / WC / Bath,Each,,,,0200 Aluminium Windows
+WIN-0912,09-12 Sliding Window (860h x 1210w),Each,,,,0200 Aluminium Windows
+WIN-0918,09-18 Sliding Window (860h x 1810w),Each,,,,0200 Aluminium Windows
+WIN-1206,12-06 Sliding Window (1200h x 610w),Each,,,,0200 Aluminium Windows
+WIN-1209,12-09 Sliding Window (1200h x 850w),Each,,,,0200 Aluminium Windows
+WIN-1212,12-12 Sliding Window (1200h x 1210w),Each,,,,0200 Aluminium Windows
+WIN-1215,12-15 Sliding Window (1200h x 1570w),Each,,,,0200 Aluminium Windows
+WIN-1218,12-18 Sliding Window (1200h x 1810w) - Standard Bed,Each,,,,0200 Aluminium Windows
+WIN-1224,12-24 Sliding Window (1200h x 2410w),Each,,,,0200 Aluminium Windows
+WIN-1806,18-06 Sliding / Awning Window (1800h x 610w),Each,,,,0200 Aluminium Windows
+WIN-1809,18-09 Sliding / Awning Window (1800h x 850w),Each,,,,0200 Aluminium Windows
+WIN-1812,18-12 Sliding / Awning Window (1800h x 1210w),Each,,,,0200 Aluminium Windows
+WIN-1815,18-15 Sliding / Awning Window (1800h x 1570w),Each,,,,0200 Aluminium Windows
+WIN-1818,18-18 Sliding / Awning Window (1800h x 1810w) - Master Feature,Each,,,,0200 Aluminium Windows
+WIN-1824,18-24 Sliding / Awning Window (1800h x 2410w),Each,,,,0200 Aluminium Windows
+WIN-2109,21-09 Awning / Fixed Window (2100h x 850w),Each,,,,0200 Aluminium Windows
+WIN-2112,21-12 Awning / Fixed Window (2100h x 1210w),Each,,,,0200 Aluminium Windows
+WIN-2118,21-18 Awning / Fixed Window (2100h x 1810w),Each,,,,0200 Aluminium Windows
+WIN-CNR-90,Architectural 90° Butt-Jointed Fixed Corner Window,Each,,,,0200 Aluminium Windows
+GLAZ-DOUB,Double Glazing Upgrade Surcharge (Acoustic / Thermal),Per m²,,,,0200 Aluminium Windows
+GLAZ-OBSC,Obscure / Privacy Glazing (Luminamist / Translucent),Per Window,,,,0200 Aluminium Windows
+SCRN-FLY,Aluminium Flyscreens to all opening windows,Each,,,,0200 Aluminium Windows
+SCRN-DIAM-W,Diamond Grille Security Screen to opening window,Each,,,,0200 Aluminium Windows
+SCRN-CRIM-W,Stainless Steel Security Mesh (Crimsafe style) to window,Each,,,,0200 Aluminium Windows
+DOR-EXT-820,Standard Front Entry Door (Hume Solid Core 2040h x 820w),Each,,,,0250 External Doors
+DOR-EXT-1020,"Upgraded 1,020mm Wide Front Entry Door (2040h x 1020w)",Surcharge,,,,0250 External Doors
+DOR-EXT-1200,"Grand Architectural 1,200mm Entry Door (2340h x 1200w)",Surcharge,,,,0250 External Doors
+DOR-EXT-LND,External Laundry / Garage Solid Core Door (2040h x 820w),Each,,,,0250 External Doors
+DOR-SLD-2118,2-Panel Aluminium Sliding Glass Door (2100h x 1800w - ASDI 2118),Each,,,,0250 External Doors
+DOR-SLD-2122,2-Panel Aluminium Sliding Glass Door (2100h x 2170w - ASDI 2122),Each,,,,0250 External Doors
+DOR-SLD-2124,2-Panel Aluminium Sliding Glass Door (2100h x 2410w - ASDI 2124),Each,,,,0250 External Doors
+DOR-STK-2124,3-Panel Aluminium Stacker Sliding Door (2100h x 2410w),Surcharge,,,,0250 External Doors
+DOR-STK-3000,3-Panel Aluminium Stacker Sliding Door (2100h x 3000w),Surcharge,,,,0250 External Doors
+DOR-STK-3600,3-Panel Aluminium Stacker Sliding Door (2100h x 3600w),Surcharge,,,,0250 External Doors
+DOR-STK-CNR-SS,Cornerless 90° Stacker Doors to Alfresco (Single Storey),Lump Sum,,,,0250 External Doors
+DOR-STK-CNR-DS,Cornerless 90° Stacker Doors to Alfresco (Double Storey),Lump Sum,,,,0250 External Doors
+GAR-DOR-DBL,Colorbond Sectional Double Garage Door (2100h x 4800w),Each,,,,0260 Garage Doors
+GAR-DOR-SGL,Additional Single Colorbond Roller Door (2100h x 2400w),Each,,,,0260 Garage Doors
+SCRN-DIAM-D,Diamond Grille Security Barrier Screen Door (Hinged),Each,,,,0250 Security Doors
+SCRN-DIAM-SD,Diamond Grille Security Barrier Screen Door (Sliding),Each,,,,0250 Security Doors
+SCRN-CRIM-SD,Stainless Steel Security Mesh Screen Door to Patio Slider,Each,,,,0250 Security Doors
+DOR-INT-STD,Standard Flush Panel Internal Door (2040h x 820w),Each,,,,0270 Internal Doors
+DOR-INT-LIN,Hume Linear Decorative Profile Internal Door (2040h),Surcharge,,,,0270 Internal Doors
+DOR-INT-2340,"Upgrade All Internal Doors to 2,340mm High Throughout",Per Door,,,,0270 Internal Doors
+DOR-CSD-2040,Cavity Sliding Pocket Door (CSD 2040h x 820/870w),Each,,,,0270 Internal Doors
+DOR-CSD-2340,Grand Cavity Sliding Pocket Door (CSD 2340h x 870w),Each,,,,0270 Internal Doors
+DOR-CSD-DBL,Double Cavity Sliding Doors (2040h/2340h x 1640w),Each,,,,0270 Internal Doors
+
+"SECTION 3: KITCHEN, BATHROOM, LAUNDRY & JOINERY (H1 / H2 / H3 TIERS)",,,,,,
+Item Code / Ref,Item Description & Scope,Unit Type,H1 Cost ($),H2 Cost ($),H3 Cost ($),Estimator Notes / Databuild Cost Centre
+JON-KIT-BASE,Kitchen Base Floor Cupboards (Soft-close Melamine),Per lm,,,,0350 Kitchen Joinery
+JON-KIT-OH,Kitchen Overhead Wall Cupboards (Lined to bulkhead),Per lm,,,,0350 Kitchen Joinery
+JON-KIT-DRW,Soft-Close Bank of 4 Cutlery & Pot Drawers,Per Set,,,,0350 Kitchen Joinery
+BNCH-KIT-600,Kitchen Benchtops 600mm Deep (H1 Lam / H2 20mm / H3 40mm),Per lm,,,,0360 Benchtops
+BNCH-ISL-900,Kitchen Island Benchtop 900mm-1000mm Deep with Overhang,Per lm,,,,0360 Benchtops
+BNCH-WTF-20,20mm Engineered Stone Waterfall End to Island,Each,,,,0360 Benchtops
+BNCH-WTF-40,40mm Engineered Stone Mitred Waterfall End to Island,Each,,,,0360 Benchtops
+JON-PAN-BASE,Butler's / Walk-In Pantry Base Joinery & Benchtop,Per lm,,,,0350 Joinery
+JON-PAN-OH,Butler's Pantry Overhead Shelving / Cabinetry,Per lm,,,,0350 Joinery
+PLM-PAN-SINK,Butler's Pantry Prep Sink & Plumbing Rough-In Allowance,Lump Sum,,,,0300 Plumbing
+VAN-0600,600mm Bathroom Vanity (Polished / Stone Top + Basin),Each,,,,0380 Vanities
+VAN-0750,750mm Bathroom Vanity,Each,,,,0380 Vanities
+VAN-0900,900mm Bathroom Vanity,Each,,,,0380 Vanities
+VAN-1200,1200mm Bathroom Vanity (Single Basin),Each,,,,0380 Vanities
+VAN-1500,1500mm Bathroom Vanity (Single or Double Basin),Each,,,,0380 Vanities
+VAN-1800,1800mm Luxury Double Basin Vanity,Each,,,,0380 Vanities
+BSN-UND,Undermount Vitreous China Vanity Basin (ilo drop-in),Each,,,,0300 Plumbing Fixtures
+BSN-VES,Above-Counter Designer Vessel Basin,Each,,,,0300 Plumbing Fixtures
+BSN-SEMI,Semi-Recessed Vanity Basin,Each,,,,0300 Plumbing Fixtures
+SHW-SCRN-FRM,Upgrade from Semi-Frameless to 10mm Frameless Glass Screen,Per Shower,,,,0390 Shower Screens
+SHW-SHELF,Shower Shelf (Tiled or Glass Corbel) in lieu of niche,Each,,,,0320 Tiling
+SHW-NICHE,Tiled Recessed Shower Niche (300h x 600w with aluminium trim),Each,,,,0320 Tiling
+SHW-DBL-STN,"Dual Shower Station (Twin mixers, rainhead & handpiece)",Each,,,,0300 Plumbing Fixtures
+BTH-FREE,Freestanding Acrylic Feature Bathtub (1500/1700mm),Each,,,,0300 Plumbing Fixtures
+SAN-WALL-FACE,In-Wall Concealed Cistern Rimless Toilet Suite,Each,,,,0300 Plumbing Fixtures
+TIL-FTC-M2,Floor-to-Ceiling Wall Tiling Surcharge Allowance,Per m²,,,,0320 Tiling
+TIL-FTC-BATH,Full Bathroom Floor-to-Ceiling Tiling Package,Lump Sum,,,,0320 Tiling
+TIL-FTC-ENS,Full Ensuite Floor-to-Ceiling Tiling Package,Lump Sum,,,,0320 Tiling
+TIL-FTC-PWD,Powder Room Floor-to-Ceiling Tiling Package,Lump Sum,,,,0320 Tiling
+WET-PREP-M2,Wet Area Prep: Class III Liquid Waterproofing & Screed Bed,Per m²,,,,0310 Waterproofing
+PLM-RGH-WET,Base Sub-Floor Plumbing Rough-In Allowance for Added Wet Area,Lump Sum,,,,0300 Plumbing
+PLM-PT-ADD,Secondary Fixture Plumbing Point (Water + Waste),Per Point,,,,0300 Plumbing
+
+SECTION 4: EXTERIOR & LANDSCAPING FINISHES,,,,,,
+Item Code / Ref,Item Description & Specification,Unit Type,Base Cost ($),Builder Margin %,Retail Price ($),Estimator Notes / Databuild Cost Centre
+EXT-CONC-AGG,"Exposed Aggregate Concrete (Excavation, SL72 Mesh, Wash & Seal)",Per m²,,,,0400 Concreting
+EXT-CONC-COL,"Coloured Oxide Concrete (Excavation, Mesh & Seal)",Per m²,,,,0400 Concreting
+EXT-CONC-PLN,Plain Grey Broom-Finished Concrete Slab / Paths,Per m²,,,,0400 Concreting
+EXT-RND-BRK,Acrylic Texture Render over Face Brick (Base + Texture + Paint),Per m²,,,,0410 Rendering
+EXT-CLD-JH,Lightweight Cladding in lieu of Face Brick (Linea/Axon/Matrix),Per m²,,,,0420 Cladding
+EXT-STN-FTR,Feature Natural Stone / Stacked Stone Cladding over substrate,Per m²,,,,0430 Feature Stone
+LND-TRF-WALT,Sir Walter DNA Certified Buffalo Turf (inc 50mm underlay soil),Per m²,,,,0450 Landscaping
+LND-TRF-COUCH,Couch or Kikuyu Turf (including soil prep),Per m²,,,,0450 Landscaping
+LND-FNC-PIN,Treated Pine Timber Lap & Cap Boundary Fencing (1.8m high),Per lm,,,,0460 Fencing
+LND-FNC-COL,Colorbond Steel Boundary Fencing (1.8m high with posts/caps),Per lm,,,,0460 Fencing
+LND-FNC-GATE,Single Side Access Pedestrian Gate (Timber or Colorbond),Each,,,,0460 Fencing
+LND-EDG-GRD,Garden Retaining Edging (Timber or Concrete Kerb),Per lm,,,,0450 Landscaping
+
+"SECTION 5: SITE COSTS, EARTHWORKS & FOUNDATION ENGINEERING",,,,,,
+Item Code / Ref,Item Description & Engineering Scope,Unit Type,Base Cost ($),Builder Margin %,Retail Price ($),Estimator Notes / Databuild Cost Centre
+STE-SOIL-M,Class M Soil Geotechnical Classification (Standard Baseline),Footprint,0,0,0,Included in Base House Price
+STE-SOIL-H1,Class H1 Soil Surcharge (Highly Reactive Clay Foundation),Lump Sum,,,,0100 Site & Earthworks
+STE-SOIL-H2,Class H2 Soil Surcharge (Severely Reactive Deep Clay),Lump Sum,,,,0100 Site & Earthworks
+STE-SOIL-E,Class E Soil Surcharge (Extremely Reactive Clay Foundation),Lump Sum,,,,0100 Site & Earthworks
+STE-SOIL-P,Class P Soil Surcharge (Problem Site / Uncontrolled Fill),Lump Sum,,,,0100 Site & Earthworks
+STE-PIER-CONC,Bored Reinforced Concrete Piers (300-450mm dia to bedrock),Per lm,,,,0110 Piering
+STE-PIER-RCK,Rock Drilling Surcharge for Concrete Piers (Core-barrel auger),Per Hour,,,,0110 Piering
+STE-PIER-SCR,Helical Steel Screw Piers (Deep Fill / High Water Table),Per lm,,,,0110 Piering
+STE-FND-DEB,Drop Edge Beam (DEB) Concrete Foundation to contain cut/fill,Per lm,,,,0100 Site & Earthworks
+STE-FAL-05,Topography Slope Fall Earthworks (0.5m Fall across pad),Allowance,0,0,0,Standard Included
+STE-FAL-10,Topography Slope Fall Earthworks (1.0m Fall across pad),Allowance,,,,0100 Site & Earthworks
+STE-FAL-15,Topography Slope Fall Earthworks (1.5m Fall across pad),Allowance,,,,0100 Site & Earthworks
+STE-FAL-20,Topography Slope Fall Earthworks (2.0m Fall across pad),Allowance,,,,0100 Site & Earthworks
+STE-FAL-25,Topography Slope Fall Earthworks (2.5m Fall across pad),Allowance,,,,0100 Site & Earthworks
+STE-FAL-30,Topography Slope Fall Earthworks (3.0m+ Fall / Stepped Slab),Allowance,,,,0100 Site & Earthworks
+STE-SPL-REM,Excess Spoil Excavation & Export to Licensed Tip Facility,Per m³,,,,0100 Site & Earthworks
+STE-FIL-IMP,"Clean Structural Fill Import, Placement & Compaction Cert",Per m³,,,,0100 Site & Earthworks
+STE-RET-PIN,Treated Pine Timber Sleeper Retaining Wall (up to 1.0m high),Per lm,,,,0120 Retaining Walls
+STE-RET-CNC,Concrete Sleeper Retaining Wall with Galvanized Steel H-Posts,Per lm,,,,0120 Retaining Walls
+STE-RET-BLK,Core-Filled Reinforced Concrete Block Retaining Wall,Per m²,,,,0120 Retaining Walls
+STE-RET-DRN,Ag-Drain & Geo-fabric Backfill Drainage System behind walls,Per lm,,,,0120 Retaining Walls
+STE-SRV-FLX,Flexible Plumbing Service Connections (Articulated Couplings),Lump Sum,2500,0,2500,"Updated Hudson Standard ($2,500)"
+STE-CNC-32,32MPa High-Strength Concrete Slab Upgrade,Per m² GFA,,,,0100 Foundation Engineering
+STE-ACC-RST,Material Handling & Restricted Access Surcharge,Lump Sum,,,,0100 Site & Earthworks
+STE-RCK-BRK,Rock Breaker Hydraulic Excavator Machine Hire,Per Day,,,,0100 Site & Earthworks
+STE-UNK-CON,Unknown / Concealed Underground Site Conditions Provision,Lump Sum,,,,0100 Site & Earthworks
+
+"SECTION 6: STATUTORY APPROVALS, OVERLAYS, CONSULTANT REPORTS & KDRB",,,,,,
+Item Code / Ref,Item Description & Statutory Compliance,Unit Type,Base Cost ($),Builder Margin %,Retail Price ($),Estimator Notes / Databuild Cost Centre
+OVL-BAL-125,Bushfire BAL-12.5 Construction Package (Ember seals & toughened),Lump Sum,,,,0150 Bushfire Compliance
+OVL-BAL-19,Bushfire BAL-19 Construction Package,Lump Sum,,,,0150 Bushfire Compliance
+OVL-BAL-29,Bushfire BAL-29 Construction Package (Metal shutters / screens),Lump Sum,,,,0150 Bushfire Compliance
+OVL-BAL-40,Bushfire BAL-40 Construction Package (Heavy fire-rated specs),Lump Sum,,,,0150 Bushfire Compliance
+OVL-BAL-FZ,Bushfire BAL-FZ Flame Zone Engineering & Fire Shutters,Lump Sum,,,,0150 Bushfire Compliance
+OVL-ACS-CAT1,Acoustic Attenuation Category 1 Package (Thicker glass/seals),Lump Sum,,,,0160 Acoustic Compliance
+OVL-ACS-CAT2,Acoustic Attenuation Category 2 Package,Lump Sum,,,,0160 Acoustic Compliance
+OVL-ACS-CAT3,Acoustic Attenuation Category 3 Package,Lump Sum,,,,0160 Acoustic Compliance
+OVL-ACS-CAT4,Acoustic Attenuation Category 4 Package (Heavy acoustic glazing),Lump Sum,,,,0160 Acoustic Compliance
+OVL-FLD-ELV,Flood Overlay Elevated Concrete Slab Surcharge,Per 100mm,,,,0100 Foundation Engineering
+OVL-SWR-BOS,Building Over Sewer (BOS) Council Application & Inspection,Lump Sum,1700,,,"0170 Sewer Compliance ($1,700)"
+OVL-SWR-BRG,Sewer Bridging Piers across Zone of Influence (ZOI),Per lm,1500,,,"0170 Sewer Compliance ($1,500/lm)"
+RPT-BAL-CERT,Bushfire Hazard Assessment Report (BAL Certificate),Lump Sum,850,,850,Statutory Consultant ($850)
+RPT-FLD-SIV,Flood Information & Sieve Analysis Report,Lump Sum,7600,,7600,"Statutory Consultant ($7,600)"
+RPT-HYD-FLW,Hydraulic Overland Flow Engineering Study,Lump Sum,2600,,2600,"Statutory Consultant ($2,600)"
+RPT-SLP-GEO,Slope Stability & Landslide Hazard Geotechnical Report,Lump Sum,7000,,7000,"Statutory Consultant ($7,000)"
+RPT-ACS-ENV,Acoustic Environmental Noise Assessment Report,Lump Sum,1200,,1200,"Statutory Consultant ($1,200)"
+RPT-ARB-IMP,Arborist Tree Impact & Protection Report,Lump Sum,1100,,1100,"Statutory Consultant ($1,100)"
+RPT-CCT-SWR,CCTV Sewer Main Inspection & Pipe Condition Report,Lump Sum,3500,,3500,"Statutory Consultant ($3,500)"
+KDR-DEM-SGL,Knock-Down Rebuild: Single Storey Demolition & Site Clearance,Lump Sum,,,,0050 KDRB Demolition
+KDR-DEM-DBL,Knock-Down Rebuild: Double Storey Demolition & Clearance,Lump Sum,,,,0050 KDRB Demolition
+KDR-ASB-REM,Licensed Hazardous Asbestos Removal & EPA Disposal Allowance,Lump Sum,,,,0050 KDRB Demolition
+FEE-CNL-LOD,Council / Private Certifier DA/CDC/BA Statutory Lodgement,Lump Sum,,,,0010 Statutory Fees
+FEE-PLM-LOD,"Statutory Plumbing, Sewer Connection & Archiving Fees",Lump Sum,2227.10,,2227.10,"Statutory Authority ($2,227)"

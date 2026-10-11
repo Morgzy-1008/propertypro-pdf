@@ -1,0 +1,595 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hudson Homes - Estimator Pricing Schedule & Cost Matrix</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 10mm 10mm 14mm 10mm;
+      @bottom-right {
+        content: "Page " counter(page) " of " counter(pages);
+      }
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      margin: 0;
+      padding: 0;
+      font-size: 8.5pt;
+      line-height: 1.25;
+    }
+    .page {
+      page-break-after: always;
+      position: relative;
+      padding-bottom: 5mm;
+    }
+    .page:last-child {
+      page-break-after: avoid;
+    }
+    .header-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2.5px solid #047857;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+    .brand-title {
+      font-size: 14pt;
+      font-weight: 900;
+      color: #047857;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .brand-sub {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #334155;
+      margin: 2px 0 0 0;
+    }
+    .header-meta {
+      text-align: right;
+      font-size: 8pt;
+      color: #64748b;
+    }
+    .meta-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 8pt;
+    }
+    .meta-item strong {
+      display: block;
+      color: #475569;
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .meta-line {
+      border-bottom: 1px dotted #94a3b8;
+      height: 14px;
+      margin-top: 2px;
+    }
+    .section-title {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 5px 8px;
+      font-size: 9pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 4px;
+      margin-top: 10px;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .section-desc {
+      font-size: 7.5pt;
+      color: #475569;
+      margin-bottom: 6px;
+      font-style: italic;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 10px;
+      font-size: 7.8pt;
+    }
+    th {
+      background: #f1f5f9;
+      color: #1e293b;
+      font-weight: 800;
+      text-align: left;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 4px 6px;
+      border: 1px solid #e2e8f0;
+      vertical-align: middle;
+    }
+    tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+    .code-col {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-weight: 700;
+      color: #047857;
+      white-space: nowrap;
+      width: 13%;
+    }
+    .desc-col {
+      width: 42%;
+      color: #1e293b;
+    }
+    .unit-col {
+      width: 12%;
+      color: #475569;
+      font-weight: 600;
+    }
+    .fill-col {
+      width: 11%;
+      text-align: right;
+      background: #ffffff !important;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .notes-col {
+      width: 22%;
+      color: #64748b;
+      font-size: 7pt;
+    }
+    .fill-box {
+      border: 1px dashed #94a3b8;
+      border-radius: 3px;
+      height: 18px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 4px;
+      color: #047857;
+      font-weight: 700;
+    }
+    .grid-table th {
+      text-align: center;
+      font-size: 7pt;
+      padding: 4px 2px;
+    }
+    .grid-table td {
+      text-align: center;
+      padding: 3px 2px;
+    }
+    .grid-area-col {
+      text-align: left !important;
+      font-weight: 700;
+      color: #0f172a;
+      width: 24%;
+    }
+    .page-footer {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      font-size: 7pt;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- PAGE 1: COVER & SECTION 1 EXTENSION RATES -->
+  <div class="page">
+    <div class="header-banner">
+      <div>
+        <h1 class="brand-title">HUDSON HOMES</h1>
+        <div class="brand-sub">Estimator Pricing Schedule & Cost Matrix (2026.1)</div>
+      </div>
+      <div class="header-meta">
+        <strong>Hudson Pricing Book & Specification Surcharges</strong><br>
+        Manual Estimator Capture Form
+      </div>
+    </div>
+
+    <div class="meta-box">
+      <div class="meta-item">
+        <strong>Estimator Name</strong>
+        <div class="meta-line"></div>
+      </div>
+      <div class="meta-item">
+        <strong>Date Completed</strong>
+        <div class="meta-line"></div>
+      </div>
+      <div class="meta-item">
+        <strong>Region / State</strong>
+        <div style="margin-top:2px;">[ ] NSW &nbsp;&nbsp; [ ] QLD</div>
+      </div>
+      <div class="meta-item">
+        <strong>Estimator Signature</strong>
+        <div class="meta-line"></div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span>1. Pure Structural Extension Rates (Base Structure Only)</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Rate per m² ($/sqm)</span>
+    </div>
+    <div class="section-desc">
+      Pure structural base rate only: Engineered concrete slab on ground + structural timber framing + roof structure & covering (trusses, Colorbond/tiles, fascia, gutters). Excludes all internal finishes (flooring, cabinetry, electrical, plumbing, wall tiles, painting) which are added modularly via subsequent sections.
+    </div>
+
+    <table class="grid-table">
+      <thead>
+        <tr>
+          <th class="grid-area-col">Area / Element Type</th>
+          <th>Unit</th>
+          <th>50-100m²</th>
+          <th>100-150m²</th>
+          <th>150-200m²</th>
+          <th>200-250m²</th>
+          <th>250-300m²</th>
+          <th>300-350m²</th>
+          <th>350-400m²</th>
+          <th>400-500m²</th>
+          <th>500m²+</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="grid-area-col">Ground Floor Living (GF Living)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+        <tr>
+          <td class="grid-area-col">First Floor Living (FF Upper Storey)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+        <tr>
+          <td class="grid-area-col">Alfresco (Concrete slab under roof)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+        <tr>
+          <td class="grid-area-col">Porch / Portico (Slab under roof)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+        <tr>
+          <td class="grid-area-col">First Floor Balcony (Waterproofed)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+        <tr>
+          <td class="grid-area-col">Garage Extension (Slab + Frame + Roof)</td>
+          <td>$/m²</td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+          <td><div class="fill-box"></div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">
+      <span>2. Doors & Windows Schedule (Part A: Aluminium Windows & Glazing)</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Powder-Coated Aluminium & Safety Glass</span>
+    </div>
+    <div class="section-desc">
+      General residential construction sizing covering standard heights (600, 860, 1200, 1800, 2100mm) and Presight Master Schedules.
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:42%;">Opening Description & Dimensions</th>
+          <th style="width:12%;">Unit</th>
+          <th style="width:14%;">Base Cost ($)</th>
+          <th style="width:18%;">Retail / Client ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">WIN-0606</td><td>06-06 Awning / Fixed Window (600h × 610w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0612</td><td>06-12 Awning / Fixed Window (600h × 1210w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0618-PW</td><td>06-18 Kitchen Picture Splashback Window (600h × 1810w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0624-PW</td><td>06-24 Kitchen Picture Splashback Window (600h × 2410w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0906</td><td>09-06 Sliding Window (860h × 610w) - Ensuite / WC / Bath</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0912</td><td>09-12 Sliding Window (860h × 1210w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-0918</td><td>09-18 Sliding Window (860h × 1810w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1206</td><td>12-06 Sliding Window (1200h × 610w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1209</td><td>12-09 Sliding Window (1200h × 850w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1212</td><td>12-12 Sliding Window (1200h × 1210w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1215</td><td>12-15 Sliding Window (1200h × 1570w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1218</td><td>12-18 Sliding Window (1200h × 1810w) - Standard Bed</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1224</td><td>12-24 Sliding Window (1200h × 2410w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1806</td><td>18-06 Sliding / Awning Window (1800h × 610w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1809</td><td>18-09 Sliding / Awning Window (1800h × 850w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1812</td><td>18-12 Sliding / Awning Window (1800h × 1210w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1815</td><td>18-15 Sliding / Awning Window (1800h × 1570w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1818</td><td>18-18 Sliding / Awning Window (1800h × 1810w) - Master Suite</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-1824</td><td>18-24 Sliding / Awning Window (1800h × 2410w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WIN-CNR-90</td><td>Architectural 90° Butt-Jointed Fixed Corner Window</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">GLAZ-DOUB</td><td>Double Glazing Upgrade Surcharge (Acoustic / Thermal)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">GLAZ-OBSC</td><td>Obscure / Privacy Glazing (Luminamist / Translucent)</td><td>Per Win</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-footer">
+      <span>Hudson Homes Management Pty Ltd · Estimator Pricing Workbook 2026.1</span>
+      <span>Page 1 of 3</span>
+    </div>
+  </div>
+
+  <!-- PAGE 2: DOORS & KITCHEN/BATHROOM/JOINERY -->
+  <div class="page">
+    <div class="header-banner">
+      <div>
+        <h1 class="brand-title">HUDSON HOMES</h1>
+        <div class="brand-sub">Estimator Pricing Schedule & Cost Matrix (2026.1)</div>
+      </div>
+      <div class="header-meta">
+        <strong>Section 2 (Doors) & Section 3 (Joinery & Wet Areas)</strong>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span>2. Doors & Windows Schedule (Part B: External & Internal Doors)</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Hinged, Sliding, Stacker & Garage Doors</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:42%;">Door Description & Dimensions</th>
+          <th style="width:12%;">Unit</th>
+          <th style="width:14%;">Base Cost ($)</th>
+          <th style="width:18%;">Retail / Client ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">DOR-EXT-820</td><td>Standard Front Entry Door (Hume Solid Core 2040h × 820w)</td><td>Each</td><td><div class="fill-box">Included</div></td><td><div class="fill-box">Baseline</div></td></tr>
+        <tr><td class="code-col">DOR-EXT-1020</td><td>Upgraded 1,020mm Wide Front Entry Door (2040h × 1020w)</td><td>Surcharge</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-EXT-1200</td><td>Grand Architectural 1,200mm Entry Door (2340h × 1200w + handle)</td><td>Surcharge</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-EXT-LND</td><td>External Laundry / Garage Solid Core Door (2040h × 820w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-SLD-2118</td><td>2-Panel Aluminium Sliding Glass Door (2100h × 1800w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-SLD-2124</td><td>2-Panel Aluminium Sliding Glass Door (2100h × 2410w - Standard)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-STK-2124</td><td>3-Panel Aluminium Stacker Sliding Door (2100h × 2410w)</td><td>Surcharge</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-STK-3000</td><td>3-Panel Aluminium Stacker Sliding Door (2100h × 3000w)</td><td>Surcharge</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-STK-CNR-SS</td><td>Cornerless 90° Stacker Doors to Alfresco (Single Storey)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-STK-CNR-DS</td><td>Cornerless 90° Stacker Doors to Alfresco (Double Storey + Steel)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">GAR-DOR-DBL</td><td>Colorbond Sectional Double Garage Door (2100h × 4800w + Auto)</td><td>Each</td><td><div class="fill-box">Included</div></td><td><div class="fill-box">Baseline</div></td></tr>
+        <tr><td class="code-col">GAR-DOR-SGL</td><td>Additional Single Colorbond Roller Door (2100h × 2400w rear)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-INT-LIN</td><td>Hume Linear Decorative Profile Internal Doors (2040h)</td><td>Surcharge</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-INT-2340</td><td>Upgrade All Internal Doors to 2,340mm High Throughout</td><td>Per Door</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-CSD-2040</td><td>Cavity Sliding Pocket Door (CSD 2040h × 820/870w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">DOR-CSD-2340</td><td>Grand Cavity Sliding Pocket Door (CSD 2340h × 870w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">
+      <span>3. Kitchen, Bathroom, Laundry & Joinery (H1 vs H2 vs H3 Tiers)</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Multi-Tier Inclusions Comparison</span>
+    </div>
+    <div class="section-desc">
+      H1 = Base Builder Inclusions (Laminate) · H2 = Standard Designer Inclusions (20mm Stone) · H3 = Luxury Architectural Inclusions (40mm Mitred Stone).
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:36%;">Joinery & Fixture Specification</th>
+          <th style="width:10%;">Unit</th>
+          <th style="width:13%;">H1 Cost ($)</th>
+          <th style="width:13%;">H2 Cost ($)</th>
+          <th style="width:14%;">H3 Cost ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">JON-KIT-BASE</td><td>Base Floor Cupboards (Melamine soft-close)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">JON-KIT-OH</td><td>Overhead Wall Cupboards (Lined to bulkhead)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">JON-KIT-DRW</td><td>Soft-Close Bank of 4 Cutlery & Pot Drawers</td><td>Per Set</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BNCH-KIT-600</td><td>Kitchen Benchtops 600mm Deep (Lam / 20mm / 40mm)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BNCH-ISL-900</td><td>Kitchen Island Benchtop (900mm wide + overhang)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BNCH-WTF-20</td><td>20mm Engineered Stone Waterfall End to Island</td><td>Each</td><td><div class="fill-box">N/A</div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BNCH-WTF-40</td><td>40mm Engineered Stone Mitred Waterfall End</td><td>Each</td><td><div class="fill-box">N/A</div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">VAN-0600</td><td>600mm Bathroom Vanity (Stone/Lam top + basin)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">VAN-0900</td><td>900mm Bathroom Vanity</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">VAN-1200</td><td>1200mm Bathroom Vanity (Single Basin)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">VAN-1800</td><td>1800mm Luxury Double Basin Vanity</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BSN-UND</td><td>Undermount Vitreous China Vanity Basin (ilo drop-in)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">BSN-VES</td><td>Above-Counter Designer Vessel Basin</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">SHW-SCRN-FRM</td><td>Upgrade Semi-Frameless to 10mm Frameless Glass</td><td>Per Shw</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">SHW-SHELF</td><td>Shower Shelf (Glass or Tiled) in lieu of niche</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">SHW-NICHE</td><td>Tiled Recessed Shower Niche (300h × 600w)</td><td>Each</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">TIL-FTC-M2</td><td>Floor-to-Ceiling Wall Tiling Surcharge Allowance</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">WET-PREP-M2</td><td>Wet Area Prep: Class III Waterproofing & Screed Bed</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">PLM-RGH-WET</td><td>Plumbing Rough-In Allowance for Added Wet Area</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-footer">
+      <span>Hudson Homes Management Pty Ltd · Estimator Pricing Workbook 2026.1</span>
+      <span>Page 2 of 3</span>
+    </div>
+  </div>
+
+  <!-- PAGE 3: EXTERIOR, SITE COSTS & STATUTORY OVERLAYS -->
+  <div class="page">
+    <div class="header-banner">
+      <div>
+        <h1 class="brand-title">HUDSON HOMES</h1>
+        <div class="brand-sub">Estimator Pricing Schedule & Cost Matrix (2026.1)</div>
+      </div>
+      <div class="header-meta">
+        <strong>Section 4 (Exterior), Section 5 (Site Costs) & Section 6 (Overlays)</strong>
+      </div>
+    </div>
+
+    <div class="section-title">
+      <span>4. Exterior & Landscaping Finishes</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Driveways, Render, Cladding & Turf</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:42%;">Item Description & Specification</th>
+          <th style="width:12%;">Unit</th>
+          <th style="width:14%;">Base Cost ($)</th>
+          <th style="width:18%;">Retail / Client ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">EXT-CONC-AGG</td><td>Exposed Aggregate Concrete (Excavation, SL72 Mesh, Wash & Seal)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">EXT-CONC-COL</td><td>Coloured Oxide Concrete Driveway (inc prep, mesh & seal)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">EXT-RND-BRK</td><td>Acrylic Texture Render over Face Brick (Base + Texture + Paint)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">EXT-CLD-JH</td><td>Lightweight Cladding in lieu of Face Brick (Linea / Scyon / Axon)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">EXT-STN-FTR</td><td>Feature Natural Stone / Stacked Stone Cladding over substrate</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">LND-TRF-WALT</td><td>Sir Walter DNA Certified Buffalo Turf (inc 50mm underlay soil)</td><td>Per m²</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">LND-FNC-PIN</td><td>Treated Pine Timber Lap & Cap Boundary Fencing (1.8m high)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">LND-FNC-COL</td><td>Colorbond Steel Boundary Fencing (1.8m high with posts/caps)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">
+      <span>5. Site Costs, Earthworks & Geotechnical Engineering</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Soil Classes, Piering, Fall & Retaining</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:42%;">Site Condition & Engineering Scope</th>
+          <th style="width:12%;">Unit</th>
+          <th style="width:14%;">Base Cost ($)</th>
+          <th style="width:18%;">Retail / Client ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">STE-SOIL-H1</td><td>Class H1 Soil Surcharge (Highly Reactive Clay Foundation)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-SOIL-H2</td><td>Class H2 Soil Surcharge (Severely Reactive Deep Clay)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-SOIL-E</td><td>Class E Soil Surcharge (Extremely Reactive Clay Foundation)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-SOIL-P</td><td>Class P Soil Surcharge (Problem Site / Uncontrolled Fill)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-PIER-CONC</td><td>Bored Reinforced Concrete Piers (300-450mm dia to bedrock)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-PIER-SCR</td><td>Helical Steel Screw Piers (Deep Fill / High Water Table)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-FAL-10</td><td>Topography Slope Earthworks (1.0m Fall across building pad)</td><td>Allowance</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-FAL-20</td><td>Topography Slope Earthworks (2.0m Fall across building pad)</td><td>Allowance</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-FAL-30</td><td>Topography Slope Earthworks (3.0m+ Fall / Stepped Slab)</td><td>Allowance</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-RET-PIN</td><td>Treated Pine Timber Sleeper Retaining Wall (up to 1.0m high)</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-RET-CNC</td><td>Concrete Sleeper Retaining Wall with Galvanized Steel H-Posts</td><td>Per lm</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">STE-SRV-FLX</td><td>Flexible Plumbing Service Connections (Articulated Couplings)</td><td>Lump Sum</td><td><div class="fill-box">$2,500</div></td><td><div class="fill-box">$2,500</div></td></tr>
+        <tr><td class="code-col">STE-CNC-32</td><td>32MPa High-Strength Concrete Slab Upgrade</td><td>Per m² GFA</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">
+      <span>6. Statutory Overlays, Consultant Reports & Demolition (KDRB)</span>
+      <span style="font-size:7.5pt; font-weight:normal; opacity:0.85;">Bushfire, Acoustic, Flood, Sewer & Fees</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width:14%;">Code / Ref</th>
+          <th style="width:42%;">Compliance Item / Consultant Report</th>
+          <th style="width:12%;">Unit</th>
+          <th style="width:14%;">Base Cost ($)</th>
+          <th style="width:18%;">Retail / Client ($)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="code-col">OVL-BAL-125</td><td>Bushfire BAL-12.5 Construction Package (Ember seals & toughened)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">OVL-BAL-29</td><td>Bushfire BAL-29 Construction Package (Metal shutters / screens)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">OVL-BAL-40</td><td>Bushfire BAL-40 Construction Package (Heavy fire-rated specs)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">OVL-ACS-CAT2</td><td>Acoustic Attenuation Category 2 Package (Transport / Aircraft)</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">OVL-SWR-BRG</td><td>Sewer Bridging Concrete Piers (Zone of Influence - ZOI)</td><td>Per lm</td><td><div class="fill-box">$1,500</div></td><td><div class="fill-box">$1,500</div></td></tr>
+        <tr><td class="code-col">RPT-BAL-CERT</td><td>Bushfire Hazard Assessment Report (BAL Certificate)</td><td>Lump Sum</td><td><div class="fill-box">$850</div></td><td><div class="fill-box">$850</div></td></tr>
+        <tr><td class="code-col">RPT-FLD-SIV</td><td>Flood Information & Sieve Analysis Report</td><td>Lump Sum</td><td><div class="fill-box">$7,600</div></td><td><div class="fill-box">$7,600</div></td></tr>
+        <tr><td class="code-col">RPT-HYD-FLW</td><td>Hydraulic Overland Flow Engineering Study</td><td>Lump Sum</td><td><div class="fill-box">$2,600</div></td><td><div class="fill-box">$2,600</div></td></tr>
+        <tr><td class="code-col">KDR-DEM-SGL</td><td>KDRB: Single Storey Demolition & Site Clearance Allowance</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">KDR-DEM-DBL</td><td>KDRB: Double Storey Demolition & Site Clearance Allowance</td><td>Lump Sum</td><td><div class="fill-box"></div></td><td><div class="fill-box"></div></td></tr>
+        <tr><td class="code-col">FEE-PLM-LOD</td><td>Statutory Plumbing, Sewer Connection & Archiving Fees</td><td>Lump Sum</td><td><div class="fill-box">$2,227</div></td><td><div class="fill-box">$2,227</div></td></tr>
+      </tbody>
+    </table>
+
+    <div class="page-footer">
+      <span>Hudson Homes Management Pty Ltd · Estimator Pricing Workbook 2026.1</span>
+      <span>Page 3 of 3</span>
+    </div>
+  </div>
+
+</body>
+</html>
