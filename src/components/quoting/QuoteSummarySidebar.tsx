@@ -4,7 +4,6 @@ import {
   Save,
   Share2,
   Building,
-  Shield,
   Layers,
   Sparkles,
   Tag,
@@ -290,20 +289,6 @@ export function QuoteSummarySidebar({
         </div>
       </div>
 
-      {/* Sales Consultant Badge */}
-      <div className={`rounded-2xl border p-4 space-y-1 text-xs ${
-        isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/60 border-slate-800"
-      }`}>
-        <div className={`flex items-center gap-1.5 font-semibold text-[11px] ${
-          isLight ? "text-emerald-700" : "text-emerald-400"
-        }`}>
-          <Shield className="h-3.5 w-3.5" />
-          <span>Assigned Sales Consultant</span>
-        </div>
-        <div className={`font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{client.consultantName || "Sales Consultant"}</div>
-        <div className={`text-[11px] ${isLight ? "text-slate-600" : "text-slate-400"}`}>{client.consultantOffice}</div>
-        <div className={`text-[11px] font-mono ${isLight ? "text-slate-600" : "text-slate-400"}`}>{client.consultantPhone}</div>
-      </div>
     </div>
   );
 }
