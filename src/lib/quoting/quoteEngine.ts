@@ -1782,6 +1782,7 @@ export interface CouncilInfo {
   region: string;
   fee: number;
   isUnrecognized?: boolean;
+  state?: "QLD" | "NSW";
 }
 
 /**
@@ -1800,7 +1801,7 @@ export function detectCouncilFromLocation(
   const text = `${suburbOrLocation || ""} ${addressOrEstate || ""} ${postcode || ""} ${state || ""}`.toLowerCase().trim();
   
   if (!text) {
-    return { region: "", fee: 0 };
+    return { region: "", fee: 0, state: state === "NSW" ? "NSW" : "QLD" };
   }
 
   // Check if "no address", "tba", or "land not purchased"
@@ -1813,9 +1814,9 @@ export function detectCouncilFromLocation(
     text.includes("location tba")
   ) {
     if (state === "NSW") {
-      return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+      return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000, state: "NSW" };
     }
-    return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
+    return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200, state: "QLD" };
   }
 
   const explicitNsw =
@@ -2139,35 +2140,73 @@ export function detectCouncilFromLocation(
   // 1. If explicit NSW job, prioritize NSW councils
   if (explicitNsw && !explicitQld) {
     const matched = matchNswCouncil();
-    if (matched) return matched;
-    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+    if (matched) return { ...matched, state: "NSW" };
+    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000, state: "NSW" };
   }
 
   // 2. If explicit QLD job, prioritize QLD councils
   if (explicitQld && !explicitNsw) {
     const matched = matchQldCouncil();
-    if (matched) return matched;
-    return { region: "Logan City Council", fee: 2227 };
+    if (matched) return { ...matched, state: "QLD" };
+    return { region: "Logan City Council", fee: 2227, state: "QLD" };
   }
 
   // 3. If state not explicit, check NSW first if address contains NSW indicators
   const nswCandidate = matchNswCouncil();
-  if (nswCandidate) return nswCandidate;
+  if (nswCandidate) return { ...nswCandidate, state: "NSW" };
 
   const qldCandidate = matchQldCouncil();
-  if (qldCandidate) return qldCandidate;
+  if (qldCandidate) return { ...qldCandidate, state: "QLD" };
 
   // General NSW Address Fallback ($2,000)
   if (explicitNsw) {
-    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000 };
+    return { region: "NSW Local Council (Standard Statutory Fee)", fee: 2000, state: "NSW" };
   }
 
   // If a location is provided but council not matched, flag as unrecognized
   if (text.length > 2) {
-    return { region: "Other / Unlisted Council (Approval Required)", fee: 2200, isUnrecognized: true };
+    return {
+      region: "Other / Unlisted Council (Approval Required)",
+      fee: 2200,
+      isUnrecognized: true,
+      state: state === "NSW" ? "NSW" : "QLD",
+    };
   }
 
-  return { region: "Council Fee Allowance (No Location Mentioned)", fee: 2200 };
+  return {
+    region: "Council Fee Allowance (No Location Mentioned)",
+    fee: 2200,
+    state: state === "NSW" ? "NSW" : "QLD",
+  };
+}
+
+/**
+ * Detects whether an address or suburb text belongs to QLD or NSW based on postcodes, keywords, or known council areas.
+ */
+export function detectStateFromAddress(
+  addressOrSuburb?: string,
+  postcode?: string,
+  fallbackState: "QLD" | "NSW" = "QLD"
+): "QLD" | "NSW" {
+  const text = `${addressOrSuburb || ""} ${postcode || ""}`.toLowerCase().trim();
+  if (!text) return fallbackState;
+
+  if (postcode && postcode.trim().startsWith("2")) return "NSW";
+  if (postcode && postcode.trim().startsWith("4")) return "QLD";
+
+  if (/\b2\d{3}\b/.test(text) || /\bnsw\b/.test(text) || text.includes("new south wales")) {
+    return "NSW";
+  }
+  if (/\b4\d{3}\b/.test(text) || /\bqld\b/.test(text) || text.includes("queensland")) {
+    return "QLD";
+  }
+
+  const detected = detectCouncilFromLocation(addressOrSuburb, "", postcode);
+  if (detected && detected.state) {
+    return detected.state;
+  }
+
+  return fallbackState;
 }
 
 /**

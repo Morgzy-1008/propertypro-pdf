@@ -271,8 +271,12 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     acousticGlazingRequired: false,
     acousticGlazingCost: 0,
 
-    councilRegion: "",
-    councilFee: 0,
+    councilRegion: (getActiveStaffUser()?.division || getActiveStaffUser()?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW"
+      ? "NSW Local Council (Standard Statutory Fee)"
+      : "Council Fee Allowance (No Location Mentioned)",
+    councilFee: (getActiveStaffUser()?.division || getActiveStaffUser()?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW"
+      ? 2000
+      : 2200,
     councilLodgementFee: 0,
     councilDaRequired: false,
     councilDaCost: 11000,
@@ -304,6 +308,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
   const allQuotes = loadAllQuotes();
   const estimateNo = generateQuoteNumber(clientName, allQuotes);
   const activeStaff = getActiveStaffUser();
+  const staffState = (activeStaff?.division || activeStaff?.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")) === "NSW" ? "NSW" : "QLD";
 
   return {
     id: `quote_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -324,7 +329,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
       suburb: "",
       estate: "",
       postcode: "",
-      state: getActiveDivision() === "NSW" ? "NSW" : "QLD",
+      state: staffState,
       estimateNumber: estimateNo,
       estimateVersion: 1,
       depositType: "greenfield",

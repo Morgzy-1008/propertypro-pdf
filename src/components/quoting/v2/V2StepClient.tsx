@@ -35,7 +35,7 @@ import {
 import type { FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { searchAustralianAddresses, type AddressSuggestion } from "@/lib/address/addressService";
-import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
+import { detectCouncilFromLocation, detectStateFromAddress } from "@/lib/quoting/quoteEngine";
 import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 import { ALL_STAFF_CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { getActiveStaffUser } from "@/lib/authSession";
@@ -68,6 +68,7 @@ export function hasTypedTwoLettersOfStreet(input: string): boolean {
 
 interface V2StepClientProps {
   client: FullQuote["client"];
+  site?: SiteConditions;
   onChange: (patch: Partial<FullQuote["client"]>) => void;
   onSiteChange?: (patch: Partial<SiteConditions>) => void;
   onNext: () => void;
@@ -76,6 +77,7 @@ interface V2StepClientProps {
 
 export function V2StepClient({
   client,
+  site,
   onChange,
   onSiteChange,
   onNext,
@@ -150,6 +152,11 @@ export function V2StepClient({
     const lotClean = found.lotNumber && found.lotNumber !== "TBA" ? found.lotNumber : "";
     const siteAddr = estateClean ? `${lotClean ? `Lot ${lotClean}, ` : ""}${estateClean}, ${suburbClean}` : "";
 
+    const detectedState = detectStateFromAddress(`${siteAddr} ${suburbClean}`, "", activeState);
+    if (detectedState !== client.state) {
+      setActiveDivision(detectedState);
+    }
+
     onChange({
       clientName: found.clientName,
       clientPhone: found.mobile,
@@ -163,6 +170,7 @@ export function V2StepClient({
       lotNumber: lotClean,
       siteAddress: siteAddr,
       notes: found.notes || "",
+      state: detectedState,
     });
 
     if (found.secondaryCustomerName) {
@@ -174,11 +182,11 @@ export function V2StepClient({
     }
 
     if (onSiteChange) {
-      const detected = detectCouncilFromLocation(suburbClean, siteAddr, "", activeState);
+      const detected = detectCouncilFromLocation(suburbClean, siteAddr, "", detectedState);
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -187,18 +195,22 @@ export function V2StepClient({
   };
 
   const handleSuburbChange = (val: string) => {
-    onChange({ suburb: val });
+    const detectedState = detectStateFromAddress(`${val} ${client.siteAddress || ""}`, client.postcode, activeState);
+    if (detectedState !== client.state) {
+      setActiveDivision(detectedState);
+    }
+    onChange({ suburb: val, state: detectedState });
     if (onSiteChange) {
       const detected = detectCouncilFromLocation(
         val,
         `${client.siteAddress || ""} ${client.estate || ""}`,
         client.postcode || "",
-        activeState
+        detectedState
       );
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -267,38 +279,6 @@ export function V2StepClient({
     }
   };
 
-  const handleStateChange = (newState: "QLD" | "NSW") => {
-    onChange({ state: newState });
-    setActiveDivision(newState);
-    if (onSiteChange) {
-      const detected = detectCouncilFromLocation(
-        client.suburb || "",
-        `${client.siteAddress || ""} ${client.estate || ""}`,
-        client.postcode || "",
-        newState
-      );
-      if (detected.region) {
-        onSiteChange({
-          councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (newState === "NSW" ? 2000 : 2227),
-        });
-      } else {
-        if (newState === "NSW") {
-          onSiteChange({
-            councilRegion: "NSW Local Council (Standard Statutory Fee)",
-            councilFee: 2000,
-          });
-        } else {
-          onSiteChange({
-            councilRegion: "Moreton Bay Regional Council",
-            councilFee: 2227,
-          });
-        }
-      }
-    }
-    toast.success(`Switched active state & pricelist to ${newState}`);
-  };
-
   // Address TBA state
   const isAddressTba = Boolean(
     client.siteAddress?.toLowerCase().trim() === "address tba" ||
@@ -306,6 +286,34 @@ export function V2StepClient({
     client.siteAddress?.toLowerCase().includes("to be advised") ||
     (client.lotNumber === "TBA" && client.suburb === "Location TBA")
   );
+
+  // Auto-detect and sync council region on mount or address changes
+  useEffect(() => {
+    if (!onSiteChange) return;
+    if (isAddressTba) return;
+    const addr = client.siteAddress || "";
+    const sub = client.suburb || "";
+    if (!addr && !sub) return;
+
+    const detectedState = detectStateFromAddress(`${addr} ${sub}`, client.postcode, activeState);
+    if (detectedState !== client.state) {
+      setActiveDivision(detectedState);
+      onChange({ state: detectedState });
+    }
+
+    const detected = detectCouncilFromLocation(
+      sub,
+      `${addr} ${client.estate || ""}`,
+      client.postcode || "",
+      detectedState
+    );
+    if (detected.region && site?.councilRegion !== detected.region) {
+      onSiteChange({
+        councilRegion: detected.region,
+        councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
+      });
+    }
+  }, [client.siteAddress, client.suburb, client.estate, client.postcode, activeState, isAddressTba, site?.councilRegion]);
 
   // Close search suggestions on click outside
   useEffect(() => {
@@ -360,7 +368,11 @@ export function V2StepClient({
   };
 
   const handleStreetInputChange = (val: string) => {
-    const patch: Partial<FullQuote["client"]> = { siteAddress: val };
+    const detectedState = detectStateFromAddress(`${val} ${client.suburb || ""}`, client.postcode, activeState);
+    if (detectedState !== client.state) {
+      setActiveDivision(detectedState);
+    }
+    const patch: Partial<FullQuote["client"]> = { siteAddress: val, state: detectedState };
     if (isAddressTba && val !== "Address TBA") {
       if (client.suburb === "Location TBA") patch.suburb = "";
       if (client.lotNumber === "TBA") patch.lotNumber = "";
@@ -372,12 +384,12 @@ export function V2StepClient({
         client.suburb || "",
         `${val} ${client.estate || ""}`,
         client.postcode || "",
-        activeState
+        detectedState
       );
       if (detected.region) {
         onSiteChange({
           councilRegion: detected.region,
-          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+          councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
         });
       }
     }
@@ -401,7 +413,7 @@ export function V2StepClient({
       try {
         const results = await searchAustralianAddresses(val, {
           limit: 8,
-          state: client.state || "QLD",
+          state: detectedState,
         });
         setSuggestions(results);
         setIsSearchOpen(results.length > 0);
@@ -425,10 +437,13 @@ export function V2StepClient({
       ? `${suggestion.suburb} ${suggestion.state} ${suggestion.postcode}`
       : `${suggestion.suburb} ${suggestion.state}`.trim();
 
+    const detectedState = suggestion.state === "NSW" ? "NSW" : "QLD";
+    setActiveDivision(detectedState);
+
     const patch: Partial<FullQuote["client"]> = {
       siteAddress: fullStreet,
       suburb: suburbDisplay,
-      state: (suggestion.state === "NSW" ? "NSW" : "QLD"),
+      state: detectedState,
       postcode: suggestion.postcode || client.postcode || "",
     };
 
@@ -447,16 +462,15 @@ export function V2StepClient({
     setHighlightedIndex(-1);
 
     if (onSiteChange) {
-      const activeState = (suggestion.state === "NSW" ? "NSW" : "QLD");
       const detected = detectCouncilFromLocation(
         suggestion.suburb,
         `${fullStreet} ${suggestion.estate || ""}`,
         suggestion.postcode || "",
-        activeState
+        detectedState
       );
       onSiteChange({
         councilRegion: detected.region,
-        councilFee: detected.fee,
+        councilFee: detected.fee > 0 ? detected.fee : (detectedState === "NSW" ? 2000 : 2227),
       });
     }
 
@@ -1224,52 +1238,50 @@ export function V2StepClient({
               />
             </div>
 
-            {/* State Jurisdiction & Pricelist */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className={`text-sm font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
-                  State Jurisdiction &amp; Pricelist
-                </Label>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                  activeState === "NSW"
-                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
-                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                }`}>
-                  {activeState === "NSW" ? "NSW Division" : "QLD Division"}
-                </span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 h-12">
-                <button
-                  type="button"
-                  onClick={() => handleStateChange("QLD")}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition-all border cursor-pointer ${
-                    activeState === "QLD"
-                      ? isLight
-                        ? "bg-amber-100 text-amber-950 border-amber-400 shadow-xs ring-2 ring-amber-400/30"
-                        : "bg-amber-500/25 text-amber-300 border-amber-400 shadow-sm ring-1 ring-amber-400/40"
-                      : isLight
-                      ? "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
-                      : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-white"
-                  }`}
-                >
-                  <span>☀️ QLD (Queensland)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleStateChange("NSW")}
-                  className={`flex items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition-all border cursor-pointer ${
+            {/* Auto-Detected Jurisdiction & Council */}
+            <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all ${
+              isLight
+                ? "bg-slate-50/80 border-slate-200"
+                : "bg-slate-900/60 border-slate-800"
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  <Label className={`text-sm font-bold ${isLight ? "text-slate-800" : "text-white"}`}>
+                    Jurisdiction &amp; Council
+                  </Label>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
                     activeState === "NSW"
-                      ? isLight
-                        ? "bg-cyan-100 text-cyan-950 border-cyan-400 shadow-xs ring-2 ring-cyan-400/30"
-                        : "bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-sm ring-1 ring-cyan-400/40"
-                      : isLight
-                      ? "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
-                      : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-white"
-                  }`}
-                >
-                  <span>🌊 NSW (New South Wales)</span>
-                </button>
+                      ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/30"
+                      : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                  }`}>
+                    {activeState === "NSW" ? "NSW Division" : "QLD Division"}
+                  </span>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" /> Auto-Detected
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs pt-1">
+                <div>
+                  <div className={`font-semibold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+                    {site?.councilRegion || (activeState === "NSW" ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")}
+                  </div>
+                  <div className={`text-[11px] ${isLight ? "text-slate-500" : "text-slate-400"}`}>
+                    Determined automatically by login &amp; address
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 sm:text-right">
+                  <div className={`font-bold text-sm ${isLight ? "text-slate-900" : "text-emerald-400"}`}>
+                    ${((site?.councilFee ?? (activeState === "NSW" ? 2000 : 2227))).toLocaleString()}
+                  </div>
+                  <div className="text-[10px] text-slate-500 uppercase tracking-wider">
+                    Statutory Fee
+                  </div>
+                </div>
               </div>
             </div>
 

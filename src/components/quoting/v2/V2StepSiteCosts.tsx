@@ -148,8 +148,11 @@ export function V2StepSiteCosts({
   }, [isNsw]);
 
   // Auto-detect and sync council region to client address, suburb and state
+  const lastLocationRef = useRef<string>("");
   useEffect(() => {
     const activeState = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+    const locationKey = `${quote.client?.suburb || ""}|${quote.client?.siteAddress || ""}|${quote.client?.postcode || ""}|${activeState}`;
+
     const detected = detectCouncilFromLocation(
       quote.client?.suburb || "",
       `${quote.client?.siteAddress || ""} ${quote.client?.estate || ""}`,
@@ -158,9 +161,11 @@ export function V2StepSiteCosts({
     );
 
     const currentBelongsToActiveList = councilList.some((c) => c.name === site.councilRegion);
+    const locationChanged = lastLocationRef.current !== "" && lastLocationRef.current !== locationKey;
+    lastLocationRef.current = locationKey;
 
-    // If current council region is empty or belongs to another state's list
-    if (!currentBelongsToActiveList || !site.councilRegion) {
+    // If location changed or current council region is empty or belongs to another state's list
+    if (!currentBelongsToActiveList || !site.councilRegion || (locationChanged && detected.region && detected.region !== site.councilRegion && !detected.isUnrecognized)) {
       const fallbackCouncil = detected.region && councilList.some((c) => c.name === detected.region)
         ? detected.region
         : (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council");

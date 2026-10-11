@@ -587,22 +587,14 @@ export function QuoteClientDetails({
           </div>
 
           <div className="space-y-1.5 sm:col-span-1 md:col-span-1">
-            <Label className="text-[11px] text-slate-400">State</Label>
-            <Select
-              value={client.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")}
-              onValueChange={(val: "QLD" | "NSW") => {
-                handleAddressChange({ state: val });
-                setActiveDivision(val);
-              }}
-            >
-              <SelectTrigger className="h-8.5 border-slate-800 bg-slate-950/70 text-xs text-slate-100">
-                <SelectValue placeholder="State" />
-              </SelectTrigger>
-              <SelectContent className="border-slate-800 bg-slate-900 text-slate-200">
-                <SelectItem value="QLD">QLD</SelectItem>
-                <SelectItem value="NSW">NSW</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] text-slate-400">State</Label>
+              <span className="text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 px-1 rounded">Auto</span>
+            </div>
+            <div className="h-8.5 border border-slate-800 bg-slate-950/70 text-xs text-slate-200 px-2.5 flex items-center justify-between rounded-md">
+              <span className="font-bold text-slate-100">{client.state || (getActiveDivision() === "NSW" ? "NSW" : "QLD")}</span>
+              <span className="text-[10px] text-slate-400">{client.state === "NSW" ? "NSW" : "QLD"} Division</span>
+            </div>
           </div>
 
           <div className="space-y-1.5 sm:col-span-1 md:col-span-1">

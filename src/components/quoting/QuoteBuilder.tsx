@@ -34,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
 import { canChangeQuoteConsultant } from "@/lib/access";
+import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import {
   calculateQuotePricing,
@@ -163,8 +164,16 @@ export function QuoteBuilder() {
   useEffect(() => {
     const applyStaff = (staff: StaffProfile | null) => {
       if (staff) {
+        const staffDivision: "QLD" | "NSW" = (staff.division === "NSW" || staff.state === "NSW") ? "NSW" : "QLD";
         setQuote((prev) => {
           const isAllowedChange = canChangeQuoteConsultant(staff);
+          const hasAddress = prev.client.siteAddress && prev.client.siteAddress !== "Address TBA" && prev.client.siteAddress.trim().length > 3;
+          // If quote has no specific address yet, align state with consultant login
+          const targetState = hasAddress ? (prev.client.state || staffDivision) : staffDivision;
+          if (!hasAddress && getActiveDivision() !== staffDivision) {
+            setActiveDivision(staffDivision);
+          }
+
           // If the logged in user cannot change consultant (i.e. anyone other than Alyssa and Ben),
           // strictly lock the consultant details to the logged in consultant.
           if (!isAllowedChange) {
@@ -173,7 +182,8 @@ export function QuoteBuilder() {
               prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase() &&
               prev.client.consultantName === staff.name &&
               prev.client.consultantPhone === staff.phone &&
-              prev.client.consultantOffice === staff.displayCentre
+              prev.client.consultantOffice === staff.displayCentre &&
+              prev.client.state === targetState
             ) {
               return prev;
             }
@@ -181,6 +191,7 @@ export function QuoteBuilder() {
               ...prev,
               client: {
                 ...prev.client,
+                state: targetState,
                 consultantId: staff.id,
                 consultantName: staff.name,
                 consultantPhone: staff.phone,
@@ -189,13 +200,14 @@ export function QuoteBuilder() {
               },
             };
           }
-          if (prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase()) {
+          if (prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase() && prev.client.state === targetState) {
             return prev;
           }
           return {
             ...prev,
             client: {
               ...prev.client,
+              state: targetState,
               consultantId: staff.id,
               consultantName: staff.name,
               consultantPhone: staff.phone,

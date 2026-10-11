@@ -278,6 +278,7 @@ export function QuoteBuilderV2({
             {activeStep === "client" && (
               <V2StepClient
                 client={quote.client}
+                site={quote.siteConditions}
                 onChange={handleClientChange}
                 onSiteChange={handleSiteChange}
                 onNext={handleGoNext}

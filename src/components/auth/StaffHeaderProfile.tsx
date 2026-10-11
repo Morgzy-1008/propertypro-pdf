@@ -37,9 +37,14 @@ import { useTheme } from "@/lib/theme";
 interface StaffHeaderProfileProps {
   isLight?: boolean;
   compact?: boolean;
+  hideDivisionSwitcher?: boolean;
 }
 
-export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: StaffHeaderProfileProps) {
+export function StaffHeaderProfile({
+  isLight: propIsLight,
+  compact = false,
+  hideDivisionSwitcher = false,
+}: StaffHeaderProfileProps) {
   const navigate = useNavigate();
   const { mode } = useTheme();
   const isNormalMode = mode === "normal";
@@ -164,8 +169,8 @@ export function StaffHeaderProfile({ isLight: propIsLight, compact = false }: St
 
   return (
     <div className="flex items-center gap-2">
-      {/* Top Bar State Switcher (QLD ⇄ NSW) */}
-      {!compact && <DivisionSwitcher isLight={isLight} size="sm" />}
+      {/* Top Bar State Switcher (QLD ⇄ NSW) - hidden in quoting tool */}
+      {!compact && !hideDivisionSwitcher && <DivisionSwitcher isLight={isLight} size="sm" />}
       {/* Website Admin Button for Morgan Hales */}
       {!compact && isAdmin && (
         <button
