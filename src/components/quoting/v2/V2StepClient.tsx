@@ -16,6 +16,7 @@ import {
   Check,
   Search,
   Shield,
+  ShieldCheck,
   RefreshCw,
   UserCheck,
   Users,
@@ -38,6 +39,7 @@ import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
 import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
 import { ALL_STAFF_CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
 import { getActiveStaffUser } from "@/lib/authSession";
+import { canChangeQuoteConsultant } from "@/lib/access";
 import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
 import type { CrmLead } from "@/lib/crm/crmTypes";
 import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
@@ -93,6 +95,31 @@ export function V2StepClient({
 
   const activeState = (client.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
 
+  // Consultant security & permissions: Only Alyssa and Ben can change/reassign consultant.
+  // When other consultants are logged in, lock details to active login and remove change options.
+  const activeStaff = useMemo(() => getActiveStaffUser(), []);
+  const canChangeConsultant = canChangeQuoteConsultant(activeStaff);
+
+  useEffect(() => {
+    if (activeStaff && !canChangeConsultant) {
+      if (
+        client.consultantId !== activeStaff.id ||
+        client.consultantEmail?.toLowerCase() !== activeStaff.email.toLowerCase() ||
+        client.consultantName !== activeStaff.name ||
+        client.consultantPhone !== activeStaff.phone ||
+        client.consultantOffice !== activeStaff.displayCentre
+      ) {
+        onChange({
+          consultantId: activeStaff.id,
+          consultantName: activeStaff.name,
+          consultantPhone: activeStaff.phone,
+          consultantEmail: activeStaff.email,
+          consultantOffice: activeStaff.displayCentre,
+        });
+      }
+    }
+  }, [activeStaff, canChangeConsultant, client.consultantId, client.consultantEmail, client.consultantName, client.consultantPhone, client.consultantOffice]);
+
   // CRM Leads and Saved Quotes for 1-click client loading
   const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
   const savedQuotes = useMemo(() => {
@@ -142,7 +169,7 @@ export function V2StepClient({
       setShowClient2(true);
     }
 
-    if (found.assignedConsultantId) {
+    if (found.assignedConsultantId && canChangeConsultant) {
       handleConsultantPresetChange(found.assignedConsultantId);
     }
 
@@ -751,139 +778,201 @@ export function V2StepClient({
         >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
             <div className="flex items-center gap-2.5">
-              <Shield className="h-5 w-5 text-amber-500" />
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
               <div>
                 <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
-                  New Home Sales Consultant (NHC) Details
+                  Authorised New Home Consultant (NHC)
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Assign a consultant from our staff directory or customize the consultant details for this quote.
+                  {canChangeConsultant
+                    ? "Assign a consultant from our staff directory or customize the consultant details for this quote."
+                    : "Locked to your active staff credentials and automatically populated onto all generated PDFs."}
                 </p>
               </div>
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResetToActiveProfile}
-              className={`text-xs h-8.5 px-3 gap-1.5 font-semibold ${
-                isLight
-                  ? "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
-                  : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
-              }`}
-            >
-              <RefreshCw className="h-3.5 w-3.5 text-amber-400" />
-              Reset to My Profile
-            </Button>
-          </div>
-
-          <div className="space-y-4">
-            {/* Quick Preset Dropdown */}
-            <div className="space-y-1.5">
-              <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Quick Consultant Preset
-              </Label>
-              <Select
-                value={selectedConsultantPreset}
-                onValueChange={handleConsultantPresetChange}
-              >
-                <SelectTrigger className={`text-sm h-11 rounded-xl px-4 ${
+            {canChangeConsultant ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResetToActiveProfile}
+                className={`text-xs h-8.5 px-3 gap-1.5 font-semibold ${
                   isLight
-                    ? "bg-slate-50 border-slate-300 text-slate-900"
-                    : "bg-slate-950/80 border-slate-800 text-white"
-                }`}>
-                  <SelectValue placeholder="Choose a consultant from directory..." />
-                </SelectTrigger>
-                <SelectContent className={isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-800 text-white"}>
-                  <SelectItem value="custom">✏️ Custom Consultant / Manual Override</SelectItem>
-                  {ALL_STAFF_CONSULTANTS.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name} &bull; {c.displayCentre} ({c.division || c.state || "QLD"})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Editable Fields Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Consultant Name <span className="text-rose-500">*</span>
-                </Label>
-                <Input
-                  value={client.consultantName || ""}
-                  onChange={(e) => handleConsultantFieldChange("consultantName", e.target.value)}
-                  placeholder="e.g. Morgan Hales"
-                  className={`text-sm h-11 rounded-xl px-3.5 ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
-                      : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                />
+                    ? "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                    : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                <RefreshCw className="h-3.5 w-3.5 text-amber-400" />
+                Reset to My Profile
+              </Button>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                <span>Profile Locked &bull; Added to PDF</span>
               </div>
-
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Direct Phone
-                </Label>
-                <Input
-                  type="tel"
-                  value={client.consultantPhone || ""}
-                  onChange={(e) => handleConsultantFieldChange("consultantPhone", e.target.value)}
-                  placeholder="e.g. 0417 571 864"
-                  className={`text-sm h-11 rounded-xl px-3.5 ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
-                      : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Email Address
-                </Label>
-                <Input
-                  type="email"
-                  value={client.consultantEmail || ""}
-                  onChange={(e) => handleConsultantFieldChange("consultantEmail", e.target.value)}
-                  placeholder="e.g. morgan.hales@hudsonhomes.com.au"
-                  className={`text-sm h-11 rounded-xl px-3.5 ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
-                      : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Display Centre / Office
-                </Label>
-                <Input
-                  value={client.consultantOffice || ""}
-                  onChange={(e) => handleConsultantFieldChange("consultantOffice", e.target.value)}
-                  placeholder="e.g. Flagstone Display Home"
-                  className={`text-sm h-11 rounded-xl px-3.5 ${
-                    isLight
-                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
-                      : "bg-slate-950/80 border-slate-800 text-white"
-                  }`}
-                />
-              </div>
-            </div>
-
-            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
-              isLight ? "bg-amber-50/70 border-amber-200/80 text-amber-900" : "bg-amber-500/10 border-amber-500/20 text-amber-300"
-            }`}>
-              <Shield className="h-4 w-4 shrink-0 text-amber-500" />
-              <span>
-                These consultant details appear on the <strong>Estimate Cover Sheet</strong>, <strong>Specification Schedules</strong>, and the <strong>Acceptance of Tender Proposal (ATP)</strong> contract agreement.
-              </span>
-            </div>
+            )}
           </div>
+
+          {canChangeConsultant ? (
+            <div className="space-y-4">
+              {/* Quick Preset Dropdown */}
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Quick Consultant Preset
+                </Label>
+                <Select
+                  value={selectedConsultantPreset}
+                  onValueChange={handleConsultantPresetChange}
+                >
+                  <SelectTrigger className={`text-sm h-11 rounded-xl px-4 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900"
+                      : "bg-slate-950/80 border-slate-800 text-white"
+                  }`}>
+                    <SelectValue placeholder="Choose a consultant from directory..." />
+                  </SelectTrigger>
+                  <SelectContent className={isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-800 text-white"}>
+                    <SelectItem value="custom">✏️ Custom Consultant / Manual Override</SelectItem>
+                    {ALL_STAFF_CONSULTANTS.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} &bull; {c.displayCentre} ({c.division || c.state || "QLD"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Editable Fields Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <div className="space-y-1.5">
+                  <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Consultant Name <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    value={client.consultantName || ""}
+                    onChange={(e) => handleConsultantFieldChange("consultantName", e.target.value)}
+                    placeholder="e.g. Morgan Hales"
+                    className={`text-sm h-11 rounded-xl px-3.5 ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                        : "bg-slate-950/80 border-slate-800 text-white"
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Direct Phone
+                  </Label>
+                  <Input
+                    type="tel"
+                    value={client.consultantPhone || ""}
+                    onChange={(e) => handleConsultantFieldChange("consultantPhone", e.target.value)}
+                    placeholder="e.g. 0417 571 864"
+                    className={`text-sm h-11 rounded-xl px-3.5 ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                        : "bg-slate-950/80 border-slate-800 text-white"
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Email Address
+                  </Label>
+                  <Input
+                    type="email"
+                    value={client.consultantEmail || ""}
+                    onChange={(e) => handleConsultantFieldChange("consultantEmail", e.target.value)}
+                    placeholder="e.g. morgan.hales@hudsonhomes.com.au"
+                    className={`text-sm h-11 rounded-xl px-3.5 ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                        : "bg-slate-950/80 border-slate-800 text-white"
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Display Centre / Office
+                  </Label>
+                  <Input
+                    value={client.consultantOffice || ""}
+                    onChange={(e) => handleConsultantFieldChange("consultantOffice", e.target.value)}
+                    placeholder="e.g. Flagstone Display Home"
+                    className={`text-sm h-11 rounded-xl px-3.5 ${
+                      isLight
+                        ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                        : "bg-slate-950/80 border-slate-800 text-white"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                isLight ? "bg-amber-50/70 border-amber-200/80 text-amber-900" : "bg-amber-500/10 border-amber-500/20 text-amber-300"
+              }`}>
+                <Shield className="h-4 w-4 shrink-0 text-amber-500" />
+                <span>
+                  These consultant details appear on the <strong>Estimate Cover Sheet</strong>, <strong>Specification Schedules</strong>, and the <strong>Acceptance of Tender Proposal (ATP)</strong> contract agreement.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className={`p-4 sm:p-5 rounded-2xl border grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 ${
+                isLight ? "bg-slate-50/80 border-slate-200" : "bg-slate-950/60 border-slate-800"
+              }`}>
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
+                    <User className="h-3.5 w-3.5 text-amber-500" /> Consultant Name
+                  </span>
+                  <span className={`text-sm font-black block ${isLight ? "text-slate-900" : "text-white"}`}>
+                    {client.consultantName || activeStaff?.name || "Morgan Hales"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
+                    <Building className="h-3.5 w-3.5 text-blue-500" /> Display Centre
+                  </span>
+                  <span className={`text-sm font-semibold block ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+                    {client.consultantOffice || activeStaff?.displayCentre || "Flagstone Display Home"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
+                    <Phone className="h-3.5 w-3.5 text-emerald-500" /> Direct Phone
+                  </span>
+                  <span className={`text-sm font-mono font-bold block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                    {client.consultantPhone || activeStaff?.phone || "0417 571 864"}
+                  </span>
+                </div>
+
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1 flex items-center gap-1">
+                    <Mail className="h-3.5 w-3.5 text-purple-500" /> Email Address
+                  </span>
+                  <span className={`text-sm font-medium truncate block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    {client.consultantEmail || activeStaff?.email || "morgan.hales@hudsonhomes.com.au"}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+                isLight ? "bg-emerald-50/70 border-emerald-200/80 text-emerald-950" : "bg-emerald-500/10 border-emerald-500/20 text-emerald-300"
+              }`}>
+                <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                <span>
+                  Consultant details are locked to your login (<strong>{activeStaff?.name || "Morgan Hales"}</strong>) and automatically printed onto the <strong>Estimate Cover Sheet</strong>, <strong>Specification Schedules</strong>, and <strong>ATP contract agreement</strong>.
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Land / Site Location Card */}

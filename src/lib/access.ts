@@ -250,5 +250,42 @@ export function canAccessBrainDump(staffUser?: {
   return isMorganHales(staffUser) || isAlyssaHales(staffUser) || staffUser.role === "admin";
 }
 
+/**
+ * Checks if a staff user is Ben Grill (New Home Sales Associate).
+ */
+export function isBenGrill(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+  const id = (staffUser.id || "").toLowerCase();
+  const email = (staffUser.email || "").toLowerCase();
+  const name = (staffUser.name || "").toLowerCase();
+  return (
+    id === "ben-grill" ||
+    email.includes("ben.grill") ||
+    name.includes("ben grill")
+  );
+}
+
+/**
+ * In the quoting tool:
+ * Only Alyssa Hales and Ben Grill (who assist consultants and prepare quotes across the sales team)
+ * are allowed to change or reassign the New Home Consultant.
+ * When other consultants are logged in, this option is completely removed, and their own
+ * consultant details are automatically locked and included in the PDF.
+ */
+export function canChangeQuoteConsultant(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+  return isAlyssaHales(staffUser) || isBenGrill(staffUser);
+}
+
 
 

@@ -1547,7 +1547,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                   <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">New Home Consultant:</span>
                   <span className="font-bold text-slate-950 text-sm block mt-0.5">{client.consultantName || "Morgan Hales"}</span>
                   <span className="text-slate-600 text-xs block font-medium mt-0.5">
-                    {client.consultantOffice} &bull; {client.consultantPhone}{client.consultantEmail ? ` &bull; ${client.consultantEmail}` : ""}
+                    {[client.consultantOffice, client.consultantPhone, client.consultantEmail].filter(Boolean).join(" • ")}
                   </span>
                 </div>
                 <div>
@@ -2567,7 +2567,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               <div className="text-xs">
                 <span className="font-black text-slate-950 block text-sm">{client.consultantName || "Morgan Hales"}</span>
                 <span className="text-xs text-slate-600 font-medium">
-                  {client.consultantOffice} &bull; {client.consultantPhone}{client.consultantEmail ? ` &bull; ${client.consultantEmail}` : ""}
+                  {[client.consultantOffice, client.consultantPhone, client.consultantEmail].filter(Boolean).join(" • ")}
                 </span>
                 <span className="text-xs text-slate-600 font-semibold block">Date: {formattedCreatedDate}</span>
               </div>

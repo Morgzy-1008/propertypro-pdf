@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { findConsultantByEmail } from "@/components/flyer/consultants";
 import { getActiveStaffUser, onStaffUserChanged, type StaffProfile } from "@/lib/authSession";
+import { canChangeQuoteConsultant } from "@/lib/access";
 import { downloadA4Pdf } from "@/lib/downloadPdf";
 import {
   calculateQuotePricing,
@@ -163,6 +164,31 @@ export function QuoteBuilder() {
     const applyStaff = (staff: StaffProfile | null) => {
       if (staff) {
         setQuote((prev) => {
+          const isAllowedChange = canChangeQuoteConsultant(staff);
+          // If the logged in user cannot change consultant (i.e. anyone other than Alyssa and Ben),
+          // strictly lock the consultant details to the logged in consultant.
+          if (!isAllowedChange) {
+            if (
+              prev.client.consultantId === staff.id &&
+              prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase() &&
+              prev.client.consultantName === staff.name &&
+              prev.client.consultantPhone === staff.phone &&
+              prev.client.consultantOffice === staff.displayCentre
+            ) {
+              return prev;
+            }
+            return {
+              ...prev,
+              client: {
+                ...prev.client,
+                consultantId: staff.id,
+                consultantName: staff.name,
+                consultantPhone: staff.phone,
+                consultantEmail: staff.email,
+                consultantOffice: staff.displayCentre,
+              },
+            };
+          }
           if (prev.client.consultantEmail?.toLowerCase() === staff.email.toLowerCase()) {
             return prev;
           }
@@ -980,7 +1006,21 @@ export function QuoteBuilder() {
         savedQuotes={savedQuotes}
         activeQuoteId={quote.id}
         onLoadQuote={async (loaded) => {
-          const refreshed = rehydrateAndRecalculateQuote(loaded);
+          let refreshed = rehydrateAndRecalculateQuote(loaded);
+          const currentStaff = getActiveStaffUser();
+          if (currentStaff && !canChangeQuoteConsultant(currentStaff)) {
+            refreshed = {
+              ...refreshed,
+              client: {
+                ...refreshed.client,
+                consultantId: currentStaff.id,
+                consultantName: currentStaff.name,
+                consultantPhone: currentStaff.phone,
+                consultantEmail: currentStaff.email,
+                consultantOffice: currentStaff.displayCentre,
+              },
+            };
+          }
           setQuote(refreshed);
           await saveQuoteAsync(refreshed);
           await refreshSavedQuotes();
@@ -995,7 +1035,21 @@ export function QuoteBuilder() {
         }}
         onSaveCurrentQuote={handleSaveQuote}
         onImportQuote={async (imported) => {
-          const refreshed = rehydrateAndRecalculateQuote(imported);
+          let refreshed = rehydrateAndRecalculateQuote(imported);
+          const currentStaff = getActiveStaffUser();
+          if (currentStaff && !canChangeQuoteConsultant(currentStaff)) {
+            refreshed = {
+              ...refreshed,
+              client: {
+                ...refreshed.client,
+                consultantId: currentStaff.id,
+                consultantName: currentStaff.name,
+                consultantPhone: currentStaff.phone,
+                consultantEmail: currentStaff.email,
+                consultantOffice: currentStaff.displayCentre,
+              },
+            };
+          }
           setQuote(refreshed);
           await saveQuoteAsync(refreshed);
           await refreshSavedQuotes();
