@@ -524,32 +524,6 @@ function WelcomeHubPage() {
 
         {/* Portals Grid with Futuristic Gradient Glows */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
-          {/* Featured Portal: Morgan & Alyssa's BrainDump (Exclusive Task Blitz Engine) */}
-          <PortalCard
-            to="/braindump"
-            portalNumber="SHARED // 00"
-            categoryBadge="Task Execution Engine"
-            statusBadge={{
-              text: "⚡ Morgan & Alyssa Portal",
-              pulse: true,
-              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
-            }}
-            title="Morgan & Alyssa's BrainDump"
-            description="Private task execution engine to smash through overdue backlogs. Blitz client mark-ups (2-day SLA), follow-up calls, new estimates, tender submissions, and building contract reviews."
-            icon={Zap}
-            features="2-Day Mark-Up SLA • Zero Date Pickers • Real-Time Sync • Daily Blitz Mode"
-            actionText="Launch BrainDump"
-            glowGradient="from-amber-500 via-orange-500 to-rose-500"
-            lightBeam="from-transparent via-amber-400 to-transparent"
-            innerGlow="from-amber-500/30 to-transparent"
-            iconColor="text-amber-400"
-            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
-            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
-            isLight={isLight}
-            isComingSoon={!canAccessBrainDump(staffUser)}
-            isWide={true}
-          />
-
           {/* Portal 01: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
             to="/quote-builder"
@@ -748,6 +722,32 @@ function WelcomeHubPage() {
             badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
             isLight={isLight}
           />
+
+          {/* Portal 10: Morgan & Alyssa's BrainDump (Exclusive Task Blitz Engine - Only visible to Morgan and Alyssa) */}
+          {canAccessBrainDump(staffUser) && (
+            <PortalCard
+              to="/braindump"
+              portalNumber="PORTAL // 10"
+              categoryBadge="Task Execution Engine"
+              statusBadge={{
+                text: "⚡ Morgan & Alyssa",
+                pulse: true,
+                style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+              }}
+              title="Morgan & Alyssa's BrainDump"
+              description="Private task execution engine to smash through overdue backlogs, client mark-ups (2-day SLA), calls, estimates, and tenders."
+              icon={Zap}
+              features="2-Day Mark-Up SLA • Real-Time Sync"
+              actionText="Launch BrainDump"
+              glowGradient="from-amber-500 via-orange-500 to-rose-500"
+              lightBeam="from-transparent via-amber-400 to-transparent"
+              innerGlow="from-amber-500/30 to-transparent"
+              iconColor="text-amber-400"
+              iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+              badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+              isLight={isLight}
+            />
+          )}
         </div>
       </main>
 

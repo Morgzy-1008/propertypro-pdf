@@ -238,7 +238,7 @@ export function isAlyssaHales(staffUser?: {
 
 /**
  * Access control for Morgan and Alyssa's BrainDump Portal.
- * Shared exclusively between Morgan Hales, Alyssa Hales, or system administrator.
+ * Shared exclusively between Morgan Hales and Alyssa Hales.
  */
 export function canAccessBrainDump(staffUser?: {
   id?: string | null;
@@ -247,7 +247,7 @@ export function canAccessBrainDump(staffUser?: {
   role?: string | null;
 } | null): boolean {
   if (!staffUser) return false;
-  return isMorganHales(staffUser) || isAlyssaHales(staffUser) || staffUser.role === "admin";
+  return isMorganHales(staffUser) || isAlyssaHales(staffUser);
 }
 
 /**

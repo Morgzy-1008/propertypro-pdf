@@ -33,6 +33,7 @@ import { DivisionSwitcher } from "./DivisionSwitcher";
 import { ProfileSwitcherModal } from "./ProfileSwitcherModal";
 import { setActiveDivision } from "@/lib/divisionContext";
 import { useTheme } from "@/lib/theme";
+import { canAccessBrainDump } from "@/lib/access";
 
 interface StaffHeaderProfileProps {
   isLight?: boolean;
@@ -261,27 +262,29 @@ export function StaffHeaderProfile({
                 </div>
 
                 <div className="space-y-1">
-                  {/* Morgan & Alyssa's BrainDump Shortcut */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsDropdownOpen(false);
-                      navigate({ to: "/braindump" });
-                    }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between font-bold border transition-all cursor-pointer ${
-                      isLight
-                        ? "bg-amber-50/80 hover:bg-amber-100 text-amber-950 border-amber-300"
-                        : "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Zap className="h-3.5 w-3.5 text-amber-500" />
-                      <span>Morgan &amp; Alyssa's BrainDump</span>
-                    </span>
-                    <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-mono text-[9px] font-black">
-                      ⚡ Tasks
-                    </span>
-                  </button>
+                  {/* Morgan & Alyssa's BrainDump Shortcut (Strictly restricted) */}
+                  {canAccessBrainDump(activeUser) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        navigate({ to: "/braindump" });
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg flex items-center justify-between font-bold border transition-all cursor-pointer ${
+                        isLight
+                          ? "bg-amber-50/80 hover:bg-amber-100 text-amber-950 border-amber-300"
+                          : "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/40"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <span>Morgan &amp; Alyssa's BrainDump</span>
+                      </span>
+                      <span className="px-1.5 py-0.2 rounded-full bg-amber-500 text-slate-950 font-mono text-[9px] font-black">
+                        ⚡ Tasks
+                      </span>
+                    </button>
+                  )}
 
                   {isAdmin && (
                     <button

@@ -1,7 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { BrainDumpPortal } from "@/components/braindump/BrainDumpPortal";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { canAccessBrainDump } from "@/lib/access";
 
 export const Route = createFileRoute("/_authenticated/braindump")({
+  beforeLoad: () => {
+    const staff = getActiveStaffUser();
+    if (!canAccessBrainDump(staff)) {
+      throw redirect({
+        to: "/hub",
+      });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Morgan and Alyssa's BrainDump | Task Execution Engine" },
