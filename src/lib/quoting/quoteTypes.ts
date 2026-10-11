@@ -157,6 +157,18 @@ export interface SiteConditions {
   sewerBridgingRequired?: boolean;
   sewerBridgingCost?: number;
   kdrbDemolitionOption?: "builder" | "owner" | "none";
+
+  // Sewer Main Running Through Block (Building Near / Over Sewer)
+  buildingOverSewerRequired?: boolean;
+  sewerBosCouncilAppRequired?: boolean;
+  sewerBosCouncilAppCost?: number; // $1,700 Each
+  sewerBridgingPiersRequired?: boolean;
+  sewerBridgingPiersLm?: number; // linear metres
+  sewerBridgingPiersCost?: number; // $1,500 /lm
+  sewerPotholingRequired?: boolean;
+  sewerPotholingCost?: number; // $4,500 Each
+  sewerCctvInspectionRequired?: boolean; // $2,500 Each
+  sewerCctvInspectionCost?: number;
 }
 
 export type DepositType = "greenfield" | "brownfield" | "kdrb" | "custom";
@@ -337,6 +349,7 @@ export interface DetectedAreaDelta {
   unitRate: number; // $/m²
   subtotal: number;
   accepted: boolean;
+  reason?: string;
 }
 
 export interface DetectedInclusionUpgrade {

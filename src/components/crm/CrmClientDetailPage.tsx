@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Sparkles,
   RefreshCw,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ import { formatAud } from "@/lib/pricing";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 import { useTheme } from "@/lib/theme";
+import { getActiveStaffUser } from "@/lib/authSession";
 
 interface CrmClientDetailPageProps {
   lead: CrmLead;
@@ -92,11 +94,35 @@ export function CrmClientDetailPage({
     toast.success(`Client stage updated to ${CRM_PIPELINE_STAGES.find((s) => s.id === newStageId)?.shortLabel}`);
   };
 
+  const handleToggleTopTr = (checked: boolean) => {
+    const updated: CrmLead = {
+      ...currentLead,
+      isTopTrTarget: checked,
+      trPriorityRank: checked ? (currentLead.trPriorityRank || 5) : undefined,
+      trConfidenceScore: checked ? (currentLead.trConfidenceScore || "warm") : undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    setCurrentLead(updated);
+    onSave(updated);
+    toast.success(checked ? `${currentLead.clientName} added to Top TR Targets!` : `${currentLead.clientName} removed from Top TR Targets.`);
+  };
+
+  const handleUpdateTrField = (field: keyof CrmLead, val: any) => {
+    const updated: CrmLead = {
+      ...currentLead,
+      [field]: val,
+      updatedAt: new Date().toISOString(),
+    };
+    setCurrentLead(updated);
+    onSave(updated);
+  };
+
   const handleAddNote = () => {
     if (!newNoteText.trim()) return;
+    const staff = getActiveStaffUser();
     const newNote: CrmNote = {
       id: `note_${Date.now()}`,
-      author: "Morgan Hales",
+      author: staff.name,
       content: newNoteText.trim(),
       createdAt: new Date().toISOString(),
     };
@@ -329,6 +355,93 @@ export function CrmClientDetailPage({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Top 10 TR Target Radar Nomination Card */}
+            <div className={`rounded-xl border p-4 ${
+              currentLead.isTopTrTarget
+                ? isLight ? "bg-amber-50/70 border-amber-300" : "bg-gradient-to-r from-amber-950/30 via-slate-900/60 to-slate-900/60 border-amber-500/40"
+                : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-900/60 border-slate-800"
+            } space-y-3`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Flame className={`h-4 w-4 ${currentLead.isTopTrTarget ? "text-amber-500 animate-pulse" : "text-slate-400"}`} />
+                  <span className="text-xs font-bold uppercase tracking-wider text-amber-500">
+                    Top TR Target Radar Nomination
+                  </span>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
+                  <input
+                    type="checkbox"
+                    checked={!!currentLead.isTopTrTarget}
+                    onChange={(e) => handleToggleTopTr(e.target.checked)}
+                    className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 h-4 w-4"
+                  />
+                  <span className={isLight ? "text-slate-700" : "text-slate-300"}>Include in Top TR Targets</span>
+                </label>
+              </div>
+
+              {currentLead.isTopTrTarget && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
+                  <div>
+                    <label className="text-[11px] text-slate-400 font-medium block">Target Priority Rank (1-10)</label>
+                    <select
+                      value={currentLead.trPriorityRank || 5}
+                      onChange={(e) => handleUpdateTrField("trPriorityRank", parseInt(e.target.value) || 5)}
+                      className={`w-full mt-1 rounded-lg px-2.5 py-1.5 border font-bold text-amber-500 ${
+                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-700"
+                      }`}
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                        <option key={num} value={num}>
+                          Rank #{num} {num <= 3 ? "🔥 Critical" : num <= 5 ? "⚡ High Focus" : "🎯 Radar"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-400 font-medium block">Confidence Level</label>
+                    <select
+                      value={currentLead.trConfidenceScore || "warm"}
+                      onChange={(e) => handleUpdateTrField("trConfidenceScore", e.target.value)}
+                      className={`w-full mt-1 rounded-lg px-2.5 py-1.5 border font-bold ${
+                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-700"
+                      }`}
+                    >
+                      <option value="hot">🔥 Hot (&gt;85%)</option>
+                      <option value="warm">⚡ Warm (65-84%)</option>
+                      <option value="nurturing">🌱 Nurturing (&lt;65%)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] text-slate-400 font-medium block">Target Sign Date</label>
+                    <input
+                      type="text"
+                      value={currentLead.trTargetDate || ""}
+                      placeholder="e.g. This Friday 4:00 PM"
+                      onChange={(e) => handleUpdateTrField("trTargetDate", e.target.value)}
+                      className={`w-full mt-1 rounded-lg px-2.5 py-1.5 border ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-700 text-white"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3">
+                    <label className="text-[11px] text-slate-400 font-medium block">Key Blocker / Next Step to Secure ATP</label>
+                    <input
+                      type="text"
+                      value={currentLead.trKeyObstacle || ""}
+                      placeholder="e.g. Verify Bushfire BAL 12.5 allowance & finalize alfresco slab extension"
+                      onChange={(e) => handleUpdateTrField("trKeyObstacle", e.target.value)}
+                      className={`w-full mt-1 rounded-lg px-2.5 py-1.5 border ${
+                        isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-950 border-slate-700 text-white"
+                      }`}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Follow-up Tasks */}

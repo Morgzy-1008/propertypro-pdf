@@ -674,15 +674,18 @@ export function performInternalSweep(
   const lower = rawText.toLowerCase();
 
   // 1. Wet Area Extensions (Ensuite / Bathroom / Powder / Laundry)
-  // Check explicit sqm extension patterns
-  const wetAreaExtRegex = /(?:master\s*ensuite|ensuite|bathroom|bath|powder|pdr|laundry)[^0-9\n\r]*?(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)/gi;
+  // Check explicit sqm extension patterns with architectural bounds (0.5m² - 8.0m²)
+  const wetAreaExtRegex = /(?:master\s*ensuite|ensuite|bathroom|bath|powder|pdr|laundry)\s*(?:extension|ext|expansion|addition|increase|enlarged)?\s*[:\+]?\s*(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)/gi;
   let wetMatch: RegExpExecArray | null;
   const processedWetZones = new Set<string>();
 
   while ((wetMatch = wetAreaExtRegex.exec(rawText)) !== null) {
     const rawZone = wetMatch[0];
     const m2 = parseFloat(wetMatch[1]);
-    if (!isNaN(m2) && m2 > 0) {
+    const preText = rawText.slice(Math.max(0, wetMatch.index - 30), wetMatch.index).toLowerCase();
+    const isNonWetContext = /garage|alfresco|living|porch|ground|total|first|upper/.test(preText);
+
+    if (!isNaN(m2) && m2 >= 0.5 && m2 <= 8.0 && !isNonWetContext) {
       let zoneName = "Master Ensuite";
       if (/powder|pdr/i.test(rawZone)) zoneName = "Powder Room";
       else if (/laundry/i.test(rawZone)) zoneName = "Laundry";
@@ -695,14 +698,17 @@ export function performInternalSweep(
     }
   }
 
-  // Fallback check if text has number first, e.g. "3.2 SQM Wet Area Extension" or "3.2m2 Ensuite"
+  // Fallback check if text has explicit extension phrasing, e.g. "2.4 SQM Ensuite Extension"
   if (processedWetZones.size === 0) {
-    const reverseWetRegex = /(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)[^0-9\n\r]*?(?:master\s*ensuite|ensuite|bathroom|bath|powder|pdr|laundry|wet\s*area)/gi;
+    const reverseWetRegex = /(?:(?:more\s*wet\s*area|wet\s*area\s*(?:extension|ext|expansion|addition|increase|delta)|ensuite\s*(?:extension|ext|expansion|addition|increase)|powder\s*(?:extension|ext|expansion|addition|increase))\s*[:\+]?\s*(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)|(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)\s+(?:extension|addition|increase|expansion)\s+(?:to\s+)?(?:master\s*ensuite|ensuite|bathroom|bath|powder|pdr|laundry|wet\s*area))/gi;
     let revMatch: RegExpExecArray | null;
     while ((revMatch = reverseWetRegex.exec(rawText)) !== null) {
-      const m2 = parseFloat(revMatch[1]);
+      const m2 = parseFloat(revMatch[1] || revMatch[2]);
       const rawZone = revMatch[0];
-      if (!isNaN(m2) && m2 > 0) {
+      const preText = rawText.slice(Math.max(0, revMatch.index - 30), revMatch.index).toLowerCase();
+      const isNonWetContext = /garage|alfresco|living|porch|ground|total|first|upper/.test(preText);
+
+      if (!isNaN(m2) && m2 >= 0.5 && m2 <= 8.0 && !isNonWetContext) {
         let zoneName = "Master Ensuite";
         if (/powder|pdr/i.test(rawZone)) zoneName = "Powder Room";
         else if (/laundry/i.test(rawZone)) zoneName = "Laundry";
@@ -716,11 +722,10 @@ export function performInternalSweep(
     }
   }
 
-  // Azure 19 / Standard Floorplan wet area footprint increase if indicated or inferred
+  // Wet area footprint increase if indicated or inferred
   if (
     processedWetZones.size === 0 &&
-    (/more\s*wet\s*area|wet\s*area\s*(?:sqm|increase|delta)|ensuite\s*ext/i.test(lower) ||
-      (/azure\s*19/i.test(baseDesignName) && /modified|pdr|powder|ensuite/i.test(lower)))
+    /\b(?:more\s*wet\s*area|wet\s*area\s*(?:sqm|increase|delta)|ensuite\s*(?:footprint\s*)?ext(?:ension)?)\b/i.test(lower)
   ) {
     roomChanges.push(
       calculateWetAreaExtension(
@@ -733,8 +738,9 @@ export function performInternalSweep(
 
   // 2. Master Bed 1 Relocated to Rear Wing ($0.00 Dry Internal Layout Variation)
   if (
-    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving/i.test(lower) ||
-    (/azure\s*19/i.test(baseDesignName) && /rear|modified/i.test(lower))
+    /(?:relocat(?:ed|ing)?|mov(?:ed|ing)|shift(?:ed)?)\s+(?:master|bed\s*1)\s+to\s+(?:the\s+)?rear/i.test(lower) ||
+    /(?:master|bed\s*1)\s+(?:relocat(?:ed|ing)?|mov(?:ed|ing)|positioned|located)\s+(?:at|to)\s+(?:the\s+)?rear/i.test(lower) ||
+    /(?:rear|back)\s+master\s+suite/i.test(lower)
   ) {
     roomChanges.push(
       createZeroCostInternalChange(
@@ -747,30 +753,32 @@ export function performInternalSweep(
   }
 
   // 3. Bedroom internal shifts & non-structural wall relocations
-  const bedWallShiftRegex = /(?:bed(?:room)?\s*(\d+)(?:\s*(?:&|and)\s*(?:bed(?:room)?\s*)?(\d+))?|wall\s*shift|internal\s*wall)\s*([^\n\r.]+)/gi;
+  const bedWallShiftRegex = /(?:(?:bed(?:room)?\s*(\d+)\s*(?:&|and)\s*(?:bed(?:room)?\s*)?(\d+))|(?:internal\s*partition\s*wall\s*between\s*bed(?:room)?\s*(\d+)\s*(?:&|and)\s*(?:bed(?:room)?\s*)?(\d+)))\s*([^\n\r.]+)/gi;
   let bedMatch: RegExpExecArray | null;
   let hasBedChange = false;
 
   while ((bedMatch = bedWallShiftRegex.exec(rawText)) !== null) {
     const snippet = bedMatch[0];
-    if (/shift|move|expand|enlarge|reduce|relocat|reallocat/i.test(snippet)) {
-      hasBedChange = true;
-      const b1 = bedMatch[1] || "2";
-      const b2 = bedMatch[2] || "3";
-      roomChanges.push(
-        createZeroCostInternalChange(
-          `Bedroom ${b1} & ${b2} Non-Structural Wall Relocation`,
-          1.5,
-          `Non-structural internal partition wall shifted to optimize Bedroom ${b1} spatial layout. Verified furniture stamps: Double/Queen bed, bedside tables, and built-in wardrobe. Reallocation of dry living space.`,
-          ["Queen Bed", "Bedside Table", "BIR 3-Door"]
-        )
-      );
-      break;
+    if (/shift|move|expand|enlarge|reduce|reallocat|realign/i.test(snippet) && !/relocat(?:ed)?.*(?:master|rear|front)/i.test(snippet)) {
+      const b1 = bedMatch[1] || bedMatch[3];
+      const b2 = bedMatch[2] || bedMatch[4];
+      if (b1 && b2) {
+        hasBedChange = true;
+        roomChanges.push(
+          createZeroCostInternalChange(
+            `Bedroom ${b1} & ${b2} Non-Structural Wall Relocation`,
+            1.5,
+            `Non-structural internal partition wall shifted to optimize Bedroom ${b1} spatial layout. Verified furniture stamps: Double/Queen bed, bedside tables, and built-in wardrobe. Reallocation of dry living space.`,
+            ["Queen Bed", "Bedside Table", "BIR 3-Door"]
+          )
+        );
+        break;
+      }
     }
   }
 
   // If text mentions wall shift without bedroom numbers
-  if (!hasBedChange && /wall\s*shift|partition\s*wall|shifted\s*wall|layout\s*change/i.test(lower)) {
+  if (!hasBedChange && /(?:partition\s*wall\s*shift|internal\s*wall\s*shift|shifted\s*partition\s*wall)/i.test(lower)) {
     roomChanges.push(
       createZeroCostInternalChange(
         "Internal Dry Partition Wall Relocation & Spatial Optimization",
@@ -820,17 +828,19 @@ export function performInternalSweep(
   // 7. Cinema / Home Theatre Room Conversion ($1,250 with BARN 1200 sliding barn door)
   if (/cinema|theatre/i.test(lower)) {
     const hasBarnDoor = /barn/i.test(lower);
+    const cinemaDims = lower.match(/(?:cinema|theatre)[^\d]*?(\d+(?:\.\d+)?)\s*[xX*×]\s*(\d+(?:\.\d+)?)/i);
+    const dimsStr = cinemaDims ? ` (${cinemaDims[1]} × ${cinemaDims[2]})` : "";
     roomChanges.push({
       id: "mod_room_cinema_barn",
       roomName: hasBarnDoor
-        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
-        : "Enclosed Home Cinema Room Conversion",
+        ? `Cinema room${dimsStr} with BARN sliding barn door`
+        : `Enclosed Home Cinema Room Conversion${dimsStr}`,
       roomType: "cinema",
       deltaM2: 0,
       furnitureDetected: hasBarnDoor ? ["Cinema Lounge", "BARN 1200"] : ["Sofa / Lounge Suite", "TV Display"],
       description: hasBarnDoor
-        ? "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00)."
-        : "Standard open Living/Media space converted into an enclosed private Home Cinema room ($0.00 Dry Variation).",
+        ? `Formal living area enclosed to create private Cinema${dimsStr} with feature sliding barn door ($1,250.00).`
+        : `Standard open Living/Media space converted into an enclosed private Home Cinema room${dimsStr} ($0.00 Dry Variation).`,
       isZeroCost: !hasBarnDoor,
       category: hasBarnDoor ? "doors_hardware" : "zero_cost_layout",
       baseRatePerM2: 0,
@@ -861,7 +871,7 @@ export function performInternalSweep(
   }
 
   // 8b. Central Core Reconfiguration: Study / WIL ($0.00 Dry Variation)
-  if (/study.*wil|wil.*study|\bwil\b|central\s*core/i.test(lower)) {
+  if (/(?:study\s*[\/&]\s*wil|wil\s*[\/&]\s*study|study.*walk-in\s*linen|walk-in\s*linen.*study|central\s*core\s*reconfig)/i.test(lower)) {
     roomChanges.push(
       createZeroCostInternalChange(
         "Central Core Reconfiguration: Study / WIL combination room & circulation",
@@ -872,14 +882,14 @@ export function performInternalSweep(
     );
   }
 
-  // 9. Internal Partition Wall Realignment (Bed 1, WIR, Ensuite & Bed 3) ($0.00 Dry Variation)
-  if ((/bed\s*1|ensuite|wir/i.test(lower) && /bed\s*3|csd\s*820|hallway|custom|modified/i.test(lower)) || /realign.*partition|wall\s*realignment|partition\s*realignment/i.test(lower)) {
+  // 9. Internal Partition Wall Realignment ($0.00 Dry Variation)
+  if (/(?:realign(?:ed)?\s+partition|internal\s+partition\s+wall\s+realignment|timber\s+stud\s+partition\s+framing\s+realigned)/i.test(lower)) {
     roomChanges.push(
       createZeroCostInternalChange(
-        "Internal Partition Wall Realignment (Bed 1, WIR, Ensuite & Bed 3)",
+        "Internal Partition Wall Realignment",
         0.0,
-        "Non-structural internal timber stud partition walls realigned around Master Suite (Bed 1), Walk-In Robe, Ensuite pocket slider (CSD 820), and Bed 3 to optimize circulation and bedroom dimensions ($0.00 Dry Variation).",
-        ["King Bed", "BIR", "CSD 820 Pocket Slider", "Internal Stud Framing"]
+        "Non-structural internal timber stud partition walls realigned to optimize circulation and bedroom dimensions ($0.00 Dry Variation).",
+        ["Internal Stud Framing"]
       )
     );
   }
@@ -924,10 +934,11 @@ export function detectUniversalSpatialModifications(
   const internalChanges: InternalRoomChange[] = [];
   const fixtureUpgrades: any[] = [];
 
-  // 1. Master Bed 1 Relocated to Rear Wing ($0.00 Variation)
   const isBed1AtRear =
     hasImageClues?.bed1Rear ||
-    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combined);
+    /(?:relocat(?:ed|ing)?|mov(?:ed|ing)|shift(?:ed)?)\s+(?:master|bed\s*1)\s+to\s+(?:the\s+)?rear/i.test(combined) ||
+    /(?:master|bed\s*1)\s+(?:relocat(?:ed|ing)?|mov(?:ed|ing)|positioned|located)\s+(?:at|to)\s+(?:the\s+)?rear/i.test(combined) ||
+    /(?:rear|back)\s+master\s+suite/i.test(combined);
 
   if (isBed1AtRear) {
     internalChanges.push(

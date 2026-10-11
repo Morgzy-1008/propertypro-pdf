@@ -31,8 +31,10 @@ import { V2StepFloorPlan } from "./V2StepFloorPlan";
 import { V2StepSiteCosts } from "./V2StepSiteCosts";
 import { V2StepVariations } from "./V2StepVariations";
 import { V2StepReview } from "./V2StepReview";
+import { QuoteSummarySidebar } from "../QuoteSummarySidebar";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { getEffectiveDesignName } from "@/lib/quoting/quoteEngine";
+import { getActiveDivision } from "@/lib/divisionContext";
 
 interface QuoteBuilderV2Props {
   quote: FullQuote;
@@ -96,7 +98,12 @@ export function QuoteBuilderV2({
 
   // Handlers for updating quote slices
   const handleClientChange = (patch: Partial<FullQuote["client"]>) => {
-    onUpdateQuote({ client: { ...quote.client, ...patch } });
+    if (patch.clientName !== undefined && patch.clientName !== quote.client.clientName && !patch.estimateNumber) {
+      const { estimateNumber, ...rest } = quote.client;
+      onUpdateQuote({ client: { ...rest, ...patch } });
+    } else {
+      onUpdateQuote({ client: { ...quote.client, ...patch } });
+    }
   };
 
   const handleDesignChange = (patch: Partial<FullQuote["design"]>) => {
@@ -136,7 +143,7 @@ export function QuoteBuilderV2({
             Quoting Tool V2
           </Badge>
           <span className="text-sm text-slate-400 font-medium">
-            Rapid Progressive Quoting Engine • Hudson Homes QLD
+            Rapid Progressive Quoting Engine • {(quote.client?.state || getActiveDivision()) === "NSW" ? "Hudson Homes NSW" : "Hudson Homes QLD"}
           </span>
         </div>
 
@@ -258,59 +265,86 @@ export function QuoteBuilderV2({
         </div>
       </div>
 
-      {/* Active Question / Step Content Box */}
-      <div
-        className={`rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all ${
-          isLight
-            ? "border-slate-200 bg-white shadow-slate-900/5"
-            : "border-slate-800/80 bg-slate-900/70 backdrop-blur-xl"
-        }`}
-      >
-        {activeStep === "client" && (
-          <V2StepClient
-            client={quote.client}
-            onChange={handleClientChange}
-            onSiteChange={handleSiteChange}
-            onNext={handleGoNext}
-            isLight={isLight}
-          />
-        )}
+      {/* Active Question / Step Content Box with Live RHS Financial Overview */}
+      {activeStep !== "review" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div
+            className={`lg:col-span-8 xl:col-span-8 2xl:col-span-9 rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all ${
+              isLight
+                ? "border-slate-200 bg-white shadow-slate-900/5"
+                : "border-slate-800/80 bg-slate-900/70 backdrop-blur-xl"
+            }`}
+          >
+            {activeStep === "client" && (
+              <V2StepClient
+                client={quote.client}
+                onChange={handleClientChange}
+                onSiteChange={handleSiteChange}
+                onNext={handleGoNext}
+                isLight={isLight}
+              />
+            )}
 
-        {activeStep === "floorplan" && (
-          <V2StepFloorPlan
-            design={quote.design}
-            onChange={handleDesignChange}
-            onAddInclusionLineItems={handleAddInclusionLineItems}
-            onNext={handleGoNext}
-            onPrev={handleGoPrev}
-            isLight={isLight}
-          />
-        )}
+            {activeStep === "floorplan" && (
+              <V2StepFloorPlan
+                design={quote.design}
+                division={(quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD"}
+                clientState={quote.client?.state}
+                onChange={handleDesignChange}
+                onAddInclusionLineItems={handleAddInclusionLineItems}
+                onNext={handleGoNext}
+                onPrev={handleGoPrev}
+                isLight={isLight}
+              />
+            )}
 
-        {activeStep === "site_costs" && (
-          <V2StepSiteCosts
-            quote={quote}
-            site={quote.siteConditions}
-            onChange={handleSiteChange}
-            onClientChange={handleClientChange}
-            onNext={handleGoNext}
-            onPrev={handleGoPrev}
-            isLight={isLight}
-          />
-        )}
+            {activeStep === "site_costs" && (
+              <V2StepSiteCosts
+                quote={quote}
+                site={quote.siteConditions}
+                onChange={handleSiteChange}
+                onClientChange={handleClientChange}
+                onNext={handleGoNext}
+                onPrev={handleGoPrev}
+                isLight={isLight}
+              />
+            )}
 
-        {activeStep === "variations" && (
-          <V2StepVariations
-            quote={quote}
-            lineItems={quote.lineItems}
-            onChange={handleLineItemsChange}
-            onNext={handleGoNext}
-            onPrev={handleGoPrev}
-            isLight={isLight}
-          />
-        )}
+            {activeStep === "variations" && (
+              <V2StepVariations
+                quote={quote}
+                lineItems={quote.lineItems}
+                onChange={handleLineItemsChange}
+                onDesignChange={handleDesignChange}
+                onNext={handleGoNext}
+                onPrev={handleGoPrev}
+                isLight={isLight}
+              />
+            )}
+          </div>
 
-        {activeStep === "review" && (
+          <div className="lg:col-span-4 xl:col-span-4 2xl:col-span-3 lg:sticky lg:top-6 space-y-4">
+            <QuoteSummarySidebar
+              quote={quote}
+              onSave={onSaveQuote}
+              onDownloadPdf={onDownloadPdf}
+              onOpenClientShare={onOpenShare}
+              onOpenAdminCatalogue={onOpenAdminCatalogue}
+              onOpenSavedEstimates={onOpenSavedEstimates}
+              savedQuotesCount={savedQuotesCount}
+              saving={saving}
+              downloading={downloading}
+            />
+          </div>
+        </div>
+      ) : (
+        <div
+          className={`rounded-3xl border p-6 sm:p-8 shadow-2xl transition-all ${
+            isLight
+              ? "border-slate-200 bg-white shadow-slate-900/5"
+              : "border-slate-800/80 bg-slate-900/70 backdrop-blur-xl"
+          }`}
+        >
           <V2StepReview
             quote={quote}
             onPrev={handleGoPrev}
@@ -322,8 +356,8 @@ export function QuoteBuilderV2({
             downloading={downloading}
             isLight={isLight}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

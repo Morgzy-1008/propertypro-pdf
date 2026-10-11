@@ -262,6 +262,9 @@ export interface CrmTask {
   completed: boolean;
   assignedTo?: string;
   createdAt: string;
+  priority?: "urgent" | "high" | "normal" | "low";
+  type?: "call" | "tr_prep" | "lvm_followup" | "quote_revision" | "site_visit" | "general";
+  delegatedBy?: string;
 }
 
 export interface CrmNote {
@@ -269,11 +272,13 @@ export interface CrmNote {
   author: string;
   content: string;
   createdAt: string;
+  isInternalCollab?: boolean;
+  taggedUserId?: string;
 }
 
 export interface CrmActivityItem {
   id: string;
-  type: "flyer" | "siting" | "quote" | "tender" | "status_change" | "note" | "email" | "sms";
+  type: "flyer" | "siting" | "quote" | "tender" | "status_change" | "note" | "email" | "sms" | "ai_call_summary" | "lvm";
   title: string;
   description: string;
   timestamp: string;
@@ -293,6 +298,34 @@ export interface CrmMessage {
   timestamp: string;
   isRead: boolean;
   outlookSynced?: boolean;
+}
+
+export interface CrmTeamMessage {
+  id: string;
+  channelId: "general-sales" | "tender-dispatch" | "admin-assistance" | "hot-deals";
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  content: string;
+  timestamp: string;
+  linkedLeadId?: string;
+  linkedLeadName?: string;
+  isUrgent?: boolean;
+}
+
+export interface TelnyxSettings {
+  apiKey: string;
+  messagingProfileId: string;
+  fromPhoneNumber: string;
+  connectionStatus: "connected" | "disconnected" | "ready";
+  lastTestSmsAt?: string;
+}
+
+export interface BulkSmsTemplate {
+  id: string;
+  title: string;
+  category: "tr_push" | "open_home" | "pricing_freeze" | "followup" | "general";
+  body: string;
 }
 
 export interface CrmLead {
@@ -317,6 +350,16 @@ export interface CrmLead {
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   totalEstimatedDealValue: number;
   tenderPrice?: number; // Official head office tender price once Tender Received stage is reached
+
+  // Top 10 Most Likely to TR (Tender Request) Fields
+  isTopTrTarget?: boolean;
+  trPriorityRank?: number; // 1 to 10
+  trConfidenceScore?: "hot" | "warm" | "nurturing"; // Hot >85%, Warm 65-84%, Nurturing <65%
+  trTargetDate?: string; // e.g. "This Friday", "15 Oct", "End of Month"
+  trKeyObstacle?: string; // Key next step or blocker to get signed ATP
+  trEstimatedValue?: number;
+  trAiReadinessScore?: number; // 0 - 100
+  trAiReadinessReason?: string;
 
   // Workflow State
   stage: CrmStageId;

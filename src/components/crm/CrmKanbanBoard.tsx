@@ -17,6 +17,7 @@ import {
   Sparkles,
   MessageSquare,
   ArrowRight,
+  Clock,
 } from "lucide-react";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
@@ -108,11 +109,18 @@ export function CrmKanbanBoard({
                       {/* Client Name & Budget */}
                       <div className="flex items-start justify-between gap-2 mb-1.5">
                         <div>
-                          <span className={`text-xs font-bold tracking-tight block truncate ${
-                            isLight ? "text-slate-900 hover:text-amber-600" : "text-white hover:text-amber-400"
-                          }`}>
-                            {lead.clientName}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-xs font-bold tracking-tight block truncate ${
+                              isLight ? "text-slate-900 hover:text-amber-600" : "text-white hover:text-amber-400"
+                            }`}>
+                              {lead.clientName}
+                            </span>
+                            {lead.isTopTrTarget && (
+                              <span className="text-[9px] font-black uppercase px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 border border-amber-500/40">
+                                🔥 #{lead.trPriorityRank || 1} TR
+                              </span>
+                            )}
+                          </div>
                           {lead.secondaryCustomerName && (
                             <span className={`text-[10px] block truncate ${isLight ? "text-slate-500" : "text-slate-400"}`}>
                               &amp; {lead.secondaryCustomerName}
@@ -136,6 +144,12 @@ export function CrmKanbanBoard({
                           <MapPin className="h-3 w-3 text-cyan-500 flex-none" />
                           <span>Lot {lead.lotNumber || "TBA"}, {lead.targetEstate}</span>
                         </div>
+                        {lead.tasks && lead.tasks.filter(t => !t.completed).length > 0 && (
+                          <div className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 pt-0.5">
+                            <Clock className="h-3 w-3" />
+                            <span>{lead.tasks.filter(t => !t.completed).length} pending task(s)</span>
+                          </div>
+                        )}
                       </div>
 
                       {/* Card Footer: Quick Action Buttons (Call, SMS, Email, 360 Profile) */}

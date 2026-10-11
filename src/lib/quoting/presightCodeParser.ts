@@ -253,8 +253,8 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 5. Fixed Pane Windows: FP06.18, FP12.18, etc.
-  const fpRegex = /\bFP\s*(\d{2})\.?(\d{2})\b/gi;
+  // 5. Fixed Pane / Fixed Windows: FP06.18, FW 06.18, FW 06.27, FP12.18, etc.
+  const fpRegex = /\b(?:FP|FW)\s*(\d{2})\.?(\d{2})\b/gi;
   while ((match = fpRegex.exec(rawText)) !== null) {
     const h = parseInt(match[1], 10) * 100;
     const w = parseInt(match[2], 10) * 100;
@@ -335,10 +335,10 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
     });
   }
 
-  // 8. Front Entry Doors: EXT 1020, EXT 1200, Entry 1,020, Entry 1020, 1,020 D1, etc.
-  const extDoorRegex = /\b(?:EXT\s*(1020|1200)|ENTRY[\s\r\n]*[:\s-]?[\s\r\n]*(1[,.]?020|1[,.]?200)|(1[,.]?020|1[,.]?200)[\s\r\n]*(?:ENTRY|FRONT\s*DOOR|D1)|D1[\s\r\n]*(1[,.]?020|1[,.]?200))\b/gi;
+  // 8. Front Entry Doors: EXT 1020, EXT 1200, Entry 1,020, Entry 1020, 1,020 D1, 1020mm Wide Front Entry Door, etc.
+  const extDoorRegex = /\b(?:EXT\s*(1020|1200)|ENTRY[\s\r\n]*[:\s-]?[\s\r\n]*(1[,.]?020|1[,.]?200)|(1[,.]?020|1[,.]?200)[\s\r\n]*(?:ENTRY|FRONT\s*DOOR|D1)|D1[\s\r\n]*(1[,.]?020|1[,.]?200)|(1020|1200)(?:mm)?\s*(?:wide\s*)?(?:architectural\s*)?(?:front\s*)?(?:entry\s*)?door)\b/gi;
   while ((match = extDoorRegex.exec(rawText)) !== null) {
-    const rawVal = (match[1] || match[2] || match[3] || match[4] || "").replace(/[,.]/g, "");
+    const rawVal = (match[1] || match[2] || match[3] || match[4] || match[5] || "").replace(/[,.]/g, "");
     const w = parseInt(rawVal, 10);
     if (w === 1020 || w === 1200) {
       tags.push({
@@ -369,13 +369,17 @@ export function parsePresightOpeningTags(rawText: string): PresightOpeningTag[] 
   // 10. Roller Door & Sectional Panel Lift Doors: PANEL LIFT 21.48, PANEL DOOR 21.48, etc.
   const rollerRegex = /\b(?:ROLLER\s*DOOR(?:\s*(?:21\.?48|21\.?24))?|RD\s*(?:21\.?48|21\.?24)|PANEL\s*(?:LIFT|DOOR)(?:\s*(?:21\.?48|21\.?24))?)\b/gi;
   while ((match = rollerRegex.exec(rawText)) !== null) {
-    const isDouble = /48/i.test(match[0]);
+    const rawTag = match[0].toUpperCase();
+    const contextAround = rawText.slice(Math.max(0, match.index - 100), Math.min(rawText.length, match.index + 100)).toLowerCase();
+    const isSingleExplicit = /21\.?24|single|rear|workshop|drive[\s-]through|3rd|third/i.test(rawTag) || /workshop|rear\s*yard|drive[\s-]through|single\s*roller/i.test(contextAround);
+    const isDouble = /48|double|panel\s*(?:lift|door)/i.test(rawTag) || (/double\s*garage/i.test(contextAround) && !isSingleExplicit);
+    const isSingle = isSingleExplicit || !isDouble;
     tags.push({
-      rawTag: match[0].toUpperCase(),
+      rawTag: isSingleExplicit && !/21\.?24/i.test(rawTag) ? "RD 21.24" : rawTag,
       category: "door",
       typeCode: "ROLLER_DOOR",
       heightMm: 2100,
-      widthMm: isDouble ? 4800 : 2400,
+      widthMm: isSingle ? 2400 : 4800,
       isObscure: false,
     });
   }
@@ -553,6 +557,10 @@ export function diffOpeningsAgainstMaster(
         confidence: 0.95,
       });
     } else if (tag.typeCode === "ROLLER_DOOR") {
+      // Standard double garage door (21.48 / 4800mm or general main panel door) is standard baseline, NOT an upgrade!
+      if (tag.widthMm >= 4000 || /48|panel|double/i.test(tag.rawTag) || !/21\.?24|single|rear|workshop/i.test(tag.rawTag)) {
+        continue;
+      }
       upgrades.push({
         id: "upg_single_roller_door",
         category: "doors_windows",
@@ -621,32 +629,69 @@ export function diffOpeningsWithReplacementCredits(
       continue;
     }
 
-    // 2. Drop spurious or misread 06.18 tags
-    if (/0?6[-.]?18/i.test(upper)) {
+    // 1b. If a specific dimensioned roller door exists, drop generic un-dimensioned roller door tags
+    const hasSpecificRoller = rawList.some((r) => /ROLLER\s*DOOR\s*21\.?24|RD\s*21\.?24/.test(r));
+    if (hasSpecificRoller && (upper === "ROLLER DOOR" || upper === "RD" || upper === "SINGLE ROLLER DOOR")) {
       continue;
     }
 
-    // 3. If a double garage roller door 21.48 is present, drop false "STACKER 21-48"
+    // 2. If a double garage roller door 21.48 is present, drop false "STACKER 21-48"
     if (hasRollerDoor && /STACKER\s*(?:21[-.]?48|48)/.test(upper)) {
       continue;
     }
 
-    // 4. Drop BARN doors from perimeter opening replacements (handled as internal room layout variation)
+    // 3. Drop BARN doors from perimeter opening replacements (handled as internal room layout variation)
     if (/BARN/i.test(upper)) {
       continue;
     }
 
-    // 4b. Exclude standard double garage door (e.g. 4810mm panel lift, standard panel lift) from opening replacement charges
-    if (/PANEL\s*LIFT|ROLLER\s*DOOR\s*21\.?48|RD\s*21\.?48/i.test(upper) || /4810|4800|5400|DOUBLE\s*GARAGE/i.test(upper)) {
+    // 4. Exclude standard double garage door (e.g. 4810mm panel lift, standard panel lift / panel door) from opening replacement charges
+    if (
+      /PANEL\s*(?:LIFT|DOOR)/i.test(upper) ||
+      /ROLLER\s*DOOR\s*21\.?48|RD\s*21\.?48/i.test(upper) ||
+      /4810|4800|5400|DOUBLE\s*GARAGE/i.test(upper) ||
+      (!/21\.?24|SINGLE|REAR|WORKSHOP/i.test(upper) && /ROLLER|DOOR/i.test(upper) && !/STACKER|SD|CSD|EXT|BARN|ENTRY/i.test(upper))
+    ) {
       continue;
     }
 
-    // 5. Normalize code for deduplication
-    const normKey = upper.replace(/[-.\s]+/g, " ").trim();
-    if (seenCodes.has(normKey)) continue;
-    seenCodes.add(normKey);
+    // 4b. If a stacker sliding door is present for a given dimension (e.g. 21-36, 21-30, 21-27),
+    // drop any standard SD (sliding door) tag of that same dimension
+    const sdDimMatch = upper.match(/(?:SD\s*(\d{2})[.\s]*(\d{2})|(\d{2})[.\s]*(\d{2})\s*SD)/i);
+    if (sdDimMatch) {
+      const h = sdDimMatch[1] || sdDimMatch[3];
+      const w = sdDimMatch[2] || sdDimMatch[4];
+      const hasMatchingStacker = rawList.some((r) =>
+        /STACKER/i.test(r) && (r.includes(`${h}-${w}`) || r.includes(`${h}.${w}`) || r.includes(`${h}${w}`) || r.includes(`${w}`))
+      );
+      if (hasMatchingStacker) {
+        continue;
+      }
+    }
 
+    // 5. Semantic normalization for accurate deduplication
+    let normKey = upper.replace(/[-.\s]+/g, " ").trim();
+    normKey = normKey
+      .replace(/^ROLLER\s*DOOR\b/, "RD")
+      .replace(/^PANEL\s*DOOR\b/, "RD")
+      .replace(/^PANEL\s*LIFT\b/, "RD")
+      .replace(/^SLIDING\s*DOOR\b/, "SD")
+      .replace(/^SLIDING\s*WINDOW\b/, "SW")
+      .replace(/^FIXED\s*WINDOW\b/, "FW")
+      .replace(/^CAVITY\s*SLIDER\b/, "CSD")
+      .replace(/^CSJ\b/, "CSD")
+      .replace(/^(\d{2})[.\s]*(\d{2})\s*(SD|STACKER|SW|FW|RD)$/, "$3 $1 $2")
+      .replace(/(\d{2})[.\s]*(\d{2})/, "$1$2");
     const rep = calculateOpeningReplacement(raw, tag.locationHint);
+    const repKey = (rep.annotationCode || "").toUpperCase().replace(/[-.\s]+/g, " ").trim();
+
+    if (seenCodes.has(normKey) || (repKey && seenCodes.has(repKey))) continue;
+    if (/RD|ROLLER/i.test(rep.annotationCode) && Array.from(seenCodes).some((c) => /RD\s*21\.?24|ROLLER.*21\.?24/i.test(c))) {
+      continue;
+    }
+    seenCodes.add(normKey);
+    if (repKey) seenCodes.add(repKey);
+
     const absCredit = Math.abs(rep.creditAmount || Math.round(rep.replacedItemBaselineCost * 0.8));
     rep.creditAmount = -absCredit;
     rep.netCost = rep.newItemCost - absCredit;

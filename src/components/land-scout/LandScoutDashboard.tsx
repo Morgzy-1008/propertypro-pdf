@@ -31,6 +31,7 @@ import {
   purgeOldTestParcels,
   clearAllLandParcels,
   bulkAddOrUpdateParcels,
+  handoffLotToFlyer,
 } from "@/lib/land-scout/landScoutStorage";
 import {
   searchDatabaseLotsAsParcels,
@@ -124,6 +125,7 @@ export function LandScoutDashboard() {
   };
 
   const handlePackageInFlyer = (parcel: LandParcel) => {
+    handoffLotToFlyer(parcel);
     navigate({ to: "/flyer" });
     toast.info(`Packaging Lot ${parcel.lotNumber} into Marketing Flyer`);
   };

@@ -47,6 +47,13 @@ import {
   SPLIT_LEVEL_PRICES,
   type PriceRow,
 } from "@/lib/pricelist.data";
+import {
+  NSW_SINGLE_STOREY_PRICES,
+  NSW_DOUBLE_STOREY_PRICES,
+  NSW_SPLIT_LEVEL_PRICES,
+  NSW_DUAL_OC_PRICES,
+} from "@/lib/pricelist.nsw.data";
+import { getActiveDivision, onDivisionChanged, type Division } from "@/lib/divisionContext";
 import { plansForDesign } from "@/components/flyer/floorplans";
 import {
   getHousingTypeForDesign,
@@ -57,6 +64,7 @@ import {
   calculateCustomTotalM2,
   isDoubleStoreyDesign,
 } from "@/lib/quoting/quoteEngine";
+import { EXTENSION_RATES_BY_TIER, normalizeInclusionTier } from "@/lib/quoting/quoteCatalogue";
 import { getFacadesForDesignAndHousingType } from "@/components/quoting/QuoteDesignStep";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { PRE_RENDERED_FACADES } from "@/components/flyer/preRenderedFacades.data";
@@ -77,6 +85,8 @@ import { BaseDesignConfirmationModal } from "@/components/quoting/BaseDesignConf
 
 interface V2StepFloorPlanProps {
   design: QuoteDesignSelection;
+  division?: Division;
+  clientState?: "QLD" | "NSW";
   onChange: (patch: Partial<QuoteDesignSelection>) => void;
   onAddInclusionLineItems?: (items: QuoteSelectedLineItem[]) => void;
   onNext: () => void;
@@ -141,12 +151,33 @@ const INCLUSION_TIERS: TierCardDef[] = [
 
 export function V2StepFloorPlan({
   design,
+  division: propDivision,
+  clientState,
   onChange,
   onAddInclusionLineItems,
   onNext,
   onPrev,
   isLight,
 }: V2StepFloorPlanProps) {
+  // Active Division (QLD vs NSW)
+  const [division, setDivision] = useState<Division>(() => {
+    return (clientState || propDivision || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+  });
+
+  useEffect(() => {
+    if (clientState) {
+      setDivision(clientState);
+    } else if (propDivision) {
+      setDivision(propDivision);
+    }
+  }, [clientState, propDivision]);
+
+  useEffect(() => {
+    return onDivisionChanged((newDiv) => {
+      setDivision(newDiv);
+    });
+  }, []);
+
   // Mode: standard, modified, custom
   const [designMode, setDesignMode] = useState<"standard" | "modified" | "custom">(() => {
     if (design.mode === "custom_floorplan") return "custom";
@@ -167,6 +198,13 @@ export function V2StepFloorPlan({
   const [searchQuery, setSearchQuery] = useState(design.designName || "");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Modified floor plan search & dropdown states
+  const [modifiedSearchQuery, setModifiedSearchQuery] = useState(
+    design.isModifiedFloorplan ? (design.designName || "") : ""
+  );
+  const [isModifiedDropdownOpen, setIsModifiedDropdownOpen] = useState(false);
+  const modifiedDropdownRef = useRef<HTMLDivElement>(null);
 
   // 2nd Dwelling states
   const isSecondDwellingActive = Boolean(design.hasSecondDwelling && design.secondDwelling?.enabled);
@@ -201,6 +239,9 @@ export function V2StepFloorPlan({
     return design.isCustomFacade ? "custom" : "catalogue";
   });
 
+  const activeNormTier = normalizeInclusionTier(design.specTier);
+  const activeExtensionRates = EXTENSION_RATES_BY_TIER[activeNormTier] || EXTENSION_RATES_BY_TIER.H2;
+
   const [pendingCandidate, setPendingCandidate] = useState<BaseDesignCandidate | null>(null);
   const [isBaseConfirmOpen, setIsBaseConfirmOpen] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState<PlanModificationAnalysis | null>(null);
@@ -211,6 +252,9 @@ export function V2StepFloorPlan({
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (modifiedDropdownRef.current && !modifiedDropdownRef.current.contains(e.target as Node)) {
+        setIsModifiedDropdownOpen(false);
       }
       if (secondDropdownRef.current && !secondDropdownRef.current.contains(e.target as Node)) {
         setIsSecondDropdownOpen(false);
@@ -227,6 +271,13 @@ export function V2StepFloorPlan({
     }
   }, [design.designName]);
 
+  // Sync modifiedSearchQuery when designName changes from outside
+  useEffect(() => {
+    if (design.isModifiedFloorplan && design.designName && design.designName !== modifiedSearchQuery && !isModifiedDropdownOpen) {
+      setModifiedSearchQuery(design.designName);
+    }
+  }, [design.designName, design.isModifiedFloorplan]);
+
   // Sync secondSearchQuery when secondDwelling.designName changes from outside
   useEffect(() => {
     if (design.secondDwelling?.designName && design.secondDwelling.designName !== secondSearchQuery && !isSecondDropdownOpen) {
@@ -234,24 +285,50 @@ export function V2StepFloorPlan({
     }
   }, [design.secondDwelling?.designName]);
 
-  // All price rows grouped
+  // All price rows grouped according to active state division (QLD vs NSW)
   const allModels = useMemo(() => {
     const list: { row: PriceRow; type: HousingTypeTab }[] = [];
     const isGrannyFlat = (r: PriceRow) => /^aqua\b/i.test(r.name);
 
-    SINGLE_STOREY_PRICES.forEach((r) => {
+    const isNsw = division === "NSW";
+    const singlePrices = isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES;
+    const doublePrices = isNsw ? NSW_DOUBLE_STOREY_PRICES : DOUBLE_STOREY_PRICES;
+    const dualPrices = isNsw ? NSW_DUAL_OC_PRICES : DUAL_OC_PRICES;
+    const splitPrices = isNsw ? NSW_SPLIT_LEVEL_PRICES : SPLIT_LEVEL_PRICES;
+
+    singlePrices.forEach((r) => {
       if (isGrannyFlat(r)) {
         list.push({ row: r, type: "Granny Flat" });
       } else {
         list.push({ row: r, type: "Single Storey" });
       }
     });
-    DOUBLE_STOREY_PRICES.forEach((r) => list.push({ row: r, type: "Double Storey" }));
-    DUAL_OC_PRICES.forEach((r) => list.push({ row: r, type: "Dual Living" }));
-    SPLIT_LEVEL_PRICES.forEach((r) => list.push({ row: r, type: "Split Level" }));
+    doublePrices.forEach((r) => list.push({ row: r, type: "Double Storey" }));
+    dualPrices.forEach((r) => list.push({ row: r, type: "Dual Living" }));
+    splitPrices.forEach((r) => list.push({ row: r, type: "Split Level" }));
 
     return list;
-  }, []);
+  }, [division]);
+
+  // Re-price design when division changes so QLD vs NSW prices update live
+  useEffect(() => {
+    if (design.designName && (design.mode === "standard" || !design.mode)) {
+      const matched = allModels.find(
+        (m) => m.row.name.toLowerCase() === design.designName.toLowerCase()
+      );
+      if (matched) {
+        const tier = design.specTier || "H2 Design Collection";
+        const newBasePrice = getTierPrice(matched.row, tier, matched.type);
+        if (newBasePrice > 0 && newBasePrice !== design.basePrice) {
+          onChange({
+            standardBasePrice: newBasePrice,
+            basePrice: newBasePrice,
+            designM2: matched.row.m2,
+          });
+        }
+      }
+    }
+  }, [division, allModels]);
 
   // Filtered designs for current house type and search
   const filteredModels = useMemo(() => {
@@ -265,6 +342,32 @@ export function V2StepFloorPlan({
     });
   }, [allModels, houseType, searchQuery]);
 
+  // Filtered designs for modified floor plan base design selector
+  const filteredModifiedModels = useMemo(() => {
+    const query = (modifiedSearchQuery || searchQuery || "").trim().toLowerCase();
+    if (!query) {
+      // Default: show models for active houseType
+      const byType = allModels.filter((m) => m.type === houseType);
+      return byType.length > 0 ? byType : allModels;
+    }
+    // With query: search across all models in catalogue
+    const matches = allModels.filter(({ row }) => {
+      return row.name.toLowerCase().includes(query);
+    });
+
+    return matches.sort((a, b) => {
+      const aLower = a.row.name.toLowerCase();
+      const bLower = b.row.name.toLowerCase();
+      const aStarts = aLower.startsWith(query);
+      const bStarts = bLower.startsWith(query);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      if (a.type === houseType && b.type !== houseType) return -1;
+      if (a.type !== houseType && b.type === houseType) return 1;
+      return a.row.name.localeCompare(b.row.name);
+    });
+  }, [allModels, houseType, modifiedSearchQuery, searchQuery]);
+
   // Current matched model
   const currentModel = useMemo(() => {
     if (!design.designName) return null;
@@ -276,8 +379,8 @@ export function V2StepFloorPlan({
   // Suitable facades for selected design
   const suitableFacades = useMemo(() => {
     if (!design.designName) return [];
-    return getFacadesForDesignAndHousingType(design.designName, design.housingType || houseType);
-  }, [design.designName, design.housingType, houseType]);
+    return getFacadesForDesignAndHousingType(design.designName, design.housingType || houseType, division);
+  }, [design.designName, design.housingType, houseType, division]);
 
   // Ensure a valid facade is selected
   useEffect(() => {
@@ -325,9 +428,10 @@ export function V2StepFloorPlan({
     if (!design.secondDwelling?.designName) return [];
     return getFacadesForDesignAndHousingType(
       design.secondDwelling.designName,
-      design.secondDwelling.housingType || secondHouseType
+      design.secondDwelling.housingType || secondHouseType,
+      division
     );
-  }, [design.secondDwelling?.designName, design.secondDwelling?.housingType, secondHouseType]);
+  }, [design.secondDwelling?.designName, design.secondDwelling?.housingType, secondHouseType, division]);
 
   // Ensure valid facade for 2nd dwelling when active
   useEffect(() => {
@@ -374,7 +478,7 @@ export function V2StepFloorPlan({
     const initialTier: InclusionTier = design.specTier || "H1 Smart Living";
     const basePrice = getTierPrice(defaultModel, initialTier, "Granny Flat") || 138900;
     const defaultStdAreas = getStandardAreaBreakdown(defaultModel.name, "Granny Flat", defaultModel.m2);
-    const facades = getFacadesForDesignAndHousingType(defaultModel.name, "Granny Flat");
+    const facades = getFacadesForDesignAndHousingType(defaultModel.name, "Granny Flat", division);
     const defaultFacade = facades[0] || { name: "Classic", uplift: 0 };
     const planInfo = plansForDesign(defaultModel.name)[0];
 
@@ -423,7 +527,7 @@ export function V2StepFloorPlan({
     const firstModel = modelsForType[0]?.row || { name: "Aqua 1", m2: 59.96, h1: 138900 };
     const currentTier = design.secondDwelling?.specTier || design.specTier || "H1 Smart Living";
     const basePrice = getTierPrice(firstModel, currentTier, type);
-    const facades = getFacadesForDesignAndHousingType(firstModel.name, type);
+    const facades = getFacadesForDesignAndHousingType(firstModel.name, type, division);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
     const planInfo = plansForDesign(firstModel.name)[0];
     const stdAreas = getStandardAreaBreakdown(firstModel.name, type, firstModel.m2);
@@ -458,7 +562,7 @@ export function V2StepFloorPlan({
     const basePrice = getTierPrice(row, currentTier, type);
     const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
-    const facades = getFacadesForDesignAndHousingType(row.name, type);
+    const facades = getFacadesForDesignAndHousingType(row.name, type, division);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
 
     onChange({
@@ -512,7 +616,8 @@ export function V2StepFloorPlan({
   const handleSelectSecondFacade = (facadeName: string) => {
     const facades = getFacadesForDesignAndHousingType(
       design.secondDwelling?.designName,
-      design.secondDwelling?.housingType || secondHouseType
+      design.secondDwelling?.housingType || secondHouseType,
+      division
     );
     const chosen = facades.find((f) => f.name === facadeName) || { name: facadeName, uplift: 0 };
 
@@ -525,6 +630,39 @@ export function V2StepFloorPlan({
     });
   };
 
+  // Multi-storey detection
+  const isDoubleOrSplit = useMemo(() => {
+    return (
+      houseType === "Double Storey" ||
+      houseType === "Split Level" ||
+      design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      isDoubleStoreyDesign(design.designName, design.housingType || houseType)
+    );
+  }, [houseType, design.housingType, design.designName]);
+
+  // Baseline reference areas for modified plan comparison
+  const standardBaselineAreas = useMemo(() => {
+    return getStandardAreaBreakdown(design.designName, design.housingType, design.standardDesignM2 || design.designM2);
+  }, [design.designName, design.housingType, design.standardDesignM2, design.designM2]);
+
+  const currentLiving = design.areas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0;
+  const currentGarage = design.areas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0;
+  const currentAlfresco = design.areas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0;
+  const currentPorch = design.areas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0;
+  const currentTotal = design.areas?.totalM2 ?? design.designM2 ?? 0;
+  const totalVariance = Math.round((currentTotal - (standardBaselineAreas.totalM2 || 0)) * 100) / 100;
+
+  // Live calculation of modified pricing breakdown & zones
+  const modPricingCalc = useMemo(() => {
+    if (designMode !== "modified") return null;
+    try {
+      return calculateModifiedFloorplanPricing(design);
+    } catch {
+      return null;
+    }
+  }, [design, designMode]);
+
   // Handle selecting a standard catalogue design
   const handleSelectModel = (row: PriceRow, type: HousingTypeTab) => {
     const tier = selectedTierCode
@@ -534,7 +672,7 @@ export function V2StepFloorPlan({
     const planInfo = plansForDesign(row.name)[0];
     const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
 
-    const facades = getFacadesForDesignAndHousingType(row.name, type);
+    const facades = getFacadesForDesignAndHousingType(row.name, type, division);
     const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
 
     onChange({
@@ -587,7 +725,7 @@ export function V2StepFloorPlan({
           specTier: tier,
           basePrice: stdBase,
         });
-        nextBasePrice = calc.modifiedTotalPrice;
+        nextBasePrice = calc.modifiedBasePrice;
       }
     } else if (designMode === "modified" && currentModel) {
       const stdBase = getTierPrice(currentModel.row, tier, houseType);
@@ -596,7 +734,7 @@ export function V2StepFloorPlan({
         specTier: tier,
         basePrice: stdBase,
       });
-      nextBasePrice = calc.modifiedTotalPrice;
+      nextBasePrice = calc.modifiedBasePrice;
     } else if (designMode === "custom") {
       nextBasePrice = calculateCustomFloorplanPrice(design.customSpec, tier);
     }
@@ -638,25 +776,134 @@ export function V2StepFloorPlan({
     reader.readAsDataURL(file);
   };
 
+  // Handle selecting a base design to modify in Modified Floor Plan mode
+  const handleSelectModifiedBaseModel = (row: PriceRow, type: HousingTypeTab) => {
+    if (type !== houseType) {
+      setHouseType(type);
+    }
+
+    const tier = selectedTierCode
+      ? (selectedTierCode === "H1" ? "H1 Smart Living" : selectedTierCode === "H2" ? "H2 Design Collection" : "H3 Luxury Inclusions")
+      : (design.specTier || "H2 Design Collection");
+    const stdBasePrice = getTierPrice(row, tier, type);
+    const planInfo = plansForDesign(row.name)[0];
+    const stdAreas = getStandardAreaBreakdown(row.name, type, row.m2);
+
+    const isDouble = type === "Double Storey" || type === "Split Level" || isDoubleStoreyDesign(row.name, type);
+
+    // If existing modified areas exist and have positive values, preserve them; otherwise initialize from standard CAD areas
+    const currentModAreas = design.modifiedAreas || design.areas;
+    const initialModifiedAreas: FloorplanAreaBreakdown = {
+      ...(isDouble
+        ? {
+            groundLivingM2: currentModAreas?.groundLivingM2 && currentModAreas.groundLivingM2 > 0 ? currentModAreas.groundLivingM2 : (stdAreas.groundLivingM2 || 0),
+            firstLivingM2: currentModAreas?.firstLivingM2 && currentModAreas.firstLivingM2 > 0 ? currentModAreas.firstLivingM2 : (stdAreas.firstLivingM2 || 0),
+            balconyM2: currentModAreas?.balconyM2 !== undefined ? currentModAreas.balconyM2 : (stdAreas.balconyM2 || 0),
+          }
+        : {
+            livingM2: currentModAreas?.livingM2 && currentModAreas.livingM2 > 0 ? currentModAreas.livingM2 : (stdAreas.livingM2 || 0),
+          }),
+      garageM2: currentModAreas?.garageM2 && currentModAreas.garageM2 > 0 ? currentModAreas.garageM2 : (stdAreas.garageM2 || 0),
+      alfrescoM2: currentModAreas?.alfrescoM2 && currentModAreas.alfrescoM2 > 0 ? currentModAreas.alfrescoM2 : (stdAreas.alfrescoM2 || 0),
+      porchM2: currentModAreas?.porchM2 && currentModAreas.porchM2 > 0 ? currentModAreas.porchM2 : (stdAreas.porchM2 || 0),
+      totalM2: 0,
+    };
+
+    const calculatedTotal = Math.round(
+      ((isDouble
+        ? (initialModifiedAreas.groundLivingM2 || 0) + (initialModifiedAreas.firstLivingM2 || 0) + (initialModifiedAreas.balconyM2 || 0)
+        : (initialModifiedAreas.livingM2 || 0)) +
+       (initialModifiedAreas.garageM2 || 0) +
+       (initialModifiedAreas.alfrescoM2 || 0) +
+       (initialModifiedAreas.porchM2 || 0)) * 100
+    ) / 100;
+    initialModifiedAreas.totalM2 = calculatedTotal;
+
+    const facades = getFacadesForDesignAndHousingType(row.name, type, division);
+    const initialFacade = facades[0] || { name: "Classic", uplift: 0 };
+
+    const calc = calculateModifiedFloorplanPricing({
+      ...design,
+      mode: "modified",
+      isModifiedFloorplan: true,
+      designName: row.name,
+      modelName: row.name,
+      housingType: type,
+      standardDesignM2: row.m2,
+      standardBasePrice: stdBasePrice,
+      standardAreas: stdAreas,
+      modifiedAreas: initialModifiedAreas,
+      areas: initialModifiedAreas,
+      designM2: initialModifiedAreas.totalM2,
+      modifiedDesignM2: initialModifiedAreas.totalM2,
+      basePrice: stdBasePrice,
+    });
+
+    onChange({
+      mode: "modified",
+      isModifiedFloorplan: true,
+      designName: row.name,
+      modelName: row.name,
+      designM2: initialModifiedAreas.totalM2,
+      modifiedDesignM2: initialModifiedAreas.totalM2,
+      standardDesignM2: row.m2,
+      housingType: type,
+      standardBasePrice: stdBasePrice,
+      basePrice: calc.modifiedBasePrice,
+      bedrooms: planInfo?.beds ? Number(planInfo.beds) : (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3)),
+      bathrooms: planInfo?.baths ? Number(planInfo.baths) : 1,
+      garage: planInfo?.cars ? Number(planInfo.cars) : (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1)),
+      facadeName: design.facadeName || initialFacade.name,
+      facadePrice: design.facadePrice ?? initialFacade.uplift,
+      standardAreas: stdAreas,
+      modifiedAreas: initialModifiedAreas,
+      areas: initialModifiedAreas,
+      baseDesignCandidate: {
+        modelName: row.name,
+        confidence: 1.0,
+        housingType: type,
+        matchReasons: ["Selected by user"],
+        m2Difference: 0,
+      },
+    });
+
+    setModifiedSearchQuery(row.name);
+    setIsModifiedDropdownOpen(false);
+    toast.success(`Selected base design: ${row.name} (${row.m2} m²)`);
+  };
+
   // Modified Area change handler
   const handleModifiedAreaChange = (field: keyof FloorplanAreaBreakdown, valStr: string) => {
     const val = parseFloat(valStr) || 0;
-    const currentAreas = design.areas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
-    const updatedAreas = { ...currentAreas, [field]: val };
+    const currentAreas = design.areas || design.modifiedAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
+    const updatedAreas: FloorplanAreaBreakdown = {
+      ...currentAreas,
+      [field]: val,
+      totalM2: 0,
+    };
+
+    const isDouble = design.housingType === "Double Storey" ||
+      design.housingType === "Split Level" ||
+      isDoubleStoreyDesign(design.designName, design.housingType || houseType);
+
     const updatedTotal = Math.round(
-      ((updatedAreas.livingM2 || 0) +
+      ((isDouble
+        ? (updatedAreas.groundLivingM2 || 0) + (updatedAreas.firstLivingM2 || 0) + (updatedAreas.balconyM2 || 0)
+        : (updatedAreas.livingM2 || 0)) +
       (updatedAreas.garageM2 || 0) +
       (updatedAreas.alfrescoM2 || 0) +
       (updatedAreas.porchM2 || 0)) * 100
     ) / 100;
 
-    const currentBasePrice = design.standardBasePrice || currentModelPrice || design.basePrice || 0;
+    updatedAreas.totalM2 = updatedTotal;
+
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
-      modifiedAreas: { ...updatedAreas, totalM2: updatedTotal },
-      areas: { ...updatedAreas, totalM2: updatedTotal },
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
       designM2: updatedTotal,
       modifiedDesignM2: updatedTotal,
       standardDesignM2: standardBaselineAreas.totalM2,
@@ -666,14 +913,27 @@ export function V2StepFloorPlan({
     onChange({
       isModifiedFloorplan: true,
       standardAreas: standardBaselineAreas,
-      modifiedAreas: { ...updatedAreas, totalM2: updatedTotal },
-      areas: { ...updatedAreas, totalM2: updatedTotal },
+      modifiedAreas: updatedAreas,
+      areas: updatedAreas,
       designM2: updatedTotal,
       modifiedDesignM2: updatedTotal,
       standardDesignM2: standardBaselineAreas.totalM2,
       standardBasePrice: currentBasePrice,
-      basePrice: calc.modifiedTotalPrice,
+      basePrice: calc.modifiedBasePrice,
     });
+  };
+
+  // Quick stepper adjustments
+  const handleStepArea = (field: keyof FloorplanAreaBreakdown, delta: number) => {
+    const currentVal = design.areas?.[field] ?? design.modifiedAreas?.[field] ?? (standardBaselineAreas as any)[field] ?? 0;
+    const newVal = Math.max(0, Math.round((currentVal + delta) * 10) / 10);
+    handleModifiedAreaChange(field, newVal.toString());
+  };
+
+  // Reset zone area to CAD standard baseline
+  const handleResetArea = (field: keyof FloorplanAreaBreakdown) => {
+    const stdVal = (standardBaselineAreas as any)[field] ?? 0;
+    handleModifiedAreaChange(field, stdVal.toString());
   };
 
   // File Upload scan for architectural modified plans (extract schedule or prompt for manual sizes)
@@ -742,7 +1002,7 @@ export function V2StepFloorPlan({
           totalM2: newTotal,
         };
 
-        const currentBasePrice = design.standardBasePrice || currentModelPrice || design.basePrice || 0;
+        const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
         const calc = calculateModifiedFloorplanPricing({
           ...design,
           isModifiedFloorplan: true,
@@ -764,7 +1024,7 @@ export function V2StepFloorPlan({
           modifiedDesignM2: newTotal,
           standardDesignM2: baselineAreas.totalM2,
           standardBasePrice: currentBasePrice,
-          basePrice: calc.modifiedTotalPrice,
+          basePrice: calc.modifiedBasePrice,
           modifiedPlanFileName: file.name,
           modifiedPlanImageUrl: previewUrl,
         });
@@ -804,20 +1064,161 @@ export function V2StepFloorPlan({
     }
   };
 
+  const handleApplyModifiedPlan = (approved: PlanModificationAnalysis) => {
+    const stdM2 = approved.standardTotalM2;
+    const stdAreas = getStandardAreaBreakdown(approved.baseDesignName, approved.housingType, stdM2);
+
+    const updatedModifiedAreas: Partial<FloorplanAreaBreakdown> = {
+      ...stdAreas,
+      ...(design.modifiedAreas || {}),
+    };
+
+    for (const delta of approved.areaDeltas) {
+      if (delta.accepted) {
+        (updatedModifiedAreas as any)[delta.zoneKey] = delta.modifiedM2;
+      }
+    }
+
+    const effectiveHousingType = approved.housingType || houseType;
+    const modelName = approved.baseDesignName;
+    const matchedModel = allModels.find(
+      (m) => m.row.name.toLowerCase() === modelName.toLowerCase()
+    );
+    const stdPrice = matchedModel
+      ? getTierPrice(matchedModel.row, design.specTier, effectiveHousingType)
+      : design.standardBasePrice || design.basePrice || 0;
+
+    const updatedDesign: Partial<QuoteDesignSelection> = {
+      mode: "modified",
+      housingType: effectiveHousingType as any,
+      designName: modelName,
+      designM2: matchedModel?.row.m2 || stdM2,
+      standardDesignM2: stdM2,
+      standardBasePrice: stdPrice,
+      isModifiedFloorplan: true,
+      standardAreas: stdAreas,
+      modifiedAreas: updatedModifiedAreas,
+      modifiedDesignM2: approved.modifiedTotalM2,
+      basePrice: stdPrice,
+      ...(approved.floorplanDataUrl ? { floorplanUrl: approved.floorplanDataUrl } : {}),
+    };
+
+    onChange(updatedDesign);
+
+    if (onAddInclusionLineItems) {
+      const acceptedAreas = (approved.areaDeltas || []).filter((a) => a.accepted && a.deltaM2 !== 0);
+      const acceptedUpgrades = (approved.inclusionUpgrades || []).filter((u) => u.accepted);
+      const acceptedOpenings = (approved.openingReplacements || []).filter((o) => o.accepted);
+      const acceptedRooms = (approved.internalRoomChanges || []).filter((r) => r.accepted);
+
+      const lineItemsToAdd: QuoteSelectedLineItem[] = [
+        ...acceptedAreas.map((a) => {
+          const isReduction = a.deltaM2 < 0;
+          const detailedDesc = isReduction
+            ? `${a.zoneLabel} reduced from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m² with 80% credit)`
+            : a.zoneKey === "garageM2"
+            ? `Garage extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
+            : a.zoneKey === "livingM2" || a.zoneKey === "groundLivingM2"
+            ? `Living area extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`
+            : `${a.zoneLabel} extended from ${a.standardM2.toFixed(2)} m² standard to ${a.modifiedM2.toFixed(2)} m² (+${a.deltaM2.toFixed(2)} m² @ $${a.unitRate.toLocaleString()}/m²)`;
+
+          return {
+            id: `mod_area_${a.zoneKey}`,
+            catalogueItemId: a.recipeId || `recipe_${a.zoneKey}`,
+            category: "structural" as const,
+            name: a.zoneLabel,
+            description: detailedDesc,
+            unitType: "fixed" as const,
+            unitRate: a.subtotal,
+            quantity: 1,
+            subtotal: a.subtotal,
+            isIncluded: true,
+            isClientSelectable: true,
+            clientSelected: true,
+            notes: isReduction
+              ? `Structural footprint reduction: ${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`
+              : `Structural footprint extension: +${a.deltaM2.toFixed(2)} m² from ${a.standardM2.toFixed(2)} m² baseline to ${a.modifiedM2.toFixed(2)} m²`,
+          };
+        }),
+        ...acceptedUpgrades.map((u) => ({
+          id: `mod_${u.id}`,
+          catalogueItemId: u.id,
+          category: u.category,
+          name: u.name,
+          description: u.description,
+          unitType: "fixed" as const,
+          unitRate: u.unitPrice,
+          quantity: u.quantity,
+          subtotal: u.subtotal,
+          isIncluded: true,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `Detected from modified floorplan (${approved.fileName || "Plan"}): ${u.detected}`,
+        })),
+        ...acceptedOpenings.map((o) => ({
+          id: `mod_op_${o.id}`,
+          catalogueItemId: o.id,
+          category: "doors_windows" as const,
+          name: `${o.newItemName} (80% Credit Applied)`,
+          description: o.description,
+          unitType: "fixed" as const,
+          unitRate: o.netCost,
+          quantity: 1,
+          subtotal: o.netCost,
+          isIncluded: true,
+          isClientSelectable: true,
+          clientSelected: true,
+          notes: `Replaces ${o.replacedItemName} ($${o.replacedItemBaselineCost.toFixed(2)}) with 80% trade credit (-$${Math.abs(o.creditAmount).toFixed(2)}) applied against $${o.newItemCost.toFixed(2)}.`,
+        })),
+        ...acceptedRooms.map((r) => {
+          const isZero = r.isZeroCost || r.subtotal === 0;
+          const mappedCategory = isZero
+            ? "structural"
+            : r.category === "wet_area"
+            ? "internal_bathroom"
+            : r.category === "doors_hardware"
+            ? "doors_windows"
+            : r.category === "joinery"
+            ? "internal_kitchen"
+            : "structural";
+
+          const displayName = isZero
+            ? r.roomName
+            : r.deltaM2 > 0
+            ? `${r.roomName} (+${r.deltaM2} m²)`
+            : r.roomName;
+
+          return {
+            id: `mod_room_${r.id}`,
+            catalogueItemId: r.id,
+            category: mappedCategory as any,
+            name: displayName,
+            description: r.description,
+            unitType: "fixed" as const,
+            unitRate: isZero ? 0 : r.subtotal,
+            quantity: 1,
+            subtotal: isZero ? 0 : r.subtotal,
+            isIncluded: true,
+            isClientSelectable: true,
+            clientSelected: true,
+            notes: isZero
+              ? "Internal non-structural dry layout variation ($0.00)"
+              : r.description,
+          };
+        }),
+      ];
+
+      if (lineItemsToAdd.length > 0) {
+        onAddInclusionLineItems(lineItemsToAdd);
+      }
+    }
+
+    setIsReviewModalOpen(false);
+    toast.success("Applied modified floor plan parameters!");
+  };
+
   const hasFloorPlanSelected = Boolean(design.designName && design.designName.trim().length > 0);
   const hasInclusionSelected = Boolean(selectedTierCode);
-
-  // Baseline reference areas for modified plan comparison
-  const standardBaselineAreas = useMemo(() => {
-    return getStandardAreaBreakdown(design.designName, design.housingType, design.standardDesignM2 || design.designM2);
-  }, [design.designName, design.housingType, design.standardDesignM2, design.designM2]);
-
-  const currentLiving = design.areas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0;
-  const currentGarage = design.areas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0;
-  const currentAlfresco = design.areas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0;
-  const currentPorch = design.areas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0;
-  const currentTotal = design.areas?.totalM2 ?? design.designM2 ?? 0;
-  const totalVariance = Math.round((currentTotal - (standardBaselineAreas.totalM2 || 0)) * 100) / 100;
 
   return (
     <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
@@ -1155,26 +1556,186 @@ export function V2StepFloorPlan({
               </div>
             )}
 
-            {/* Base Design Dropdown */}
-            <div className="space-y-2">
-              <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                Base Hudson Design to Modify
-              </Label>
+            {/* Selected Base Design Overview Banner (when a base design is chosen) */}
+            {design.designName && (
+              <div
+                className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  isLight
+                    ? "bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-xs"
+                    : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-500 flex-none">
+                    <Home className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base font-extrabold">{design.designName}</span>
+                      <Badge variant="outline" className="font-mono text-xs font-bold py-0.5 px-2">
+                        CAD Baseline: {standardBaselineAreas.totalM2 || design.standardDesignM2 || design.designM2} m²
+                      </Badge>
+                      <Badge className="text-xs bg-emerald-600 text-white font-semibold py-0.5 px-2">
+                        {design.housingType || houseType}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-mono">
+                      Standard Base Price: {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsModifiedDropdownOpen(true);
+                  }}
+                  className="text-xs h-9 px-3 font-semibold rounded-xl self-start sm:self-auto cursor-pointer"
+                >
+                  Change Base Design
+                </Button>
+              </div>
+            )}
+
+            {/* Base Design Searchable Combobox */}
+            <div className="space-y-2 relative" ref={modifiedDropdownRef}>
+              <div className="flex items-center justify-between">
+                <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Base Hudson Design to Modify
+                </Label>
+                <span className="text-xs text-slate-400">
+                  Type any design name (e.g. Tiffany 22, Jasper 26, Amber 21, Topaz)
+                </span>
+              </div>
+
               <div className="relative">
                 <Search className="absolute left-4 top-3.5 h-5 w-5 text-slate-400 pointer-events-none" />
                 <Input
-                  placeholder="Select base design to modify (e.g. Jasper 26, Tiffany 22)..."
-                  value={searchQuery}
-                  onFocus={() => setIsDropdownOpen(true)}
+                  placeholder="Type to search all Hudson floor plans (e.g. Jasper 26, Tiffany 22, Amber)..."
+                  value={modifiedSearchQuery}
+                  onFocus={() => setIsModifiedDropdownOpen(true)}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setIsDropdownOpen(true);
+                    setModifiedSearchQuery(e.target.value);
+                    setIsModifiedDropdownOpen(true);
                   }}
-                  className={`pl-12 text-base h-12 rounded-xl ${
-                    isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
+                  className={`pl-12 pr-20 text-base h-12 rounded-xl ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-emerald-600"
+                      : "bg-slate-950/80 border-slate-800 text-white focus:border-emerald-500"
                   }`}
                 />
+                <div className="absolute right-3 top-2.5 flex items-center gap-1">
+                  {modifiedSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModifiedSearchQuery("");
+                        setIsModifiedDropdownOpen(true);
+                      }}
+                      className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsModifiedDropdownOpen(!isModifiedDropdownOpen)}
+                    className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-500/10 cursor-pointer"
+                    title="Toggle dropdown"
+                  >
+                    <ChevronDown className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
+
+              {/* Dropdown Results Menu */}
+              {isModifiedDropdownOpen && (
+                <div
+                  className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                    isLight
+                      ? "bg-white/98 border-slate-300 text-slate-900 divide-y divide-slate-100"
+                      : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80"
+                  }`}
+                >
+                  {filteredModifiedModels.length === 0 ? (
+                    <div className="p-5 text-center text-sm text-slate-400">
+                      No matching floor plans found for "{modifiedSearchQuery}".
+                    </div>
+                  ) : (
+                    filteredModifiedModels.map(({ row, type }) => {
+                      const isSelected = design.designName?.toLowerCase() === row.name.toLowerCase();
+                      const tierPrice = getTierPrice(row, design.specTier || "H2 Design Collection", type);
+                      const planInfo = plansForDesign(row.name)[0];
+
+                      return (
+                        <div
+                          key={`${type}-${row.name}`}
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelectModifiedBaseModel(row, type)}
+                          className={`p-4 cursor-pointer transition-all flex items-center justify-between gap-4 ${
+                            isSelected
+                              ? isLight
+                                ? "bg-emerald-50/90 text-emerald-950 font-bold"
+                                : "bg-emerald-500/20 text-emerald-300 font-bold"
+                              : isLight
+                              ? "hover:bg-slate-100"
+                              : "hover:bg-slate-900"
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2.5 flex-wrap">
+                              <span className="text-base font-extrabold truncate">{row.name}</span>
+                              <Badge variant="outline" className="text-[11px] font-mono font-semibold py-0.5 px-2 bg-slate-500/10">
+                                {row.m2} m²
+                              </Badge>
+                              <Badge
+                                variant="secondary"
+                                className={`text-[10px] uppercase font-bold py-0.5 px-2 ${
+                                  type === "Double Storey"
+                                    ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                                    : type === "Dual Living"
+                                    ? "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                                    : "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                }`}
+                              >
+                                {type}
+                              </Badge>
+                              {isSelected && (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500 flex-none" />
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-4 text-xs text-slate-400 mt-1">
+                              <span className="flex items-center gap-1.5">
+                                <Bed className="h-3.5 w-3.5" /> {planInfo?.beds ?? (type === "Granny Flat" ? 2 : (row.m2 > 240 ? 4 : 3))} Beds
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Bath className="h-3.5 w-3.5" /> {planInfo?.baths ?? (row.m2 > 180 ? 2 : 1)} Baths
+                              </span>
+                              <span className="flex items-center gap-1.5">
+                                <Car className="h-3.5 w-3.5" /> {planInfo?.cars ?? (type === "Granny Flat" ? 0 : (row.m2 > 180 ? 2 : 1))} Cars
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="text-right flex-none">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
+                              Base Price
+                            </span>
+                            <span className={`text-base font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                              {formatAud(tierPrice)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Guidance / Alert Message Banner */}
@@ -1206,209 +1767,280 @@ export function V2StepFloorPlan({
               </div>
             )}
 
-            {/* Side-by-Side Modified Area Dimensions Grid */}
-            {hasFloorPlanSelected && (
-              <div className="space-y-4 pt-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
-                      Modified Dimensions Schedule (m²)
-                    </Label>
-                    <span className="text-xs text-slate-400">
-                      Enter customized sizes. Base CAD reference values shown for comparison.
-                    </span>
-                  </div>
+            {/* Side-by-Side Modified Area Dimensions Grid - ALWAYS RENDERED */}
+            <div className="space-y-4 pt-1">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <Label className={`text-sm font-bold uppercase tracking-wider block ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                    Modified Dimensions Schedule (m²)
+                  </Label>
+                  <span className="text-xs text-slate-400">
+                    {design.designName
+                      ? "Adjust room sizes below. Base CAD reference values shown for comparison."
+                      : "Enter customized sizes below, or select a base Hudson design above to auto-populate standard CAD areas."}
+                  </span>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono text-xs font-bold py-1 px-2.5">
-                      Baseline: {standardBaselineAreas.totalM2} m²
-                    </Badge>
-                    <Badge
-                      className={`font-mono text-xs font-bold py-1 px-2.5 ${
-                        totalVariance > 0
-                          ? "bg-emerald-500 text-slate-950"
-                          : totalVariance < 0
-                          ? "bg-rose-500 text-white"
-                          : "bg-slate-700 text-white"
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="font-mono text-xs font-bold py-1 px-2.5">
+                    Baseline: {standardBaselineAreas.totalM2 > 0 ? `${standardBaselineAreas.totalM2} m²` : "Not selected"}
+                  </Badge>
+                  <Badge
+                    className={`font-mono text-xs font-bold py-1 px-2.5 ${
+                      totalVariance > 0
+                        ? "bg-emerald-500 text-slate-950"
+                        : totalVariance < 0
+                        ? "bg-rose-500 text-white"
+                        : "bg-slate-700 text-white"
+                    }`}
+                  >
+                    Modified: {currentTotal > 0 ? `${currentTotal} m²` : "0.00 m²"}
+                    {standardBaselineAreas.totalM2 > 0 ? ` (${totalVariance >= 0 ? `+${totalVariance}` : `${totalVariance}`} m²)` : ""}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Dynamic Zones Grid (Living, Garage, Alfresco, Porch / Ground, First) */}
+              <div className={`grid gap-4 ${isDoubleOrSplit ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3" : "grid-cols-2 lg:grid-cols-4"}`}>
+                {(isDoubleOrSplit
+                  ? [
+                      {
+                        key: "groundLivingM2" as const,
+                        label: "Ground Floor Living",
+                        std: standardBaselineAreas.groundLivingM2 || 0,
+                        val: design.areas?.groundLivingM2 ?? (design.modifiedAreas?.groundLivingM2 ?? standardBaselineAreas.groundLivingM2 ?? 0),
+                        rate: 1420,
+                      },
+                      {
+                        key: "firstLivingM2" as const,
+                        label: "First Floor Living",
+                        std: standardBaselineAreas.firstLivingM2 || 0,
+                        val: design.areas?.firstLivingM2 ?? (design.modifiedAreas?.firstLivingM2 ?? standardBaselineAreas.firstLivingM2 ?? 0),
+                        rate: 1580,
+                      },
+                      {
+                        key: "garageM2" as const,
+                        label: "Garage Area",
+                        std: standardBaselineAreas.garageM2 || 0,
+                        val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
+                        rate: 950,
+                      },
+                      {
+                        key: "alfrescoM2" as const,
+                        label: "Alfresco Area",
+                        std: standardBaselineAreas.alfrescoM2 || 0,
+                        val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
+                        rate: 780,
+                      },
+                      {
+                        key: "porchM2" as const,
+                        label: "Porch Area",
+                        std: standardBaselineAreas.porchM2 || 0,
+                        val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
+                        rate: 780,
+                      },
+                      ...(standardBaselineAreas.balconyM2 || design.areas?.balconyM2
+                        ? [
+                            {
+                              key: "balconyM2" as const,
+                              label: "Balcony Area",
+                              std: standardBaselineAreas.balconyM2 || 0,
+                              val: design.areas?.balconyM2 ?? (design.modifiedAreas?.balconyM2 ?? standardBaselineAreas.balconyM2 ?? 0),
+                              rate: 850,
+                            },
+                          ]
+                        : []),
+                    ]
+                  : [
+                      {
+                        key: "livingM2" as const,
+                        label: "Living Area",
+                        std: standardBaselineAreas.livingM2 || 0,
+                        val: design.areas?.livingM2 ?? (design.modifiedAreas?.livingM2 ?? standardBaselineAreas.livingM2 ?? 0),
+                        rate: 1420,
+                      },
+                      {
+                        key: "garageM2" as const,
+                        label: "Garage Area",
+                        std: standardBaselineAreas.garageM2 || 0,
+                        val: design.areas?.garageM2 ?? (design.modifiedAreas?.garageM2 ?? standardBaselineAreas.garageM2 ?? 0),
+                        rate: 950,
+                      },
+                      {
+                        key: "alfrescoM2" as const,
+                        label: "Alfresco Area",
+                        std: standardBaselineAreas.alfrescoM2 || 0,
+                        val: design.areas?.alfrescoM2 ?? (design.modifiedAreas?.alfrescoM2 ?? standardBaselineAreas.alfrescoM2 ?? 0),
+                        rate: 780,
+                      },
+                      {
+                        key: "porchM2" as const,
+                        label: "Porch Area",
+                        std: standardBaselineAreas.porchM2 || 0,
+                        val: design.areas?.porchM2 ?? (design.modifiedAreas?.porchM2 ?? standardBaselineAreas.porchM2 ?? 0),
+                        rate: 780,
+                      },
+                    ]
+                ).map((zone) => {
+                  const delta = zone.std > 0 ? Math.round((zone.val - zone.std) * 100) / 100 : 0;
+                  const cost = delta > 0 ? Math.round(delta * zone.rate) : delta < 0 ? Math.round(delta * zone.rate * 0.8) : 0;
+                  const hasVariance = zone.std > 0 && Math.abs(delta) > 0.05;
+
+                  return (
+                    <div
+                      key={zone.key}
+                      className={`p-4 rounded-2xl border transition-all ${
+                        isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                       }`}
                     >
-                      Modified: {currentTotal} m² ({totalVariance >= 0 ? `+${totalVariance}` : `${totalVariance}`} m²)
-                    </Badge>
-                  </div>
-                </div>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          {zone.label}
+                        </Label>
+                        <span className="text-[11px] font-mono text-slate-400">
+                          Std: {zone.std > 0 ? `${zone.std} m²` : "—"}
+                        </span>
+                      </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Living Area */}
-                  <div
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Living Area
-                      </Label>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        Std: {standardBaselineAreas.livingM2} m²
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={design.areas?.livingM2 ?? currentLiving}
-                      onChange={(e) => handleModifiedAreaChange("livingM2", e.target.value)}
-                      className="h-12 text-lg font-mono font-bold rounded-xl"
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
-                      <span className="text-slate-400">Variance:</span>
-                      <span
-                        className={`font-bold ${
-                          (design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0) >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {Math.round(((design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
-                        {Math.round(((design.areas?.livingM2 || currentLiving) - (standardBaselineAreas.livingM2 || 0)) * 100) / 100} m²
-                      </span>
-                    </div>
-                  </div>
+                      <div className="space-y-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={zone.std > 0 ? String(zone.std) : "0.00"}
+                          value={zone.val > 0 ? zone.val : ""}
+                          onChange={(e) => handleModifiedAreaChange(zone.key, e.target.value)}
+                          className="h-12 text-lg font-mono font-bold rounded-xl"
+                        />
 
-                  {/* Garage Area */}
-                  <div
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Garage Area
-                      </Label>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        Std: {standardBaselineAreas.garageM2} m²
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={design.areas?.garageM2 ?? currentGarage}
-                      onChange={(e) => handleModifiedAreaChange("garageM2", e.target.value)}
-                      className="h-12 text-lg font-mono font-bold rounded-xl"
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
-                      <span className="text-slate-400">Variance:</span>
-                      <span
-                        className={`font-bold ${
-                          (design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0) >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {Math.round(((design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
-                        {Math.round(((design.areas?.garageM2 || currentGarage) - (standardBaselineAreas.garageM2 || 0)) * 100) / 100} m²
-                      </span>
-                    </div>
-                  </div>
+                        {/* Quick +/- Steppers & Reset */}
+                        <div className="flex items-center gap-1.5 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleStepArea(zone.key, -1)}
+                            className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Decrease by 1m²"
+                          >
+                            -1m²
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStepArea(zone.key, 1)}
+                            className="flex-1 py-1 px-1.5 text-xs font-mono font-bold rounded-lg border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Increase by 1m²"
+                          >
+                            +1m²
+                          </button>
+                          {hasVariance && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetArea(zone.key)}
+                              className="py-1 px-2 text-[11px] font-semibold rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors cursor-pointer"
+                              title="Reset to CAD standard"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
-                  {/* Alfresco Area */}
-                  <div
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Alfresco
-                      </Label>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        Std: {standardBaselineAreas.alfrescoM2} m²
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={design.areas?.alfrescoM2 ?? currentAlfresco}
-                      onChange={(e) => handleModifiedAreaChange("alfrescoM2", e.target.value)}
-                      className="h-12 text-lg font-mono font-bold rounded-xl"
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
-                      <span className="text-slate-400">Variance:</span>
-                      <span
-                        className={`font-bold ${
-                          (design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0) >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {Math.round(((design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
-                        {Math.round(((design.areas?.alfrescoM2 || currentAlfresco) - (standardBaselineAreas.alfrescoM2 || 0)) * 100) / 100} m²
-                      </span>
-                    </div>
-                  </div>
+                      {/* Variance & Rate Breakdown */}
+                      <div className="mt-3 pt-2 border-t border-slate-200 dark:border-slate-800/80 space-y-1">
+                        <div className="flex items-center justify-between text-xs font-mono">
+                          <span className="text-slate-400">Variance:</span>
+                          <span
+                            className={`font-bold ${
+                              !hasVariance
+                                ? "text-slate-400"
+                                : delta >= 0
+                                ? "text-emerald-500"
+                                : "text-rose-400"
+                            }`}
+                          >
+                            {zone.std > 0
+                              ? `${delta >= 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} m²`
+                              : "—"}
+                          </span>
+                        </div>
 
-                  {/* Porch Area */}
-                  <div
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Porch
-                      </Label>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        Std: {standardBaselineAreas.porchM2} m²
-                      </span>
-                    </div>
-                    <Input
-                      type="number"
-                      step="0.1"
-                      value={design.areas?.porchM2 ?? currentPorch}
-                      onChange={(e) => handleModifiedAreaChange("porchM2", e.target.value)}
-                      className="h-12 text-lg font-mono font-bold rounded-xl"
-                    />
-                    <div className="flex items-center justify-between mt-2 text-xs font-mono">
-                      <span className="text-slate-400">Variance:</span>
-                      <span
-                        className={`font-bold ${
-                          (design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0) >= 0
-                            ? "text-emerald-500"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {Math.round(((design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0)) * 100) / 100 >= 0 ? "+" : ""}
-                        {Math.round(((design.areas?.porchM2 || currentPorch) - (standardBaselineAreas.porchM2 || 0)) * 100) / 100} m²
-                      </span>
-                    </div>
-                  </div>
-                </div>
+                        <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
+                          <span>Rate:</span>
+                          <span>${zone.rate.toLocaleString()}/m²</span>
+                        </div>
 
-                {/* Live Base Price Summary Bar */}
-                <div
-                  className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    isLight ? "bg-emerald-50/70 border-emerald-200" : "bg-emerald-950/20 border-emerald-500/20"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
+                        {hasVariance && cost !== 0 && (
+                          <div className="flex items-center justify-between text-[11px] font-mono">
+                            <span className="text-slate-400">Delta:</span>
+                            <span className={cost >= 0 ? "text-emerald-500 font-bold" : "text-rose-400 font-bold"}>
+                              {cost >= 0 ? `+${formatAud(cost)}` : `${formatAud(cost)} (80% credit)`}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Live Base Price Summary Bar */}
+              <div
+                className={`p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  isLight ? "bg-emerald-50/80 border-emerald-200" : "bg-emerald-950/20 border-emerald-500/20"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center gap-2.5">
                     <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-500">
                       Modified Design Base
                     </span>
-                    <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      {design.designName} ({currentTotal} m²)
-                    </span>
+                    {design.designName ? (
+                      <span className={`text-base font-extrabold ${isLight ? "text-slate-900" : "text-white"}`}>
+                        {design.designName} ({currentTotal} m²)
+                      </span>
+                    ) : (
+                      <span className="text-xs text-amber-500 font-semibold">
+                        Select a base Hudson design above to link standard CAD baseline areas
+                      </span>
+                    )}
                   </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Living: ${activeExtensionRates.gf.toLocaleString()}/m² • Garage: ${activeExtensionRates.garage.toLocaleString()}/m² • Alfresco: ${activeExtensionRates.alfresco.toLocaleString()}/m² • Porch: ${activeExtensionRates.porch.toLocaleString()}/m² (80% credit on reductions)
+                  </p>
+                </div>
 
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400 font-mono">
-                      Standard: {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                <div className="flex items-center gap-4 flex-wrap">
+                  {design.designName && (
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                        Standard Base
+                      </span>
+                      <span className="text-sm font-mono text-slate-400">
+                        {formatAud(design.standardBasePrice || design.basePrice || 0)}
+                      </span>
+                    </div>
+                  )}
+
+                  {design.designName && modPricingCalc?.totalCostAdjustment !== undefined && modPricingCalc.totalCostAdjustment !== 0 && (
+                    <div className="text-right">
+                      <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                        Area Tender Delta
+                      </span>
+                      <span className={`text-sm font-mono font-bold ${modPricingCalc.totalCostAdjustment >= 0 ? "text-emerald-500" : "text-rose-400"}`}>
+                        {modPricingCalc.totalCostAdjustment >= 0 ? `+${formatAud(modPricingCalc.totalCostAdjustment)}` : formatAud(modPricingCalc.totalCostAdjustment)}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="text-right">
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block">
+                      Total Modified Base
                     </span>
-                    <span className={`text-lg font-mono font-black ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                      Total Base: {formatAud(design.basePrice || 0)}
+                    <span className={`text-xl sm:text-2xl font-mono font-black ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
+                      {formatAud(design.basePrice || 0)}
                     </span>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -1833,7 +2465,7 @@ export function V2StepFloorPlan({
                   <img
                     src={secondFacadePreviewUrl}
                     alt="2nd Dwelling"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain object-center"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/facades/classic-facade-single-stry.jpg";
                     }}
@@ -2181,40 +2813,43 @@ export function V2StepFloorPlan({
                   isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950 border-slate-800"
                 }`}
               >
-                <div className="relative h-64 sm:h-80 w-full bg-slate-900 overflow-hidden flex items-center justify-center">
+                {/* Generous headroom and padding, no gradient overlay blocking roofline */}
+                <div className="relative h-64 sm:h-80 w-full bg-slate-900/95 overflow-hidden flex items-center justify-center p-4 sm:p-6 border-b border-slate-800/80">
                   <img
                     src={facadePreviewUrl}
                     alt={design.facadeName || "Façade Preview"}
-                    className="w-full h-full object-cover object-center"
+                    className="w-full h-full object-contain object-center drop-shadow-md"
                     crossOrigin="anonymous"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src = "/facades/classic-facade-single-stry.jpg";
                     }}
                   />
+                </div>
 
-                  {/* Gradient overlay badge */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent p-5 sm:p-6 flex items-end justify-between">
-                    <div>
-                      <span className="text-xs uppercase font-extrabold tracking-wider text-emerald-400 block">
-                        {design.isCustomFacade ? "Custom Bespoke Façade" : "Live Architectural Preview"}
-                      </span>
-                      <h4 className="text-lg sm:text-xl font-bold text-white leading-tight">
-                        {design.facadeName || (design.isCustomFacade ? "Custom Elevation" : "Classic Façade")}
-                      </h4>
-                    </div>
-
-                    <Badge
-                      className={`text-sm font-mono font-bold py-1 px-3 ${
-                        design.isCustomFacade
-                          ? "bg-amber-500 text-slate-950"
-                          : (design.facadePrice || 0) > 0
-                          ? "bg-cyan-500 text-slate-950"
-                          : "bg-emerald-500 text-slate-950"
-                      }`}
-                    >
-                      {(design.facadePrice || 0) > 0 ? `+${formatAud(design.facadePrice || 0)}` : "Included Standard"}
-                    </Badge>
+                {/* Dedicated info bar below image (eliminates roofline obscuring overlay) */}
+                <div className={`p-4 sm:p-5 flex items-center justify-between border-b gap-3 ${
+                  isLight ? "bg-slate-100/80 border-slate-200" : "bg-slate-900/80 border-slate-800"
+                }`}>
+                  <div>
+                    <span className="text-[11px] uppercase font-extrabold tracking-wider text-emerald-500 block">
+                      {design.isCustomFacade ? "Custom Bespoke Façade" : "Live Architectural Preview"}
+                    </span>
+                    <h4 className={`text-base sm:text-lg font-bold leading-tight ${isLight ? "text-slate-900" : "text-white"}`}>
+                      {design.facadeName || (design.isCustomFacade ? "Custom Elevation" : "Classic Façade")}
+                    </h4>
                   </div>
+
+                  <Badge
+                    className={`text-xs sm:text-sm font-mono font-bold py-1 px-3 ${
+                      design.isCustomFacade
+                        ? "bg-amber-500 text-slate-950"
+                        : (design.facadePrice || 0) > 0
+                        ? "bg-cyan-500 text-slate-950"
+                        : "bg-emerald-500 text-slate-950"
+                    }`}
+                  >
+                    {(design.facadePrice || 0) > 0 ? `+${formatAud(design.facadePrice || 0)}` : "Included Standard"}
+                  </Badge>
                 </div>
 
                 <div className="p-4 sm:p-5 flex items-center justify-between text-sm text-slate-400">
@@ -2276,14 +2911,7 @@ export function V2StepFloorPlan({
         <ModifiedPlanReviewModal
           isOpen={isReviewModalOpen}
           analysis={pendingAnalysis}
-          onApply={(updatedDesign, lineItems) => {
-            onChange(updatedDesign);
-            if (onAddInclusionLineItems && lineItems.length > 0) {
-              onAddInclusionLineItems(lineItems);
-            }
-            setIsReviewModalOpen(false);
-            toast.success("Applied modified floor plan parameters!");
-          }}
+          onApply={handleApplyModifiedPlan}
           onClose={() => setIsReviewModalOpen(false)}
         />
       )}

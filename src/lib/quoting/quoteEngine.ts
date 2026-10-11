@@ -80,7 +80,34 @@ export function getHousingTypeForDesign(
     return "Dual Living";
   }
 
-  // 2. Double Storey detection
+  // 2. Split Level detection
+  if (
+    SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    NSW_SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
+    /split/i.test(clean)
+  ) {
+    return "Split Level";
+  }
+
+  // 3. Single Storey detection (explicit match in Single Storey price lists wins)
+  const isExplicitSingle =
+    SINGLE_STOREY_PRICES.some((m) => {
+      const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
+      return mn === clean || mn.startsWith(clean + " ") || clean.startsWith(mn.split(" ")[0] + " ");
+    }) ||
+    NSW_SINGLE_STOREY_PRICES.some((m) => {
+      const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
+      return mn === clean || mn.startsWith(clean + " ") || clean.startsWith(mn.split(" ")[0] + " ");
+    }) ||
+    ["amber", "auburn", "azure", "blanc", "canary", "carmine", "cedar", "celeste", "charcoal", "coral", "crimson", "ebony", "eton", "hazel", "indigo", "iris", "ivory", "jade", "jasper", "kobi", "magenta", "mulberry", "olive", "onyx", "quartz", "saffron", "sage", "sienna", "tiffany", "topaz"].some((f) =>
+      clean.startsWith(f)
+    );
+
+  if (isExplicitSingle) {
+    return "Single Storey";
+  }
+
+  // 4. Double Storey detection
   if (
     DOUBLE_STOREY_PRICES.some((m) => {
       const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
@@ -90,28 +117,11 @@ export function getHousingTypeForDesign(
       const mn = m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim();
       return mn === clean || mn.startsWith(clean + " ") || clean.startsWith(mn.split(" ")[0] + " ");
     }) ||
-    ["violet", "mahogany", "pearl", "carolina", "turquoise", "sabel", "sable", "burgundy", "topaz", "diamond", "emerald", "onyx", "garnet", "quartz", "sardonyx", "tanzanite", "tourmaline", "alexandrite", "aston"].some((f) =>
+    ["violet", "mahogany", "pearl", "carolina", "turquoise", "sabel", "sable", "burgundy", "diamond", "emerald", "garnet", "sardonyx", "tanzanite", "tourmaline", "alexandrite", "aston", "rose", "rosewood", "tangerine"].some((f) =>
       clean.startsWith(f)
     )
   ) {
     return "Double Storey";
-  }
-
-  // 3. Split Level detection
-  if (
-    SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
-    NSW_SPLIT_LEVEL_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
-    /split/i.test(clean)
-  ) {
-    return "Split Level";
-  }
-
-  // 4. Single Storey detection
-  if (
-    SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean) ||
-    NSW_SINGLE_STOREY_PRICES.some((m) => m.name.toLowerCase().replace(/\s*\([^)]*\)/g, " ").trim() === clean)
-  ) {
-    return "Single Storey";
   }
 
   return fallbackType || "Single Storey";
@@ -1352,10 +1362,12 @@ export function calculateQuotePricing(
       const alfrescoDelta = (Number(sd.modifiedAreas.alfrescoM2) || 0) - (Number(sd.standardAreas.alfrescoM2) || 0);
       const porchDelta = (Number(sd.modifiedAreas.porchM2) || 0) - (Number(sd.standardAreas.porchM2) || 0);
 
-      const livingCost = livingDelta >= 0 ? livingDelta * 1420 : livingDelta * 1420 * 0.8;
-      const garageCost = garageDelta >= 0 ? garageDelta * 1330 : garageDelta * 1330 * 0.8;
-      const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * 920 : alfrescoDelta * 920 * 0.8;
-      const porchCost = porchDelta >= 0 ? porchDelta * 740 : porchDelta * 740 * 0.8;
+      const sdTierKey = normalizeInclusionTier(design.specTier);
+      const sdRates = EXTENSION_RATES_BY_TIER[sdTierKey];
+      const livingCost = livingDelta >= 0 ? livingDelta * sdRates.gf : livingDelta * sdRates.gf * 0.8;
+      const garageCost = garageDelta >= 0 ? garageDelta * sdRates.garage : garageDelta * sdRates.garage * 0.8;
+      const alfrescoCost = alfrescoDelta >= 0 ? alfrescoDelta * sdRates.alfresco : alfrescoDelta * sdRates.alfresco * 0.8;
+      const porchCost = porchDelta >= 0 ? porchDelta * sdRates.porch : porchDelta * sdRates.porch * 0.8;
 
       sdBase += Math.round(livingCost + garageCost + alfrescoCost + porchCost);
     }
@@ -1453,7 +1465,23 @@ export function calculateQuotePricing(
   const materialHandlingCost = Number(site.materialHandlingAllowance) || 0;
   const outOfZoneCost = Number(site.outOfZoneSurcharge) || 0;
   const unknownConditionsCost = Number(site.unknownSiteConditionsAllowance) || 0;
-  const sewerBridgingCost = site.sewerBridgingRequired ? (Number(site.sewerBridgingCost) || 4500) : 0;
+  // Sewer Main Running Through Block options (Image 1)
+  const sewerBosCost = site.sewerBosCouncilAppRequired
+    ? (site.sewerBosCouncilAppCost !== undefined ? Number(site.sewerBosCouncilAppCost) : 1700)
+    : 0;
+  const sewerBridgingPiersCost = site.sewerBridgingPiersRequired
+    ? (site.sewerBridgingPiersCost !== undefined ? Number(site.sewerBridgingPiersCost) : (Number(site.sewerBridgingPiersLm) || 1) * 1500)
+    : 0;
+  const sewerPotholingCost = site.sewerPotholingRequired
+    ? (site.sewerPotholingCost !== undefined ? Number(site.sewerPotholingCost) : 4500)
+    : 0;
+  const isCctvActive = Boolean(site.sewerCctvInspectionRequired || site.cctvSewerReportRequired);
+  const sewerCctvCost = isCctvActive
+    ? (site.sewerCctvInspectionCost !== undefined ? Number(site.sewerCctvInspectionCost) : (site.cctvSewerReportCost !== undefined ? Number(site.cctvSewerReportCost) : 2500))
+    : 0;
+  const legacySewerBridgingCost = (!site.sewerBridgingPiersRequired && site.sewerBridgingRequired)
+    ? (Number(site.sewerBridgingCost) || 4500)
+    : 0;
 
   const siteCostsSubtotal =
     soilTotalCost +
@@ -1469,7 +1497,6 @@ export function calculateQuotePricing(
     acousticReportCost +
     acousticCost +
     arboristReportCost +
-    cctvSewerReportCost +
     trafficCost +
     pieringCost +
     demolitionAsbestosCost +
@@ -1479,7 +1506,11 @@ export function calculateQuotePricing(
     materialHandlingCost +
     outOfZoneCost +
     unknownConditionsCost +
-    sewerBridgingCost +
+    sewerBosCost +
+    sewerBridgingPiersCost +
+    sewerPotholingCost +
+    sewerCctvCost +
+    legacySewerBridgingCost +
     sedimentCost;
 
   const councilStatutorySubtotal =
@@ -1664,22 +1695,40 @@ export function generateQuoteNumber(
     // Split on spaces and ignore non-alphabetical conjunctions like '&', 'and', 'or'
     const words = clean
       .split(/\s+/)
-      .filter((w) => !["&", "and", "or"].includes(w.toLowerCase()) && /^[a-zA-Z]/.test(w));
+      .filter((w) => !["&", "and", "or"].includes(w.toLowerCase()) && /[a-zA-Z]/.test(w));
 
     if (words.length >= 2) {
-      const firstInitial = words[0][0].toUpperCase();
-      const lastInitial = words[words.length - 1][0].toUpperCase();
+      const firstLetters = words[0].replace(/[^a-zA-Z]/g, "");
+      const lastLetters = words[words.length - 1].replace(/[^a-zA-Z]/g, "");
+      const firstInitial = (firstLetters[0] || "C").toUpperCase();
+      const lastInitial = (lastLetters[0] || "L").toUpperCase();
       prefix = `${firstInitial}${lastInitial}`;
-    } else if (words.length === 1 && words[0].length >= 2) {
-      prefix = words[0].slice(0, 2).toUpperCase();
     } else if (words.length === 1) {
-      prefix = `${words[0][0].toUpperCase()}X`;
+      const w = words[0];
+      // Check if hyphenated single name (e.g. Jean-Luc, Mary-Jane)
+      if (w.includes("-")) {
+        const hyphenParts = w.split("-").map((p) => p.replace(/[^a-zA-Z]/g, "")).filter(Boolean);
+        if (hyphenParts.length >= 2) {
+          prefix = `${hyphenParts[0][0]}${hyphenParts[hyphenParts.length - 1][0]}`.toUpperCase();
+        } else if (hyphenParts.length === 1 && hyphenParts[0].length >= 2) {
+          prefix = hyphenParts[0].slice(0, 2).toUpperCase();
+        } else if (hyphenParts.length === 1) {
+          prefix = `${hyphenParts[0][0].toUpperCase()}X`;
+        }
+      } else {
+        const letters = w.replace(/[^a-zA-Z]/g, "");
+        if (letters.length >= 2) {
+          prefix = letters.slice(0, 2).toUpperCase();
+        } else if (letters.length === 1) {
+          prefix = `${letters[0].toUpperCase()}X`;
+        }
+      }
     }
   }
 
   // Scan existing quotes to find highest number for this prefix
   let maxSeq = 0;
-  const pattern = new RegExp(`^${prefix}(\\d+)$`, "i");
+  const pattern = new RegExp(`^${prefix}[#-]?(\\d+)$`, "i");
 
   if (Array.isArray(existingQuotes)) {
     for (const q of existingQuotes) {
@@ -1694,9 +1743,39 @@ export function generateQuoteNumber(
     }
   }
 
-  const nextSeq = maxSeq + 1;
-  const padded = String(nextSeq).padStart(3, "0");
-  return `${prefix}${padded}`;
+  // The sequence starts at #101 increasing in number for that particular client for each quote created
+  const nextSeq = maxSeq >= 101 ? maxSeq + 1 : 101;
+  return `${prefix}${nextSeq}`;
+}
+
+/**
+ * Standardized estimate PDF filename according to user specification:
+ * Hudson Estimate_Client First Name_House Name (Or just "custom plan" if custom)_INclusion level
+ * Example: Hudson Estimate_Ronald_custom plan_H2.pdf
+ * Example: Hudson Estimate_Ronald_Jasper 26_H2.pdf
+ */
+export function formatEstimateFileName(quote: FullQuote): string {
+  const clean1 = (quote.client.clientName || "").trim().replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "");
+  const client1First = clean1.split(/\s+/)[0] || "Client";
+  const clean2 = (quote.client.hasClient2 && quote.client.client2Name ? quote.client.client2Name : "")
+    .trim()
+    .replace(/^(mr|mrs|ms|miss|dr|prof)\.?\s+/i, "");
+  const client2First = clean2 ? clean2.split(/\s+/)[0] : "";
+  const clientPart = client2First ? `${client1First} & ${client2First}` : client1First;
+  const isCustomPlan =
+    quote.design.mode === "custom_floorplan" ||
+    Boolean(quote.design.isModifiedFloorplan) ||
+    Boolean(quote.design.designName?.toLowerCase().includes("custom"));
+  const houseName = isCustomPlan ? "custom plan" : (getEffectiveDesignName(quote.design) || "Floorplan");
+
+  const specTier = quote.design.specTier || "";
+  let inclusionCode = "H2";
+  if (specTier.includes("H1") || specTier.toLowerCase().includes("smart") || specTier.toLowerCase().includes("base")) inclusionCode = "H1";
+  else if (specTier.includes("H3") || specTier.toLowerCase().includes("luxury")) inclusionCode = "H3";
+  else inclusionCode = "H2";
+
+  const rawFilename = `Hudson Estimate_${clientPart}_${houseName}_${inclusionCode}`;
+  return rawFilename.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, " ").trim();
 }
 
 export interface CouncilInfo {
@@ -1856,36 +1935,79 @@ export function detectCouncilFromLocation(
       return { region: "Central Coast Council", fee: 2000 };
     }
 
-    // Lake Macquarie & Newcastle City Council ($2,000)
-    const hunterLakeKeywords = [
-      "lake macquarie", "newcastle", "charlestown", "warners bay", "belmont", "cardiff", "glendale", "cameron park",
-      "edgeworth", "morisset", "cooranbong", "watagan park", "dora creek", "toronto", "merewether", "hamilton",
-      "adamstown", "mayfield", "wallsend", "fletcher", "minmi", "2280", "2281", "2282", "2283", "2284", "2285",
-      "2287", "2289", "2290", "2291", "2292", "2299", "2300", "2304", "2305", "2307", "2308"
+    // City of Newcastle ($2,000)
+    const newcastleKeywords = [
+      "newcastle", "merewether", "hamilton", "adamstown", "mayfield", "wallsend", "fletcher", "minmi",
+      "lambton", "new lambton", "bar beach", "cooks hill", "wickham", "islington", "tighes hill",
+      "waratah", "broadmeadow", "jesmond", "shortland", "birmingham gardens", "sandgate", "tarro",
+      "beresfield", "hexham", "2300", "2302", "2303", "2304", "2305", "2307", "2308"
     ];
-    if (hunterLakeKeywords.some((k) => text.includes(k))) {
+    if (newcastleKeywords.some((k) => text.includes(k))) {
+      return { region: "City of Newcastle", fee: 2000 };
+    }
+
+    // Lake Macquarie City Council ($2,000)
+    const lakeMacquarieKeywords = [
+      "lake macquarie", "charlestown", "warners bay", "belmont", "cardiff", "glendale", "cameron park",
+      "edgeworth", "morisset", "cooranbong", "watagan park", "dora creek", "toronto", "speers point",
+      "swansea", "caves beach", "redhead", "whitebridge", "eleebana", "valentine", "mount hutton",
+      "2280", "2281", "2282", "2283", "2284", "2285", "2287", "2289", "2290"
+    ];
+    if (lakeMacquarieKeywords.some((k) => text.includes(k))) {
       return { region: "Lake Macquarie City Council", fee: 2000 };
     }
 
-    // Maitland & Cessnock City Council ($2,000)
-    const maitlandCessnockKeywords = [
-      "maitland", "cessnock", "east maitland", "rutherford", "chisholm", "thornton", "gillieston heights", "lochinvar",
-      "greta", "branxton", "huntlee", "kurri kurri", "bellbird", "neath", "nulkaba", "pokolbin", "lovedale", "2320",
-      "2321", "2322", "2323", "2325", "2326", "2327", "2335"
+    // Cessnock City Council ($2,000)
+    const cessnockKeywords = [
+      "cessnock", "huntlee", "kurri kurri", "bellbird", "neath", "nulkaba", "pokolbin", "lovedale",
+      "branxton", "greta", "abermain", "weston", "pelaw main", "heddon greta", "mulbring", "kearsley",
+      "millfield", "ellalong", "wollombi", "2325", "2326", "2327", "2335"
     ];
-    if (maitlandCessnockKeywords.some((k) => text.includes(k))) {
+    if (cessnockKeywords.some((k) => text.includes(k))) {
+      return { region: "Cessnock City Council", fee: 2000 };
+    }
+
+    // Maitland City Council ($2,000)
+    const maitlandKeywords = [
+      "maitland", "east maitland", "rutherford", "chisholm", "thornton", "gillieston heights", "lochinvar",
+      "ashtonfield", "metford", "tenambit", "morpeth", "largs", "bolwarra", "bolwarra heights", "telarah",
+      "farley", "woodberry", "2320", "2321", "2322", "2323"
+    ];
+    if (maitlandKeywords.some((k) => text.includes(k))) {
       return { region: "Maitland City Council", fee: 2000 };
     }
 
-    // Wollongong, Shellharbour & Kiama ($2,000)
-    const illawarraKeywords = [
-      "wollongong", "shellharbour", "kiama", "calderwood", "tullimbar", "albion park", "albion park rail",
-      "haywards bay", "horsley", "dapto", "west dapto", "kembla grange", "bulli", "corrimal", "figtree",
-      "unanderra", "flinders", "shell cove", "2500", "2502", "2508", "2515", "2517", "2518", "2519", "2525",
-      "2526", "2527", "2528", "2529", "2530", "2533"
+    // Shellharbour City Council ($2,000)
+    const shellharbourKeywords = [
+      "shellharbour", "shell cove", "calderwood", "tullimbar", "albion park", "albion park rail",
+      "flinders", "warilla", "barrack heights", "barrack point", "lake illawarra", "mount warrigal",
+      "oak flats", "croom", "blackbutt", "dunmore", "2527", "2528", "2529"
     ];
-    if (illawarraKeywords.some((k) => text.includes(k))) {
+    if (shellharbourKeywords.some((k) => text.includes(k))) {
+      return { region: "Shellharbour City Council", fee: 2000 };
+    }
+
+    // Wollongong City Council ($2,000)
+    const wollongongKeywords = [
+      "wollongong", "haywards bay", "horsley", "dapto", "west dapto", "kembla grange", "bulli", "corrimal",
+      "figtree", "unanderra", "fairy meadow", "balgownie", "thirroul", "austinmer", "coledale", "wombarra",
+      "scarborough", "clifton", "stanwell park", "helensburgh", "mount keira", "mount pleasant", "keiraville",
+      "tarrawanna", "towradgi", "bellambi", "russell vale", "woonona", "cordeaux heights", "farmborough heights",
+      "berkeley", "coniston", "mangerton", "gwynneville", "north wollongong", "2500", "2502", "2505", "2506",
+      "2508", "2515", "2516", "2517", "2518", "2519", "2525", "2526", "2530"
+    ];
+    if (wollongongKeywords.some((k) => text.includes(k))) {
       return { region: "Wollongong City Council", fee: 2000 };
+    }
+
+    // Tweed Shire Council (NSW) ($2,000)
+    const tweedKeywords = [
+      "tweed", "tweed shire", "tweed heads", "kingscliff", "casuarina", "pottsville", "cabarita",
+      "murwillumbah", "banora point", "terranora", "bilambil", "chinderah", "fingal head", "bogangar",
+      "hastings point", "2485", "2486", "2487", "2488", "2489", "2490"
+    ];
+    if (tweedKeywords.some((k) => text.includes(k))) {
+      return { region: "Tweed Shire Council (NSW)", fee: 2000 };
     }
 
     return null;
@@ -1963,6 +2085,27 @@ export function detectCouncilFromLocation(
       return { region: "Moreton Bay Regional Council", fee: 2227 };
     }
 
+    // Redland City Council ($2,227)
+    const redlandKeywords = [
+      "redland", "redlands", "redland bay", "cleveland", "capalaba", "thornlands", "victoria point",
+      "wellington point", "birkdale", "ormiston", "alexandra hills", "mount cotton", "sheldon",
+      "4157", "4158", "4159", "4160", "4161", "4163", "4164", "4165"
+    ];
+    if (redlandKeywords.some((k) => text.includes(k))) {
+      return { region: "Redland City Council", fee: 2227 };
+    }
+
+    // Toowoomba Regional Council ($2,227)
+    const toowoombaKeywords = [
+      "toowoomba", "highfields", "kearneys spring", "middle ridge", "rangeville", "centenary heights",
+      "darling heights", "drayton", "harristown", "glenvale", "wilsonton", "cotswold hills",
+      "gowrie mountain", "kingsthorpe", "meringandan", "westbrook", "wyreema", "cambooya", "greenmount",
+      "clifton", "oakey", "4350", "4352"
+    ];
+    if (toowoombaKeywords.some((k) => text.includes(k))) {
+      return { region: "Toowoomba Regional Council", fee: 2227 };
+    }
+
     // Brisbane City Council ($0 Standard)
     const brisbaneKeywords = [
       "brisbane", "chermside", "carindale", "indooroopilly", "sunnybank", "calamvale", "parkinson", "algester",
@@ -1984,8 +2127,8 @@ export function detectCouncilFromLocation(
       return { region: "Brisbane City Council", fee: 0 };
     }
 
-    // Redland / Scenic Rim / Other SEQ ($2,227)
-    const otherSeqKeywords = ["redland", "capalaba", "cleveland", "victoria point", "scenic rim", "beaudesert", "boonah", "toowoomba", "lockyer"];
+    // Scenic Rim / Lockyer / Other SEQ ($2,227)
+    const otherSeqKeywords = ["scenic rim", "beaudesert", "boonah", "lockyer", "gatton", "laidley", "plainland"];
     if (otherSeqKeywords.some((k) => text.includes(k))) {
       return { region: `${text.split(" ")[0].toUpperCase()} Regional Council`, fee: 2227 };
     }
@@ -2113,7 +2256,7 @@ export function rehydrateAndRecalculateQuote(rawQuote: FullQuote): FullQuote {
     quote.design.promotionsDiscount = getAutomatedPromotionDiscount(modCalc.modifiedTotalM2);
   } else if (quote.design.mode === "standard" || !quote.design.mode) {
     // Re-calibrate against official pricelists
-    const div = quote.client?.state === "NSW" ? "NSW" : "QLD";
+    const div = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
     const housingType = getHousingTypeForDesign(quote.design.designName, quote.design.housingType);
     quote.design.housingType = housingType;
     const models = getHousingTypePrices(div)[housingType] || [];

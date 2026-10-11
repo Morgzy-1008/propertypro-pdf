@@ -10,6 +10,8 @@ interface TenderRequestFormPdfProps {
 
 export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
   const { customer1, customer2, hasCustomer2, land, homeSpec, variations, solicitor, financier, atp, checklist } = tender;
+  const safeSolicitor = solicitor || ({} as any);
+  const safeFinancier = financier || ({} as any);
 
   const consultantName = tender.newHomeConsultant || tender.atp?.consultantName || "Morgan Hales";
   const consultantDisplayOffice = tender.displayOffice || "Flagstone Display Home";
@@ -563,25 +565,25 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Firm Name:</span>
-                <strong className="text-slate-900">{solicitor.firmOrCompany || "To Be Advised"}</strong>
+                <strong className="text-slate-900">{safeSolicitor.firmOrCompany || "To Be Advised"}</strong>
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Address:</span>
-                <span className="text-slate-700">{solicitor.address || "—"}</span>
+                <span className="text-slate-700">{safeSolicitor.address || "—"}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
                   <span className="text-[9px] text-slate-500 block">Telephone:</span>
-                  <span className="font-mono text-slate-900">{solicitor.telephone || "—"}</span>
+                  <span className="font-mono text-slate-900">{safeSolicitor.telephone || "—"}</span>
                 </div>
                 <div>
                   <span className="text-[9px] text-slate-500 block">Contact Person:</span>
-                  <span className="text-slate-900">{solicitor.contactPerson || "—"}</span>
+                  <span className="text-slate-900">{safeSolicitor.contactPerson || "—"}</span>
                 </div>
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Email:</span>
-                <span className="text-slate-900">{solicitor.email || "—"}</span>
+                <span className="text-slate-900">{safeSolicitor.email || "—"}</span>
               </div>
             </div>
 
@@ -592,25 +594,25 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Lender / Brokerage:</span>
-                <strong className="text-slate-900">{financier.firmOrCompany || "To Be Advised"}</strong>
+                <strong className="text-slate-900">{safeFinancier.firmOrCompany || "To Be Advised"}</strong>
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Address:</span>
-                <span className="text-slate-700">{financier.address || "—"}</span>
+                <span className="text-slate-700">{safeFinancier.address || "—"}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <div>
                   <span className="text-[9px] text-slate-500 block">Telephone:</span>
-                  <span className="font-mono text-slate-900">{financier.telephone || "—"}</span>
+                  <span className="font-mono text-slate-900">{safeFinancier.telephone || "—"}</span>
                 </div>
                 <div>
                   <span className="text-[9px] text-slate-500 block">Contact Person:</span>
-                  <span className="text-slate-900">{financier.contactPerson || "—"}</span>
+                  <span className="text-slate-900">{safeFinancier.contactPerson || "—"}</span>
                 </div>
               </div>
               <div>
                 <span className="text-[9px] text-slate-500 block">Email:</span>
-                <span className="text-slate-900">{financier.email || "—"}</span>
+                <span className="text-slate-900">{safeFinancier.email || "—"}</span>
               </div>
             </div>
           </div>

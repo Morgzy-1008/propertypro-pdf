@@ -129,13 +129,11 @@ function ClientFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/90] mb-4">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-800 shadow-xl bg-slate-950 flex items-center justify-center max-h-80 aspect-[210/90] mb-4 p-2">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
-        className={`w-full h-full object-cover ${
-          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
-        }`}
+        className="w-full h-full object-contain object-center drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
@@ -464,7 +462,20 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const landslideReportCost = site.landslideReportRequired ? (site.landslideReportCost ?? 1850) : 0;
   const acousticReportCost = site.acousticReportRequired ? (site.acousticReportCost ?? 1200) : 0;
   const arboristReportCost = site.arboristReportRequired ? (site.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = site.cctvSewerReportRequired ? (site.cctvSewerReportCost ?? 3500) : 0;
+  // Sewer Main Running Through Block costs (Image 1)
+  const sewerBosCost = site.sewerBosCouncilAppRequired
+    ? (site.sewerBosCouncilAppCost !== undefined ? Number(site.sewerBosCouncilAppCost) : 1700)
+    : 0;
+  const sewerBridgingPiersCost = site.sewerBridgingPiersRequired
+    ? (site.sewerBridgingPiersCost !== undefined ? Number(site.sewerBridgingPiersCost) : (Number(site.sewerBridgingPiersLm) || 1) * 1500)
+    : 0;
+  const sewerPotholingCost = site.sewerPotholingRequired
+    ? (site.sewerPotholingCost !== undefined ? Number(site.sewerPotholingCost) : 4500)
+    : 0;
+  const isCctvActive = Boolean(site.sewerCctvInspectionRequired || site.cctvSewerReportRequired);
+  const sewerCctvCost = isCctvActive
+    ? (site.sewerCctvInspectionCost !== undefined ? Number(site.sewerCctvInspectionCost) : (site.cctvSewerReportCost !== undefined ? Number(site.cctvSewerReportCost) : 2500))
+    : 0;
 
   const slabHeight = site.slabElevationMeters ?? 0.3;
   const calculatedSlabCost = Math.round(slabHeight * 270 * gfaM2);
@@ -852,7 +863,10 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                         </span>
                         <span className="font-bold text-sm text-white truncate">{item.name}</span>
                       </div>
-                      {item.description && (
+                      {item.description &&
+                        item.description.trim() &&
+                        item.description !== "Custom client variation request" &&
+                        item.description !== "Client Custom Variation" && (
                         <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">
                           {item.description}
                         </p>
@@ -875,8 +889,12 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     </div>
 
                     <div className="text-right flex-none">
-                      <span className="text-sm font-bold text-slate-200 font-mono">
-                        {item.unitRate === 0 ? "Included" : `+${formatAud(item.quantity * item.unitRate)}`}
+                      <span className={`text-sm font-bold font-mono ${(item.quantity * item.unitRate) < 0 ? "text-amber-400" : "text-slate-200"}`}>
+                        {item.unitRate === 0
+                          ? "Included ($0)"
+                          : (item.quantity * item.unitRate) < 0
+                          ? `-${formatAud(Math.abs(item.quantity * item.unitRate))}`
+                          : `+${formatAud(item.quantity * item.unitRate)}`}
                       </span>
                     </div>
                   </div>
@@ -931,7 +949,10 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                             Optional
                           </span>
                         </div>
-                        {item.description && (
+                        {item.description &&
+                          item.description.trim() &&
+                          item.description !== "Custom client variation request" &&
+                          item.description !== "Client Custom Variation" && (
                           <p className="text-xs text-slate-400 mt-2 leading-relaxed">
                             {item.description}
                           </p>
@@ -956,10 +977,18 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                       <div className="text-right flex-none">
                         <span
                           className={`text-sm font-bold font-mono ${
-                            isSelected ? "text-emerald-400" : "text-slate-500 line-through"
+                            !isSelected
+                              ? "text-slate-500 line-through"
+                              : (item.quantity * item.unitRate) < 0
+                              ? "text-amber-400"
+                              : "text-emerald-400"
                           }`}
                         >
-                          {item.unitRate === 0 ? "Included" : `+${formatAud(item.quantity * item.unitRate)}`}
+                          {item.unitRate === 0
+                            ? "Included ($0)"
+                            : (item.quantity * item.unitRate) < 0
+                            ? `-${formatAud(Math.abs(item.quantity * item.unitRate))}`
+                            : `+${formatAud(item.quantity * item.unitRate)}`}
                         </span>
                         {!isSelected && (
                           <span className="block text-[10px] text-slate-500 font-sans mt-0.5">
@@ -1163,21 +1192,56 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               </div>
             )}
 
-            {/* CCTV Sewer Inspection */}
-            {site.cctvSewerReportRequired && (
+            {/* Sewer Main Running Through Block - Image 1 */}
+            {site.sewerBosCouncilAppRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
-                  <span className="font-bold text-white block">CCTV Sewer Pipe Camera Inspection</span>
-                  <span className="text-slate-400 text-[11px]">Drainage Depth Verification</span>
+                  <span className="font-bold text-white block">BOS Council Application</span>
+                  <span className="text-slate-400 text-[11px]">Building Over Sewer Statutory Engineering &amp; Approval</span>
                 </div>
                 <span className="font-mono font-bold text-teal-400">
-                  +{formatAud(cctvSewerReportCost)}
+                  +{formatAud(sewerBosCost)}
                 </span>
               </div>
             )}
 
-            {/* Sewer Line Bridging Allowance */}
-            {site.sewerBridgingRequired && (
+            {site.sewerBridgingPiersRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Bridging Piers Required for Building Over Sewer</span>
+                  <span className="text-slate-400 text-[11px]">{site.sewerBridgingPiersLm || 1} lm @ $1,500/lm span</span>
+                </div>
+                <span className="font-mono font-bold text-teal-400">
+                  +{formatAud(sewerBridgingPiersCost)}
+                </span>
+              </div>
+            )}
+
+            {site.sewerPotholingRequired && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">Potholing - Mark Out Existing Line</span>
+                  <span className="text-slate-400 text-[11px]">Depth and alignment verification</span>
+                </div>
+                <span className="font-mono font-bold text-teal-400">
+                  +{formatAud(sewerPotholingCost)}
+                </span>
+              </div>
+            )}
+
+            {isCctvActive && (
+              <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
+                <div>
+                  <span className="font-bold text-white block">CCTV - Checks Sewer Line for Damage</span>
+                  <span className="text-slate-400 text-[11px]">Robotic Camera Inspection &amp; Council Asset Verification</span>
+                </div>
+                <span className="font-mono font-bold text-teal-400">
+                  +{formatAud(sewerCctvCost)}
+                </span>
+              </div>
+            )}
+
+            {!site.sewerBridgingPiersRequired && site.sewerBridgingRequired && (
               <div className="p-3 rounded-xl border border-slate-800 bg-slate-950/60 flex items-center justify-between">
                 <div>
                   <span className="font-bold text-white block">Sewer Line Bridging Allowance</span>

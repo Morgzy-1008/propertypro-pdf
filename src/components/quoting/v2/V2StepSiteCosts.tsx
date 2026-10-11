@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Compass,
   Check,
+  RotateCcw,
   Sparkles,
   ArrowRight,
   ArrowLeft,
@@ -36,9 +37,11 @@ import {
   isDoubleStoreyDesign,
   getSoilRatePerM2,
   calculateTopographyFallCost,
+  detectCouncilFromLocation,
 } from "@/lib/quoting/quoteEngine";
 import type { FullQuote, SiteConditions, SoilClass, DepositType } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
+import { getActiveDivision } from "@/lib/divisionContext";
 
 interface V2StepSiteCostsProps {
   quote: FullQuote;
@@ -60,7 +63,7 @@ const SOIL_OPTIONS: { id: SoilClass; label: string; desc: string }[] = [
   { id: "Class P", label: "Class P", desc: "Problem site / uncontrolled or deep fill" },
 ];
 
-const COUNCIL_REGIONS: { name: string; fee: number }[] = [
+const QLD_COUNCIL_REGIONS: { name: string; fee: number }[] = [
   { name: "Moreton Bay Regional Council", fee: 2227 },
   { name: "Logan City Council", fee: 2227 },
   { name: "Ipswich City Council", fee: 2227 },
@@ -69,6 +72,27 @@ const COUNCIL_REGIONS: { name: string; fee: number }[] = [
   { name: "Redland City Council", fee: 2227 },
   { name: "Toowoomba Regional Council", fee: 2227 },
   { name: "Brisbane City Council", fee: 0 },
+  { name: "Council Fee Allowance (No Location Mentioned)", fee: 2200 },
+];
+
+const NSW_COUNCIL_REGIONS: { name: string; fee: number }[] = [
+  { name: "NSW Local Council (Standard Statutory Fee)", fee: 2000 },
+  { name: "Blacktown City Council", fee: 2000 },
+  { name: "Camden Council", fee: 2000 },
+  { name: "Campbelltown City Council", fee: 2000 },
+  { name: "Penrith City Council", fee: 2000 },
+  { name: "The Hills Shire Council", fee: 2000 },
+  { name: "Liverpool City Council", fee: 2000 },
+  { name: "City of Parramatta", fee: 2000 },
+  { name: "Hawkesbury City Council", fee: 2000 },
+  { name: "Wollondilly Shire Council", fee: 2000 },
+  { name: "Central Coast Council", fee: 2000 },
+  { name: "Lake Macquarie City Council", fee: 2000 },
+  { name: "City of Newcastle", fee: 2000 },
+  { name: "Maitland City Council", fee: 2000 },
+  { name: "Cessnock City Council", fee: 2000 },
+  { name: "Wollongong City Council", fee: 2000 },
+  { name: "Shellharbour City Council", fee: 2000 },
   { name: "Tweed Shire Council (NSW)", fee: 2000 },
 ];
 
@@ -102,13 +126,8 @@ export function V2StepSiteCosts({
     return "greenfield";
   });
 
-  // Progressive 1-by-1 disclosure stage (1 to 7)
-  const [revealedStage, setRevealedStage] = useState<number>(() => {
-    // Only if quote already progressed to variations step or beyond, show all sections
-    if (quote.selectedUpgrades && quote.selectedUpgrades.length > 0) return 7;
-    // Otherwise start strictly at Stage 1 so user starts with only Site Type
-    return 1;
-  });
+  // Default to showing all site cost sections (stages 1 to 7) so estimators have full visibility and access
+  const [revealedStage, setRevealedStage] = useState<number>(7);
 
   const gfaM2 = useMemo(() => calculateDesignGFA(quote.design), [quote.design]);
   const isSplit = useMemo(
@@ -123,11 +142,43 @@ export function V2StepSiteCosts({
     return 25; // Greenfield
   }, [siteType]);
 
+  const isNsw = (quote.client?.state || getActiveDivision()) === "NSW";
+  const councilList = useMemo(() => {
+    return isNsw ? NSW_COUNCIL_REGIONS : QLD_COUNCIL_REGIONS;
+  }, [isNsw]);
+
+  // Auto-detect and sync council region to client address, suburb and state
+  useEffect(() => {
+    const activeState = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+    const detected = detectCouncilFromLocation(
+      quote.client?.suburb || "",
+      `${quote.client?.siteAddress || ""} ${quote.client?.estate || ""}`,
+      quote.client?.postcode || "",
+      activeState
+    );
+
+    const currentBelongsToActiveList = councilList.some((c) => c.name === site.councilRegion);
+
+    // If current council region is empty or belongs to another state's list
+    if (!currentBelongsToActiveList || !site.councilRegion) {
+      const fallbackCouncil = detected.region && councilList.some((c) => c.name === detected.region)
+        ? detected.region
+        : (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council");
+      const fallbackFee = detected.fee > 0 ? detected.fee : (isNsw ? 2000 : 2227);
+
+      onChange({
+        councilRegion: fallbackCouncil,
+        councilFee: fallbackFee,
+      });
+    }
+  }, [quote.client?.suburb, quote.client?.siteAddress, quote.client?.postcode, quote.client?.state, isNsw, councilList]);
+
   // Default council fee based on selected region
   const defaultCouncilFee = useMemo(() => {
-    const matched = COUNCIL_REGIONS.find((c) => c.name === (site.councilRegion || "Moreton Bay Regional Council"));
-    return matched ? matched.fee : 2227;
-  }, [site.councilRegion]);
+    const matched = councilList.find((c) => c.name === site.councilRegion);
+    if (matched) return matched.fee;
+    return isNsw ? 2000 : 2227;
+  }, [site.councilRegion, councilList, isNsw]);
 
   const currentCouncilFee = site.councilFee !== undefined && site.councilFee > 0 ? site.councilFee : defaultCouncilFee;
 
@@ -169,8 +220,8 @@ export function V2StepSiteCosts({
       demolitionAsbestosRequired: type === "kdrb",
       kdrbDemolitionOption: type === "kdrb" ? "builder" : "none",
       demolitionAsbestosCost: type === "kdrb" ? 34500 : 0,
-      councilRegion: site.councilRegion || "Moreton Bay Regional Council",
-      councilFee: currentCouncilFee,
+      councilRegion: site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council"),
+      councilFee: currentCouncilFee > 0 ? currentCouncilFee : (isNsw ? 2000 : 2227),
     };
     onChange(patch);
 
@@ -262,7 +313,17 @@ export function V2StepSiteCosts({
   const [hasBushfire, setHasBushfire] = useState(Boolean(site.bushfireReportRequired || (site.bushfireCost || 0) > 0));
   const [hasFlood, setHasFlood] = useState(Boolean(site.floodReportRequired || (site.floodOverlayCost || 0) > 0));
   const [hasAcoustic, setHasAcoustic] = useState(Boolean(site.acousticReportRequired || (site.acousticCost || 0) > 0));
-  const [hasSewer, setHasSewer] = useState(Boolean(site.cctvSewerReportRequired || site.sewerBridgingRequired));
+  const [hasSewer, setHasSewer] = useState(
+    Boolean(
+      site.buildingOverSewerRequired ||
+      site.sewerBosCouncilAppRequired ||
+      site.sewerBridgingPiersRequired ||
+      site.sewerPotholingRequired ||
+      site.sewerCctvInspectionRequired ||
+      site.cctvSewerReportRequired ||
+      site.sewerBridgingRequired
+    )
+  );
 
   // Toggle Bushfire
   const handleToggleBushfire = (active: boolean) => {
@@ -324,22 +385,33 @@ export function V2StepSiteCosts({
     }
   };
 
-  // Toggle Sewer
+  // Toggle Sewer (Sewer Main Running Through The Block - Image 1)
   const handleToggleSewer = (active: boolean) => {
     setHasSewer(active);
     if (active) {
       onChange({
+        buildingOverSewerRequired: true,
+        sewerBosCouncilAppRequired: site.sewerBosCouncilAppRequired ?? true,
+        sewerBosCouncilAppCost: site.sewerBosCouncilAppCost ?? 1700,
+        sewerBridgingPiersRequired: site.sewerBridgingPiersRequired ?? true,
+        sewerBridgingPiersLm: site.sewerBridgingPiersLm ?? 1,
+        sewerBridgingPiersCost: site.sewerBridgingPiersCost ?? 1500,
+        sewerPotholingRequired: site.sewerPotholingRequired ?? true,
+        sewerPotholingCost: site.sewerPotholingCost ?? 4500,
+        sewerCctvInspectionRequired: site.sewerCctvInspectionRequired ?? true,
+        sewerCctvInspectionCost: site.sewerCctvInspectionCost ?? 2500,
         cctvSewerReportRequired: true,
-        cctvSewerReportCost: site.cctvSewerReportCost && site.cctvSewerReportCost > 0 ? site.cctvSewerReportCost : 3500,
-        sewerBridgingRequired: true,
-        sewerBridgingCost: site.sewerBridgingCost && site.sewerBridgingCost > 0 ? site.sewerBridgingCost : 4500,
+        cctvSewerReportCost: 2500,
       });
     } else {
       onChange({
+        buildingOverSewerRequired: false,
+        sewerBosCouncilAppRequired: false,
+        sewerBridgingPiersRequired: false,
+        sewerPotholingRequired: false,
+        sewerCctvInspectionRequired: false,
         cctvSewerReportRequired: false,
-        cctvSewerReportCost: 0,
         sewerBridgingRequired: false,
-        sewerBridgingCost: 0,
       });
     }
   };
@@ -728,6 +800,8 @@ export function V2StepSiteCosts({
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 {SOIL_OPTIONS.map((opt) => {
                   const isSelected = (site.soilClass || "Class M") === opt.id;
+                  const rate = getSoilRatePerM2(opt.id);
+                  const optCost = Math.round(rate * gfaM2);
                   return (
                     <button
                       key={opt.id}
@@ -757,6 +831,17 @@ export function V2StepSiteCosts({
                           {opt.desc}
                         </span>
                       </div>
+
+                      <div className="mt-3 pt-2 border-t border-slate-700/20 flex items-center justify-between">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Design Cost</span>
+                        <span className={`text-xs font-mono font-bold ${
+                          isSelected
+                            ? isLight ? "text-emerald-700" : "text-emerald-300 font-extrabold"
+                            : optCost > 0 ? (isLight ? "text-slate-800" : "text-slate-300") : "text-slate-400"
+                        }`}>
+                          {optCost > 0 ? `+${formatAud(optCost)}` : "$0 Included"}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
@@ -767,15 +852,24 @@ export function V2StepSiteCosts({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
               <div
                 className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-3 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                  site.concrete32MpaRequired
+                    ? isLight ? "bg-emerald-50/70 border-emerald-300" : "bg-emerald-950/20 border-emerald-500/40"
+                    : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                 }`}
               >
                 <div>
-                  <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                    32MPa High-Strength Concrete
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                      32MPa High-Strength Concrete
+                    </span>
+                    {site.concrete32MpaRequired && (
+                      <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                        +{formatAud(site.concrete32MpaCost || Math.round(gfaM2 * 14))}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-slate-400 block mt-0.5">
-                    Higher compressive slab rating for reactive soil
+                    Higher compressive slab rating for reactive soil ({formatAud(Math.round(gfaM2 * 14))} for {Math.round(gfaM2)}m² footprint)
                   </span>
                 </div>
                 <Switch
@@ -791,15 +885,24 @@ export function V2StepSiteCosts({
 
               <div
                 className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-3 ${
-                  isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                  site.flexibleConnectionsRequired
+                    ? isLight ? "bg-emerald-50/70 border-emerald-300" : "bg-emerald-950/20 border-emerald-500/40"
+                    : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                 }`}
               >
                 <div>
-                  <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                    Flexible Plumbing Service Connections
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Flexible Plumbing Service Connections
+                    </span>
+                    {site.flexibleConnectionsRequired && (
+                      <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
+                        +{formatAud(site.flexibleConnectionsCost || 1800)}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-xs text-slate-400 block mt-0.5">
-                    Articulated pipe couplings for reactive soil movement
+                    Articulated pipe couplings for reactive soil movement ({formatAud(1800)})
                   </span>
                 </div>
                 <Switch
@@ -1180,9 +1283,16 @@ export function V2StepSiteCosts({
                 <div className="flex items-center gap-3">
                   <Flame className="h-5 w-5 text-orange-500 flex-none" />
                   <div>
-                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Bushfire Overlay (BAL Rating)
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Bushfire Overlay (BAL Rating)
+                      </span>
+                      {hasBushfire && (
+                        <Badge variant="outline" className="text-xs font-mono font-bold text-orange-600 dark:text-orange-400 border-orange-500/40">
+                          +{formatAud((site.bushfireReportCost || 850) + (site.bushfireCost || 5500))}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $850 Bushfire Management Report
                     </span>
@@ -1249,9 +1359,16 @@ export function V2StepSiteCosts({
                 <div className="flex items-center gap-3">
                   <Waves className="h-5 w-5 text-blue-500 flex-none" />
                   <div>
-                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Flood Overlay (Defined Flood Level)
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Flood Overlay (Defined Flood Level)
+                      </span>
+                      {hasFlood && (
+                        <Badge variant="outline" className="text-xs font-mono font-bold text-blue-600 dark:text-blue-400 border-blue-500/40">
+                          +{formatAud((site.floodReportCost || 7600) + (site.floodOverlayCost || 6500))}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $7,600 Hydraulic Assessment Report
                     </span>
@@ -1297,9 +1414,16 @@ export function V2StepSiteCosts({
                 <div className="flex items-center gap-3">
                   <Volume2 className="h-5 w-5 text-purple-500 flex-none" />
                   <div>
-                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Acoustic Overlay / Noise Corridor
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Acoustic Overlay / Noise Corridor
+                      </span>
+                      {hasAcoustic && (
+                        <Badge variant="outline" className="text-xs font-mono font-bold text-purple-600 dark:text-purple-400 border-purple-500/40">
+                          +{formatAud((site.acousticReportCost || 1200) + (site.acousticCost || 3800))}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
                       Auto-includes $1,200 Certified Acoustic Engineer Report
                     </span>
@@ -1350,7 +1474,7 @@ export function V2StepSiteCosts({
               )}
             </div>
 
-            {/* 4. SEWER LINE */}
+            {/* 4. SEWER LINE (SEWER MAIN RUNNING THROUGH THE BLOCK - IMAGE 1) */}
             <div
               className={`p-5 rounded-2xl border transition-all ${
                 hasSewer
@@ -1366,78 +1490,235 @@ export function V2StepSiteCosts({
                 <div className="flex items-center gap-3">
                   <Shovel className="h-5 w-5 text-teal-500 flex-none" />
                   <div>
-                    <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
-                      Sewer Line Near / Under Proposed Building Pad
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm sm:text-base font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                        Building Near / Over Sewer
+                      </span>
+                      {hasSewer && (
+                        <Badge variant="outline" className="text-xs font-mono font-bold text-teal-600 dark:text-teal-400 border-teal-500/40">
+                          +{formatAud(
+                            (site.sewerBosCouncilAppRequired ? (site.sewerBosCouncilAppCost ?? 1700) : 0) +
+                            (site.sewerBridgingPiersRequired ? (site.sewerBridgingPiersCost ?? ((site.sewerBridgingPiersLm || 1) * 1500)) : 0) +
+                            (site.sewerPotholingRequired ? (site.sewerPotholingCost ?? 4500) : 0) +
+                            ((site.sewerCctvInspectionRequired || site.cctvSewerReportRequired) ? (site.sewerCctvInspectionCost ?? site.cctvSewerReportCost ?? 2500) : 0)
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">
-                      Auto-includes $3,500 CCTV Pipe Camera Inspection + Bridging Allowance on top
+                      SEWER MAIN RUNNING THROUGH THE BLOCK • Council applications, bridging piers, potholing, and CCTV inspection
                     </span>
                   </div>
                 </div>
-                <Switch checked={hasSewer} onCheckedChange={handleToggleSewer} />
+                <Switch data-testid="sewer-main-switch" checked={hasSewer} onCheckedChange={handleToggleSewer} />
               </div>
 
               {hasSewer && (
-                <div className="mt-4 pt-4 border-t border-teal-500/20 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                    {/* CCTV Inspection Cost */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          1. CCTV Pipe Camera Inspection ($)
-                        </Label>
-                        <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 font-mono">
-                          {formatAud(site.cctvSewerReportCost ?? 3500)}
+                <div className="mt-5 pt-4 border-t border-teal-500/20 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* 1. BOS Council Application ($1,700 Each) */}
+                    <div
+                      className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                        site.sewerBosCouncilAppRequired
+                          ? isLight ? "bg-white border-teal-400 shadow-xs" : "bg-slate-900 border-teal-500/50"
+                          : isLight ? "bg-slate-50 border-slate-200 opacity-80" : "bg-slate-950/60 border-slate-800 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          BOS Council Application
+                        </span>
+                        <Switch
+                          checked={Boolean(site.sewerBosCouncilAppRequired)}
+                          onCheckedChange={(checked) =>
+                            onChange({
+                              sewerBosCouncilAppRequired: checked,
+                              sewerBosCouncilAppCost: checked ? (site.sewerBosCouncilAppCost ?? 1700) : 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Statutory Building Over Sewer (BOS) council application &amp; engineering approvals.
+                      </p>
+                      <div className="mt-3 pt-2 border-t border-slate-700/20 flex items-center justify-between text-xs font-mono font-bold">
+                        <span className="text-slate-400 text-[10px] uppercase font-sans">Rate: $1,700 Each</span>
+                        <span className={site.sewerBosCouncilAppRequired ? "text-teal-600 dark:text-teal-400 font-extrabold" : "text-slate-500"}>
+                          {site.sewerBosCouncilAppRequired ? `+${formatAud(site.sewerBosCouncilAppCost ?? 1700)}` : "$0"}
                         </span>
                       </div>
-                      <Input
-                        type="number"
-                        step="100"
-                        value={site.cctvSewerReportCost ?? 3500}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => onChange({ cctvSewerReportCost: parseFloat(e.target.value) || 0 })}
-                        className="h-11 text-base font-mono font-bold rounded-xl"
-                      />
-                      <span className="text-[11px] text-slate-400 block">
-                        Robotic drainage camera log, connection point depth verification &amp; asset check
-                      </span>
                     </div>
 
-                    {/* Sewer Bridging Cost (On Top) */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                          2. Sewer Bridging Allowance (On Top) ($)
-                        </Label>
-                        <span className="text-[11px] font-bold text-teal-600 dark:text-teal-400 font-mono">
-                          {formatAud(site.sewerBridgingCost || 4500)}
+                    {/* 2. Bridging Piers Required ($1,500 /lm) */}
+                    <div
+                      className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                        site.sewerBridgingPiersRequired
+                          ? isLight ? "bg-white border-teal-400 shadow-xs" : "bg-slate-900 border-teal-500/50"
+                          : isLight ? "bg-slate-50 border-slate-200 opacity-80" : "bg-slate-950/60 border-slate-800 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          Bridging Piers Required for Building Over Sewer
+                        </span>
+                        <Switch
+                          checked={Boolean(site.sewerBridgingPiersRequired)}
+                          onCheckedChange={(checked) => {
+                            const lm = site.sewerBridgingPiersLm || 1;
+                            onChange({
+                              sewerBridgingPiersRequired: checked,
+                              sewerBridgingPiersLm: lm,
+                              sewerBridgingPiersCost: checked ? lm * 1500 : 0,
+                              sewerBridgingRequired: checked,
+                              sewerBridgingCost: checked ? lm * 1500 : 0,
+                            });
+                          }}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Engineered concrete bridging piers spanning sewer line zone of influence ($1,500 /lm).
+                      </p>
+
+                      <div className="mt-3 pt-2 border-t border-slate-700/20 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-[10px] text-slate-400 uppercase font-bold">Length:</Label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={!site.sewerBridgingPiersRequired}
+                              onClick={() => {
+                                const current = site.sewerBridgingPiersLm || 1;
+                                const next = Math.max(1, current - 1);
+                                onChange({
+                                  sewerBridgingPiersLm: next,
+                                  sewerBridgingPiersCost: next * 1500,
+                                  sewerBridgingCost: next * 1500,
+                                });
+                              }}
+                              className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-xs font-bold flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-40"
+                            >
+                              -
+                            </button>
+                            <span className="font-mono font-bold text-xs px-1.5">
+                              {site.sewerBridgingPiersLm || 1} lm
+                            </span>
+                            <button
+                              type="button"
+                              disabled={!site.sewerBridgingPiersRequired}
+                              onClick={() => {
+                                const current = site.sewerBridgingPiersLm || 1;
+                                const next = current + 1;
+                                onChange({
+                                  sewerBridgingPiersLm: next,
+                                  sewerBridgingPiersCost: next * 1500,
+                                  sewerBridgingCost: next * 1500,
+                                });
+                              }}
+                              className="w-6 h-6 rounded bg-slate-200 dark:bg-slate-800 text-xs font-bold flex items-center justify-center cursor-pointer hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-40"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        <span className={`font-mono text-xs font-bold ${site.sewerBridgingPiersRequired ? "text-teal-600 dark:text-teal-400 font-extrabold" : "text-slate-500"}`}>
+                          {site.sewerBridgingPiersRequired
+                            ? `+${formatAud(site.sewerBridgingPiersCost ?? ((site.sewerBridgingPiersLm || 1) * 1500))}`
+                            : "$0"}
                         </span>
                       </div>
-                      <Input
-                        type="number"
-                        step="250"
-                        value={site.sewerBridgingCost || 4500}
-                        onFocus={(e) => e.target.select()}
-                        onChange={(e) => onChange({ sewerBridgingCost: parseFloat(e.target.value) || 0 })}
-                        className="h-11 text-base font-mono font-bold rounded-xl"
-                      />
-                      <span className="text-[11px] text-slate-400 block">
-                        Concrete encasement &amp; pier footings bridging sewer zone of influence (ZOI)
-                      </span>
+                    </div>
+
+                    {/* 3. Potholing ($4,500 Each) */}
+                    <div
+                      className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                        site.sewerPotholingRequired
+                          ? isLight ? "bg-white border-teal-400 shadow-xs" : "bg-slate-900 border-teal-500/50"
+                          : isLight ? "bg-slate-50 border-slate-200 opacity-80" : "bg-slate-950/60 border-slate-800 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          Potholing - Mark Out Existing Line
+                        </span>
+                        <Switch
+                          checked={Boolean(site.sewerPotholingRequired)}
+                          onCheckedChange={(checked) =>
+                            onChange({
+                              sewerPotholingRequired: checked,
+                              sewerPotholingCost: checked ? (site.sewerPotholingCost ?? 4500) : 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        Potholing - Mark out existing sewer or stormwater line depth &amp; alignment.
+                      </p>
+                      <div className="mt-3 pt-2 border-t border-slate-700/20 flex items-center justify-between text-xs font-mono font-bold">
+                        <span className="text-slate-400 text-[10px] uppercase font-sans">Rate: $4,500 Each</span>
+                        <span className={site.sewerPotholingRequired ? "text-teal-600 dark:text-teal-400 font-extrabold" : "text-slate-500"}>
+                          {site.sewerPotholingRequired ? `+${formatAud(site.sewerPotholingCost ?? 4500)}` : "$0"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 4. CCTV - Checks sewer line for existing damage ($2,500 Each) */}
+                    <div
+                      className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
+                        (site.sewerCctvInspectionRequired || site.cctvSewerReportRequired)
+                          ? isLight ? "bg-white border-teal-400 shadow-xs" : "bg-slate-900 border-teal-500/50"
+                          : isLight ? "bg-slate-50 border-slate-200 opacity-80" : "bg-slate-950/60 border-slate-800 opacity-70"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className={`text-xs sm:text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>
+                          CCTV - Checks Sewer Line for Damage
+                        </span>
+                        <Switch
+                          checked={Boolean(site.sewerCctvInspectionRequired || site.cctvSewerReportRequired)}
+                          onCheckedChange={(checked) =>
+                            onChange({
+                              sewerCctvInspectionRequired: checked,
+                              sewerCctvInspectionCost: checked ? (site.sewerCctvInspectionCost ?? 2500) : 0,
+                              cctvSewerReportRequired: checked,
+                              cctvSewerReportCost: checked ? 2500 : 0,
+                            })
+                          }
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-snug">
+                        CCTV - Checks sewer line for existing damage with certified robotic inspection report.
+                      </p>
+                      <div className="mt-3 pt-2 border-t border-slate-700/20 flex items-center justify-between text-xs font-mono font-bold">
+                        <span className="text-slate-400 text-[10px] uppercase font-sans">Rate: $2,500 Each</span>
+                        <span className={(site.sewerCctvInspectionRequired || site.cctvSewerReportRequired) ? "text-teal-600 dark:text-teal-400 font-extrabold" : "text-slate-500"}>
+                          {(site.sewerCctvInspectionRequired || site.cctvSewerReportRequired)
+                            ? `+${formatAud(site.sewerCctvInspectionCost ?? site.cctvSewerReportCost ?? 2500)}`
+                            : "$0"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Combined Callout */}
                   <div
-                    className={`px-4 py-2.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+                    className={`px-4 py-3 rounded-xl border flex items-center justify-between text-xs font-semibold ${
                       isLight
                         ? "bg-teal-100/70 border-teal-300 text-teal-900"
                         : "bg-teal-900/30 border-teal-500/30 text-teal-300"
                     }`}
                   >
-                    <span>Combined Sewer Protection Total (CCTV + Bridging):</span>
-                    <span className="font-mono font-black text-sm">
-                      {formatAud((site.cctvSewerReportCost ?? 3500) + (site.sewerBridgingCost || 4500))}
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-teal-600 dark:text-teal-400 stroke-[3]" />
+                      <span>Total Sewer Protection &amp; Engineering:</span>
+                    </div>
+                    <span className="font-mono font-black text-sm text-teal-800 dark:text-teal-300">
+                      +{formatAud(
+                        (site.sewerBosCouncilAppRequired ? (site.sewerBosCouncilAppCost ?? 1700) : 0) +
+                        (site.sewerBridgingPiersRequired ? (site.sewerBridgingPiersCost ?? ((site.sewerBridgingPiersLm || 1) * 1500)) : 0) +
+                        (site.sewerPotholingRequired ? (site.sewerPotholingCost ?? 4500) : 0) +
+                        ((site.sewerCctvInspectionRequired || site.cctvSewerReportRequired) ? (site.sewerCctvInspectionCost ?? site.cctvSewerReportCost ?? 2500) : 0)
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1479,7 +1760,7 @@ export function V2StepSiteCosts({
                 </Label>
                 <Badge variant="outline" className="text-xs font-bold text-cyan-500 border-cyan-500/30 px-2.5 py-0.5">
                   <Check className="h-3.5 w-3.5 mr-1" />
-                  {site.councilRegion || "Moreton Bay Regional Council"} ({formatAud(currentCouncilFee)})
+                  {site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")} ({formatAud(currentCouncilFee)})
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -1492,24 +1773,51 @@ export function V2StepSiteCosts({
             {/* Standard council selection */}
             <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
               <div className="sm:col-span-8 space-y-2">
-                <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                  Local Government Council Region
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label className={`text-sm font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Local Government Council Region
+                  </Label>
+                  {(quote.client?.suburb || quote.client?.siteAddress) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const activeState = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+                        const det = detectCouncilFromLocation(
+                          quote.client?.suburb || "",
+                          `${quote.client?.siteAddress || ""} ${quote.client?.estate || ""}`,
+                          quote.client?.postcode || "",
+                          activeState
+                        );
+                        if (det.region) {
+                          onChange({
+                            councilRegion: det.region,
+                            councilFee: det.fee > 0 ? det.fee : (isNsw ? 2000 : 2227),
+                          });
+                          toast.success(`Tailored council to: ${det.region} (${formatAud(det.fee || (isNsw ? 2000 : 2227))})`);
+                        }
+                      }}
+                      className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="h-3 w-3" />
+                      Auto-detect for {quote.client.suburb || quote.client.siteAddress}
+                    </button>
+                  )}
+                </div>
                 <Select
-                  value={site.councilRegion || "Moreton Bay Regional Council"}
+                  value={site.councilRegion || (isNsw ? "NSW Local Council (Standard Statutory Fee)" : "Moreton Bay Regional Council")}
                   onValueChange={(val) => {
-                    const matched = COUNCIL_REGIONS.find((c) => c.name === val);
+                    const matched = councilList.find((c) => c.name === val);
                     onChange({
                       councilRegion: val,
-                      councilFee: matched ? matched.fee : 2227,
+                      councilFee: matched ? matched.fee : (isNsw ? 2000 : 2227),
                     });
                   }}
                 >
                   <SelectTrigger className="h-12 text-base font-bold rounded-xl">
                     <SelectValue placeholder="Select Council" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {COUNCIL_REGIONS.map((c) => (
+                  <SelectContent className="max-h-72">
+                    {councilList.map((c) => (
                       <SelectItem key={c.name} value={c.name} className="py-2.5 text-sm">
                         {c.name} ({formatAud(c.fee)})
                       </SelectItem>
@@ -1542,11 +1850,20 @@ export function V2StepSiteCosts({
                 {/* Council DA */}
                 <div
                   className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                    isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    site.councilDaRequired
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-sm sm:text-base font-bold block">Council DA / Town Planning</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm sm:text-base font-bold block">Council DA / Town Planning</span>
+                      {site.councilDaRequired && (
+                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                          +{formatAud(site.councilDaCost || 11000)}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">Material Change of Use ($11,000)</span>
                   </div>
                   <Switch
@@ -1560,11 +1877,20 @@ export function V2StepSiteCosts({
                 {/* Setback Relaxation */}
                 <div
                   className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                    isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    site.councilSetbackRelaxationRequired
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-sm sm:text-base font-bold block">Setback Relaxation / Dispensation</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm sm:text-base font-bold block">Setback Relaxation / Dispensation</span>
+                      {site.councilSetbackRelaxationRequired && (
+                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                          +{formatAud(site.councilSetbackRelaxationCost || 2000)}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">Boundary variation lodgement ($2,000)</span>
                   </div>
                   <Switch
@@ -1578,14 +1904,53 @@ export function V2StepSiteCosts({
                   />
                 </div>
 
-                {/* Traffic Control */}
+                {/* Dual Living Infrastructure Fee */}
                 <div
                   className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
-                    isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                    site.dualLivingInfrastructureRequired
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
                   }`}
                 >
                   <div>
-                    <span className="text-sm sm:text-base font-bold block">Traffic Guidance &amp; Safety Control</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm sm:text-base font-bold block">Dual Living Infrastructure Fee</span>
+                      {site.dualLivingInfrastructureRequired && (
+                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                          +{formatAud(site.dualLivingInfrastructureCost || 23000)}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-slate-400 mt-0.5 block">Statutory headworks, second water meter &amp; infrastructure ($23,000)</span>
+                  </div>
+                  <Switch
+                    checked={Boolean(site.dualLivingInfrastructureRequired)}
+                    onCheckedChange={(checked) =>
+                      onChange({
+                        dualLivingInfrastructureRequired: checked,
+                        dualLivingInfrastructureCost: checked ? 23000 : 0,
+                      })
+                    }
+                  />
+                </div>
+
+                {/* Traffic Control */}
+                <div
+                  className={`p-4 sm:p-5 rounded-2xl border flex items-center justify-between gap-4 ${
+                    site.trafficControlRequired
+                      ? isLight ? "bg-cyan-50/70 border-cyan-300" : "bg-cyan-950/20 border-cyan-500/40"
+                      : isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/60 border-slate-800"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm sm:text-base font-bold block">Traffic Guidance &amp; Safety Control</span>
+                      {site.trafficControlRequired && (
+                        <span className="text-xs font-mono font-extrabold text-cyan-600 dark:text-cyan-400">
+                          +{formatAud(site.trafficControlCost || 6500)}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-slate-400 mt-0.5 block">Permits, spotters &amp; signs ($6,500)</span>
                   </div>
                   <Switch

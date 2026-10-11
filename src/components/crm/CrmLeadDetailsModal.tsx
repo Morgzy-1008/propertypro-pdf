@@ -31,6 +31,7 @@ import {
   ExternalLink,
   MessageSquare,
   Sparkles,
+  Flame,
 } from "lucide-react";
 import { calculateDealCommission } from "@/lib/commission/commissionCalculator";
 import { useNavigate } from "@tanstack/react-router";
@@ -287,6 +288,95 @@ export function CrmLeadDetailsModal({
               />
             </div>
           </div>
+        </div>
+
+        {/* Top 10 TR Target Radar Nomination Card */}
+        <div className="p-4 rounded-xl border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-slate-900 to-slate-900 space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <div className="flex items-center gap-2">
+              <Flame className={`h-4 w-4 ${formData.isTopTrTarget ? "text-amber-400 animate-pulse" : "text-slate-500"}`} />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                Top TR Radar Nomination
+              </span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!formData.isTopTrTarget}
+                onChange={(e) => setFormData({ ...formData, isTopTrTarget: e.target.checked })}
+                className="rounded border-slate-700 bg-slate-950 text-amber-500 focus:ring-amber-500 h-4 w-4"
+              />
+              <span className="text-xs font-semibold text-slate-300">Include in Top TR Targets</span>
+            </label>
+          </div>
+
+          {formData.isTopTrTarget && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <Label className="text-[11px] text-slate-400">Target Priority Rank (1-10)</Label>
+                <Select
+                  value={formData.trPriorityRank ? String(formData.trPriorityRank) : "5"}
+                  onValueChange={(val) => setFormData({ ...formData, trPriorityRank: parseInt(val) || 5 })}
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-950 text-xs mt-1 font-bold text-amber-400">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-950 text-slate-100">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <SelectItem key={num} value={String(num)} className="text-xs">
+                        Rank #{num} {num <= 3 ? "🔥 Critical" : num <= 5 ? "⚡ High Focus" : "🎯 Radar"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-slate-400">Confidence Level</Label>
+                <Select
+                  value={formData.trConfidenceScore || "warm"}
+                  onValueChange={(val: "hot" | "warm" | "nurturing") =>
+                    setFormData({ ...formData, trConfidenceScore: val })
+                  }
+                >
+                  <SelectTrigger className="border-slate-800 bg-slate-950 text-xs mt-1 font-bold">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="border-slate-800 bg-slate-950 text-slate-100">
+                    <SelectItem value="hot" className="text-xs text-rose-400 font-bold">
+                      🔥 Hot (&gt;85% probability)
+                    </SelectItem>
+                    <SelectItem value="warm" className="text-xs text-amber-400 font-bold">
+                      ⚡ Warm (65-84% probability)
+                    </SelectItem>
+                    <SelectItem value="nurturing" className="text-xs text-blue-400 font-bold">
+                      🌱 Nurturing (&lt;65% probability)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] text-slate-400">Target Sign Date</Label>
+                <Input
+                  value={formData.trTargetDate || ""}
+                  placeholder="e.g. This Friday, 15 Oct"
+                  onChange={(e) => setFormData({ ...formData, trTargetDate: e.target.value })}
+                  className="border-slate-800 bg-slate-950 text-xs mt-1"
+                />
+              </div>
+
+              <div className="sm:col-span-3">
+                <Label className="text-[11px] text-slate-400">Key Blocker / Next Step to Secure ATP</Label>
+                <Input
+                  value={formData.trKeyObstacle || ""}
+                  placeholder="e.g. Waiting on broker pre-approval letter for $850k"
+                  onChange={(e) => setFormData({ ...formData, trKeyObstacle: e.target.value })}
+                  className="border-slate-800 bg-slate-950 text-xs mt-1"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notes */}

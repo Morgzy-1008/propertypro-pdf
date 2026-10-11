@@ -178,15 +178,13 @@ function QuoteFacadeViewer({ design }: { design: FullQuote["design"] }) {
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[300px] max-h-[300px] mb-2 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[300px] max-h-[300px] mb-2 flex-none p-2">
       <img
         src={src}
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${
-          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_55%]" : "object-center"
-        }`}
+        className="w-full h-full object-contain object-center drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
@@ -280,15 +278,13 @@ function QuoteCoverFacadeHero({ design }: { design: FullQuote["design"] }) {
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-100 flex items-center justify-center my-3 group">
+    <div className="relative w-full h-[250px] max-h-[250px] rounded-2xl overflow-hidden shadow-md border border-slate-200 bg-slate-100 flex items-center justify-center my-3 group p-2">
       <img
         src={displaySrc}
         alt={design.facadeName || "Architectural Facade Render"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${
-          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
-        }`}
+        className="w-full h-full object-contain object-center drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
@@ -440,15 +436,13 @@ function QuoteSecondFacadeViewer({ secondDwelling }: { secondDwelling?: SecondDw
   const isSingleGarageDouble = isDoubleOrSplit && isSg;
 
   return (
-    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none">
+    <div className="w-full relative rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-100 flex items-center justify-center h-[195px] max-h-[195px] mb-2 flex-none p-2">
       <img
         src={src}
         alt={secondDwelling?.facadeName || "Secondary Residence Architectural Facade"}
         loading="eager"
         crossOrigin="anonymous"
-        className={`w-full h-full object-cover ${
-          isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"
-        }`}
+        className="w-full h-full object-contain object-center drop-shadow-md"
         style={{
           imageRendering: "auto",
         }}
@@ -661,7 +655,11 @@ interface SpecGroup {
 }
 
 function getSpecItemEstimatedHeight(item: SpecItem): number {
-  const desc = (item.description || "").trim();
+  const rawDesc = (item.description || "").trim();
+  const desc =
+    rawDesc === "Custom client variation request" || rawDesc === "Client Custom Variation"
+      ? ""
+      : rawDesc;
   const nameLen = (item.name || "").length;
   // Extra allowance if title is long and wraps onto 2 lines (> 55 chars)
   const nameExtra = nameLen > 55 ? 12 : 0;
@@ -819,8 +817,20 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const hydraulicReportCost = siteConditions.hydraulicReportRequired ? (siteConditions.hydraulicReportCost ?? 2600) : 0;
   const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
-  const arboristReportCost = siteConditions.arboristReportRequired ? (siteConditions.arboristReportCost ?? 1100) : 0;
-  const cctvSewerReportCost = siteConditions.cctvSewerReportRequired ? (siteConditions.cctvSewerReportCost ?? 3500) : 0;
+  // Sewer Main Running Through Block costs (Image 1)
+  const sewerBosCost = siteConditions.sewerBosCouncilAppRequired
+    ? (siteConditions.sewerBosCouncilAppCost !== undefined ? Number(siteConditions.sewerBosCouncilAppCost) : 1700)
+    : 0;
+  const sewerBridgingPiersCost = siteConditions.sewerBridgingPiersRequired
+    ? (siteConditions.sewerBridgingPiersCost !== undefined ? Number(siteConditions.sewerBridgingPiersCost) : (Number(siteConditions.sewerBridgingPiersLm) || 1) * 1500)
+    : 0;
+  const sewerPotholingCost = siteConditions.sewerPotholingRequired
+    ? (siteConditions.sewerPotholingCost !== undefined ? Number(siteConditions.sewerPotholingCost) : 4500)
+    : 0;
+  const isCctvActive = Boolean(siteConditions.sewerCctvInspectionRequired || siteConditions.cctvSewerReportRequired);
+  const sewerCctvCost = isCctvActive
+    ? (siteConditions.sewerCctvInspectionCost !== undefined ? Number(siteConditions.sewerCctvInspectionCost) : (siteConditions.cctvSewerReportCost !== undefined ? Number(siteConditions.cctvSewerReportCost) : 2500))
+    : 0;
 
   // Site Overlay Allowances (RHS)
   const slabHeight = siteConditions.slabElevationMeters ?? 0.3;
@@ -1018,14 +1028,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
-    ...(siteConditions.cctvSewerReportRequired
+    ...(isCctvActive
       ? [
           {
-            id: "cctv_sewer_report",
-            name: "CCTV Sewer Pipe Camera Inspection & Report",
-            description: "Robotic CCTV drainage camera log, connection point depth verification & council asset check.",
+            id: "sewer_cctv_inspection",
+            name: "CCTV - Checks sewer line for existing damage",
+            description: "Robotic CCTV drainage camera inspection, connection depth verification & council asset check.",
             qtyLabel: "1 Inspection",
-            amount: cctvSewerReportCost,
+            amount: sewerCctvCost,
           },
         ]
       : []),
@@ -1186,12 +1196,45 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
           },
         ]
       : []),
-    ...(siteConditions.sewerBridgingRequired
+    ...(siteConditions.sewerBosCouncilAppRequired
+      ? [
+          {
+            id: "sewer_bos_council_app",
+            name: "BOS Council Application",
+            description: "Statutory Building Over Sewer (BOS) council application & engineering approvals.",
+            qtyLabel: "1 Application",
+            amount: sewerBosCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.sewerBridgingPiersRequired
+      ? [
+          {
+            id: "sewer_bridging_piers",
+            name: "Bridging Piers Required for Building Over Underground Sewer",
+            description: `Engineered concrete bridging piers spanning sewer line zone of influence (${siteConditions.sewerBridgingPiersLm || 1} lm @ $1,500/lm).`,
+            qtyLabel: `${siteConditions.sewerBridgingPiersLm || 1} lm`,
+            amount: sewerBridgingPiersCost,
+          },
+        ]
+      : []),
+    ...(siteConditions.sewerPotholingRequired
+      ? [
+          {
+            id: "sewer_potholing",
+            name: "Potholing - Mark out existing sewer or stormwater line",
+            description: "Potholing to verify exact location, depth, and alignment of underground sewer infrastructure.",
+            qtyLabel: "1 Service",
+            amount: sewerPotholingCost,
+          },
+        ]
+      : []),
+    ...(!siteConditions.sewerBridgingPiersRequired && siteConditions.sewerBridgingRequired
       ? [
           {
             id: "sewer_bridging",
             name: "Sewer Line Bridging / Concrete Encasement Allowance",
-            description: "Concrete encasement and footings bridging sewer zone of influence near/under proposed building pad (in addition to CCTV inspection).",
+            description: "Concrete encasement and footings bridging sewer zone of influence near/under proposed building pad.",
             qtyLabel: "1 Allowance",
             amount: Number(siteConditions.sewerBridgingCost || 4500),
           },
@@ -1503,7 +1546,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 <div>
                   <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">New Home Consultant:</span>
                   <span className="font-bold text-slate-950 text-sm block mt-0.5">{client.consultantName || "Morgan Hales"}</span>
-                  <span className="text-slate-600 text-xs block font-medium mt-0.5">{client.consultantOffice} · {client.consultantPhone}</span>
+                  <span className="text-slate-600 text-xs block font-medium mt-0.5">
+                    {client.consultantOffice} &bull; {client.consultantPhone}{client.consultantEmail ? ` &bull; ${client.consultantEmail}` : ""}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-500 text-[11px] font-bold uppercase tracking-wider block">Proposed Site Address:</span>
@@ -1655,7 +1700,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                         </span>
                       </td>
                       <td className="py-2.5 px-4 text-right font-mono text-cyan-950 font-black text-sm">
-                        +{formatAud(totalVariationsAndPackagesAmount)}
+                        {totalVariationsAndPackagesAmount > 0
+                          ? `+${formatAud(totalVariationsAndPackagesAmount)}`
+                          : totalVariationsAndPackagesAmount < 0
+                          ? `-${formatAud(Math.abs(totalVariationsAndPackagesAmount))}`
+                          : "$0"}
                       </td>
                     </tr>
 
@@ -1695,7 +1744,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                           )}
                         </td>
                         <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
-                          {it.amount === 0 ? "INCLUDED" : `+${formatAud(it.amount)}`}
+                          {it.amount === 0 ? "INCLUDED" : it.amount < 0 ? `-${formatAud(Math.abs(it.amount))}` : `+${formatAud(it.amount)}`}
                         </td>
                       </tr>
                     ))}
@@ -1988,7 +2037,14 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                     PAGE SUB-TOTAL
                   </span>
                   <span className="text-base font-black text-cyan-800 font-mono">
-                    +{formatAud(pageGroups.reduce((s, g) => s + g.total, 0))}
+                    {(() => {
+                      const pageSubTotal = pageGroups.reduce((s, g) => s + g.total, 0);
+                      return pageSubTotal > 0
+                        ? `+${formatAud(pageSubTotal)}`
+                        : pageSubTotal < 0
+                        ? `-${formatAud(Math.abs(pageSubTotal))}`
+                        : "$0";
+                    })()}
                   </span>
                 </div>
               </div>
@@ -2027,7 +2083,11 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                         </span>
                       </div>
                       <span className="font-mono text-cyan-900 font-black text-xs bg-white px-3 py-0.5 rounded-full border border-slate-200/80 shadow-2xs">
-                        {group.total === 0 ? "INCLUDED ($0)" : `+${formatAud(group.total)}`}
+                        {group.total === 0
+                          ? "INCLUDED ($0)"
+                          : group.total < 0
+                          ? `-${formatAud(Math.abs(group.total))}`
+                          : `+${formatAud(group.total)}`}
                       </span>
                     </div>
                     <table className="w-full text-xs border-collapse">
@@ -2039,7 +2099,10 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-600 flex-none" />
                                 {it.name}
                               </div>
-                              {it.description && (
+                              {it.description &&
+                                it.description.trim() &&
+                                it.description !== "Custom client variation request" &&
+                                it.description !== "Client Custom Variation" && (
                                 <div className="text-[11px] text-slate-600 mt-0.5 leading-snug pl-3">
                                   {it.description}
                                 </div>
@@ -2056,8 +2119,8 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                                   INCLUDED
                                 </span>
                               ) : (
-                                <span className="text-cyan-950 font-black">
-                                  +{formatAud(it.amount)}
+                                <span className={it.amount < 0 ? "text-rose-700 font-black" : "text-cyan-950 font-black"}>
+                                  {it.amount < 0 ? `-${formatAud(Math.abs(it.amount))}` : `+${formatAud(it.amount)}`}
                                 </span>
                               )}
                             </td>
@@ -2503,7 +2566,9 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
               </div>
               <div className="text-xs">
                 <span className="font-black text-slate-950 block text-sm">{client.consultantName || "Morgan Hales"}</span>
-                <span className="text-xs text-slate-600 font-medium">{client.consultantOffice} · {client.consultantPhone}</span>
+                <span className="text-xs text-slate-600 font-medium">
+                  {client.consultantOffice} &bull; {client.consultantPhone}{client.consultantEmail ? ` &bull; ${client.consultantEmail}` : ""}
+                </span>
                 <span className="text-xs text-slate-600 font-semibold block">Date: {formattedCreatedDate}</span>
               </div>
 

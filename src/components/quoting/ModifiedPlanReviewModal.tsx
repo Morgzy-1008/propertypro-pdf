@@ -162,6 +162,7 @@ export function ModifiedPlanReviewModal({
     if (!localAnalysis) return;
     const std = parseFloat(newAreaStd) || 0;
     const mod = parseFloat(newAreaMod) || 0;
+    const rate = parseFloat(newAreaRate) || 1420;
     const delta = Math.round((mod - std) * 100) / 100;
     const subtotal = delta < 0
       ? Math.round(delta * rate * 0.8)

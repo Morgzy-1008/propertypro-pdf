@@ -16,8 +16,11 @@ import { Route as CropperRouteImport } from './routes/cropper'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as PayRouteImport } from './routes/pay'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as Authenticated3dStudioRouteImport } from './routes/_authenticated/3d-studio'
+import { Route as AuthenticatedBraindumpRouteImport } from './routes/_authenticated/braindump'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedDatabaseRouteImport } from './routes/_authenticated/database'
+import { Route as AuthenticatedElevations3dRouteImport } from './routes/_authenticated/elevations-3d'
 import { Route as AuthenticatedFloorplanEditorRouteImport } from './routes/_authenticated/floorplan-editor'
 import { Route as AuthenticatedFloorplanLibraryRouteImport } from './routes/_authenticated/floorplan-library'
 import { Route as AuthenticatedFlyerRouteImport } from './routes/_authenticated/flyer'
@@ -68,6 +71,16 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
   path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const Authenticated3dStudioRoute = Authenticated3dStudioRouteImport.update({
+  id: '/3d-studio',
+  path: '/3d-studio',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedBraindumpRoute = AuthenticatedBraindumpRouteImport.update({
+  id: '/braindump',
+  path: '/braindump',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
@@ -78,6 +91,12 @@ const AuthenticatedDatabaseRoute = AuthenticatedDatabaseRouteImport.update({
   path: '/database',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedElevations3dRoute =
+  AuthenticatedElevations3dRouteImport.update({
+    id: '/elevations-3d',
+    path: '/elevations-3d',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedFloorplanEditorRoute =
   AuthenticatedFloorplanEditorRouteImport.update({
     id: '/floorplan-editor',
@@ -165,8 +184,11 @@ export interface FileRoutesByFullPath {
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/3d-studio': typeof Authenticated3dStudioRoute
+  '/braindump': typeof AuthenticatedBraindumpRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
+  '/elevations-3d': typeof AuthenticatedElevations3dRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -190,8 +212,11 @@ export interface FileRoutesByTo {
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/3d-studio': typeof Authenticated3dStudioRoute
+  '/braindump': typeof AuthenticatedBraindumpRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/database': typeof AuthenticatedDatabaseRoute
+  '/elevations-3d': typeof AuthenticatedElevations3dRoute
   '/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/flyer': typeof AuthenticatedFlyerRoute
@@ -217,8 +242,11 @@ export interface FileRoutesById {
   '/kiosk': typeof KioskRoute
   '/pay': typeof PayRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/_authenticated/3d-studio': typeof Authenticated3dStudioRoute
+  '/_authenticated/braindump': typeof AuthenticatedBraindumpRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/database': typeof AuthenticatedDatabaseRoute
+  '/_authenticated/elevations-3d': typeof AuthenticatedElevations3dRoute
   '/_authenticated/floorplan-editor': typeof AuthenticatedFloorplanEditorRoute
   '/_authenticated/floorplan-library': typeof AuthenticatedFloorplanLibraryRoute
   '/_authenticated/flyer': typeof AuthenticatedFlyerRoute
@@ -244,8 +272,11 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/3d-studio'
+    | '/braindump'
     | '/crm'
     | '/database'
+    | '/elevations-3d'
     | '/floorplan-editor'
     | '/floorplan-library'
     | '/flyer'
@@ -269,8 +300,11 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/3d-studio'
+    | '/braindump'
     | '/crm'
     | '/database'
+    | '/elevations-3d'
     | '/floorplan-editor'
     | '/floorplan-library'
     | '/flyer'
@@ -295,8 +329,11 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/pay'
     | '/reset-password'
+    | '/_authenticated/3d-studio'
+    | '/_authenticated/braindump'
     | '/_authenticated/crm'
     | '/_authenticated/database'
+    | '/_authenticated/elevations-3d'
     | '/_authenticated/floorplan-editor'
     | '/_authenticated/floorplan-library'
     | '/_authenticated/flyer'
@@ -382,6 +419,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/3d-studio': {
+      id: '/_authenticated/3d-studio'
+      path: '/3d-studio'
+      fullPath: '/3d-studio'
+      preLoaderRoute: typeof Authenticated3dStudioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/braindump': {
+      id: '/_authenticated/braindump'
+      path: '/braindump'
+      fullPath: '/braindump'
+      preLoaderRoute: typeof AuthenticatedBraindumpRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/crm': {
       id: '/_authenticated/crm'
       path: '/crm'
@@ -394,6 +445,13 @@ declare module '@tanstack/react-router' {
       path: '/database'
       fullPath: '/database'
       preLoaderRoute: typeof AuthenticatedDatabaseRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/elevations-3d': {
+      id: '/_authenticated/elevations-3d'
+      path: '/elevations-3d'
+      fullPath: '/elevations-3d'
+      preLoaderRoute: typeof AuthenticatedElevations3dRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/floorplan-editor': {
@@ -505,8 +563,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  Authenticated3dStudioRoute: typeof Authenticated3dStudioRoute
+  AuthenticatedBraindumpRoute: typeof AuthenticatedBraindumpRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDatabaseRoute: typeof AuthenticatedDatabaseRoute
+  AuthenticatedElevations3dRoute: typeof AuthenticatedElevations3dRoute
   AuthenticatedFloorplanEditorRoute: typeof AuthenticatedFloorplanEditorRoute
   AuthenticatedFloorplanLibraryRoute: typeof AuthenticatedFloorplanLibraryRoute
   AuthenticatedFlyerRoute: typeof AuthenticatedFlyerRoute
@@ -518,8 +579,11 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  Authenticated3dStudioRoute: Authenticated3dStudioRoute,
+  AuthenticatedBraindumpRoute: AuthenticatedBraindumpRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDatabaseRoute: AuthenticatedDatabaseRoute,
+  AuthenticatedElevations3dRoute: AuthenticatedElevations3dRoute,
   AuthenticatedFloorplanEditorRoute: AuthenticatedFloorplanEditorRoute,
   AuthenticatedFloorplanLibraryRoute: AuthenticatedFloorplanLibraryRoute,
   AuthenticatedFlyerRoute: AuthenticatedFlyerRoute,

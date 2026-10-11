@@ -168,10 +168,10 @@ export const POPULAR_VARIATIONS: PopularVariationPreset[] = [
     group: "extensions",
     category: "floorplan_extensions",
     description: "Structural extension to the concrete slab, roofline, soffit lining, and perimeter columns of the outdoor Alfresco.",
-    price: 490,
+    price: 920,
     unitType: "sqm",
-    unitRate: 490,
-    highlight: "$490/m² rate",
+    unitRate: 920,
+    highlight: "$920/m² rate",
   },
   {
     id: "pop_living_extension_sqm",

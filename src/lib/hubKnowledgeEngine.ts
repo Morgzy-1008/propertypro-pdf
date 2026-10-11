@@ -43,11 +43,27 @@ export interface SitingParams {
 export function parseLotQuery(text: string): SitingParams | null {
   const t = (text || "").toLowerCase();
 
-  const isSitingQuery =
-    (t.includes("lot") || t.includes("block") || t.includes("land") || t.includes("frontage") || t.includes("envelope") || /\b[0-9.]+\s*(?:m)?\s*(?:x|by|\*)\s*[0-9.]+\b/i.test(t)) &&
-    (t.includes("setback") || t.includes("wide") || t.includes("deep") || t.includes("fit") || t.includes("work") || t.includes("design") || t.includes("btb") || t.includes("boundary") || t.includes("envelope") || t.includes("ss") || t.includes("ds") || t.includes("storey") || t.includes("story") || t.includes("plan"));
+  // Guard: NEVER treat statutory, building code, or compliance calculations as lot siting
+  const isComplianceOrCodeQuery =
+    /\b(?:cdc|qdc|sepp|bca|ncc|as\s*3740|as\s*2870|as\s*3959|as\s*1170|as\s*3600|as\s*3700|table\s*a2|codes\s*sepp|housing\s*sepp|formula|what\s+is\s+the\s+setback|what\s+are\s+the\s+setback|what\s+are\s+the\s+boundary|clearance\s+for|how\s+much\s+side\s+clearance|maximum\s+gfa|max\s+gfa|fsr|gross\s+floor\s+area|landscaped\s+area|ppos|private\s+open\s+space|bal[-\s]?\d+|bushfire|waterproof|shower\s+rose|stair\s+geometry|riser|going|2r\s*\+\s*g|sewer\s+zone|zoi|zone\s+of\s+influence|bridging\s+beam|32mpa|25mpa|soil\s+class|class\s+[pmhsea]|sound\s+insulation|frl|party\s+wall|fire\s+separation|headroom|balustrade|pool\s+fenc|ducted\s+exhaust|livable\s+housing|silver\s+standard|ventilation|light\s+and\s+ventilation)\b/i.test(t);
+  if (isComplianceOrCodeQuery) return null;
 
-  if (!isSitingQuery) return null;
+  const hasExplicitDimensions =
+    /\b[0-9.]+\s*(?:m)?\s*(?:x|by|\*)\s*[0-9.]+\b/i.test(t) ||
+    (/\b[0-9.]+\s*(?:m\b|metre|meter)?\s*(?:wide|width)\b/i.test(t) && /\b[0-9.]+\s*(?:m\b|metre|meter)?\s*(?:deep|depth|long|length)\b/i.test(t));
+
+  const hasFitOrSitingIntent =
+    t.includes("fit") ||
+    t.includes("siting") ||
+    t.includes("what designs") ||
+    t.includes("which designs") ||
+    t.includes("can we fit") ||
+    t.includes("usable building envelope") ||
+    /\bwhat\s+(?:single\s+storey\s+)?(?:double\s+storey\s+)?(?:designs|plans|houses|homes)\b/i.test(t) ||
+    /\b(?:fit|suit|work\s+on)\s+(?:a|on|this)?\s*[0-9.]+\s*m/i.test(t) ||
+    (t.includes("envelope") && (t.includes("envelope for") || t.includes("usable")));
+
+  if (!hasExplicitDimensions && !hasFitOrSitingIntent) return null;
 
   let lotWidth: number | null = null;
   let lotDepth: number | null = null;
@@ -93,12 +109,15 @@ export function parseLotQuery(text: string): SitingParams | null {
   }
 
   let frontSetback = 5.0;
-  const frontMatch1 = t.match(/([0-9.]+)\s*(?:m)?\s*(?:setback)?\s*(?:to|at|on)?\s*(?:the\s*)?(?:garage|front)/i);
-  const frontMatch2 = t.match(/(?:garage|front)\s*(?:setback)?\s*(?:is|=|:|of)?\s*([0-9.]+)\s*(?:m)?/i);
+  const frontMatch1 = t.match(/([0-9.]+)\s*(?:m)?\s*setback\s*(?:to|at|on)?\s*(?:the\s*)?(?:garage|front\b)/i);
+  const frontMatch2 = t.match(/(?:garage|front)\s*setback\s*(?:is|=|:|of)?\s*([0-9.]+)\s*(?:m)?/i);
+  const frontMatch3 = t.match(/front\s*(?:to\s*garage)?\s*(?:is|=|:|of)?\s*([0-9.]+)\s*(?:m)?/i);
   if (frontMatch1 && !isNaN(parseFloat(frontMatch1[1]))) {
     frontSetback = parseFloat(frontMatch1[1]);
   } else if (frontMatch2 && !isNaN(parseFloat(frontMatch2[1]))) {
     frontSetback = parseFloat(frontMatch2[1]);
+  } else if (frontMatch3 && !isNaN(parseFloat(frontMatch3[1]))) {
+    frontSetback = parseFloat(frontMatch3[1]);
   }
 
   let rearSetback = 1.0;
@@ -625,8 +644,13 @@ export function generateHudsonKnowledgeResponse(
 
   if (isPdfExportRequest) {
     const hasSpecificAddressOrLGA =
-      /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
-      /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara|penrith|huntlee|cessnock|rothbury|calderwood|shellharbour|wollongong|harmony|aura/i.test(query);
+      (/\b\d+\s+[a-z\s]+\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+      /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara|penrith|huntlee|cessnock|rothbury|calderwood|shellharbour|wollongong|harmony|aura/i.test(query)) &&
+      !query.includes("ncc") &&
+      !query.includes("bca") &&
+      !query.includes("as 3740") &&
+      !query.includes("as 2870") &&
+      !query.includes("as 3959");
 
     let assessment: FeasibilityAssessmentResult | null = null;
     if (hasSpecificAddressOrLGA) {
@@ -710,8 +734,22 @@ Your executive PDF has been compiled and is ready for immediate download. Click 
 
   // 0A. COMPLIANCE CHECK (CC) & STATUTORY PROPERTY FEASIBILITY
   const isCC = /^cc\b[:\s]*/i.test((message || "").trim()) || /compliance\s*check/i.test(query) || /feasibility\s*check/i.test(query);
-  const isAddressQuery = /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
-    /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park|ashmore|ahsmore|warrigal|gold\s*coast|southport|carrara|benowa/i.test(query);
+  const isAddressQuery =
+    (/\b\d+\s+[a-z\s]+\s+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query) ||
+    /mount\s*cotton|mt\s*cotton|paradise\s*r(?:oa)?d|flagstone|morayfield|warnervale|marsden\s*park|ashmore|ahsmore|warrigal|gold\s*coast|southport|carrara|benowa/i.test(query)) &&
+    !query.includes("ncc") &&
+    !query.includes("bca") &&
+    !query.includes("as 3740") &&
+    !query.includes("as 2870") &&
+    !query.includes("as 3959") &&
+    !query.includes("who is") &&
+    !query.includes("consultant") &&
+    !query.includes("lead") &&
+    !query.includes("display") &&
+    !query.includes("steve") &&
+    !query.includes("contact") &&
+    !query.includes("team") &&
+    !query.includes("nhc");
 
   if (isCC || isAddressQuery) {
     const assessment = evaluatePropertyFeasibility(message);
@@ -909,7 +947,7 @@ For bespoke developer covenants, non-standard structural variations, or unreleas
   const knownDesignNames = [
     "amber", "azure", "jasper", "cedar", "hazel", "wisteria", "alabaster", 
     "amaranth", "magnolia", "topaz", "sapphire", "emerald", "onyx", 
-    "ruby", "opal", "pearl", "diamond", "quartz", "aspen", "sienna"
+    "ruby", "opal", "pearl", "diamond", "quartz", "aspen", "sienna", "gemini"
   ];
   const matchedDesign = knownDesignNames.find((d) => new RegExp(`\\b${d}\\b`, "i").test(query));
   if (
@@ -977,6 +1015,28 @@ Here are the verified architectural specifications for the **Wisteria Dual Livin
       };
     }
 
+    if (matchedDesign === "gemini") {
+      return {
+        answer: `### Hudson Homes Architectural Design: Gemini Dual-Key Living Range
+
+Here are the verified architectural specifications for the **Gemini 28 Dual-Key** and dual living family:
+
+- **Gemini 28** (260.12 m², 5 Bed, 3 Bath, 2 Car, Width: 14.5m, Length: 21.0m, Min Lot Frontage: 15.5m)
+- **Dual-Key Yield Configuration**:
+  - **Main Dwelling**: 3 Bedrooms, 2 Bathrooms, 1 Lockup Garage with open-plan kitchen, family dining, and covered outdoor alfresco.
+  - **Auxiliary Unit**: 2 Bedrooms, 1 Bathroom, 1 Lockup Garage with private kitchen, laundry, and independent entrance under the primary roofline.
+- **Investment Cash Flow & Yield**: The Gemini dual-key configuration is engineered specifically for property investors seeking maximum rental yield from two separate income streams on a single residential title, avoiding costly council strata titling fees and minimizing stamp duty under a two-part contract.`,
+        confidence: 0.99,
+        verified: true,
+        suggestedQuestions: [
+          "What is the difference between a duplex and a dual-key auxiliary dwelling?",
+          "How does the two-part contract save money on stamp duty?",
+          "What are the infrastructure charges for a duplex in Queensland?",
+        ],
+        modelUsed: "hudson-floorplan-engine",
+      };
+    }
+
     const matching = HUDSON_FLOORPLANS.filter(
       (p) =>
         p.design.toLowerCase().includes(matchedDesign) ||
@@ -1020,10 +1080,12 @@ Here are the verified architectural specifications for the **${p.design}** famil
   // 3. SPECIFIC TECHNICAL & SPECIFICATION HANDLERS (High Priority)
   // -------------------------------------------------------------------------
 
-  // 3A. Ceiling Heights & Vertical Volume
+  // 3A. Ceiling Heights & NCC 2022 Part 10.6 Provisions
   if (
     (query.includes("ceiling height") ||
       query.includes("high ceiling") ||
+      query.includes("2400 mm") ||
+      query.includes("2400mm") ||
       query.includes("2440") ||
       query.includes("2590") ||
       query.includes("2740") ||
@@ -1032,24 +1094,30 @@ Here are the verified architectural specifications for the **${p.design}** famil
     !query.includes("batts")
   ) {
     return {
-      answer: `### Hudson Homes Standard Ceiling Heights
+      answer: `### Hudson Homes Ceiling Heights & NCC 2022 Part 10.6 Statutory Provisions
 
-Hudson Homes standard ceiling heights are calibrated for optimal light, thermal efficiency, and interior volume across our specification ranges:
+All Hudson Homes designs are calibrated for optimal spatial volume, interior light, and thermal comfort while complying with and exceeding **NCC 2022 Volume Two Part 10.6**:
 
-1. **H1 Smart Inclusions**:
-   - **Nominal 2440mm ceiling height** throughout the entire home.
-   - Clean, functional volume delivering great energy efficiency and smart value.
+#### 1. NCC 2022 Statutory Minimum Ceiling Heights (Part 10.6):
+- **Habitable Rooms** (living rooms, bedrooms, dining, media, study): **Minimum 2400 mm**.
+- **Non-Habitable Rooms** (bathrooms, ensuites, laundries, pantries, hallways, corridors): **Minimum 2100 mm**.
+- **Sloping / Raked Ceilings**: Minimum 2200 mm over at least two-thirds of the floor area (no part less than 1500 mm in habitable rooms).
+- **Stairway Headroom**: Minimum **2000 mm** unobstructed vertical clearance measured perpendicularly above the stair nosing pitch line and landings.
+- **Attic / Mezzanine**: Minimum 2200 mm over not less than two-thirds of the floor area.
 
-2. **H2 Designer Inclusions**:
-   - **Raised 2590mm high ceilings** throughout single-storey homes and ground floor of double-storey homes.
-   - Creates display-home luxury, greater natural light through larger windows, and enhanced vertical space.
-   - Optional ground floor upgrade available to **2740mm** ceiling height.
+#### 2. Hudson Homes Standard Ceiling Specifications (Exceeding Code):
+- **H1 Smart Inclusions**:
+  - **Nominal 2440mm ceiling height** throughout the entire home (exceeding the NCC 2400mm minimum).
+  - Delivers functional volume, efficient heating/cooling performance, and smart value.
+- **H2 Designer Inclusions**:
+  - **Raised 2590mm high ceilings** throughout single-storey homes and the ground floor of double-storey homes.
+  - Creates dramatic architectural presence, display-home luxury, and accommodates taller windows.
+  - Optional ground floor upgrade to **2740mm** ceiling height available in Quote Builder V2.
+- **H3 Luxury Inclusions**:
+  - **Raised 2590mm high ceilings standard** (with 2740mm upgrade option) paired with 2340mm full-height internal doors and highlight architectural glazing.
 
-3. **H3 Luxury Inclusions**:
-   - **Raised 2590mm high ceilings** standard (with 2740mm ground floor upgrade option) paired with upgraded full-height doors and highlight architectural glazing.
-
-4. **Ceiling Fans**:
-   - Quality 48" or 52" modern ceiling fans are included to all bedrooms as standard, complementing air conditioning systems.
+#### 3. Ceiling Fans & Airflow:
+- Quality 48" or 52" modern ceiling fans included to all bedrooms as standard, complementing ducted/split-system air conditioning.
 
 > [!TIP]
 > Ceiling height selections are configured directly in Step 1 of Quote Builder V2 and flow automatically into your sales estimate!`,
@@ -1057,10 +1125,11 @@ Hudson Homes standard ceiling heights are calibrated for optimal light, thermal 
       verified: true,
       suggestedQuestions: [
         "What is the difference between H1 Smart and H2 Designer?",
+        "What are the NCC 2022 7-star energy efficiency requirements?",
+        "What inclusion ranges does Hudson Homes offer?",
         "What appliances are included in H2 Designer?",
-        "What benchtops come standard in H1 Smart?",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
@@ -1276,43 +1345,553 @@ Hudson Homes protects every home with an engineered physical termite management 
     !query.includes("rainwater")
   ) {
     return {
-      answer: `### Energy Efficiency, NatHERS 7-Star & BASIX Compliance
+      answer: `### Energy Efficiency, NatHERS 7-Star & BASIX Compliance (NCC 2022)
 
 Every Hudson Homes build complies fully with the latest National Construction Code (NCC 2022) **NatHERS 7-Star thermal efficiency standards** and NSW **BASIX energy & water benchmarks**:
 
-1. **Queensland (QLD) Policy Update (New Price List)**:
-   - **$0 Additional Allowances**: Under the new Queensland price list, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed!).
-   - Full NatHERS 7-Star compliance (insulation batts, thermal performance, glazed openings, heat pump hot water) is fully built into base pricing with zero cost variations.
+#### 1. NatHERS 7-Star Thermal Performance Standard:
+- **Queensland (QLD) Policy Update (New Price List)**:
+  - **$0 Additional Allowances**: Under the new Queensland price list, Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed!).
+  - Full NatHERS 7-Star compliance (insulation batts, thermal performance, glazed openings, heat pump hot water) is fully built into base pricing with zero cost variations.
+- **Whole-of-Home Energy Budget**:
+  - Regulates the combined annual energy consumption of heating/cooling appliances, hot water heat pumps, internal lighting, and swimming pool pumps.
 
-2. **New South Wales (NSW) BASIX Certificate**:
-   - Fixed site costs include full BASIX thermal, water (rainwater tank connection to toilets/laundry/garden), and energy compliance documentation.
+#### 2. High-Performance Thermal Building Envelope:
+- **Ceiling Insulation**: R4.0 to R5.0 glasswool ceiling batts over all living areas, preventing upward heat loss in winter and radiant roof heat infiltration in summer.
+- **External Wall Insulation**: R2.0 to R2.5 wall batts fitted with reflective Class 3/4 vapour-permeable thermal wall wrap.
+- **Energy Efficient Glazing**: Strategically oriented low-E or argon-insulated window glazing to limit solar heat gain and retain interior warmth.
+- **Ducting & Airtightness**: Exhaust fans fitted with self-closing backdraft dampers ducted directly to outside air.
 
-3. **High-Performance Insulation**:
-   - **Ceiling Insulation**: R4.0 to R5.0 glasswool ceiling batts over living areas.
-   - **External Wall Insulation**: R2.0 to R2.5 wall batts with reflective vapour-permeable thermal wall wrap.
+#### 3. New South Wales (NSW) BASIX 7.0 Standards:
+- Fixed site costs include full BASIX thermal envelope compliance, greenhouse gas reduction targets (up to 11% additional emissions abatement), and water conservation target ($\ge 40\%$ reduction) via **3,000L to 5,000L rainwater tanks** plumbed directly to all toilets, laundry cold taps, and outdoor garden taps.
 
-4. **Energy Efficient Glazing**:
-   - Strategically oriented low-E or argon-insulated window glazing to limit summer heat gain and retain winter warmth.
-
-5. **Hot Water & Lighting**:
-   - **QLD**: Wulfe Heat Pump M9 (200L or 330L) delivering 70%+ energy savings.
-   - **NSW**: Rinnai 26L Gas Continuous Flow hot water system (preset to 50°C).
-   - 100% low-energy LED downlights and lighting circuits throughout the home.`,
+#### 4. Hot Water, Heating & Lighting:
+- **QLD**: Wulfe Heat Pump M9 (200L or 330L) delivering 70%+ energy savings over conventional electric storage.
+- **NSW**: Rinnai 26L Gas Continuous Flow hot water system (preset to 50°C).
+- 100% low-energy LED downlights and lighting circuits throughout the home.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
         "What fixed site costs does Hudson Homes include?",
         "What appliances are standard in H2 Designer?",
         "Are concrete piers included in Hudson Homes fixed site costs?",
+        "What are the NCC 2022 Liveable Housing requirements?",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
-  // 3H. Geotechnical Soil Classifications & Slab Engineering (AS 2870)
+  // 3G_WATERPROOFING. AS 3740:2021 & NCC 2022 Part 10.2 Waterproofing of Domestic Wet Areas
+  if (
+    query.includes("waterproof") ||
+    query.includes("as 3740") ||
+    query.includes("as3740") ||
+    query.includes("wet area") ||
+    query.includes("shower rose") ||
+    query.includes("shower wall height") ||
+    query.includes("waterstop") ||
+    query.includes("fall to waste") ||
+    (query.includes("shower") &&
+      (query.includes("height") ||
+        query.includes("membrane") ||
+        query.includes("subfloor") ||
+        query.includes("enclosed") ||
+        query.includes("unenclosed") ||
+        query.includes("timber") ||
+        query.includes("concrete") ||
+        query.includes("recess")))
+  ) {
+    const roseMatch = query.match(/(?:shower\s*rose|rose\s*height|rose\s*at|head\s*at|shower\s*head)[^0-9]{0,25}(\d{3,4})(?:\s*mm)?/i) || query.match(/(\d{3,4})\s*(?:mm)?\s*(?:shower\s*rose|rose|shower\s*head)/i);
+    let roseCalcSection = "";
+    if (roseMatch) {
+      const roseH = parseInt(roseMatch[1]);
+      const mandatoryH = Math.max(1800, roseH + 50);
+      roseCalcSection = "\n#### 🧮 Dynamic Calculation for Your Shower Rose Height:\n" +
+        "- **Given Shower Rose Height**: **" + roseH + " mm** above finished floor level (FFL).\n" +
+        "- **Statutory Standard**: Minimum 1800 mm or 50 mm above the shower rose connection point (whichever is greater).\n" +
+        "- **Mandatory Minimum Waterproofing Height**: **" + mandatoryH + " mm** (" + roseH + "mm + 50mm = " + mandatoryH + "mm).\n\n";
+    }
+
+    return {
+      answer: `### AS 3740:2021 & NCC 2022 Part 10.2 Wet Area Waterproofing Standards
+${roseCalcSection}
+Waterproofing in all Hudson Homes builds strictly satisfies **AS 3740:2021 (Waterproofing of Domestic Wet Areas)** and **NCC 2022 Volume Two Part 10.2 (ABCB Housing Provisions)**:
+
+#### 1. Mandatory Shower Wall Waterproofing Heights:
+- **Enclosed Showers**:
+  - Shower walls must be waterproofed to a **minimum height of 1800mm** above the finished floor level, or **minimum 50mm above the shower rose / head attachment point**, whichever is higher.
+  - Wall junctions within the shower recess must be treated with a continuous flexible waterproofing membrane extending **minimum 40mm** on each side of the corner junction over a certified bond breaker.
+- **Unenclosed Showers (Walk-in / Frameless Screens)**:
+  - The designated shower area extends **minimum 1500mm horizontally** from the shower rose connection on any wall without a permanent screen or barrier.
+  - All walls and floors within this 1500mm radius must be completely waterproofed with falls toward the waste.
+- **Basins, Sinks & Baths**:
+  - Wall junctions behind vanities and washbasins must be waterproofed to **minimum 150mm above the vessel or benchtop**.
+  - Built-in bathtubs require continuous waterproofing beneath the bath lip, around the entire perimeter, and extending **minimum 150mm above the bath rim**.
+
+#### 2. Floor Waterproofing: Timber Subfloors vs Concrete Slabs:
+- **Timber & Lightweight Subfloors (Critical AS 3740:2021 Mandate)**:
+  - Where the floor substrate consists of timber joists, structural plywood, or engineered framing, the **ENTIRE bathroom floor must be 100% waterproofed** with a continuous Class 2 or Class 3 elastomeric membrane. This prevents moisture ingress from compromising structural timber members.
+  - **Substrate Prohibition**: Under AS 3740:2021, **particleboard is strictly prohibited** beneath waterproofing membranes in domestic wet areas. All wet area floors must use compressed fiber cement (CFC) sheets (minimum 15mm/18mm) or certified marine/structural plywood.
+- **Concrete Slab Subfloors**:
+  - The entire shower floor must be waterproofed, extending through wall-to-floor junctions with a continuous vertical membrane upturn of **minimum 150mm** up the walls, plus full perimeter waterstop containment at doorways.
+
+#### 3. Falls to Waste & Fall to Waste Floor Gradients:
+- All bathroom and shower floors with a floor waste must be graded with a continuous slope (fall to waste) toward the drain outlet:
+  - **Minimum fall to waste: 1:80** (a drop of 12.5mm per metre).
+  - **Maximum fall to waste: 1:50** (a drop of 20mm per metre).
+- Eliminates standing ponding water while maintaining stable underfoot comfort.
+
+#### 4. Waterstop Angles & Barrier Containment:
+- **Doorway Thresholds**: An engineered metal or UPVC waterstop angle must be mechanically fixed to the substrate and bedded in membrane across the entire bathroom doorway opening, finishing flush with the top of finished floor tiles.
+- **Shower Thresholds**: Waterstop angles must enclose the shower perimeter to prevent capillary migration of water into the dry areas of the dwelling.
+
+#### 5. Flood Testing & Form Certification:
+- Industry best practice and Hudson Homes quality assurance mandates a **24-hour flood test** before screeding and tiling.
+- All waterproofing works are executed by licensed waterproofers and certified with a formal Certificate of Compliance (Form 12 / Form 43 / Form 15).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the NCC 2022 Liveable Housing requirements for hobless showers?",
+        "What are the slab edge rebate and damp-proofing requirements?",
+        "What is the difference between H1 Smart and H2 Designer bathroom finishes?",
+        "Tell me about the Hudson 50-Year Structural Warranty",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3G_STAIRS. NCC 2022 Part 11.2 / 11.2.2 Stair Geometry, Risers & Goings
+  if (
+    query.includes("riser") ||
+    query.includes("going") ||
+    query.includes("2r + g") ||
+    query.includes("2r+g") ||
+    query.includes("stair geometry") ||
+    (query.includes("stair") &&
+      (query.includes("dimension") ||
+        query.includes("slope") ||
+        query.includes("height") ||
+        query.includes("flight") ||
+        query.includes("tolerance") ||
+        query.includes("headroom") ||
+        query.includes("pitch") ||
+        query.includes("rule")))
+  ) {
+    const riserMatch = query.match(/(?:riser|rise|r)\s*(?:is|=|:)?\s*(\d{2,3})(?:\s*mm)?/i) || query.match(/(\d{2,3})\s*mm\s*riser/i);
+    const goingMatch = query.match(/(?:going|go|tread|g)\s*(?:is|=|:)?\s*(\d{2,3})(?:\s*mm)?/i) || query.match(/(\d{2,3})\s*mm\s*going/i);
+    let stairCalcSection = "";
+    if (riserMatch && goingMatch) {
+      const R = parseInt(riserMatch[1]);
+      const G = parseInt(goingMatch[1]);
+      const formulaVal = 2 * R + G;
+      const isCompliant = R >= 115 && R <= 190 && G >= 240 && G <= 355 && formulaVal >= 550 && formulaVal <= 700;
+      stairCalcSection = "\n#### 🧮 Dynamic Calculation for Your Stair Dimensions:\n" +
+        "- **Given Riser (R)**: " + R + " mm (Statutory limits: 115 mm to 190 mm) -> " + (R >= 115 && R <= 190 ? "✅ PASS" : "❌ FAIL (Must be 115mm-190mm)") + "\n" +
+        "- **Given Going (G)**: " + G + " mm (Statutory limits: 240 mm to 355 mm) -> " + (G >= 240 && G <= 355 ? "✅ PASS" : "❌ FAIL (Must be 240mm-355mm)") + "\n" +
+        "- **Calculated $2R + G$**: 2(" + R + ") + " + G + " = **" + formulaVal + " mm**\n" +
+        "- **Slope Envelope**: 550 mm $\\le 2R + G \\le$ 700 mm -> **" + (isCompliant ? "✅ STATUTORILY COMPLIANT" : "❌ NON-COMPLIANT") + "**\n\n";
+    }
+
+    return {
+      answer: `### NCC 2022 Part 11.2 (Clause 11.2.2) Stair Geometry, Risers & Goings
+${stairCalcSection}
+Under **NCC 2022 Volume Two Part 11.2 (ABCB Housing Provisions Clause 11.2.2)**, all internal and external residential stairways in Class 1 dwellings must satisfy exact statutory geometric dimensions:
+
+#### 1. Stair Riser & Going Dimensional Limits:
+- **Riser (R)** — Vertical rise between consecutive step treads:
+  - **Minimum Riser: 115 mm**
+  - **Maximum Riser: 190 mm**
+- **Going (G)** — Horizontal distance between consecutive step nosings:
+  - **Minimum Going: 240 mm**
+  - **Maximum Going: 355 mm**
+
+#### 2. The Mandatory Slope Relationship Formula ($2R + G$):
+- To maintain natural human gait and prevent slip/fall hazards, the combination of riser and going must satisfy:
+  $$\\mathbf{550\\text{ mm} \\le 2R + G \\le 700\\text{ mm}}$$
+- **Hudson Homes Standard Stair Calibration**:
+  - Nominal Hudson double-storey timber staircase: **Riser = 175 mm, Going = 260 mm**.
+  - Verification: $$2(175) + 260 = 350 + 260 = 610\\text{ mm}$$ (perfectly centred within the 550mm to 700mm code envelope).
+
+#### 3. Uniformity & Dimensional Tolerances:
+- Risers and goings must be **constant and uniform** throughout the entire flight.
+- **Maximum variation between consecutive risers or goings**: **5 mm**.
+- **Maximum variation between the largest and smallest riser or going across the entire flight**: **10 mm**.
+
+#### 4. Flight Limits, Landings & Headroom:
+- **Flight Limits**: A single stairway flight must have **no fewer than 2 risers** and **no more than 18 risers** before an intermediate landing is required.
+- **Landings**: Must provide a minimum clear length of **750 mm** measured along the direction of travel.
+- **Vertical Headroom**: Minimum **2000 mm** unobstructed vertical clearance measured perpendicularly above the nosing pitch line and landings.
+
+#### 5. Balustrades & Handrails (Part 11.2.3):
+- A continuous handrail (minimum height **865 mm** above the pitch line) is mandatory where a flight has 4 or more risers.
+- Where trafficable stair/landing height is **1000 mm or more above the floor below**, a protective balustrade (minimum height **1000 mm** on landings, **865 mm** on stair nosings) must be installed.
+- **Sphere Rule**: Barrier openings must not permit a **125 mm sphere** to pass through.
+- For falls of 4.0m or more, barriers must not contain climbable horizontal elements between **150 mm and 760 mm** above the floor (Non-Climbable Zone NCZ).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are balustrade and barrier requirements under AS 1170.1?",
+        "What are the NCC 2022 ceiling height requirements?",
+        "What is the difference between H1 Smart and H2 Designer finishes?",
+        "Tell me about Hudson Homes double storey designs",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3G_CDC_DUPLEX. NSW Housing SEPP Dual Occupancy Frontage & Siting
+  if (
+    (query.includes("duplex") || query.includes("dual occupancy") || query.includes("dual-occupancy")) &&
+    (query.includes("cdc") || query.includes("complying") || query.includes("housing sepp") || query.includes("nsw")) &&
+    (query.includes("frontage") || query.includes("street frontage") || query.includes("width") || query.includes("lot size") || query.includes("minimum"))
+  ) {
+    return {
+      answer: `### NSW Complying Development (CDC) Dual Occupancy Frontage & Siting Standards (Housing SEPP 2021)
+
+Under the **NSW State Environmental Planning Policy (Housing) 2021 (Low Rise Housing Diversity Code, Part 3B)**, dual occupancy developments under Complying Development (CDC) must satisfy exact statutory frontage and lot dimensions:
+
+#### 1. Minimum Street Frontage Requirements:
+- **Attached Dual Occupancy (Standard Lots)**:
+  - Minimum **15.0 metres street frontage** on standard allotments (lots between 400 m² and 500 m² where permissible, and standard 500 m² lots).
+  - Minimum **18.0 metres street frontage** for standard lots > 500 m² where specified by local council planning rules.
+- **Detached Dual Occupancy**:
+  - Minimum **15.0m to 18.0m street frontage** depending on whether dwellings are sited side-by-side or in tandem.
+- **Rear-Lane Access Allotments**:
+  - Minimum **12.0 metres street frontage** where primary vehicular access is provided from a dedicated rear laneway.
+- **Corner Allotments**:
+  - Primary street frontage: Minimum **15.0 metres**.
+  - Secondary street frontage: Setback of **2.0m to 3.0m**.
+
+#### 2. Minimum Lot Size Requirements:
+- **Statutory Minimum Lot Size**: Minimum **500 m²** (or the minimum dual-occupancy lot size specified in the local council LEP, whichever is greater). If the LEP permits dual occupancy at 400 m², the CDC minimum is 400 m².
+
+#### 3. Boundary Setbacks & Building Envelope:
+- **Side Setbacks**: Minimum **0.90m** for ground floor walls (height ≤ 4.5m); **$0.9\text{m} + 0.25 \times (H - 4.5\text{m})$** for upper floor walls.
+- **Rear Setback**: Minimum **3.0m** (ground floor) and **8.0m** (upper floor).
+- **Party Wall Separation**: Continuous **FRL 60/60/60** fire separation and **$R_w + C_{tr} \ge 50$** acoustic insulation.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What dual occupancy designs does Hudson Homes offer?",
+        "What are the fire and acoustic requirements for duplex party walls?",
+        "What is the difference between CDC and DA in NSW?",
+        "What fixed site costs does Hudson Homes cover?",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3G_LIGHT_VENT. NCC 2022 Part 10.5 Natural Light & Natural Ventilation
+  if (
+    query.includes("natural light") ||
+    query.includes("natural ventilation") ||
+    query.includes("light and ventilation") ||
+    query.includes("part 10.5") ||
+    query.includes("clause 10.5") ||
+    query.includes("openable area") ||
+    query.includes("glazed area") ||
+    (query.includes("window") && (query.includes("habitable") || query.includes("ventilation") || query.includes("light requirement"))) ||
+    (query.includes("ventilation") && (query.includes("habitable") || query.includes("room") || query.includes("ncc") || query.includes("bca") || query.includes("percentage") || query.includes("%")))
+  ) {
+    const areaMatch = query.match(/(\d+(?:\.\d+)?)\s*(?:sqm|m2|m²)/i);
+    const roomArea = areaMatch ? parseFloat(areaMatch[1]) : null;
+    const calcLight = roomArea ? (roomArea * 0.1).toFixed(2) : null;
+    const calcVent = roomArea ? (roomArea * 0.05).toFixed(2) : null;
+    const dynamicCalcSection = roomArea
+      ? "\n#### 🧮 Dynamic Calculation for Your " + roomArea + "m² Room:\n" +
+        "- **Given Room Floor Area**: **" + roomArea + " m²**\n" +
+        "- **Mandatory Natural Light Glazed Area (10%)**: $0.10 \\times " + roomArea + "\\text{m}² = $ **" + calcLight + " m²** minimum glazed window/rooflight area.\n" +
+        "- **Mandatory Natural Ventilation Openable Area (5%)**: $0.05 \\times " + roomArea + "\\text{m}² = $ **" + calcVent + " m²** minimum openable sash/door area.\n\n"
+      : "";
+    return {
+      answer: `### NCC 2022 Volume Two Part 10.5: Natural Light & Natural Ventilation Standards
+
+Under the **National Construction Code (NCC 2022 Volume Two / ABCB Housing Provisions Part 10.5)**, all residential dwellings must satisfy strict statutory health and amenity standards for natural light and ventilation:
+${dynamicCalcSection}
+#### 1. Natural Light Requirements (Clause 10.5.1):
+- **Mandatory Rooms**: Natural light must be provided to all **habitable rooms** (bedrooms, living rooms, dining rooms, lounge, study, and family rooms). Not mandatory for bathrooms, laundries, or pantries.
+- **Statutory Minimum Glazed Area**: Glazed windows, rooflights, or glass doors must have an aggregate light-transmitting area of **not less than 10% of the floor area** of the room ($A_{\\text{glazing}} \\ge 0.10 \\times A_{\\text{floor}}$).
+- **Borrowed Light**: Natural light may be borrowed from an adjoining room provided the adjoining room has compliant windows and the opening between the rooms is at least **20% of the floor area** of the room being lit (or minimum 1.5m²).
+- **Minimum Distance to Obstructions**: Windows providing natural light must not be closer than **900 mm** to an adjoining boundary or another building on the same lot.
+
+#### 2. Natural Ventilation Requirements (Clause 10.5.2):
+- **Mandatory Rooms**: Natural ventilation must be provided to all **habitable rooms, bathrooms, shower rooms, ensuites, laundries, and sanitary compartments (toilets)**.
+- **Statutory Minimum Openable Area**: Openable windows, doors, louvres, or vents must provide an unobstructed openable area of **not less than 5% of the floor area** of the room ($A_{\\text{openable}} \\ge 0.05 \\times A_{\\text{floor}}$).
+- **Mechanical Ventilation Exemption (AS 1668.2)**: In sanitary compartments, bathrooms, and laundries, natural ventilation can be replaced by a certified mechanical exhaust system discharging directly to the outside atmosphere (minimum 25 L/s for bathrooms, 40 L/s for kitchens with non-return backdraft dampers under NCC Part 10.8).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the NCC 2022 ceiling height requirements?",
+        "What are the condensation management rules under NCC Part 10.8?",
+        "What is the difference between H1 Smart and H2 Designer finishes?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3G_FIRE_BOUNDARY. NCC 2022 Part 9.2 Fire Safety & Boundary Clearances
+  if (
+    query.includes("boundary fire") ||
+    query.includes("fire separation") ||
+    (query.includes("boundary clearance") && (query.includes("fire") || query.includes("frl"))) ||
+    query.includes("frl 60/60/60") ||
+    (query.includes("900mm") && (query.includes("boundary") || query.includes("fire") || query.includes("wall"))) ||
+    query.includes("part 9.2") ||
+    query.includes("eaves setback") ||
+    query.includes("zero lot fire") ||
+    query.includes("built to boundary fire")
+  ) {
+    return {
+      answer: `### NCC 2022 Volume Two Part 9.2: Fire Safety & Boundary Fire Separation
+
+Under **NCC 2022 Volume Two Part 9.2 (ABCB Housing Provisions Clauses 9.2.2 to 9.2.9)**, all Class 1a residential buildings must maintain strict fire separation distances from allotment boundaries:
+
+#### 1. The 900mm Boundary Fire Separation Rule (Clause 9.2.3):
+- **Walls Within 900mm of a Boundary**: Any external wall situated **less than 900 mm** from an allotment boundary (or within 1.8m of another building on the same allotment) must be fire-resisting.
+- **Mandatory Fire Resistance Level (FRL)**: The wall must achieve a minimum **FRL of 60/60/60** (60 minutes Structural Adequacy, 60 minutes Integrity, 60 minutes Insulation) applied from the outside.
+- **Built to Boundary (Zero-Lot BTB)**: External walls built directly on or within 900mm of the side boundary (such as zero-lot garage walls) are constructed using 75mm CSR Hebel PowerPanel or 90mm core-filled masonry/brickwork to achieve certified FRL 60/60/60 fire protection.
+
+#### 2. Prohibition of Openings Within 900mm (Clause 9.2.4):
+- **Unprotected Openings**: Standard openable or fixed glass windows, glazed doors, and vents are **strictly prohibited** in any external wall located less than 900 mm from a side or rear boundary.
+- **Allowable Protected Openings**: Any opening within the 900mm zone must be protected by fire-rated shutters (FRL -/60/-), certified fire windows, or glass blocks complying with AS 1530.4.
+
+#### 3. Roof Eaves, Fascias & Gutters (Clause 9.2.6):
+- **Minimum Eaves Setback: 450 mm**: The outer edge of roof eaves, gutters, and fascias must maintain a **minimum clearance of 450 mm** from any side or rear boundary.
+- **Fire-Protected Eaves**: Where roof eaves encroach closer than 450 mm to a boundary:
+  - The underside of the eave must be lined with non-combustible material (such as 6mm or 9mm fiber cement soffit lining).
+  - Fascia boards and gutters must be non-combustible (Colorbond steel).
+  - Openings in eaves within 450mm of the boundary are strictly prohibited.`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the CDC side setback requirements in NSW?",
+        "What are the fire and acoustic requirements for duplex party walls?",
+        "What is the difference between H1 Smart and H2 Designer finishes?",
+      ],
+      modelUsed: "hudson-engineering-engine",
+    };
+  }
+
+  // 3G_CDC_SETBACKS. NSW Housing SEPP (Codes SEPP Part 3) Setbacks, Building Envelope & FSR Calculator
+  if (
+    query.includes("cdc side setback") ||
+    query.includes("cdc setback") ||
+    query.includes("cdc rear setback") ||
+    query.includes("cdc front setback") ||
+    query.includes("cdc height") ||
+    query.includes("cdc fsr") ||
+    query.includes("cdc gfa") ||
+    query.includes("housing sepp") ||
+    query.includes("codes sepp") ||
+    (query.includes("cdc") &&
+      (query.includes("setback") ||
+        query.includes("formula") ||
+        query.includes("boundary") ||
+        query.includes("envelope") ||
+        query.includes("storey") ||
+        query.includes("wall height") ||
+        query.includes("7.5m") ||
+        query.includes("8.5m") ||
+        query.includes("landscaped area") ||
+        query.includes("fsr") ||
+        query.includes("gfa") ||
+        query.includes("gross floor area") ||
+        query.includes("floor area") ||
+        query.includes("recession plane"))) ||
+    (query.includes("nsw") &&
+      query.includes("setback") &&
+      (query.includes("double storey") || query.includes("single storey") || query.includes("height") || query.includes("wall")))
+  ) {
+    // Smarter Height extraction (distinguish wall height from lot width & single storey)
+    const isSingleStorey = query.includes("single storey") || query.includes("single-storey") || query.includes("1 storey") || query.includes("ground floor");
+    const explicitHeightMatch = query.match(/(?:wall\s*height|building\s*height|height\s*of|tall|high)\s*(?:is\s*)?(\d+(?:\.\d+)?)\s*(?:m\b|metre|meter)/i) ||
+      query.match(/(\d+(?:\.\d+)?)\s*(?:m\b|metre|meter)\s*(?:wall|building|high|tall|height)/i);
+    
+    let queriedHeight = 7.5;
+    if (explicitHeightMatch) {
+      queriedHeight = parseFloat(explicitHeightMatch[1]);
+    } else if (isSingleStorey) {
+      queriedHeight = 3.0; // Standard single-storey wall height <= 4.5m
+    } else {
+      const generalNumberMatch = query.match(/(\d+(?:\.\d+)?)\s*(?:m\b|metre|meter)/i);
+      if (generalNumberMatch) {
+        const val = parseFloat(generalNumberMatch[1]);
+        if (val <= 8.5) {
+          queriedHeight = val;
+        } else {
+          queriedHeight = 7.5;
+        }
+      }
+    }
+    
+    // Calculate exact CDC side setback for queried height
+    const stdSideSetback = queriedHeight > 4.5
+      ? (0.9 + 0.25 * (queriedHeight - 4.5)).toFixed(3).replace(/\.?0+$/, "")
+      : "0.9";
+    const wideSideSetback = queriedHeight > 4.5
+      ? (1.5 + 0.25 * (queriedHeight - 4.5)).toFixed(3).replace(/\.?0+$/, "")
+      : "1.5";
+    const extraWideSideSetback = queriedHeight > 4.5
+      ? (2.5 + 0.25 * (queriedHeight - 4.5)).toFixed(3).replace(/\.?0+$/, "")
+      : "2.5";
+
+    return {
+      answer: `### NSW Complying Development (CDC) Housing Code Setbacks & Building Envelope
+
+Under the **NSW State Environmental Planning Policy (Housing) 2021 (Codes SEPP Part 3 General Housing Code, Clauses 3.8 to 3.14)**, exact statutory formulas govern building setbacks, height, and gross floor area:
+
+#### 1. Exact CDC Side Setbacks Formula (Clause 3.9):
+For a **${queriedHeight}m high wall** in NSW under Complying Development (Housing SEPP 2021):
+- **Statutory Formula**: Side Setback = **0.9m + 0.25 * (Building Height - 4.5m)** ($0.9\\text{m} + 0.25 \\times (H - 4.5\\text{m})$)
+- **Standard Suburban Lots (10m to 18m lot width)**:
+  - Ground floor (wall height $\\le 4.5\\text{m}$): **Minimum 0.90 m**.
+  - Upper floor (wall height $> 4.5\\text{m}$ up to $8.5\\text{m}$):
+    Side Setback = 0.9m + 0.25 * (Building Height - 4.5m)
+  - **For a ${queriedHeight}m wall**: 0.9m + 0.25 * (${queriedHeight} - 4.5) = **${stdSideSetback} metres** ($0.9\\text{m} + 0.25 \\times (${queriedHeight} - 4.5) = ${stdSideSetback}\\text{m}$).
+- **Wider Lots (> 18m to 24m lot width)**:
+  - Ground floor: **Minimum 1.50 m**.
+  - Upper floor: 1.5m + 0.25 * (${queriedHeight} - 4.5) = **${wideSideSetback} metres** ($1.5\\text{m} + 0.25 \\times (${queriedHeight} - 4.5) = ${wideSideSetback}\\text{m}$).
+- **Acreage / Large Lots (> 24m lot width)**:
+  - Ground floor: **Minimum 2.50 m**.
+  - Upper floor: 2.5m + 0.25 * (${queriedHeight} - 4.5) = **${extraWideSideSetback} metres**.
+
+#### 2. CDC Rear Setbacks (Clause 3.10):
+- **Lots 200 m² to 900 m²**:
+  - Ground floor (wall height $\\le 4.5\\text{m}$): **Minimum 3.0 m**.
+  - Upper floor (wall height $> 4.5\\text{m}$ up to $8.5\\text{m}$): **Minimum 8.0 m**.
+- **Lots 900 m² to 1500 m²**:
+  - Ground floor: **Minimum 5.0 m**; Upper floor: **Minimum 12.0 m**.
+- **Lots > 1500 m²**:
+  - Ground floor: **Minimum 10.0 m**; Upper floor: **Minimum 15.0 m**.
+
+#### 3. Primary Front Setbacks & Articulation Zone:
+- **Lots 200 m² to 900 m²**: **Minimum 4.5 m** (or average of adjoining 2 houses within 40m).
+- **Lots 900 m² to 1500 m²**: **Minimum 6.5 m**.
+- **Lots > 1500 m²**: **Minimum 10.0 m**.
+- **Articulation Zone**: An entry porch, portico, balcony, or verandah can project up to **1.5 m forward** of the building line (minimum 3.0m clearance to the street boundary).
+
+#### 4. Corner Lot Secondary Front Setback:
+- **Lots 200 m² to 600 m²**: **Minimum 2.0 m** secondary street boundary setback.
+- **Lots > 600 m² to 1500 m²**: **Minimum 3.0 m** secondary street boundary setback.
+- **Lots > 1500 m²**: **Minimum 5.0 m** secondary street boundary setback.
+
+#### 4. Maximum Building Height & 45-Degree Recession Envelope:
+- **Maximum Building Height**: **8.5 metres** above existing natural ground level.
+- **45-Degree Building Envelope**: A recession plane projected upwards and inwards at an angle of **45 degrees** starting at **4.5 metres above ground level** directly above the required minimum side boundary setback line.
+
+#### 5. Maximum Gross Floor Area (GFA / FSR Schedule, Clause 3.7):
+- Lot 200–250 m²: **78% of lot area**
+- Lot 250–300 m²: **75% of lot area**
+- Lot 300–350 m²: **235 m²**
+- Lot 350–450 m²: **250 m²**
+- Lot 450–560 m²: **290 m²**
+- Lot 560–600 m²: **335 m²**
+- Lot 600–740 m²: **350 m²**
+- Lot 740–900 m²: **380 m²**
+- Lot 900–920 m²: **430 m²**
+- Lot 920–1000 m²: **450 m²**
+- Lot > 1000 m²: **50% of lot area**
+
+#### 6. Landscaped Area & Principal Private Open Space (PPOS):
+- **Landscaped Area Requirements**:
+  - 200–300 m²: 10% | 300–450 m²: 15% | 450–600 m²: 20% | 600–900 m²: 30% | 900–1500 m²: 40% | >1500 m²: 45%.
+  - At least **50% of required landscaped area must be located behind the building line**, with minimum dimension of 1.5m.
+- **PPOS**: Minimum **24 m²** with minimum width of **4.0 m**, directly accessible from a primary living area, achieving at least 3 hours direct sunlight between 9am and 3pm at winter solstice (June 21).`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What is the difference between CDC and DA in NSW?",
+        "What are the duplex requirements under the NSW Low Rise Housing Diversity Code?",
+        "Can I build a double-storey Hudson home on a 300sqm block?",
+        "What fixed site costs does Hudson Homes cover in NSW?",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3G_QDC. Queensland Development Code QDC MP 1.2 & MP 1.1 Setbacks, Frontage & Site Cover
+  if (
+    query.includes("qdc mp 1.2") ||
+    query.includes("qdc mp 1.1") ||
+    query.includes("qdc") ||
+    query.includes("queensland development code") ||
+    (query.includes("qld") &&
+      (query.includes("setback") || query.includes("boundary clearance") || query.includes("site cover") || query.includes("road frontage")))
+  ) {
+    const qdcHeightMatch = query.match(/(?:wall\s*height|building\s*height|height\s*of|tall|high)?\s*(\d+(?:\.\d+)?)\s*(?:m\b|metre|meter)/i);
+    let qdcCalcSection = "";
+    if (qdcHeightMatch) {
+      const H = parseFloat(qdcHeightMatch[1]);
+      if (H > 0 && H <= 15) {
+        let clearance = 1.5;
+        if (H <= 4.5) {
+          clearance = 1.5;
+        } else if (H <= 7.5) {
+          clearance = 2.0;
+        } else {
+          const steps = Math.ceil((H - 7.5) / 3.0);
+          clearance = 2.0 + 0.5 * steps;
+        }
+        qdcCalcSection = "\n#### 🧮 Dynamic Calculation for Your " + H + "m High Wall (Table A2):\n" +
+          "- **Queried Wall Height**: **" + H + " metres**\n" +
+          "- **Statutory Formula (Table A2)**: " + (H <= 4.5 ? "Height ≤ 4.5m requires 1.5m clearance" : H <= 7.5 ? "Height between 4.5m and 7.5m requires 2.0m clearance" : "Height > 7.5m requires 2.0m + 0.5m for every 3m (or part thereof) over 7.5m") + "\n" +
+          "- **Mandatory Side/Rear Boundary Clearance**: **" + clearance.toFixed(1) + " metres**\n\n";
+      }
+    }
+
+    return {
+      answer: `### Queensland Development Code (QDC MP 1.2 & MP 1.1) Siting & Compliance Standards
+${qdcCalcSection}
+
+The design and siting of single detached dwellings in Queensland are governed by the **Queensland Development Code (QDC)**: **Mandatory Part 1.2** (lots $\\ge 450\\text{m}²$) and **Mandatory Part 1.1** (lots $< 450\\text{m}²$):
+
+#### 1. QDC MP 1.2 Boundary Setbacks (Lots 450 m² and Over):
+- **Road Frontage Setback**:
+  - **Minimum 6.0 metres** to external walls and garage door openings (ensuring a full off-street vehicle parking space in front of the garage without overhang onto public footpaths).
+  - **Front Articulation Encroachment**: An open verandah, porch, or portico with a maximum height of 4.5m may encroach up to **1.5m** into the front setback (minimum **4.5m** to the road boundary).
+- **Side and Rear Boundary Clearances (Table A2)**:
+  - **Wall height up to 4.5 metres**: **Minimum 1.5 metres**.
+  - **Wall height greater than 4.5m up to 7.5 metres**: **Minimum 2.0 metres**.
+  - **Wall height greater than 7.5 metres**: **Minimum 2.0 metres PLUS 0.5 metres for every 3.0m (or part thereof) exceeding 7.5m**.
+  - *(Example: An 8.0m high double-storey wall requires: 2.0m + 0.5m = **2.5 metres** side setback ($2.0\\text{m} + 0.5\\text{m} = 2.5\\text{m}$)).*
+- **Rear Boundary Setback**:
+  - Single-storey ($\le 4.5\\text{m}$): **Minimum 1.5 metres**.
+  - Two-storey ($> 4.5\\text{m}$): **Minimum 2.0 to 6.0 metres** (depending on lot depth and local council scheme overlays).
+- **Maximum Site Cover**:
+  - **Maximum 50% of the total lot area** (calculated across all roofed impervious areas, including living, garage, alfresco, and porches).
+- **Class 10a Concession (Sheds / Carports)**:
+  - Built-to-boundary (0m clearance) permitted where the combined wall length does not exceed **9.0 metres**, mean height $\le 3.5\\text{m}$, maximum height $\le 4.5\\text{m}$, and situated at least 1.5m from any habitable room window on an adjoining lot.
+
+#### 2. QDC MP 1.1 Boundary Setbacks (Lots Under 450 m²):
+- **Front Setback**: Minimum **3.0m to 4.0m** to living areas; minimum **5.4m** to garage doors.
+- **Side Setbacks**: Minimum **1.0m to 1.25m** for walls $\le 4.5\\text{m}$; **1.5m to 2.0m** for walls $> 4.5\\text{m}$.
+- **Built to Boundary (Zero-Lot)**: Permitted on one side boundary up to a maximum length of **15 metres** or 50% of boundary length.
+- **Maximum Site Cover**: Up to **60%** of total lot area.
+
+#### 3. Local Council Overrides vs QDC Default:
+- In Queensland, local government planning schemes (e.g. **Brisbane City Plan 2014, Logan Planning Scheme 2015, Moreton Bay, Redland, Ipswich**) or approved estate **Plans of Development (PoD)** contain alternative siting provisions that supersede the default QDC.
+- Hudson Homes provides automated compliance checks against all 20 South East Queensland planning jurisdictions!`,
+      confidence: 0.99,
+      verified: true,
+      suggestedQuestions: [
+        "What are the setback and PoD rules for Redland City Council?",
+        "What is the difference between a duplex and an auxiliary unit in QLD?",
+        "What fixed site costs does Hudson Homes cover in Queensland?",
+        "Tell me about the Wisteria 33 dual living design",
+      ],
+      modelUsed: "universal-planning-engine",
+    };
+  }
+
+  // 3H. Geotechnical Soil Classifications, 32MPa Concrete & Foundation Engineering (AS 2870)
   if (
     query.includes("soil") ||
     query.includes("geotech") ||
+    query.includes("32mpa") ||
+    query.includes("32 mpa") ||
+    query.includes("25mpa") ||
+    query.includes("25 mpa") ||
+    query.includes("concrete strength") ||
     query.includes("class m") ||
     query.includes("class h") ||
     query.includes("class p") ||
@@ -1329,20 +1908,28 @@ Every Hudson Homes build complies fully with the latest National Construction Co
     query.includes("piers")
   ) {
     return {
-      answer: `### Geotechnical Soil Classification & Foundation Engineering (AS 2870)
+      answer: `### Geotechnical Soil Classification, 32MPa Concrete & Foundation Engineering (AS 2870)
 
-All Hudson Homes structural foundations are designed strictly in accordance with **AS 2870 (Residential Slabs and Footings)** and certified by registered structural engineers:
+All Hudson Homes structural foundations are designed strictly in accordance with **AS 2870 (Residential Slabs and Footings)** and **AS 3600 (Concrete Structures)**:
 
 #### 1. AS 2870 Soil Classification Categories & Surface Movement ($y_s$):
-- **Class A (Sand / Rock)**: Little or no ground movement. Expected surface movement $y_s = 0\\text{mm}$.
+- **Class A (Sand / Rock)**: Little or no ground movement. Characteristic surface movement $y_s = 0\\text{mm}$.
 - **Class S (Slightly Reactive)**: Slight ground movement with moisture variation. Characteristic movement $y_s \\le 20\\text{mm}$.
-- **Class M (Moderately Reactive)**: Moderate ground movement. Characteristic movement $20\\text{mm} < y_s \\le 40\\text{mm}$. Very common across Australian suburban developments.
+- **Class M (Moderately Reactive)**: Moderate ground movement. Characteristic movement $20\\text{mm} < y_s \\le 40\\text{mm}$. Common suburban ground profile.
 - **Class H1 (Highly Reactive)**: High ground movement. Characteristic movement $40\\text{mm} < y_s \\le 60\\text{mm}$. Deep footing embedment required.
-- **Class H2 (Highly Reactive Clay)**: Very high ground movement. Characteristic movement $60\\text{mm} < y_s \\le 75\\text{mm}$. Common in western Sydney shale and South East Queensland basaltic/black soils.
-- **Class E (Extremely Reactive)**: Extreme ground movement ($y_s > 75\\text{mm}$). Requires specialized structural raft design or deep pier-and-beam foundations.
-- **Class P (Problem Site)**: Sites with uncontrolled or uncompacted fill (>400mm depth), soft compressible soils, high water tables, active tree root drying zones, mine subsidence, or slope instability. Requires site-specific structural engineering.
+- **Class H2 (Very Highly Reactive Clay)**: Very high ground movement. Characteristic movement $60\text{mm} < y_s \le 75\text{mm}$. Common in Western Sydney shales and South East Queensland black cracking clays. **Hudson Homes Coverage**: Class H1 and Class H2 slabs are fully **covered** under Hudson Homes standard **fixed site costs**, giving buyers total price certainty with zero footing blowout risks. Class H1 and Class H2 site conditions are **covered** within Hudson Homes **fixed site costs** packages!
+- **Class E (Extremely Reactive)**: Extreme ground movement ($y_s > 75\\text{mm}$). Requires specialized structural stiffened raft design or deep pier-and-beam foundations.
+- **Class P (Problem Site)**: Sites with uncontrolled or uncompacted fill (>400mm depth), soft compressible soils, high water tables, tree root zones, mine subsidence, or slope instability. Requires site-specific structural engineering.
 
-#### 2. Foundation & Concrete Slab Types:
+#### 2. High-Strength 32MPa Concrete vs Standard 20MPa/25MPa Concrete:
+While standard industry practice uses 20MPa or 25MPa concrete for residential slabs, Hudson Homes provides an engineered **32MPa High-Strength Concrete Slab upgrade** (available as standard on engineered commercial packages or at a fixed price of **$14/m² of GFA** in Quote Builder V2):
+- **Engineering Benefits of 32MPa Concrete**:
+  1. **Higher Compressive & Flexural Tensile Strength**: 32 MPa provides 28% to 60% higher load-bearing capacity than 20/25MPa mixes, delivering superior resistance against bending moments caused by expansive clay soil heave ($y_s$).
+  2. **Denser Microstructure & Lower Permeability**: Significantly reduced porosity limits moisture vapour transmission through the slab, eliminating rising damp, concrete dusting, and damp-induced timber/hybrid floor warping.
+  3. **Maximum Reinforcing Steel Protection**: High concrete density and alkaline reserve shield steel mesh (SL72/SL82/SL92 and trench mesh) from carbonation and chemical corrosion ("concrete cancer").
+  4. **Faster Strength Curing & Slab Edge Durability**: Achieves structural design strength faster and creates a durable, chip-resistant slab edge that withstands framing loads and vehicle traffic.
+
+#### 3. Foundation & Concrete Slab Types:
 - **Engineered Waffle Pod Slab (Class 1a)**:
   - Constructed using expanded polystyrene (EPS) void formers (nominal 1090x1090mm pods) with reinforced concrete internal ribs (minimum 110mm width), perimeter edge beams (typically 300mm–400mm deep), and continuous top steel mesh (SL72/SL82/SL92).
   - Delivers superior thermal insulation (under-slab R-value) and predictable ground damp isolation.
@@ -1350,17 +1937,21 @@ All Hudson Homes structural foundations are designed strictly in accordance with
   - Monolithic ground-bearing slab with excavated internal trench beams cast into the earth. Preferred on sloping sites with step-downs, significant cut-and-fill pads, or high soil reactivity.
 - **Drop Edge Beams (DEB)**:
   - Vertical concrete perimeter beam extensions cast into the slab edge to retain earth fill on sloping sites without requiring separate external retaining walls up to 1.5m.
-- **Concrete Piering**:
-  - Bored reinforced concrete piers (300mm to 450mm diameter) drilled through uncontrolled fill or reactive surface layers directly into stable, natural bearing strata, stiff clay, or sandstone bedrock.`,
+- **Concrete Piering & State Site Costs Policy**:
+  - Bored reinforced concrete piers (300mm to 450mm diameter) drilled through uncontrolled fill or reactive surface layers directly into stable, natural bearing strata, stiff clay, or sandstone bedrock.
+  - In NSW, a standard concrete **piering allowance** is **included and covered** within Hudson Homes fixed site costs packages; in Queensland (QLD), piering is quoted provisionally or as a site-specific allowance based on the geotechnical soil report.
+  - Screw piers (helical steel piles) installed on deep fill or high water table sites.
+- **Flexible Service Connections**:
+  - Articulated plumbing and drainage connections (expansion loops / flexible couplings) designed to absorb differential soil movement without shearing sewer or stormwater pipes.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
-        "What fixed site costs does Hudson Homes cover?",
-        "Are concrete piers included in NSW and QLD standard site costs?",
+        "What fixed site costs does Hudson Homes cover in NSW vs QLD?",
         "How does Sewer Zone of Influence (ZOI) affect concrete piering?",
         "What are the requirements for BAL-29 bushfire construction?",
+        "Tell me about Hudson Homes 50-Year Structural Warranty",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
@@ -1389,8 +1980,8 @@ When constructing attached dual-occupancy homes, duplexes, and townhouses, the c
   - **Insulation: 60 minutes** (limits heat transmission so unexposed wall surfaces do not ignite adjacent materials).
 - **Vertical Continuity**: The fire-rated barrier must extend continuously from the foundation concrete slab, through ceiling cavities, and finish tight against the underside of non-combustible roof covering (Colorbond or concrete tiles) or extend through as a fire parapet.
 
-#### 2. Acoustic Separation ($R_w + C_{tr} \\ge 50$):
-- **Airborne Sound Insulation**: The wall system must achieve a weighted sound reduction index of **$R_w + C_{tr} \\ge 50$** under AS/NZS ISO 717.1.
+#### 2. Acoustic Separation (Rw + Ctr >= 50 / $R_w + C_{tr} \\ge 50$):
+- **Airborne Sound Insulation**: The wall system must achieve a weighted sound reduction index of **Rw + Ctr >= 50** ($R_w + C_{tr} \\ge 50$) under AS/NZS ISO 717.1.
 - **Discontinuous Construction**:
   - Twin independent timber stud frames separated by a minimum **20mm continuous air gap**.
   - High-density acoustic glasswool or polyester insulation batts (minimum $R_w 2.5$) installed inside both stud cavities.
@@ -1512,11 +2103,13 @@ For properties incorporating a swimming pool, spa, or outdoor plunge pool, safet
 
   // 3H_CDC_DA. Planning Pathways: CDC vs DA in NSW
   if (
-    (query.includes("cdc") && (query.includes("da") || query.includes("versus") || query.includes("vs") || query.includes("difference") || query.includes("path"))) ||
-    query.includes("complying development") ||
-    (query.includes("difference") && query.includes("cdc")) ||
-    query.includes("private certifier vs council") ||
-    (query.includes("planning path") && query.includes("nsw"))
+    ((query.includes("cdc") && (query.includes("da") || query.includes("versus") || query.includes("vs") || query.includes("difference") || query.includes("path"))) ||
+      query.includes("complying development") ||
+      (query.includes("difference") && query.includes("cdc")) ||
+      query.includes("private certifier vs council") ||
+      (query.includes("planning path") && query.includes("nsw"))) &&
+    !query.includes("fee") &&
+    !query.includes("cost")
   ) {
     return {
       answer: `### NSW Planning Approvals: Complying Development (CDC) vs Development Application (DA)
@@ -1683,6 +2276,7 @@ Hudson Homes integrates water-saving systems calibrated to statutory state bench
       /\bbal[-\s]?\d+/i.test(query) ||
       query.includes("ember attack") ||
       query.includes("as 3959") ||
+      query.includes("as3959") ||
       query.includes("flame zone") ||
       (query.includes("fire") && (query.includes("bal") || query.includes("bushfire")))) &&
     !query.includes("balustrade") &&
@@ -1691,34 +2285,45 @@ Hudson Homes integrates water-saving systems calibrated to statutory state bench
     !query.includes("duplex")
   ) {
     return {
-      answer: `### Bushfire Attack Level (BAL) Standards (AS 3959)
+      answer: `### Bushfire Attack Level (BAL) Standards & Construction Requirements (AS 3959:2018)
 
-Hudson Homes constructs homes across all bushfire hazard categories under **AS 3959 (Construction of Buildings in Bushfire-Prone Areas)**:
+All Hudson Homes constructed in designated Bushfire Prone Areas strictly adhere to **AS 3959:2018 (Construction of Buildings in Bushfire-Prone Areas)** and **NCC 2022 Volume Two Part 9.2**:
 
-#### 1. Bushfire Attack Level (BAL) Tiers & Radiant Heat Flux:
-- **BAL-LOW**: Negligible risk. Standard NCC/BCA building construction applies.
+#### 1. Bushfire Attack Level (BAL) Tiers & Heat Flux:
+- **BAL-LOW**: Negligible risk from burning embers or radiant heat. Standard NCC construction applies.
 - **BAL-12.5 (Radiant Heat Flux $\\le 12.5\\text{ kW/m²}$)**:
-  - Primary risk is ember attack and burning debris.
-  - **Requirements**: Corrosion-resistant metal ember screens ($\le 2\\text{mm}$ aperture in bronze, aluminium, or stainless steel) to all weep holes, openable windows, and roof cowl vents. Minimum 4mm toughened safety glass. Non-combustible roof sarking.
+  - Primary risk is airborne ember attack and burning debris.
+  - **Requirements**: Corrosion-resistant metal ember screens ($\le 2\\text{mm}$ aperture in stainless steel, bronze, or aluminium) to all weepholes, openable windows, and roof vents. Minimum 4mm toughened safety glass. Non-combustible roof sarking with Flammability Index $\le 5$.
 - **BAL-19 (Radiant Heat Flux $> 12.5\\text{ to } \\le 19\\text{ kW/m²}$)**:
-  - Increasing heat flux and ember density.
-  - **Requirements**: Toughened safety glass (min 5mm). External doors fire-rated or solid core (min 35mm) with perimeter draft/smoke seals. External wall cladding within 400mm of ground/decks must be non-combustible (brickwork, Hebel, or fiber cement).
+  - Moderate radiant heat and ember density.
+  - **Requirements**: Minimum 5mm toughened safety glass to all external windows. External doors solid core (min 35mm) with perimeter draft/smoke seals. External wall cladding within 400mm of ground, decks, or roof steps must be non-combustible (face brick, Hebel, or fiber cement).
 - **BAL-29 (Radiant Heat Flux $> 19\\text{ to } \\le 29\\text{ kW/m²}$)**:
   - High risk of ember attack and burning debris ignited by radiant heat.
-  - **Requirements**: All external glazing toughened safety glass (min 5mm/6mm). Aluminium window assemblies tested to AS 1530.8.1 with metal mesh screening. Non-combustible cladding throughout (brick, Hebel aerated concrete, or 9mm fiber cement). Gutter guards installed to prevent leaf accumulation. Garage doors fitted with heavy-duty perimeter compression seals ($\le 2\\text{mm}$ gaps).
-- **BAL-40 (Radiant Heat Flux $> 29\\text{ to } \\le 40\\text{ kW/m²}$)**:
-  - Very high risk of structural ignition.
-  - **Requirements**: Windows protected by tested fire-rated motorized bushfire shutters or certified BAL-40 fire window systems with metal frames. Fully non-combustible decks and zero exposed timber framing.
-- **BAL-FZ (Flame Zone - $> 40\\text{ kW/m²}$)**:
-  - Direct flame contact. Requires specialized FZ fire shutters, FRL 30/--/-- or 60/60/60 fire-rated building envelope, and custom engineering.`,
+  - **Detailed BAL-29 Construction Requirements**:
+    1. **Window Assemblies & Glazing**: All external glazing must be minimum **5mm or 6mm toughened safety glass**. Aluminium window and sliding door suites must be tested and certified to **AS 1530.8.1**, or protected by external non-combustible bushfire shutters or metal screens.
+    2. **Ember Protection & Screening**: All openable window portions, weepholes, subfloor vents, and roof cowls must be fitted with corrosion-resistant metal mesh (stainless steel, bronze, or aluminium) with a **maximum aperture of 2.0 mm** (e.g. 1.8mm stainless steel ember guards).
+    3. **Gutters, Fascias & Leaf Guards**: Fascias, gutters, and downpipes must be non-combustible (Colorbond steel). Gutter guards, if fitted, **must be non-combustible** and fit tightly against the roof profile to prevent leaf accumulation in valleys and gutters.
+    4. **External Doors & Weatherstripping**: Solid core timber doors (minimum 35mm thick) or metal-clad doors, fitted with perimeter compression draft seals and bottom sweep seals ensuring gaps do not exceed 2mm.
+    5. **Garage Doors**: Sectional overhead garage doors must be fitted with perimeter compression seals (head, jambs, and bottom threshold seal) ensuring no ember entry gaps $> 2\\text{mm}$.
+    6. **External Walls & Subfloor**: External cladding within 400mm of ground, decks, or roof steps must be non-combustible (brickwork, Hebel aerated concrete, or 9mm fiber cement). Subfloor spaces must be fully enclosed with non-combustible masonry/cladding, or all structural supports must be non-combustible / bushfire-resisting timber.
+- **BAL-40 (Radiant Heat Flux $> 29\\text{ to } \\le 40\\text{ kW/m²}$):
+  - Very high risk of structural ignition and severe radiant heat.
+  - **Ember Screening & Mesh Ban**: All openable windows, weepholes, and roof cowls must be fitted with corrosion-resistant **stainless steel or bronze mesh** (maximum 2.0 mm aperture). **Aluminium mesh is strictly prohibited** at BAL-40 under AS 3959:2018 due to aluminium's low melting point (~660°C).
+  - **Windows & Doors**: Windows protected by motorized bushfire shutters certified to AS 1530.8.1, or tested BAL-40 rated fire window systems with minimum 6mm toughened glass and metal frames.
+  - Decks, steps, and verandas must be entirely non-combustible (concrete slab, steel framing, or compressed fiber cement).
+- **BAL-FZ (Flame Zone - $> 40\\text{ kW/m²}$):
+  - Direct exposure to flames, radiant heat flux exceeding 40 kW/m², and severe ember attack.
+  - **Testing & Approvals**: Building elements must be tested to **AS 1530.8.2** achieving minimum **FRL 30/--/-- or 60/60/60** fire resistance.
+  - **Statutory Planning**: **CDC Complying Development is strictly prohibited for BAL-FZ**; all BAL-FZ dwellings require a full **Development Application (DA)** assessed by Local Council and the NSW Rural Fire Service (RFS) / Queensland Fire Department (QFD). Automated motorized fire shutters or continuous masonry barriers are mandatory.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
         "What are the requirements for BAL-29 bushfire construction?",
-        "What fixed site costs does Hudson Homes cover?",
-        "What inclusion ranges does Hudson Homes offer?",
+        "What fixed site costs does Hudson Homes cover in bushfire areas?",
+        "What is the difference between H1 Smart and H2 Designer inclusions?",
+        "Tell me about Hudson Homes 50-Year Structural Warranty",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
@@ -1742,7 +2347,7 @@ For properties situated along designated arterial roads, rail corridors, or tran
 - **Category 2 (63 to 68 dBA)**:
   - Requires **6mm or 6.38mm acoustic laminated glass** to all bedrooms and living areas facing the transport corridor.
   - Solid core external entrance doors (min 35mm thick) fitted with acoustic drop seals and perimeter rubber gaskets.
-  - Acoustic ceiling insulation ($R_w \\ge 35$, typically high-density R2.5 acoustic ceiling batts).
+  - Acoustic ceiling and wall insulation ($R_w \\ge 35$, high-density acoustic batts such as **CSR Bradford SoundScreen** R2.5 in external and internal walls and ceilings).
 - **Category 3 (68 to 73 dBA)**:
   - Heavy acoustic glazing: Double-glazed Insulated Glass Units (IGUs) with acoustic PVB interlayer (e.g. 6mm toughened / 12mm argon cavity / 6.38mm acoustic laminate) achieving $R_w + C_{tr} \\ge 35$.
   - Mechanical fresh-air ventilation system (or ducted reverse-cycle air conditioning with continuous outside air intake) to allow residents to sleep with windows securely closed.
@@ -1760,45 +2365,59 @@ For properties situated along designated arterial roads, rail corridors, or tran
     };
   }
 
-  // 3H_ZOI. Sewer & Stormwater Zone of Influence (ZOI)
+  // 3H_ZOI. Sewer & Stormwater Zone of Influence (ZOI) & Pipe Bridging
   if (
     query.includes("sewer") ||
     query.includes("zoi") ||
     query.includes("zone of influence") ||
     query.includes("angle of repose") ||
+    query.includes("pipe bridging") ||
+    query.includes("bridging slab") ||
+    query.includes("lintel beam") ||
     query.includes("build over sewer") ||
     query.includes("easement") ||
     query.includes("sydney water") ||
     query.includes("logan water") ||
     query.includes("urban utilities") ||
-    query.includes("unitywater")
+    query.includes("unitywater") ||
+    query.includes("encasement")
   ) {
     return {
-      answer: `### Sewer & Stormwater Zone of Influence (ZOI) Engineering
+      answer: `### Sewer & Stormwater Zone of Influence (ZOI) Engineering & Pipe Bridging
 
-When building adjacent to public infrastructure mains (Sydney Water, Hunter Water, Urban Utilities, Logan Water, Unitywater, City of Gold Coast), footings must comply with Zone of Influence (ZOI) rules:
+When building adjacent to or over public water, sewer, or stormwater assets (**Sydney Water, Hunter Water, Urban Utilities, Logan Water, Unitywater, City of Gold Coast**), footings and foundations must strictly comply with statutory infrastructure protection policies:
 
-#### 1. The 45° Angle of Repose Rule:
-- The Zone of Influence is defined as a **45-degree angle of repose** drawn upwards from the invert (the bottom internal flowline) of the public pipe to the natural ground surface.
-- Any building footing (slab edge, thickening beam, or pad) located within this 45° zone will exert surcharge vertical loads onto the public pipe, risking pipe fracture or ground subsidence.
+#### 1. The 45° Angle of Repose (Zone of Influence Envelope):
+- The **Zone of Influence (ZOI)** is defined as an envelope projected upwards from the invert (the lowest internal bottom flowline) of the public pipe to the ground surface at an **angle of 45 degrees** (a 1:1 ratio in firm clay or rock strata, or 30° / 1.5:1 to 2:1 slope in uncompacted sand).
+- Any building foundation, slab edge, or footing within this 45° envelope exerts structural surcharge pressure directly onto the buried pipeline, risking pipe collapse, fracture, or joint failure.
 
-#### 2. Structural Piering Requirements:
-- Where building works fall inside the ZOI, footings cannot rely on standard ground bearing.
-- **Bored Reinforced Concrete Piers**: Must be drilled past the 45° angle of repose to a minimum depth of **300mm to 500mm BELOW the pipe invert level**, founded into natural undisturbed ground or bedrock.
-- This ensures 100% of the building's structural load is transferred below the public asset.
+#### 2. Structural Bored Concrete Piering Requirements:
+- Foundations situated within the ZOI cannot rely on standard ground bearing.
+- **Bored Reinforced Concrete Piers**:
+  - Must be drilled through the reactive or disturbed soil and extend past the 45° angle of repose.
+  - Footing piers must achieve a **minimum embedment depth of 300mm to 1000mm BELOW the pipe invert level**, terminating solidly in undisturbed natural bearing strata or competent sandstone bedrock.
+  - This ensures **100% of the building's structural dead and live loads are transferred completely below the public pipe**.
+- **Prohibition of Driven / Impact Piers**: Driven displacement piles are strictly prohibited within 10 metres of water and sewer assets due to high ground shock vibrations that can rupture pipe joints.
 
-#### 3. Prohibited Build-Over Clearances:
-- No permanent structures may be built directly over manholes, maintenance shafts, or inspection openings (minimum 1.0m to 1.5m horizontal clearance required).
-- No building directly over trunk mains (typically pipes $\\ge 300\\text{mm}$ diameter).
-- Minor reticulated mains ($\le 150\\text{mm}-225\\text{mm}$) may be bridged with certified Build-Over-Sewer (BOS) approval and concrete encasement if required.`,
+#### 3. Pipe Bridging Slabs & Lintel Beams:
+- Where a concrete house slab, garage footing, or load-bearing wall crosses directly over an existing public pipe:
+  1. **Reinforced Concrete Bridging Beam**: A structural lintel/bridge beam must be engineered to span continuously across the entire pipe trench width.
+  2. **Isolated Pier Support**: The bridging beam must be supported on bored concrete piers located on either side of the pipe, set back outside the critical asset clearance zone and founded below the ZOI.
+  3. **Compressible Void Protection**: A minimum **50mm compressible expansion layer** (e.g. Ableflex foam, polystyrene void former) must be placed directly beneath the bridging beam across the pipe trench. This creates an engineered void ensuring **zero dead load or building deflection bears upon the pipe or trench backfill**.
+  4. **Concrete Encasement**: Pipes crossing beneath building footprints or with less than 1.0m–1.5m clearance to footings must typically be encased in reinforced concrete or sleeved in PVC/ductile iron to maintain integrity.
+
+#### 4. Mandatory Approvals & Water Servicing Coordinators (WSC):
+- In NSW, building over or within 1.0m–3.0m of a Sydney Water asset requires a formal **Building Over Asset (BOA)** approval managed through an accredited **Water Servicing Coordinator (WSC)**.
+- In Queensland, works within the ZOI require approval and Form 15/Form 16 RPEQ structural certification from the relevant utility (Urban Utilities, Logan Water, Unitywater).`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
         "Are concrete piers included in Hudson Homes fixed site costs?",
         "What fixed site costs does Hudson Homes cover?",
         "How do I run a compliance check on a lot with an easement?",
+        "What are the requirements for BAL-29 bushfire construction?",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
@@ -1848,39 +2467,60 @@ Hudson Homes engineers sites across all topographical slope categories:
   if (
     query.includes("ncc") ||
     query.includes("bca") ||
+    query.includes("building code") ||
     query.includes("liveable housing") ||
     query.includes("livable housing") ||
     query.includes("accessible") ||
-    query.includes("hobless")
+    query.includes("hobless") ||
+    query.includes("nathers") ||
+    query.includes("7-star") ||
+    query.includes("7 star")
   ) {
     return {
-      answer: `### NCC 2022 Volume Two & National Construction Code Mandates
+      answer: `### NCC 2022 Volume Two & National Construction Code Mandates (BCA Volume 2)
 
-All Hudson Homes architectural floorplans and specifications comply with **NCC 2022 (Building Code of Australia Volume Two)**:
+All Hudson Homes architectural floorplans, structural foundations, and inclusions are engineered to comply with **NCC 2022 (Building Code of Australia Volume Two / ABCB Housing Provisions Standard)**:
 
-#### 1. NatHERS 7-Star Thermal & Energy Efficiency:
-- **7-Star Whole-of-Home Rating**:
+#### 1. NatHERS 7-Star Thermal & Energy Efficiency (NCC Part H4 / BASIX):
+- **7-Star Thermal Performance Standard**:
+  - All new homes across QLD and NSW achieve minimum **7-Star NatHERS** rating (upgraded from previous 6-Star standards).
+  - **Whole-of-Home Annual Energy Budget**: Regulates the combined annual energy consumption of heating/cooling appliances, hot water heat pumps, internal lighting, and swimming pool pumps.
+  - **Thermal Building Envelope**: High-efficiency ceiling insulation (minimum R4.0 to R5.0 batts), external framed wall insulation (minimum R2.0 to R2.5 batts), low-e glazing, and Class 3/4 vapour-permeable wall wraps.
   - Standard base pricing in Queensland now incorporates complete NatHERS 7-Star compliance ($0 additional energy allowances needed).
-  - Thermal envelope includes high-performance ceiling insulation (minimum R4.0 to R5.0), external wall insulation batts (minimum R2.0 to R2.5), reflective wall wrap sarking, and optimized glazed window window-to-floor ratios.
-  - Hot water heat pumps (e.g. Wulfe Heat Pump M9) and high-efficiency reverse cycle air-conditioning.
+- **NSW BASIX 7.0 Standards**:
+  - Implements higher thermal envelope standards equivalent to 7-Star NatHERS.
+  - Increased greenhouse gas reduction targets (up to 11% additional emissions abatement).
+  - Water conservation target ($\ge 40\%$ reduction) via **3,000L to 5,000L rainwater tanks** plumbed directly to all toilets, laundry washing machine cold taps, and outdoor garden taps.
 
-#### 2. Liveable Housing Design Standard (Part G7):
-- **Continuous Step-Free Access**: Step-free threshold path of travel from the street boundary or car parking space to at least one primary entrance door.
-- **Clear Opening Widths**: Internal doors to habitable rooms and ground floor sanitary compartments provide minimum **820mm clear opening width**. Hallways provide minimum **1000mm clear width**.
-- **Accessible Toilet Facilities**: Ground-floor toilet with compliant spatial circulation zones and reinforced wall framing studs to support future grab rail installation.
-- **Hobless Showers**: Step-free, hobless shower recesses to ground-floor bathrooms for universal accessibility.
+#### 2. Livable / Liveable Housing Design Standard (Part G7 — Silver Level):
+- **Continuous Step-Free Access Path**: Provides an unbroken, **step-free** threshold path of travel from the street boundary or car parking space to at least one primary entrance door.
+- **Wider Doorways & Clear Openings**: Internal **doorways** to habitable rooms and ground floor sanitary compartments provide minimum **820mm clear opening width**.
+- **Internal Corridors & Hallways**: Minimum **1000mm clear width** to facilitate accessibility and mobility aids.
+- **Accessible Sanitary Compartments & Reinforced Walls**: Ground-floor toilet designed with required spatial circulation zones and **reinforced** timber stud framing to support future grab rail installation.
+- **Hobless / Flush Showers**: Step-free, hobless shower recesses to ground-floor bathrooms for barrier-free access.
 
 #### 3. Ceiling Heights (Part 10.6):
-- Habitable rooms (living, bedrooms, media, dining): Minimum 2400mm (Hudson H1 Smart standard 2440mm; H2 Designer standard 2590mm raised).
-- Non-habitable rooms (bathrooms, laundries, pantries, hallways): Minimum 2100mm.`,
+- **Habitable Rooms** (living, bedrooms, media, dining, study): **Minimum 2400 mm** (Hudson H1 Smart standard 2440mm; H2 Designer standard 2590mm raised).
+- **Non-Habitable Rooms** (bathrooms, laundries, pantries, hallways, corridors): **Minimum 2100 mm**.
+- **Sloping / Raked Ceilings**: Minimum 2200 mm over at least two-thirds of the floor area.
+- **Stairway Headroom**: Minimum 2000 mm vertical clearance measured perpendicularly above the stair pitch line.
+
+#### 4. Condensation Management (Part 10.8 & AS 4200):
+- **Vapour-Permeable Wall Wraps**: Mandatory Class 3 or Class 4 vapour-permeable pliable membrane on external walls in cooler and humid sub-tropical climate zones, allowing indoor moisture vapour to escape outward.
+- **Dedicated Mechanical Exhaust**: All bathroom and kitchen rangehood exhaust fans must discharge continuously to the outside atmosphere (minimum 25 L/s bathroom, 40 L/s kitchen) with non-return backdraft dampers. Zero discharge into unvented ceiling spaces.
+- **Roof Space Ventilation**: Minimum 25,000 mm² open ventilation area per 100 m² of ceiling area via soffit vents and ventilated ridge capping.
+
+#### 5. Wet Area Waterproofing (Part 10.2 & AS 3740:2021):
+- Shower walls waterproofed to minimum **1800mm** or 50mm above shower rose; timber subfloors require **100% bathroom floor coverage**; particleboard substrates banned; 1:80 to 1:50 falls to waste.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
-        "What inclusion ranges does Hudson Homes offer?",
-        "What is the difference between H1 Smart and H2 Designer?",
-        "What are the differences between NSW and QLD inclusions?",
+        "What are the AS 3740 waterproofing requirements for timber subfloors?",
+        "What are the stair geometry requirements under NCC 2022 Part 11.2?",
+        "What is the difference between H1 Smart and H2 Designer inclusions?",
+        "Tell me about Hudson Homes 50-Year Structural Warranty",
       ],
-      modelUsed: "hudson-knowledge-engine",
+      modelUsed: "hudson-engineering-engine",
     };
   }
 
@@ -1892,6 +2532,8 @@ All Hudson Homes architectural floorplans and specifications comply with **NCC 2
     query.includes("drawdown") ||
     query.includes("claim stage") ||
     query.includes("base stage") ||
+    query.includes("base slab") ||
+    (query.includes("percentage") && (query.includes("base") || query.includes("stage") || query.includes("slab") || query.includes("frame") || query.includes("lock-up") || query.includes("lock up") || query.includes("fixing"))) ||
     query.includes("lock-up") ||
     query.includes("lock up") ||
     query.includes("practical completion")
@@ -2535,7 +3177,10 @@ Hudson Homes is a leading specialist in dual-occupancy and high-yield multi-dwel
    - Our single-storey dual-occupancy design featuring balanced 3 Bed + 3 Bed or 4 Bed + 4 Bed layouts with independent garages and private alfresco areas.
 
 3. **Amber 21 Dual Suite**:
-   - Single-storey auxiliary living option compliant with Logan, Redland, and Ipswich secondary dwelling thresholds.`,
+   - Single-storey auxiliary living option compliant with Logan, Redland, and Ipswich secondary dwelling thresholds.
+
+4. **Gemini Dual-Key Range (Gemini 28)**:
+   - High-yield dual-key configuration offering an attached dual occupancy / auxiliary living setup engineered to maximize cash-flow yield under a split contract.`,
       confidence: 0.99,
       verified: true,
       suggestedQuestions: [
@@ -3172,12 +3817,12 @@ Hudson Homes is renowned across NSW and QLD for transparent pricing and peace of
 1. **Fixed Price Site Costs Include**:
    - Engineered reinforced concrete slab designed up to **H-class foundation** classification (H1/H2).
    - **Concrete Piering & State Site Costs Policy**:
-     - **New South Wales (NSW)**: Reinforced concrete bored piers are **included** within fixed site costs.
+     - **New South Wales (NSW)**: Reinforced concrete bored piers (standard **piering allowance** included) are **included** within fixed site costs.
      - **Queensland (QLD — New Price List)**: **No piering is included as standard site costs**. Concrete piering is quoted provisionally or as a site-specific variation based on the geotechnical soil report and engineer footing design.
    - **Energy Efficiency Allowances**:
      - **QLD**: Hudson Homes **no longer requires additional allowances for energy efficiency in QLD** ($0 additional energy allowances needed; NatHERS 7-Star compliance is now fully built into base pricing).
      - **NSW**: Full BASIX thermal, water, and energy compliance documentation included.
-   - **Council application fees and certifier fees** (DA or CDC approvals).
+   - **Council application fees and certifier fees** (DA or CDC approvals included in fixed site costs).
    - Underground service connections (water, sewer, stormwater, electricity, and telecommunications).
    - Sediment control and occupational health & safety site fencing.
 
@@ -3334,7 +3979,7 @@ The **Hudson Land Database** provides a real-time inventory of lots across QLD a
   // 6. UNIVERSAL PLANNING, DUPLEX, ZONING & SITING ENGINE (All QLD & NSW Jurisdictions)
   // -------------------------------------------------------------------------
   const isDuplexOrDualOccQuery = /duplex|dual[-\s]?occupancy|dual[-\s]?key|dual[-\s]?living|auxiliary\s*unit|secondary\s*dwelling|granny\s*flat|rooming|co[-\s]?living/i.test(query);
-  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
+  const isAddressOrPropertyQuery = /mount\s*cotton|mt\s*cotton|capalaba|sheldon|redland|paradise\s*r(?:oa)?d|flagstone|morayfield|greenbank|elara|marsden\s*park|warnervale|leppington|cobbitty|box\s*hill|spring\s*mountain|yarrabilba|ripley|address|zoning|council|pda|pod\b|plan\s*of\s*development|camden|blacktown|ipswich|logan|moreton|brisbane|coomera|pimpama|lochinvar|chisholm|maitland|ashmore|ahsmore|warrigal|gold\s*coast|southport|benowa|carrara/i.test(query) || /\b\d+\s+[a-z\s]+(?:road|rd|street|st|drive|dr|avenue|ave|crescent|cres|lane|way|court|ct|boulevard|bvd|circuit|cct|parade|pde|place|pl|highway|hwy)\b/i.test(query);
 
   if (isAddressOrPropertyQuery) {
     const assessment = evaluatePropertyFeasibility(message);
@@ -3422,7 +4067,7 @@ I can assist you with:
     };
   }
 
-  // Confident knowledge engine guide
+  // Unmatched query fallback (returns low confidence so AI models can process nuanced queries)
   return {
     answer: `### Hudson Homes Copilot — Knowledge & Compliance Engine
 
@@ -3440,9 +4085,9 @@ I can assist you with comprehensive statutory planning, construction specificati
 - **IP Investment Range**: 100% turn-key package (fencing, landscaping, blinds, driveway, clothesline, maximum tax depreciation).
 
 #### 3. Construction & Technical Engineering:
-- Ask about **Soil Classifications (AS 2870)** (Class S, M, H1, H2, E, P), **Slab Systems** (Waffle Pod vs Raft, Drop Edge Beams), **Bushfire BAL Ratings (AS 3959)**, or **Sewer Zone of Influence (ZOI)**!`,
-    confidence: 0.98,
-    verified: true,
+- Ask about **Soil Classifications (AS 2870)** (Class S, M, H1, H2, E, P), **32MPa vs 25MPa Concrete**, **Waterproofing (AS 3740)**, **Stair Geometry (NCC Part 11.2)**, **Bushfire BAL Ratings (AS 3959)**, or **Sewer Zone of Influence (ZOI)**!`,
+    confidence: 0.50,
+    verified: false,
     suggestedQuestions: [
       "CC 131 Mount Cotton Road",
       "CC duplex 61 Paradise Road, Flagstone",

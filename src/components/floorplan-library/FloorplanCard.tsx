@@ -67,7 +67,7 @@ export function FloorplanCard({
         designName: activeVariant.label,
         standardDesignM2: activeVariant.totalM2,
         totalM2: activeVariant.totalM2,
-        housingType: activeVariant.housingType,
+        housingType: (activeVariant as any).housingType || item.housingType,
         floorplanUrl: activeVariant.url,
       };
       sessionStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));

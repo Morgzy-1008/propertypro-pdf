@@ -215,4 +215,40 @@ export function canAccessLandScout(staffUser?: {
   return !!staffUser;
 }
 
+/**
+ * Checks if a staff user is Alyssa Hales (Sales Assistant / NHC).
+ */
+export function isAlyssaHales(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+  const id = (staffUser.id || "").toLowerCase();
+  const email = (staffUser.email || "").toLowerCase();
+  const name = (staffUser.name || "").toLowerCase();
+  return (
+    id === "alyssa-hales" ||
+    email.includes("alyssa.hales") ||
+    email.includes("alyssa.pippig") ||
+    name.includes("alyssa")
+  );
+}
+
+/**
+ * Access control for Morgan and Alyssa's BrainDump Portal.
+ * Shared exclusively between Morgan Hales, Alyssa Hales, or system administrator.
+ */
+export function canAccessBrainDump(staffUser?: {
+  id?: string | null;
+  name?: string | null;
+  email?: string | null;
+  role?: string | null;
+} | null): boolean {
+  if (!staffUser) return false;
+  return isMorganHales(staffUser) || isAlyssaHales(staffUser) || staffUser.role === "admin";
+}
+
+
 

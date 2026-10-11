@@ -11,12 +11,22 @@ import {
   Zap,
   Minus,
   X,
+  Trees,
+  Car,
+  HelpCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,12 +42,14 @@ import {
   type PopularVariationPreset,
   type PopularVariationGroup,
 } from "./V2Types";
-import { DEFAULT_CATALOGUE } from "@/lib/quoting/quoteCatalogue";
+import { DEFAULT_CATALOGUE, EXTENSION_RATES_BY_TIER } from "@/lib/quoting/quoteCatalogue";
 import {
   isDoubleStoreyDesign,
   getStandardAreaBreakdown,
 } from "@/lib/quoting/quoteEngine";
 import { normalizeInclusionTier } from "@/lib/quoting/quoteCatalogue";
+import { landscapingPriceFor } from "@/lib/landscaping";
+import { getActiveDivision } from "@/lib/divisionContext";
 import type {
   FullQuote,
   QuoteSelectedLineItem,
@@ -122,6 +134,7 @@ interface V2StepVariationsProps {
   quote: FullQuote;
   lineItems: QuoteSelectedLineItem[];
   onChange: (items: QuoteSelectedLineItem[]) => void;
+  onDesignChange?: (patch: Partial<FullQuote["design"]>) => void;
   onNext: () => void;
   onPrev: () => void;
   isLight: boolean;
@@ -131,21 +144,44 @@ export function V2StepVariations({
   quote,
   lineItems,
   onChange,
+  onDesignChange,
   onNext,
   onPrev,
   isLight,
 }: V2StepVariationsProps) {
-  const [categoryFilter, setCategoryFilter] = useState<VariationCategoryFilter>("all");
+  const [selectedCategory, setSelectedCategory] = useState<PopularVariationGroup | "all">("extensions");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Calculate live count and subtotal of selected items in each category
+  const getCategoryStats = (groupId: PopularVariationGroup) => {
+    const presets = POPULAR_VARIATIONS.filter((p) => p.group === groupId && isItemVisibleForDesign(p));
+    let count = 0;
+    let total = 0;
+    for (const p of presets) {
+      const existing = lineItems.find((it) => it.id === p.id || it.catalogueItemId === p.id);
+      if (existing?.isIncluded) {
+        const isSqm = p.unitType === "sqm";
+        const isBath = p.unitType === "per_bath";
+        const qty = existing.quantity || 0;
+        if (isSqm || isBath ? qty > 0 : true) {
+          count++;
+          total += existing.subtotal ?? (isSqm || isBath ? qty * (p.unitRate || p.price) : p.price);
+        }
+      }
+    }
+    return { count, total };
+  };
 
   // Custom Variation Input & Modal State
   const [customName, setCustomName] = useState("");
   const [customPrice, setCustomPrice] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
   const [customCategory, setCustomCategory] = useState("internal_general");
   const [isCustomDialogOpen, setIsCustomDialogOpen] = useState(false);
 
   // Top Search Dropdown State & Refs
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchDraftQuantities, setSearchDraftQuantities] = useState<Record<string, number>>({});
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +205,138 @@ export function V2StepVariations({
   const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.storeys);
   const tier = normalizeInclusionTier(quote.design.specTier);
   const isH3 = tier === "H3" || quote.design.specTier?.toLowerCase().includes("h3") || quote.design.specTier?.toLowerCase().includes("luxury");
+  const tierRates = EXTENSION_RATES_BY_TIER[tier] || EXTENSION_RATES_BY_TIER.H2;
+
+  // Dynamic extension rate calibration function ensuring all extension presets reflect H1/H2/H3
+  const getCalibratedPreset = (p: PopularVariationPreset): PopularVariationPreset => {
+    if (p.id === "pop_alfresco_slab_sqm") {
+      const r = tierRates.alfresco;
+      return { ...p, price: r, unitRate: r, highlight: `${formatAud(r)}/m² rate` };
+    }
+    if (p.id === "pop_living_extension_sqm") {
+      const r = tierRates.gf;
+      return { ...p, price: r, unitRate: r, highlight: `${formatAud(r)}/m² rate` };
+    }
+    if (p.id === "pop_garage_extension_sqm") {
+      const r = tierRates.garage;
+      return { ...p, price: r, unitRate: r, highlight: `${formatAud(r)}/m² rate` };
+    }
+    if (p.id === "pop_porch_extension_sqm") {
+      const r = tierRates.porch;
+      return { ...p, price: r, unitRate: r, highlight: `${formatAud(r)}/m² rate` };
+    }
+    return p;
+  };
+
+  // Turnkey Landscaping & 55m² Driveway calculations
+  const division = (quote.client?.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+  const currentLandSize = quote.design.landscapingLandSize || 450;
+  const currentLandscapingCost = landscapingPriceFor(
+    currentLandSize,
+    quote.design.housingType,
+    quote.design.designName,
+    division
+  );
+  const isLandscapingActive = Boolean(quote.design.landscapingSelected);
+
+  const currentDrivewayM2 = quote.design.exposedDrivewayM2 ?? 55;
+  const currentDrivewayCost = Math.round(currentDrivewayM2 * 230);
+  const isDrivewayActive = Boolean(quote.design.exposedDrivewaySelected && !quote.design.landscapingSelected);
+
+  const handleToggleLandscaping = () => {
+    if (!onDesignChange) return;
+    const next = !isLandscapingActive;
+    onDesignChange({
+      landscapingSelected: next,
+      landscapingLandSize: currentLandSize,
+      landscapingCost: next ? currentLandscapingCost : 0,
+      ...(next ? { exposedDrivewaySelected: false, exposedDrivewayCost: 0 } : {}),
+    });
+    if (next) {
+      toast.success(`Added Turnkey Landscaping Package (+${formatAud(currentLandscapingCost)})`);
+    } else {
+      toast.info("Removed Landscaping Package");
+    }
+  };
+
+  const handleLandSizeChange = (valStr: string) => {
+    if (!onDesignChange) return;
+    const size = Number(valStr) || 450;
+    const price = landscapingPriceFor(size, quote.design.housingType, quote.design.designName, division);
+    onDesignChange({
+      landscapingSelected: true,
+      landscapingLandSize: size,
+      landscapingCost: price,
+      exposedDrivewaySelected: false,
+      exposedDrivewayCost: 0,
+    });
+    toast.success(`Updated Landscaping Package for ${size} m² lot (+${formatAud(price)})`);
+  };
+
+  const handleToggleDriveway = () => {
+    if (!onDesignChange) return;
+    const next = !isDrivewayActive;
+    onDesignChange({
+      exposedDrivewaySelected: next,
+      exposedDrivewayM2: currentDrivewayM2,
+      exposedDrivewayCost: next ? currentDrivewayCost : 0,
+      ...(next ? { landscapingSelected: false, landscapingCost: 0 } : {}),
+    });
+    if (next) {
+      toast.success(
+        `Added Exposed Aggregate Driveway (${currentDrivewayM2} m² @ $230/m² = +${formatAud(currentDrivewayCost)})`
+      );
+    } else {
+      toast.info("Removed Exposed Aggregate Driveway");
+    }
+  };
+
+  const handleDrivewayM2Change = (valStr: string) => {
+    if (!onDesignChange) return;
+    const m2 = parseFloat(valStr) || 0;
+    const cost = Math.round(m2 * 230);
+    onDesignChange({
+      exposedDrivewaySelected: m2 > 0,
+      exposedDrivewayM2: m2,
+      exposedDrivewayCost: cost,
+      landscapingSelected: false,
+      landscapingCost: 0,
+    });
+  };
+
+  // Auto-calibrate existing extension line items when inclusion tier changes
+  useEffect(() => {
+    const extensionIds = [
+      "pop_alfresco_slab_sqm",
+      "pop_living_extension_sqm",
+      "pop_garage_extension_sqm",
+      "pop_porch_extension_sqm",
+    ];
+    let hasChange = false;
+    const updated = lineItems.map((it) => {
+      if (extensionIds.includes(it.id)) {
+        let expectedRate = it.unitRate;
+        if (it.id === "pop_alfresco_slab_sqm") expectedRate = tierRates.alfresco;
+        else if (it.id === "pop_living_extension_sqm") expectedRate = tierRates.gf;
+        else if (it.id === "pop_garage_extension_sqm") expectedRate = tierRates.garage;
+        else if (it.id === "pop_porch_extension_sqm") expectedRate = tierRates.porch;
+
+        if (it.unitRate !== expectedRate) {
+          hasChange = true;
+          const qty = it.quantity || 1;
+          return {
+            ...it,
+            unitRate: expectedRate,
+            subtotal: Math.round(qty * expectedRate),
+          };
+        }
+      }
+      return it;
+    });
+    if (hasChange) {
+      onChange(updated);
+    }
+  }, [tier, tierRates, lineItems, onChange]);
 
   const stdAreas = useMemo(() => {
     return getStandardAreaBreakdown(quote.design.designName, quote.design.housingType, totalM2);
@@ -254,7 +422,8 @@ export function V2StepVariations({
   }, [activeIncludedItems]);
 
   // Toggle a popular fixed-price preset
-  const handleTogglePopular = (preset: PopularVariationPreset) => {
+  const handleTogglePopular = (rawPreset: PopularVariationPreset) => {
+    const preset = getCalibratedPreset(rawPreset);
     const existingIndex = lineItems.findIndex(
       (it) => it.id === preset.id || it.catalogueItemId === preset.id
     );
@@ -296,7 +465,8 @@ export function V2StepVariations({
   };
 
   // Toggle or change quantity for sqm-based popular variation
-  const handleSqmChange = (preset: PopularVariationPreset, valStr: string) => {
+  const handleSqmChange = (rawPreset: PopularVariationPreset, valStr: string) => {
+    const preset = getCalibratedPreset(rawPreset);
     const qty = parseFloat(valStr) || 0;
     const rate = preset.unitRate || preset.price;
     const existingIndex = lineItems.findIndex(
@@ -344,7 +514,8 @@ export function V2StepVariations({
   };
 
   // Toggle sqm item on/off using suggested default
-  const handleToggleSqm = (preset: PopularVariationPreset) => {
+  const handleToggleSqm = (rawPreset: PopularVariationPreset) => {
+    const preset = getCalibratedPreset(rawPreset);
     const existingIndex = lineItems.findIndex(
       (it) => it.id === preset.id || it.catalogueItemId === preset.id
     );
@@ -426,25 +597,26 @@ export function V2StepVariations({
     onChange(updated);
   };
 
-  // Add Custom Variation
+  // Add Custom Variation - supports $0 items and discounts (negative prices), and only sets description if user provided one
   const handleAddCustom = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!customName.trim()) {
-      toast.error("Please enter a variation description");
+      toast.error("Please enter a variation description or title");
       return;
     }
-    const price = parseFloat(customPrice) || 0;
-    if (price <= 0) {
-      toast.error("Please enter a valid price");
+    if (customPrice.trim() === "" || isNaN(Number(customPrice))) {
+      toast.error("Please enter a valid price (can be $0 for included, or negative for discount)");
       return;
     }
+    const price = Number(customPrice);
 
+    const trimmedDesc = customDescription.trim();
     const newItem: QuoteSelectedLineItem = {
       id: `custom_${Date.now()}`,
       catalogueItemId: `custom_${Date.now()}`,
       category: (customCategory as any) || "internal_general",
       name: customName.trim(),
-      description: "Custom client variation request",
+      description: trimmedDesc ? trimmedDesc : undefined, // Only set if user entered one
       unitType: "fixed",
       unitRate: price,
       quantity: 1,
@@ -457,9 +629,16 @@ export function V2StepVariations({
     onChange([...lineItems, newItem]);
     setCustomName("");
     setCustomPrice("");
+    setCustomDescription("");
     setIsCustomDialogOpen(false);
     setShowCustomForm(false);
-    toast.success(`Added custom variation: ${newItem.name} (+${formatAud(price)})`);
+    const priceDisplay =
+      price < 0
+        ? `-$${Math.abs(price).toLocaleString("en-AU")}`
+        : price === 0
+        ? "$0 (Included)"
+        : `+$${price.toLocaleString("en-AU")}`;
+    toast.success(`Added custom variation: ${newItem.name} (${priceDisplay})`);
   };
 
   // Remove Line Item
@@ -467,30 +646,49 @@ export function V2StepVariations({
     onChange(lineItems.filter((it) => it.id !== id));
   };
 
-  // Search variations & catalogue filtered
+  // Search variations & catalogue filtered (instant 1-char search + pre-filled on focus)
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim() || searchQuery.trim().length < 2) return [];
     const query = searchQuery.toLowerCase().trim();
 
-    // 1. Matched popular variations (tailored to design)
+    // 1. If empty query, pre-fill top catalogue/popular options for instant selection
+    if (!query) {
+      return POPULAR_VARIATIONS.filter(isItemVisibleForDesign).slice(0, 8).map((p) => {
+        const cal = getCalibratedPreset(p);
+        return {
+          id: cal.id,
+          name: cal.name,
+          description: cal.description,
+          category: cal.category,
+          unitType: cal.unitType || "fixed",
+          unitRate: cal.unitRate || cal.price,
+          isPreset: true,
+          preset: cal,
+        };
+      });
+    }
+
+    // 2. Matched popular variations (tailored to design and calibrated)
     const matchedPresets = POPULAR_VARIATIONS.filter(
       (p) =>
         isItemVisibleForDesign(p) &&
         (p.name.toLowerCase().includes(query) ||
           p.description.toLowerCase().includes(query) ||
           p.group.toLowerCase().includes(query))
-    ).map((p) => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      category: p.category,
-      unitType: p.unitType || "fixed",
-      unitRate: p.unitRate || p.price,
-      isPreset: true,
-      preset: p,
-    }));
+    ).map((p) => {
+      const cal = getCalibratedPreset(p);
+      return {
+        id: cal.id,
+        name: cal.name,
+        description: cal.description,
+        category: cal.category,
+        unitType: cal.unitType || "fixed",
+        unitRate: cal.unitRate || cal.price,
+        isPreset: true,
+        preset: cal,
+      };
+    });
 
-    // 2. Matched Databuild catalogue items
+    // 3. Matched Databuild catalogue items
     const matchedCatalogue = DEFAULT_CATALOGUE.filter((c) => {
       // Ducted AC is already included as standard in H3
       if (isH3 && (c.id === "hvac_ducted_aircon" || c.name.toLowerCase().includes("ilo h1 split system"))) {
@@ -520,62 +718,128 @@ export function V2StepVariations({
       }
     }
 
-    return combined.slice(0, 10);
-  }, [searchQuery, isDouble, isH3]);
+    return combined.slice(0, 12);
+  }, [searchQuery, isDouble, isH3, tierRates]);
 
-  // Add Item from Search Dropdown
-  const handleAddFromSearch = (item: (typeof searchResults)[0]) => {
+  const getSearchDraftQty = (item: (typeof searchResults)[0]): number => {
+    if (searchDraftQuantities[item.id] !== undefined) {
+      return searchDraftQuantities[item.id];
+    }
+    const existing = lineItems.find((it) => it.id === item.id || it.catalogueItemId === item.id);
+    if (existing && (existing.quantity || 0) > 0) {
+      return existing.quantity!;
+    }
     if (item.isPreset && item.preset) {
-      if (item.preset.unitType === "sqm") {
-        handleToggleSqm(item.preset);
-      } else if (item.preset.unitType === "per_bath") {
-        handleBathChange(item.preset, 2);
+      const sug = getSuggestedQuantity(item.preset);
+      if (sug > 0) return sug;
+    }
+    if (item.unitType === "sqm") return 55;
+    if (item.unitType === "per_bath") return 2;
+    return 1;
+  };
+
+  // Add or update item from search dropdown with specified inline quantity
+  const handleAddOrUpdateFromSearch = (item: (typeof searchResults)[0], qty: number) => {
+    const finalQty = Math.max(1, qty || 1);
+    if (item.isPreset && item.preset) {
+      const p = getCalibratedPreset(item.preset);
+      if (p.unitType === "sqm") {
+        handleSqmChange(p, String(finalQty));
+      } else if (p.unitType === "per_bath") {
+        handleBathChange(p, finalQty);
       } else {
-        handleTogglePreset(item.preset);
+        const existingIndex = lineItems.findIndex(
+          (it) => it.id === p.id || it.catalogueItemId === p.id
+        );
+        if (existingIndex >= 0) {
+          const updated = [...lineItems];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: finalQty,
+            subtotal: p.price * finalQty,
+            isIncluded: true,
+            clientSelected: true,
+          };
+          onChange(updated);
+        } else {
+          const newItem: QuoteSelectedLineItem = {
+            id: p.id,
+            catalogueItemId: p.id,
+            category: p.category,
+            name: p.name,
+            description: p.description,
+            unitType: "fixed",
+            unitRate: p.price,
+            quantity: finalQty,
+            subtotal: p.price * finalQty,
+            isIncluded: true,
+            isClientSelectable: true,
+            clientSelected: true,
+          };
+          onChange([...lineItems, newItem]);
+        }
       }
     } else {
-      handleAddCatalogueItem(item);
+      const existingIndex = lineItems.findIndex(
+        (it) => it.catalogueItemId === item.id || it.id === item.id
+      );
+      if (existingIndex >= 0) {
+        const updated = lineItems.map((it, idx) =>
+          idx === existingIndex
+            ? {
+                ...it,
+                quantity: finalQty,
+                subtotal: Math.round(it.unitRate * finalQty),
+                isIncluded: true,
+                clientSelected: true,
+              }
+            : it
+        );
+        onChange(updated);
+      } else {
+        const newItem: QuoteSelectedLineItem = {
+          id: `cat_${item.id}_${Date.now()}`,
+          catalogueItemId: item.id,
+          category: item.category,
+          name: item.name,
+          description: item.description,
+          unitType: item.unitType,
+          unitRate: item.unitRate,
+          quantity: finalQty,
+          subtotal: Math.round(item.unitRate * finalQty),
+          isIncluded: true,
+          isClientSelectable: true,
+          clientSelected: true,
+        };
+        onChange([...lineItems, newItem]);
+      }
     }
+    toast.success(`Added ${item.name} (${finalQty} ${item.unitType === "sqm" ? "m²" : ""})`);
     setIsSearchOpen(false);
     setSearchQuery("");
   };
 
   const handleAddCatalogueItem = (catItem: { id: string; category: any; name: string; description: string; unitType: any; unitRate: number }) => {
-    const existing = lineItems.find((it) => it.catalogueItemId === catItem.id);
-    if (existing) {
-      const updated = lineItems.map((it) =>
-        it.id === existing.id
-          ? { ...it, isIncluded: true, clientSelected: true, subtotal: it.unitRate * (it.quantity || 1) }
-          : it
-      );
-      onChange(updated);
-    } else {
-      const newItem: QuoteSelectedLineItem = {
-        id: `cat_${catItem.id}_${Date.now()}`,
-        catalogueItemId: catItem.id,
+    handleAddOrUpdateFromSearch(
+      {
+        id: catItem.id,
         category: catItem.category,
         name: catItem.name,
         description: catItem.description,
         unitType: catItem.unitType,
         unitRate: catItem.unitRate,
-        quantity: 1,
-        subtotal: catItem.unitRate,
-        isIncluded: true,
-        isClientSelectable: true,
-        clientSelected: true,
-      };
-      onChange([...lineItems, newItem]);
-    }
-    toast.success(`Added ${catItem.name}`);
-    setSearchQuery("");
+        isPreset: false,
+        preset: null as any,
+      },
+      1
+    );
   };
 
-  // Filter sections according to active category tab
+  // Filter sections according to active category card selection
   const visibleSections = useMemo(() => {
-    if (categoryFilter === "all") return VARIATION_SECTIONS;
-    if (categoryFilter === "custom") return [];
-    return VARIATION_SECTIONS.filter((s) => s.id === categoryFilter);
-  }, [categoryFilter]);
+    if (selectedCategory === "all") return VARIATION_SECTIONS;
+    return VARIATION_SECTIONS.filter((s) => s.id === selectedCategory);
+  }, [selectedCategory]);
 
   return (
     <div className="space-y-6 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
@@ -608,6 +872,9 @@ export function V2StepVariations({
               placeholder="Search variations & catalogue..."
               value={searchQuery}
               onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setIsSearchOpen(false);
+              }}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setIsSearchOpen(true);
@@ -634,7 +901,7 @@ export function V2StepVariations({
             {/* Floating Dropdown Results */}
             {isSearchOpen && searchResults.length > 0 && (
               <div
-                className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-80 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                className={`absolute left-0 right-0 top-full mt-2 z-50 max-h-96 overflow-y-auto rounded-2xl border shadow-2xl backdrop-blur-xl ${
                   isLight
                     ? "bg-white/98 border-slate-200 text-slate-900 divide-y divide-slate-100 shadow-slate-900/10"
                     : "bg-slate-950/98 border-slate-800 text-white divide-y divide-slate-800/80 shadow-black/50"
@@ -644,10 +911,13 @@ export function V2StepVariations({
                   const isAlreadyAdded = lineItems.some(
                     (it) => (it.catalogueItemId === item.id || it.id === item.id) && it.isIncluded
                   );
+                  const draftQty = getSearchDraftQty(item);
+                  const calcTotal = Math.round(draftQty * item.unitRate);
+
                   return (
                     <div
                       key={item.id}
-                      className={`p-3 flex items-center justify-between gap-3 text-xs transition-colors ${
+                      className={`p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs transition-colors ${
                         isLight ? "hover:bg-slate-50" : "hover:bg-slate-900/80"
                       }`}
                     >
@@ -667,19 +937,72 @@ export function V2StepVariations({
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 flex-none">
-                        <span className="font-mono font-bold text-xs text-emerald-500">
-                          {formatAud(item.unitRate)}
+                      <div className="flex items-center gap-2 flex-none self-end sm:self-center">
+                        {/* Inline quantity / sqm controls */}
+                        {item.unitType === "sqm" ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={draftQty}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = parseFloat(e.target.value) || 0;
+                                setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
+                              }}
+                              className="w-14 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                            />
+                            <span className="text-[10px] text-slate-400 font-semibold">m²</span>
+                          </div>
+                        ) : item.unitType === "per_bath" ? (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={draftQty}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 0;
+                                setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
+                              }}
+                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                            />
+                            <span className="text-[10px] text-slate-400 font-semibold">baths</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={draftQty}
+                              onFocus={(e) => e.target.select()}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value, 10) || 0;
+                                setSearchDraftQuantities((prev) => ({ ...prev, [item.id]: val }));
+                              }}
+                              className="w-12 h-7 text-center font-mono font-bold text-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 rounded-md px-1"
+                            />
+                            <span className="text-[10px] text-slate-400 font-semibold">qty</span>
+                          </div>
+                        )}
+
+                        <span className="font-mono font-bold text-xs text-emerald-500 w-16 text-right">
+                          {calcTotal < 0
+                            ? `-${formatAud(Math.abs(calcTotal))}`
+                            : calcTotal === 0
+                            ? "$0"
+                            : `+${formatAud(calcTotal)}`}
                         </span>
+
                         <Button
                           type="button"
                           size="sm"
-                          variant={isAlreadyAdded ? "secondary" : "outline"}
-                          onClick={() => handleAddFromSearch(item)}
+                          variant={isAlreadyAdded ? "secondary" : "default"}
+                          onClick={() => handleAddOrUpdateFromSearch(item, draftQty)}
                           className={`h-7 px-2.5 text-xs font-bold rounded-lg gap-1 cursor-pointer ${
                             isAlreadyAdded
-                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                              : ""
+                              ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                              : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
                           }`}
                         >
                           {isAlreadyAdded ? (
@@ -699,7 +1022,7 @@ export function V2StepVariations({
               </div>
             )}
 
-            {isSearchOpen && searchQuery.trim().length >= 2 && searchResults.length === 0 && (
+            {isSearchOpen && searchQuery.trim().length >= 1 && searchResults.length === 0 && (
               <div
                 className={`absolute left-0 right-0 top-full mt-2 z-50 p-4 rounded-2xl border text-center text-xs shadow-2xl backdrop-blur-xl ${
                   isLight ? "bg-white border-slate-200 text-slate-500" : "bg-slate-950 border-slate-800 text-slate-400"
@@ -724,9 +1047,13 @@ export function V2StepVariations({
           {/* + Custom Variation Button */}
           <Button
             type="button"
+            data-testid="add-custom-variation-btn"
             variant="outline"
             size="sm"
-            onClick={() => setIsCustomDialogOpen(true)}
+            onClick={() => {
+              setIsSearchOpen(false);
+              setIsCustomDialogOpen(true);
+            }}
             className={`text-xs gap-1.5 font-bold h-11 px-3.5 rounded-xl cursor-pointer ${
               isLight
                 ? "border-emerald-300 bg-emerald-50 text-emerald-950 hover:bg-emerald-100 shadow-xs"
@@ -748,8 +1075,18 @@ export function V2StepVariations({
             <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-bold">
               Variations Total
             </span>
-            <span className={`text-xl sm:text-2xl font-extrabold font-mono ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-              +{formatAud(variationsTotal)}
+            <span className={`text-xl sm:text-2xl font-extrabold font-mono ${
+              variationsTotal < 0
+                ? "text-rose-600 dark:text-rose-400"
+                : isLight
+                ? "text-emerald-700"
+                : "text-emerald-400"
+            }`}>
+              {variationsTotal > 0
+                ? `+${formatAud(variationsTotal)}`
+                : variationsTotal < 0
+                ? `-${formatAud(Math.abs(variationsTotal))}`
+                : "$0"}
             </span>
           </div>
         </div>
@@ -811,66 +1148,282 @@ export function V2StepVariations({
         </div>
       )}
 
-      {/* CATEGORY FILTER TABS (ORDERED VERTICALLY IN LIST BELOW) */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-        {CATEGORY_TABS.map((tab) => {
-          const isSelected = categoryFilter === tab.id;
-          const availableCount =
-            tab.id === "all"
-              ? POPULAR_VARIATIONS.filter(isItemVisibleForDesign).length
-              : tab.id === "custom"
-              ? 0
-              : POPULAR_VARIATIONS.filter((p) => p.group === tab.id && isItemVisibleForDesign(p)).length;
+      {/* SECTION: FEATURED POPULAR TURNKEY PACKAGES (LANDSCAPING & DRIVEWAY) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-700/30 pb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🌿</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className={`text-sm sm:text-base font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+                Featured Popular Turnkey Upgrades
+              </h3>
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 text-[10px] font-bold py-0.5">
+                Top Client Selections
+              </Badge>
+            </div>
+          </div>
+          {(isLandscapingActive || isDrivewayActive) && (
+            <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-xs font-mono font-bold">
+              {isLandscapingActive ? "Landscaping Package Active" : "55m² Driveway Active"}
+            </Badge>
+          )}
+        </div>
 
-          // If a category has no applicable items for this design (e.g. empty), still allow viewing unless count 0
-          if (availableCount === 0 && tab.id !== "custom" && tab.id !== "all") {
-            return null;
-          }
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Card 1: Turnkey Complete Landscaping Package */}
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+              isLandscapingActive
+                ? isLight
+                  ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
+                  : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
+                : isLight
+                ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+            }`}
+          >
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Turnkey Landscaping Package
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
+                      Includes Driveway
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Complete turnkey package: turf, 1.8m boundary fencing with gate, letterbox, folding clothesline, garden beds &amp; exposed aggregate driveway.
+                  </p>
+                </div>
+              </div>
 
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              data-testid={`variation-tab-${tab.id}`}
-              onClick={() => {
-                setCategoryFilter(tab.id);
-                if (tab.id === "custom") {
-                  searchInputRef.current?.focus();
-                  setIsSearchOpen(true);
-                }
-              }}
-              className={`px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
-                isSelected
-                  ? isLight
-                    ? "bg-slate-900 text-white border-slate-900 shadow-sm"
-                    : "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
-                  : isLight
-                  ? "bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300"
-                  : "bg-slate-900/60 text-slate-300 border-slate-800 hover:text-white hover:border-slate-700"
-              }`}
-            >
-              <span>{tab.icon}</span>
-              <span>{tab.label}</span>
-              {availableCount > 0 && (
-                <span
-                  className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                    isSelected
-                      ? isLight ? "bg-slate-800 text-slate-200" : "bg-emerald-600 text-slate-950"
-                      : isLight ? "bg-slate-100 text-slate-600" : "bg-slate-800 text-slate-400"
-                  }`}
-                >
-                  {availableCount}
-                </span>
-              )}
-            </button>
-          );
-        })}
+              {/* Lot size selector and dynamic price */}
+              <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Lot / Land Size:
+                  </Label>
+                  <Select
+                    value={String(currentLandSize)}
+                    onValueChange={handleLandSizeChange}
+                  >
+                    <SelectTrigger className={`h-9 text-xs font-semibold w-40 rounded-xl ${
+                      isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                    }`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="300">Up to 300 m² Lot</SelectItem>
+                      <SelectItem value="450">Up to 450 m² Lot</SelectItem>
+                      <SelectItem value="600">Up to 600 m² Lot</SelectItem>
+                      <SelectItem value="700">Up to 700 m² Lot</SelectItem>
+                      <SelectItem value="800">Up to 800 m² Lot</SelectItem>
+                      <SelectItem value="900">Up to 900 m² Lot</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-3 justify-between sm:justify-end">
+                  <span className={`text-base font-extrabold font-mono ${
+                    isLandscapingActive
+                      ? isLight ? "text-emerald-700" : "text-emerald-400"
+                      : "text-slate-400"
+                  }`}>
+                    +{formatAud(currentLandscapingCost)}
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={isLandscapingActive ? "secondary" : "outline"}
+                    onClick={handleToggleLandscaping}
+                    className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
+                      isLandscapingActive
+                        ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                        : ""
+                    }`}
+                  >
+                    {isLandscapingActive ? "✓ Included" : "+ Add"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: 55m² Exposed Aggregate Driveway */}
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border transition-all flex flex-col justify-between gap-4 ${
+              isLandscapingActive
+                ? isLight
+                  ? "bg-slate-50/60 border-slate-200 opacity-80"
+                  : "bg-slate-950/40 border-slate-800 opacity-80"
+                : isDrivewayActive
+                ? isLight
+                  ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-1 ring-emerald-500/30"
+                  : "bg-emerald-950/25 border-emerald-500/60 shadow-md ring-1 ring-emerald-500/30"
+                : isLight
+                ? "bg-white border-slate-200 hover:border-slate-300 shadow-xs"
+                : "bg-slate-900/60 border-slate-800 hover:border-slate-700"
+            }`}
+          >
+            <div className="space-y-2">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className={`text-sm sm:text-base font-bold ${isLight ? "text-slate-900" : "text-white"}`}>
+                      Exposed Aggregate Concrete Driveway
+                    </span>
+                    {isLandscapingActive ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold uppercase font-mono">
+                        ✓ Included in Landscaping
+                      </span>
+                    ) : (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold font-mono">
+                        $230/m² rate
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Reinforced decorative exposed aggregate concrete driveway and front porch pedestrian lead walk path.
+                  </p>
+                </div>
+              </div>
+
+              {/* Driveway m2 input and dynamic price */}
+              <div className="pt-3 border-t border-slate-700/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                    Driveway Area:
+                  </Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      min="1"
+                      max="300"
+                      disabled={isLandscapingActive}
+                      value={currentDrivewayM2}
+                      onChange={(e) => handleDrivewayM2Change(e.target.value)}
+                      className={`w-20 h-9 text-center font-mono font-bold text-xs rounded-xl ${
+                        isLight ? "bg-white border-slate-300" : "bg-slate-950 border-slate-800"
+                      } ${isLandscapingActive ? "cursor-not-allowed opacity-60" : ""}`}
+                    />
+                    <span className="text-xs text-slate-400 font-bold">m²</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 justify-between sm:justify-end">
+                  <span className={`text-base font-extrabold font-mono ${
+                    isLandscapingActive
+                      ? "text-emerald-500"
+                      : isDrivewayActive
+                      ? isLight ? "text-emerald-700" : "text-emerald-400"
+                      : "text-slate-400"
+                  }`}>
+                    {isLandscapingActive ? "$0 (In Landscaping)" : `+${formatAud(currentDrivewayCost)}`}
+                  </span>
+                  {!isLandscapingActive && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={isDrivewayActive ? "secondary" : "outline"}
+                      onClick={handleToggleDriveway}
+                      className={`h-8 px-3 text-xs font-bold rounded-xl cursor-pointer ${
+                        isDrivewayActive
+                          ? "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                          : ""
+                      }`}
+                    >
+                      {isDrivewayActive ? "✓ Included" : "+ Add"}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* VERTICAL ORDERED SECTIONS (EXTENSIONS AT TOP -> CEILING HEIGHT -> ELECTRICAL -> KITCHEN -> BATHROOM -> FLOORING -> EXTERNAL) */}
+      {/* CATEGORY CARDS ACROSS THE PAGE WITH SELECTION COUNTS */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <PackageCheck className="h-4 w-4 text-emerald-400" />
+            <h3 className={`text-xs sm:text-sm font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
+              Browse Upgrades by Category
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(selectedCategory === "all" ? "extensions" : "all")}
+              className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+                selectedCategory === "all"
+                  ? isLight
+                    ? "bg-emerald-100 text-emerald-900 border-emerald-400"
+                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  : isLight
+                  ? "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                  : "bg-slate-900 text-slate-400 border-slate-800 hover:text-white"
+              }`}
+            >
+              {selectedCategory === "all" ? "Collapse to Single Category" : "View All Categories"}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5">
+          {VARIATION_SECTIONS.map((sec) => {
+            const isSelected = selectedCategory === sec.id;
+            const stats = getCategoryStats(sec.id);
+
+            return (
+              <button
+                key={sec.id}
+                type="button"
+                onClick={() => setSelectedCategory(sec.id)}
+                className={`p-3 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-2.5 ${
+                  isSelected
+                    ? isLight
+                      ? "bg-emerald-50/90 border-emerald-500 shadow-sm ring-2 ring-emerald-500/20"
+                      : "bg-emerald-950/40 border-emerald-400 shadow-md ring-2 ring-emerald-400/30"
+                    : isLight
+                    ? "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                    : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/80"
+                }`}
+              >
+                <div>
+                  <span className="text-xl block mb-1">{sec.icon}</span>
+                  <h4 className={`text-xs font-bold leading-tight truncate ${
+                    isSelected
+                      ? isLight ? "text-emerald-950 font-extrabold" : "text-white font-extrabold"
+                      : isLight ? "text-slate-800" : "text-slate-200"
+                  }`}>
+                    {sec.label.split("&")[0].trim()}
+                  </h4>
+                </div>
+
+                <div className="pt-2 border-t border-slate-700/20 flex items-center justify-between">
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded ${
+                    stats.count > 0
+                      ? isLight
+                        ? "bg-emerald-100 text-emerald-800 font-extrabold"
+                        : "bg-emerald-500/20 text-emerald-300 font-extrabold"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                  }`}>
+                    {stats.count > 0 ? `${stats.count} sel (+${formatAud(stats.total)})` : "0 sel"}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SELECTED CATEGORY UPGRADES SECTION */}
       <div className="space-y-6">
         {visibleSections.map((sec) => {
-          const presets = POPULAR_VARIATIONS.filter((p) => p.group === sec.id && isItemVisibleForDesign(p));
+          const presets = POPULAR_VARIATIONS.filter((p) => p.group === sec.id && isItemVisibleForDesign(p)).map(getCalibratedPreset);
 
           if (presets.length === 0) return null;
 
@@ -1140,8 +1693,7 @@ export function V2StepVariations({
       </div>
 
       {/* SECTION: CATALOGUE SEARCH & CUSTOM VARIATIONS (COMPACT COLLAPSIBLE) */}
-      {(categoryFilter === "all" || categoryFilter === "custom") && (
-        <div className="space-y-4 pt-2 border-t border-slate-700/30">
+      <div className="space-y-4 pt-2 border-t border-slate-700/30">
           <div className="flex items-center justify-between">
             <h3 className={`text-sm font-extrabold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-200"}`}>
               🔍 Additional Items &amp; Custom Requests
@@ -1233,55 +1785,73 @@ export function V2StepVariations({
                 isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/60 border-slate-800/80"
               }`}
             >
-              <form onSubmit={handleAddCustom} className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1 space-y-1 w-full">
-                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                    Item Title / Description
+              <form onSubmit={handleAddCustom} className="space-y-3">
+                <div className="flex flex-col sm:flex-row gap-3 items-end">
+                  <div className="flex-1 space-y-1 w-full">
+                    <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      Item Title / Scope of Work *
+                    </Label>
+                    <Input
+                      placeholder="e.g. Supply and install 2x double GPO powerpoints to island bench"
+                      value={customName}
+                      onChange={(e) => setCustomName(e.target.value)}
+                      className={`text-sm h-10 rounded-xl ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900"
+                          : "bg-slate-950/80 border-slate-800 text-white"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="w-full sm:w-44 space-y-1">
+                    <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                      Quoted Price ($) *
+                    </Label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="e.g. 450, 0, -500"
+                      value={customPrice}
+                      onFocus={(e) => e.target.select()}
+                      onChange={(e) => setCustomPrice(e.target.value)}
+                      className={`text-sm h-10 rounded-xl font-mono ${
+                        isLight
+                          ? "bg-white border-slate-300 text-slate-900"
+                          : "bg-slate-950/80 border-slate-800 text-white"
+                      }`}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={!customName.trim() || customPrice.trim() === ""}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs h-10 px-4 rounded-xl gap-1.5 flex-none cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" /> Add Variation
+                  </Button>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className={`text-[11px] font-bold uppercase tracking-wider text-slate-400`}>
+                    Additional Description / Scope Notes (Optional)
                   </Label>
                   <Input
-                    placeholder="e.g. Supply and install 2x double GPO powerpoints to island bench"
-                    value={customName}
-                    onChange={(e) => setCustomName(e.target.value)}
-                    className={`text-sm h-10 rounded-xl ${
+                    placeholder="Optional details or specification notes for client estimate and PDF..."
+                    value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)}
+                    className={`text-xs h-9 rounded-xl ${
                       isLight
-                        ? "bg-white border-slate-300 text-slate-900"
-                        : "bg-slate-950/80 border-slate-800 text-white"
+                        ? "bg-slate-50 border-slate-300 text-slate-900"
+                        : "bg-slate-950/60 border-slate-800 text-white"
                     }`}
                   />
                 </div>
-
-                <div className="w-full sm:w-44 space-y-1">
-                  <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
-                    Quoted Price ($)
-                  </Label>
-                  <Input
-                    type="number"
-                    step="10"
-                    placeholder="e.g. 450"
-                    value={customPrice}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setCustomPrice(e.target.value)}
-                    className={`text-sm h-10 rounded-xl font-mono ${
-                      isLight
-                        ? "bg-white border-slate-300 text-slate-900"
-                        : "bg-slate-950/80 border-slate-800 text-white"
-                    }`}
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs h-10 px-4 rounded-xl gap-1.5 flex-none cursor-pointer"
-                >
-                  <Plus className="h-3.5 w-3.5" /> Add Variation
-                </Button>
               </form>
             </div>
           )}
         </div>
-      )}
 
-      {/* SECTION: SELECTED UPGRADES SUMMARY (COMPACT ROWS WITHOUT DESCRIPTIONS) */}
+      {/* SECTION: SELECTED UPGRADES SUMMARY (COMPACT ROWS WITHOUT UNWANTED PLACEHOLDERS) */}
       {activeIncludedItems.length > 0 && (
         <div
           className={`p-4 sm:p-5 rounded-2xl border transition-all ${
@@ -1298,18 +1868,32 @@ export function V2StepVariations({
               </h3>
             </div>
             <span className={`text-xs sm:text-sm font-mono font-extrabold ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-              Total: +{formatAud(variationsTotal)}
+              Total: {variationsTotal < 0 ? `-${formatAud(Math.abs(variationsTotal))}` : variationsTotal === 0 ? "$0" : `+${formatAud(variationsTotal)}`}
             </span>
           </div>
 
           <div className={`divide-y ${isLight ? "divide-slate-200" : "divide-slate-800/60"}`}>
             {activeIncludedItems.map((item) => {
               const isSqm = item.unitType === "sqm";
+              const subtotal = item.subtotal ?? (item.unitRate * (item.quantity || 1));
+              const hasCustomDesc =
+                item.description &&
+                item.description.trim() &&
+                item.description !== "Custom client variation request" &&
+                item.description !== "Client Custom Variation";
+
               return (
-                <div key={item.id} className="py-2 flex items-center justify-between gap-3 text-xs">
-                  <span className={`font-bold text-xs sm:text-sm truncate flex-1 ${isLight ? "text-slate-900" : "text-slate-200"}`}>
-                    {item.name}
-                  </span>
+                <div key={item.id} className="py-2.5 flex items-center justify-between gap-3 text-xs">
+                  <div className="min-w-0 flex-1">
+                    <span className={`font-bold text-xs sm:text-sm truncate block ${isLight ? "text-slate-900" : "text-slate-200"}`}>
+                      {item.name}
+                    </span>
+                    {hasCustomDesc && (
+                      <span className="text-[11px] text-slate-400 block truncate mt-0.5 max-w-lg">
+                        {item.description}
+                      </span>
+                    )}
+                  </div>
 
                   {/* Quantity editor if sqm */}
                   {isSqm && (
@@ -1327,8 +1911,22 @@ export function V2StepVariations({
                   )}
 
                   <div className="flex items-center gap-2.5 flex-none">
-                    <span className={`font-mono font-extrabold text-xs sm:text-sm ${isLight ? "text-emerald-700" : "text-emerald-400"}`}>
-                      +{formatAud(item.subtotal || item.unitRate)}
+                    <span
+                      className={`font-mono font-extrabold text-xs sm:text-sm ${
+                        subtotal < 0
+                          ? "text-amber-500"
+                          : subtotal === 0
+                          ? "text-cyan-500"
+                          : isLight
+                          ? "text-emerald-700"
+                          : "text-emerald-400"
+                      }`}
+                    >
+                      {subtotal < 0
+                        ? `-${formatAud(Math.abs(subtotal))}`
+                        : subtotal === 0
+                        ? "$0 Included"
+                        : `+${formatAud(subtotal)}`}
                     </span>
                     <Button
                       size="icon"
@@ -1386,7 +1984,7 @@ export function V2StepVariations({
               Add Custom Variation
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-400">
-              Specify a custom client request, builder variation allowance, or site upgrade.
+              Specify a custom client request, builder variation allowance, or site upgrade. ($0 or negative values for discounts are permitted).
             </DialogDescription>
           </DialogHeader>
 
@@ -1414,15 +2012,31 @@ export function V2StepVariations({
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Additional Description / Scope Notes (Optional)
+              </Label>
+              <Input
+                placeholder="Optional detailed scope description for estimate and PDF..."
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                className={`text-sm h-11 rounded-xl ${
+                  isLight
+                    ? "bg-slate-50 border-slate-300 text-slate-900"
+                    : "bg-slate-900 border-slate-700 text-white"
+                }`}
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   Quoted Price ($) *
                 </Label>
                 <Input
-                  type="number"
-                  step="10"
-                  placeholder="e.g. 450"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="e.g. 450, 0, or -500"
                   value={customPrice}
                   onFocus={(e) => e.target.select()}
                   onChange={(e) => setCustomPrice(e.target.value)}
@@ -1468,7 +2082,7 @@ export function V2StepVariations({
               </Button>
               <Button
                 type="submit"
-                disabled={!customName.trim() || !customPrice}
+                disabled={!customName.trim() || customPrice.trim() === ""}
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs h-10 px-5 rounded-xl gap-1.5 cursor-pointer"
               >
                 <Plus className="h-4 w-4" /> Add to Estimate

@@ -38,6 +38,7 @@ import {
   calculateQuotePricing,
   generateQuoteNumber,
   getEffectiveDesignName,
+  formatEstimateFileName,
   getTierPrice,
   getStandardAreaBreakdown,
   calculateModifiedFloorplanPricing,
@@ -423,6 +424,26 @@ export function QuoteBuilder() {
   const updateQuote = (patch: Partial<FullQuote>) => {
     setQuote((prev) => {
       const merged: FullQuote = { ...prev, ...patch };
+
+      if (patch.client && patch.client.clientName !== undefined) {
+        const nameChanged = patch.client.clientName !== prev.client.clientName;
+        if (nameChanged || !prev.quoteNumber || prev.quoteNumber.startsWith("CL") || !patch.client.estimateNumber) {
+          const generated = generateQuoteNumber(patch.client.clientName, savedQuotes);
+          merged.quoteNumber = generated;
+          merged.client = {
+            ...merged.client,
+            estimateNumber: generated,
+          };
+        } else if (patch.client.estimateNumber) {
+          merged.quoteNumber = patch.client.estimateNumber;
+        }
+      } else if (patch.quoteNumber) {
+        merged.quoteNumber = patch.quoteNumber;
+        if (merged.client) {
+          merged.client = { ...merged.client, estimateNumber: patch.quoteNumber };
+        }
+      }
+
       const updatedPricing = calculateQuotePricing(
         merged.design,
         merged.siteConditions,
@@ -441,20 +462,12 @@ export function QuoteBuilder() {
       const updatedClient = { ...prev.client, ...patch };
       let nextQuoteNumber = prev.quoteNumber;
 
-      if (patch.clientName !== undefined) {
-        const isDefaultQuoteNumber =
-          !prev.quoteNumber ||
-          prev.quoteNumber.startsWith("CL") ||
-          prev.quoteNumber.startsWith("MH") ||
-          prev.status === "draft";
-
-        if (isDefaultQuoteNumber) {
-          const generated = generateQuoteNumber(patch.clientName, savedQuotes);
-          nextQuoteNumber = generated;
-          updatedClient.estimateNumber = generated;
-        }
-      } else if (patch.estimateNumber) {
+      if (patch.estimateNumber) {
         nextQuoteNumber = patch.estimateNumber;
+      } else if (patch.clientName !== undefined) {
+        const generated = generateQuoteNumber(patch.clientName, savedQuotes);
+        nextQuoteNumber = generated;
+        updatedClient.estimateNumber = generated;
       }
 
       const updatedPricing = calculateQuotePricing(
@@ -710,23 +723,8 @@ export function QuoteBuilder() {
         document.querySelector(".quote-pdf-root") ||
         document.body;
 
-      // Requirement 1.a: Format downloaded PDF Name to:
-      // Hudson Estimate_"client 1 first name (& Client 2 first name if applicable)"_"Floorplan Name"_"Inclusion level" h1 h2 or h3
-      const client1First = (quote.client.clientName || "").trim().split(/\s+/)[0] || "Client";
-      const client2First = (quote.client.hasClient2 && quote.client.client2Name)
-        ? quote.client.client2Name.trim().split(/\s+/)[0]
-        : "";
-      const clientPart = client2First ? `${client1First} & ${client2First}` : client1First;
-      const floorplanName = getEffectiveDesignName(quote.design) || "Floorplan";
-
-      const specTier = quote.design.specTier || "";
-      let inclusionCode = "H2";
-      if (specTier.includes("H1") || specTier.toLowerCase().includes("smart")) inclusionCode = "H1";
-      else if (specTier.includes("H2") || specTier.toLowerCase().includes("design")) inclusionCode = "H2";
-      else if (specTier.includes("H3") || specTier.toLowerCase().includes("luxury")) inclusionCode = "H3";
-
-      const rawFilename = `Hudson Estimate_${clientPart}_${floorplanName}_${inclusionCode}`;
-      const filename = rawFilename.replace(/[/\\?%*:|"<>]/g, "_").replace(/\s+/g, " ").trim();
+      // Format downloaded PDF Name using centralized formatEstimateFileName (e.g. Hudson Estimate_Ronald_custom plan_H2)
+      const filename = formatEstimateFileName(quote);
 
       await downloadA4Pdf(exportHost, filename);
       toast.success("Builders Estimate PDF downloaded successfully");

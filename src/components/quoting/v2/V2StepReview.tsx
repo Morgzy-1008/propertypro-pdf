@@ -18,7 +18,10 @@ import {
   RotateCcw,
   Layers,
   Building2,
+  Send,
+  BookOpen,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatAud } from "@/lib/pricing";
@@ -26,6 +29,8 @@ import {
   getEffectiveDesignName,
   calculateModifiedFloorplanPricing,
 } from "@/lib/quoting/quoteEngine";
+import { getHudsonCompanyInfo } from "@/lib/divisionContext";
+import { PaymentQrCode } from "../PaymentQrCode";
 import type { FullQuote } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { QuotePdfDocument } from "../QuotePdfDocument";
@@ -101,6 +106,48 @@ export function V2StepReview({
     setTimeout(() => setCopiedSms(false), 2000);
   };
 
+  const company = useMemo(() => {
+    return getHudsonCompanyInfo({
+      state: quote.client.state,
+      postcode: quote.client.postcode,
+      suburb: quote.client.suburb,
+      siteAddress: quote.client.siteAddress,
+      consultantOffice: quote.client.consultantOffice,
+    });
+  }, [quote.client]);
+
+  const paymentReference = useMemo(() => {
+    return `${quote.quoteNumber || "MH"} ${quote.client.clientName?.split(" ").pop() || "Deposit"}`;
+  }, [quote.quoteNumber, quote.client.clientName]);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`Copied ${label} to clipboard: ${text}`);
+  };
+
+  const BROCHURES = [
+    {
+      title: "H1 Smart Living Inclusions",
+      url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H1-Brochure-Hudson-Homes-Jan-25.pdf",
+      tier: "H1",
+    },
+    {
+      title: "H2 Designer Living Inclusions",
+      url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H2-Brochure-Hudson-Homes-Jan-25.pdf",
+      tier: "H2",
+    },
+    {
+      title: "H3 Luxury Living Inclusions",
+      url: "https://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-H3-Brochure-Hudson-Homes-Jan-25.pdf",
+      tier: "H3",
+    },
+    {
+      title: "Hudson Turnkey Landscaping",
+      url: "http://www.hudsonhomes.com.au/wp-content/uploads/2025/01/Digital-Landscape-Brochure-Hudson-Homes-Jan-25.pdf",
+      tier: "Landscaping",
+    },
+  ];
+
   return (
     <div className="space-y-8 max-w-7xl 2xl:max-w-[1550px] mx-auto px-2 sm:px-4">
       {/* Header Prompt */}
@@ -156,6 +203,16 @@ export function V2StepReview({
               <Download className="h-5 w-5" />
               {downloading ? "Creating PDF…" : "Download Official PDF"}
             </Button>
+
+            <Link to="/tender-request">
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-base px-6 rounded-xl shadow-lg shadow-amber-500/20 gap-2 cursor-pointer h-14"
+              >
+                <Send className="h-5 w-5" />
+                Submit Tender (ATP)
+              </Button>
+            </Link>
 
             <Button
               variant="outline"
@@ -252,8 +309,18 @@ export function V2StepReview({
             <span className="text-xs uppercase tracking-wider text-slate-400 block font-bold">
               Variations &amp; Upgrades
             </span>
-            <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${isLight ? "text-slate-900" : "text-white"}`}>
-              +{formatAud(nonModVariationsSubtotal)}
+            <span className={`text-2xl sm:text-3xl font-extrabold font-mono ${
+              nonModVariationsSubtotal < 0
+                ? "text-rose-600 dark:text-rose-400"
+                : isLight
+                ? "text-slate-900"
+                : "text-white"
+            }`}>
+              {nonModVariationsSubtotal > 0
+                ? `+${formatAud(nonModVariationsSubtotal)}`
+                : nonModVariationsSubtotal < 0
+                ? `-${formatAud(Math.abs(nonModVariationsSubtotal))}`
+                : "$0"}
             </span>
             <span className="text-xs text-slate-400 block truncate font-medium">
               {(quote.lineItems || []).filter((i) => i.isIncluded).length} upgrade items selected
@@ -381,11 +448,21 @@ export function V2StepReview({
                 {quote.design.beds || 4} Bed • {quote.design.baths || 2} Bath • {quote.design.cars || 2} Car
               </span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-start">
               <span className="text-slate-400 font-medium">Sales Consultant:</span>
-              <span className={`font-medium ${isLight ? "text-slate-800" : "text-slate-300"}`}>
-                {quote.client.consultantName || "Hudson New Home Consultant"}
-              </span>
+              <div className="text-right">
+                <span className={`font-medium block ${isLight ? "text-slate-800" : "text-slate-300"}`}>
+                  {quote.client.consultantName || "Hudson New Home Consultant"}
+                  {quote.client.consultantOffice ? ` (${quote.client.consultantOffice})` : ""}
+                </span>
+                {(quote.client.consultantPhone || quote.client.consultantEmail) && (
+                  <span className="text-xs text-slate-400 block mt-0.5">
+                    {quote.client.consultantPhone}
+                    {quote.client.consultantPhone && quote.client.consultantEmail ? " • " : ""}
+                    {quote.client.consultantEmail}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -471,9 +548,22 @@ export function V2StepReview({
                 Selected Variations &amp; Upgrades Breakdown
               </h3>
             </div>
-            <span className="font-mono font-extrabold text-base text-emerald-600 dark:text-emerald-400">
-              +{formatAud(nonModVariationsSubtotal + (quote.design.isModifiedFloorplan ? modAdjustment : 0))}
-            </span>
+            {(() => {
+              const totalVar = nonModVariationsSubtotal + (quote.design.isModifiedFloorplan ? modAdjustment : 0);
+              return (
+                <span className={`font-mono font-extrabold text-base ${
+                  totalVar < 0
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  {totalVar > 0
+                    ? `+${formatAud(totalVar)}`
+                    : totalVar < 0
+                    ? `-${formatAud(Math.abs(totalVar))}`
+                    : "$0"}
+                </span>
+              );
+            })()}
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800/60 text-sm">
@@ -512,33 +602,223 @@ export function V2StepReview({
             ))}
 
             {/* Selected Line Item Variations */}
-            {includedVariations.map((it) => (
-              <div key={it.id} className="py-2.5 flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
-                      {it.name}
-                    </span>
-                    {it.quantity > 1 && (
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
-                        Qty: {it.quantity} {it.unitType === "sqm" ? "m²" : ""}
+            {includedVariations.map((it) => {
+              const hasDesc =
+                it.description &&
+                it.description.trim() &&
+                it.description !== "Custom client variation request" &&
+                it.description !== "Client Custom Variation";
+
+              return (
+                <div key={it.id} className="py-2.5 flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`font-semibold ${isLight ? "text-slate-900" : "text-white"}`}>
+                        {it.name}
+                      </span>
+                      {it.quantity > 1 && (
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-bold">
+                          Qty: {it.quantity} {it.unitType === "sqm" ? "m²" : ""}
+                        </span>
+                      )}
+                    </div>
+                    {hasDesc && (
+                      <span className="block text-xs text-slate-400 line-clamp-1 mt-0.5">
+                        {it.description}
                       </span>
                     )}
                   </div>
-                  {it.description && (
-                    <span className="block text-xs text-slate-400 line-clamp-1 mt-0.5">
-                      {it.description}
-                    </span>
-                  )}
+                  {(() => {
+                    const amount = it.subtotal ?? (it.unitRate * (it.quantity || 1));
+                    return (
+                      <span className={`font-mono font-bold ${
+                        amount < 0
+                          ? "text-rose-600 dark:text-rose-400"
+                          : amount === 0
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : isLight
+                          ? "text-slate-800"
+                          : "text-slate-200"
+                      }`}>
+                        {amount > 0
+                          ? `+${formatAud(amount)}`
+                          : amount < 0
+                          ? `-${formatAud(Math.abs(amount))}`
+                          : "$0 (Included)"}
+                      </span>
+                    );
+                  })()}
                 </div>
-                <span className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                  +{formatAud(it.subtotal || it.unitRate * (it.quantity || 1))}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* Official NAB Bank Account Details for Preliminary Deposit */}
+      <div
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
+          isLight
+            ? "bg-white border-slate-200 shadow-sm"
+            : "bg-slate-900/60 border-slate-800/80"
+        }`}
+      >
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-4 flex-1">
+            <div className="flex items-center justify-between border-b border-slate-700/30 pb-3">
+              <div className="flex items-center gap-2.5">
+                <Building className="h-5 w-5 text-amber-500" />
+                <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"}`}>
+                  Official EFT Remittance &amp; Trust Account Details
+                </h3>
+              </div>
+              <Badge variant="outline" className="text-xs font-mono font-bold text-amber-500 border-amber-500/30">
+                National Australia Bank
+              </Badge>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-400">
+              For preliminary works agreement deposit (${formatAud(quote.client.depositAmount || 1650)}) or formal tender lodgement:
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {/* Account Name */}
+              <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/70 border-slate-800"
+              }`}>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Account Name</span>
+                  <span className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>{company.bankName}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(company.bankName, "Account Name")}
+                  className="h-8 w-8 p-0"
+                >
+                  <Copy className="h-4 w-4 text-slate-400 hover:text-cyan-400" />
+                </Button>
+              </div>
+
+              {/* Bank Institution */}
+              <div className={`p-3 rounded-xl border ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/70 border-slate-800"
+              }`}>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Bank Institution</span>
+                <span className={`text-sm font-bold ${isLight ? "text-slate-900" : "text-white"}`}>National Australia Bank (NAB)</span>
+              </div>
+
+              {/* BSB Number */}
+              <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/70 border-slate-800"
+              }`}>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">BSB Number</span>
+                  <span className="text-base font-black font-mono text-emerald-500 tracking-wider">{company.bsb}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(company.bsb, "BSB Number")}
+                  className="h-8 w-8 p-0"
+                >
+                  <Copy className="h-4 w-4 text-slate-400 hover:text-cyan-400" />
+                </Button>
+              </div>
+
+              {/* Account Number */}
+              <div className={`p-3 rounded-xl border flex items-center justify-between ${
+                isLight ? "bg-slate-50 border-slate-200" : "bg-slate-950/70 border-slate-800"
+              }`}>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Account Number</span>
+                  <span className={`text-base font-black font-mono tracking-wider ${isLight ? "text-slate-900" : "text-white"}`}>{company.accountNumber}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(company.accountNumberRaw, "Account Number")}
+                  className="h-8 w-8 p-0"
+                >
+                  <Copy className="h-4 w-4 text-slate-400 hover:text-cyan-400" />
+                </Button>
+              </div>
+
+              {/* Payment Reference */}
+              <div className={`sm:col-span-2 p-3 rounded-xl border flex items-center justify-between ${
+                isLight ? "bg-emerald-50/70 border-emerald-300" : "bg-emerald-950/30 border-emerald-500/40"
+              }`}>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400 block">EFT Payment Remittance Reference</span>
+                  <span className="text-sm sm:text-base font-black font-mono text-emerald-800 dark:text-emerald-300">{paymentReference}</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(paymentReference, "Payment Reference")}
+                  className="h-8 w-8 p-0"
+                >
+                  <Copy className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment QR Code */}
+          <div className="flex flex-col items-center justify-center p-4 bg-slate-950/80 border border-slate-800 rounded-2xl text-center flex-none">
+            <PaymentQrCode
+              accountName={company.bankName}
+              bsb={company.bsb}
+              accountNumber={company.accountNumberRaw}
+              reference={paymentReference}
+              amount={quote.client.depositAmount || 1650}
+            />
+            <span className="text-[11px] text-slate-400 mt-2 font-medium">Scan to pay deposit with bank app</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Official Inclusion & Digital Brochures */}
+      <div
+        className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
+          isLight
+            ? "bg-white border-slate-200 shadow-sm"
+            : "bg-slate-900/60 border-slate-800/80"
+        }`}
+      >
+        <div className="flex items-center gap-2.5 mb-5 pb-3 border-b border-slate-700/30">
+          <BookOpen className="h-5 w-5 text-indigo-400" />
+          <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-white"}`}>
+            Official Digital Brochures &amp; Inclusions Guides
+          </h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {BROCHURES.map((b) => (
+            <a
+              key={b.title}
+              href={b.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`p-4 rounded-xl border flex items-center justify-between gap-3 transition-all hover:scale-[1.02] cursor-pointer ${
+                isLight
+                  ? "bg-slate-50 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50"
+                  : "bg-slate-950/70 border-slate-800 hover:border-indigo-500/50 hover:bg-slate-900"
+              }`}
+            >
+              <div className="space-y-0.5">
+                <span className="text-xs uppercase font-extrabold text-indigo-500 dark:text-indigo-400 block">{b.tier}</span>
+                <span className={`text-sm font-bold block ${isLight ? "text-slate-900" : "text-white"}`}>{b.title}</span>
+              </div>
+              <ExternalLink className="h-4 w-4 text-slate-400 shrink-0" />
+            </a>
+          ))}
+        </div>
+      </div>
 
       {/* FULL ESTIMATE PDF DOCUMENT PREVIEW */}
       <div
@@ -638,6 +918,16 @@ export function V2StepReview({
             <RotateCcw className="h-4 w-4" />
             New Estimate
           </Button>
+
+          <Link to="/tender-request">
+            <Button
+              type="button"
+              className="h-14 px-6 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold text-base shadow-lg shadow-amber-500/20 gap-2 cursor-pointer"
+            >
+              <Send className="h-5 w-5" />
+              Submit Tender (ATP)
+            </Button>
+          </Link>
 
           <Button
             type="button"

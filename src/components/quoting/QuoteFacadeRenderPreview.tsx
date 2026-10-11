@@ -183,7 +183,7 @@ export function QuoteFacadeRenderPreview({
           <img
             src={src}
             alt={design.facadeName || "Architectural Facade Render"}
-            className={`w-full h-full object-cover transition-all duration-300 ${isSingleGarageDouble ? "object-[center_4%]" : isDoubleOrSplit ? "object-[center_42%]" : "object-center"}`}
+            className="w-full h-full object-contain object-center drop-shadow-md transition-all duration-300 p-3 sm:p-4"
             style={{
               imageRendering: "auto",
             }}

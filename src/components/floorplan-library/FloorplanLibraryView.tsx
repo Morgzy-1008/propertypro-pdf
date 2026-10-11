@@ -208,9 +208,6 @@ export function FloorplanLibraryView() {
               <span className={`text-xs font-extrabold tracking-widest uppercase font-mono ${isLight ? "text-slate-800" : "text-slate-200"}`}>
                 Floorplan Library
               </span>
-              <span className="block text-[10px] tracking-widest text-amber-500 font-bold uppercase">
-                Display Suite Catalog • {division} Pricing
-              </span>
             </div>
           </div>
 
@@ -223,23 +220,12 @@ export function FloorplanLibraryView() {
       </header>
 
       {/* Main Body */}
-      <main className="flex-1 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-8 relative z-10 flex flex-col gap-8">
+      <main className="flex-1 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto px-4 sm:px-6 lg:px-8 2xl:px-12 py-5 relative z-10 flex flex-col gap-4">
         {/* Banner / Title Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1">
-                <LayoutGrid className="h-3 w-3" />
-                Hudson Architectural Repository
-              </span>
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1">
-                <Zap className="h-3 w-3" />
-                BTB Zero-Lot Compatible
-              </span>
-            </div>
-
             <h1
-              className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight ${
+              className={`text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight ${
                 isLight ? "text-slate-900" : "text-white"
               }`}
             >
@@ -248,26 +234,22 @@ export function FloorplanLibraryView() {
                 Library
               </span>
             </h1>
-            <p className={`mt-2 text-sm sm:text-base max-w-3xl ${isLight ? "text-slate-600" : "text-slate-400"}`}>
-              Effortlessly browse and present 220+ Hudson Homes floorplans directly with clients in display homes.
-              Filter by lot width, house length, bedrooms, size, and multi-tier inclusions pricing.
-            </p>
           </div>
 
           {/* Telemetry pill */}
           <div
-            className={`p-3 rounded-2xl border flex items-center gap-3 shrink-0 ${
-              isLight ? "bg-white border-slate-200 shadow-sm" : "bg-slate-900/80 border-slate-800 shadow-lg"
+            className={`p-2.5 px-3.5 rounded-2xl border flex items-center gap-3 shrink-0 shadow-sm ${
+              isLight ? "bg-white border-slate-200" : "bg-slate-900/80 border-slate-800"
             }`}
           >
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-mono font-black text-sm">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-cyan-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-mono font-black text-xs">
               {filteredPlans.length}
             </div>
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider leading-none mb-0.5">
                 Matching Designs
               </span>
-              <span className="text-sm font-extrabold">
+              <span className="text-xs font-extrabold leading-none">
                 {filters.inclusionsTier} Tier Active
               </span>
             </div>

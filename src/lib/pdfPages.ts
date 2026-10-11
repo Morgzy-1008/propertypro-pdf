@@ -92,37 +92,41 @@ export async function compressImageDataUrl(
 export async function pdfDocumentToPagesAndText(file: File, maxPages = 12): Promise<DocumentPagesAndText> {
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
   if (!isPdf) {
-    const rawDataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
+    let rawDataUrl: string;
+    if (typeof FileReader !== "undefined") {
+      rawDataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    } else {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      rawDataUrl = `data:${file.type || "image/png"};base64,${buffer.toString("base64")}`;
+    }
     // Automatically optimize image size to ensure no Vercel payload limits
     const optimized = await compressImageDataUrl(rawDataUrl, 1800, 1800, 0.88);
 
     let extractedRawText = "";
-    if (typeof window !== "undefined") {
-      try {
-        const worker = await createWorker("eng");
-        // PSM 11 (Sparse Text) reliably captures tabular area schedules and dimension callouts
-        await worker.setParameters({ tessedit_pageseg_mode: "11" as any });
-        const ret = await worker.recognize(optimized);
-        if (ret?.data?.text) {
-          extractedRawText = ret.data.text;
-        }
-        // If sparse text was minimal, run standard automatic segmentation (PSM 3) to capture notes
-        if (extractedRawText.trim().length < 50) {
-          await worker.setParameters({ tessedit_pageseg_mode: "3" as any });
-          const retAuto = await worker.recognize(optimized);
-          if (retAuto?.data?.text) {
-            extractedRawText = (extractedRawText + "\n" + retAuto.data.text).trim();
-          }
-        }
-        await worker.terminate();
-      } catch (ocrErr) {
-        console.warn("[pdfPages] OCR on image upload error:", ocrErr);
+    try {
+      const worker = await createWorker("eng");
+      // PSM 11 (Sparse Text) reliably captures tabular area schedules and dimension callouts
+      await worker.setParameters({ tessedit_pageseg_mode: "11" as any });
+      const ret = await worker.recognize(optimized);
+      if (ret?.data?.text) {
+        extractedRawText = ret.data.text;
       }
+      // If sparse text was minimal, run standard automatic segmentation (PSM 3) to capture notes
+      if (extractedRawText.trim().length < 50) {
+        await worker.setParameters({ tessedit_pageseg_mode: "3" as any });
+        const retAuto = await worker.recognize(optimized);
+        if (retAuto?.data?.text) {
+          extractedRawText = (extractedRawText + "\n" + retAuto.data.text).trim();
+        }
+      }
+      await worker.terminate();
+    } catch (ocrErr) {
+      console.warn("[pdfPages] OCR on image upload error:", ocrErr);
     }
 
     return {

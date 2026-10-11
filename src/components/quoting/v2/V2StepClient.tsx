@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   User,
   Phone,
@@ -15,15 +15,32 @@ import {
   X,
   Check,
   Search,
+  Shield,
+  RefreshCw,
+  UserCheck,
+  Users,
+  FolderOpen,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { FullQuote, SiteConditions } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { searchAustralianAddresses, type AddressSuggestion } from "@/lib/address/addressService";
 import { detectCouncilFromLocation } from "@/lib/quoting/quoteEngine";
-import { getActiveDivision } from "@/lib/divisionContext";
+import { getActiveDivision, setActiveDivision } from "@/lib/divisionContext";
+import { ALL_STAFF_CONSULTANTS, findConsultant } from "@/components/flyer/consultants";
+import { getActiveStaffUser } from "@/lib/authSession";
+import { loadAllCrmLeads } from "@/lib/crm/crmStorage";
+import type { CrmLead } from "@/lib/crm/crmTypes";
+import { loadAllQuotes } from "@/lib/quoting/quoteStorage";
 
 /**
  * Detects if the user has typed at least 2 letters of the actual street name.
@@ -73,6 +90,187 @@ export function V2StepClient({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const streetInputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<any>(null);
+
+  const activeState = (client.state || getActiveDivision()) === "NSW" ? "NSW" : "QLD";
+
+  // CRM Leads and Saved Quotes for 1-click client loading
+  const [crmLeads, setCrmLeads] = useState<CrmLead[]>([]);
+  const savedQuotes = useMemo(() => {
+    try {
+      return loadAllQuotes();
+    } catch {
+      return [];
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchLeads = () => {
+      loadAllCrmLeads().then(setCrmLeads).catch(() => {});
+    };
+    fetchLeads();
+    if (typeof window !== "undefined") {
+      window.addEventListener("hudson_crm_change", fetchLeads);
+      return () => window.removeEventListener("hudson_crm_change", fetchLeads);
+    }
+  }, []);
+
+  const handleSelectCrmLead = (leadId: string) => {
+    const found = crmLeads.find((l) => l.id === leadId);
+    if (!found) return;
+
+    const suburbClean = found.suburb && found.suburb !== "Queensland" && found.suburb !== "New South Wales" ? found.suburb : "";
+    const estateClean = found.targetEstate && found.targetEstate !== "Unspecified Estate" ? found.targetEstate : "";
+    const lotClean = found.lotNumber && found.lotNumber !== "TBA" ? found.lotNumber : "";
+    const siteAddr = estateClean ? `${lotClean ? `Lot ${lotClean}, ` : ""}${estateClean}, ${suburbClean}` : "";
+
+    onChange({
+      clientName: found.clientName,
+      clientPhone: found.mobile,
+      clientEmail: found.email,
+      hasClient2: !!found.secondaryCustomerName,
+      client2Name: found.secondaryCustomerName || "",
+      client2Phone: found.secondaryCustomerMobile || "",
+      client2Email: found.secondaryCustomerEmail || "",
+      estate: estateClean,
+      suburb: suburbClean,
+      lotNumber: lotClean,
+      siteAddress: siteAddr,
+      notes: found.notes || "",
+    });
+
+    if (found.secondaryCustomerName) {
+      setShowClient2(true);
+    }
+
+    if (found.assignedConsultantId) {
+      handleConsultantPresetChange(found.assignedConsultantId);
+    }
+
+    if (onSiteChange) {
+      const detected = detectCouncilFromLocation(suburbClean, siteAddr, "", activeState);
+      if (detected.region) {
+        onSiteChange({
+          councilRegion: detected.region,
+          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+        });
+      }
+    }
+
+    toast.success(`Imported client details for ${found.clientName} from CRM! ✓`);
+  };
+
+  const handleSuburbChange = (val: string) => {
+    onChange({ suburb: val });
+    if (onSiteChange) {
+      const detected = detectCouncilFromLocation(
+        val,
+        `${client.siteAddress || ""} ${client.estate || ""}`,
+        client.postcode || "",
+        activeState
+      );
+      if (detected.region) {
+        onSiteChange({
+          councilRegion: detected.region,
+          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+        });
+      }
+    }
+  };
+
+  // Match preset consultant ID or identify custom
+  const selectedConsultantPreset = useMemo(() => {
+    if (!client.consultantName && !client.consultantId) return "custom";
+    if (client.consultantId && client.consultantId !== "custom") {
+      const match = ALL_STAFF_CONSULTANTS.find((c) => c.id === client.consultantId);
+      if (match) return match.id;
+    }
+    const matchByName = ALL_STAFF_CONSULTANTS.find(
+      (c) => c.name.toLowerCase() === (client.consultantName || "").toLowerCase()
+    );
+    return matchByName ? matchByName.id : "custom";
+  }, [client.consultantId, client.consultantName]);
+
+  const handleConsultantPresetChange = (presetId: string) => {
+    if (presetId === "custom") {
+      onChange({ consultantId: "custom" });
+      return;
+    }
+    const consultant = findConsultant(presetId) || ALL_STAFF_CONSULTANTS.find((c) => c.id === presetId);
+    if (!consultant) return;
+    onChange({
+      consultantId: consultant.id,
+      consultantName: consultant.name,
+      consultantPhone: consultant.phone,
+      consultantEmail: consultant.email,
+      consultantOffice: consultant.displayCentre,
+    });
+    toast.success(`Assigned consultant: ${consultant.name}`);
+  };
+
+  const handleConsultantFieldChange = (field: keyof FullQuote["client"], value: string) => {
+    onChange({
+      [field]: value,
+      consultantId: "custom",
+    });
+  };
+
+  const handleResetToActiveProfile = () => {
+    const activeStaff = getActiveStaffUser();
+    if (activeStaff) {
+      onChange({
+        consultantId: activeStaff.id,
+        consultantName: activeStaff.name,
+        consultantPhone: activeStaff.phone,
+        consultantEmail: activeStaff.email,
+        consultantOffice: activeStaff.displayCentre,
+      });
+      toast.success(`Reset NHC to active profile: ${activeStaff.name}`);
+    } else {
+      const morgan = ALL_STAFF_CONSULTANTS.find((c) => c.id === "morgan-hales");
+      if (morgan) {
+        onChange({
+          consultantId: morgan.id,
+          consultantName: morgan.name,
+          consultantPhone: morgan.phone,
+          consultantEmail: morgan.email,
+          consultantOffice: morgan.displayCentre,
+        });
+        toast.success(`Reset NHC to: ${morgan.name}`);
+      }
+    }
+  };
+
+  const handleStateChange = (newState: "QLD" | "NSW") => {
+    onChange({ state: newState });
+    setActiveDivision(newState);
+    if (onSiteChange) {
+      const detected = detectCouncilFromLocation(
+        client.suburb || "",
+        `${client.siteAddress || ""} ${client.estate || ""}`,
+        client.postcode || "",
+        newState
+      );
+      if (detected.region) {
+        onSiteChange({
+          councilRegion: detected.region,
+          councilFee: detected.fee > 0 ? detected.fee : (newState === "NSW" ? 2000 : 2227),
+        });
+      } else {
+        if (newState === "NSW") {
+          onSiteChange({
+            councilRegion: "NSW Local Council (Standard Statutory Fee)",
+            councilFee: 2000,
+          });
+        } else {
+          onSiteChange({
+            councilRegion: "Moreton Bay Regional Council",
+            councilFee: 2227,
+          });
+        }
+      }
+    }
+    toast.success(`Switched active state & pricelist to ${newState}`);
+  };
 
   // Address TBA state
   const isAddressTba = Boolean(
@@ -141,6 +339,21 @@ export function V2StepClient({
       if (client.lotNumber === "TBA") patch.lotNumber = "";
     }
     onChange(patch);
+
+    if (onSiteChange) {
+      const detected = detectCouncilFromLocation(
+        client.suburb || "",
+        `${val} ${client.estate || ""}`,
+        client.postcode || "",
+        activeState
+      );
+      if (detected.region) {
+        onSiteChange({
+          councilRegion: detected.region,
+          councilFee: detected.fee > 0 ? detected.fee : (activeState === "NSW" ? 2000 : 2227),
+        });
+      }
+    }
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -311,7 +524,29 @@ export function V2StepClient({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {crmLeads.length > 0 && (
+            <Select onValueChange={handleSelectCrmLead}>
+              <SelectTrigger
+                className={`text-sm h-10 px-3.5 gap-2 font-semibold min-w-[210px] ${
+                  isLight
+                    ? "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+                    : "border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                <Users className="h-4 w-4 text-cyan-400" />
+                <SelectValue placeholder="Import CRM Lead..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {crmLeads.map((lead) => (
+                  <SelectItem key={lead.id} value={lead.id}>
+                    {lead.clientName} {lead.targetEstate ? `• ${lead.targetEstate}` : ""} {lead.suburb ? `(${lead.suburb})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
           <Button
             type="button"
             variant="outline"
@@ -338,11 +573,22 @@ export function V2StepClient({
               : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
           }`}
         >
-          <div className="flex items-center gap-2.5 mb-5">
-            <User className="h-5 w-5 text-emerald-400" />
-            <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
-              Primary Client Information
-            </h3>
+          <div className="flex items-center justify-between gap-2.5 mb-5 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <User className="h-5 w-5 text-emerald-400" />
+              <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
+                Primary Client Information
+              </h3>
+            </div>
+            {client.estimateNumber && (
+              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs sm:text-sm font-black tracking-wide border shadow-xs ${
+                isLight 
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300" 
+                  : "bg-emerald-950/60 text-emerald-400 border-emerald-500/40"
+              }`}>
+                <span className="opacity-75 text-[11px] font-bold uppercase">Estimate</span> #{client.estimateNumber.replace(/^#/, "")}
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -493,6 +739,151 @@ export function V2StepClient({
               </div>
             </div>
           )}
+        </div>
+
+        {/* New Home Sales Consultant (NHC) Details Card */}
+        <div
+          className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
+            isLight
+              ? "bg-white border-slate-200 shadow-sm"
+              : "bg-slate-900/60 border-slate-800/80 backdrop-blur-md"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <div className="flex items-center gap-2.5">
+              <Shield className="h-5 w-5 text-amber-500" />
+              <div>
+                <h3 className={`text-base sm:text-lg font-bold uppercase tracking-wider ${isLight ? "text-slate-800" : "text-slate-100"}`}>
+                  New Home Sales Consultant (NHC) Details
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Assign a consultant from our staff directory or customize the consultant details for this quote.
+                </p>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleResetToActiveProfile}
+              className={`text-xs h-8.5 px-3 gap-1.5 font-semibold ${
+                isLight
+                  ? "border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                  : "border-slate-800 bg-slate-950 text-slate-300 hover:bg-slate-800"
+              }`}
+            >
+              <RefreshCw className="h-3.5 w-3.5 text-amber-400" />
+              Reset to My Profile
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Quick Preset Dropdown */}
+            <div className="space-y-1.5">
+              <Label className={`text-xs font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                Quick Consultant Preset
+              </Label>
+              <Select
+                value={selectedConsultantPreset}
+                onValueChange={handleConsultantPresetChange}
+              >
+                <SelectTrigger className={`text-sm h-11 rounded-xl px-4 ${
+                  isLight
+                    ? "bg-slate-50 border-slate-300 text-slate-900"
+                    : "bg-slate-950/80 border-slate-800 text-white"
+                }`}>
+                  <SelectValue placeholder="Choose a consultant from directory..." />
+                </SelectTrigger>
+                <SelectContent className={isLight ? "bg-white border-slate-300 text-slate-900" : "bg-slate-900 border-slate-800 text-white"}>
+                  <SelectItem value="custom">✏️ Custom Consultant / Manual Override</SelectItem>
+                  {ALL_STAFF_CONSULTANTS.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name} &bull; {c.displayCentre} ({c.division || c.state || "QLD"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Editable Fields Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Consultant Name <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  value={client.consultantName || ""}
+                  onChange={(e) => handleConsultantFieldChange("consultantName", e.target.value)}
+                  placeholder="e.g. Morgan Hales"
+                  className={`text-sm h-11 rounded-xl px-3.5 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                      : "bg-slate-950/80 border-slate-800 text-white"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Direct Phone
+                </Label>
+                <Input
+                  type="tel"
+                  value={client.consultantPhone || ""}
+                  onChange={(e) => handleConsultantFieldChange("consultantPhone", e.target.value)}
+                  placeholder="e.g. 0417 571 864"
+                  className={`text-sm h-11 rounded-xl px-3.5 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                      : "bg-slate-950/80 border-slate-800 text-white"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Email Address
+                </Label>
+                <Input
+                  type="email"
+                  value={client.consultantEmail || ""}
+                  onChange={(e) => handleConsultantFieldChange("consultantEmail", e.target.value)}
+                  placeholder="e.g. morgan.hales@hudsonhomes.com.au"
+                  className={`text-sm h-11 rounded-xl px-3.5 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                      : "bg-slate-950/80 border-slate-800 text-white"
+                  }`}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className={`text-xs font-bold ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Display Centre / Office
+                </Label>
+                <Input
+                  value={client.consultantOffice || ""}
+                  onChange={(e) => handleConsultantFieldChange("consultantOffice", e.target.value)}
+                  placeholder="e.g. Flagstone Display Home"
+                  className={`text-sm h-11 rounded-xl px-3.5 ${
+                    isLight
+                      ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white"
+                      : "bg-slate-950/80 border-slate-800 text-white"
+                  }`}
+                />
+              </div>
+            </div>
+
+            <div className={`p-3 rounded-xl border text-xs flex items-center gap-2 ${
+              isLight ? "bg-amber-50/70 border-amber-200/80 text-amber-900" : "bg-amber-500/10 border-amber-500/20 text-amber-300"
+            }`}>
+              <Shield className="h-4 w-4 shrink-0 text-amber-500" />
+              <span>
+                These consultant details appear on the <strong>Estimate Cover Sheet</strong>, <strong>Specification Schedules</strong>, and the <strong>Acceptance of Tender Proposal (ATP)</strong> contract agreement.
+              </span>
+            </div>
+          </div>
         </div>
 
         {/* Land / Site Location Card */}
@@ -733,15 +1124,64 @@ export function V2StepClient({
                 Suburb / Postcode
               </Label>
               <Input
-                placeholder="e.g. Narangba QLD 4504"
+                placeholder="e.g. Narangba QLD 4504 or Penrith NSW 2750"
                 value={client.suburb || ""}
-                onChange={(e) => onChange({ suburb: e.target.value })}
+                onChange={(e) => handleSuburbChange(e.target.value)}
                 className={`text-base h-12 rounded-xl px-4 ${
                   isLight
                     ? "bg-slate-50 border-slate-300 text-slate-900 focus:bg-white focus:border-cyan-500"
                     : "bg-slate-950/80 border-slate-800 text-white focus:border-cyan-500"
                 }`}
               />
+            </div>
+
+            {/* State Jurisdiction & Pricelist */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className={`text-sm font-bold ${isLight ? "text-slate-700" : "text-slate-200"}`}>
+                  State Jurisdiction &amp; Pricelist
+                </Label>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                  activeState === "NSW"
+                    ? "bg-cyan-500/20 text-cyan-400 border border-cyan-500/30"
+                    : "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                }`}>
+                  {activeState === "NSW" ? "NSW Division" : "QLD Division"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 h-12">
+                <button
+                  type="button"
+                  onClick={() => handleStateChange("QLD")}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition-all border cursor-pointer ${
+                    activeState === "QLD"
+                      ? isLight
+                        ? "bg-amber-100 text-amber-950 border-amber-400 shadow-xs ring-2 ring-amber-400/30"
+                        : "bg-amber-500/25 text-amber-300 border-amber-400 shadow-sm ring-1 ring-amber-400/40"
+                      : isLight
+                      ? "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
+                      : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-white"
+                  }`}
+                >
+                  <span>☀️ QLD (Queensland)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleStateChange("NSW")}
+                  className={`flex items-center justify-center gap-1.5 rounded-xl text-sm font-extrabold transition-all border cursor-pointer ${
+                    activeState === "NSW"
+                      ? isLight
+                        ? "bg-cyan-100 text-cyan-950 border-cyan-400 shadow-xs ring-2 ring-cyan-400/30"
+                        : "bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-sm ring-1 ring-cyan-400/40"
+                      : isLight
+                      ? "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100"
+                      : "bg-slate-950/80 text-slate-400 border-slate-800 hover:text-white"
+                  }`}
+                >
+                  <span>🌊 NSW (New South Wales)</span>
+                </button>
+              </div>
             </div>
 
             {/* Estate Name Input */}

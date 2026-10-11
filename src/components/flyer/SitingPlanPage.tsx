@@ -777,7 +777,7 @@ export function SitingPlanPage({ d, set }: { d: FlyerData; set?: Setter }) {
               <div className="flex items-center justify-between pt-[0.4mm] border-t border-slate-100 text-[1.95mm] text-slate-500">
                 <span>Specification</span>
                 <span className="font-semibold text-slate-700">
-                  {analysis.isDoubleStorey || String(d.housingType).includes("double") ? "Double Storey" : "Single Storey"} • 2440mm Ceilings
+                  {analysis.isDoubleStorey || /double/i.test(String(d.housingType)) || d.housingType === "Double Storey" ? "Double Storey" : "Single Storey"} • 2440mm Ceilings
                 </span>
               </div>
             </div>

@@ -18,6 +18,8 @@ import {
   Trophy,
   X,
   LayoutGrid,
+  Box,
+  Zap,
 } from "lucide-react";
 import { Logo, HudsonMark } from "@/components/flyer/FlyerTemplates";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -33,7 +35,7 @@ import { getPendingAccessRequests, getUnreadAlertCount, onAdminAlertsChanged } f
 import { StaffHeaderProfile } from "@/components/auth/StaffHeaderProfile";
 import { ProfileSwitcherModal } from "@/components/auth/ProfileSwitcherModal";
 import { AdminDashboardModal } from "@/components/admin/AdminDashboardModal";
-import { canAccessFloorplanEditor, isMorganHales } from "@/lib/access";
+import { canAccessFloorplanEditor, isMorganHales, canAccessBrainDump } from "@/lib/access";
 import { HubAiAssistant } from "@/components/hub/HubAiAssistant";
 import { isLocalhost } from "@/lib/isLocalhost";
 
@@ -522,6 +524,32 @@ function WelcomeHubPage() {
 
         {/* Portals Grid with Futuristic Gradient Glows */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto w-full">
+          {/* Featured Portal: Morgan & Alyssa's BrainDump (Exclusive Task Blitz Engine) */}
+          <PortalCard
+            to="/braindump"
+            portalNumber="SHARED // 00"
+            categoryBadge="Task Execution Engine"
+            statusBadge={{
+              text: "⚡ Morgan & Alyssa Portal",
+              pulse: true,
+              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+            }}
+            title="Morgan & Alyssa's BrainDump"
+            description="Private task execution engine to smash through overdue backlogs. Blitz client mark-ups (2-day SLA), follow-up calls, new estimates, tender submissions, and building contract reviews."
+            icon={Zap}
+            features="2-Day Mark-Up SLA • Zero Date Pickers • Real-Time Sync • Daily Blitz Mode"
+            actionText="Launch BrainDump"
+            glowGradient="from-amber-500 via-orange-500 to-rose-500"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/30 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+            isComingSoon={!canAccessBrainDump(staffUser)}
+            isWide={true}
+          />
+
           {/* Portal 01: Hudson Quoting System (Accessible to all logins) */}
           <PortalCard
             to="/quote-builder"
@@ -697,7 +725,29 @@ function WelcomeHubPage() {
             isComingSoon={!isMorgan}
           />
 
-
+          {/* Portal 09: 3D Studio & Architectural Elevations (Accessible to all logins) */}
+          <PortalCard
+            to="/3d-studio"
+            portalNumber="PORTAL // 09"
+            categoryBadge="3D Engine & CAD"
+            statusBadge={{
+              text: "3D Virtual Tours • CAD Elevations",
+              pulse: true,
+              style: "text-amber-400 bg-amber-500/15 border-amber-500/30 font-mono",
+            }}
+            title="3D Studio & Architectural Elevations"
+            description="Explore clean interactive 3D floorplans, Australian hip roofs, internal walkthroughs, and instant Front, Side & Rear architectural CAD elevations."
+            icon={Box}
+            features="3D Virtual Walkthrough • CAD Elevations • Modified Plans"
+            actionText="Launch 3D Studio"
+            glowGradient="from-amber-500 via-orange-500 to-yellow-400"
+            lightBeam="from-transparent via-amber-400 to-transparent"
+            innerGlow="from-amber-500/25 to-transparent"
+            iconColor="text-amber-400"
+            iconBg="from-amber-500/20 to-orange-500/10 border-amber-500/30"
+            badgeStyle="text-amber-400 bg-amber-500/10 border-amber-500/20"
+            isLight={isLight}
+          />
         </div>
       </main>
 

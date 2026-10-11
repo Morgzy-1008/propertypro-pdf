@@ -157,7 +157,9 @@ export function QuoteSummarySidebar({
           {pricing.categorySubtotals.map((cat) => (
             <div key={cat.category} className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>{cat.label}:</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(cat.amount)}</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>
+                {cat.amount < 0 ? `-${formatAud(Math.abs(cat.amount))}` : cat.amount === 0 ? "$0" : `+${formatAud(cat.amount)}`}
+              </span>
             </div>
           ))}
 

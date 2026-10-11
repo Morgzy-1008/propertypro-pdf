@@ -79,7 +79,16 @@ function facadeBelongsToCategory(
   }
 
   if (category === "double") {
-    return f.range === "Double Storey" || f.range === "Narrow Double Storey";
+    const isExplicitSingle =
+      f.range === "Single Storey" ||
+      f.range === "Single Storey (Narrow Lot)" ||
+      tags.includes("single") ||
+      /single[-\s]?storey|\bss\b/i.test(range) ||
+      /\(single[-\s]?storey\)/i.test(name);
+    if (isExplicitSingle && !/double/i.test(range) && !tags.includes("double")) {
+      return false;
+    }
+    return f.range === "Double Storey" || f.range === "Narrow Double Storey" || tags.includes("double") || /double/i.test(range);
   }
 
   if (category === "single") {

@@ -197,8 +197,34 @@ export function FloorplanFilterBar({
             })}
           </div>
 
-          {/* Right Controls: BTB + Pricing Division + View Switcher */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Right Controls: Sort By + BTB + Pricing Division + View Switcher */}
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {/* Sort-by Filter on Main Toolbar */}
+            <div
+              className={`flex items-center px-2.5 py-1.5 rounded-xl border shrink-0 gap-1.5 shadow-xs ${
+                isLight ? "bg-slate-100 border-slate-300 text-slate-800" : "bg-slate-900 border-slate-700/80 text-slate-200"
+              }`}
+            >
+              <ArrowUpDown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="text-xs font-bold text-slate-400 hidden sm:inline">Sort:</span>
+              <select
+                value={filters.sortBy}
+                onChange={(e) => onFilterChange("sortBy", e.target.value as SortOption)}
+                className={`bg-transparent text-xs font-bold outline-none cursor-pointer pr-1 ${
+                  isLight ? "text-slate-900" : "text-white"
+                }`}
+                title="Sort floorplans"
+              >
+                <option value="size-desc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Size: Largest</option>
+                <option value="size-asc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Size: Smallest</option>
+                <option value="price-asc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Price: Low to High</option>
+                <option value="price-desc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Price: High to Low</option>
+                <option value="width-asc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Width: Narrowest</option>
+                <option value="width-desc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Width: Widest</option>
+                <option value="name-asc" className={isLight ? "bg-white text-slate-900" : "bg-slate-900 text-white"}>Name: A to Z</option>
+              </select>
+            </div>
+
             {/* BTB Ready Toggle */}
             <button
               type="button"

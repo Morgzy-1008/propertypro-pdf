@@ -189,13 +189,29 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
   {
     id: "upg_ensuite_larger_shower",
     category: "internal_bathroom",
-    name: "Enlarged Master Ensuite Walk-In Shower Recess (1800mm × 900mm)",
-    description: "Shower recess extended from standard 900mm × 900mm to 1800mm × 900mm (+900mm length)",
+    name: "Enlarged Master Ensuite Walk-In Shower Recess (1200mm-1800mm × 900mm)",
+    description: "Shower recess extended from standard 900mm × 900mm to 1200mm-1800mm × 900mm walk-in shower layout",
     baseline: "Standard 900mm × 900mm framed shower recess",
-    detected: "Enlarged 1800mm × 900mm walk-in shower recess layout in Master Ensuite",
+    detected: "Enlarged walk-in shower recess layout in Master Ensuite",
     unitPrice: 850,
     confidence: 0.96,
-    triggerKeywords: ["larger shower", "large shower", "1200 shower", "1200x900", "1500 shower", "1800 shower", "1800x900", "walk-in shower", "extended shower", "shower in the ensuite"],
+    triggerKeywords: [
+      "larger shower",
+      "large shower",
+      "1200 shower",
+      "1200x900",
+      "1200 x 900",
+      "1200 x 900 ncc",
+      "ncc shower",
+      "1500 shower",
+      "1800 shower",
+      "1800x900",
+      "1800 x 900",
+      "walk-in shower",
+      "extended shower",
+      "shower in the ensuite",
+      "ensuite.*shower",
+    ],
   },
   {
     id: "upg_powder_room_vanity_conversion",
@@ -211,13 +227,26 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
   {
     id: "upg_butlers_pantry_lhs_sink",
     category: "internal_kitchen",
-    name: "Butler's Pantry with 2.1m Benchtop & Prep Sink (LHS)",
-    description: "Butler's Pantry added to LHS of Kitchen with 2.1m benchtop and prep sink",
+    name: "Butler's Pantry Joinery & Prep Sink Package",
+    description: "Butler's Pantry added with joinery, benchtop, and prep sink plumbing",
     baseline: "Standard Walk-in / cupboard pantry with dry melamine shelving",
-    detected: "Butler's Pantry layout to LHS of Kitchen with prep sink and 2.1m stone bench",
+    detected: "Butler's Pantry layout with prep sink and stone benchtop fit-out",
     unitPrice: 2450,
     confidence: 0.94,
-    triggerKeywords: ["butler lhs", "butlers to the lhs", "butler on lhs", "butlers pantry lhs", "pantry to the lhs", "prep sink to pantry"],
+    triggerKeywords: [
+      "butler",
+      "butlers",
+      "butler's pantry",
+      "butler pantry",
+      "pantry sink",
+      "prep sink",
+      "butler lhs",
+      "butlers to the lhs",
+      "butler on lhs",
+      "butlers pantry lhs",
+      "pantry to the lhs",
+      "prep sink to pantry",
+    ],
   },
   {
     id: "upg_ensuite_double_vanity",
@@ -238,6 +267,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     baseline: "Standard bedroom with built-in wardrobe",
     detected: "Private ensuite (ENS) and walk-in robe (WIR) addition",
     unitPrice: 12500,
+    confidence: 0.95,
     triggerKeywords: [
       "additional ensuite",
       "2nd ensuite",
@@ -345,7 +375,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "Dedicated Study room layout (3.2m × 2.6m) incorporated into plan",
     unitPrice: 2850,
     confidence: 0.94,
-    triggerKeywords: ["study addition", "dedicated study", "home office", "study nook", "study 3.2", "study (3.2", "study 3.2x2.6"],
+    triggerKeywords: ["study addition", "dedicated study room", "separate study addition", "study room addition", "convert to study", "conversion to study"],
   },
   {
     id: "upg_mudroom_fitout",
@@ -510,7 +540,7 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     detected: "Dedicated 2100mm × 2400mm single roller door (Roller Door 21.24) specification on plan",
     unitPrice: 1950,
     confidence: 0.95,
-    triggerKeywords: ["roller door 21.24", "single roller door", "additional roller door", "rear roller door", "rd 21.24", "3rd roller door", "third roller door", "roller door to rear"],
+    triggerKeywords: ["roller door 21.24", "single roller door", "additional roller door", "rear roller door", "rd 21.24", "3rd roller door", "third roller door", "roller door to rear", "workshop roller door", "workshop roller"],
   },
   {
     id: "upg_entry_door_1200",
@@ -574,6 +604,8 @@ export const FIXTURE_UPGRADE_RULES: FixtureUpgradeRule[] = [
     description: "Upper floor architectural feature balcony added over front entry porch.",
     baseline: "Standard facade without upper balcony (0.00 m²)",
     detected: "Upper floor feature balcony added over porch",
+    unitPrice: 8500,
+    confidence: 0.95,
     triggerKeywords: [
       "added balcony",
       "feature balcony",
@@ -830,6 +862,43 @@ export function getBaselineFloorplanImageUrl(designName: string): string {
   return "/floorplans/AMBER 21.png";
 }
 
+function safeParseJson(jsonString: string): any {
+  try {
+    return JSON.parse(jsonString);
+  } catch (err) {
+    try {
+      let insideString = false;
+      let escaped = false;
+      let result = "";
+      for (let i = 0; i < jsonString.length; i++) {
+        const char = jsonString[i];
+        if (char === '"' && !escaped) {
+          insideString = !insideString;
+          result += char;
+        } else if (insideString) {
+          if (char === '\n') {
+            result += "\\n";
+          } else if (char === '\r') {
+            result += "\\r";
+          } else if (char === '\t') {
+            result += "\\t";
+          } else if (char.charCodeAt(0) < 32) {
+            result += " ";
+          } else {
+            result += char;
+          }
+        } else {
+          result += char;
+        }
+        escaped = char === '\\' && !escaped;
+      }
+      return JSON.parse(result);
+    } catch {
+      throw err;
+    }
+  }
+}
+
 /**
  * Robust helper to call Gemini API directly in browser with multi-model fallback.
  */
@@ -852,7 +921,7 @@ async function callGeminiClientWithFallback(apiKey: string, body: any): Promise<
             const match = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
             clean = match ? match[1].trim() : clean.replace(/```(?:json)?/g, "").replace(/```/g, "").trim();
           }
-          return JSON.parse(clean);
+          return safeParseJson(clean);
         }
       } else {
         console.warn(`[Gemini client] ${model} returned HTTP ${resp.status}, trying fallback model...`);
@@ -997,7 +1066,7 @@ async function fetchImageAsBase64(url: string, designName?: string): Promise<{ m
     });
 
     // Check if we have registered cropBoxes for this design in HUDSON_FLOORPLANS
-    let cropBox: { x: number; y: number; w: number; h: number } | null = null;
+    let cropBox: any = null;
     if (designName) {
       const clean = designName.toLowerCase().replace(/classic|brochure|rh|sh/g, "").replace(/\s*mk\s*(?:2|ii|\d+)/g, "").trim();
       const fp = HUDSON_FLOORPLANS.find(f => {
@@ -1446,15 +1515,19 @@ UNIVERSAL ARCHITECTURAL VISUAL DIFFING PROTOCOL:
     - Architectural Feature Front Gable Roof Pitch Feature -> id: "upg_facade_front_gable", name: "Architectural Feature Front Gable Roof Pitch Feature", category: "structural", unitPrice: 819
     - Dual 18-09 Large Format Glazing Windows -> id: "upg_dual_1809_windows", name: "Dual 18-09 Large Format Glazing in lieu of Standard Opening", category: "doors_windows", unitPrice: 319
 
-7. INTERNAL ROOM CHANGES & ZERO-COST LAYOUT VARIATIONS (Include in internalRoomChanges if present):
-   - Enclosed Home Cinema Room Conversion with Barn Door -> id: "mod_room_cinema_barn", roomName: "Enclosed Cinema / Media Room", roomType: "cinema", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($0.00 Dry Partition Variation)."
-   - Central Core Reconfiguration (Mud Nook & Study / WIL) -> id: "mod_room_core_study_wil", roomName: "Dedicated Study / Walk-in Linen Addition", roomType: "study", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Central study nook and linen store reconfigured into enclosed Study/WIL room with Mud Nook bench joinery framing ($0.00 Dry Partition Variation)."
-   - Butler's Pantry Pocket Slider Framing -> id: "mod_room_butlers_csd", roomName: "Butler's Pantry Pocket Slider Framing", roomType: "kitchen", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation)."
-   - Internal Dry Partition Framing Realignment -> id: "mod_room_dry_framing", roomName: "Internal Dry Partition Framing Realignment", roomType: "other", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation)."
-   - Master Bed 1 Relocated to Rear Wing -> if Bed 1 / Master Suite is repositioned to rear private garden wing:
-     id: "mod_room_bed1_rear", roomName: "Master Bedroom (Bed 1), Ensuite & WIR Relocated to Rear Wing", roomType: "bedroom", deltaM2: 0, isZeroCost: true, subtotal: 0, description: "Master bedroom suite, private ensuite, and walk-in robe repositioned to rear wing ($0.00 Dry Variation)."
-   - Master Ensuite & Wet Area Footprint Expansion -> if Ensuite or wet areas expanded in m²:
-     id: "mod_room_wet_ext_master_ensuite", roomName: "Master Ensuite & Wet Area Footprint Expansion", roomType: "ensuite", deltaM2: number, isZeroCost: false, baseRatePerM2: 150, unitRate: 150, subtotal: deltaM2 * 150, description: "Master Ensuite expanded wet area footprint (+2.60 m² @ $150/m² base wet area preparation)."
+7. INTERNAL ROOM CONVERSIONS & LAYOUT VARIATIONS (Include in internalRoomChanges if genuinely present on Image 2 vs Image 1):
+   - Accurately detect ANY genuine internal room conversions, multi-generational retreat suites, bedroom/study alterations, workshop additions, walk-in robes, pantry conversions, or wall partition reconfigurations.
+   - Extract and report the ACTUAL room names, spaces, and room details as titled/drawn on THIS specific plan (e.g. "Meleena's Retreat & Bedroom Suite", "Workshop Addition at Front of Garage", "Bedrooms 3 & 4 Walk-In Robe (WIR) Conversion", "Butler's Pantry with Cavity Slider", "Enclosed Cinema with Barn Door", "Study / WIL Combination Room").
+   - For each genuine item detected, set:
+     * id: unique string (e.g. "mod_room_<type>")
+     * roomName: exact descriptive name from this plan
+     * roomType: string ("bedroom" | "living" | "cinema" | "study" | "kitchen" | "ensuite" | "workshop" | "other")
+     * deltaM2: m² delta if applicable, or 0
+     * isZeroCost: boolean (true for internal dry wall reconfigurations or room relabeling, false if additional joinery, plumbing, or special doors)
+     * subtotal: number
+     * description: clear, professional description of what was changed on this specific plan
+     * furnitureDetected: string[]
+   - CRITICAL: NEVER copy or invent room names, doors, or dimensions from other floorplans! If a plan does NOT have a Cinema, Barn door, Mud nook, or Study/WIL, do NOT report them!
 
 8. DOORS & WINDOWS SCHEDULE AUDIT (Include in openingTags list):
    - Transcribe every explicit door and window callout text printed on Image 2: "STACKER 21.30", "STACKER 21.36", "EXT 1020", "CSD 820", "BARN 1200", "RD 21.48", "SW 12.21", "SW 12.24", "FW 06.12", "SD 21.12", "EXT 820".
@@ -1806,6 +1879,25 @@ Return ONLY valid JSON matching this schema:
       parsedData.detectedInclusions = normalizedInclusions;
     }
 
+    if (parsedData.internalRoomChanges && Array.isArray(parsedData.internalRoomChanges)) {
+      parsedData.internalRoomChanges = parsedData.internalRoomChanges.map((r: any) => {
+        const roomName = (
+          r.roomName ||
+          r.name ||
+          r.room ||
+          r.title ||
+          r.room_name ||
+          r.space ||
+          ""
+        ).trim();
+        return {
+          ...r,
+          roomName: roomName || "Internal Room Reconfiguration",
+          id: r.id || `mod_room_${(roomName || "reconfig").toLowerCase().replace(/[^a-z0-9]/g, "_")}`,
+        };
+      });
+    }
+
     return parsedData;
   } catch (err) {
     console.warn("Gemini Vision floorplan analysis failed:", err);
@@ -1904,24 +1996,25 @@ export function matchDesignGeometricallyFromSchedule(scheduleTable: {
   let lowestDiff = 999999;
 
   for (const [modelName, std] of Object.entries(HUDSON_STANDARD_AREAS)) {
+    const stdObj = std as any;
     let diff = 0;
     let factors = 0;
     // Support double-storey models where living is split into groundLivingM2 + firstLivingM2
-    const stdLiving = std.livingM2 ?? ((std.groundLivingM2 || 0) + (std.firstLivingM2 || 0));
+    const stdLiving = stdObj.livingM2 ?? ((stdObj.groundLivingM2 || 0) + (stdObj.firstLivingM2 || 0));
     if (scheduleTable.livingM2 && stdLiving) {
       diff += Math.abs(scheduleTable.livingM2 - stdLiving) * 2.5;
       factors += 2.5;
     }
-    if (scheduleTable.garageM2 && std.garageM2) {
-      diff += Math.abs(scheduleTable.garageM2 - std.garageM2) * 2;
+    if (scheduleTable.garageM2 && stdObj.garageM2) {
+      diff += Math.abs(scheduleTable.garageM2 - stdObj.garageM2) * 2;
       factors += 2;
     }
-    if (scheduleTable.totalM2 && std.totalM2) {
-      diff += Math.abs(scheduleTable.totalM2 - std.totalM2) * 1.5;
+    if (scheduleTable.totalM2 && stdObj.totalM2) {
+      diff += Math.abs(scheduleTable.totalM2 - stdObj.totalM2) * 1.5;
       factors += 1.5;
     }
-    if (scheduleTable.alfrescoM2 && std.alfrescoM2) {
-      diff += Math.abs(scheduleTable.alfrescoM2 - std.alfrescoM2);
+    if (scheduleTable.alfrescoM2 && stdObj.alfrescoM2) {
+      diff += Math.abs(scheduleTable.alfrescoM2 - stdObj.alfrescoM2);
       factors += 1;
     }
     if (factors > 0 && diff < lowestDiff) {
@@ -2575,11 +2668,16 @@ export async function analyzeModifiedFloorplanFile(
     if (c.totalM2 !== undefined && c.totalM2 > 0) stdAreas.totalM2 = c.totalM2;
   }
 
+  if (isDoubleStorey && !stdAreas.livingM2 && stdAreas.groundLivingM2 && stdAreas.firstLivingM2) {
+    stdAreas.livingM2 = Math.round((stdAreas.groundLivingM2 + stdAreas.firstLivingM2) * 100) / 100;
+  }
+
   const standardLivingM2 = Number(
     pendingCandidate?.customStandardAreas?.livingM2 ??
       stdAreas.livingM2 ??
-      stdAreas.groundLivingM2 ??
-      cadSpec.livingM2
+      (isDoubleStorey && stdAreas.groundLivingM2 && stdAreas.firstLivingM2
+        ? Math.round((stdAreas.groundLivingM2 + stdAreas.firstLivingM2) * 100) / 100
+        : (stdAreas.groundLivingM2 ?? cadSpec.livingM2))
   );
   const standardAlfrescoM2 = Number(
     pendingCandidate?.customStandardAreas?.alfrescoM2 ??
@@ -2873,10 +2971,11 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal,
         accepted: true,
+        reason: mod.reason,
       });
     } else if (z === "firstLivingM2" || z === "upper_living" || z === "first_floor") {
       const rate = databuildRates.living_ds_upper_m2 || 1650;
-      const stdFirst = stdAreasLookup?.firstLivingM2 || cadRegistryEntry?.firstLivingM2 || 70;
+      const stdFirst = stdAreasLookup?.firstLivingM2 || (cadRegistryEntry as any)?.firstLivingM2 || 70;
       const modM2 = Math.round((stdFirst + delta) * 100) / 100;
       const subtotal = delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8);
       areaDeltas.push({
@@ -2889,6 +2988,7 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal,
         accepted: true,
+        reason: mod.reason,
       });
     } else if (z === "alfresco" || z === "outdoor_living") {
       const rate = databuildRates.alfresco_m2;
@@ -2906,6 +3006,7 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal,
         accepted: true,
+        reason: mod.reason,
       });
     } else if (z === "garage" || z === "carport") {
       const isWorkshop = /workshop/i.test(rawText) || /workshop/i.test(geminiResult?.analysisNotes || "");
@@ -2927,6 +3028,7 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal,
         accepted: true,
+        reason: mod.reason,
       });
     } else if (z === "porch" || z === "entry_porch" || z === "portico") {
       const rate = databuildRates.porch_m2;
@@ -2944,6 +3046,7 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal,
         accepted: true,
+        reason: mod.reason,
       });
     } else if (z === "wet_area") {
       // Wet area extensions are handled exclusively in Tab 2 (Internal Sweep & Rooms)
@@ -2966,6 +3069,9 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.alfresco_m2,
         subtotal: delta > 0 ? Math.round(delta * databuildRates.alfresco_m2) : Math.round(delta * databuildRates.alfresco_m2 * 0.8),
         accepted: true,
+        reason: delta > 0
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${candidateTableSpec.alfrescoM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     } else if (hasAlfrescoExtensionAnnotation) {
       const delta = 3.46;
@@ -2979,6 +3085,7 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.alfresco_m2,
         subtotal: Math.round(delta * databuildRates.alfresco_m2),
         accepted: true,
+        reason: `Covered Alfresco extended up by ~950mm (3.64m × 0.95m = +3.46 m² @ $${databuildRates.alfresco_m2}/m²)`,
       });
     }
   }
@@ -2999,6 +3106,11 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.garage_m2,
         subtotal: delta > 0 ? Math.round(delta * databuildRates.garage_m2) : Math.round(delta * databuildRates.garage_m2 * 0.8),
         accepted: true,
+        reason: isWorkshop
+          ? `Integrated workshop and garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+          : (delta > 0
+              ? `Garage footprint extended from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.garage_m2}/m²)`
+              : `Garage footprint reduced from ${effectiveStandardGarageM2.toFixed(2)} m² standard to ${candidateTableSpec.garageM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`),
       });
     }
   }
@@ -3016,6 +3128,9 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.porch_m2,
         subtotal: delta > 0 ? Math.round(delta * databuildRates.porch_m2) : Math.round(delta * databuildRates.porch_m2 * 0.8),
         accepted: true,
+        reason: delta > 0
+          ? `Entry Porch extended from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${databuildRates.porch_m2}/m²)`
+          : `Entry Porch reduced from ${standardPorchM2.toFixed(2)} m² standard to ${candidateTableSpec.porchM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     }
   }
@@ -3034,6 +3149,9 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: rate,
         subtotal: delta > 0 ? Math.round(delta * rate) : Math.round(delta * rate * 0.8),
         accepted: true,
+        reason: delta > 0
+          ? `Living area extended from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (+${delta.toFixed(2)} m² @ $${rate}/m²)`
+          : `Living area reduced from ${standardLivingM2.toFixed(2)} m² standard to ${candidateTableSpec.livingM2.toFixed(2)} m² (${delta.toFixed(2)} m² with 80% trade credit)`,
       });
     }
   }
@@ -3073,24 +3191,30 @@ export async function analyzeModifiedFloorplanFile(
         unitRate: databuildRates.alfresco_m2,
         subtotal: alfDiff > 0 ? Math.round(alfDiff * databuildRates.alfresco_m2) : Math.round(alfDiff * databuildRates.alfresco_m2 * 0.8),
         accepted: true,
+        reason: alfDiff > 0
+          ? `Covered Alfresco extended from ${standardAlfrescoM2.toFixed(2)} m² standard to ${actualAlfM2.toFixed(2)} m² (+${alfDiff.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`
+          : `Covered Alfresco reduced from ${standardAlfrescoM2.toFixed(2)} m² standard to ${actualAlfM2.toFixed(2)} m² (${alfDiff.toFixed(2)} m² with 80% trade credit)`,
       });
     }
   } else if (!areaDeltas.some((d) => d.zoneKey === "alfrescoM2")) {
     const lowerTxt = combinedScanText.toLowerCase();
-    if (lowerTxt.includes("alfresco ext") || lowerTxt.includes("grand alfresco") || lowerTxt.includes("extended alfresco") || file.name.toLowerCase().includes("alfresco")) {
-      const numMatch = lowerTxt.match(/alfresco\s*(?:ext|extended)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
-      const delta = numMatch ? parseFloat(numMatch[1]) : 8.0;
-      areaDeltas.push({
-        zoneKey: "alfrescoM2",
-        zoneLabel: "Covered Alfresco Extension",
-        standardM2: standardAlfrescoM2,
-        modifiedM2: Math.round((standardAlfrescoM2 + delta) * 100) / 100,
-        deltaM2: delta,
-        recipeId: "recipe_alfresco_m2",
-        unitRate: databuildRates.alfresco_m2,
-        subtotal: Math.round(delta * databuildRates.alfresco_m2),
-        accepted: true,
-      });
+    const numMatch = lowerTxt.match(/(?:alfresco|patio)\s*(?:ext|extended|extension|increase|expansion)\s*[:\+]?\s*(\d+(?:\.\d+)?)/i);
+    if (numMatch) {
+      const delta = parseFloat(numMatch[1]);
+      if (delta > 0 && delta <= 60) {
+        areaDeltas.push({
+          zoneKey: "alfrescoM2",
+          zoneLabel: "Covered Alfresco Extension",
+          standardM2: standardAlfrescoM2,
+          modifiedM2: Math.round((standardAlfrescoM2 + delta) * 100) / 100,
+          deltaM2: delta,
+          recipeId: "recipe_alfresco_m2",
+          unitRate: databuildRates.alfresco_m2,
+          subtotal: Math.round(delta * databuildRates.alfresco_m2),
+          accepted: true,
+          reason: `Covered Alfresco extended by +${delta.toFixed(2)} m² based on plan annotation (+${delta.toFixed(2)} m² @ $${databuildRates.alfresco_m2}/m²)`,
+        });
+      }
     }
   }
 
@@ -3450,32 +3574,6 @@ export async function analyzeModifiedFloorplanFile(
     }
   }
 
-  // Universal: Ensure Dedicated Study / Home Office Addition is recognized
-  const hasStudyAddition =
-    /study\s*(?:3\.2|room|\b)|dedicated\s*study|home\s*office/i.test(rawText) ||
-    /study\s*(?:3\.2|room|\b)|dedicated\s*study|home\s*office/i.test(geminiResult?.analysisNotes || "");
-  if (hasStudyAddition) {
-    if (!inclusionUpgrades.some((u) => u.id === "upg_study_addition" || /study/i.test(u.name))) {
-      const studyRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_study_addition");
-      if (studyRule) {
-        inclusionUpgrades.push({
-          id: studyRule.id,
-          category: studyRule.category,
-          name: studyRule.name,
-          description: studyRule.description,
-          baseline: studyRule.baseline,
-          detected: "Dedicated Study room layout (3.2m × 2.6m) incorporated into plan",
-          unitPrice: studyRule.unitPrice,
-          quantity: 1,
-          subtotal: studyRule.unitPrice,
-          accepted: true,
-          confidence: studyRule.confidence,
-          isByOwner: false,
-          reason: "Dedicated Study room addition (3.2m × 2.6m) replacing standard Bed 4 layout.",
-        });
-      }
-    }
-  }
 
   // Universal: Ensure Mudroom / Mud Nook fitout is recognized
   const hasMudroom =
@@ -3641,8 +3739,7 @@ export async function analyzeModifiedFloorplanFile(
   // Universal: Ensure Master Ensuite Double Basin Vanity is recognized
   const hasDoubleVanity =
     /double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(rawText) ||
-    /double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(geminiResult?.analysisNotes || "") ||
-    /coral\s*21.*annette|annette.*andrew/i.test(rawText);
+    /double\s*vanity|dual\s*basin|twin\s*basin|twin\s*mixer|double\s*basin/i.test(geminiResult?.analysisNotes || "");
   if (hasDoubleVanity) {
     if (!inclusionUpgrades.some((u) => u.id === "upg_ensuite_double_vanity" || /double\s*vanity|dual\s*basin/i.test(u.name))) {
       const vanityRule = FIXTURE_UPGRADE_RULES.find((r) => r.id === "upg_ensuite_double_vanity");
@@ -3667,7 +3764,7 @@ export async function analyzeModifiedFloorplanFile(
   }
 
   // 1. Presight Opening Tags & Master Schedule diffing
-  const combinedOpeningText = `${rawText} ${geminiResult?.analysisNotes || ""} ${(geminiResult?.openingTags || []).join(" ")} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.detected}`).join(" ") || ""}`;
+  const combinedOpeningText = `${rawText} ${geminiResult?.analysisNotes || ""} ${(geminiResult?.openingTags || []).join(" ")} ${geminiResult?.detectedInclusions?.map((i: any) => `${i.name} ${i.detected}`).join(" ") || ""} ${geminiResult?.internalRoomChanges?.map((r: any) => `${r.roomName || ""} ${r.description || ""}`).join(" ") || ""}`;
   const presightTags = parsePresightOpeningTags(combinedOpeningText);
   const tierCode: "H1" | "H2" | "H3" = specTier?.includes("H3") ? "H3" : specTier?.includes("H1") ? "H1" : "H2";
   const openingUpgrades = diffOpeningsAgainstMaster(presightTags, detectedModelName, tierCode);
@@ -3686,8 +3783,10 @@ export async function analyzeModifiedFloorplanFile(
   // Dynamic universal layout clues evaluated from drawings, OCR, Gemini notes, and room geometry:
   const combinedContext = `${detectedModelName} ${file.name} ${rawText} ${geminiResult?.analysisNotes || ""}`.toLowerCase();
   const bed1RearEvidence =
-    /bed\s*1.*(?:rear|back|wing)|master.*(?:rear|back)|relocat.*bed\s*1|bed\s*1.*relocat|moving\s*to\s*the\s*rear|bed\s*1\s*to\s*rear|bed\s*1\s*moving|master\s*bed\s*1\s*relocated\s*to\s*rear/i.test(combinedContext) ||
-    Boolean(geminiResult?.internalRoomChanges?.some((r: any) => /bed\s*1|master/i.test(r.roomName) && /rear|relocat/i.test(`${r.roomName} ${r.description}`)));
+    /(?:relocat(?:ed|ing)?|mov(?:ed|ing)|shift(?:ed)?)\s+(?:master|bed\s*1)\s+to\s+(?:the\s+)?rear/i.test(combinedContext) ||
+    /(?:master|bed\s*1)\s+(?:relocat(?:ed|ing)?|mov(?:ed|ing)|positioned|located)\s+(?:at|to)\s+(?:the\s+)?rear/i.test(combinedContext) ||
+    /(?:rear|back)\s+master\s+suite/i.test(combinedContext) ||
+    Boolean(geminiResult?.internalRoomChanges?.some((r: any) => /bed\s*1|master/i.test(r.roomName) && /(?:relocat|reposition|moved)/i.test(`${r.roomName} ${r.description}`) && /rear/i.test(`${r.roomName} ${r.description}`)));
 
   const largerShowerEvidence =
     /larger\s*shower|large\s*shower|1200\s*shower|1200x900|1500\s*shower|walk[\s-]in\s*shower|extended\s*shower|shower.*ensuite.*(?:larger|1200|1500)|ensuite.*larger\s*shower|shower\s*in\s*the\s*ensuite/i.test(combinedContext) ||
@@ -3704,9 +3803,12 @@ export async function analyzeModifiedFloorplanFile(
   let dynamicWetAreaDelta = 0;
   const wetAreaMatch = combinedContext.match(/(?:more\s*wet\s*area|wet\s*area\s*(?:delta|increase|ext|expansion|sqm)?|ensuite\s*footprint\s*expansion)[^\d]*([0-9]+(?:\.[0-9]+)?)\s*m/i);
   if (wetAreaMatch && parseFloat(wetAreaMatch[1]) > 0) {
-    dynamicWetAreaDelta = parseFloat(wetAreaMatch[1]);
+    const val = parseFloat(wetAreaMatch[1]);
+    if (val >= 0.5 && val <= 8.0) {
+      dynamicWetAreaDelta = val;
+    }
   } else if (geminiResult?.internalRoomChanges) {
-    const wetChange = geminiResult.internalRoomChanges.find((r: any) => /wet\s*area|ensuite.*exp/i.test(r.roomName) && r.deltaM2 > 0);
+    const wetChange = geminiResult.internalRoomChanges.find((r: any) => /wet\s*area|ensuite.*exp/i.test(r.roomName || (r as any).name || "") && r.deltaM2 > 0 && r.deltaM2 <= 8.0);
     if (wetChange) {
       dynamicWetAreaDelta = wetChange.deltaM2;
     }
@@ -3731,56 +3833,54 @@ export async function analyzeModifiedFloorplanFile(
   const seenRoomSemanticKeys = new Set<string>();
   const addRoomChange = (rc: InternalRoomChange) => {
     if (!rc) return;
-    const lowerName = `${rc.id || ""} ${rc.roomName || ""} ${rc.description || ""}`.toLowerCase();
+    const roomName = (
+      rc.roomName ||
+      (rc as any).name ||
+      (rc as any).room ||
+      (rc as any).title ||
+      (rc as any).room_name ||
+      (rc as any).space ||
+      ""
+    ).trim();
+    if (!roomName && !rc.description) return;
+    rc.roomName = roomName || "Internal Room Reconfiguration";
+    rc.id = rc.id || `mod_room_${rc.roomName.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
+    const lowerName = `${rc.id} ${rc.roomName} ${rc.description || ""}`.toLowerCase();
     let semKey = (rc.id || rc.roomName).toLowerCase().replace(/[^a-z0-9]/g, "");
 
-    if (/cinema|theatre/i.test(lowerName)) {
-      semKey = "room_cinema_barn";
-      const hasBarn = /barn/i.test(lowerName) || /barn/i.test(combinedContext);
-      rc.roomName = hasBarn
-        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
-        : "Cinema room (3.3 × 2.6)";
-      if (hasBarn) {
-        rc.unitRate = 1250;
-        rc.subtotal = 1250;
-        rc.isZeroCost = false;
-        rc.category = "doors_hardware";
-        rc.description = "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00).";
-      } else {
+    if (/retreat|multi[\s-]gen/i.test(lowerName)) {
+      semKey = "room_retreat_wing";
+    } else if (/workshop/i.test(lowerName)) {
+      semKey = "room_workshop";
+      const isWorkshopInTab1 = areaDeltas.some(
+        (d) => /workshop|garage/i.test(`${d.zoneKey} ${d.zoneLabel}`) && d.deltaM2 > 5
+      );
+      if (isWorkshopInTab1) {
         rc.unitRate = 0;
         rc.subtotal = 0;
+        rc.deltaM2 = 0;
         rc.isZeroCost = true;
         rc.category = "zero_cost_layout";
-        rc.description = "Formal living area enclosed to create private Cinema (3.3m x 2.6m) ($0.00 Dry Variation).";
+        rc.description = rc.description
+          ? `${rc.description} [Covered by Tab 1 Footprint Extension]`
+          : "Dedicated Workshop space integrated into extended garage footprint ($0.00 Dry Variation).";
       }
-    } else if (/realign|partition.*wall|dry.*framing|bed\s*1.*bed\s*3/i.test(lowerName)) {
-      semKey = "room_dry_partition_realignment";
-      rc.roomName = "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3";
-      rc.description = "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation).";
+    } else if (/cinema|theatre/i.test(lowerName)) {
+      semKey = "room_cinema_barn";
     } else if (/mud\s*nook|bench\s*joinery|mud\s*bench/i.test(lowerName) && !/study.*wil/i.test(lowerName)) {
       semKey = "room_mud_nook";
-      rc.roomName = "Mud Nook with bench joinery framing";
-      rc.unitRate = 1250;
-      rc.subtotal = 1250;
-      rc.isZeroCost = false;
-      rc.category = "joinery";
-      rc.description = "Dedicated built-in Mud Nook joinery and bench framing adjacent to garage internal entry ($1,250.00).";
-    } else if (/study.*wil|wil.*study|\bwil\b|central\s*core/i.test(lowerName)) {
+    } else if (/study.*wil|wil.*study/i.test(lowerName)) {
       semKey = "room_core_study_wil";
-      rc.roomName = "Central Core Reconfiguration: Study / WIL combination room & circulation";
-      rc.description = "Central study nook and linen store reconfigured into enclosed Study/WIL room ($0.00 Dry Variation).";
-      rc.unitRate = 0;
-      rc.subtotal = 0;
-      rc.isZeroCost = true;
-      rc.category = "zero_cost_layout";
     } else if (/butler|pantry/i.test(lowerName)) {
-      semKey = "room_butlers_csd";
-      rc.roomName = 'Butler\'s Pantry ("Butlers") with CSD 820 pocket slider framing';
-      rc.description = "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation).";
+      semKey = "room_butlers";
     } else if (/bed\s*1.*(?:rear|wing)|master.*(?:rear|wing)/i.test(lowerName)) {
       semKey = "room_bed1_rear";
     } else if (/wet\s*area|ensuite.*exp/i.test(lowerName)) {
       semKey = "room_wet_ext";
+    } else if (/skylight|media.*skylight/i.test(lowerName)) {
+      semKey = "room_media_skylight";
+    } else if (/bed\s*[2-4].*(?:ensuite|wir)/i.test(lowerName)) {
+      semKey = "room_additional_bed_ensuite_wir";
     }
 
     if (!seenRoomSemanticKeys.has(semKey)) {
@@ -3795,19 +3895,21 @@ export async function analyzeModifiedFloorplanFile(
 
   // Feature-based zero-cost and priced room additions based on genuine plan annotations
   const hasCinema = /cinema|theatre/i.test(combinedContext);
-  const hasStudyWil = /study.*wil|wil.*study|\bwil\b|central\s*core/i.test(combinedContext);
-  const hasButlers = /butler|pantry.*sink|pantry.*csd|butlers\b/i.test(combinedContext);
-  const hasMudNook = /mud\s*nook|bench\s*joinery|mud\s*bench/i.test(combinedContext);
-  const hasPartitionShift = /realign|partition.*wall|dry.*framing|bed\s*1.*bed\s*3|bed\s*3.*hallway|hallway.*bed\s*3|wir.*ensuite|ensuite.*wir/i.test(combinedContext);
+  const hasStudyWil = /(?:study\s*[\/&]\s*wil|wil\s*[\/&]\s*study|study.*walk-in\s*linen|walk-in\s*linen.*study)/i.test(combinedContext);
+  const hasButlers = /(?:butler|butlers\b|butler's\s*pantry)/i.test(combinedContext);
+  const hasMudNook = /mud\s*nook|mudroom|mud\s*bench/i.test(combinedContext);
+  const hasPartitionShift = /(?:realign(?:ed)?\s+partition|internal\s+partition\s+wall\s+realignment|timber\s+stud\s+partition\s+framing\s+realigned)/i.test(combinedContext);
 
   if (hasCinema && !seenRoomSemanticKeys.has("room_cinema_barn")) {
     seenRoomSemanticKeys.add("room_cinema_barn");
     const hasBarn = /barn/i.test(combinedContext);
+    const cinemaDims = combinedContext.match(/(?:cinema|theatre)[^\d]*?(\d+(?:\.\d+)?)\s*[xX*×]\s*(\d+(?:\.\d+)?)/i);
+    const dimsStr = cinemaDims ? ` (${cinemaDims[1]} × ${cinemaDims[2]})` : "";
     internalRoomChanges.push({
       id: "mod_room_cinema_barn",
       roomName: hasBarn
-        ? "Cinema room (3.3 × 2.6) with BARN 1200 sliding barn door"
-        : "Cinema room (3.3 × 2.6)",
+        ? `Cinema room${dimsStr} with BARN sliding barn door`
+        : `Enclosed Cinema room${dimsStr}`,
       roomType: "cinema",
       deltaM2: 0,
       subtotal: hasBarn ? 1250 : 0,
@@ -3817,9 +3919,9 @@ export async function analyzeModifiedFloorplanFile(
       isZeroCost: !hasBarn,
       category: hasBarn ? "doors_hardware" : "zero_cost_layout",
       description: hasBarn
-        ? "Formal living area enclosed to create private Cinema (3.3m x 2.6m) with feature BARN 1200 sliding barn door ($1,250.00)."
-        : "Formal living area enclosed to create private Cinema (3.3m x 2.6m) ($0.00 Dry Variation).",
-      furnitureDetected: hasBarn ? ["Cinema Lounge", "BARN 1200"] : ["Cinema Lounge"],
+        ? `Formal living area enclosed to create private Cinema${dimsStr} with feature BARN sliding barn door ($1,250.00).`
+        : `Formal living area enclosed to create private Cinema${dimsStr} ($0.00 Dry Variation).`,
+      furnitureDetected: hasBarn ? ["Cinema Lounge", "BARN Door"] : ["Cinema Lounge"],
       accepted: true,
     });
   }
@@ -3841,11 +3943,14 @@ export async function analyzeModifiedFloorplanFile(
       accepted: true,
     });
   }
-  if (hasButlers && !seenRoomSemanticKeys.has("room_butlers_csd")) {
-    seenRoomSemanticKeys.add("room_butlers_csd");
+  if (hasButlers && !seenRoomSemanticKeys.has("room_butlers")) {
+    seenRoomSemanticKeys.add("room_butlers");
+    const hasCsd = /csd|pocket\s*slider/i.test(combinedContext);
     internalRoomChanges.push({
-      id: "mod_room_butlers_csd",
-      roomName: 'Butler\'s Pantry ("Butlers") with CSD 820 pocket slider framing',
+      id: "mod_room_butlers",
+      roomName: hasCsd
+        ? 'Butler\'s Pantry ("Butlers") with CSD pocket slider framing'
+        : 'Butler\'s Pantry ("Butlers") layout reconfiguration',
       roomType: "kitchen",
       deltaM2: 0,
       subtotal: 0,
@@ -3854,8 +3959,10 @@ export async function analyzeModifiedFloorplanFile(
       finishesRatePerM2: 0,
       isZeroCost: true,
       category: "zero_cost_layout",
-      description: "Butler's Pantry created with CSD 820 pocket slider framing ($0.00 Dry Variation).",
-      furnitureDetected: ["CSD 820 Pocket Slider", "Butler's Joinery"],
+      description: hasCsd
+        ? "Butler's Pantry created with cavity slider framing ($0.00 Dry Variation)."
+        : "Butler's Pantry created off kitchen workspace ($0.00 Dry Variation).",
+      furnitureDetected: ["Butler's Joinery"],
       accepted: true,
     });
   }
@@ -3881,7 +3988,7 @@ export async function analyzeModifiedFloorplanFile(
     seenRoomSemanticKeys.add("room_dry_partition_realignment");
     internalRoomChanges.push({
       id: "mod_room_dry_framing",
-      roomName: "Realigned partition walls around Bed 1, WIR, Ensuite CSD 820, hallway, and Bed 3",
+      roomName: "Internal Partition Wall Realignment",
       roomType: "other",
       deltaM2: 0,
       subtotal: 0,
@@ -3890,8 +3997,8 @@ export async function analyzeModifiedFloorplanFile(
       finishesRatePerM2: 0,
       isZeroCost: true,
       category: "zero_cost_layout",
-      description: "Internal timber stud partition framing realigned between Bed 1, WIR, Ensuite CSD 820, hallway, Bed 3, Linen, and Mud Nook ($0.00 Dry Variation).",
-      furnitureDetected: ["Internal Stud Framing", "CSD 820 Pocket Slider"],
+      description: "Internal non-structural partition walls realigned to optimize circulation and bedroom dimensions ($0.00 Dry Variation).",
+      furnitureDetected: ["Internal Stud Framing"],
       accepted: true,
     });
   }
@@ -4037,14 +4144,50 @@ export async function analyzeModifiedFloorplanFile(
       
       // Deduplication against internalRoomChanges:
       // When priced in Tab 2 (Internal Sweep & Rooms), suppress duplicate inclusion items
-      if (internalRoomChanges.some((r) => r.id === "mod_room_mud_nook" && !r.isZeroCost)) {
+      if (internalRoomChanges.some((r) => /mud\s*nook|mudroom/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost)) {
         if (inc.id === "upg_mudroom_fitout" || (/mud\s*nook|mudroom/i.test(desc) && !/garage/i.test(desc))) {
           continue; // Accounted for in Tab 2 Internal Sweep & Rooms!
         }
       }
-      if (internalRoomChanges.some((r) => r.id === "mod_room_cinema_barn" && !r.isZeroCost)) {
+      if (internalRoomChanges.some((r) => /cinema|theatre/i.test(`${r.id} ${r.roomName}`) && /barn/i.test(`${r.roomName} ${r.description}`) && !r.isZeroCost)) {
         if (inc.id === "upg_feature_barn_door" || (/barn\s*door/i.test(desc) && !/garage/i.test(desc))) {
           continue; // Accounted for in Tab 2 Internal Sweep & Rooms!
+        }
+      }
+      if (internalRoomChanges.some((r) => /study|office/i.test(`${r.id} ${r.roomName}`))) {
+        if (inc.id === "upg_study_addition" || /study\s*addition|dedicated\s*home\s*office/i.test(desc)) {
+          continue; // Accounted for in Tab 2!
+        }
+      }
+      if (internalRoomChanges.some((r) => /media|living/i.test(`${r.id} ${r.roomName}`) && /skylight/i.test(`${r.roomName} ${r.description}`))) {
+        if (inc.id === "upg_living_media_conversion" || (/media.*conversion/i.test(desc) && /skylight/i.test(desc))) {
+          continue; // Accounted for in Tab 2!
+        }
+      }
+      if (internalRoomChanges.some((r) => /bed\s*[2-5].*(?:ensuite|wir)/i.test(`${r.id} ${r.roomName} ${r.description}`) && !r.isZeroCost)) {
+        if (inc.id === "upg_additional_ensuite_wir" || /additional\s*bedroom\s*ensuite/i.test(desc)) {
+          continue; // Accounted for in Tab 2!
+        }
+      }
+      if (internalRoomChanges.some((r) => /powder|pdr|additional\s*wc/i.test(`${r.id} ${r.roomName} ${r.description}`))) {
+        if (
+          inc.id === "upg_powder_room_vanity_conversion" ||
+          inc.id === "upg_powder_room_addition" ||
+          /powder\s*room|pdr\b|additional\s*wc/i.test(desc)
+        ) {
+          continue; // Accounted for in Tab 2!
+        }
+      }
+      if (internalRoomChanges.some((r) => /butler|pantry/i.test(`${r.id} ${r.roomName} ${r.description}`))) {
+        if (
+          inc.id === "upg_butlers_pantry_lhs_sink" ||
+          inc.id === "upg_butlers_prep_sink" ||
+          inc.id === "upg_butlers_pantry_fitout" ||
+          inc.id === "upg_scullery_stone_extension" ||
+          inc.id === "upg_butlers_pantry_package" ||
+          /butler.*pantry|butlers.*joinery|prep\s*sink.*pantry/i.test(desc)
+        ) {
+          continue; // Accounted for in Tab 2!
         }
       }
 
@@ -4060,13 +4203,13 @@ export async function analyzeModifiedFloorplanFile(
           (desc.includes("barn door") && opStr.includes("barn door")) ||
           (desc.includes("1200") && opStr.includes("1200")) ||
           (desc.includes("1020") && opStr.includes("1020")) ||
-          (desc.includes("18-09") && opStr.includes("18-09"))
+          (desc.includes("18-09") && opStr.includes("18-09")) ||
+          ((desc.includes("roller") || desc.includes("rd")) && (opStr.includes("roller") || opStr.includes("rd")))
         );
       });
 
       const isDoorOrWindow =
         inc.category === "doors_windows" ||
-        isAlreadyInOpeningReplacements ||
         inc.id === "upg_single_roller_door" ||
         inc.id === "upg_entry_door_1200" ||
         inc.id === "upg_entry_door_1020" ||
@@ -4081,6 +4224,44 @@ export async function analyzeModifiedFloorplanFile(
           /^(?:roller\s*door|cavity\s*slider|\bcsd\b|pocket\s*door|stacker\s*door|sliding\s*glass\s*door|1200mm\s*front\s*door|1020mm\s*front\s*door)/i.test(inc.name));
 
       if (isDoorOrWindow) {
+        // Exclude standard double garage door from ever being converted into an opening replacement
+        const isMainDoubleDoor =
+          (/48|5400|4810|4800/i.test(desc) || /double\s*roller\s*door|double\s*panel\s*(?:lift|door)/i.test(desc)) &&
+          !/single|21\.?24|workshop|rear|third|3rd/i.test(desc);
+        if (isMainDoubleDoor) {
+          continue;
+        }
+        if (!isAlreadyInOpeningReplacements) {
+          const code = /1200/i.test(desc)
+            ? "EXT 1200"
+            : /1020/i.test(desc)
+            ? "EXT 1020"
+            : /820/i.test(desc)
+            ? "EXT 820"
+            : /roller|rd/i.test(desc)
+            ? "RD 21.24"
+            : /stacker.*(?:36|3\.6)/i.test(desc)
+            ? "STACKER 21-36"
+            : /stacker.*(?:30|3\.0)/i.test(desc)
+            ? "STACKER 21-30"
+            : /stacker.*(?:27|2\.7)/i.test(desc)
+            ? "STACKER 21-27"
+            : /splashback|pw/i.test(desc)
+            ? "PW 0630"
+            : /window\s*size|enlarged/i.test(desc)
+            ? "SW 1224"
+            : inc.name;
+          const rep = calculateOpeningReplacement(code, inc.reason || inc.name);
+          const alreadyExists = openingReplacements.some(
+            (o) =>
+              (o.annotationCode && o.annotationCode === rep.annotationCode) ||
+              (o.id && o.id === rep.id) ||
+              (/rd|roller/i.test(rep.annotationCode) && /rd|roller/i.test(o.annotationCode))
+          );
+          if (!alreadyExists) {
+            openingReplacements.push(rep);
+          }
+        }
         continue; // Accounted for in Tab 3 Openings Replacement Schedule!
       }
 
@@ -4105,7 +4286,7 @@ export async function analyzeModifiedFloorplanFile(
         inc.subtotal = 2450;
         inc.quantity = 1;
         inc.reason = "Complete Butler's Pantry joinery fit-out with secondary prep sink package.";
-      } else if (/2900|raised.*living.*ceiling|2\.9m.*ceiling/i.test(desc)) {
+      } else if (/(?:2900|2\.9m)\s*(?:mm\s*)?(?:raised\s*)?ceiling|2900\s*mm/i.test(desc)) {
         semKey = "sem_ceiling_2900";
         inc.id = "upg_ceiling_2900_living";
         inc.category = "internal_general";
@@ -4179,7 +4360,7 @@ export async function analyzeModifiedFloorplanFile(
     const scanAll = `${rawText} ${geminiResult?.analysisNotes || ""} ${(geminiResult?.detectedInclusions || []).map((i: any) => `${i.name} ${i.reason} ${i.detected}`).join(" ")} ${(geminiResult?.internalRoomChanges || []).map((r: any) => `${r.roomName} ${r.description}`).join(" ")}`.toLowerCase();
     
     // 2900mm Raised Living Ceiling Height Feature Upgrade ($2,450)
-    if (!seenSemanticKeys.has("sem_ceiling_2900") && (/2900(?:\s*mm)?|raised.*(?:living\s*)?ceiling|2\.9m\s*ceiling/i.test(scanAll))) {
+    if (!seenSemanticKeys.has("sem_ceiling_2900") && !seenSemanticKeys.has("sem_ceiling_2740") && (/(?:2900|2\.9m)\s*(?:mm\s*)?(?:raised\s*)?ceiling|2900\s*mm/i.test(scanAll))) {
       seenSemanticKeys.add("sem_ceiling_2900");
       finalInclusions.push({
         id: "upg_ceiling_2900_living",
@@ -4222,28 +4403,31 @@ export async function analyzeModifiedFloorplanFile(
 
     // Dedicated Home Office / Study Addition ($2,850)
     if (!seenSemanticKeys.has("sem_study_addition")) {
-      const isDedicatedStudy =
-        /(?:dedicated|enclosed|private)\s*(?:study|home\s*office|office)|study\s*(?:room|addition|\/\s*wil)|study\s*3\.[23]/i.test(scanAll);
-      const isOpenNookOnly =
-        /(?:study\s*nook|desk\s*nook)/i.test(scanAll) && !isDedicatedStudy;
+      const alreadyHasStudy = internalRoomChanges.some((r) => /study|office/i.test(`${r.id} ${r.roomName}`));
+      if (!alreadyHasStudy) {
+        const isDedicatedStudy =
+          /(?:dedicated|separate)\s*(?:study|home\s*office)\s*(?:room|addition)/i.test(scanAll);
+        const isOpenNookOnly =
+          /(?:study\s*nook|desk\s*nook)/i.test(scanAll) && !isDedicatedStudy;
 
-      if (isDedicatedStudy && !isOpenNookOnly) {
-        seenSemanticKeys.add("sem_study_addition");
-        finalInclusions.push({
-          id: "upg_study_addition",
-          category: "internal_general",
-          name: "Dedicated Home Office / Study Addition",
-          description: "Dedicated home office or study room addition with internal stud framing, entry door opening, electrical power points, and lighting.",
-          baseline: "Standard 4-bedroom layout without dedicated home office/study",
-          detected: "Dedicated Study room layout (3.2m × 2.6m) incorporated into plan",
-          unitPrice: 2850,
-          quantity: 1,
-          subtotal: 2850,
-          accepted: true,
-          confidence: 0.95,
-          isByOwner: false,
-          reason: "Dedicated Home Office / Study Addition incorporated into floorplan.",
-        });
+        if (isDedicatedStudy && !isOpenNookOnly) {
+          seenSemanticKeys.add("sem_study_addition");
+          finalInclusions.push({
+            id: "upg_study_addition",
+            category: "internal_general",
+            name: "Dedicated Home Office / Study Addition",
+            description: "Dedicated home office or study room addition with internal stud framing, entry door opening, electrical power points, and lighting.",
+            baseline: "Standard 4-bedroom layout without dedicated home office/study",
+            detected: "Dedicated Study room layout incorporated into plan",
+            unitPrice: 2850,
+            quantity: 1,
+            subtotal: 2850,
+            accepted: true,
+            confidence: 0.95,
+            isByOwner: false,
+            reason: "Dedicated Home Office / Study Addition incorporated into floorplan.",
+          });
+        }
       }
     }
 
@@ -4582,7 +4766,8 @@ export async function analyzeModifiedFloorplanFile(
         (desc.includes("barn door") && opStr.includes("barn door")) ||
         (desc.includes("1200") && opStr.includes("1200")) ||
         (desc.includes("1020") && opStr.includes("1020")) ||
-        (desc.includes("18-09") && opStr.includes("18-09"))
+        (desc.includes("18-09") && opStr.includes("18-09")) ||
+        ((desc.includes("roller") || desc.includes("rd")) && (opStr.includes("roller") || opStr.includes("rd")))
       );
     });
     return !isAlreadyInOpeningReplacements;

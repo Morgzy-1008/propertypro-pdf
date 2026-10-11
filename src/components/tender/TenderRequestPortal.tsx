@@ -548,7 +548,8 @@ export function TenderRequestPortal() {
   };
 
   const handleFacadeChange = (facadeName: string) => {
-    const facadesList = getFacadesForDesignAndHousingType(tender.homeSpec.designName, tender.homeSpec.housingType);
+    const activeDesignName = tender.homeSpec.homeDesign || (tender.homeSpec as any).designName;
+    const facadesList = getFacadesForDesignAndHousingType(activeDesignName, tender.homeSpec.housingType);
     const match = facadesList.find((f) => f.name === facadeName);
     const facadeUplift = match?.uplift || 0;
     const facadeRender = findFacadeRenderUrl(facadeName, tender.homeSpec.housingType);
@@ -1238,7 +1239,10 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
       ? DUAL_OC_PRICES
       : SINGLE_STOREY_PRICES;
 
-  const availableFacades = getFacadesForDesignAndHousingType(tender.homeSpec.designName, tender.homeSpec.housingType);
+  const availableFacades = getFacadesForDesignAndHousingType(
+    tender.homeSpec.homeDesign || (tender.homeSpec as any).designName,
+    tender.homeSpec.housingType
+  );
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 lg:p-8 2xl:p-12 w-full max-w-[1920px] 2xl:max-w-[2560px] mx-auto space-y-6 font-sans">
@@ -2296,7 +2300,7 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
                         streetName: item.fullStreet || item.streetName || tender.land.streetName,
                         suburb: item.suburb || tender.land.suburb,
                         council: item.council || tender.land.council,
-                        lotNumber: item.lotNumber ? item.lotNumber : tender.land.lotNumber,
+                        lotNo: item.lotNumber ? item.lotNumber : tender.land.lotNo,
                       },
                     });
                   }}
