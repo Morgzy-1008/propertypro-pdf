@@ -510,23 +510,6 @@ export function V2StepClient({
     }
   };
 
-  const handleQuickDemo = () => {
-    onChange({
-      clientName: "David & Sarah Miller",
-      clientPhone: "0412 345 678",
-      clientEmail: "david.miller@example.com.au",
-      siteAddress: "42 Sanctuary Boulevard",
-      suburb: "North Lakes",
-      estate: "The Sanctuary",
-      lotNumber: "Lot 108",
-      hasClient2: true,
-      client2Name: "Sarah Miller",
-      client2Phone: "0423 456 789",
-      client2Email: "sarah.miller@example.com.au",
-    });
-    setShowClient2(true);
-    toast.success("Loaded demo client: David & Sarah Miller (North Lakes)");
-  };
 
   const handleContinue = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -588,20 +571,6 @@ export function V2StepClient({
             </Select>
           )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleQuickDemo}
-            className={`text-sm h-10 px-4 gap-2 font-semibold ${
-              isLight
-                ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
-            }`}
-          >
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            Quick Demo Client
-          </Button>
         </div>
       </div>
 
