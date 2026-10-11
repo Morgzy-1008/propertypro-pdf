@@ -1396,7 +1396,7 @@ export function calculateQuotePricing(
   const concrete32Cost = site.concrete32MpaRequired
     ? (Number(site.concrete32MpaCost) > 0 ? Number(site.concrete32MpaCost) : Math.round(gfaM2 * 14))
     : 0;
-  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (Number(site.flexibleConnectionsCost) || 1800) : 0;
+  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (Number(site.flexibleConnectionsCost) || 2500) : 0;
 
   // Site Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (Number(site.bushfireReportCost) || 850) : 0;

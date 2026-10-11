@@ -242,7 +242,7 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
     concrete32MpaRequired: false,
     concrete32MpaCost: undefined,
     flexibleConnectionsRequired: false,
-    flexibleConnectionsCost: 1800,
+    flexibleConnectionsCost: 2500,
 
     bushfireReportRequired: false,
     bushfireReportCost: 850,

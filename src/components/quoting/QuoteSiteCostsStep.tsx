@@ -145,7 +145,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
   // Soil items
   const display32MpaRate = site.concrete32MpaCost && site.concrete32MpaCost > 0 ? site.concrete32MpaCost : Math.round(gfaM2 * 14);
   const concrete32Cost = site.concrete32MpaRequired ? display32MpaRate : 0;
-  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 1800) : 0;
+  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 2500) : 0;
 
   // Overlay Reports (LHS)
   const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
@@ -652,7 +652,7 @@ export function QuoteSiteCostsStep({ quote, site, onSiteChange, onFeasibilityApp
             </div>
             <div className="text-right flex-none">
               <span className={`font-bold text-xs font-mono block ${isLight ? "text-emerald-800" : "text-emerald-400"}`}>
-                +{formatAud(site.flexibleConnectionsCost ?? 1800)}
+                +{formatAud(site.flexibleConnectionsCost ?? 2500)}
               </span>
             </div>
           </div>

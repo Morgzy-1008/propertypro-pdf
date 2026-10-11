@@ -455,7 +455,7 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
   const concrete32Cost = site.concrete32MpaRequired
     ? (Number(site.concrete32MpaCost) > 0 ? Number(site.concrete32MpaCost) : Math.round(gfaM2 * 14))
     : 0;
-  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 1800) : 0;
+  const flexibleConnectionsCost = site.flexibleConnectionsRequired ? (site.flexibleConnectionsCost ?? 2500) : 0;
   const bushfireReportCost = site.bushfireReportRequired ? (site.bushfireReportCost ?? 850) : 0;
   const floodReportCost = site.floodReportRequired ? (site.floodReportCost ?? 7600) : 0;
   const hydraulicReportCost = site.hydraulicReportRequired ? (site.hydraulicReportCost ?? 2200) : 0;

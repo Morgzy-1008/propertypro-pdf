@@ -809,7 +809,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const concrete32Cost = siteConditions.concrete32MpaRequired
     ? (Number(siteConditions.concrete32MpaCost) > 0 ? Number(siteConditions.concrete32MpaCost) : Math.round(gfaM2 * 14))
     : 0;
-  const flexibleConnectionsCost = siteConditions.flexibleConnectionsRequired ? (siteConditions.flexibleConnectionsCost ?? 1800) : 0;
+  const flexibleConnectionsCost = siteConditions.flexibleConnectionsRequired ? (siteConditions.flexibleConnectionsCost ?? 2500) : 0;
 
   // Site Overlay Reports (LHS)
   const bushfireReportCost = siteConditions.bushfireReportRequired ? (siteConditions.bushfireReportCost ?? 850) : 0;

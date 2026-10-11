@@ -1016,12 +1016,12 @@ export function V2StepSiteCosts({
                     </span>
                     {site.flexibleConnectionsRequired && (
                       <span className="text-xs font-mono font-extrabold text-emerald-600 dark:text-emerald-400">
-                        +{formatAud(site.flexibleConnectionsCost || 1800)}
+                        +{formatAud(site.flexibleConnectionsCost || 2500)}
                       </span>
                     )}
                   </div>
                   <span className="text-xs text-slate-400 block mt-0.5">
-                    Articulated pipe couplings for reactive soil movement ({formatAud(1800)})
+                    Articulated pipe couplings for reactive soil movement ({formatAud(2500)})
                   </span>
                 </div>
                 <Switch
@@ -1029,7 +1029,7 @@ export function V2StepSiteCosts({
                   onCheckedChange={(checked) =>
                     onChange({
                       flexibleConnectionsRequired: checked,
-                      flexibleConnectionsCost: checked ? 1800 : 0,
+                      flexibleConnectionsCost: checked ? 2500 : 0,
                     })
                   }
                 />

@@ -93,7 +93,7 @@ export interface SiteConditions {
   concrete32MpaRequired?: boolean;
   concrete32MpaCost?: number;
   flexibleConnectionsRequired?: boolean;
-  flexibleConnectionsCost?: number; // default $1,800
+  flexibleConnectionsCost?: number; // default $2,500
   fallMeters: number;
   fallTotalCost: number;
 
