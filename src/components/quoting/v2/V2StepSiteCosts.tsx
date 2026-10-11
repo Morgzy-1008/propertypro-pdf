@@ -18,6 +18,7 @@ import {
   FileText,
   Shield,
   HelpCircle,
+  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -126,8 +127,93 @@ export function V2StepSiteCosts({
     return "greenfield";
   });
 
-  // Default to showing all site cost sections (stages 1 to 7) so estimators have full visibility and access
-  const [revealedStage, setRevealedStage] = useState<number>(7);
+  // Progressive disclosure: start at stage 1 or persisted siteCostsRevealedStage
+  const [revealedStage, setRevealedStageState] = useState<number>(() => {
+    if (site.siteCostsRevealedStage && site.siteCostsRevealedStage >= 1 && site.siteCostsRevealedStage <= 7) {
+      return site.siteCostsRevealedStage;
+    }
+    return 1;
+  });
+
+  const setRevealedStage = (updater: number | ((prev: number) => number)) => {
+    setRevealedStageState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (next !== site.siteCostsRevealedStage) {
+        onChange({ siteCostsRevealedStage: next });
+      }
+      return next;
+    });
+  };
+
+  // Section element refs for smooth auto-scrolling to next appeared step
+  const stage1Ref = useRef<HTMLDivElement>(null);
+  const stage2Ref = useRef<HTMLDivElement>(null);
+  const stage3Ref = useRef<HTMLDivElement>(null);
+  const stage4Ref = useRef<HTMLDivElement>(null);
+  const stage5Ref = useRef<HTMLDivElement>(null);
+  const stage6Ref = useRef<HTMLDivElement>(null);
+  const stage7Ref = useRef<HTMLDivElement>(null);
+
+  const scrollToStage = (stageNum: number) => {
+    const map: Record<number, React.RefObject<HTMLDivElement | null>> = {
+      1: stage1Ref,
+      2: stage2Ref,
+      3: stage3Ref,
+      4: stage4Ref,
+      5: stage5Ref,
+      6: stage6Ref,
+      7: stage7Ref,
+    };
+    const el = map[stageNum]?.current;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  // If siteType switched away from KDRB while at stage 4, advance to 5
+  useEffect(() => {
+    if (siteType !== "kdrb" && revealedStage === 4) {
+      setRevealedStage(5);
+    }
+  }, [siteType, revealedStage]);
+
+  const getNextStageNum = (curr: number): number => {
+    if (curr === 1) return 2;
+    if (curr === 2) return 3;
+    if (curr === 3) return siteType === "kdrb" ? 4 : 5;
+    if (curr === 4) return 5;
+    if (curr === 5) return 6;
+    if (curr === 6) return 7;
+    return 7;
+  };
+
+  const getNextStageInfo = (curr: number) => {
+    const nextNum = getNextStageNum(curr);
+    let title = "Next Step";
+    let helper = "Complete previous step above to continue.";
+
+    if (nextNum === 2) {
+      title = "2. Land Slope & Contour Fall";
+      helper = "Select a site type above to unlock land slope and contour fall calculation.";
+    } else if (nextNum === 3) {
+      title = "3. Soil Class, Concrete Specification & Piering Allowance";
+      helper = "Confirm land slope fall above to unlock foundation slab engineering and piering.";
+    } else if (nextNum === 4) {
+      title = "4. Existing House Demolition & Asbestos Removal (KDRB)";
+      helper = "Confirm foundation specifications above to unlock KDRB demolition options.";
+    } else if (nextNum === 5) {
+      title = `${siteType === "kdrb" ? "5." : "4."} Site Specific Allowances & Surcharges`;
+      helper = "Confirm foundation specifications above to unlock retaining walls, rock and site allowances.";
+    } else if (nextNum === 6) {
+      title = `${siteType === "kdrb" ? "6." : "5."} Overlays & Site Problems`;
+      helper = "Confirm site allowances above to unlock bushfire, flood, acoustic & sewer overlays.";
+    } else if (nextNum === 7) {
+      title = `${siteType === "kdrb" ? "7." : "6."} Council Fees & Statutory Applications`;
+      helper = "Confirm overlays above to unlock local council fees and statutory applications.";
+    }
+
+    return { nextNum, title, helper };
+  };
 
   const gfaM2 = useMemo(() => calculateDesignGFA(quote.design), [quote.design]);
   const isSplit = useMemo(
@@ -211,6 +297,7 @@ export function V2StepSiteCosts({
   const handleSelectSiteType = (type: SiteTypeOption) => {
     setSiteType(type);
     setRevealedStage((prev) => Math.max(prev, 2));
+    setTimeout(() => scrollToStage(2), 150);
 
     const depositAmount = type === "greenfield" ? 1650 : 3300;
     const rate = type === "kdrb" ? 50 : type === "brownfield" ? 30 : 25;
@@ -250,7 +337,7 @@ export function V2StepSiteCosts({
   };
 
   // Slope Fall Handler
-  const handleFallChange = (rawMeters: number | string) => {
+  const handleFallChange = (rawMeters: number | string, autoAdvance = false) => {
     const val = typeof rawMeters === "string" ? parseFloat(rawMeters) || 0 : rawMeters;
     const fallMeters = Math.max(0, val);
     const fallTotalCost = calculateTopographyFallCost(fallMeters, gfaM2, isSplit);
@@ -259,18 +346,23 @@ export function V2StepSiteCosts({
       fallMeters,
       fallTotalCost,
     });
+    if (autoAdvance) {
+      setTimeout(() => scrollToStage(3), 150);
+    }
   };
 
   // Soil Class Handler
   const handleSoilClassChange = (soilClass: SoilClass) => {
     const rate = getSoilRatePerM2(soilClass);
     const soilTotalCost = Math.round(rate * gfaM2);
-    setRevealedStage((prev) => Math.max(prev, siteType === "kdrb" ? 4 : 5));
+    const next = siteType === "kdrb" ? 4 : 5;
+    setRevealedStage((prev) => Math.max(prev, next));
     onChange({
       soilClass,
       soilCostSqm: rate,
       soilTotalCost,
     });
+    setTimeout(() => scrollToStage(next), 150);
   };
 
   const [isManualPiering, setIsManualPiering] = useState(false);
@@ -484,14 +576,14 @@ export function V2StepSiteCosts({
                 key={stg.id}
                 type="button"
                 disabled={!isAccessible}
-                onClick={() => setRevealedStage(stg.num)}
+                onClick={() => scrollToStage(stg.num)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all border ${
                   isCurrent
                     ? "bg-emerald-500 text-slate-950 border-emerald-400 shadow-sm"
                     : isCompleted
                     ? isLight
-                      ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
-                      : "bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800"
+                      ? "bg-white border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
+                      : "bg-slate-900 border-slate-800 text-slate-200 hover:bg-slate-800 cursor-pointer"
                     : isLight
                     ? "bg-transparent border-transparent text-slate-400 opacity-60 cursor-not-allowed"
                     : "bg-transparent border-transparent text-slate-600 opacity-60 cursor-not-allowed"
@@ -516,13 +608,20 @@ export function V2StepSiteCosts({
           })}
         </div>
 
-        <span className="text-xs font-semibold text-slate-400 hidden md:inline px-3">
-          Stage {Math.min(revealedStage, stagesList.length)} of {stagesList.length}
-        </span>
+        {(() => {
+          const currentStageObj = stagesList.find((s) => s.num === revealedStage) || stagesList[stagesList.length - 1];
+          const currentDisplayNum = currentStageObj ? currentStageObj.displayNum : stagesList.length;
+          return (
+            <span className="text-xs font-semibold text-slate-400 hidden md:inline px-3">
+              Stage {currentDisplayNum} of {stagesList.length}
+            </span>
+          );
+        })()}
       </div>
 
       {/* STEP 1: TYPE OF SITE WE'RE BUILDING ON (Greenfield, Brownfield, KDRB) */}
       <div
+        ref={stage1Ref}
         className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all ${
           isLight
             ? "bg-white border-slate-200 shadow-sm"
@@ -648,7 +747,10 @@ export function V2StepSiteCosts({
             <Button
               type="button"
               size="sm"
-              onClick={() => setRevealedStage((prev) => Math.max(prev, 2))}
+              onClick={() => {
+                setRevealedStage((prev) => Math.max(prev, 2));
+                setTimeout(() => scrollToStage(2), 120);
+              }}
               className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
             >
               <span>Confirm Site Type &amp; Proceed to Slope Fall</span>
@@ -661,6 +763,7 @@ export function V2StepSiteCosts({
       {/* STEP 2: SLOPE FALL (ONLY APPEARS ONCE SITE TYPE SELECTED) */}
       {revealedStage >= 2 && (
         <div
+          ref={stage2Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -707,6 +810,13 @@ export function V2StepSiteCosts({
                   max="5"
                   value={site.fallMeters || 0}
                   onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      setRevealedStage((prev) => Math.max(prev, 3));
+                      setTimeout(() => scrollToStage(3), 120);
+                    }
+                  }}
                   onChange={(e) => handleFallChange(e.target.value)}
                   className={`text-base h-12 rounded-xl font-mono font-bold pl-4 pr-12 ${
                     isLight ? "bg-slate-50 border-slate-300 text-slate-900" : "bg-slate-950/80 border-slate-800 text-white"
@@ -730,7 +840,7 @@ export function V2StepSiteCosts({
                   <button
                     key={m}
                     type="button"
-                    onClick={() => handleFallChange(m)}
+                    onClick={() => handleFallChange(m, true)}
                     className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer ${
                       site.fallMeters === m
                         ? "bg-emerald-500 text-slate-950 border-emerald-400 font-extrabold shadow-sm"
@@ -751,7 +861,10 @@ export function V2StepSiteCosts({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setRevealedStage((prev) => Math.max(prev, 3))}
+                onClick={() => {
+                  setRevealedStage((prev) => Math.max(prev, 3));
+                  setTimeout(() => scrollToStage(3), 120);
+                }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Soil Class &amp; Foundations</span>
@@ -765,6 +878,7 @@ export function V2StepSiteCosts({
       {/* STEP 3: SOIL CLASS, 32MPA CONCRETE, FLEXIBLE SERVICES & PIERING ALLOWANCE */}
       {revealedStage >= 3 && (
         <div
+          ref={stage3Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -972,7 +1086,11 @@ export function V2StepSiteCosts({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setRevealedStage((prev) => Math.max(prev, siteType === "kdrb" ? 4 : 5))}
+                onClick={() => {
+                  const next = siteType === "kdrb" ? 4 : 5;
+                  setRevealedStage((prev) => Math.max(prev, next));
+                  setTimeout(() => scrollToStage(next), 120);
+                }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>{siteType === "kdrb" ? "Proceed to Demolition & Asbestos" : "Proceed to Site Allowances"}</span>
@@ -986,6 +1104,7 @@ export function V2StepSiteCosts({
       {/* STEP 4: KDRB HOUSE DEMOLITION & ASBESTOS (ONLY APPEARS IF KDRB SELECTED) */}
       {siteType === "kdrb" && revealedStage >= 4 && (
         <div
+          ref={stage4Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-amber-50/70 border-amber-300 shadow-sm"
@@ -1048,6 +1167,7 @@ export function V2StepSiteCosts({
                       demolitionAsbestosCost: opt.amount,
                     });
                     setRevealedStage((prev) => Math.max(prev, 5));
+                    setTimeout(() => scrollToStage(5), 150);
                   }}
                   className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between gap-4 ${
                     isSelected
@@ -1090,7 +1210,10 @@ export function V2StepSiteCosts({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setRevealedStage((prev) => Math.max(prev, 5))}
+                onClick={() => {
+                  setRevealedStage((prev) => Math.max(prev, 5));
+                  setTimeout(() => scrollToStage(5), 120);
+                }}
                 className="text-sm h-11 px-5 rounded-xl bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Site Allowances</span>
@@ -1104,6 +1227,7 @@ export function V2StepSiteCosts({
       {/* STEP 5: NEW SITE COSTS SECTION (RETAINING, MATERIAL HANDLING, OUT OF ZONE, ROCK BREAKER, UNKNOWN CONDITIONS) */}
       {revealedStage >= 5 && (
         <div
+          ref={stage5Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -1232,7 +1356,10 @@ export function V2StepSiteCosts({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setRevealedStage((prev) => Math.max(prev, 6))}
+                onClick={() => {
+                  setRevealedStage((prev) => Math.max(prev, 6));
+                  setTimeout(() => scrollToStage(6), 120);
+                }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Overlays &amp; Site Problems</span>
@@ -1246,6 +1373,7 @@ export function V2StepSiteCosts({
       {/* STEP 6: OVERLAYS / SITE PROBLEMS (BUSHFIRE, FLOOD, ACOUSTIC, SEWER LINE) */}
       {revealedStage >= 6 && (
         <div
+          ref={stage6Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -1736,7 +1864,10 @@ export function V2StepSiteCosts({
               <Button
                 type="button"
                 size="sm"
-                onClick={() => setRevealedStage((prev) => Math.max(prev, 7))}
+                onClick={() => {
+                  setRevealedStage((prev) => Math.max(prev, 7));
+                  setTimeout(() => scrollToStage(7), 120);
+                }}
                 className="text-sm h-11 px-5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 gap-2 font-bold cursor-pointer"
               >
                 <span>Proceed to Council Fees &amp; Statutory Applications</span>
@@ -1750,6 +1881,7 @@ export function V2StepSiteCosts({
       {/* STEP 7: COUNCIL FEES & STATUTORY LODGEMENT */}
       {revealedStage >= 7 && (
         <div
+          ref={stage7Ref}
           className={`p-6 sm:p-8 rounded-2xl sm:rounded-3xl border transition-all animate-in fade-in slide-in-from-top-4 duration-300 ${
             isLight
               ? "bg-white border-slate-200 shadow-sm"
@@ -1992,13 +2124,52 @@ export function V2StepSiteCosts({
         </div>
       )}
 
+      {/* Progressive Disclosure: Locked Teaser for the Next Step */}
+      {revealedStage < 7 && (() => {
+        const nextInfo = getNextStageInfo(revealedStage);
+        return (
+          <div
+            className={`p-6 sm:p-7 rounded-2xl sm:rounded-3xl border border-dashed transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+              isLight
+                ? "bg-slate-50/70 border-slate-300 text-slate-500"
+                : "bg-slate-900/30 border-slate-800/80 text-slate-400"
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <div
+                className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 ${
+                  isLight ? "bg-slate-200 text-slate-600" : "bg-slate-800 text-slate-400"
+                }`}
+              >
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className={`text-base font-bold uppercase tracking-wider ${isLight ? "text-slate-700" : "text-slate-300"}`}>
+                  Next: {nextInfo.title}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {nextInfo.helper}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-start sm:self-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-200/50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
+                <Lock className="h-3 w-3" />
+                <span>Awaiting Previous Step</span>
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Footer Navigation */}
-      <div className="flex items-center justify-between pt-6 border-t border-slate-700/50">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-700/50">
         <Button
           type="button"
           variant="outline"
           onClick={onPrev}
-          className={`h-14 px-8 text-sm font-bold rounded-xl gap-2 cursor-pointer ${
+          className={`w-full sm:w-auto h-14 px-8 text-sm font-bold rounded-xl gap-2 cursor-pointer ${
             isLight
               ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
               : "border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800"
@@ -2008,14 +2179,31 @@ export function V2StepSiteCosts({
           <span>Back to Floor Plan</span>
         </Button>
 
-        <Button
-          type="button"
-          onClick={onNext}
-          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 h-14 text-base rounded-xl shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
-        >
-          Continue to House Variations
-          <ArrowRight className="h-5 w-5" />
-        </Button>
+        {revealedStage >= 7 ? (
+          <Button
+            type="button"
+            onClick={onNext}
+            className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-extrabold px-10 h-14 text-base rounded-xl shadow-lg shadow-emerald-500/20 gap-2 cursor-pointer"
+          >
+            Continue to House Variations
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+        ) : (
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              onClick={() => {
+                const next = getNextStageNum(revealedStage);
+                setRevealedStage((prev) => Math.max(prev, next));
+                setTimeout(() => scrollToStage(next), 120);
+              }}
+              className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-6 h-14 rounded-xl gap-2 cursor-pointer shadow-md"
+            >
+              <span>Proceed to {stagesList.find((s) => s.num === getNextStageNum(revealedStage))?.title || "Next Step"}</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

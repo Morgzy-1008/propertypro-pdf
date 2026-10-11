@@ -157,6 +157,7 @@ export interface SiteConditions {
   sewerBridgingRequired?: boolean;
   sewerBridgingCost?: number;
   kdrbDemolitionOption?: "builder" | "owner" | "none";
+  siteCostsRevealedStage?: number;
 
   // Sewer Main Running Through Block (Building Near / Over Sewer)
   buildingOverSewerRequired?: boolean;
