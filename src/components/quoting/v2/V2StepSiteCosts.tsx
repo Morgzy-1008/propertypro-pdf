@@ -450,7 +450,7 @@ export function V2StepSiteCosts({
         floodReportRequired: true,
         floodReportCost: 7600,
         floodOverlayRequired: true,
-        floodOverlayCost: site.floodOverlayCost > 0 ? site.floodOverlayCost : 6500,
+        floodOverlayCost: (site.floodOverlayCost ?? 0) > 0 ? site.floodOverlayCost : 6500,
       });
     } else {
       onChange({

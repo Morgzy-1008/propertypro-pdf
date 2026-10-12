@@ -28,6 +28,7 @@ export async function fileToImageDataUrl(file: File): Promise<string | null> {
  */
 export async function floorplanFileToDataUrl(file: File): Promise<string | null> {
   const raw = await fileToImageDataUrl(file);
+  if (!raw) return null;
   return cropToFloorplan(raw);
 }
 

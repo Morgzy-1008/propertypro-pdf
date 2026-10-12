@@ -78,7 +78,7 @@ export function FloorplanPresentationModal({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono uppercase tracking-wider text-slate-400 font-bold">
-                  {activeVariant.housingType}
+                  {item.housingType}
                 </span>
                 {activeVariant.isBtbReady && (
                   <span className="px-2 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[10px] font-bold font-mono flex items-center gap-1">

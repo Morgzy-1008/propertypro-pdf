@@ -188,7 +188,7 @@ export function synthesizeAddressFromQuery(query: string, preferredState?: strin
   let cleanWorking = trimmed.replace(/\blot\s*[0-9A-Za-z]+,?\s*/gi, "").trim();
   const streetNumMatch = cleanWorking.match(/^(\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)\s+/);
   const streetNum = streetNumMatch ? streetNumMatch[1] : "";
-  if (streetNum) {
+  if (streetNum && streetNumMatch) {
     cleanWorking = cleanWorking.slice(streetNumMatch[0].length).trim();
   }
 
@@ -407,7 +407,7 @@ export async function searchAustralianAddresses(
   let cleanWorking = trimmed.replace(/\blot\s*[0-9A-Za-z]+,?\s*/gi, "").trim();
   const streetNumMatch = cleanWorking.match(/^(\d+[A-Za-z]?(?:-\d+[A-Za-z]?)?)\s+/);
   const streetNum = streetNumMatch ? streetNumMatch[1] : "";
-  const streetFrag = (streetNum ? cleanWorking.slice(streetNumMatch[0].length) : cleanWorking)
+  const streetFrag = (streetNum && streetNumMatch ? cleanWorking.slice(streetNumMatch[0].length) : cleanWorking)
     .replace(/^lot\b\s*/i, "")
     .trim();
 

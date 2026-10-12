@@ -19,7 +19,7 @@ import { MULBERRY_FACADES } from "./acreageFacades.data";
 import { HUDSON_FACADES } from "./facades.data";
 import { PRE_RENDERED_FACADES } from "./preRenderedFacades.data";
 
-import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData } from "./types";
+import { INCLUSION_RANGES, defaultInclusions, baseRangeItems, type FlyerData, type TemplateId } from "./types";
 import { ESTATE_PRESETS, matchEstatePreset } from "./sitingEngine";
 import {
   BASE_PARTNER_DEVELOPERS,
@@ -414,7 +414,7 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     const frontSetbackNum = Number(data.frontSetback) || 3.8;
 
     return designs.filter((d) => {
-      const reqFrontage = Number(d.frontage || 0);
+      const reqFrontage = Number((d as any).frontage || (d as any).minLotWidth || 0);
       if (frontageNum > 0 && reqFrontage > 0) {
         if (reqFrontage + (data.isBtb ? 0.2 : sideSetbackNum * 2) > frontageNum + 0.05) return false;
       }
@@ -708,8 +708,8 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
       set("houseWidthM", dim.width);
       set("houseLengthM", dim.length);
     } else if (plan.houseWidth && plan.houseLength) {
-      set("houseWidthM", parseFloat(plan.houseWidth));
-      set("houseLengthM", parseFloat(plan.houseLength));
+      set("houseWidthM", parseFloat(String(plan.houseWidth)));
+      set("houseLengthM", parseFloat(String(plan.houseLength)));
     }
 
     // If a facade was already explicitly chosen by the user, keep & adapt it for this plan's garage/storey
@@ -746,12 +746,15 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     // the land block frontage, so it is never overwritten by a design change.
     // Trim the blank page margin so the drawing fills the flyer frame.
     void prepareFloorplan(plan).then(async (trimmed) => {
-      if (trimmed !== plan.url) set("floorplanUrl", trimmed);
+      if (trimmed && trimmed !== plan.url) set("floorplanUrl", trimmed);
       // Read the plan's actual room labels: a GUEST bedroom counts as a bedroom
       // and each powder room adds half a bathroom.
-      const rooms = await resolvePlanRooms(plan.label, trimmed, plan.beds, plan.baths);
-      set("beds", rooms.beds);
-      set("baths", rooms.baths);
+      const targetUrl = trimmed || plan.url;
+      if (targetUrl) {
+        const rooms = await resolvePlanRooms(plan.label, targetUrl, plan.beds, plan.baths);
+        set("beds", rooms.beds);
+        set("baths", rooms.baths);
+      }
     });
   };
 

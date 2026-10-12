@@ -3740,7 +3740,8 @@ Tender Fee Paid: ${formatAud(tender.atp.feeAmount)} (Ref: ${tender.atp.eftRefere
         const isKdrb =
           tender.buildType.includes("KDRB") ||
           tender.buildType.includes("Brownfield") ||
-          tender.land.kdrOccupancy !== undefined;
+          tender.land.ifKdrOccupancy !== undefined ||
+          (tender.land as any).kdrOccupancy !== undefined;
 
         const streetWithNo = tender.land.streetNumber
           ? `${tender.land.streetNumber} ${tender.land.streetName}`

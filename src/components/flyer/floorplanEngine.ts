@@ -111,7 +111,7 @@ export async function cropPdfFloorplan(plan: import("./floorplans.data").Floorpl
     const ctx = pageCanvas.getContext("2d")!;
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-    await page.render({ canvasContext: ctx, viewport }).promise;
+    await page.render({ canvasContext: ctx, viewport, canvas: pageCanvas } as any).promise;
     
     let cropCanvas: HTMLCanvasElement;
     

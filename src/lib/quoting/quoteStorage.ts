@@ -237,8 +237,12 @@ export function createNewBlankQuote(clientName?: string): FullQuote {
   const lineItems = convertCatalogueToLineItems(catalogue);
   const defaultDesign = getDefaultDesignSelection();
   const defaultSite: SiteConditions = {
-    soilClass: "M-D",
+    soilClass: "Class M",
+    soilCostSqm: 0,
+    soilTotalCost: 0,
     fallMeters: 0.5,
+    fallTotalCost: 0,
+    bushfireCost: 0,
     concrete32MpaRequired: false,
     concrete32MpaCost: undefined,
     flexibleConnectionsRequired: false,

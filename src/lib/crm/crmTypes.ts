@@ -149,6 +149,7 @@ export const CRM_PIPELINE_STAGES: CrmStageDefinition[] = [
 export interface CrmConsultant {
   id: string;
   name: string;
+  title?: string;
   email: string;
   phone: string;
   displayOffice: string;
@@ -331,8 +332,10 @@ export interface BulkSmsTemplate {
 export interface CrmLead {
   id: string;
   clientName: string;
+  name?: string;
   email: string;
   mobile: string;
+  phone?: string;
   secondaryCustomerName?: string;
   secondaryCustomerMobile?: string;
   secondaryCustomerEmail?: string;
@@ -346,6 +349,7 @@ export interface CrmLead {
 
   // Build Spec
   preferredDesign: string;
+  design?: string;
   facadeName: string;
   housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
   totalEstimatedDealValue: number;

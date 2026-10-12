@@ -15,7 +15,7 @@ import {
   NSW_DUAL_OC_PRICES,
 } from "@/lib/pricelist.nsw.data";
 import { findFhbPrice } from "@/lib/pricing/pricelists";
-import { facadePriceForDesign } from "@/components/flyer/facadePricing";
+import { facadePriceForDesign, type FacadeStorey } from "@/components/flyer/facadePricing";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { getActiveDivision, type Division } from "@/lib/divisionContext";
 import {
@@ -1371,7 +1371,7 @@ export function calculateTopographyFallCost(
  * house size, and modified plan scaling under AS 3959.
  */
 export function getBushfireCost(
-  bal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40",
+  bal: "None" | "BAL-LOW" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40",
   isDoubleStorey: boolean = false,
   designOrName?: any,
   gfaM2?: number

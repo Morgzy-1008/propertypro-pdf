@@ -45,6 +45,7 @@ export interface WallVectorAnalysis {
   isBtbCapable: boolean;
   garageStepOutM: number;
   garageStepBackM: number;
+  isDoubleStorey?: boolean;
 }
 
 export const HUDSON_CAD_REGISTRY: Record<string, {
@@ -847,7 +848,7 @@ export function generateWallVectorAnalysis(
       totalM2: cad.totalM2,
       garageDimensions: cad.garageDims,
       alfrescoDimensions: cad.alfrescoDims,
-      porchDimensions: cad.porchDimensions || cad.porchDims,
+      porchDimensions: (cad as any).porchDimensions || cad.porchDims,
     },
     isBtbCapable: cad.garageStepOutM > 0,
     garageStepOutM: cad.garageStepOutM,

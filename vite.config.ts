@@ -37,7 +37,7 @@ function versionPlugin() {
         console.warn("Could not write public/version.json:", err);
       }
     },
-    generateBundle() {
+    generateBundle(this: any) {
       this.emitFile({
         type: "asset",
         fileName: "version.json",
@@ -455,5 +455,22 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("three")) return "vendor-three";
+            if (id.includes("pdfjs-dist") || id.includes("jspdf") || id.includes("pdf-lib")) return "vendor-pdf";
+            if (id.includes("tesseract.js")) return "vendor-ocr";
+            if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
+            if (id.includes("@supabase")) return "vendor-supabase";
+            if (id.includes("framer-motion")) return "vendor-motion";
+            if (id.includes("lucide-react")) return "vendor-lucide";
+            if (id.includes("@radix-ui")) return "vendor-radix";
+          }
+        },
+      },
+    },
   },
 });

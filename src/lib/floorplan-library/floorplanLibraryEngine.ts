@@ -448,7 +448,7 @@ export function filterAndSortFloorplans(
 ): FloorplanLibraryItem[] {
   const query = filters.searchQuery.trim().toLowerCase();
 
-  const filtered = items
+  const filtered: FloorplanLibraryItem[] = (items
     .map((item) => {
       // Find matching variants for this standard plan
       const matchingVariantIndices: number[] = [];
@@ -598,7 +598,7 @@ export function filterAndSortFloorplans(
 
       return null;
     })
-    .filter((item): item is FloorplanLibraryItem => item !== null);
+    .filter((item): item is NonNullable<typeof item> => item !== null) as unknown as FloorplanLibraryItem[]);
 
   // Sort
   return filtered.sort((a, b) => {

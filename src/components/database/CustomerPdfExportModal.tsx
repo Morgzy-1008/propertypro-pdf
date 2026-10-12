@@ -887,7 +887,7 @@ export function CustomerPdfExportModal({
                           {l.land_size ? `${l.land_size} m²` : "—"}
                         </td>
                         <td className="p-2 text-right font-semibold text-brand-navy dark:text-slate-200">
-                          {formatAud(l.land_price)}
+                          {formatAud(l.land_price || 0)}
                         </td>
                       </tr>
                     );
@@ -975,7 +975,7 @@ export function CustomerPdfExportModal({
                           {p.beds || "—"}b · {p.baths || "—"}ba · {p.cars || "—"}c
                         </td>
                         <td className="p-2 text-right font-semibold text-brand-navy dark:text-slate-200">
-                          {formatAud(p.total_price)}
+                          {formatAud(p.total_price || 0)}
                         </td>
                       </tr>
                     );

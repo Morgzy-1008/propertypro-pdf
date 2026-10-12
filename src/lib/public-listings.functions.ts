@@ -48,6 +48,7 @@ export interface PublicPackage {
   consultantPhone: string | null;
   consultantEmail: string | null;
   consultantOffice: string | null;
+  consultantId?: string | null;
   flyerJson?: string | null;
 }
 

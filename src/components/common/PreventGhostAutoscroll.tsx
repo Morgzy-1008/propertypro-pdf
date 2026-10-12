@@ -37,45 +37,45 @@ export function PreventGhostAutoscroll() {
     Element.prototype.scrollTo = function (optionsOrX: any, y?: any) {
       if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
         optionsOrX = { ...optionsOrX, behavior: "instant" };
-        return origElementScrollTo.call(this, optionsOrX);
+        return (origElementScrollTo as any).call(this, optionsOrX);
       }
-      return origElementScrollTo.apply(this, arguments as any);
+      return (origElementScrollTo as any).apply(this, arguments as any);
     };
 
     const origElementScroll = Element.prototype.scroll;
     Element.prototype.scroll = function (optionsOrX: any, y?: any) {
       if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
         optionsOrX = { ...optionsOrX, behavior: "instant" };
-        return origElementScroll.call(this, optionsOrX);
+        return (origElementScroll as any).call(this, optionsOrX);
       }
-      return origElementScroll.apply(this, arguments as any);
+      return (origElementScroll as any).apply(this, arguments as any);
     };
 
     const origElementScrollBy = Element.prototype.scrollBy;
     Element.prototype.scrollBy = function (optionsOrX: any, y?: any) {
       if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
         optionsOrX = { ...optionsOrX, behavior: "instant" };
-        return origElementScrollBy.call(this, optionsOrX);
+        return (origElementScrollBy as any).call(this, optionsOrX);
       }
-      return origElementScrollBy.apply(this, arguments as any);
+      return (origElementScrollBy as any).apply(this, arguments as any);
     };
 
     const origWindowScrollTo = window.scrollTo;
     window.scrollTo = function (optionsOrX: any, y?: any) {
       if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
         optionsOrX = { ...optionsOrX, behavior: "instant" };
-        return origWindowScrollTo.call(window, optionsOrX);
+        return (origWindowScrollTo as any).call(window, optionsOrX);
       }
-      return origWindowScrollTo.apply(window, arguments as any);
+      return (origWindowScrollTo as any).apply(window, arguments as any);
     };
 
     const origWindowScrollBy = window.scrollBy;
     window.scrollBy = function (optionsOrX: any, y?: any) {
       if (typeof optionsOrX === "object" && optionsOrX !== null && optionsOrX.behavior === "smooth") {
         optionsOrX = { ...optionsOrX, behavior: "instant" };
-        return origWindowScrollBy.call(window, optionsOrX);
+        return (origWindowScrollBy as any).call(window, optionsOrX);
       }
-      return origWindowScrollBy.apply(window, arguments as any);
+      return (origWindowScrollBy as any).apply(window, arguments as any);
     };
 
     // Prevent programmatic .focus() from triggering viewport crawling scroll

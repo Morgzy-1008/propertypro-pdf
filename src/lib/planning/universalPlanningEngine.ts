@@ -1636,7 +1636,7 @@ export function evaluatePropertyFeasibility(query: string): FeasibilityAssessmen
   const confidenceScore = (hasRealAddress || hasRealSuburb || parsed.isCCCommand) ? 0.99 : 0.65;
 
   if (isDimensionFailure) {
-    verdict = "NOT FEASIBLE (INSUFFICIENT LOT DIMENSIONS)";
+    verdict = "INSUFFICIENT LOT DIMENSIONS";
   } else if (j.isPDA && rules.requiresPoDDesignation) {
     verdict = "REQUIRES POD CONFIRMATION";
   } else if (lotSizePass === true && frontagePass === true) {

@@ -100,7 +100,7 @@ export function QuoteBuilderV2({
   const handleClientChange = (patch: Partial<FullQuote["client"]>) => {
     if (patch.clientName !== undefined && patch.clientName !== quote.client.clientName && !patch.estimateNumber) {
       const { estimateNumber, ...rest } = quote.client;
-      onUpdateQuote({ client: { ...rest, ...patch } });
+      onUpdateQuote({ client: { ...rest, ...patch, estimateNumber: patch.estimateNumber || estimateNumber || "" } });
     } else {
       onUpdateQuote({ client: { ...quote.client, ...patch } });
     }

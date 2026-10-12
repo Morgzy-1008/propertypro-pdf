@@ -178,7 +178,7 @@ export function TenderReadinessChecklist({
       targetTab: "land_siting",
     });
   }
-  if (tender.land?.status === "Unregistered" && !tender.land?.expectedRegistrationDate?.trim() && !tender.land?.registrationMonth?.trim()) {
+  if (((tender.land as any)?.status === "Unregistered" || (tender.land as any)?.landStatus === "Land Under Contract (Unregistered)") && !(tender.land as any)?.expectedRegistrationDate?.trim() && !(tender.land as any)?.registrationMonth?.trim()) {
     issues.push({
       id: "land_registration_date",
       category: "land",

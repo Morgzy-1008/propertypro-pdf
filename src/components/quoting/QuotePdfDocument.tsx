@@ -852,6 +852,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const hydraulicReportCost = siteConditions.hydraulicReportRequired ? (siteConditions.hydraulicReportCost ?? 2600) : 0;
   const landslideReportCost = siteConditions.landslideReportRequired ? (siteConditions.landslideReportCost ?? 7000) : 0;
   const acousticReportCost = siteConditions.acousticReportRequired ? (siteConditions.acousticReportCost ?? 1200) : 0;
+  const arboristReportCost = siteConditions.arboristReportRequired ? (siteConditions.arboristReportCost ?? 1100) : 0;
   // Sewer Main Running Through Block costs (Image 1)
   const sewerBosCost = siteConditions.sewerBosCouncilAppRequired
     ? (siteConditions.sewerBosCouncilAppCost !== undefined ? Number(siteConditions.sewerBosCouncilAppCost) : 1700)
@@ -1305,42 +1306,41 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const modPricingCalc = isModPlan ? calculateModifiedFloorplanPricing(design) : null;
   const modCostAdjustment = modPricingCalc ? modPricingCalc.totalCostAdjustment : 0;
 
-  const variationGroups: SpecGroup[] = (pricing.categorySubtotals || [])
-    .map((cat) => {
-      const nonModItems = (cat.items || []).filter(
-        (it) => !it.id.startsWith("mod_area_") && !it.id.startsWith("mod_")
-      );
-      if (nonModItems.length === 0) return null;
-      const catSubtotal = nonModItems.reduce((sum, it) => {
-        const amt =
+  const variationGroups: SpecGroup[] = [];
+  for (const cat of (pricing.categorySubtotals || [])) {
+    const nonModItems = (cat.items || []).filter(
+      (it) => !it.id.startsWith("mod_area_") && !it.id.startsWith("mod_")
+    );
+    if (nonModItems.length === 0) continue;
+    const catSubtotal = nonModItems.reduce((sum, it) => {
+      const amt =
+        typeof it.subtotal === "number" && !isNaN(it.subtotal)
+          ? it.subtotal
+          : (Number(it.quantity) || 1) * (Number(it.unitRate) || 0);
+      return sum + amt;
+    }, 0);
+    variationGroups.push({
+      label: cat.label,
+      total: catSubtotal,
+      items: nonModItems.map((it) => ({
+        id: it.id,
+        name: it.name,
+        description: it.description || "",
+        qtyLabel:
+          (it.unitType as string) === "sqm" && it.quantity > 0
+            ? `${it.quantity} m² @ ${formatAud(it.unitRate)}/m²`
+            : it.unitRate === 0
+            ? "$0.00 Variation"
+            : it.quantity > 1
+            ? `${it.quantity} × ${formatAud(it.unitRate)}`
+            : "1 Item",
+        amount:
           typeof it.subtotal === "number" && !isNaN(it.subtotal)
             ? it.subtotal
-            : (Number(it.quantity) || 1) * (Number(it.unitRate) || 0);
-        return sum + amt;
-      }, 0);
-      return {
-        label: cat.label,
-        total: catSubtotal,
-        items: nonModItems.map((it) => ({
-          id: it.id,
-          name: it.name,
-          description: it.description,
-          qtyLabel:
-            it.unitType === "sqm" && it.quantity > 0
-              ? `${it.quantity} m² @ ${formatAud(it.unitRate)}/m²`
-              : it.unitRate === 0
-              ? "$0.00 Variation"
-              : it.quantity > 1
-              ? `${it.quantity} × ${formatAud(it.unitRate)}`
-              : "1 Item",
-          amount:
-            typeof it.subtotal === "number" && !isNaN(it.subtotal)
-              ? it.subtotal
-              : (Number(it.quantity) || 1) * (Number(it.unitRate) || 0),
-        })),
-      };
-    })
-    .filter((g): g is SpecGroup => g !== null);
+            : (Number(it.quantity) || 1) * (Number(it.unitRate) || 0),
+      })),
+    });
+  }
 
   const totalVariationsAmount = variationGroups.reduce((s, c) => s + c.total, 0);
   const turnkeyPackagesCost = (pricing.landscapingCost || 0) + (!design.landscapingSelected ? (pricing.exposedDrivewayCost || 0) : 0);

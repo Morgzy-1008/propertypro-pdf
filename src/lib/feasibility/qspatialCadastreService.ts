@@ -429,7 +429,7 @@ export async function runSiteFeasibilityAnalysis(params: {
     treeCount: 0,
     significantTreesPresent: false,
     onStreetParkingRestricted: false,
-    siteAccessRating: isAcreage ? "Good (Acreage - Ample On-Site Parking & Direct Access)" : "Good",
+    siteAccessRating: "Good",
   };
 
   // 7. Grounded Overlays Analysis (NO fake flood elevation costs)

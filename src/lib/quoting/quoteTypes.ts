@@ -1,6 +1,6 @@
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
 
-export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty";
+export type UnitType = "fixed" | "per_lm" | "per_m2" | "custom_qty" | "sqm" | "per_bath";
 
 export type HousingTypeFilter = "all" | "single" | "double" | "split" | "dual_living" | "granny_flat";
 
@@ -124,17 +124,22 @@ export interface SiteConditions {
   cctvSewerReportCost?: number; // default $3,500
 
   // Site Overlay Allowances & Physical Works (RHS)
-  bushfireBal: "None" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";
+  bushfireBal: "None" | "BAL-LOW" | "BAL-12.5" | "BAL-19" | "BAL-29" | "BAL-40";
+  bushfireBalRating?: string;
+  bushfireBalCost?: number;
   bushfireCost: number;
   floodOverlayRequired?: boolean;
   slabElevationMeters?: number; // Height in metres (e.g. 0.3m) -> calculated as height * $270 * GFA
   floodOverlayCost?: number;
   acousticTier: "None" | "Category 1" | "Category 2" | "Category 3";
+  acousticGlazingRequired?: boolean;
+  acousticGlazingCost?: number;
   acousticCost: number;
 
   // Council & Statutory Applications
   councilRegion: string;
   councilFee: number;
+  councilLodgementFee?: number;
   councilDaRequired?: boolean;
   councilDaCost?: number; // default $11,000
   councilSetbackRelaxationRequired?: boolean;
@@ -270,6 +275,8 @@ export interface SecondDwellingSelection {
   widthM?: string;
   lengthM?: string;
   facadeImageUrl?: string;
+  customSpec?: CustomFloorplanSpec;
+  garage?: number | string;
 }
 
 export interface QuoteDesignSelection {
@@ -297,8 +304,12 @@ export interface QuoteDesignSelection {
   areas?: Partial<FloorplanAreaBreakdown>;
   beds?: string;
   baths?: string;
+  bedrooms?: number | string;
+  bathrooms?: number | string;
   cars?: string;
   garage?: number | string;
+  storeys?: "single" | "double" | "split" | string;
+  baseDesignCandidate?: any;
   modelName?: string;
   widthM?: string;
   lengthM?: string;
@@ -359,6 +370,7 @@ export interface FullQuote {
   pricing: QuotePricingSummary;
   clientNotes?: string;
   feasibility?: SiteFeasibilityDossier;
+  totals?: any;
 }
 
 export interface DetectedAreaDelta {

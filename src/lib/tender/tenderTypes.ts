@@ -19,12 +19,14 @@ export interface TenderFloorplanPin {
   x: number; // 0 to 100 percentage
   y: number; // 0 to 100 percentage
   title: string;
+  label?: string;
   variationId?: string;
 }
 
 export interface TenderNumberedVariation {
   id: string;
   itemNumber?: number; // assigned only for structural changes (1, 2, 3...)
+  pinNumber?: number;
   description: string;
   cost: number;
   category?: "structural" | "all_variations" | string;
@@ -54,6 +56,8 @@ export interface TenderDocumentSlot {
   fileSize?: number;
   required?: boolean;
   notes?: string;
+  uploadedAt?: string;
+  status?: string;
 }
 
 export interface TenderChecklistItem {
@@ -117,6 +121,9 @@ export interface TenderSubmission {
   updatedAt: string;
   status: "draft" | "submitted" | "approved" | "client_signed" | "rejected";
   iquoteId: string;
+  iquoteDate?: string;
+  priceListDate?: string;
+  source?: string;
   tenderRequestDate: string;
   tenderTargetDate: string;
 
@@ -166,9 +173,13 @@ export interface TenderSubmission {
     isRegistered: boolean;
     registeredDate: string;
     landStatus: LandStatus;
+    status?: string;
+    expectedRegistrationDate?: string;
+    registrationMonth?: string;
     
     // If Knock-Down Rebuild
     ifKdrOccupancy?: KdrOccupancy;
+    kdrOccupancy?: KdrOccupancy;
     kdrAccessName?: string;
     kdrAccessPhone?: string;
     kdrTenantDetails?: {
@@ -235,6 +246,7 @@ export interface TenderSubmission {
     // Cost Breakdown
     baseDesignCost: number;
     facadeCost: number;
+    additionsCost?: number;
     structuralVariationsCost: number;
     internalUpgradesCost: number;
     additionalSiteCost: number;
@@ -250,6 +262,11 @@ export interface TenderSubmission {
 
   // 15-Point Submission Checklist
   checklist: TenderChecklistItem[];
+
+  // Additional Client Details
+  solicitor?: any;
+  financier?: any;
+  consultantNotes?: string;
 
   // Uploaded / Attached Documents
   documents: Record<string, TenderDocumentSlot>;

@@ -373,6 +373,7 @@ export function createBlankTenderSubmission(): TenderSubmission {
     status: "draft",
 
     tenderRequestDate: dateStr,
+    tenderTargetDate: "",
     priceListDate: "",
     displayOffice: defaultDisplay,
     newHomeConsultant: defaultConsultant,
@@ -891,19 +892,19 @@ export function createTenderFromQuote(quote: FullQuote): TenderSubmission {
             leftBoundary: "1.0m",
             rightBoundary: "1.0m",
           },
-      specialOffers: d.specialPromotionTitle || "Hudson Special Builder Promotion",
+      specialOffers: (d as any).specialPromotionTitle || d.promotionName || "Hudson Special Builder Promotion",
       customerBudget: p.grossEstimatedInvestment || "",
       baseDesignCost: p.baseHousePrice || 0,
       facadeCost: p.facadePrice || 0,
       structuralVariationsCost: structCost,
       internalUpgradesCost: allVarCost,
-      additionalSiteCost: p.totalSiteAndStatutory || 0,
-      promotionDiscountCost: p.promotionalDiscount || 0,
+      additionalSiteCost: (p.siteCostsSubtotal + p.councilStatutorySubtotal) || 0,
+      promotionDiscountCost: p.promotionsDiscount || 0,
       totalBudgetEstimate: p.grossEstimatedInvestment || 0,
     },
     variations: processedVariations,
     newHomeConsultant: (c.consultantName || (quote as any).salesConsultant || (typeof window !== "undefined" && getActiveStaffUser()?.name) || "Morgan Hales"),
-    displayOffice: (c.consultantDisplayCentre || (quote as any).displayCentre || (typeof window !== "undefined" && getActiveStaffUser()?.displayCentre) || "Flagstone Display Home"),
+    displayOffice: (c.consultantOffice || (c as any).consultantDisplayCentre || (quote as any).displayCentre || (typeof window !== "undefined" && getActiveStaffUser()?.displayCentre) || "Flagstone Display Home"),
     consultantPhone: (c.consultantPhone || (typeof window !== "undefined" && getActiveStaffUser()?.phone) || "0417 571 864"),
     consultantEmail: (c.consultantEmail || (typeof window !== "undefined" && getActiveStaffUser()?.email) || "morgan.hales@hudsonhomes.com.au"),
     atp: {
@@ -2121,7 +2122,7 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
         }
 
         const tfSheet = new AcroFormTextField();
-        tfSheet.Rect = [sheetBoxX, sheetBoxY, sheetBoxW, sheetBoxH];
+        (tfSheet as any).Rect = [sheetBoxX, sheetBoxY, sheetBoxW, sheetBoxH];
         tfSheet.fieldName = `var_${v.id}_sheet`;
         tfSheet.value = v.draftsmanSheetRef || "";
         tfSheet.fontSize = 8;
@@ -2145,7 +2146,7 @@ export async function renderMultiPageDraftsmenVariationPdfBlob(
         }
 
         const tfNotes = new AcroFormTextField();
-        tfNotes.Rect = [notesBoxX, notesBoxY, notesBoxW, notesBoxH];
+        (tfNotes as any).Rect = [notesBoxX, notesBoxY, notesBoxW, notesBoxH];
         tfNotes.multiline = true;
         tfNotes.fieldName = `var_${v.id}_remarks`;
         tfNotes.value = v.draftsmanNotes || "";

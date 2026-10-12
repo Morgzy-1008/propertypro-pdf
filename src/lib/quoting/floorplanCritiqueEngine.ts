@@ -58,7 +58,7 @@ export interface FixtureCritiqueDetails {
 
 export interface FloorplanScanResult {
   designName: string;
-  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living";
+  housingType: "Single Storey" | "Double Storey" | "Split Level" | "Dual Living" | "Granny Flat";
   overallWidthM: number;
   overallLengthM: number;
   totalM2: number;
@@ -125,8 +125,8 @@ export function scanFloorplanArchitecture(designName: string): FloorplanScanResu
   );
 
   const cadSpec = HUDSON_CAD_REGISTRY[designName] || {
-    width: plan ? parseFloat(plan.houseWidth || "11.0") : 11.0,
-    length: plan ? parseFloat(plan.houseLength || "20.0") : 20.0,
+    width: plan ? parseFloat(String(plan.houseWidth || "11.0")) : 11.0,
+    length: plan ? parseFloat(String(plan.houseLength || "20.0")) : 20.0,
     totalM2: areas.totalM2,
     livingM2: areas.livingM2 || (areas.groundLivingM2! + areas.firstLivingM2!),
     garageM2: areas.garageM2,
@@ -136,8 +136,8 @@ export function scanFloorplanArchitecture(designName: string): FloorplanScanResu
     alfrescoDims: "4.0m × 2.5m",
   };
 
-  const widthM = cadSpec.width || (plan ? parseFloat(plan.houseWidth || "11.0") : 11.0);
-  const lengthM = cadSpec.length || (plan ? parseFloat(plan.houseLength || "20.0") : 20.0);
+  const widthM = cadSpec.width || (plan ? parseFloat(String(plan.houseWidth || "11.0")) : 11.0);
+  const lengthM = cadSpec.length || (plan ? parseFloat(String(plan.houseLength || "20.0")) : 20.0);
 
   // Calculate geometric scale calibration (standard sheet assumption: 1600x1200 viewport)
   const calibration = calculateScaleCalibration(1600, 1200, widthM, lengthM);

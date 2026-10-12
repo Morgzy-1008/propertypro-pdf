@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useDeferredValue } from "react";
 import { Search, Upload, Check, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -24,7 +24,7 @@ import {
   type FacadeGarage,
   type FacadeStorey,
 } from "./facadePricing";
-import { getIdbThumbnail, saveIdbThumbnail } from "./idbFacadeCache";
+import { getIdbThumbnail, getIdbThumbnails, saveIdbThumbnail } from "./idbFacadeCache";
 import { fileToImageDataUrl } from "./fileToImage";
 import { formatAud } from "@/lib/pricing";
 import { useTheme } from "@/lib/theme";
@@ -110,8 +110,35 @@ const BATCH_INCREMENT = 12;
 const memoryThumbnailCache = new Map<string, string>();
 const pendingThumbnailPromises = new Map<string, Promise<string>>();
 
+// Concurrency-limited background thumbnail task queue (max 2 canvas renders concurrently)
+let activeThumbnailJobs = 0;
+const thumbnailJobQueue: Array<() => void> = [];
+
+function runWithConcurrencyLimit<T>(task: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const execute = () => {
+      activeThumbnailJobs++;
+      task()
+        .then(resolve)
+        .catch(reject)
+        .finally(() => {
+          activeThumbnailJobs--;
+          if (thumbnailJobQueue.length > 0) {
+            const next = thumbnailJobQueue.shift();
+            next?.();
+          }
+        });
+    };
+    if (activeThumbnailJobs < 2) {
+      execute();
+    } else {
+      thumbnailJobQueue.push(execute);
+    }
+  });
+}
+
 /**
- * Dynamically downsizes full-resolution 4K/3MB images into a crisp 15KB WebP thumbnail
+ * Dynamically downsizes full-resolution images into a crisp 15KB WebP thumbnail
  * directly in the browser via Canvas and caches in IndexedDB and RAM.
  */
 async function getOrGenerateThumbnail(url: string): Promise<string> {
@@ -134,39 +161,44 @@ async function getOrGenerateThumbnail(url: string): Promise<string> {
       // ignore
     }
 
-    // 2. Generate thumbnail dynamically via Image + Canvas
-    return new Promise<string>((resolve) => {
-      if (typeof window === "undefined") {
-        resolve(url);
-        return;
+    // 2. Generate thumbnail dynamically via Image + Canvas under concurrency limit
+    return runWithConcurrencyLimit(async () => {
+      if (memoryThumbnailCache.has(url)) {
+        return memoryThumbnailCache.get(url)!;
       }
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        try {
-          const canvas = document.createElement("canvas");
-          const targetWidth = 420;
-          const targetHeight = Math.round((img.naturalHeight / (img.naturalWidth || 1)) * targetWidth) || 164;
-          canvas.width = targetWidth;
-          canvas.height = targetHeight;
-          const ctx = canvas.getContext("2d", { alpha: false });
-          if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = "medium";
-            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
-            const thumbUrl = canvas.toDataURL("image/webp", 0.82);
-            memoryThumbnailCache.set(url, thumbUrl);
-            saveIdbThumbnail(url, thumbUrl).catch(() => {});
-            resolve(thumbUrl);
-            return;
-          }
-        } catch {
-          // fallback
+      return new Promise<string>((resolve) => {
+        if (typeof window === "undefined") {
+          resolve(url);
+          return;
         }
-        resolve(url);
-      };
-      img.onerror = () => resolve(url);
-      img.src = url;
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.onload = () => {
+          try {
+            const canvas = document.createElement("canvas");
+            const targetWidth = 420;
+            const targetHeight = Math.round((img.naturalHeight / (img.naturalWidth || 1)) * targetWidth) || 164;
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            const ctx = canvas.getContext("2d", { alpha: false });
+            if (ctx) {
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = "medium";
+              ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+              const thumbUrl = canvas.toDataURL("image/webp", 0.82);
+              memoryThumbnailCache.set(url, thumbUrl);
+              saveIdbThumbnail(url, thumbUrl).catch(() => {});
+              resolve(thumbUrl);
+              return;
+            }
+          } catch {
+            // fallback
+          }
+          resolve(url);
+        };
+        img.onerror = () => resolve(url);
+        img.src = url;
+      });
     });
   })();
 
@@ -189,7 +221,7 @@ function FacadeCardThumbnail({
 }) {
   const [thumbSrc, setThumbSrc] = useState<string | null>(() => memoryThumbnailCache.get(f.url) || null);
   const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState(false);
+  const [, setError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -207,30 +239,25 @@ function FacadeCardThumbnail({
     };
   }, [f.url]);
 
+  const displaySrc = thumbSrc || f.url;
+
   return (
     <div
       className="relative aspect-[210/82] w-full bg-slate-900/60 overflow-hidden"
       style={{ contentVisibility: "auto", containIntrinsicSize: "240px 95px" }}
     >
-      {(!loaded || !thumbSrc) && !error && (
-        <div className="absolute inset-0 bg-slate-800/80 animate-pulse flex items-center justify-center">
-          <span className="h-3.5 w-3.5 rounded-full border-2 border-brand-gold/40 border-t-brand-gold animate-spin" />
-        </div>
-      )}
-      {thumbSrc && (
-        <img
-          src={thumbSrc}
-          alt={f.name}
-          loading={isHighPriority ? "eager" : "lazy"}
-          decoding="async"
-          fetchPriority={isHighPriority ? "high" : "auto"}
-          onLoad={() => setLoaded(true)}
-          onError={() => setError(true)}
-          className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
-            loaded ? "opacity-100" : "opacity-0"
-          }`}
-        />
-      )}
+      <img
+        src={displaySrc}
+        alt={f.name}
+        loading={isHighPriority ? "eager" : "lazy"}
+        decoding="async"
+        fetchPriority={isHighPriority ? "high" : "auto"}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
+        className={`h-full w-full object-cover object-center transition-opacity duration-200 ${
+          loaded ? "opacity-100" : "opacity-90"
+        }`}
+      />
       {f.range === "Narrow Double Storey" && (
         <span className="absolute right-1.5 top-1.5 rounded bg-cyan-950/80 border border-cyan-700/60 px-1.5 py-0.5 text-[9px] font-semibold text-cyan-300 backdrop-blur-xs">
           Narrow Double
@@ -360,9 +387,12 @@ export function FacadeLibrary({
   const priceOf = (f: FacadeItem) =>
     f.range === "Uploaded" ? null : facadePriceForDesign(f.name, facadeCategory(f), designName);
 
+  const deferredQuery = useDeferredValue(query);
+
   const results = useMemo(() => {
+    if (!open) return [];
     const inCat = eligible.filter((f) => facadeBelongsToCategory(f, active));
-    const found = searchFacades(inCat, query);
+    const found = searchFacades(inCat, deferredQuery);
     const sorted = [...found];
     if (sort === "alpha") {
       sorted.sort((a, b) => {
@@ -388,10 +418,27 @@ export function FacadeLibrary({
       });
     }
     return sorted;
-  }, [eligible, active, query, sort, designName, effectiveGarage]);
-
+  }, [open, eligible, active, deferredQuery, sort, designName, effectiveGarage]);
 
   const visibleResults = useMemo(() => results.slice(0, visibleLimit), [results, visibleLimit]);
+
+  // Batch prime visible items from IndexedDB in a single query
+  useEffect(() => {
+    if (!open || visibleResults.length === 0) return;
+    const uncachedUrls = visibleResults
+      .map((f) => f.url)
+      .filter((url) => !memoryThumbnailCache.has(url));
+
+    if (uncachedUrls.length === 0) return;
+
+    getIdbThumbnails(uncachedUrls)
+      .then((batch) => {
+        Object.entries(batch).forEach(([url, thumb]) => {
+          memoryThumbnailCache.set(url, thumb);
+        });
+      })
+      .catch(() => {});
+  }, [open, visibleResults]);
 
   useEffect(() => {
     if (!open) return;
@@ -421,18 +468,21 @@ export function FacadeLibrary({
     const added: FacadeItem[] = [];
     for (const file of Array.from(files)) {
       const url = await fileToImageDataUrl(file);
-      added.push({
-        id: `${Date.now()}-${file.name}`,
-        name: file.name.replace(/\.[^.]+$/, ""),
-        range: "Uploaded",
-        tags: ["uploaded"],
-        url,
-      });
+      if (url) {
+        added.push({
+          id: `${Date.now()}-${file.name}`,
+          name: file.name.replace(/\.[^.]+$/, ""),
+          range: "Uploaded",
+          tags: ["uploaded"],
+          url,
+        });
+      }
     }
     persist([...custom, ...added]);
   };
 
   const tabCounts = useMemo(() => {
+    if (!open) return {};
     const counts: Record<string, number> = {};
     for (const c of tabs) {
       counts[c.id] =
@@ -441,7 +491,7 @@ export function FacadeLibrary({
           : eligible.filter((f) => facadeBelongsToCategory(f, c.id)).length;
     }
     return counts;
-  }, [tabs, eligible]);
+  }, [open, tabs, eligible]);
 
   const { mode } = useTheme();
   const isLight = mode === "normal";

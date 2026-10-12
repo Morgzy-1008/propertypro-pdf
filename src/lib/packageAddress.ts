@@ -227,8 +227,8 @@ export function buildFlyerDataFromPackage(p: Pkg, lot?: Lot | null): FlyerData {
 
   // 3. House Dimensions
   const dim = getHudsonDimensions(floorplanName) || getHudsonDimensions(designName);
-  const houseWidthM = dim ? dim.width : (existingFlyer.houseWidthM || (defaultPlan?.houseWidth ? parseFloat(defaultPlan.houseWidth) : undefined));
-  const houseLengthM = dim ? dim.length : (existingFlyer.houseLengthM || (defaultPlan?.houseLength ? parseFloat(defaultPlan.houseLength) : undefined));
+  const houseWidthM = dim ? dim.width : (existingFlyer.houseWidthM || (defaultPlan?.houseWidth ? parseFloat(String(defaultPlan.houseWidth)) : undefined));
+  const houseLengthM = dim ? dim.length : (existingFlyer.houseLengthM || (defaultPlan?.houseLength ? parseFloat(String(defaultPlan.houseLength)) : undefined));
 
   const housePriceVal =
     p.house_price != null

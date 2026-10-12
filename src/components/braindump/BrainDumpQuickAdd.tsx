@@ -112,9 +112,9 @@ export function BrainDumpQuickAdd({
   };
 
   const handleSelectLead = (lead: CrmLead) => {
-    setClientName(lead.name);
-    setClientPhone(lead.phone || "");
-    if (lead.design) setDesignName(lead.design);
+    setClientName(lead.clientName || lead.name || "");
+    setClientPhone(lead.mobile || lead.phone || "");
+    if (lead.preferredDesign || lead.design) setDesignName(lead.preferredDesign || lead.design || "");
     setShowLeadDropdown(false);
   };
 

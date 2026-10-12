@@ -147,9 +147,8 @@ export async function generateSitingPlanPdf({
   // Surveyor Boundary Bearings (Metes & Bounds)
   const frontSegment = parcel.boundarySegments?.find((s) => s.type === "front");
   const rearSegment = parcel.boundarySegments?.find((s) => s.type === "rear");
-  const sideSegments = parcel.boundarySegments?.filter((s) => s.type === "side") || [];
-  const leftSegment = sideSegments[0];
-  const rightSegment = sideSegments[1] || sideSegments[0];
+  const leftSegment = parcel.boundarySegments?.find((s) => s.type === "left");
+  const rightSegment = parcel.boundarySegments?.find((s) => s.type === "right");
 
   const frontBearing = frontSegment?.bearingStr || "90°00'00\"";
   const rearBearing = rearSegment?.bearingStr || "270°00'00\"";

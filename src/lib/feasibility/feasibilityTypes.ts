@@ -19,6 +19,7 @@ export interface CadastralParcel {
   boundaryCoordinates?: Array<[number, number]>;
   isRegistered: boolean;
   expectedRegistrationDate?: string;
+  smartMapUrl?: string;
 }
 
 export interface SurroundingConstraints {

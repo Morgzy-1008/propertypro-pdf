@@ -90,7 +90,7 @@ interface QuoteAdminCatalogueProps {
   onCatalogueUpdated: () => void;
 }
 
-const ADMIN_CATEGORIES: { id: CatalogueCategory | "all" | "duplicates"; label: string }[] = [
+const ADMIN_CATEGORIES: { id: CatalogueCategory | "all" | "duplicates" | "ceiling_heights"; label: string }[] = [
   { id: "all", label: "All Items" },
   { id: "duplicates", label: "⚠️ Duplicate Pairs" },
   { id: "floorplan_extensions", label: "Floorplan Extensions" },
@@ -129,7 +129,7 @@ export function QuoteAdminCatalogue({
   const [isParsingCsv, setIsParsingCsv] = useState(false);
 
   // Filter & Search states
-  const [activeCategory, setActiveCategory] = useState<CatalogueCategory | "all" | "duplicates">("all");
+  const [activeCategory, setActiveCategory] = useState<CatalogueCategory | "all" | "duplicates" | "ceiling_heights">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [unflaggedPairKeys, setUnflaggedPairKeys] = useState<Set<string>>(new Set());
 
@@ -155,7 +155,7 @@ export function QuoteAdminCatalogue({
   );
 
   const handleRateChange = (field: keyof typeof customRates, val: number) => {
-    setCustomRates((prev) => ({ ...prev, [field]: val }));
+    setCustomRates((prev: any) => ({ ...prev, [field]: val }));
   };
 
   const handleItemRateChange = (id: string, rate: number) => {

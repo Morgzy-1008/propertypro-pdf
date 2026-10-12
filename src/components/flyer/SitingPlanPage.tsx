@@ -19,7 +19,6 @@ import {
   scanAndVectorizeFloorplan,
   generateWallVectorAnalysis,
   type WallVectorAnalysis,
-  querySetbackToBoundary,
 } from "./floorplanVisionEngine";
 import { findDesign } from "@/lib/pricing";
 import { toast } from "sonner";

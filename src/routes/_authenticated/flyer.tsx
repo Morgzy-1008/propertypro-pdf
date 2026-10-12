@@ -70,7 +70,7 @@ function Index() {
   const [template, setTemplate] = useState<TemplateId>(() => {
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
-      const t = sp.get("template") as TemplateId;
+      const t = sp.get("template");
       const devMode = isLocalhost();
       const allowed = devMode
         ? ["express", "siting", "showcase", "house-only", "house_only", "house-only-v2", "siting-v2"]

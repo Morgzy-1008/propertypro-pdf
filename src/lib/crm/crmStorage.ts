@@ -2,6 +2,7 @@ import {
   CrmLead,
   CrmStageId,
   CrmMessage,
+  CrmNote,
   CrmTask,
   CrmTeamMessage,
   TelnyxSettings,
@@ -946,9 +947,9 @@ export async function logLeftVoicemail(
   const firstName = lead.clientName.split(" ")[0];
   const lvmSmsBody = `Hi ${firstName}, ${actualConsultant} from Hudson Homes here. Tried calling you regarding your ${lead.preferredDesign} package on Lot ${lead.lotNumber} ${lead.targetEstate}. Left a voicemail, feel free to call or text me back when you get a chance!`;
 
-  const newNote = {
+  const newNote: CrmNote = {
     id: `note_${Date.now()}`,
-    author: consultantName,
+    author: consultantName || actualConsultant || "Morgan Hales",
     content: "📞 [Left Voicemail (LVM)]: Client did not answer. Standard 48-hour follow-up task auto-scheduled.",
     createdAt: new Date().toISOString(),
   };

@@ -223,8 +223,8 @@ export function evaluateLotSiting(params: SitingParams) {
       cars: parseInt(p.cars) || 0,
       sizeM2: parseFloat(p.size) || 0,
       frontageReq: parseFloat(p.frontage) || 0,
-      houseWidth: parseFloat(p.houseWidth!),
-      houseLength: parseFloat(p.houseLength!),
+      houseWidth: parseFloat(String(p.houseWidth || 0)),
+      houseLength: parseFloat(String(p.houseLength || 0)),
     };
   });
 

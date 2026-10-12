@@ -517,6 +517,12 @@ export async function lookupCadastreParcel(searchQuery: string): Promise<Cadastr
         slopeDirection: "Front to Rear (Gentle 2.0%)",
         statutoryLandValuation: 750000,
         valuationYear: "2025/2026",
+        boundaryCoordinates: [
+          [-33.649 + 0.0001, 150.871 - 0.0001],
+          [-33.649 + 0.0001, 150.871 + 0.0001],
+          [-33.649 - 0.0002, 150.871 + 0.0001],
+          [-33.649 - 0.0002, 150.871 - 0.0001],
+        ],
         boundarySegments: [
           { startIndex: 0, endIndex: 1, lengthM: 15.0, bearingStr: "90°00'00\"", type: "front" },
           { startIndex: 1, endIndex: 2, lengthM: 30.0, bearingStr: "180°00'00\"", type: "right" },

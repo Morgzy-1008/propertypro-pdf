@@ -56,6 +56,7 @@ import {
 } from "@/lib/quoting/acousticEngine";
 import { QuoteSiteFeasibilityDevSection } from "./QuoteSiteFeasibilityDevSection";
 import type { SiteFeasibilityDossier } from "@/lib/feasibility/feasibilityTypes";
+import type { FullQuote, SiteConditions, SoilClass } from "@/lib/quoting/quoteTypes";
 import { toast } from "sonner";
 import { useTheme } from "@/lib/theme";
 

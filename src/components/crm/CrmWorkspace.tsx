@@ -162,8 +162,20 @@ export function CrmWorkspace() {
     setLeads(list);
   };
 
-  const handleSendMessage = async (msg: CrmMessage) => {
-    const list = await saveCrmMessage(msg);
+  const handleSendMessage = async (msg: Partial<CrmMessage>) => {
+    const fullMsg: CrmMessage = {
+      id: msg.id || `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      clientEmail: msg.clientEmail || "",
+      direction: msg.direction || "outbound",
+      channel: msg.channel || "email",
+      senderName: msg.senderName || "Morgan Hales",
+      recipientName: msg.recipientName || "",
+      body: msg.body || "",
+      timestamp: msg.timestamp || new Date().toISOString(),
+      isRead: msg.isRead ?? true,
+      ...msg,
+    } as CrmMessage;
+    const list = await saveCrmMessage(fullMsg);
     setMessages(list);
   };
 

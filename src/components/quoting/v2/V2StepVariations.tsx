@@ -202,7 +202,7 @@ export function V2StepVariations({
 
   // 1. Resolve design specifications & areas
   const totalM2 = Number(quote.design.designM2) || Number(quote.design.standardDesignM2) || 200;
-  const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.storeys);
+  const isDouble = isDoubleStoreyDesign(quote.design.designName, quote.design.housingType, quote.design.customSpec?.storeys || (quote.design as any).storeys);
   const tier = normalizeInclusionTier(quote.design.specTier);
   const isH3 = tier === "H3" || quote.design.specTier?.toLowerCase().includes("h3") || quote.design.specTier?.toLowerCase().includes("luxury");
   const tierRates = EXTENSION_RATES_BY_TIER[tier] || EXTENSION_RATES_BY_TIER.H2;
@@ -619,7 +619,7 @@ export function V2StepVariations({
       catalogueItemId: `custom_${Date.now()}`,
       category: (customCategory as any) || "internal_general",
       name: customName.trim(),
-      description: trimmedDesc ? trimmedDesc : undefined, // Only set if user entered one
+      description: trimmedDesc || "",
       unitType: "fixed",
       unitRate: price,
       quantity: 1,
@@ -714,7 +714,7 @@ export function V2StepVariations({
     }));
 
     // Deduplicate by name/id
-    const combined = [...matchedPresets];
+    const combined: any[] = [...matchedPresets];
     for (const cat of matchedCatalogue) {
       if (!combined.some((item) => item.name.toLowerCase() === cat.name.toLowerCase() || item.id === cat.id)) {
         combined.push(cat);

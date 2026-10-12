@@ -539,8 +539,8 @@ export function V2StepFloorPlan({
         beds: String(planInfo?.beds ?? "2"),
         baths: String(planInfo?.baths ?? "1"),
         cars: String(planInfo?.cars ?? "0"),
-        widthM: planInfo?.width || "6.8m",
-        lengthM: planInfo?.length || "8.82m",
+        widthM: planInfo?.houseWidth ? String(planInfo.houseWidth) : (planInfo?.width ? String(planInfo.width) : "6.8m"),
+        lengthM: planInfo?.houseLength ? String(planInfo.houseLength) : (planInfo?.depth ? String(planInfo.depth) : "8.82m"),
       },
     });
     setSecondHouseType("Granny Flat");
@@ -588,8 +588,8 @@ export function V2StepFloorPlan({
         beds: String(planInfo?.beds ?? (firstModel.m2 > 150 ? 3 : 2)),
         baths: String(planInfo?.baths ?? 1),
         cars: String(planInfo?.cars ?? 0),
-        widthM: planInfo?.width || "",
-        lengthM: planInfo?.length || "",
+        widthM: planInfo?.houseWidth ? String(planInfo.houseWidth) : (planInfo?.width ? String(planInfo.width) : ""),
+        lengthM: planInfo?.houseLength ? String(planInfo.houseLength) : (planInfo?.depth ? String(planInfo.depth) : ""),
       },
     });
     setSecondSearchQuery(firstModel.name);
@@ -621,8 +621,8 @@ export function V2StepFloorPlan({
         beds: String(planInfo?.beds ?? (type === "Granny Flat" ? "2" : (row.m2 > 150 ? "3" : "2"))),
         baths: String(planInfo?.baths ?? "1"),
         cars: String(planInfo?.cars ?? (type === "Granny Flat" ? "0" : "1")),
-        widthM: planInfo?.width || "",
-        lengthM: planInfo?.length || "",
+        widthM: planInfo?.houseWidth ? String(planInfo.houseWidth) : (planInfo?.width ? String(planInfo.width) : ""),
+        lengthM: planInfo?.houseLength ? String(planInfo.houseLength) : (planInfo?.depth ? String(planInfo.depth) : ""),
       },
     });
     setSecondSearchQuery(row.name);
@@ -954,6 +954,9 @@ export function V2StepFloorPlan({
     const val = parseFloat(valStr) || 0;
     const currentAreas = design.areas || design.modifiedAreas || getStandardAreaBreakdown(design.designName, design.housingType, design.designM2);
     const updatedAreas: FloorplanAreaBreakdown = {
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
       ...currentAreas,
       [field]: val,
       totalM2: 0,
@@ -976,7 +979,7 @@ export function V2StepFloorPlan({
 
     updatedAreas.totalM2 = updatedTotal;
 
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       isModifiedFloorplan: true,
@@ -1016,6 +1019,9 @@ export function V2StepFloorPlan({
     };
     const updatedCustom = [...existingCustom, newCustomItem];
     const updatedAreas: FloorplanAreaBreakdown = {
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
       ...currentAreas,
       customAreas: updatedCustom,
       totalM2: 0,
@@ -1037,7 +1043,7 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       isModifiedFloorplan: true,
@@ -1074,6 +1080,9 @@ export function V2StepFloorPlan({
     const existingCustom = currentAreas.customAreas || [];
     const updatedCustom = existingCustom.filter((c) => c.id !== id);
     const updatedAreas: FloorplanAreaBreakdown = {
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
       ...currentAreas,
       customAreas: updatedCustom,
       totalM2: 0,
@@ -1095,7 +1104,7 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       isModifiedFloorplan: true,
@@ -1137,6 +1146,9 @@ export function V2StepFloorPlan({
       return c;
     });
     const updatedAreas: FloorplanAreaBreakdown = {
+      garageM2: 0,
+      alfrescoM2: 0,
+      porchM2: 0,
       ...currentAreas,
       customAreas: updatedCustom,
       totalM2: 0,
@@ -1158,7 +1170,7 @@ export function V2StepFloorPlan({
     ) / 100;
 
     updatedAreas.totalM2 = updatedTotal;
-    const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+    const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
     const calc = calculateModifiedFloorplanPricing({
       ...design,
       isModifiedFloorplan: true,
@@ -1309,7 +1321,7 @@ export function V2StepFloorPlan({
           setIsBalconyActive(true);
         }
 
-        const currentBasePrice = design.standardBasePrice || currentModel?.row.price || design.basePrice || 0;
+        const currentBasePrice = design.standardBasePrice || currentModel?.row.h1 || currentModel?.row.hbs || design.basePrice || 0;
         const calc = calculateModifiedFloorplanPricing({
           ...design,
           isModifiedFloorplan: true,
@@ -3527,7 +3539,7 @@ export function V2StepFloorPlan({
               setIsReviewModalOpen(true);
             }
           }}
-          onCancel={() => setIsBaseConfirmOpen(false)}
+          onClose={() => setIsBaseConfirmOpen(false)}
         />
       )}
 

@@ -111,7 +111,7 @@ export function FloorplanCard({
           <div>
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-slate-400">
-                {activeVariant.housingType}
+                {item.housingType}
               </span>
               {activeVariant.isBtbReady && (
                 <span

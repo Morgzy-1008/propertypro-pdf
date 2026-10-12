@@ -96,7 +96,7 @@ export function ForesightEditorFrame() {
       porchM2: curPorch,
       totalM2: curTotalM2,
     },
-  }) : null;
+  } as any) : null;
 
   const handleRefresh = () => {
     setIframeKey((prev) => prev + 1);

@@ -391,7 +391,7 @@ export function TenderRequestFormPdf({ tender }: TenderRequestFormPdfProps) {
                 </tr>
                 <tr className="bg-slate-50">
                   <td className="py-1.5 px-3">Numbered Variations &amp; Custom Upgrades</td>
-                  <td className="py-1.5 px-3 text-right font-mono font-bold text-cyan-800">{formatAud(homeSpec.additionsCost)}</td>
+                  <td className="py-1.5 px-3 text-right font-mono font-bold text-cyan-800">{formatAud(homeSpec.additionsCost ?? (homeSpec.structuralVariationsCost + homeSpec.internalUpgradesCost))}</td>
                 </tr>
                 <tr>
                   <td className="py-1.5 px-3">Site Earthworks, Engineering &amp; Statutory Costs</td>

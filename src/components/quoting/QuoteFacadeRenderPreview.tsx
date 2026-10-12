@@ -39,7 +39,7 @@ export function QuoteFacadeRenderPreview({
     isDouble ||
     housingType === "Double Storey" ||
     housingType === "Split Level" ||
-    housingType === "Split" ||
+    (housingType as string) === "Split" ||
     /double|split/i.test(housingType) ||
     /cobalt|split/i.test(design.designName || design.modelName || "") ||
     (src && /double|2-storey|-ds-|2stry|split|cobalt/i.test(src))

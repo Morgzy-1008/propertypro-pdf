@@ -29,7 +29,7 @@ import {
   identifyBaseDesignCandidate,
 } from "@/lib/quoting/floorplanModificationDetector";
 import { clearLearnedFeatureMemory } from "@/lib/quoting/featureMemoryRegistry";
-import type { BaseDesignCandidate, CustomStandardAreas } from "@/lib/quoting/quoteTypes";
+import type { BaseDesignCandidate, CustomStandardAreas, CustomFloorplanSpec } from "@/lib/quoting/quoteTypes";
 import {
   Select,
   SelectContent,
@@ -407,7 +407,7 @@ export function getFacadesForDesignAndHousingType(
         ...f,
         name: f.name.includes("Single Garage") ? f.name : `${f.name} (Single Garage)`,
         id: `${(resolved?.id || f.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'))}-${idx}`,
-        url: resolved?.url || f.url,
+        url: resolved?.url || (f as any).url,
       };
     });
   }
@@ -519,10 +519,10 @@ export function QuoteDesignStep({
   const isDouble =
     design.mode === "custom_floorplan"
       ? customSpec.storeys === "double"
-      : effectiveHousingType === "Double Storey" || effectiveHousingType === "double" || isDoubleFrontSplit;
+      : effectiveHousingType === "Double Storey" || (effectiveHousingType as string) === "double" || isDoubleFrontSplit;
   const isDuplex =
     effectiveHousingType === "Dual Living" ||
-    effectiveHousingType === "dual-oc" ||
+    (effectiveHousingType as string) === "dual-oc" ||
     Boolean(
       design.designName &&
         (/ - TD| - SD|\bduplex\b|\bdual\b/i.test(design.designName) ||
@@ -626,8 +626,8 @@ export function QuoteDesignStep({
         beds: plans[0]?.beds || "2",
         baths: plans[0]?.baths || "1",
         cars: plans[0]?.cars || "0",
-        widthM: plans[0]?.width || "8.5m",
-        lengthM: plans[0]?.depth || "8.5m",
+        widthM: plans[0]?.width != null ? String(plans[0].width) : "8.5m",
+        lengthM: plans[0]?.depth != null ? String(plans[0].depth) : "8.5m",
       },
     });
   };
@@ -658,8 +658,8 @@ export function QuoteDesignStep({
         beds: plans[0]?.beds || "2",
         baths: plans[0]?.baths || "1",
         cars: plans[0]?.cars || "0",
-        widthM: plans[0]?.width || "8.5m",
-        lengthM: plans[0]?.depth || "8.5m",
+        widthM: plans[0]?.width != null ? String(plans[0].width) : "8.5m",
+        lengthM: plans[0]?.depth != null ? String(plans[0].depth) : "8.5m",
       },
     });
   };
@@ -776,8 +776,8 @@ export function QuoteDesignStep({
       beds: plans[0]?.beds || "4",
       baths: plans[0]?.baths || "2",
       cars: plans[0]?.cars || "2",
-      widthM: plans[0]?.width || "14.0m",
-      lengthM: plans[0]?.depth || "22.0m",
+      widthM: plans[0]?.width != null ? String(plans[0].width) : "14.0m",
+      lengthM: plans[0]?.depth != null ? String(plans[0].depth) : "22.0m",
     });
   };
 

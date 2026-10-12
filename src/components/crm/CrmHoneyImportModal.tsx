@@ -215,7 +215,7 @@ export function CrmHoneyImportModal({
   };
 
   const handleLoadSampleHoneyData = () => {
-    const sample = [
+    const sample: Partial<CrmLead>[] = [
       {
         clientName: "David & Sarah Henderson",
         mobile: "0418 552 110",
