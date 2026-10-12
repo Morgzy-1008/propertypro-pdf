@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { formatAud, findDesign, normalizeDesignLookup } from "@/lib/pricing";
 import { landscapingPriceFor } from "@/lib/landscaping";
+import { getTierPrice as getEngineTierPrice } from "@/lib/quoting/quoteEngine";
 import {
   DOUBLE_STOREY_PRICES,
   DUAL_OC_PRICES,
@@ -97,13 +98,7 @@ export function getHousingTypePrices(division: Division = getActiveDivision()): 
   const single = isNsw ? NSW_SINGLE_STOREY_PRICES : SINGLE_STOREY_PRICES;
   const dual = isNsw ? NSW_DUAL_OC_PRICES : DUAL_OC_PRICES;
   const aquaPrices: PriceRow[] = isNsw
-    ? [
-        { name: "Aqua 1", m2: 59.96, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
-        { name: "Aqua 2", m2: 60.00, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
-        { name: "Aqua 3", m2: 59.90, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
-        { name: "Aqua 4", m2: 59.94, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
-        { name: "Aqua 5", m2: 59.14, hbs: 113900, ss: 127900, h1: 137900, h2: 157900, h3: 184900 },
-      ]
+    ? NSW_SINGLE_STOREY_PRICES.filter((r) => /^aqua\b/i.test(r.name))
     : [
         { name: "Aqua 1", m2: 59.96, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
         { name: "Aqua 2", m2: 60.00, hbs: 118900, ss: 128900, h1: 138900, h2: 158900, h3: 185900 },
@@ -132,8 +127,8 @@ export const INCLUSION_TIERS: { id: InclusionTier; label: string; tag: string }[
   },
   {
     id: "Smart Series",
-    label: "SS Spec (Smart Start)",
-    tag: "Essential Value",
+    label: "FHB / Start Smart (SS)",
+    tag: "FHB Turnkey",
   },
   {
     id: "H1 Smart Inclusions",
@@ -687,25 +682,10 @@ export function QuoteDesignStep({
     model: PriceRow | undefined,
     tier: InclusionTier,
     housingType: string = design.housingType,
+    div: string = division,
   ): number => {
     if (!model) return 0;
-    const tierStr = String(tier || "H2").toUpperCase();
-    if (tierStr.includes("H3") || tierStr.includes("LUXURY")) {
-      return model.h3 || model.h2 || 0;
-    }
-    if (tierStr.includes("H2") || tierStr.includes("DESIGN")) {
-      return model.h2 || model.h1 || 0;
-    }
-    if (tierStr.includes("H1") || tierStr.includes("SMART INCLUSIONS")) {
-      return model.h1 || model.hbs || 0;
-    }
-    if (tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE") || tierStr.includes("SMART START")) {
-      return model.ss || model.hbs || model.h1 || 0;
-    }
-    if (tierStr.includes("HBS") || tierStr.includes("HOME BUILDER") || tierStr.includes("BASE")) {
-      return model.hbs || model.h1 || 0;
-    }
-    return model.h2 || model.h1 || 0;
+    return getEngineTierPrice(model, tier, housingType, div);
   };
 
   const handleHousingTypeChange = (type: QuoteDesignSelection["housingType"]) => {
@@ -802,12 +782,34 @@ export function QuoteDesignStep({
   };
 
   const handleTierChange = (tier: InclusionTier) => {
+    const isFhbTier =
+      tier === "Smart Series" ||
+      tier.includes("SS") ||
+      tier.includes("FHB") ||
+      tier.includes("Start Smart");
+
+    const nextLandscaping = isFhbTier || design.landscapingSelected;
+    let nextLandscapingCost = design.landscapingCost;
+    if (nextLandscaping) {
+      nextLandscapingCost = landscapingPriceFor(
+        design.landscapingLandSize || 450,
+        design.housingType,
+        design.designName,
+        division,
+        tier,
+      );
+    }
+
     if (design.mode === "custom_floorplan") {
       const effectiveBasePrice = calculateCustomFloorplanPrice(customSpec, tier);
-      onChange({ specTier: tier, basePrice: effectiveBasePrice });
+      onChange({
+        specTier: tier,
+        basePrice: effectiveBasePrice,
+        ...(nextLandscaping ? { landscapingSelected: true, landscapingCost: nextLandscapingCost } : {}),
+      });
       return;
     }
-    const stdPrice = currentModel ? getTierPrice(currentModel, tier, design.housingType) : 0;
+    const stdPrice = currentModel ? getTierPrice(currentModel, tier, design.housingType, division) : 0;
     let effectiveBasePrice = stdPrice;
     if (design.isModifiedFloorplan && currentModel) {
       const tempDesign: QuoteDesignSelection = {
@@ -817,7 +819,12 @@ export function QuoteDesignStep({
       };
       effectiveBasePrice = calculateModifiedFloorplanPricing(tempDesign).modifiedBasePrice;
     }
-    onChange({ specTier: tier, standardBasePrice: stdPrice, basePrice: effectiveBasePrice });
+    onChange({
+      specTier: tier,
+      standardBasePrice: stdPrice,
+      basePrice: effectiveBasePrice,
+      ...(nextLandscaping ? { landscapingSelected: true, landscapingCost: nextLandscapingCost } : {}),
+    });
   };
 
   const handleToggleModifiedFloorplan = (enabled: boolean) => {

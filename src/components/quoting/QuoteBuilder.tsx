@@ -312,9 +312,12 @@ export function QuoteBuilder() {
           setQuote((prev) => {
             const specTier = bridge.specTier || prev.design.specTier || "H2";
             const bridgeState = bridge.state || prev.client.state;
-            const standardBasePrice = matchedHudson
-              ? getTierPrice(matchedHudson.row, specTier, housingType)
-              : (Number(bridge.standardBasePrice) || Number(bridge.basePrice) || prev.design.basePrice);
+            const standardBasePrice =
+              Number(bridge.standardBasePrice) ||
+              Number(bridge.basePrice) ||
+              (matchedHudson
+                ? getTierPrice(matchedHudson.row, specTier, housingType, bridgeState)
+                : prev.design.basePrice);
 
             let effectiveM2 = stdTotalM2;
             let effectiveBasePrice = standardBasePrice;
@@ -367,7 +370,7 @@ export function QuoteBuilder() {
               basePrice: effectiveBasePrice,
               promotionsDiscount: autoDiscount,
               floorplanUrl,
-              beds: plans[0]?.beds || prev.design.beds || "4",
+              beds: bridge.bedrooms ? String(bridge.bedrooms) : (plans[0]?.beds || prev.design.beds || "4"),
               baths: plans[0]?.baths || prev.design.baths || "2",
               cars: plans[0]?.cars || prev.design.cars || "2",
               widthM: plans[0]?.frontage || prev.design.widthM || "14.0m",

@@ -1347,7 +1347,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
   const totalVariationsAndPackagesAmount = totalVariationsAmount + turnkeyPackagesCost;
   const totalSpecAndVariations = totalSiteAndStatutorySubtotal + totalVariationsAndPackagesAmount;
 
-  const landscapingSpecGroup: SpecGroup | null = (pricing.landscapingCost > 0 || design.landscapingSelected) ? {
+  const landscapingSpecGroup: SpecGroup | null = (pricing.landscapingCost !== 0 || design.landscapingSelected) ? {
     label: `Turnkey Landscaping Package (${design.landscapingLandSize || 450} m² Lot)`,
     total: pricing.landscapingCost,
     items: [
@@ -1813,7 +1813,7 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                 )}
 
                 {/* Variations & Turnkey Packages Section with Itemized Breakdown */}
-                {(totalVariationsAndPackagesAmount !== 0 || variationGroups.some((g) => g.items.length > 0) || pricing.landscapingCost > 0 || (pricing.exposedDrivewayCost > 0 && !design.landscapingSelected)) && (
+                {(totalVariationsAndPackagesAmount !== 0 || variationGroups.some((g) => g.items.length > 0) || pricing.landscapingCost !== 0 || design.landscapingSelected || (pricing.exposedDrivewayCost > 0 && !design.landscapingSelected)) && (
                   <>
                     <tr className="bg-slate-50 border-t border-slate-300">
                       <td className="py-2.5 px-4 text-slate-800">
@@ -1831,15 +1831,26 @@ export function QuotePdfDocument({ quote, coverVersion = "v1" }: QuotePdfDocumen
                       </td>
                     </tr>
 
-                    {/* Turnkey Landscaping Package if selected */}
-                    {pricing.landscapingCost > 0 && (
+                    {/* Turnkey Landscaping Package if selected or non-zero allowance */}
+                    {(pricing.landscapingCost !== 0 || design.landscapingSelected) && (
                       <tr className="bg-white text-xs border-l-4 border-l-emerald-500">
                         <td className="py-1.5 px-4 pl-7 text-slate-800">
-                          <span className="font-semibold text-slate-950">• Turnkey Landscaping &amp; Paving Package</span>
+                          <span className="font-semibold text-slate-950">
+                            • Turnkey Landscaping &amp; Paving Package
+                            {pricing.landscapingCost < 0
+                              ? " Allowance Credit"
+                              : pricing.landscapingCost > 0
+                              ? " Allowance Surcharge"
+                              : ""}
+                          </span>
                           <span className="ml-2 font-mono text-[10.5px] text-slate-500">({design.landscapingLandSize || 450} m² Lot)</span>
                         </td>
                         <td className="py-1.5 px-4 text-right font-mono font-bold text-slate-900 text-xs">
-                          +{formatAud(pricing.landscapingCost)}
+                          {pricing.landscapingCost < 0
+                            ? `-${formatAud(Math.abs(pricing.landscapingCost))}`
+                            : pricing.landscapingCost === 0
+                            ? "INCLUDED"
+                            : `+${formatAud(pricing.landscapingCost)}`}
                         </td>
                       </tr>
                     )}

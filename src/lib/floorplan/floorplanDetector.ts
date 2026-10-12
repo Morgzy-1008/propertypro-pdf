@@ -5,6 +5,7 @@ import {
   DUAL_OC_PRICES,
   type PriceRow,
 } from "@/lib/pricelist.data";
+import { NSW_SINGLE_STOREY_PRICES, NSW_DOUBLE_STOREY_PRICES } from "@/lib/pricelist.nsw.data";
 import { HUDSON_FLOORPLANS, type FloorplanRecord } from "@/components/flyer/floorplans.data";
 import { HUDSON_CAD_REGISTRY } from "@/components/flyer/floorplanVisionEngine";
 import { findFloorplanUrl } from "@/lib/tender/tenderStorage";
@@ -77,7 +78,12 @@ export const ALL_PRICE_ROWS: { row: PriceRow; housingType: "Single Storey" | "Do
     row: r,
     housingType: (/^aqua\b/i.test(r.name) ? ("Granny Flat" as const) : ("Single Storey" as const)),
   })),
+  ...NSW_SINGLE_STOREY_PRICES.filter((r) => !SINGLE_STOREY_PRICES.some((q) => q.name.toLowerCase() === r.name.toLowerCase())).map((r) => ({
+    row: r,
+    housingType: (/^aqua\b/i.test(r.name) ? ("Granny Flat" as const) : ("Single Storey" as const)),
+  })),
   ...DOUBLE_STOREY_PRICES.map((r) => ({ row: r, housingType: "Double Storey" as const })),
+  ...NSW_DOUBLE_STOREY_PRICES.filter((r) => !DOUBLE_STOREY_PRICES.some((q) => q.name.toLowerCase() === r.name.toLowerCase())).map((r) => ({ row: r, housingType: "Double Storey" as const })),
   ...SPLIT_LEVEL_PRICES.map((r) => ({ row: r, housingType: "Split Level" as const })),
   ...DUAL_OC_PRICES.map((r) => ({ row: r, housingType: "Dual Living" as const })),
 ];

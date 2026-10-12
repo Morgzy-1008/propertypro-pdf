@@ -63,7 +63,19 @@ export function normalizeInclusionTier(tier?: string): "H1" | "H2" | "H3" {
   if (!tier) return "H2";
   const lower = tier.toLowerCase();
   if (lower.includes("h3") || lower.includes("luxury")) return "H3";
-  if (lower.includes("h1") || lower.includes("smart") || lower.includes("base") || lower.includes("home builder") || lower.includes("fhb") || lower.includes("first home")) return "H1";
+  if (
+    lower.includes("h1") ||
+    lower.includes("smart") ||
+    lower.includes("base") ||
+    lower.includes("home builder") ||
+    lower.includes("fhb") ||
+    lower.includes("first home") ||
+    lower === "ss" ||
+    lower.startsWith("ss ") ||
+    lower.includes("start smart")
+  ) {
+    return "H1";
+  }
   if (lower.includes("ip") || lower.includes("invest")) return "H1";
   return "H2"; // Default to H2 Design Inclusions
 }

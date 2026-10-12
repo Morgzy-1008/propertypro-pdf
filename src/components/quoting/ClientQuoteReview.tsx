@@ -32,6 +32,7 @@ import {
   getEffectiveDesignName,
   getHousingTypeForDesign,
   isDoubleStoreyDesign,
+  getTierPrice as getEngineTierPrice,
 } from "@/lib/quoting/quoteEngine";
 import { findFacadeForDesign } from "@/lib/quoting/facadeLookup";
 import { saveQuote } from "@/lib/quoting/quoteStorage";
@@ -205,14 +206,8 @@ const INCLUSION_TIERS: {
   },
 ];
 
-function getTierPrice(model: PriceRow, tier: string): number {
-  const norm = (tier || "").toLowerCase();
-  if (norm.includes("h3")) return model.h3 || model.h2 || model.hbs || 0;
-  if (norm.includes("h2")) return model.h2 || model.h1 || model.hbs || 0;
-  if (norm.includes("h1")) return model.h1 || model.hbs || 0;
-  if (norm.includes("ss") || norm.includes("smart style")) return model.ss || model.hbs || 0;
-  if (norm.includes("hbs") || norm.includes("hudson base")) return model.hbs || 0;
-  return model.h2 || model.h1 || 0;
+function getTierPrice(model: PriceRow, tier: string, housingType?: string, division?: string): number {
+  return getEngineTierPrice(model, tier, housingType, division);
 }
 
 export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
@@ -714,7 +709,11 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
                     <span className="font-bold text-xs text-white">Turnkey Landscaping Package</span>
                     {quote.design.landscapingSelected && (
                       <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded font-semibold">
-                        Included (+{formatAud(quote.pricing.landscapingCost)})
+                        {quote.pricing.landscapingCost < 0
+                          ? `Included (-${formatAud(Math.abs(quote.pricing.landscapingCost))} credit)`
+                          : quote.pricing.landscapingCost === 0
+                          ? `Included ($0)`
+                          : `Included (+${formatAud(quote.pricing.landscapingCost)})`}
                       </span>
                     )}
                   </div>
@@ -1417,11 +1416,15 @@ export function ClientQuoteReview({ initialQuote }: ClientQuoteReviewProps) {
               )}
 
               {/* Landscaping */}
-              {quote.pricing.landscapingCost > 0 && (
+              {(quote.pricing.landscapingCost !== 0 || quote.design.landscapingSelected) && (
                 <div className="pt-2 flex items-center justify-between text-slate-300">
                   <span>Turnkey Landscaping Package</span>
                   <span className="font-mono text-slate-200">
-                    +{formatAud(quote.pricing.landscapingCost)}
+                    {quote.pricing.landscapingCost < 0
+                      ? `-${formatAud(Math.abs(quote.pricing.landscapingCost))}`
+                      : quote.pricing.landscapingCost === 0
+                      ? "INCLUDED"
+                      : `+${formatAud(quote.pricing.landscapingCost)}`}
                   </span>
                 </div>
               )}

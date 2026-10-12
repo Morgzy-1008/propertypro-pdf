@@ -138,10 +138,16 @@ export function QuoteSummarySidebar({
             </div>
           )}
 
-          {pricing.landscapingCost > 0 && (
+          {(pricing.landscapingCost !== 0 || design.landscapingSelected) && (
             <div className={`pt-2 flex justify-between ${isLight ? "text-slate-700 font-medium" : "text-slate-400"}`}>
               <span>Turnkey Landscaping Package:</span>
-              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>+{formatAud(pricing.landscapingCost)}</span>
+              <span className={`font-mono ${isLight ? "text-slate-900 font-bold" : "text-slate-200"}`}>
+                {pricing.landscapingCost < 0
+                  ? `-${formatAud(Math.abs(pricing.landscapingCost))}`
+                  : pricing.landscapingCost === 0
+                  ? "INCLUDED"
+                  : `+${formatAud(pricing.landscapingCost)}`}
+              </span>
             </div>
           )}
 

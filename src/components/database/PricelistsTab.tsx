@@ -22,6 +22,7 @@ import {
   QLD_FHB_DOUBLE_STOREY_PRICES,
   ALL_FHB_PRICES,
   FHB_LANDSCAPE_PACKAGES,
+  cleanDesignNameForFhb,
   type FhbPriceRow,
 } from "@/lib/pricing/pricelists";
 import {
@@ -77,8 +78,9 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
     // 1. Official FHB NSW Single Storey & Granny Flats
     for (const row of NSW_FHB_SINGLE_STOREY_PRICES) {
+      const cleanFhb = cleanDesignNameForFhb(row.name);
       const nswMatch = NSW_SINGLE_STOREY_PRICES.find(
-        (r) => r.name.toLowerCase() === row.name.toLowerCase(),
+        (r) => cleanDesignNameForFhb(r.name) === cleanFhb,
       );
       list.push({
         id: `NSW-FHB-${row.name}`,
@@ -100,8 +102,9 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
     // 2. Official FHB QLD Double Storey
     for (const row of QLD_FHB_DOUBLE_STOREY_PRICES) {
+      const cleanFhb = cleanDesignNameForFhb(row.name);
       const qldMatch = QLD_DOUBLE_STOREY_PRICES.find(
-        (r) => r.name.toLowerCase() === row.name.toLowerCase(),
+        (r) => cleanDesignNameForFhb(r.name) === cleanFhb,
       );
       list.push({
         id: `QLD-FHB-${row.name}`,
@@ -124,7 +127,15 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
     // 3. Add other retail designs for NSW not already in FHB list
     for (const row of NSW_SINGLE_STOREY_PRICES) {
-      if (!list.some((existing) => existing.division === "NSW" && existing.name.toLowerCase() === row.name.toLowerCase())) {
+      const clean = cleanDesignNameForFhb(row.name);
+      if (
+        !list.some(
+          (existing) =>
+            existing.division === "NSW" &&
+            (existing.name.toLowerCase() === row.name.toLowerCase() ||
+              cleanDesignNameForFhb(existing.name) === clean),
+        )
+      ) {
         list.push({
           id: `NSW-SS-${row.name}`,
           name: row.name,
@@ -142,7 +153,15 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
     }
 
     for (const row of NSW_DOUBLE_STOREY_PRICES) {
-      if (!list.some((existing) => existing.division === "NSW" && existing.name.toLowerCase() === row.name.toLowerCase())) {
+      const clean = cleanDesignNameForFhb(row.name);
+      if (
+        !list.some(
+          (existing) =>
+            existing.division === "NSW" &&
+            (existing.name.toLowerCase() === row.name.toLowerCase() ||
+              cleanDesignNameForFhb(existing.name) === clean),
+        )
+      ) {
         list.push({
           id: `NSW-DS-${row.name}`,
           name: row.name,
@@ -161,7 +180,15 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
     // 4. Add other retail designs for QLD not already in FHB list
     for (const row of QLD_SINGLE_STOREY_PRICES) {
-      if (!list.some((existing) => existing.division === "QLD" && existing.name.toLowerCase() === row.name.toLowerCase())) {
+      const clean = cleanDesignNameForFhb(row.name);
+      if (
+        !list.some(
+          (existing) =>
+            existing.division === "QLD" &&
+            (existing.name.toLowerCase() === row.name.toLowerCase() ||
+              cleanDesignNameForFhb(existing.name) === clean),
+        )
+      ) {
         list.push({
           id: `QLD-SS-${row.name}`,
           name: row.name,
@@ -179,7 +206,15 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
     }
 
     for (const row of QLD_DOUBLE_STOREY_PRICES) {
-      if (!list.some((existing) => existing.division === "QLD" && existing.name.toLowerCase() === row.name.toLowerCase())) {
+      const clean = cleanDesignNameForFhb(row.name);
+      if (
+        !list.some(
+          (existing) =>
+            existing.division === "QLD" &&
+            (existing.name.toLowerCase() === row.name.toLowerCase() ||
+              cleanDesignNameForFhb(existing.name) === clean),
+        )
+      ) {
         list.push({
           id: `QLD-DS-${row.name}`,
           name: row.name,
@@ -250,9 +285,10 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
   // Handlers for Flyer and Quote handoff
   const handleCreateFlyer = (row: DisplayDesignRow) => {
     try {
-      const cleanDesign = row.name.split(/\s+[·•\-–]\s+/)[0].trim() || row.name;
+      const selectedPrice = (tierFilter === "FHB" ? row.fhbPrice : row.h1Price) || row.ssPrice || 0;
       const handoff = {
-        designName: cleanDesign,
+        designName: row.name,
+        bedrooms: row.bedrooms,
         housingType:
           row.housingType === "Double Storey"
             ? "double-storey"
@@ -261,7 +297,9 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
               : "single-storey",
         state: row.division,
         range: tierFilter === "FHB" ? "ss" : tierFilter.toLowerCase(),
-        price: (tierFilter === "FHB" ? row.fhbPrice : row.h1Price) || row.ssPrice || 0,
+        price: selectedPrice,
+        housePrice: formatAud(selectedPrice),
+        landscaping: tierFilter === "FHB" ? true : undefined,
       };
       sessionStorage.setItem("hudson-flyer-handoff", JSON.stringify(handoff));
       navigate({ to: "/flyer" });
@@ -272,9 +310,10 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
 
   const handleCreateQuote = (row: DisplayDesignRow) => {
     try {
-      const cleanDesign = row.name.split(/\s+[·•\-–]\s+/)[0].trim() || row.name;
+      const selectedPrice = (tierFilter === "FHB" ? row.fhbPrice : row.h1Price) || row.ssPrice || 0;
       const bridge = {
-        designName: cleanDesign,
+        designName: row.name,
+        bedrooms: row.bedrooms,
         standardDesignM2: row.totalM2,
         totalM2: row.totalM2,
         housingType:
@@ -284,7 +323,9 @@ export function PricelistsTab({ isLight, initialStateFilter = "ALL" }: Pricelist
               ? "granny-flat"
               : "single-storey",
         state: row.division,
-        specTier: tierFilter === "FHB" ? "FHB Start Smart" : tierFilter,
+        specTier: tierFilter === "FHB" ? "Smart Series" : tierFilter,
+        basePrice: selectedPrice,
+        standardBasePrice: selectedPrice,
       };
       sessionStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));
       localStorage.setItem("hudson_plan_bridge", JSON.stringify(bridge));

@@ -161,8 +161,10 @@ export function getTierPrice(
   const isIP = norm.includes("IP") || norm.includes("INVEST");
 
   if (isSS) {
-    const fhb = findFhbPrice(model.name, division || getActiveDivision(), housingType);
+    const fhb = findFhbPrice(model.name, division || (model as any).division || getActiveDivision(), housingType);
     if (fhb !== null) return fhb;
+    if (model.fhb) return model.fhb;
+    if (model.ss) return model.ss;
   }
 
   if (housingType === "Dual Living") {
@@ -217,24 +219,30 @@ export function getCustomAreaRates(
   const isH3 = tierStr.includes("H3");
   const isH1 = tierStr.includes("H1");
   const isHBS = tierStr.includes("HBS") || tierStr.includes("HOME BUILDER");
-  const isSS = tierStr.includes("SS") || tierStr.includes("SMART SERIES") || tierStr.includes("SMART STYLE");
+  const isSS =
+    tierStr.includes("SS") ||
+    tierStr.includes("SMART SERIES") ||
+    tierStr.includes("SMART STYLE") ||
+    tierStr.includes("FHB") ||
+    tierStr.includes("START SMART") ||
+    tierStr.includes("FIRST HOME");
 
   // Non-habitable area rates
   // Calibrated rates:
-  // H1: Porch $700, Alfresco $870, Balcony $2000, Garage $1300
+  // H1/FHB: Porch $700, Alfresco $870, Balcony $2000, Garage $1300
   // H2: Porch $740, Alfresco $920, Balcony $2050, Garage $1330
   // H3: Porch $870, Alfresco $1050, Balcony $2150, Garage $1370
   const garageRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 && spec.ancillaryRateM2 !== 1050 && spec.ancillaryRateM2 !== 1150 && spec.ancillaryRateM2 !== 1400 
     ? spec.ancillaryRateM2 
-    : (isH3 ? 1370 : isH1 ? 1300 : 1330);
+    : (isH3 ? 1370 : (isH1 || isSS || isHBS) ? 1300 : 1330);
   const porchRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 
     ? spec.ancillaryRateM2 
-    : (isH3 ? 870 : isH1 ? 700 : 740);
+    : (isH3 ? 870 : (isH1 || isSS || isHBS) ? 700 : 740);
   const balconyRate = spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869 
     ? spec.ancillaryRateM2 
-    : (isH3 ? 2150 : isH1 ? 2000 : 2050);
+    : (isH3 ? 2150 : (isH1 || isSS || isHBS) ? 2000 : 2050);
 
-  let alfrescoRate = isH3 ? 1050 : isH1 ? 870 : 920;
+  let alfrescoRate = isH3 ? 1050 : (isH1 || isSS || isHBS) ? 870 : 920;
   if (spec?.ancillaryRateM2 && spec.ancillaryRateM2 > 0 && spec.ancillaryRateM2 !== 869) {
     alfrescoRate = spec.ancillaryRateM2;
   }
@@ -1336,13 +1344,14 @@ export function getSoilRatePerM2(soilClass: SoilClass): number {
  * - Split Level: scales smoothly from $12.50 up to $16.00 max per 0.1m / m² GFA.
  */
 export function calculateTopographyFallCost(
-  fallMeters: number,
+  fallMeters: number | undefined | null,
   gfaM2: number,
   isSplitLevel: boolean = false,
 ): number {
-  if (fallMeters <= 1.0) return 0;
+  const fall = typeof fallMeters === "number" && !isNaN(fallMeters) ? fallMeters : Number(fallMeters) || 0;
+  if (fall <= 1.0) return 0;
 
-  const excessMeters = Math.max(0, fallMeters - 1.0);
+  const excessMeters = Math.max(0, fall - 1.0);
   const tenths = excessMeters * 10;
 
   const baseRate = isSplitLevel ? 12.5 : 15.0;
@@ -1354,7 +1363,7 @@ export function calculateTopographyFallCost(
   const cappedRate = Math.min(maxRate, blendedRate);
 
   const costPerM2 = tenths * cappedRate;
-  return Math.round(costPerM2 * gfaM2);
+  return Math.round(costPerM2 * (Number(gfaM2) || 0));
 }
 
 /**
@@ -1465,18 +1474,28 @@ export function calculateQuotePricing(
   const gfaM2 = calculateDesignGFA(design);
 
   // Landscaping and Driveway Packages
-  const landscapingCost = design.landscapingSelected
-    ? (Number(design.landscapingCost) > 0 ? Number(design.landscapingCost) : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state, design.specTier))
+  const isFhbTier =
+    (design.specTier || "").toLowerCase().includes("fhb") ||
+    (design.specTier || "").toLowerCase().includes("start smart") ||
+    (design.specTier || "").toLowerCase() === "ss" ||
+    (design.specTier || "").toLowerCase().includes("smart series");
+
+  // In FHB turnkey spec, landscaping up to 450m² is included by default ($0),
+  // with -$6,000 credit for <=300m² and published surcharges above 450m².
+  const landscapingCost = (design.landscapingSelected || isFhbTier)
+    ? (typeof design.landscapingCost === "number" && !isNaN(design.landscapingCost)
+        ? design.landscapingCost
+        : landscapingPriceFor(design.landscapingLandSize || 450, design.housingType, design.designName, (design as any).state || (site as any).state, design.specTier))
     : 0;
 
-  const exposedDrivewayCost = design.exposedDrivewaySelected && !design.landscapingSelected
+  const exposedDrivewayCost = design.exposedDrivewaySelected && !design.landscapingSelected && !isFhbTier
     ? (Number(design.exposedDrivewayCost) > 0 ? Number(design.exposedDrivewayCost) : Math.round((Number(design.exposedDrivewayM2) || 55) * 230))
     : 0;
 
   // Dynamic Site & Statutory Calculations
   const soilRate = getSoilRatePerM2(site.soilClass);
   const soilTotalCost = Math.round(soilRate * gfaM2);
-  const fallTotalCost = calculateTopographyFallCost(site.fallMeters, gfaM2, isSplit);
+  const fallTotalCost = calculateTopographyFallCost(site.fallMeters ?? (site as any).fallM ?? 0, gfaM2, isSplit);
 
   // Dedicated Site & Soil Engineering items
   const concrete32Cost = site.concrete32MpaRequired

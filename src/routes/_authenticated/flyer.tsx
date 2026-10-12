@@ -153,8 +153,16 @@ function Index() {
       }
 
       if (patch.designName) {
-        const cleanDesign = patch.designName.split(/\s+[·•\-–]\s+/)[0].trim() || patch.designName;
+        const cleanDesign = /bedrooms?/i.test(patch.designName)
+          ? patch.designName.trim()
+          : (patch.designName.split(/\s+[·•\-–]\s+/)[0].trim() || patch.designName);
         patch.designName = cleanDesign;
+        if ((patch as any).bedrooms) {
+          patch.beds = String((patch as any).bedrooms);
+        }
+        if (patch.range === "ss") {
+          patch.landscaping = true;
+        }
         const plans = plansForDesign(cleanDesign);
         if (plans.length > 0) {
           const matchedPlan = plans.find(

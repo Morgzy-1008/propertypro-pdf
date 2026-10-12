@@ -124,17 +124,15 @@ export const ALL_FHB_PRICES: FhbPriceRow[] = [
   ...QLD_FHB_DOUBLE_STOREY_PRICES,
 ];
 
-function normalizeLookupKey(str: string): string {
+export function cleanDesignNameForFhb(str: string): string {
   return str
     .toLowerCase()
-    .replace(/\s*\((?:single|two)\s*stor(?:y|ey)[^)]*\)/gi, "")
-    .replace(/\s*-\s*\([34]\s*bedrooms?\)/gi, "")
-    .replace(/\s*\([34]\s*bedrooms?\)/gi, "")
-    .replace(/\s*-\s*\((?:attached|detached|dettached)\s*garage\)/gi, "")
-    .replace(/\s*\((?:attached|detached|dettached)\s*garage\)/gi, "")
-    .replace(/\s*\([sSdD]\/[gG]\)/gi, "")
+    .replace(/\s*\((?:single|two|double)\s*stor(?:y|ey)[^)]*\)/gi, "")
     .replace(/\bmk\s*ii\b|\bmkii\b/gi, "mk2")
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/\s*\(?[sSdD]\/[gG]\)?/gi, "")
+    .replace(/\b(?:single|double)?\s*garage\b/gi, "")
+    .replace(/[^a-z0-9]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -145,31 +143,63 @@ export function findFhbPrice(
   name: string,
   division?: "NSW" | "QLD" | string,
   housingType?: string,
+  options?: { bedrooms?: number | string; garage?: string },
 ): number | null {
   if (!name) return null;
-  const div = (division || "NSW").toUpperCase();
-  const searchList =
-    div === "NSW"
-      ? NSW_FHB_SINGLE_STOREY_PRICES
-      : div === "QLD"
-        ? QLD_FHB_DOUBLE_STOREY_PRICES
-        : ALL_FHB_PRICES;
-
   const rawTrimmed = name.trim().toLowerCase();
 
-  // 1. Direct exact name match
-  const exact = searchList.find((r) => r.name.toLowerCase() === rawTrimmed);
-  if (exact) return exact.fhbPrice;
+  // Determine lists to search
+  const divUpper = (division || "").toUpperCase();
+  let candidateLists: FhbPriceRow[][] = [];
+  if (divUpper === "NSW") {
+    candidateLists = [NSW_FHB_SINGLE_STOREY_PRICES, ALL_FHB_PRICES];
+  } else if (divUpper === "QLD") {
+    candidateLists = [QLD_FHB_DOUBLE_STOREY_PRICES, ALL_FHB_PRICES];
+  } else {
+    // If division is not provided or ALL, search all
+    candidateLists = [ALL_FHB_PRICES];
+  }
 
-  // 2. Normalized alphanumeric key match
-  const key = normalizeLookupKey(name);
-  const normMatch = searchList.find((r) => normalizeLookupKey(r.name) === key);
-  if (normMatch) return normMatch.fhbPrice;
+  // Handle Azure 19 bedrooms explicitly
+  const isAzure19 = /azure\s*19\b/i.test(name);
+  if (isAzure19) {
+    const is3Bed =
+      /3\s*(?:bed|bedroom)/i.test(name) ||
+      options?.bedrooms === 3 ||
+      options?.bedrooms === "3";
+    const targetName = is3Bed ? "Azure 19 - (3 Bedrooms)" : "Azure 19 - (4 Bedrooms)";
+    const match = ALL_FHB_PRICES.find((r) => r.name === targetName);
+    if (match) return match.fhbPrice;
+  }
 
-  // 3. Fallback across all FHB lists if state filter missed (e.g. division undefined)
-  if (div !== "ALL") {
-    const fallbackMatch = ALL_FHB_PRICES.find((r) => normalizeLookupKey(r.name) === key);
-    if (fallbackMatch) return fallbackMatch.fhbPrice;
+  // Handle Mocha 24 garage explicitly
+  const isMocha24 = /mocha\s*24\b/i.test(name);
+  if (isMocha24) {
+    const isDetached = /detach/i.test(name) || /detach/i.test(options?.garage || "");
+    const targetName = isDetached ? "Mocha 24 (Detached Garage)" : "Mocha 24 (Attached Garage)";
+    const match = ALL_FHB_PRICES.find((r) => r.name === targetName);
+    if (match) return match.fhbPrice;
+  }
+
+  // Handle Carmine MK2 explicitly if searched as Carmine 21 or Carmine 23
+  if (/^carmine\s*21(?:\s*(?:mk\s*2|mkii|mk2))?$/i.test(rawTrimmed)) {
+    const match = ALL_FHB_PRICES.find((r) => r.name.toLowerCase().startsWith("carmine 21"));
+    if (match) return match.fhbPrice;
+  }
+  if (/^carmine\s*23(?:\s*(?:mk\s*2|mkii|mk2))?$/i.test(rawTrimmed)) {
+    const match = ALL_FHB_PRICES.find((r) => r.name.toLowerCase().startsWith("carmine 23"));
+    if (match) return match.fhbPrice;
+  }
+
+  for (const list of candidateLists) {
+    // 1. Direct exact match
+    const exact = list.find((r) => r.name.toLowerCase() === rawTrimmed);
+    if (exact) return exact.fhbPrice;
+
+    // 2. Normalized alphanumeric match
+    const cleanInput = cleanDesignNameForFhb(name);
+    const norm = list.find((r) => cleanDesignNameForFhb(r.name) === cleanInput);
+    if (norm) return norm.fhbPrice;
   }
 
   return null;

@@ -663,8 +663,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
     facadeUplift: number,
     costs = data.costs,
     activeDiv: Division = division,
+    beds = data.beds,
   ) => {
-    const house = housePriceFor(designName, range, activeDiv);
+    const house = housePriceFor(designName, range, activeDiv, { bedrooms: beds });
     const houseOnlyTotal = (house !== null ? house : parseAud(data.housePrice)) + (house !== null ? facadeUplift : 0);
     const packageTotal = (houseOnlyTotal > 0 ? houseOnlyTotal : parseAud(data.housePrice)) + costsTotal(costs) + parseAud(landPrice);
     if (house !== null) {
@@ -871,6 +872,9 @@ export function FlyerForm({ data, set, template }: { data: FlyerData; set: Sette
         landscaping: lsCost,
       };
       set("costs", nextCosts);
+      if (range === "ss" && !data.landscaping) {
+        set("landscaping", true);
+      }
     }
     applyPricing(data.designName, range, data.landPrice, uplift, nextCosts);
   };

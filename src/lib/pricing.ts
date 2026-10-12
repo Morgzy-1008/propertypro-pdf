@@ -146,10 +146,15 @@ export function findDesign(name: string, division?: Division): PriceRow | undefi
 /** Promotion discount: base prices are now directly discounted in master pricelists with a $10,000 safety net. */
 export const PROMO_DISCOUNT = 0;
 
-export function housePriceFor(name: string, range: RangeId, division?: Division): number | null {
+export function housePriceFor(
+  name: string,
+  range: RangeId,
+  division?: Division,
+  options?: { bedrooms?: number | string; garage?: string },
+): number | null {
   const div = division || getActiveDivision();
   if (range === "ss") {
-    const fhb = findFhbPrice(name, div);
+    const fhb = findFhbPrice(name, div, undefined, options);
     if (fhb !== null) return fhb;
   }
   const row = findDesign(name, division);
@@ -172,8 +177,13 @@ export function formatAud(value: number): string {
 
 export function parseAud(value: string | number | undefined | null): number {
   if (value == null) return 0;
-  const n = Number(String(value).replace(/[^0-9.]/g, ""));
-  return Number.isFinite(n) ? n : 0;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  const str = String(value).trim();
+  const isNegative = str.startsWith("-") || str.includes("-$") || /^\s*-\s*\$/.test(str);
+  const clean = str.replace(/[^0-9.]/g, "");
+  const n = Number(clean);
+  if (!Number.isFinite(n)) return 0;
+  return isNegative ? -n : n;
 }
 
 export function formatPrice(val: string | number | undefined | null): string {
@@ -181,6 +191,6 @@ export function formatPrice(val: string | number | undefined | null): string {
   const str = String(val).trim();
   if (!str || str === "$—" || str === "—") return "$—";
   const num = parseAud(str);
-  if (num > 0) return formatAud(num);
+  if (num !== 0) return formatAud(num);
   return str.startsWith("$") ? str : `$${str}`;
 }
